@@ -1,0 +1,56 @@
+---
+name: Build Sharek
+
+# Builds the branded Sharek image and pushes it to GHCR for Coolify to pull.
+# - Pushes to `sharek-ar` auto-build the deployed trunk.
+# - `workflow_dispatch` builds whatever branch you pick on demand (e.g. to
+#   smoke-test a feature branch on the server before merging it to sharek-ar).
+#
+# The image is environment-agnostic: NEXT_PUBLIC_BACKEND_URL / MAIN_URL etc.
+# are read at runtime (server components), so the only build-time value is the
+# version string. Domain/secret config lives in Coolify env, not in the image.
+
+on:
+  push:
+    branches:
+      - sharek-ar
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.dev
+          platforms: linux/amd64
+          push: true
+          pull: true
+          no-cache: true
+          provenance: false
+          sbom: false
+          build-args: |
+            NEXT_PUBLIC_VERSION=${{ github.sha }}
+          tags: |
+            ghcr.io/sharekhq/sharek-app:latest
+            ghcr.io/sharekhq/sharek-app:${{ github.sha }}
