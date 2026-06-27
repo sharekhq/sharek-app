@@ -22,13 +22,23 @@ export default async function AuthLayout({
           <LogoTextComponent />
           <div className="flex">{children}</div>
         </div>
+        <div className="w-full max-w-[440px] mx-auto text-center text-[11px] text-white/40 pb-[8px]">
+          <a
+            href="https://github.com/sharekhq/sharek-app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white/70 transition-colors"
+          >
+            © 2026 Sharek · Open source (AGPL-3.0)
+          </a>
+        </div>
       </div>
       <div className="text-[36px] flex-1 pt-[88px] hidden lg:flex flex-col items-center">
         <div className="text-center">
-          Over <span className="text-[42px] text-[#FC69FF]">20,000+</span>{' '}
+          Over <span className="text-[42px] text-[#FF2D8F]">20,000+</span>{' '}
           Entrepreneurs use
           <br />
-          Postiz To Grow Their Social Presence
+          Sharek To Grow Their Social Presence
         </div>
         <TestimonialComponent />
       </div>
