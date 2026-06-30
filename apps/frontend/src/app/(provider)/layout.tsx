@@ -10,15 +10,19 @@ import { fontVariables } from '@gitroom/frontend/app/fonts';
 import clsx from 'clsx';
 import { VariableContextComponent } from '@gitroom/react/helpers/variable.context';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
+import { cookies } from 'next/headers';
+import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const theme = resolveThemeClass(cookieStore.get('mode')?.value);
   return (
     <html>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body
-        className={clsx(fontVariables, 'font-sans dark text-primary !bg-primary')}
+        className={clsx(fontVariables, 'font-sans text-primary !bg-primary', theme)}
       >
         <VariableContextComponent
           language="en"
