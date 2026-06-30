@@ -8,7 +8,7 @@ import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Select } from '@gitroom/react/form/select';
-import { Button } from '@gitroom/react/form/button';
+import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { PlugsContext } from '@gitroom/frontend/components/plugs/plugs.context';
@@ -17,6 +17,25 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+const PlugsEmptyIllustration = () => (
+  <svg
+    width="132"
+    height="108"
+    viewBox="0 0 132 108"
+    fill="none"
+    className="text-muted"
+    role="presentation"
+  >
+    <line x1="66" y1="54" x2="24" y2="28" stroke="currentColor" strokeWidth="2" opacity="0.45" />
+    <line x1="66" y1="54" x2="24" y2="80" stroke="currentColor" strokeWidth="2" opacity="0.45" />
+    <line x1="66" y1="54" x2="110" y2="54" stroke="currentColor" strokeWidth="2" opacity="0.45" />
+    <circle cx="24" cy="28" r="9" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+    <circle cx="24" cy="80" r="9" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+    <circle cx="110" cy="54" r="9" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+    <circle cx="66" cy="54" r="18" className="text-brand" fill="currentColor" />
+    <path d="M69 43 L59 56 H65 L63 65 L73 52 H67 Z" fill="#fff" />
+  </svg>
+);
 export const Plugs = () => {
   const fetch = useFetch();
   const router = useRouter();
@@ -94,27 +113,17 @@ export const Plugs = () => {
 
   if (!sortedIntegrations.length && !isLoading) {
     return (
-      <div className="bg-newBgColorInner p-[20px] flex flex-1 flex-col gap-[15px] transition-all items-center justify-center">
-        <div>
-          <img src="/peoplemarketplace.svg" />
-        </div>
-        <div className="text-[48px]">
-          {t(
-            'there_are_not_plugs_matching_your_channels',
-            'There are not plugs matching your channels'
+      <div className="bg-newBgColorInner flex flex-1">
+        <EmptyState
+          illustration={<PlugsEmptyIllustration />}
+          title={t('plugs_empty_title', 'Put your channels on autopilot')}
+          description={t(
+            'plugs_empty_description',
+            'Plugs run actions on your channels automatically. Connect X, LinkedIn, or Threads to switch them on.'
           )}
-          <br />
-          {t(
-            'you_have_to_add_x_or_linkedin_or_threads',
-            'You have to add: X or LinkedIn or Threads'
-          )}
-        </div>
-        <Button onClick={() => router.push('/launches')}>
-          {t(
-            'go_to_the_calendar_to_add_channels',
-            'Go to the calendar to add channels'
-          )}
-        </Button>
+          actionLabel={t('connect_a_channel', 'Connect a channel')}
+          onAction={() => router.push('/launches')}
+        />
       </div>
     );
   }

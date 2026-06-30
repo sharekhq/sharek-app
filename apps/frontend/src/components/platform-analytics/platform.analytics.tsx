@@ -9,7 +9,7 @@ import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { RenderAnalytics } from '@gitroom/frontend/components/platform-analytics/render.analytics';
 import { Select } from '@gitroom/react/form/select';
-import { Button } from '@gitroom/react/form/button';
+import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -29,6 +29,47 @@ const allowedIntegrations = [
   'threads',
   'x',
 ];
+// Human-readable channel names for the empty state (no raw IDs like "Gmb").
+const platformLabels: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  'instagram-standalone': 'Instagram',
+  'linkedin-page': 'LinkedIn',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  gmb: 'Google Business',
+  pinterest: 'Pinterest',
+  threads: 'Threads',
+  x: 'X',
+};
+const supportedPlatforms = Array.from(
+  new Set(allowedIntegrations.map((p) => platformLabels[p] ?? capitalize(p)))
+).join(', ');
+const AnalyticsEmptyIllustration = () => (
+  <svg
+    width="132"
+    height="108"
+    viewBox="0 0 132 108"
+    fill="none"
+    className="text-muted"
+    role="presentation"
+  >
+    <line
+      x1="22"
+      y1="88"
+      x2="118"
+      y2="88"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      opacity="0.45"
+    />
+    <rect x="30" y="64" width="14" height="24" rx="3" stroke="currentColor" strokeWidth="2" opacity="0.55" />
+    <rect x="54" y="52" width="14" height="36" rx="3" stroke="currentColor" strokeWidth="2" opacity="0.55" />
+    <rect x="78" y="40" width="14" height="48" rx="3" stroke="currentColor" strokeWidth="2" opacity="0.55" />
+    <rect x="102" y="28" width="14" height="60" rx="3" className="text-brand" fill="currentColor" />
+  </svg>
+);
 export const PlatformAnalytics = () => {
   const fetch = useFetch();
   const t = useT();
@@ -145,28 +186,18 @@ export const PlatformAnalytics = () => {
 
   if (!sortedIntegrations.length && !isLoading) {
     return (
-      <div className="bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all flex-1 justify-center items-center text-center">
-        <div>
-          <img src="/peoplemarketplace.svg" />
-        </div>
-        <div className="text-[48px]">
-          {t('can_t_show_analytics_yet', "Can't show analytics yet")}
-          <br />
-          {t(
-            'you_have_to_add_social_media_channels',
-            'You have to add Social Media channels'
+      <div className="bg-newBgColorInner flex flex-1">
+        <EmptyState
+          illustration={<AnalyticsEmptyIllustration />}
+          title={t('analytics_empty_title', 'Track how your content performs')}
+          description={t(
+            'analytics_empty_description',
+            'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
           )}
-        </div>
-        <div className="text-[20px]">
-          {t('supported', 'Supported:')}
-          {allowedIntegrations.map((p) => capitalize(p)).join(', ')}
-        </div>
-        <Button onClick={() => router.push('/launches')}>
-          {t(
-            'go_to_the_calendar_to_add_channels',
-            'Go to the calendar to add channels'
-          )}
-        </Button>
+          note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
+          actionLabel={t('connect_a_channel', 'Connect a channel')}
+          onAction={() => router.push('/launches')}
+        />
       </div>
     );
   }
