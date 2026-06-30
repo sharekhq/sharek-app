@@ -5,6 +5,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Brand vocabulary (preferred) — specs/001-brand-colors/contracts/brand-token-api.md
+        brand: 'var(--brand)',
+        brandText: 'var(--brand-text)',
+        ink: 'var(--ink)',
+        inkSoft: 'var(--ink-soft)',
+        surface: 'var(--surface)',
+        surface2: 'var(--surface-2)',
+        line: 'var(--line)',
+        muted: 'var(--muted)',
+        success: 'var(--success)',
+        warning: 'var(--warning)',
+        error: 'var(--error)',
+        info: 'var(--info)',
         primary: 'var(--color-primary)',
         secondary: 'var(--color-secondary)',
         textColor: 'var(--new-btn-text)',
