@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { useCallback, useMemo, useState } from 'react';
-import { capitalize, orderBy } from 'lodash';
+import { orderBy } from 'lodash';
 import clsx from 'clsx';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
@@ -17,6 +17,7 @@ import { useVariables } from '@gitroom/react/helpers/variable.context';
 import useCookie from 'react-use-cookie';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 const allowedIntegrations = [
   'facebook',
   'instagram',
@@ -29,22 +30,6 @@ const allowedIntegrations = [
   'threads',
   'x',
 ];
-// Human-readable channel names for the empty state (no raw IDs like "Gmb").
-const platformLabels: Record<string, string> = {
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  'instagram-standalone': 'Instagram',
-  'linkedin-page': 'LinkedIn',
-  tiktok: 'TikTok',
-  youtube: 'YouTube',
-  gmb: 'Google Business',
-  pinterest: 'Pinterest',
-  threads: 'Threads',
-  x: 'X',
-};
-const supportedPlatforms = Array.from(
-  new Set(allowedIntegrations.map((p) => platformLabels[p] ?? capitalize(p)))
-).join(', ');
 const AnalyticsEmptyIllustration = () => (
   <svg
     width="132"
@@ -75,6 +60,10 @@ export const PlatformAnalytics = () => {
   const t = useT();
   const router = useRouter();
   const { disableXAnalytics } = useVariables();
+
+  const supportedPlatforms = Array.from(
+    new Set(allowedIntegrations.map((p) => platformLabel(p)))
+  ).join(', ');
 
   const [current, setCurrent] = useState(0);
   const [key, setKey] = useState(7);

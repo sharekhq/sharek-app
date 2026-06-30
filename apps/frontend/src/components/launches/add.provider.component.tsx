@@ -18,7 +18,8 @@ import { web3List } from '@gitroom/frontend/components/launches/web3/web3.list';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import clsx from 'clsx';
 import copy from 'copy-to-clipboard';
-import { capitalize } from 'lodash';
+import i18next from 'i18next';
+import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 const resolver = classValidatorResolver(ApiKeyDto);
 
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
@@ -441,7 +442,10 @@ export const AddProviderComponent: FC<{
             )
           ).json();
           modal.openModal({
-            title: `Add ${capitalize(identifier)}`,
+            title: i18next.t('add_provider_title', {
+              defaultValue: 'Add {{provider}}',
+              provider: platformLabel(identifier),
+            }),
             withCloseButton: true,
             ...(isMobile ? { removeLayout: true, fullScreen: true } : {}),
             classNames: {

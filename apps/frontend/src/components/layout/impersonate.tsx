@@ -63,7 +63,8 @@ const ChargesModal: FC<{ close: () => void }> = ({ close }) => {
       !(await deleteDialog(
         t(
           'refund_selected_confirm',
-          `Are you sure you want to refund ${selected.size} charge(s)? This cannot be undone.`
+          'Are you sure you want to refund {{count}} charge(s)? This cannot be undone.',
+          { count: selected.size }
         ),
         t('yes_refund', 'Yes, refund'),
         t('confirm_refund', 'Confirm Refund'),

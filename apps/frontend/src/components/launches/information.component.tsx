@@ -5,7 +5,7 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import clsx from 'clsx';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { capitalize } from 'lodash';
+import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { hasLinks } from '@gitroom/helpers/utils/strip.links';
 
@@ -243,7 +243,7 @@ export const InformationComponent: FC<{
                     )}
                   >
                     {p.integration.name} (
-                    {capitalize(p.integration.identifier.split('-')[0])}):
+                    {platformLabel(p.integration.identifier)}):
                   </div>
                   <div
                     className={clsx(
