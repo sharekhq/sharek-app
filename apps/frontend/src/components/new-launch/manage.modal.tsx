@@ -568,7 +568,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex text-[#FF3F3F] gap-[8px] items-center text-[15px] font-[600]"
+                className="cursor-pointer flex text-error gap-[8px] items-center text-[15px] font-[600]"
               >
                 <div>
                   <TrashIcon />
@@ -651,7 +651,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     }
                     className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] -left-[12px] p-[12px] w-[206px] bg-newBgColorInner"
                   >
-                    <div className="text-white rounded-[8px] bg-[#FF2D8F] h-[44px] w-full flex justify-center items-center post-now">
+                    <div className="text-white rounded-[8px] bg-brand h-[44px] w-full flex justify-center items-center post-now">
                       {t('post_now', 'Post Now')}
                     </div>
                   </button>

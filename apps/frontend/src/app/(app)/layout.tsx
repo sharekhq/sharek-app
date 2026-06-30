@@ -13,6 +13,7 @@ import { VariableContextComponent } from '@gitroom/react/helpers/variable.contex
 import { Fragment } from 'react';
 import { PHProvider } from '@gitroom/react/helpers/posthog';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
+import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
 import { DubAnalytics } from '@gitroom/frontend/components/layout/dubAnalytics';
 import { FacebookComponent } from '@gitroom/frontend/components/layout/facebook.component';
 import { GoogleTagManagerComponent } from '@gitroom/frontend/components/layout/gtm.component';
@@ -28,6 +29,7 @@ import { ChangeDirClient } from '@gitroom/frontend/components/new-layout/change.
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
   const language = cookieStore.get(cookieName)?.value || fallbackLng;
+  const theme = resolveThemeClass(cookieStore.get('mode')?.value);
   const Plausible = !!process.env.STRIPE_PUBLISHABLE_KEY
     ? PlausibleProvider
     : Fragment;
@@ -46,7 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </head>
       <ChangeDirClient />
       <body
-        className={clsx(fontVariables, 'font-sans dark text-primary !bg-primary')}
+        className={clsx(fontVariables, 'font-sans text-primary !bg-primary', theme)}
       >
         <VariableContextComponent
           storageProvider={

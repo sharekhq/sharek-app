@@ -58,7 +58,7 @@ body * {
 }
 
 .table1 thead {
-  @apply bg-customColor8 border-b border-b-fifth;
+  @apply bg-surface2 border-b border-b-fifth;
   height: 44px;
   font-size: 12px;
 }
@@ -90,7 +90,7 @@ body * {
   @apply text-white #{!important};
 }
 .swal2-confirm {
-  @apply bg-customColor50 #{!important};
+  @apply bg-brand #{!important};
   @apply text-white #{!important};
 }
 
@@ -121,20 +121,20 @@ body * {
 }
 
 .react-tags.is-active {
-  @apply border-customColor51;
+  @apply border-brand;
 }
 
 .react-tags.is-disabled {
   opacity: 0.75;
-  @apply bg-customColor52;
+  @apply bg-surface;
   /* Prevent any clicking on the component */
   pointer-events: none;
   cursor: not-allowed;
 }
 
 .react-tags.is-invalid {
-  border-color: #fd5956;
-  box-shadow: 0 0 0 2px rgba(253, 86, 83, 0.25);
+  border-color: var(--error);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--error) 25%, transparent);
 }
 
 .react-tags__label {
@@ -162,14 +162,14 @@ body * {
   padding: 0.15rem 0.5rem;
   border: 0;
   border-radius: 3px;
-  @apply bg-seventh;
+  @apply bg-brand;
   /* match the font styles */
   font-size: inherit;
   line-height: inherit;
 }
 
 .react-tags__tag:hover {
-  @apply text-textColor bg-customColor51;
+  @apply text-textColor bg-brand;
 }
 
 .react-tags__tag::after {
@@ -193,7 +193,7 @@ body * {
   );
   margin-left: 0.5rem;
   font-size: 0.875rem;
-  @apply bg-customColor53;
+  @apply bg-muted;
 }
 
 .react-tags__tag:hover::after {
@@ -223,7 +223,7 @@ body * {
 }
 
 .react-tags__combobox-input::placeholder {
-  @apply text-customColor53;
+  @apply text-muted;
   opacity: 1;
 }
 
@@ -236,7 +236,7 @@ body * {
   right: -2px;
   max-height: 12.5rem;
   overflow-y: auto;
-  @apply bg-input border border-customColor54;
+  @apply bg-input border border-muted;
   border-radius: 6px;
   box-shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -4px,
     rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
@@ -252,11 +252,11 @@ body * {
 }
 
 .react-tags__listbox-option:not([aria-disabled='true']).is-active {
-  @apply text-textColor bg-customColor51;
+  @apply text-textColor bg-brand;
 }
 
 .react-tags__listbox-option[aria-disabled='true'] {
-  @apply text-customColor53;
+  @apply text-muted;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -267,7 +267,7 @@ body * {
 }
 
 .react-tags__listbox-option[aria-selected='true']:not(.is-active)::after {
-  @apply text-customColor51;
+  @apply text-brand;
 }
 
 .react-tags__listbox-option-highlight {
@@ -334,7 +334,7 @@ body * {
 //}
 
 //.copilotKitWindow {
-//  @apply bg-customColor3 #{!important};
+//  @apply bg-surface2 #{!important};
 //}
 
 //.copilotKitButtonIconOpen svg {
@@ -368,7 +368,7 @@ body * {
 
 .uppy-FileInput-container {
   @apply cursor-pointer font-[500] flex justify-center items-center gap-[4px] text-[12px] rounded-[4px] w-[107px] h-[25px] text-textColor border-[2px];
-  @apply bg-customColor3 border-customColor21;
+  @apply bg-surface2 border-muted;
 }
 
 .uppy-ProgressBar {
@@ -377,7 +377,7 @@ body * {
 }
 
 .uppy-ProgressBar-inner {
-  @apply bg-customColor51;
+  @apply bg-brand;
   height: 25px;
   border-radius: 4px;
 }
@@ -559,7 +559,7 @@ html[dir='rtl'] [dir='ltr'] {
   height: 32px !important;
 }
 .uppy-StatusBar {
-  //@apply bg-customColor55;
+  //@apply bg-surface;
 }
 //
 //.uppy-Dashboard-inner {
@@ -755,12 +755,12 @@ html[dir='rtl'] [dir='ltr'] {
 }
 
 .blackGradBottomBg {
-  background: linear-gradient(180deg, #0e0e0e 0%, rgba(14, 14, 14, 0) 100%);
+  background: linear-gradient(180deg, #1A1416 0%, rgba(26, 20, 22, 0) 100%);
   rotate: 180deg;
 }
 
 .blackGradTopBg {
-  background: linear-gradient(180deg, #0e0e0e 0%, rgba(14, 14, 14, 0) 100%);
+  background: linear-gradient(180deg, #1A1416 0%, rgba(26, 20, 22, 0) 100%);
 }
 
 .billing-form input {
@@ -815,4 +815,17 @@ html[dir='rtl'] [dir='ltr'] {
 .text-shadow-tags {
   text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black,
     1px 1px 0 black;
+}
+
+/* Accessibility (DESIGN §11 / Constitution III): respect reduced-motion —
+   near-disable staggered fades, spins, and marquees for users who request it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

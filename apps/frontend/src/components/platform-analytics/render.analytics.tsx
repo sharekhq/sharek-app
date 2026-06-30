@@ -25,7 +25,7 @@ const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
   return (
     <div
       className={`flex items-center gap-[4px] text-[13px] font-medium ${
-        isPositive ? 'text-[#32d583]' : 'text-[#f97066]'
+        isPositive ? 'text-success' : 'text-error'
       }`}
     >
       <svg
@@ -68,7 +68,7 @@ const AnalyticsCard: FC<{
           rounded-[12px]
           overflow-hidden
           transition-all duration-200
-          hover:border-[#FF5A4E]/50
+          hover:border-brand/50
         `}
       >
         {/* Header */}
@@ -77,9 +77,9 @@ const AnalyticsCard: FC<{
             <div
               className={`
                 w-[8px] h-[8px] rounded-full
-                ${color === 'purple' ? 'bg-[#612bd3]' : ''}
-                ${color === 'green' ? 'bg-[#32d583]' : ''}
-                ${color === 'blue' ? 'bg-[#1d9bf0]' : ''}
+                ${color === 'purple' ? 'bg-brand' : ''}
+                ${color === 'green' ? 'bg-success' : ''}
+                ${color === 'blue' ? 'bg-info' : ''}
               `}
             />
             <span className="text-[15px] font-medium text-newTableText">
@@ -126,7 +126,7 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
 
   return (
     <div className="col-span-full flex flex-col items-center justify-center py-[48px] px-[24px] bg-newTableHeader border border-newTableBorder rounded-[12px]">
-      <div className="w-[48px] h-[48px] mb-[16px] rounded-full bg-[#FF5A4E]/10 flex items-center justify-center">
+      <div className="w-[48px] h-[48px] mb-[16px] rounded-full bg-brand/10 flex items-center justify-center">
         <svg
           width="24"
           height="24"
@@ -134,7 +134,7 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className="text-[#FF5A4E]"
+          className="text-brand"
         >
           <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           <path d="M12 8v4l2 2" />

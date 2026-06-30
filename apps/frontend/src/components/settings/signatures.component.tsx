@@ -61,7 +61,7 @@ export const SignaturesComponent: FC<{
   return (
     <div className="flex flex-col">
       <h3 className="text-[20px]">{t('signatures', 'Signatures')}</h3>
-      <div className="text-customColor18 mt-[4px]">
+      <div className="text-muted mt-[4px]">
         {t(
           'you_can_add_signatures_to_your_account_to_be_used_in_your_posts',
           'You can add signatures to your account to be used in your posts.'
@@ -200,11 +200,11 @@ const AddOrRemoveSignature: FC<{
             </svg>
           </button>
 
-          <div className="relative bg-customColor2">
+          <div className="relative bg-surface">
             <CopilotTextarea
               disableBranding={true}
               className={clsx(
-                '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-[#FF5A4E] bg-bigStrip outline-none'
+                '!min-h-40 !max-h-80 p-2 overflow-x-hidden scrollbar scrollbar-thumb-brand bg-bigStrip outline-none'
               )}
               value={text}
               onChange={(e) => {

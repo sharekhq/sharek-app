@@ -83,7 +83,7 @@ export const GeneralPreviewComponent: FC<{
                 )}
               </div>
               {index !== topValue.length - 1 && (
-                <div className="flex-1 w-[2px] h-[calc(100%-10px)] bg-customColor25 absolute top-[10px] z-[1]" />
+                <div className="flex-1 w-[2px] h-[calc(100%-10px)] bg-line absolute top-[10px] z-[1]" />
               )}
             </div>
             <div className="flex-1 flex flex-col gap-[4px]">
@@ -91,7 +91,7 @@ export const GeneralPreviewComponent: FC<{
                 <div className="h-[22px] text-[15px] font-[700]">
                   {current === 'global' ? 'Global Edit' : integration?.name}
                 </div>
-                <div className="text-[15px] text-customColor26 mt-[1px] ms-[2px]">
+                <div className="text-[15px] text-info mt-[1px] ms-[2px]">
                   <svg
                     viewBox="0 0 22 22"
                     aria-label="Verified account"
@@ -104,7 +104,7 @@ export const GeneralPreviewComponent: FC<{
                     </g>
                   </svg>
                 </div>
-                <div className="text-[15px] font-[400] text-customColor27 ms-[4px]">
+                <div className="text-[15px] font-[400] text-muted ms-[4px]">
                   {current === 'global'
                     ? ''
                     : integration?.display || '@username'}

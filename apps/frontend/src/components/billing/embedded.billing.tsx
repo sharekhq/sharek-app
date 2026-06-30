@@ -24,7 +24,7 @@ export const EmbeddedBilling: FC<{
 }> = ({ stripe, secret, showCoupon = false, autoApplyCoupon }) => {
   const [saveSecret, setSaveSecret] = useState(secret);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useCookie('mode', 'dark');
+  const [mode, setMode] = useCookie('mode', 'light');
 
   useEffect(() => {
     modeEmitter.on('mode', (value) => {
@@ -62,9 +62,9 @@ export const EmbeddedBilling: FC<{
           elementsOptions: {
             appearance: {
               variables: {
-                colorText: mode === 'dark' ? '#ffffff' : '#0e0e0e',
+                colorText: mode === 'dark' ? '#F7F1EF' : '#1A1413',
                 borderRadius: '8px',
-                colorBackground: mode === 'dark' ? '#1E1E1E' : '#FFFFFF',
+                colorBackground: mode === 'dark' ? '#241B1E' : '#F7EFEE',
               },
               rules: {
                 '.Label': {
@@ -74,7 +74,7 @@ export const EmbeddedBilling: FC<{
                 },
                 '.Input': {
                   height: '44px',
-                  backgroundColor: mode === 'dark' ? '#1E1E1E' : '#FFFFFF',
+                  backgroundColor: mode === 'dark' ? '#241B1E' : '#F7EFEE',
                 },
               },
             },
@@ -375,7 +375,7 @@ const AppliedCouponDisplay: FC<{
 
   return (
     <div className="flex flex-col gap-[8px]">
-      <div className="flex items-center gap-[12px] p-[16px] rounded-[12px] border border-[#AA0FA4]/30 bg-[#AA0FA4]/10">
+      <div className="flex items-center gap-[12px] p-[16px] rounded-[12px] border border-brand/30 bg-brand/10">
         <div className="flex-1">
           <div className="flex items-center gap-[8px] flex-wrap">
             <svg
@@ -384,7 +384,8 @@ const AppliedCouponDisplay: FC<{
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#FF2D8F"
+              stroke="currentColor"
+              className="text-brand"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -392,7 +393,7 @@ const AppliedCouponDisplay: FC<{
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
-            <span className="font-[600] text-[#FF2D8F]">{appliedCode}</span>
+            <span className="font-[600] text-brand">{appliedCode}</span>
             <span className="text-[14px] text-textColor/70">
               {t('billing_discount_applied', 'applied')}
               {discountDisplay && ` (${discountDisplay})`}

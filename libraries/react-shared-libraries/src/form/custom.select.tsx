@@ -149,7 +149,7 @@ export const CustomSelect: FC<{
             <div
               key={option.value}
               onClick={setOption(option)}
-              className="px-[16px] py-[8px] bg-input w-full flex gap-[8px] hover:bg-customColor3 select-none cursor-pointer"
+              className="px-[16px] py-[8px] bg-input w-full flex gap-[8px] hover:bg-surface2 select-none cursor-pointer"
             >
               {!!option.icon && (
                 <div className="flex justify-center items-center">

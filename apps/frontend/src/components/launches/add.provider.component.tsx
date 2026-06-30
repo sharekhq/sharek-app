@@ -120,7 +120,7 @@ export const UrlModal: FC<{
     gotoUrl(data.url);
   }, []);
   return (
-    <div className="rounded-[4px] border border-customColor6 bg-sixth px-[16px] pb-[16px] relative">
+    <div className="rounded-[4px] border border-line bg-sixth px-[16px] pb-[16px] relative">
       <TopTitle title={`Instance URL`} />
       <button
         onClick={close}

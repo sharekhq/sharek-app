@@ -119,7 +119,7 @@ const VoiceSelector: FC = () => {
               'flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer',
               selectedVoice === voice.id
                 ? 'border-primary bg-primary/10'
-                : 'border-tableBorder bg-sixth hover:bg-seventh'
+                : 'border-tableBorder bg-sixth hover:bg-brand'
             )}
             onClick={() => selectVoice(voice.id)}
           >

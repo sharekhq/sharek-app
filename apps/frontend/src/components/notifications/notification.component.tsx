@@ -34,7 +34,7 @@ export const ShowNotification: FC<{
     <div
       className={clsx(
         `text-textColor px-[16px] py-[10px] border-b border-tableBorder last:border-b-0 transition-colors`,
-        newNotification && 'font-bold bg-seventh animate-newMessages'
+        newNotification && 'font-bold bg-brand animate-newMessages'
       )}
     >
       <div

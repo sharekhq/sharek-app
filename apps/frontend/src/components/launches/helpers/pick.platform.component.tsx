@@ -278,7 +278,7 @@ export const PickPlatforms: FC<{
                             (p) => p.id === integration.id
                           ) === -1
                             ? 'bg-third border border-third'
-                            : 'bg-customColor29 border border-customColor30'
+                            : 'bg-brand border border-line'
                         )}
                       >
                         <div className="flex items-center justify-center gap-[10px]">

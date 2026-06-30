@@ -166,7 +166,7 @@ export const TeamsComponent = () => {
   return (
     <div className="flex flex-col">
       <h3 className="text-[20px]">{t('team_members', 'Team Members')}</h3>
-      <div className="text-customColor18 mt-[4px]">
+      <div className="text-muted mt-[4px]">
         {t(
           'invite_your_assistant_or_team_member_to_manage_your_account',
           'Invite your assistant or team member to manage your account'
@@ -189,7 +189,7 @@ export const TeamsComponent = () => {
               {+myLevel > +getLevel(p.role) ? (
                 <div className="flex-1 flex justify-end">
                   <Button
-                    className={`!bg-customColor3 !h-[24px] border border-customColor21 rounded-[4px] text-[12px]`}
+                    className={`!bg-surface2 !h-[24px] border border-muted rounded-[4px] text-[12px]`}
                     onClick={remove(p)}
                     secondary={true}
                   >

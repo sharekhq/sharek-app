@@ -35,7 +35,7 @@ export default async function AuthLayout({
       </div>
       <div className="text-[36px] flex-1 pt-[88px] hidden lg:flex flex-col items-center">
         <div className="text-center">
-          Over <span className="text-[42px] text-[#FF2D8F]">20,000+</span>{' '}
+          Over <span className="text-[42px] text-brand">20,000+</span>{' '}
           Entrepreneurs use
           <br />
           Sharek To Grow Their Social Presence

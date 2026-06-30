@@ -55,18 +55,18 @@ export const DatePicker: FC<{
             value={date.toDate()}
             dayClassName={(date, modifiers) => {
               if (modifiers.weekend) {
-                return '!text-customColor28';
+                return '!text-brand';
               }
               if (modifiers.outside) {
                 return '!text-gray';
               }
               if (modifiers.selected) {
-                return '!text-white !bg-seventh !outline-none';
+                return '!text-white !bg-brand !outline-none';
               }
               return '!text-textColor';
             }}
             classNames={{
-              day: 'hover:bg-seventh',
+              day: 'hover:bg-brand',
               calendarHeaderControl: 'text-textColor hover:bg-third',
               calendarHeaderLevel: 'text-textColor hover:bg-third', // cell: 'child:!text-textColor'
             }}

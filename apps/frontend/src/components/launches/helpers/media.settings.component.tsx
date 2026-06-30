@@ -239,7 +239,7 @@ export const CreateThumbnail: FC<{
               onChange={handleSeek}
               className="w-full h-2 bg-fifth rounded-lg appearance-none cursor-pointer slider"
               style={{
-                background: `linear-gradient(to right, #4f46e5 0%, #4f46e5 ${
+                background: `linear-gradient(to right, var(--brand) 0%, var(--brand) ${
                   (currentTime / duration) * 100
                 }%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`,
               }}
@@ -254,7 +254,7 @@ export const CreateThumbnail: FC<{
             <button
               onClick={captureFrame}
               disabled={isCapturing}
-              className="bg-forth text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-brand text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCapturing ? 'Capturing...' : 'Select This Frame'}
             </button>
@@ -268,7 +268,7 @@ export const CreateThumbnail: FC<{
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background: #4f46e5;
+          background: var(--brand);
           cursor: pointer;
           border: 2px solid #ffffff;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -278,7 +278,7 @@ export const CreateThumbnail: FC<{
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background: #4f46e5;
+          background: var(--brand);
           cursor: pointer;
           border: 2px solid #ffffff;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -373,7 +373,7 @@ export const MediaComponentInner: FC<{
           value={altText}
           onChange={(e) => setAltText(e.target.value)}
           placeholder="Describe the image/video content..."
-          className="w-full px-3 py-2 bg-fifth border border-tableBorder rounded-lg text-textColor placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-forth focus:border-transparent"
+          className="w-full px-3 py-2 bg-fifth border border-tableBorder rounded-lg text-textColor placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         />
       </div>
       {hasExtension(media?.path, 'mp4') && (
@@ -483,7 +483,7 @@ export const MediaComponentInner: FC<{
           </button>
           <button
             onClick={save}
-            className="flex-1 bg-forth text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all"
+            className="flex-1 bg-brand text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all"
           >
             Save Changes
           </button>

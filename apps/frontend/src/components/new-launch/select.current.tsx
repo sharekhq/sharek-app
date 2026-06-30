@@ -111,7 +111,7 @@ export const SelectCurrent: FC = () => {
               'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] justify-center items-center bg-newBgLineColor',
               current !== 'global'
                 ? 'text-[#A3A3A3]'
-                : 'border border-[#FF2D8F] text-[#FF2D8F]'
+                : 'border border-brand text-brand'
             )}
           >
             <div>
@@ -128,7 +128,7 @@ export const SelectCurrent: FC = () => {
               className={clsx(
                 'border cursor-pointer relative flex gap-[8px] w-[40px] h-[40px] rounded-[8px] items-center bg-newBgLineColor justify-center',
                 current === integration.id
-                  ? 'border-[#FF2D8F] text-[#FF2D8F]'
+                  ? 'border-brand text-brand'
                   : 'border-transparent'
               )}
             >
@@ -203,7 +203,7 @@ export const IsGlobal: FC<{ id: string }> = ({ id }) => {
         'no_longer_global_mode',
         'No longer in global mode'
       )}
-      className="w-[8px] h-[8px] bg-[#FF2D8F] -top-[1px] -end-[3px] absolute rounded-full"
+      className="w-[8px] h-[8px] bg-brand -top-[1px] -end-[3px] absolute rounded-full"
     />
   );
 };

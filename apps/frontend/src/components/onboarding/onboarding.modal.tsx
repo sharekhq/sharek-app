@@ -151,7 +151,7 @@ const OnboardingStep1: FC<{ onNext: () => void; onSkip: () => void }> = ({
         <div className="text-[24px] font-semibold">
           {t('connect_your_channels', 'Connect Your Channels')}
         </div>
-        <div className="text-[14px] text-customColor18">
+        <div className="text-[14px] text-muted">
           {t(
             'connect_social_media_to_start',
             'Connect your social media accounts to start scheduling posts'
@@ -170,7 +170,7 @@ const OnboardingStep1: FC<{ onNext: () => void; onSkip: () => void }> = ({
             {sortedIntegrations.map((integration: any) => (
               <div
                 key={integration.id}
-                className="flex items-center gap-[8px] bg-customColor47/30 rounded-[8px] px-[12px] py-[8px]"
+                className="flex items-center gap-[8px] bg-surface/30 rounded-[8px] px-[12px] py-[8px]"
               >
                 <div className="relative w-[28px] h-[28px]">
                   <SafeImage
@@ -252,7 +252,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
         <div className="text-[24px] font-semibold">
           {t('watch_tutorial_title', 'Learn How to Use Sharek')}
         </div>
-        <div className="text-[14px] text-customColor18">
+        <div className="text-[14px] text-muted">
           {t(
             'watch_tutorial_description',
             'Watch this short video to learn how to get the most out of Sharek'
@@ -298,7 +298,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onFinish: () => void }> = ({
         </button>
         <button
           onClick={onFinish}
-          className="group flex items-center gap-[12px] bg-gradient-to-r from-[#10b981] to-[#059669] hover:from-[#34d399] hover:to-[#10b981] text-white font-semibold px-[32px] py-[14px] rounded-[12px] text-[16px] transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+          className="group flex items-center gap-[12px] bg-gradient-to-r from-success to-[#059669] hover:from-[#34d399] hover:to-success text-white font-semibold px-[32px] py-[14px] rounded-[12px] text-[16px] transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
         >
           {t('get_started', 'Get Started')}
           <svg
