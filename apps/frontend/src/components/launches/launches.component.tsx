@@ -21,6 +21,7 @@ import { useDrag, useDrop } from 'react-dnd';
 import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
 import { GeneratorComponent } from './generator/generator';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
@@ -361,7 +362,23 @@ export const LaunchesComponent = () => {
   const t = useT();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  // Phone: the channels panel becomes an off-canvas sheet behind a toggle, and
+  // is always fully expanded there (never the desktop icon-collapsed rail).
+  const isPhone = useMediaQuery('(max-width: 768px)');
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const railCollapsed = collapseMenu === '1' && !isPhone;
   const { isLoading, data: integrations, mutate } = useIntegrationList();
+
+  // The channels sheet's open state only drives phone-scoped styles (and a
+  // phone-only scrim), so it's inert on desktop and needs no reset on resize.
+  useEffect(() => {
+    if (!channelsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setChannelsOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [channelsOpen]);
 
   const totalNonDisabledChannels = useMemo(() => {
     return (
@@ -500,7 +517,13 @@ export const LaunchesComponent = () => {
         <div
           className={clsx(
             'flex relative flex-col',
-            collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
+            railCollapsed ? 'group sidebar w-[100px]' : 'w-[260px]',
+            // Phone: off-canvas channels sheet revealed by the toggle below.
+            'phone:fixed phone:inset-y-0 phone:start-0 phone:z-[50] phone:!w-[300px] phone:max-w-[85vw]',
+            'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
+            channelsOpen
+              ? 'phone:translate-x-0'
+              : 'phone:-translate-x-full phone:rtl:translate-x-full'
           )}
         >
           <div
@@ -512,11 +535,32 @@ export const LaunchesComponent = () => {
               <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
                 {t('channels')}
               </h2>
+              <button
+                type="button"
+                onClick={() => setChannelsOpen(false)}
+                aria-label={t('close', 'Close')}
+                className="hidden phone:flex text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] items-center justify-center cursor-pointer select-none"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M9 3L3 9M3 3l6 6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
               <div
                 onClick={() =>
                   setCollapseMenu(collapseMenu === '1' ? '0' : '1')
                 }
-                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
+                className="phone:hidden group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -545,7 +589,7 @@ export const LaunchesComponent = () => {
               </div>
             </div>
             <div className="gap-[32px] flex flex-col select-none flex-1">
-              {sortedIntegrations.length === 0 && collapseMenu === '0' && (
+              {sortedIntegrations.length === 0 && !railCollapsed && (
                 <div className="flex-1 max-h-[500px] justify-center items-center flex">
                   <div className="flex flex-col gap-[12px] text-center">
                     <NoChannelsIllustration className="mx-auto w-full h-auto" />
@@ -560,7 +604,7 @@ export const LaunchesComponent = () => {
               )}
               {menuIntegrations.map((menu) => (
                 <MenuGroupComponent
-                  collapsed={collapseMenu === '1'}
+                  collapsed={railCollapsed}
                   changeItemGroup={changeItemGroup}
                   key={menu.name}
                   group={menu}
@@ -584,7 +628,39 @@ export const LaunchesComponent = () => {
             </div>
           </div>
         </div>
+        {channelsOpen && (
+          <div
+            className="hidden phone:block fixed inset-0 z-[40] bg-black/50"
+            onClick={() => setChannelsOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+          <button
+            type="button"
+            onClick={() => setChannelsOpen(true)}
+            className="hidden phone:flex items-center gap-[8px] self-start rounded-[8px] border border-line px-[12px] py-[8px] text-[14px] font-[500] text-textColor hover:bg-boxHover transition-colors"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              aria-hidden="true"
+            >
+              <rect
+                x="2.25"
+                y="3"
+                width="13.5"
+                height="12"
+                rx="2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path d="M6.75 3v12" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            {t('channels', 'Channels')}
+          </button>
           <Filters />
           <div className="flex-1 flex">
             <Calendar />

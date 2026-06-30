@@ -523,11 +523,11 @@ export const Impersonate = () => {
   }, [data]);
   return (
     <div>
-      <div className="bg-brand h-[52px] flex justify-center items-center border-input border rounded-[8px] text-white">
-        <div className="relative flex flex-col w-[600px]">
+      <div className="bg-brand h-[52px] phone:h-auto phone:py-[8px] phone:px-[12px] flex justify-center items-center border-input border rounded-[8px] text-white">
+        <div className="relative flex flex-col w-[600px] phone:w-full">
           <div className="relative z-[1]">
             {user?.impersonate ? (
-              <div className="text-center flex justify-center items-center gap-[20px]">
+              <div className="text-center flex justify-center items-center gap-[20px] phone:flex-wrap">
                 <div>
                   {t('currently_impersonating', 'Currently Impersonating')}
                 </div>
@@ -543,8 +543,8 @@ export const Impersonate = () => {
                 {billingEnabled && <ManageBilling />}
               </div>
             ) : (
-              <div className="flex items-center gap-[10px]">
-                <div className="flex-1">
+              <div className="flex items-center gap-[10px] phone:flex-wrap phone:justify-center">
+                <div className="flex-1 phone:basis-full">
                   <Input
                     autoComplete="off"
                     placeholder="Write the user details"

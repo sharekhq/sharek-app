@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { fontVariables } from '@gitroom/frontend/app/fonts';
 const ModeComponent = dynamic(
@@ -16,6 +16,8 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
+import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { CheckPayment } from '@gitroom/frontend/components/layout/check.payment';
 import { ToolTip } from '@gitroom/frontend/components/layout/top.tip';
 import { ShowMediaBoxModal } from '@gitroom/frontend/components/media/media.component';
@@ -61,6 +63,30 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
     refreshWhenHidden: false,
   });
 
+  // Phone nav drawer: the icon rail is hidden on phone and revealed as an
+  // off-canvas drawer via the header hamburger. The open state only drives
+  // phone-scoped styles, so it's visually inert on desktop and needs no reset
+  // on resize — only the scroll lock below must be released.
+  const t = useT();
+  const isPhone = useMediaQuery('(max-width: 768px)');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Lock background scroll and close on Escape while the drawer is open on
+  // phone. Re-runs on resize so the lock is released if the viewport grows.
+  useEffect(() => {
+    if (!drawerOpen || !isPhone) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [drawerOpen, isPhone]);
+
   if (!user) return null;
 
   return (
@@ -97,37 +123,82 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                   <AnnouncementBanner />
                   <div className="flex-1 flex gap-[8px]">
                     <Support />
-                    <div className="flex flex-col bg-newBgColorInner w-[80px] rounded-[12px]">
+                    {/* Rail background card — reserves the 80px fixed-rail
+                        column on desktop. On phone the rail becomes the
+                        off-canvas drawer below, so the reserve is dropped. */}
+                    <div className="flex flex-col bg-newBgColorInner w-[80px] rounded-[12px] phone:hidden" />
+                    {drawerOpen && (
                       <div
-                        id="left-menu"
-                        className={clsx(
-                          'fixed h-full w-[64px] start-[17px] flex flex-1 top-0',
-                          user?.admin && 'pt-[60px] max-h-[1000px]:w-[500px]'
-                        )}
-                      >
-                        <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px]">
-                          <Logo />
-                          <TopMenu />
-                        </div>
+                        className="hidden phone:block fixed inset-0 z-[40] bg-black/50"
+                        onClick={() => setDrawerOpen(false)}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <div
+                      id="left-menu"
+                      className={clsx(
+                        'fixed h-full w-[64px] start-[17px] flex flex-1 top-0',
+                        // Phone: off-canvas drawer anchored to the inline-start edge.
+                        'phone:start-0 phone:w-[80px] phone:z-[50] phone:bg-newBgColorInner',
+                        'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
+                        drawerOpen
+                          ? 'phone:translate-x-0'
+                          : 'phone:-translate-x-full phone:rtl:translate-x-full',
+                        user?.admin && 'pt-[60px] max-h-[1000px]:w-[500px]'
+                      )}
+                      onClick={() => setDrawerOpen(false)}
+                    >
+                      <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px]">
+                        <Logo />
+                        <TopMenu />
                       </div>
                     </div>
                     <div className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe">
-                      <div className="flex bg-newBgColorInner h-[80px] px-[20px] items-center">
-                        <div className="text-[24px] font-[600] flex flex-1">
+                      <div className="flex bg-newBgColorInner h-[80px] px-[20px] phone:px-[12px] items-center">
+                        <button
+                          type="button"
+                          onClick={() => setDrawerOpen(true)}
+                          aria-label={t('open_menu', 'Open menu')}
+                          aria-expanded={drawerOpen}
+                          aria-controls="left-menu"
+                          className="hidden phone:flex me-[12px] -ms-[6px] h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors"
+                        >
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M3 6h18M3 12h18M3 18h18"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                        <div className="text-[24px] phone:text-[18px] font-[600] flex flex-1 min-w-0">
                           <Title />
                         </div>
-                        <div className="flex gap-[20px] text-textItemBlur">
-                          <StreakComponent />
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
+                        <div className="flex gap-[20px] phone:gap-[14px] text-textItemBlur">
+                          <div className="phone:hidden">
+                            <StreakComponent />
+                          </div>
+                          <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
                           <OrganizationSelector />
                           <div className="hover:text-newTextColor">
                             <ModeComponent />
                           </div>
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
                           <LanguageComponent />
-                          <ChromeExtensionComponent />
+                          <div className="phone:hidden">
+                            <ChromeExtensionComponent />
+                          </div>
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <AttachToFeedbackIcon />
+                          <div className="phone:hidden">
+                            <AttachToFeedbackIcon />
+                          </div>
                           <NotificationComponent />
                         </div>
                       </div>
