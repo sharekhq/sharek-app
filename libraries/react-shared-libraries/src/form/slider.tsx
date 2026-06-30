@@ -22,7 +22,7 @@ export const Slider: FC<{
       <div className="w-full h-full relative rounded-[100px]">
         <div
           className={clsx(
-            'absolute left-0 top-0 w-[24px] h-[24px] bg-line rounded-full transition-all cursor-pointer',
+            'absolute left-0 top-0 w-[24px] h-[24px] bg-white rounded-full transition-all cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.25)]',
             value === 'on' ? 'left-[100%] -translate-x-[100%]' : 'left-0'
           )}
         />
