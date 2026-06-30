@@ -25,6 +25,7 @@ import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import useCookie from 'react-use-cookie';
+import { NoChannelsIllustration } from '@gitroom/frontend/components/launches/no-channels.illustration';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 
 export const SVGLine = () => {
@@ -360,7 +361,6 @@ export const LaunchesComponent = () => {
   const t = useT();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-  const [mode] = useCookie('mode', 'light');
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
   const totalNonDisabledChannels = useMemo(() => {
@@ -548,15 +548,7 @@ export const LaunchesComponent = () => {
               {sortedIntegrations.length === 0 && collapseMenu === '0' && (
                 <div className="flex-1 max-h-[500px] justify-center items-center flex">
                   <div className="flex flex-col gap-[12px] text-center">
-                    <img
-                      src={
-                        mode === 'dark'
-                          ? '/no-channels.svg'
-                          : '/no-channels-colors.svg'
-                      }
-                      alt="No channels"
-                      className="mx-auto min-w-[100%]"
-                    />
+                    <NoChannelsIllustration className="mx-auto w-full h-auto" />
                     <div className="font-[600] text-[20px]">
                       {t('no_channels', 'No channels yet')}
                     </div>
