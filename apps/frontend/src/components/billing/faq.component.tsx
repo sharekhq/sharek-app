@@ -118,7 +118,7 @@ export const FAQSection: FC<{
           onClick={(e) => {
             e.stopPropagation();
           }}
-          className={`mt-[16px] w-full text-wrap font-[400] text-[16px] text-customColor17 select-text max-w-[450px]`}
+          className={`mt-[16px] w-full text-wrap font-[400] text-[16px] text-ink select-text max-w-[450px]`}
           dangerouslySetInnerHTML={{
             __html: description,
           }}

@@ -132,7 +132,7 @@ export const TimeTable: FC<{
       {/* Add Time Slot Section */}
       <div className="bg-newBgColorInner rounded-[12px] p-[20px] border border-newTableBorder">
         <div className="text-[15px] font-semibold mb-[16px] flex items-center gap-[8px]">
-          <DelayIcon size={18} className="text-[#FF5A4E]" />
+          <DelayIcon size={18} className="text-brand" />
           {t('add_time_slot', 'Add Time Slot')}
         </div>
 
@@ -199,11 +199,11 @@ export const TimeTable: FC<{
                   'group flex items-center justify-between',
                   'h-[48px] px-[16px] rounded-[8px]',
                   'bg-newBgColorInner border border-newTableBorder',
-                  'hover:border-[#FF5A4E]/40 transition-colors'
+                  'hover:border-brand/40 transition-colors'
                 )}
               >
                 <div className="flex items-center gap-[12px]">
-                  <div className="w-[8px] h-[8px] rounded-full bg-[#FF5A4E]" />
+                  <div className="w-[8px] h-[8px] rounded-full bg-brand" />
                   <span className="text-[15px] font-medium tabular-nums">
                     {timeSlot.formatted}
                   </span>

@@ -52,8 +52,8 @@ export const Checkbox = forwardRef<
         className={clsx(
           'cursor-pointer rounded-[4px] select-none w-[24px] h-[24px] justify-center items-center flex text-white',
           variant === 'default' || !variant
-            ? 'bg-forth'
-            : 'border-customColor1 border-2 bg-customColor2',
+            ? 'bg-brand'
+            : 'border-surface border-2 bg-surface',
           className
         )}
       >

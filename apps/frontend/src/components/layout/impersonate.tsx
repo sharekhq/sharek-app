@@ -142,7 +142,7 @@ const ChargesModal: FC<{ close: () => void }> = ({ close }) => {
                         charge.refunded
                           ? 'border-newTextColor/20 opacity-40'
                           : selected.has(charge.id)
-                          ? 'bg-forth border-forth'
+                          ? 'bg-brand border-brand'
                           : 'border-newTextColor/40'
                       }`}
                     >
@@ -523,7 +523,7 @@ export const Impersonate = () => {
   }, [data]);
   return (
     <div>
-      <div className="bg-forth h-[52px] flex justify-center items-center border-input border rounded-[8px] text-white">
+      <div className="bg-brand h-[52px] flex justify-center items-center border-input border rounded-[8px] text-white">
         <div className="relative flex flex-col w-[600px]">
           <div className="relative z-[1]">
             {user?.impersonate ? (
@@ -569,12 +569,12 @@ export const Impersonate = () => {
                 className="bg-primary/80 fixed start-0 top-0 w-full h-full z-[998]"
                 onClick={() => setName('')}
               />
-              <div className="absolute top-[100%] w-full start-0 bg-sixth border border-customColor6 text-textColor z-[999]">
+              <div className="absolute top-[100%] w-full start-0 bg-sixth border border-line text-textColor z-[999]">
                 {mapData?.map((user: any) => (
                   <div
                     onClick={setUser(user.id)}
                     key={user.id}
-                    className="p-[10px] border-b border-customColor6 hover:bg-tableBorder cursor-pointer"
+                    className="p-[10px] border-b border-line hover:bg-tableBorder cursor-pointer"
                   >
                     {t('user_1', 'user:')}
                     {user.id.split('-').at(-1)} - {user.name} - {user.email}

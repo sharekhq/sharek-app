@@ -89,7 +89,7 @@ export const DelayComponent: FC<{
         }
         className={clsx(
           'cursor-pointer flex items-center gap-[4px]',
-          currentDelay > 0 && 'bg-[#FF2D8F] text-white rounded-full'
+          currentDelay > 0 && 'bg-brand text-white rounded-full'
         )}
       >
         <DelayIcon />
@@ -120,8 +120,8 @@ export const DelayComponent: FC<{
                 onClick={(e) => e.stopPropagation()}
                 placeholder="Custom min"
                 className={clsx(
-                  'flex-1 w-full h-[32px] px-[8px] rounded-[4px] bg-newBgColor border text-[13px] outline-none focus:border-[#FF5A4E]',
-                  isCustomDelay ? 'border-[#FF5A4E]' : 'border-newTextColor/10'
+                  'flex-1 w-full h-[32px] px-[8px] rounded-[4px] bg-newBgColor border text-[13px] outline-none focus:border-brand',
+                  isCustomDelay ? 'border-brand' : 'border-newTextColor/10'
                 )}
               />
               <button

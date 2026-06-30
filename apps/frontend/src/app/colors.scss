@@ -106,17 +106,17 @@
     --new-col-color: var(--line);
     --new-menu-dots: var(--muted);
     --new-menu-hover: var(--ink);
-    --menu-shadow: -22px 83px 24px 0 rgba(55, 52, 75, 0),
-      -14px 53px 22px 0 rgba(55, 52, 75, 0.01),
-      -8px 30px 19px 0 rgba(55, 52, 75, 0.05),
-      -3px 13px 14px 0 rgba(55, 52, 75, 0.09),
-      -1px 3px 8px 0 rgba(55, 52, 75, 0.1);
+    --menu-shadow: -22px 83px 24px 0 rgba(0, 0, 0, 0),
+      -14px 53px 22px 0 rgba(0, 0, 0, 0.01),
+      -8px 30px 19px 0 rgba(0, 0, 0, 0.05),
+      -3px 13px 14px 0 rgba(0, 0, 0, 0.09),
+      -1px 3px 8px 0 rgba(0, 0, 0, 0.1);
     --popup-color: rgba(15, 14, 13, 0.2);
     --border-preview: var(--line);
-    --preview-box-shadow: 0 386px 108px 0 rgba(38, 32, 64, 0),
-      0 247px 99px 0 rgba(38, 32, 64, 0.01),
-      0 139px 83px 0 rgba(38, 32, 64, 0.03),
-      0 62px 62px 0 rgba(38, 32, 64, 0.04), 0 15px 34px 0 rgba(38, 32, 64, 0.05);
+    --preview-box-shadow: 0 386px 108px 0 rgba(0, 0, 0, 0),
+      0 247px 99px 0 rgba(0, 0, 0, 0.01),
+      0 139px 83px 0 rgba(0, 0, 0, 0.03),
+      0 62px 62px 0 rgba(0, 0, 0, 0.04), 0 15px 34px 0 rgba(0, 0, 0, 0.05);
     --linkedin-border: #e9e5df;
     --linkedin-bg: #fff;
     --linkedin-text: #707070;
@@ -138,139 +138,29 @@
     --color-secondary: var(--surface);
     --color-text: var(--ink);
     --color-third: var(--surface);
-    --color-forth: var(--brand);
+    --color-brand: var(--brand);
     --color-fifth: var(--line);
     --color-sixth: var(--surface);
-    --color-seventh: var(--brand);
+    --color-brand: var(--brand);
     --color-gray: var(--muted);
     --color-input: var(--surface);
     --color-input-text: var(--muted);
     --color-table-border: var(--line);
-    --color-custom1: var(--surface);
-    --color-custom2: var(--surface);
-    --color-custom3: var(--surface-2);
-    --color-custom4: var(--brand);
-    --color-custom5: var(--line);
-    --color-custom6: var(--line);
-    --color-custom7: var(--brand);
-    --color-custom8: var(--surface-2);
-    --color-custom9: var(--surface);
-    --color-custom10: #e4b895;
-    --color-custom11: var(--brand);
-    --color-custom12: var(--info);
-    --color-custom13: var(--warning);
-    --color-custom14: var(--muted);
-    --color-custom15: var(--ink);
     --color-custom16: #121a2d;
-    --color-custom17: var(--ink);
-    --color-custom18: var(--muted);
-    --color-custom19: var(--error);
-    --color-custom20: var(--surface);
-    --color-custom21: var(--muted);
-    --color-custom22: var(--error);
-    --color-custom23: var(--surface);
-    --color-custom24: #eaff00;
-    --color-custom25: var(--line);
-    --color-custom26: #1d9bf0;
-    --color-custom27: #71767b;
-    --color-custom28: var(--brand);
-    --color-custom29: var(--brand);
-    --color-custom30: var(--brand);
-    --color-custom31: var(--surface);
-    --color-custom32: var(--surface);
-    --color-custom33: var(--surface);
-    --color-custom34: var(--muted);
-    --color-custom35: var(--surface-2);
-    --color-custom36: var(--muted);
-    --color-custom37: var(--bg);
-    --color-custom38: var(--line);
-    --color-custom39: var(--ink);
-    --color-custom40: var(--bg);
-    --color-custom41: var(--brand);
-    --color-custom42: var(--success);
-    --color-custom43: var(--muted);
-    --color-custom44: var(--surface);
-    --color-custom45: var(--brand);
-    --color-custom46: var(--info);
-    --color-custom47: var(--surface);
-    --color-custom48: var(--bg);
-    --color-custom49: var(--bg);
-    --color-custom50: var(--brand);
-    --color-custom51: var(--brand);
-    --color-custom52: var(--surface);
-    --color-custom53: var(--muted);
-    --color-custom54: var(--muted);
-    --color-custom55: var(--surface);
-    --color-modalCustom: #000000;
   }
   .light {
     --color-primary: var(--bg);
     --color-secondary: var(--surface);
     --color-text: var(--ink);
     --color-third: var(--surface);
-    --color-forth: var(--brand);
+    --color-brand: var(--brand);
     --color-fifth: var(--line);
     --color-sixth: var(--surface);
-    --color-seventh: var(--brand);
+    --color-brand: var(--brand);
     --color-gray: var(--muted);
     --color-input: var(--surface);
     --color-input-text: var(--muted);
     --color-table-border: var(--line);
-    --color-custom1: var(--surface);
-    --color-custom2: var(--surface);
-    --color-custom3: var(--surface-2);
-    --color-custom4: var(--brand);
-    --color-custom5: var(--line);
-    --color-custom6: var(--line);
-    --color-custom7: var(--brand);
-    --color-custom8: var(--surface-2);
-    --color-custom9: var(--surface);
-    --color-custom10: #e4b895;
-    --color-custom11: var(--brand);
-    --color-custom12: var(--info);
-    --color-custom13: var(--warning);
-    --color-custom14: var(--muted);
-    --color-custom15: var(--ink);
     --color-custom16: #121a2d;
-    --color-custom17: var(--ink);
-    --color-custom18: var(--muted);
-    --color-custom19: var(--error);
-    --color-custom20: var(--surface);
-    --color-custom21: var(--muted);
-    --color-custom22: var(--error);
-    --color-custom23: var(--surface);
-    --color-custom24: #eaff00;
-    --color-custom25: var(--line);
-    --color-custom26: #1d9bf0;
-    --color-custom27: #71767b;
-    --color-custom28: var(--brand);
-    --color-custom29: var(--brand);
-    --color-custom30: var(--surface);
-    --color-custom31: var(--surface);
-    --color-custom32: var(--surface);
-    --color-custom33: var(--surface);
-    --color-custom34: var(--muted);
-    --color-custom35: var(--surface-2);
-    --color-custom36: var(--muted);
-    --color-custom37: var(--bg);
-    --color-custom38: var(--line);
-    --color-custom39: var(--ink);
-    --color-custom40: var(--bg);
-    --color-custom41: var(--brand);
-    --color-custom42: var(--success);
-    --color-custom43: var(--muted);
-    --color-custom44: var(--surface);
-    --color-custom45: var(--brand);
-    --color-custom46: var(--info);
-    --color-custom47: var(--surface);
-    --color-custom48: var(--bg);
-    --color-custom49: var(--bg);
-    --color-custom50: var(--brand);
-    --color-custom51: var(--brand);
-    --color-custom52: var(--surface);
-    --color-custom53: var(--muted);
-    --color-custom54: var(--muted);
-    --color-custom55: var(--surface);
-    --color-modalCustom: transparent;
   }
 }

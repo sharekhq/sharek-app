@@ -216,7 +216,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
                     className={clsx(
                       'flex items-center gap-[10px] p-[10px] rounded-[8px] border cursor-pointer transition-all',
                       selectedIntegrationId === integration.id
-                        ? 'border-forth bg-forth/10'
+                        ? 'border-brand bg-brand/10'
                         : 'border-tableBorder hover:border-textColor/30'
                     )}
                     onClick={() => setSelectedIntegrationId(integration.id)}
