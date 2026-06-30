@@ -149,7 +149,9 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       onClick={() => setDrawerOpen(false)}
                     >
                       <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px]">
-                        <Logo />
+                        <div className="flex justify-center">
+                          <Logo />
+                        </div>
                         <TopMenu />
                       </div>
                     </div>
