@@ -212,6 +212,9 @@ module.exports = {
         mobile: {
           raw: '(max-width: 1025px)',
         },
+        phone: {
+          raw: '(max-width: 768px)',
+        },
         tablet: {
           raw: '(max-width: 1300px)',
         },

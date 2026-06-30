@@ -14,6 +14,7 @@ import {
 import dayjs from 'dayjs';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
 import { Post, Integration, Tags } from '@prisma/client';
 import { useSearchParams } from 'next/navigation';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -173,6 +174,15 @@ export const CalendarWeekProvider: FC<{
     display,
   });
 
+  // Phone can't fit the 7-column week/month grids: show the agenda (list) view
+  // there instead. Derived per-render (never stored), so the user's saved grid
+  // preference is untouched and returns automatically on desktop.
+  const isPhone = useMediaQuery('(max-width: 768px)');
+  const effectiveDisplay =
+    isPhone && (filters.display === 'week' || filters.display === 'month')
+      ? 'list'
+      : filters.display;
+
   const params = useMemo(() => {
     return new URLSearchParams({
       display: filters.display,
@@ -216,7 +226,7 @@ export const CalendarWeekProvider: FC<{
     isLoading: calendarIsLoading,
     mutate: mutateCalendar,
   } = useSWR(
-    filters.display !== 'list' ? `/posts-${params}` : null,
+    effectiveDisplay !== 'list' ? `/posts-${params}` : null,
     loadData,
     {
       refreshInterval: 3600000,
@@ -232,7 +242,7 @@ export const CalendarWeekProvider: FC<{
     isLoading: listIsLoading,
     mutate: mutateList,
   } = useSWR(
-    filters.display === 'list' ? `/posts-list-${listParams}` : null,
+    effectiveDisplay === 'list' ? `/posts-list-${listParams}` : null,
     loadListData,
     {
       refreshInterval: 3600000,
@@ -332,7 +342,8 @@ export const CalendarWeekProvider: FC<{
   }, [mutateCalendar, mutateList]);
 
   // Determine loading state based on current view
-  const loading = filters.display === 'list' ? listIsLoading : calendarIsLoading;
+  const loading =
+    effectiveDisplay === 'list' ? listIsLoading : calendarIsLoading;
 
   return (
     <CalendarContext.Provider
@@ -340,6 +351,8 @@ export const CalendarWeekProvider: FC<{
         trendings,
         reloadCalendarView,
         ...filters,
+        // Phone shows the agenda view even when the saved preference is a grid.
+        display: effectiveDisplay,
         posts: calendarIsLoading ? [] : internalData,
         loading,
         integrations,
