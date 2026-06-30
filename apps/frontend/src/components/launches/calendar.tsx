@@ -80,7 +80,9 @@ updateDayjsLocale();
 
 const convertTimeFormatBasedOnLocality = (time: number) => {
   if (isUSCitizen()) {
-    return `${time === 12 ? 12 : time % 12}:00 ${time >= 12 ? 'PM' : 'AM'}`;
+    const hour12 = time % 12 === 0 ? 12 : time % 12;
+    const meridiem = time >= 12 ? i18next.t('pm', 'PM') : i18next.t('am', 'AM');
+    return `${hour12}:00 ${meridiem}`;
   } else {
     return `${time}:00`;
   }

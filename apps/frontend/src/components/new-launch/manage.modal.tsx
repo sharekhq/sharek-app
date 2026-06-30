@@ -27,7 +27,7 @@ import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { capitalize } from 'lodash';
+import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { SelectCustomer } from '@gitroom/frontend/components/launches/select.customer';
 import { CopilotPopup } from '@copilotkit/react-ui';
 import { DummyCodeComponent } from '@gitroom/frontend/components/new-launch/dummy.code.component';
@@ -287,7 +287,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
         for (const item of notEnoughChars) {
           toaster.show(
-            `${capitalize(item.identifier.split('-')[0])} (${item.name}):` +
+            `${platformLabel(item.identifier)} (${item.name}):` +
               ' ' +
               t(
                 'post_needs_content_or_image',
@@ -304,7 +304,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           for (const item of checkAllValid) {
             if (item.valid === false) {
               toaster.show(
-                `${capitalize(item.identifier.split('-')[0])} (${item.name}): ${
+                `${platformLabel(item.identifier)} (${item.name}): ${
                   item.settingsError ||
                   t('please_fix_your_settings', 'Please fix your settings')
                 }`,
@@ -318,7 +318,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
             if (item.errors !== true) {
               toaster.show(
-                `${capitalize(item.identifier.split('-')[0])} (${item.name}): ${
+                `${platformLabel(item.identifier)} (${item.name}): ${
                   item.errors
                 }`,
                 'warning'
