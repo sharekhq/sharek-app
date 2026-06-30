@@ -133,8 +133,8 @@ body * {
 }
 
 .react-tags.is-invalid {
-  border-color: #fd5956;
-  box-shadow: 0 0 0 2px rgba(253, 86, 83, 0.25);
+  border-color: var(--error);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--error) 25%, transparent);
 }
 
 .react-tags__label {
@@ -815,4 +815,17 @@ html[dir='rtl'] [dir='ltr'] {
 .text-shadow-tags {
   text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black,
     1px 1px 0 black;
+}
+
+/* Accessibility (DESIGN §11 / Constitution III): respect reduced-motion —
+   near-disable staggered fades, spins, and marquees for users who request it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
