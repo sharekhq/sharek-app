@@ -38,21 +38,24 @@ export const ChartSocial: FC<{
   const ref = useRef<any>(null);
   const chart = useRef<null | DrawChart>(null);
 
+  // Series colors match the legend badges in statistics.tsx / render.analytics.tsx:
+  // purple→brand, green→success, blue→info. Literal per-theme RGB because Chart.js
+  // paints on canvas and can't resolve CSS vars (data-model §8).
   const colorSchemes = {
     purple: {
-      start: 'rgba(97, 43, 211, 0.8)',
-      end: 'rgba(97, 43, 211, 0.1)',
-      border: 'rgb(97, 43, 211)',
+      start: 'rgba(185, 45, 67, 0.8)',
+      end: 'rgba(185, 45, 67, 0.1)',
+      border: 'rgb(185, 45, 67)',
     },
     green: {
-      start: 'rgba(50, 213, 131, 0.8)',
-      end: 'rgba(50, 213, 131, 0.1)',
-      border: 'rgb(50, 213, 131)',
+      start: mode === 'dark' ? 'rgba(61, 214, 140, 0.8)' : 'rgba(30, 158, 90, 0.8)',
+      end: mode === 'dark' ? 'rgba(61, 214, 140, 0.1)' : 'rgba(30, 158, 90, 0.1)',
+      border: mode === 'dark' ? 'rgb(61, 214, 140)' : 'rgb(30, 158, 90)',
     },
     blue: {
-      start: 'rgba(29, 155, 240, 0.8)',
-      end: 'rgba(29, 155, 240, 0.1)',
-      border: 'rgb(29, 155, 240)',
+      start: mode === 'dark' ? 'rgba(138, 176, 232, 0.8)' : 'rgba(62, 99, 168, 0.8)',
+      end: mode === 'dark' ? 'rgba(138, 176, 232, 0.1)' : 'rgba(62, 99, 168, 0.1)',
+      border: mode === 'dark' ? 'rgb(138, 176, 232)' : 'rgb(62, 99, 168)',
     },
   };
 
@@ -104,10 +107,10 @@ export const ChartSocial: FC<{
           },
           tooltip: {
             enabled: true,
-            backgroundColor: mode === 'dark' ? '#1e1d1d' : '#fff',
-            titleColor: mode === 'dark' ? '#fff' : '#000',
-            bodyColor: mode === 'dark' ? '#9c9c9c' : '#777',
-            borderColor: mode === 'dark' ? '#2b2b2b' : '#e7e9eb',
+            backgroundColor: mode === 'dark' ? '#241B1E' : '#F7EFEE',
+            titleColor: mode === 'dark' ? '#F7F1EF' : '#1A1413',
+            bodyColor: mode === 'dark' ? '#AEA09D' : '#6F635F',
+            borderColor: mode === 'dark' ? 'rgba(255,255,255,0.11)' : '#ECE3E1',
             borderWidth: 1,
             padding: 10,
             cornerRadius: 8,
@@ -137,7 +140,7 @@ export const ChartSocial: FC<{
             pointRadius: 0,
             pointHoverRadius: 6,
             pointHoverBackgroundColor: colors.border,
-            pointHoverBorderColor: mode === 'dark' ? '#1e1d1d' : '#fff',
+            pointHoverBorderColor: mode === 'dark' ? '#241B1E' : '#F7EFEE',
             pointHoverBorderWidth: 2,
           },
         ],

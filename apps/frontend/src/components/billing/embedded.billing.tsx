@@ -62,9 +62,9 @@ export const EmbeddedBilling: FC<{
           elementsOptions: {
             appearance: {
               variables: {
-                colorText: mode === 'dark' ? '#ffffff' : '#0e0e0e',
+                colorText: mode === 'dark' ? '#F7F1EF' : '#1A1413',
                 borderRadius: '8px',
-                colorBackground: mode === 'dark' ? '#1E1E1E' : '#FFFFFF',
+                colorBackground: mode === 'dark' ? '#241B1E' : '#F7EFEE',
               },
               rules: {
                 '.Label': {
@@ -74,7 +74,7 @@ export const EmbeddedBilling: FC<{
                 },
                 '.Input': {
                   height: '44px',
-                  backgroundColor: mode === 'dark' ? '#1E1E1E' : '#FFFFFF',
+                  backgroundColor: mode === 'dark' ? '#241B1E' : '#F7EFEE',
                 },
               },
             },
@@ -384,7 +384,8 @@ const AppliedCouponDisplay: FC<{
               height="20"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#FF2D8F"
+              stroke="currentColor"
+              className="text-brand"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
