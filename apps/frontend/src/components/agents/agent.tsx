@@ -108,7 +108,9 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
     <div
       className={clsx(
         'trz bg-newBgColorInner flex flex-col gap-[15px] transition-all relative',
-        collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
+        collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]',
+        // Phone: hide the channel rail so the chat gets the full width.
+        'phone:hidden'
       )}
     >
       <div className="absolute top-0 start-0 w-full h-full p-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
@@ -225,7 +227,9 @@ const Threads: FC = () => {
     <div
       className={clsx(
         'trz bg-newBgColorInner flex flex-col gap-[15px] transition-all relative',
-        'w-[260px]'
+        'w-[260px]',
+        // Phone: hide the threads rail so the chat gets the full width.
+        'phone:hidden'
       )}
     >
       <div className="absolute top-0 start-0 w-full h-full p-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">

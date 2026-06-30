@@ -350,7 +350,7 @@ export const Filters = () => {
         </div>
       )}
       {isListView && (
-        <div className="flex flex-grow flex-row items-center gap-[10px]">
+        <div className="flex flex-grow flex-row flex-wrap items-center gap-[10px] phone:w-full phone:justify-center">
           <div className="border h-[42px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
             <div
               onClick={previousPage}
@@ -414,7 +414,7 @@ export const Filters = () => {
                 key={option.value}
                 onClick={setListStateFilter(option.value)}
                 className={clsx(
-                  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] px-[12px] text-center rounded-[6px]',
+                  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] phone:min-w-0 px-[12px] phone:px-[8px] text-center rounded-[6px]',
                   calendar.listState === option.value &&
                     'text-textItemFocused bg-boxFocused'
                 )}
@@ -423,7 +423,7 @@ export const Filters = () => {
               </div>
             ))}
           </div>
-          <div className="flex-1" />
+          <div className="flex-1 phone:hidden" />
         </div>
       )}
       <SelectCustomer
