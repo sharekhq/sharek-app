@@ -97,8 +97,8 @@ export const ChangeLanguageComponent = () => {
         {availableLanguages.map((language) => (
           <div
             className={clsx(
-              'flex items-center flex-col bg-newTableHeader hover:bg-newTableBorder p-[20px] cursor-pointer gap-2',
-              language === currentLanguage ? 'border border-textColor' : ''
+              'flex items-center flex-col bg-surface2 border rounded-[8px] hover:bg-line p-[20px] cursor-pointer gap-2 transition-colors',
+              language === currentLanguage ? 'border-textColor' : 'border-line'
             )}
             key={language}
             onClick={() => handleLanguageChange(language)}
