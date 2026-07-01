@@ -7,15 +7,15 @@ export const Slider: FC<{
   fill?: boolean;
   onChange: (value: 'on' | 'off') => void;
 }> = (props) => {
-  const { value, onChange, fill } = props;
+  const { value, onChange } = props;
   const change = useCallback(() => {
     onChange(value === 'on' ? 'off' : 'on');
   }, [value]);
   return (
     <div
       className={clsx(
-        'w-[57px] h-[34px] p-[4px] border-fifth border rounded-[100px]',
-        value === 'on' && fill && 'bg-brand'
+        'w-[57px] h-[34px] p-[4px] border rounded-[100px] transition-colors',
+        value === 'on' ? 'bg-brand border-brand' : 'bg-surface2 border-line'
       )}
       onClick={change}
     >

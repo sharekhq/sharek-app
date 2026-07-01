@@ -632,10 +632,10 @@ html[dir='rtl'] [dir='ltr'] {
 .repeated-strip {
   background: repeating-linear-gradient(
     135deg,
-    var(--new-bgColorInner),
-    var(--new-bgColorInner) 4px,
-    var(--new-big-strips) 4px,
-    var(--new-big-strips) 8px
+    var(--surface),
+    var(--surface) 5px,
+    var(--surface-2) 5px,
+    var(--surface-2) 10px
   );
 }
 
@@ -767,9 +767,7 @@ html[dir='rtl'] [dir='ltr'] {
 }
 
 .post-now {
-  box-shadow: -33px 57px 18px 0 rgba(0, 0, 0, 0.01),
-    -21px 36px 17px 0 rgba(0, 0, 0, 0.06), -12px 20px 14px 0 rgba(0, 0, 0, 0.2),
-    -5px 9px 11px 0 rgba(0, 0, 0, 0.34), -1px 2px 6px 0 rgba(0, 0, 0, 0.39);
+  box-shadow: 0 8px 20px -6px rgba(26, 20, 19, 0.28);
 }
 
 .uppyChange .uppy-Dashboard-inner {
