@@ -402,12 +402,6 @@ body * {
 .fill-text-textColor {
   -webkit-text-fill-color: white !important;
 }
-div div .set-font-family {
-  font-family: 'Helvetica Neue', Helvetica !important;
-  font-stretch: 100% !important;
-  font-style: normal !important;
-  font-weight: 400 !important;
-}
 
 .col-calendar:hover:before {
   content: 'Date passed';
@@ -595,7 +589,7 @@ html[dir='rtl'] [dir='ltr'] {
 
 .ProseMirror .mention {
   font-weight: bold;
-  color: #ae8afc;
+  color: var(--brand-text);
 }
 
 .ProseMirror ul,
@@ -695,10 +689,10 @@ html[dir='rtl'] [dir='ltr'] {
   }
 
   .mention {
-    background-color: var(--purple-light);
+    background-color: color-mix(in srgb, var(--brand) 12%, transparent);
     border-radius: 0.4rem;
     box-decoration-break: clone;
-    color: #ae8afc;
+    color: var(--brand-text);
     &::after {
       content: '\200B';
     }
