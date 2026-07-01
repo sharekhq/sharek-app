@@ -234,9 +234,20 @@ export const TagsComponentInner: FC<{
               {!tagValue.find((a) => a.id === p.id) && (
                 <div
                   onClick={(e) => deleteTag(p, e)}
-                  className="ms-auto transition-opacity cursor-pointer text-red-500 text-[14px] font-[600]"
+                  className="ms-auto cursor-pointer text-muted hover:text-error transition-colors"
                 >
-                  ×
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
                 </div>
               )}
             </div>
@@ -266,8 +277,8 @@ const Check: FC<{ value: boolean; onChange: (value: boolean) => void }> = ({
     <div
       onClick={() => onChange(!value)}
       className={clsx(
-        'text-[10px] font-[500] text-center flex border border-btnSimple rounded-[6px] min-w-[20px] min-h-[20px] w-[20px] h-[20px] justify-center items-center',
-        value && 'bg-[#0F0E0D]'
+        'text-[10px] font-[500] text-center flex border rounded-[6px] min-w-[20px] min-h-[20px] w-[20px] h-[20px] justify-center items-center transition-colors',
+        value ? 'bg-brand border-brand' : 'border-muted'
       )}
     >
       {value ? <CheckmarkIcon className="text-white" /> : ''}

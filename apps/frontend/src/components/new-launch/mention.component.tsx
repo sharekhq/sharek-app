@@ -79,23 +79,23 @@ const MentionList: FC = (props: any) => {
   }
 
   return (
-    <div className="dropdown-menu bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto p-2">
+    <div className="dropdown-menu bg-surface border border-line rounded-lg shadow-lg max-h-60 overflow-y-auto p-2">
       {props?.items?.none ? (
-        <div className="flex items-center justify-center p-2 text-gray-500">
+        <div className="flex items-center justify-center p-2 text-muted">
           We don't have autocomplete for this social media
         </div>
       ) : props?.loading ? (
-        <div className="flex items-center justify-center p-2 text-gray-500">
+        <div className="flex items-center justify-center p-2 text-muted">
           Loading...
         </div>
       ) : props?.items ? (
         props.items.length === 0 ? (
-          <div className="p-2 text-gray-500 text-center">No results found</div>
+          <div className="p-2 text-muted text-center">No results found</div>
         ) : (
           props?.items?.map((item: any, index: any) => (
             <button
-              className={`flex gap-[10px] w-full p-2 text-start rounded hover:bg-gray-100 ${
-                index === selectedIndex ? 'bg-blue-100' : ''
+              className={`flex gap-[10px] w-full p-2 text-start rounded hover:bg-surface2 ${
+                index === selectedIndex ? 'bg-surface2' : ''
               }`}
               key={item.id || index}
               onClick={() => selectItem(index)}
@@ -105,12 +105,12 @@ const MentionList: FC = (props: any) => {
                 alt={item.label}
                 className="w-[30px] h-[30px] rounded-full object-cover"
               />
-              <div className="flex-1 text-gray-800">{item.label}</div>
+              <div className="flex-1 text-ink">{item.label}</div>
             </button>
           ))
         )
       ) : (
-        <div className="p-2 text-gray-500 text-center">Loading...</div>
+        <div className="p-2 text-muted text-center">Loading...</div>
       )}
     </div>
   );

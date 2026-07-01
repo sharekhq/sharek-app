@@ -15,6 +15,8 @@ export interface EmptyStateProps {
   onAction?: () => void;
   /** Defaults to a plus glyph when an action is present. */
   actionIcon?: ReactNode;
+  /** Custom action node(s); replaces the default single Button when provided. */
+  actions?: ReactNode;
   className?: string;
 }
 
@@ -44,6 +46,7 @@ export const EmptyState: FC<EmptyStateProps> = ({
   actionLabel,
   onAction,
   actionIcon,
+  actions,
   className,
 }) => {
   return (
@@ -67,15 +70,20 @@ export const EmptyState: FC<EmptyStateProps> = ({
           <p className="text-[13px] leading-[1.5] text-muted">{note}</p>
         )}
       </div>
-      {actionLabel && onAction && (
-        <Button
-          onClick={onAction}
-          className="mt-[24px]"
-          innerClassName="gap-[8px]"
-        >
-          {actionIcon ?? <DefaultActionIcon />}
-          {actionLabel}
-        </Button>
+      {actions ? (
+        <div className="mt-[24px] flex items-center gap-[8px]">{actions}</div>
+      ) : (
+        actionLabel &&
+        onAction && (
+          <Button
+            onClick={onAction}
+            className="mt-[24px]"
+            innerClassName="gap-[8px]"
+          >
+            {actionIcon ?? <DefaultActionIcon />}
+            {actionLabel}
+          </Button>
+        )
       )}
     </div>
   );

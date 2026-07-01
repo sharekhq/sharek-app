@@ -835,7 +835,14 @@ export const CalendarColumn: FC<{
       ref={drop as any}
     >
       {display === 'month' && (
-        <div className={clsx('pt-[6px] text-[14px]')}>{getDate.date()}</div>
+        <div
+          className={clsx(
+            'pt-[6px] text-[14px]',
+            isBeforeNow && 'line-through text-muted'
+          )}
+        >
+          {getDate.date()}
+        </div>
       )}
       <div
         className={clsx(

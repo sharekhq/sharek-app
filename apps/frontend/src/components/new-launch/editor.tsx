@@ -713,7 +713,7 @@ export const Editor: FC<{
             >
               {t('drop_files_here_to_upload', 'Drop your files here to upload')}
             </div>
-            <div className="border border-newBorder rounded-[6px] flex flex-1 flex-col">
+            <div className="relative border border-newBorder rounded-[6px] flex flex-1 flex-col">
             <div className="px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[6px] relative z-[99]">
               <OnlyEditor
                 value={props.value}

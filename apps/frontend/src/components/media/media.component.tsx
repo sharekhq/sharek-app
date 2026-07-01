@@ -47,8 +47,8 @@ import {
   InsertMediaIcon,
   DesignMediaIcon,
   VerticalDividerIcon,
-  NoMediaIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
@@ -57,6 +57,53 @@ const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
 const showModalEmitter = new EventEmitter();
+const MediaEmptyIllustration = () => (
+  <svg
+    width="132"
+    height="108"
+    viewBox="0 0 132 108"
+    fill="none"
+    className="text-muted"
+    role="presentation"
+  >
+    <rect
+      x="34"
+      y="22"
+      width="74"
+      height="56"
+      rx="6"
+      stroke="currentColor"
+      strokeWidth="2"
+      opacity="0.35"
+    />
+    <rect
+      x="22"
+      y="34"
+      width="74"
+      height="58"
+      rx="6"
+      fill="var(--surface)"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+    <circle
+      cx="41"
+      cy="52"
+      r="7"
+      stroke="currentColor"
+      strokeWidth="2"
+      opacity="0.55"
+    />
+    <path
+      d="M26 86 L46 63 L60 76 L74 58 L92 86"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity="0.55"
+    />
+  </svg>
+);
 export const Pagination: FC<{
   current: number;
   totalPages: number;
@@ -462,52 +509,46 @@ export const MediaBox: FC<{
           </div>
           <div className="w-full h-[46px] uppyChange" />
         </div>
-        <div
-          className={clsx(
-            'flex-1 relative',
-            !isLoading &&
-              !data?.results?.length &&
-              'bg-newTextColor/[0.02] rounded-[12px]'
-          )}
-        >
+        <div className="flex-1 relative">
           <div
             className={clsx(
               'absolute -left-[3px] -top-[3px] withp3 h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
               !isLoading &&
                 !data?.results?.length &&
-                'flex justify-center items-center gap-[20px] flex-col'
+                'w-full flex justify-center items-center flex-col'
             )}
           >
             {!isLoading && !data?.results?.length && (
-              <>
-                <NoMediaIcon />
-                <div className="text-[20px] font-[600]">
-                  {debouncedSearch
-                    ? t(
-                        'no_media_match_search',
-                        'No media matches your search'
-                      )
+              <EmptyState
+                illustration={<MediaEmptyIllustration />}
+                title={
+                  debouncedSearch
+                    ? t('no_media_match_search', 'No media matches your search')
                     : t(
                         'you_dont_have_any_media_yet',
                         "You don't have any media yet"
-                      )}
-                </div>
-                <div className="whitespace-pre-line text-newTextColor/[0.6] text-center">
-                  {t(
-                    'select_or_upload_pictures_max_1gb',
-                    'Select or upload pictures (maximum 1 GB per upload).'
-                  )}{' '}
-                  {'\n'}
-                  {t(
-                    'you_can_drag_drop_pictures',
-                    'You can also drag & drop pictures.'
-                  )}
-                </div>
-                <div className="forceChange flex gap-[8px]">
-                  {btn}
-                  <ThirdPartyMediaLibrary onImported={() => mutate()} />
-                </div>
-              </>
+                      )
+                }
+                description={`${t(
+                  'select_or_upload_pictures_max_1gb',
+                  'Select or upload pictures (maximum 1 GB per upload).'
+                )} ${t(
+                  'you_can_drag_drop_pictures',
+                  'You can also drag & drop pictures.'
+                )}`}
+                actions={
+                  <>
+                    <Button
+                      onClick={() => uploaderRef?.current?.click()}
+                      innerClassName="gap-[8px]"
+                    >
+                      <PlusIcon size={14} />
+                      {t('upload', 'Upload')}
+                    </Button>
+                    <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                  </>
+                }
+              />
             )}
             {isLoading && (
               <>
