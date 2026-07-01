@@ -19,7 +19,7 @@ interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral } = useVariables();
+  const { isGeneral, showUpstreamExtras } = useVariables();
   const t = useT();
   const { openModal } = useModals();
 
@@ -188,6 +188,7 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: '#',
+      hide: !showUpstreamExtras,
       role: ['ADMIN', 'SUPERADMIN', 'USER'],
       requireBilling: true,
       onClick: handleAgentMediaClick,
@@ -247,6 +248,7 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: 'https://affiliate.postiz.com',
+      hide: !showUpstreamExtras,
       role: ['ADMIN', 'SUPERADMIN', 'USER'],
       requireBilling: true,
     },

@@ -48,7 +48,8 @@ import { TrialTracker } from '@gitroom/frontend/components/layout/gtm.component'
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();
 
-  const { backendUrl, billingEnabled, isGeneral } = useVariables();
+  const { backendUrl, billingEnabled, isGeneral, showUpstreamExtras } =
+    useVariables();
 
   // Feedback icon component attaches Sentry feedback to a top-bar icon when DSN is present
   const searchParams = useSearchParams();
@@ -194,9 +195,11 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                           </div>
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
                           <LanguageComponent />
-                          <div className="phone:hidden">
-                            <ChromeExtensionComponent />
-                          </div>
+                          {showUpstreamExtras && (
+                            <div className="phone:hidden">
+                              <ChromeExtensionComponent />
+                            </div>
+                          )}
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
                           <div className="phone:hidden">
                             <AttachToFeedbackIcon />
