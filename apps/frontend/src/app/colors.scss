@@ -3,13 +3,13 @@
   .dark {
     --brand: #B92D43;
     --brand-text: #F0708A;
-    --bg: #1A1416;
-    --surface: #241B1E;
-    --surface-2: #2E2327;
+    --bg: #140F11;
+    --surface: #251B1F;
+    --surface-2: #342832;
     --ink: #F7F1EF;
     --ink-soft: #C9BFBC;
     --muted: #AEA09D;
-    --line: rgba(255, 255, 255, 0.11);
+    --line: rgba(255, 255, 255, 0.14);
     --wash: linear-gradient(135deg, #B92D43 0%, #8E1F33 100%);
     --success: #3DD68C;
     --warning: #F2A33C;
@@ -19,15 +19,15 @@
   .light {
     --brand: #B92D43;
     --brand-text: #B92D43;
-    --bg: #FEFBFB;
-    --surface: #F5EAE7;
-    --surface-2: #EDDCD8;
+    --bg: #F4EBE8;
+    --surface: #FFFFFF;
+    --surface-2: #EFE4E0;
     --ink: #1A1413;
     --ink-soft: #2A2724;
     --muted: #6F635F;
-    --line: #DDCBC6;
+    --line: #D9C7C1;
     --wash: linear-gradient(135deg, #B92D43 0%, #8E1F33 100%);
-    --success: #1E9E5A;
+    --success: #157A45;
     --warning: #C2740C;
     --error: #D62B2B;
     --info: #3E63A8;
@@ -54,7 +54,7 @@
     --new-ai-btn: color-mix(in srgb, var(--brand) 12%, transparent);
     --new-box-hover: var(--surface-2);
     --new-table-border: var(--line);
-    --new-table-header: var(--surface);
+    --new-table-header: var(--surface-2);
     --new-table-text: var(--muted);
     --new-table-text-focused: var(--brand-text);
     --new-small-strips: var(--surface);
@@ -98,7 +98,7 @@
     --new-ai-btn: color-mix(in srgb, var(--brand) 12%, transparent);
     --new-box-hover: var(--surface-2);
     --new-table-border: var(--line);
-    --new-table-header: var(--surface);
+    --new-table-header: var(--surface-2);
     --new-table-text: var(--muted);
     --new-table-text-focused: var(--brand-text);
     --new-small-strips: var(--surface);
@@ -143,7 +143,7 @@
     --color-sixth: var(--surface);
     --color-brand: var(--brand);
     --color-gray: var(--muted);
-    --color-input: var(--surface);
+    --color-input: var(--surface-2);
     --color-input-text: var(--muted);
     --color-table-border: var(--line);
     --color-custom16: #121a2d;
@@ -158,7 +158,7 @@
     --color-sixth: var(--surface);
     --color-brand: var(--brand);
     --color-gray: var(--muted);
-    --color-input: var(--surface);
+    --color-input: var(--surface-2);
     --color-input-text: var(--muted);
     --color-table-border: var(--line);
     --color-custom16: #121a2d;
