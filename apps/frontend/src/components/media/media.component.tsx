@@ -86,14 +86,7 @@ const MediaEmptyIllustration = () => (
       stroke="currentColor"
       strokeWidth="2"
     />
-    <circle
-      cx="41"
-      cy="52"
-      r="7"
-      stroke="currentColor"
-      strokeWidth="2"
-      opacity="0.55"
-    />
+    <circle cx="41" cy="52" r="7" className="text-brand" fill="currentColor" />
     <path
       d="M26 86 L46 63 L60 76 L74 58 L92 86"
       stroke="currentColor"
