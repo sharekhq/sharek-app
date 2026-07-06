@@ -1,14 +1,21 @@
 import { ShortLinking } from '@gitroom/nestjs-libraries/short-linking/short-linking.interface';
 
-const options = {
+// Unlike dub.sh / kutt.it there is no shared public domain to fall back to:
+// short.io only creates links on a domain registered in the account, so
+// SHORT_IO_SHORT_LINK_DOMAIN must be set to that domain.
+const SHORT_IO_SHORT_LINK_DOMAIN =
+  process.env.SHORT_IO_SHORT_LINK_DOMAIN || 'short.io';
+
+// short.io expects the raw API key, without a Bearer prefix
+const getOptions = () => ({
   headers: {
-    Authorization: `Bearer ${process.env.SHORT_IO_SECRET_KEY}`,
+    Authorization: process.env.SHORT_IO_SECRET_KEY,
     'Content-Type': 'application/json',
   },
-};
+});
 
 export class ShortIo implements ShortLinking {
-  shortLinkDomain = 'short.io';
+  shortLinkDomain = SHORT_IO_SHORT_LINK_DOMAIN;
 
   async linksStatistics(links: string[]) {
     return Promise.all(
@@ -16,11 +23,13 @@ export class ShortIo implements ShortLinking {
         const url = `https://api.short.io/links/expand?domain=${
           this.shortLinkDomain
         }&path=${link.split('/').pop()}`;
-        const response = await fetch(url, options).then((res) => res.json());
+        const response = await fetch(url, getOptions()).then((res) =>
+          res.json()
+        );
 
         const linkStatisticsUrl = `https://statistics.short.io/statistics/link/${response.id}?period=last30&tz=UTC`;
 
-        const statResponse = await fetch(linkStatisticsUrl, options).then(
+        const statResponse = await fetch(linkStatisticsUrl, getOptions()).then(
           (res) => res.json()
         );
 
@@ -35,7 +44,7 @@ export class ShortIo implements ShortLinking {
 
   async convertLinkToShortLink(id: string, link: string) {
     const response = await fetch(`https://api.short.io/links`, {
-      ...options,
+      ...getOptions(),
       method: 'POST',
       body: JSON.stringify({
         url: link,
@@ -43,9 +52,19 @@ export class ShortIo implements ShortLinking {
         domain: this.shortLinkDomain,
         originalURL: link,
       }),
-    }).then((res) => res.json());
+    });
 
-    return response.shortURL;
+    const data = await response.json();
+    if (!response.ok || !data?.shortURL) {
+      console.error(
+        `short.io: failed to shorten ${link} (status ${response.status}): ${JSON.stringify(
+          data
+        )}`
+      );
+      return link;
+    }
+
+    return data.shortURL;
   }
 
   async convertShortLinkToLink(shortLink: string) {
@@ -55,7 +74,7 @@ export class ShortIo implements ShortLinking {
           `https://api.short.io/links/expand?domain=${
             this.shortLinkDomain
           }&path=${shortLink.split('/').pop()}`,
-          options
+          getOptions()
         )
       ).json()
     ).originalURL;
@@ -69,15 +88,15 @@ export class ShortIo implements ShortLinking {
     const response = await (
       await fetch(
         `https://api.short.io/api/links?domain_id=${id}&limit=150`,
-        options
+        getOptions()
       )
     ).json();
 
     const mapLinks = response.links.map(async (link: any) => {
       const linkStatisticsUrl = `https://statistics.short.io/statistics/link/${response.id}?period=last30&tz=UTC`;
 
-      const statResponse = await fetch(linkStatisticsUrl, options).then((res) =>
-        res.json()
+      const statResponse = await fetch(linkStatisticsUrl, getOptions()).then(
+        (res) => res.json()
       );
 
       return {

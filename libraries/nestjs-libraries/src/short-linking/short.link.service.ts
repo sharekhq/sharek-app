@@ -88,7 +88,7 @@ export class ShortLinkService {
         );
 
         // Replace the URLs in the text with their replacements
-        return text.replace(urlRegex, (url) => replacementMap[url]);
+        return text.replace(urlRegex, (url) => replacementMap[url] ?? url);
       })
     );
   }
@@ -122,7 +122,7 @@ export class ShortLinkService {
         );
 
         // Replace the URLs in the text with their replacements
-        return text.replace(urlRegex, (url) => replacementMap[url]);
+        return text.replace(urlRegex, (url) => replacementMap[url] ?? url);
       })
     );
   }
