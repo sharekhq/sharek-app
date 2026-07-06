@@ -365,7 +365,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
 
   const installStep = {
     label: t('cli_step_install', 'Install the CLI'),
-    code: 'npm install -g sharek',
+    code: 'npm install -g sharek-cli',
   };
   const skillStep = {
     label: t('cli_step_skill', 'Install the Sharek skill for your AI agent'),
