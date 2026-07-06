@@ -119,7 +119,7 @@ export const Plugs = () => {
           title={t('plugs_empty_title', 'Put your channels on autopilot')}
           description={t(
             'plugs_empty_description',
-            'Plugs run actions on your channels automatically. Connect X, LinkedIn, or Threads to switch them on.'
+            'Plugs run actions on your channels automatically. Connect X, LinkedIn Page, Threads, or Bluesky to switch them on.'
           )}
           actionLabel={t('connect_a_channel', 'Connect a channel')}
           onAction={() => router.push('/launches')}

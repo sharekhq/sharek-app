@@ -3,7 +3,7 @@
   "analytics_empty_description": "اربط قناةً ليعرض لك شارِك مدى الوصول والتفاعل ونمو متابعينك — كل ذلك في مكانٍ واحد.",
   "works_with": "يعمل مع",
   "plugs_empty_title": "شغّل قنواتك تلقائيًا",
-  "plugs_empty_description": "تنفّذ الملحقات إجراءات على قنواتك تلقائيًا. اربط X أو LinkedIn أو Threads لتفعيلها.",
+  "plugs_empty_description": "تنفّذ الملحقات إجراءات على قنواتك تلقائيًا. اربط X أو صفحة لينكدإن أو ثريدز أو Bluesky لتفعيلها.",
   "connect_a_channel": "اربط قناة",
   "calendar": "التقويم",
   "webhooks": "روابط الويب (Webhooks)",
@@ -57,7 +57,7 @@
   "login_register_to_add_comments": "تسجيل الدخول / التسجيل لإضافة تعليقات",
   "status": "الحالة:",
   "there_are_not_plugs_matching_your_channels": "لا توجد ملحقات مطابقة لقنواتك",
-  "you_have_to_add_x_or_linkedin_or_threads": "يجب عليك إضافة: X أو LinkedIn أو Threads",
+  "you_have_to_add_x_linkedin_page_threads_or_bluesky": "يجب عليك إضافة: X أو صفحة لينكدإن أو Threads أو Bluesky",
   "go_to_the_calendar_to_add_channels": "اذهب إلى التقويم لإضافة القنوات",
   "channels": "القنوات",
   "activate": "تفعيل",
@@ -974,5 +974,8 @@
   "platform_wordpress": "ووردبريس",
   "platform_wrapcast": "Warpcast",
   "platform_x": "X",
-  "platform_youtube": "يوتيوب"
+  "platform_youtube": "يوتيوب",
+  "generation_failed": "تعذّر إنشاء المنشورات، يرجى المحاولة مرة أخرى.",
+  "facebook_background_none": "بدون (نص عادي)",
+  "facebook_background_note": "قائمة غير رسمية: الألوان المعروضة تقريبية، والخلفية غير المدعومة تُهمل (يُنشر كنص عادي)"
 }

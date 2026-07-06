@@ -33,13 +33,18 @@ export function truncateForTemporal(value: any, max: number): string {
 
 export class RefreshToken extends ApplicationFailure {
   constructor(identifier: string, json: string, body: BodyInit, message = '') {
-    super(truncateForTemporal(message, MAX_FAILURE_MESSAGE), 'refresh_token', true, [
-      {
-        identifier,
-        json: truncateForTemporal(json, MAX_FAILURE_FIELD),
-        body: truncateForTemporal(body, MAX_FAILURE_FIELD),
-      },
-    ]);
+    super(
+      truncateForTemporal(message, MAX_FAILURE_MESSAGE),
+      'refresh_token',
+      true,
+      [
+        {
+          identifier,
+          json: truncateForTemporal(json, MAX_FAILURE_FIELD),
+          body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+        },
+      ]
+    );
   }
 }
 
@@ -184,12 +189,6 @@ export abstract class SocialAbstract {
     ignoreConcurrency = false,
     message = ''
   ): Promise<Response> {
-    // Providers fetch user-supplied URLs (WordPress domain, Mastodon/Lemmy
-    // instance, Listmonk URL, etc.). Route through the SSRF guard so those
-    // requests can't be pointed at internal/private IPs (cloud metadata,
-    // localhost services, the internal network). Opt-out via env for
-    // self-hosters on a trusted private network. A caller may still pass its
-    // own dispatcher explicitly.
     const request = await fetch(url, {
       ...options,
       // @ts-ignore - undici-only option, not in the lib.dom RequestInit type
@@ -200,15 +199,17 @@ export abstract class SocialAbstract {
       return request;
     }
 
-    if (totalRetries > 2) {
-      throw new BadBody(identifier, '{}', options.body || '{}', message);
-    }
-
     let json = '{}';
     try {
       json = await request.text();
     } catch (err) {
       json = '{}';
+    }
+
+    if (totalRetries > 2) {
+      // Include the platform's actual response body so the failure is
+      // diagnosable, instead of an empty '{}'.
+      throw new BadBody(identifier, json, options.body || '{}', message);
     }
 
     const handleError = this.handleErrors(json || '{}', request.status);

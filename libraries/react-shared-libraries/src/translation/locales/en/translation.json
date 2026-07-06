@@ -51,7 +51,7 @@
   "login_register_to_add_comments": "Login / Register to add comments",
   "status": "Status:",
   "there_are_not_plugs_matching_your_channels": "There are not plugs matching your channels",
-  "you_have_to_add_x_or_linkedin_or_threads": "You have to add: X or LinkedIn or Threads",
+  "you_have_to_add_x_linkedin_page_threads_or_bluesky": "You have to add: X, LinkedIn Page, Threads or Bluesky",
   "go_to_the_calendar_to_add_channels": "Go to the calendar to add channels",
   "channels": "Channels",
   "activate": "Activate",
@@ -866,7 +866,7 @@
   "play": "Play",
   "please_type_your_prompt": "Please type your prompt",
   "please_wait": "Please wait while we connect your account...",
-  "plugs_empty_description": "Plugs run actions on your channels automatically. Connect X, LinkedIn, or Threads to switch them on.",
+  "plugs_empty_description": "Plugs run actions on your channels automatically. Connect X, LinkedIn Page, Threads, or Bluesky to switch them on.",
   "plugs_empty_title": "Put your channels on autopilot",
   "post_already_published_drag": "This post was already published, what do you want to do?",
   "post_analytics": "Post Analytics",
@@ -974,5 +974,8 @@
   "platform_wordpress": "WordPress",
   "platform_wrapcast": "Warpcast",
   "platform_x": "X",
-  "platform_youtube": "YouTube"
+  "platform_youtube": "YouTube",
+  "generation_failed": "Failed to generate posts, please try again.",
+  "facebook_background_none": "None (plain text)",
+  "facebook_background_note": "Unofficial list: the colors shown are approximate, an unsupported background is dropped (published as plain text)"
 }
