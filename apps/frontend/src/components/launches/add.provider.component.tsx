@@ -645,7 +645,9 @@ export const AddProviderComponent: FC<{
         }
         if (customFields) {
           modal.openModal({
-            title: t('add_provider_title', 'Add Provider'),
+            title: t('add_provider_title', 'Add {{provider}}', {
+              provider: platformLabel(identifier),
+            }),
             withCloseButton: true,
             ...(isMobile ? { removeLayout: true, fullScreen: true } : {}),
             classNames: {
