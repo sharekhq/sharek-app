@@ -40,7 +40,7 @@ export const startMcp = async (app: INestApplication) => {
     name: 'Sharek MCP',
     version: '1.0.0',
     tools,
-    agents: { postiz: agent },
+    agents: { sharek: agent },
   };
 
   const server = new MCPServer(serverConfig);
