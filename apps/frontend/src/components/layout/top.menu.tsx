@@ -55,7 +55,7 @@ export const useMenuItem = () => {
       path: '/launches',
     },
     {
-      name: t('agent', 'Agent'),
+      name: t('samy', 'Samy'),
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"

@@ -67,17 +67,11 @@ export const AgentChat: FC = () => {
           <CopilotChat
             className="w-full h-full"
             labels={{
-              title: t('your_assistant', 'Your Assistant'),
-              initial: t('agent_welcome_message', `Hello, I am your Sharek agent 🙌🏻.
-              
-I can schedule a post or multiple posts to multiple channels and generate pictures and videos.
-
-You can select the channels you want to use from the left menu.
-
-You can see your previous conversations from the right menu.
-
-You can also use me as an MCP Server, check Settings >> Public API
-`),
+              title: t('samy', 'Samy'),
+              initial: t(
+                'samy_welcome_message',
+                "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Public API."
+              ),
             }}
             UserMessage={Message}
             Input={NewInput}

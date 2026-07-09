@@ -3,6 +3,8 @@
   .dark {
     --brand: #B92D43;
     --brand-text: #F0708A;
+    --badge-tile: #F7F1EF;
+    --badge-s: var(--brand);
     --bg: #140F11;
     --surface: #251B1F;
     --surface-2: #342832;
@@ -20,6 +22,8 @@
   .light {
     --brand: #B92D43;
     --brand-text: #B92D43;
+    --badge-tile: var(--brand);
+    --badge-s: #FFFFFF;
     --bg: #FBFAF9;
     --surface: #FFFFFF;
     --surface-2: #E9E6E4;

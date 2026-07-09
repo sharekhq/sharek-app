@@ -897,7 +897,7 @@ export const MultiMediaComponent: FC<{
               )}
             </div>
           )}
-          {!mediaNotAvailable && (
+          {!mediaNotAvailable && !!toolBar && (
             <div className="text-newColColor h-full flex items-center">
               <VerticalDividerIcon />
             </div>
