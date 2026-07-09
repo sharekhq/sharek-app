@@ -32,6 +32,7 @@ import { GmbProvider } from '@gitroom/nestjs-libraries/integrations/social/gmb.p
 import { KickProvider } from '@gitroom/nestjs-libraries/integrations/social/kick.provider';
 import { TwitchProvider } from '@gitroom/nestjs-libraries/integrations/social/twitch.provider';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { filterEnabledProviders } from '@gitroom/nestjs-libraries/integrations/enabled.providers';
 import { MoltbookProvider } from '@gitroom/nestjs-libraries/integrations/social/moltbook.provider';
 import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/skool.provider';
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
@@ -81,7 +82,7 @@ export class IntegrationManager {
   async getAllIntegrations() {
     return {
       social: await Promise.all(
-        socialIntegrationList.map(async (p) => ({
+        filterEnabledProviders(socialIntegrationList).map(async (p) => ({
           name: p.name,
           identifier: p.identifier,
           toolTip: p.toolTip,
