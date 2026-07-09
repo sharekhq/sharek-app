@@ -1,19 +1,27 @@
 export const fallbackLng = 'en';
 export const languages = [
   fallbackLng,
-  'ru',
-  'zh',
+  'ar',
+  'de',
   'fr',
   'es',
-  'pt',
-  'de',
   'it',
-  'ja',
-  'ko',
-  'ar',
-  'tr',
-  'vi',
+  'pt',
+  'ru',
 ];
+
+// Native display names for the selector (exact strings; deterministic, unlike
+// Intl.DisplayNames which is CLDR/browser-dependent and lower-cases Romance names).
+export const languageNames: Record<string, string> = {
+  en: 'English',
+  ar: 'العربية',
+  de: 'Deutsch',
+  fr: 'Français',
+  es: 'Español',
+  it: 'Italiano',
+  pt: 'Português',
+  ru: 'Русский',
+};
 
 export const defaultNS = 'translation';
 export const cookieName = 'i18next';

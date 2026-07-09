@@ -769,7 +769,7 @@ export const VerticalDividerIcon: FC<IconProps> = ({ className, ...props }) => (
 );
 
 export const NoMediaIcon: FC = () => {
-  const [mode, setMode] = useCookie('mode', 'light');
+  const [mode, setMode] = useCookie('mode', 'dark');
 
   useEffect(() => {
     modeEmitter.on('mode', (value) => {

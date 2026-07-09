@@ -4,13 +4,14 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
   cookieName,
   fallbackLng,
+  languageNames,
   languages,
 } from '@gitroom/react/translation/i18n.config';
 import i18next from 'i18next';
 import useCookie from 'react-use-cookie';
 import ReactCountryFlag from 'react-country-flag';
 import { List, Box, Group, Text } from '@mantine/core';
-import React, { useCallback } from 'react';
+import React from 'react';
 import countries from 'i18n-iso-countries';
 
 // Register required locales
@@ -77,20 +78,6 @@ export const ChangeLanguageComponent = () => {
     document.documentElement.setAttribute('dir', dir);
   };
 
-  // Function to get language name in its native script
-  const getLanguageName = useCallback((code: string) => {
-    try {
-      // Use browser's Intl API to get language name in native script
-      const displayNames = new Intl.DisplayNames([code], {
-        type: 'language',
-      });
-      return displayNames.of(code);
-    } catch (error) {
-      // Fallback to language code if the API isn't supported or language is not found
-      return code;
-    }
-  }, []);
-
   return (
     <div className="relative">
       <div className="grid grid-cols-4 gap-2">
@@ -113,7 +100,7 @@ export const ChangeLanguageComponent = () => {
               title={language}
             />
             <Text weight={language === currentLanguage ? 'bold' : 'normal'}>
-              {getLanguageName(language)}
+              {languageNames[language]}
             </Text>
           </div>
         ))}
@@ -127,7 +114,7 @@ export const LanguageComponent = () => {
   const t = useT();
   const openModal = () => {
     modal.openModal({
-      title: t('change_language', 'Change Language'),
+      title: t('change_language', 'Select Language'),
       withCloseButton: true,
       children: <ChangeLanguageComponent />,
     });
