@@ -14,14 +14,14 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   const isActive = currentPath.indexOf(path) === 0;
 
   const className = clsx(
-    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[6px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] hover:text-textItemFocused hover:bg-boxFocused transition-colors',
+    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] hover:text-textItemFocused hover:bg-boxFocused transition-colors',
     isActive ? 'text-textItemFocused bg-boxFocused' : 'text-textItemBlur'
   );
 
   const inner = (
     <>
       <div className="custom:scale-90 transition-transform">{icon}</div>
-      <div className="custom:text-[11px] minCustom:text-[12px] leading-[1.1] text-center whitespace-nowrap">
+      <div className="text-[13px] leading-[1.1] text-center whitespace-nowrap">
         {label}
       </div>
     </>
