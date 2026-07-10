@@ -717,12 +717,14 @@ html[dir='rtl'] [dir='ltr'] {
   }
 }
 
-/* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem). */
-.copilotKitInput > textarea {
+/* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem).
+   The container ancestor is required: CopilotKit's stylesheet loads after
+   global.scss, so an equal-specificity selector would lose the cascade. */
+.copilotKitInputContainer .copilotKitInput > textarea {
   font-size: 1rem;
 }
 
-.copilotKitInput > textarea::placeholder {
+.copilotKitInputContainer .copilotKitInput > textarea::placeholder {
   color: var(--muted);
 }
 .rm-bg .b2 {

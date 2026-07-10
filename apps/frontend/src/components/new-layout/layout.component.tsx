@@ -140,7 +140,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       className={clsx(
                         'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
                         // Phone: off-canvas drawer anchored to the inline-start edge.
-                        'phone:start-0 phone:w-[80px] phone:z-[50] phone:bg-newBgColor',
+                        'phone:start-0 phone:w-[84px] phone:z-[50] phone:bg-newBgColor',
                         'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
                         drawerOpen
                           ? 'phone:translate-x-0'
