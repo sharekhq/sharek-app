@@ -277,7 +277,7 @@ export const InstagramAudioSelector: FC<{
             </Select>
             <div className="flex-1 h-[42px] bg-newBgColorInner border-newTableBorder border rounded-[8px] flex items-center">
               <input
-                className="h-full w-full bg-transparent outline-none px-[16px] text-[14px] text-textColor placeholder-textColor"
+                className="h-full w-full bg-transparent outline-none px-[16px] text-[14px] text-textColor"
                 placeholder={t(
                   'instagram_search_audio',
                   'Search audio (empty shows trending)'

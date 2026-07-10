@@ -111,7 +111,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen min-w-screen text-newTextColor p-[12px]',
+                'flex flex-col min-h-screen min-w-screen text-newTextColor py-[12px] pe-[12px] ps-[8px]',
                 fontVariables,
                 'font-sans'
               )}
@@ -127,7 +127,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                     {/* Rail background card — reserves the 80px fixed-rail
                         column on desktop. On phone the rail becomes the
                         off-canvas drawer below, so the reserve is dropped. */}
-                    <div className="flex flex-col bg-newBgColor w-[80px] rounded-[12px] phone:hidden" />
+                    <div className="flex flex-col bg-newBgColor w-[84px] rounded-[12px] phone:hidden" />
                     {drawerOpen && (
                       <div
                         className="hidden phone:block fixed inset-0 z-[40] bg-black/50"
@@ -138,7 +138,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                     <div
                       id="left-menu"
                       className={clsx(
-                        'fixed h-full w-[64px] start-[17px] flex flex-1 top-0',
+                        'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
                         // Phone: off-canvas drawer anchored to the inline-start edge.
                         'phone:start-0 phone:w-[80px] phone:z-[50] phone:bg-newBgColor',
                         'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',

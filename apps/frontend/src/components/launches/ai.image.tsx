@@ -86,7 +86,7 @@ ${style}
             'describe_the_image_you_want_to_generate',
             'Describe the image you want to generate'
           )}
-          className="bg-input min-h-[150px] p-[16px] outline-none border-fifth border rounded-[4px] text-inputText placeholder-inputText"
+          className="bg-input min-h-[150px] p-[16px] outline-none border-fifth border rounded-[4px] text-inputText"
         />
       </div>
       <div className="flex flex-col gap-[6px]">

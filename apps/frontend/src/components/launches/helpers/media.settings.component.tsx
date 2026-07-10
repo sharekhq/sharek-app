@@ -373,7 +373,7 @@ export const MediaComponentInner: FC<{
           value={altText}
           onChange={(e) => setAltText(e.target.value)}
           placeholder="Describe the image/video content..."
-          className="w-full px-3 py-2 bg-fifth border border-tableBorder rounded-lg text-textColor placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+          className="w-full px-3 py-2 bg-input border border-tableBorder rounded-lg text-textColor focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         />
       </div>
       {hasExtension(media?.path, 'mp4') && (

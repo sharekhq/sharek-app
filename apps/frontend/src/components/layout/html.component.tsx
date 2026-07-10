@@ -5,10 +5,12 @@ import { useTranslationSettings } from '@gitroom/react/translation/get.transatio
 export const HtmlComponent: FC = () => {
   const settings = useTranslationSettings();
   const [dir, setDir] = useState(settings.dir());
+  const [lang, setLang] = useState(settings.resolvedLanguage);
 
   useEffect(() => {
     settings.on('languageChanged', (lng) => {
       setDir(settings.dir());
+      setLang(lng);
     });
   }, []);
 
@@ -16,8 +18,11 @@ export const HtmlComponent: FC = () => {
     const htmlElement = document.querySelector('html');
     if (htmlElement) {
       htmlElement.setAttribute('dir', dir);
+      if (lang) {
+        htmlElement.setAttribute('lang', lang);
+      }
     }
-  }, [dir]);
+  }, [dir, lang]);
 
   return null;
 };

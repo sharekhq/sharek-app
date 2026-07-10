@@ -20,6 +20,14 @@ body * {
   outline: none !important;
 }
 
+/* One placeholder color everywhere (AA on --surface); per-field utilities were
+   inconsistent and several failed contrast — do not reintroduce them. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 .box {
   position: relative;
 }
@@ -99,7 +107,7 @@ body * {
 }
 
 .react-tags {
-  @apply border border-newTableBorder placeholder-textColor;
+  @apply border border-newTableBorder;
   position: relative;
   padding-left: 16px;
   font-size: 14px;
@@ -116,7 +124,6 @@ body * {
 }
 
 .react-tags input {
-  @apply placeholder-textColor;
   font-size: 14px;
 }
 
@@ -220,11 +227,6 @@ body * {
   /* match the font styles */
   font-size: 16px;
   line-height: inherit;
-}
-
-.react-tags__combobox-input::placeholder {
-  @apply text-muted;
-  opacity: 1;
 }
 
 .react-tags__listbox {
@@ -580,7 +582,7 @@ html[dir='rtl'] [dir='ltr'] {
 //
 
 .ProseMirror {
-  font-family: Arial;
+  font-family: inherit;
 }
 
 .ProseMirror:focus {
@@ -714,6 +716,15 @@ html[dir='rtl'] [dir='ltr'] {
     width: 100% !important;
   }
 }
+
+/* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem). */
+.copilotKitInput > textarea {
+  font-size: 1rem;
+}
+
+.copilotKitInput > textarea::placeholder {
+  color: var(--muted);
+}
 .rm-bg .b2 {
   padding-top: 8px !important;
 }
@@ -782,7 +793,7 @@ html[dir='rtl'] [dir='ltr'] {
 }
 
 .tiptap p.is-editor-empty:first-child::before {
-  color: #adb5bd;
+  color: var(--muted);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -820,4 +831,18 @@ html[dir='rtl'] [dir='ltr'] {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Arabic typography layer (DESIGN.md §Typography): Arabic carries dots and
+   marks above/below the baseline — prose surfaces get extra leading, and
+   Latin tracking utilities must never letter-space Arabic script. Requires
+   the server-set lang attribute on <html> (app layout). */
+html[lang='ar'] .copilotKitMessage,
+html[lang='ar'] .ProseMirror,
+html[lang='ar'] .preview {
+  line-height: 1.65;
+}
+
+html[lang='ar'] [class*='tracking-'] {
+  letter-spacing: 0 !important;
 }

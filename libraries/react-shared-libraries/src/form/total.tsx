@@ -31,7 +31,7 @@ export const Total: FC<{
       <div className={`text-[14px]`}>{t('total', 'Total')}</div>
       <div
         className={clsx(
-          'bg-input h-[44px] border-fifth border rounded-[4px] text-inputText placeholder-inputText items-center justify-center flex'
+          'bg-input h-[44px] border-fifth border rounded-[4px] text-inputText items-center justify-center flex'
         )}
       >
         <div className="flex-1 px-[16px] text-[14px] select-none flex gap-[8px] items-center">
