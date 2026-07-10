@@ -149,7 +149,10 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       )}
                       onClick={() => setDrawerOpen(false)}
                     >
-                      <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px]">
+                      {/* min-w-0: without it, nowrap menu labels inflate this
+                          flex-1 column past the 84px rail (min-width:auto),
+                          so labels never overflow → ellipsis/shrink dead. */}
+                      <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px] min-w-0">
                         <div className="flex justify-center">
                           <Logo />
                         </div>
