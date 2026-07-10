@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
+import { resolveEntryLanguage } from '@gitroom/helpers/utils/resolve.entry.language';
 import acceptLanguage from 'accept-language';
 import {
   cookieName,
@@ -13,6 +14,28 @@ acceptLanguage.languages(languages);
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
+
+  // Marketing-site language handoff: honor a valid, actionable `?lng=` once at entry by
+  // writing the `i18next` cookie and self-redirecting to the same URL with the param
+  // stripped. The follow-up request carries the cookie, so every downstream branch and
+  // the server layout's `<html lang dir>` render in that language from first paint.
+  // Invalid/absent/already-applied → helper returns null → fall through untouched (FR-006).
+  const entryLng = resolveEntryLanguage(
+    nextUrl.searchParams.get('lng'),
+    request.cookies.get(cookieName)?.value,
+    languages
+  );
+  if (entryLng) {
+    const cleanUrl = nextUrl.clone();
+    cleanUrl.searchParams.delete('lng');
+    const redirect = NextResponse.redirect(cleanUrl);
+    redirect.cookies.set(cookieName, entryLng, {
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+    return redirect;
+  }
+
   const authCookie =
     request.cookies.get('auth') ||
     request.headers.get('auth') ||
