@@ -21,7 +21,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   const inner = (
     <>
       <div className="custom:scale-90 transition-transform">{icon}</div>
-      <div className="text-[13px] leading-[1.1] text-center whitespace-nowrap">
+      <div className="text-[13px] leading-[1.1] text-center whitespace-nowrap max-w-full overflow-hidden text-ellipsis">
         {label}
       </div>
     </>
