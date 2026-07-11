@@ -80,7 +80,18 @@ module.exports = {
         loginBg: 'url(/auth/bg-login.png)',
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'var(--font-arabic)', 'Helvetica Neue', 'sans-serif'],
+        // Reference the real "IBM Plex Sans" family by name rather than
+        // var(--font-sans). next/font expands var(--font-sans) to
+        // `"IBM Plex Sans", "IBM Plex Sans Fallback"`, where the Fallback face is
+        // an unrestricted local("Arial"). Placed before var(--font-arabic), that
+        // Arial face greedily paints every Arabic glyph (Arial covers Arabic),
+        // so Arabic rendered as system Arial and the brand IBM Plex Sans Arabic
+        // was never reached. adjustFontFallback:false would drop that face, but
+        // Next 16's Turbopack build does not honor it — so we keep the Arial
+        // face out of the cascade by naming the real Latin family directly.
+        // Latin still gets Plex Sans; Arabic glyphs (outside Plex Sans's Latin
+        // unicode-range) fall through to var(--font-arabic) = IBM Plex Sans Arabic.
+        sans: ['"IBM Plex Sans"', 'var(--font-arabic)', 'Helvetica Neue', 'sans-serif'],
         arabic: ['var(--font-arabic)', 'var(--font-sans)', 'Helvetica Neue', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
       },
