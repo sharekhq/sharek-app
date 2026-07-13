@@ -26,6 +26,9 @@ export class OpenaiService {
         prompt,
         model: 'chatgpt-image-latest',
         size: isVertical ? '1024x1536' : '1024x1024',
+        // unset quality defaults to auto → high, ~4x the cost of medium;
+        // social platforms recompress uploads, so medium is indistinguishable in-feed
+        quality: 'medium',
       })
     ).data[0];
 
