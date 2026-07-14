@@ -23,14 +23,7 @@ export default async function AuthLayout({
           <div className="flex">{children}</div>
         </div>
         <div className="w-full max-w-[440px] mx-auto text-center text-[11px] text-white/40 pb-[8px]">
-          <a
-            href="https://github.com/sharekhq/sharek-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-white/70 transition-colors"
-          >
-            © 2026 Sharek · Open source (AGPL-3.0)
-          </a>
+          © 2026 Sharek
         </div>
       </div>
       <div className="text-[36px] flex-1 pt-[88px] hidden lg:flex flex-col items-center">
