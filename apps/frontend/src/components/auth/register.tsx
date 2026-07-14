@@ -19,17 +19,8 @@ import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useTrack } from '@gitroom/react/helpers/use.track';
 import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
 import { FarcasterProvider } from '@gitroom/frontend/components/auth/providers/farcaster.provider';
-import dynamic from 'next/dynamic';
-import { WalletUiProvider } from '@gitroom/frontend/components/auth/providers/placeholder/wallet.ui.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
-const WalletProvider = dynamic(
-  () => import('@gitroom/frontend/components/auth/providers/wallet.provider'),
-  {
-    ssr: false,
-    loading: () => <WalletUiProvider />,
-  }
-);
 type Inputs = {
   email: string;
   password: string;
@@ -89,8 +80,7 @@ export function RegisterAfter({
   provider: string;
 }) {
   const t = useT();
-  const { isGeneral, genericOauth, neynarClientId, billingEnabled } =
-    useVariables();
+  const { isGeneral, genericOauth, neynarClientId } = useVariables();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const fireEvents = useFireEvents();
@@ -169,7 +159,6 @@ export function RegisterAfter({
                     <GoogleProvider />
                   )}
                   {!!neynarClientId && <FarcasterProvider />}
-                  {billingEnabled && <WalletProvider />}
                 </div>
               ))}
             {!isAfterProvider && (
@@ -219,7 +208,7 @@ export function RegisterAfter({
                 )}
                 &nbsp;
                 <a
-                  href={`https://sharek.app/terms`}
+                  href={`https://sharek.app/terms-of-service`}
                   className="underline hover:font-bold"
                   rel="nofollow"
                 >
@@ -228,7 +217,7 @@ export function RegisterAfter({
                 &nbsp;
                 {t('and', 'and')}&nbsp;
                 <a
-                  href={`https://sharek.app/privacy`}
+                  href={`https://sharek.app/privacy-policy`}
                   rel="nofollow"
                   className="underline hover:font-bold"
                 >
