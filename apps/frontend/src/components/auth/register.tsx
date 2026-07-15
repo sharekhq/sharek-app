@@ -18,7 +18,6 @@ import { useFireEvents } from '@gitroom/helpers/utils/use.fire.events';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useTrack } from '@gitroom/react/helpers/use.track';
 import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
-import { FarcasterProvider } from '@gitroom/frontend/components/auth/providers/farcaster.provider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
 type Inputs = {
@@ -80,7 +79,7 @@ export function RegisterAfter({
   provider: string;
 }) {
   const t = useT();
-  const { isGeneral, genericOauth, neynarClientId } = useVariables();
+  const { isGeneral, genericOauth } = useVariables();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const fireEvents = useFireEvents();
@@ -158,7 +157,6 @@ export function RegisterAfter({
                   ) : (
                     <GoogleProvider />
                   )}
-                  {!!neynarClientId && <FarcasterProvider />}
                 </div>
               ))}
             {!isAfterProvider && (
