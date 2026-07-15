@@ -90,7 +90,7 @@ export const FirstBillingComponent = () => {
       children: (
         <iframe
           className="h-full aspect-video min-w-[800px]"
-          src="https://www.youtube.com/embed/BdsCVvEYgHU?si=vvhaZJ8I5oXXvVJS?autoplay=1"
+          src="https://www.youtube.com/embed/Y1MyEdKy5gE?autoplay=1"
           title="Sharek Tutorial"
           allow="autoplay"
           allowFullScreen
