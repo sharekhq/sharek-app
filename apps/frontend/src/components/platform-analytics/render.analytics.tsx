@@ -2,7 +2,11 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { ChartSocial } from '@gitroom/frontend/components/analytics/chart-social';
+import {
+  ChartSocial,
+  CHART_CARD_HUES as CARD_HUES,
+  CHART_CARD_DOTS as CARD_DOTS,
+} from '@gitroom/frontend/components/analytics/chart-social';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
@@ -47,25 +51,6 @@ const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
     </div>
   );
 };
-
-// v3 categorical slots, cycled by card index so each metric reads distinctly
-// instead of a single blue. Chart hue and header dot stay in lock-step.
-const CARD_HUES = [
-  'pomegranate',
-  'saffron',
-  'fayrouz',
-  'palm',
-  'lapis',
-  'clay',
-] as const;
-const CARD_DOTS = [
-  'bg-catPomegranate',
-  'bg-catSaffron',
-  'bg-catFayrouz',
-  'bg-catPalm',
-  'bg-catLapis',
-  'bg-catClay',
-];
 
 const AnalyticsCard: FC<{
   item: AnalyticsDataItem;

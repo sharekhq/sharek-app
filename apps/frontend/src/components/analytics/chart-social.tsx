@@ -6,6 +6,26 @@ import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.fork
 import { chunk } from 'lodash';
 import useCookie from 'react-use-cookie';
 
+// Per-card palette for analytics grids: cycle the 6 v3 categorical slots so
+// each metric card reads distinctly instead of a single blue. The chart hue
+// (ChartSocial `color`) and the header dot must stay index-aligned.
+export const CHART_CARD_HUES = [
+  'pomegranate',
+  'saffron',
+  'fayrouz',
+  'palm',
+  'lapis',
+  'clay',
+] as const;
+export const CHART_CARD_DOTS = [
+  'bg-catPomegranate',
+  'bg-catSaffron',
+  'bg-catFayrouz',
+  'bg-catPalm',
+  'bg-catLapis',
+  'bg-catClay',
+];
+
 function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
   const res = chunk(data, Math.ceil(data.length / numPoints));
   return res.map((row) => {

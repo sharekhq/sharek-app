@@ -2,7 +2,11 @@ import React, { FC, Fragment, useCallback, useMemo, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { ChartSocial } from '@gitroom/frontend/components/analytics/chart-social';
+import {
+  ChartSocial,
+  CHART_CARD_HUES as CARD_HUES,
+  CHART_CARD_DOTS as CARD_DOTS,
+} from '@gitroom/frontend/components/analytics/chart-social';
 import { Select } from '@gitroom/react/form/select';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { MissingReleaseModal } from '@gitroom/frontend/components/launches/missing-release.modal';
@@ -109,14 +113,14 @@ export const StatisticsModal: FC<{
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[16px]">
                 {analyticsData.map((p: AnalyticsData, index: number) => {
-                  // v3: single data hue (lapis/info) — see render.analytics.tsx
-                  const color = 'blue' as const;
+                  const color = CARD_HUES[index % CARD_HUES.length];
+                  const dotClass = CARD_DOTS[index % CARD_DOTS.length];
                   return (
                     <div key={`analytics-${index}`} className="group">
                       <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-muted">
                         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
                           <div className="flex items-center gap-[10px]">
-                            <div className="w-[8px] h-[8px] rounded-full bg-info" />
+                            <div className={`w-[8px] h-[8px] rounded-full ${dotClass}`} />
                             <span className="text-[15px] font-medium text-newTableText">
                               {p.label}
                             </span>

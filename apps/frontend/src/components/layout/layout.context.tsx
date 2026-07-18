@@ -1,10 +1,38 @@
 'use client';
 
 import { ReactNode, useCallback } from 'react';
+import { MantineProvider } from '@mantine/core';
 import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+
+// App-wide Mantine theme so every Mantine surface (date/time picker, the
+// group autocomplete, the language list) uses the brand instead of Mantine's
+// factory blue for selection/focus states. Shade 6 = --brand (#B92D43).
+const brandRamp: [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string
+] = [
+  '#FBE9EC',
+  '#F5CDD4',
+  '#EBA0AC',
+  '#E17284',
+  '#D94A61',
+  '#CE3450',
+  '#B92D43',
+  '#A0263A',
+  '#8E1F33',
+  '#741826',
+];
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -124,7 +152,11 @@ function LayoutContextInner(params: { children: ReactNode }) {
   );
   return (
     <FetchWrapperComponent baseUrl={backendUrl} afterRequest={afterRequest}>
-      {params?.children || <></>}
+      <MantineProvider
+        theme={{ colors: { brand: brandRamp }, primaryColor: 'brand' }}
+      >
+        {params?.children || <></>}
+      </MantineProvider>
     </FetchWrapperComponent>
   );
 }

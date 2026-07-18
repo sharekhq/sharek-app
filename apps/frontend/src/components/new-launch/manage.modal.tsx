@@ -651,7 +651,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     }
                     className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] start-0 pb-[8px] w-full"
                   >
-                    <div className="text-brand rounded-[8px] bg-surface border border-brand h-[44px] w-full flex justify-center items-center post-now">
+                    <div className="text-brandText rounded-[8px] bg-surface border border-brandText h-[44px] w-full flex justify-center items-center post-now">
                       {t('post_now', 'Post Now')}
                     </div>
                   </button>
