@@ -62,7 +62,7 @@ export const TextArea: FC<{
           chatApiConfigs: {},
         }}
       />
-      <div className="text-red-400 text-[12px]">
+      <div className="text-error text-[12px]">
         {form?.formState?.errors?.[props.name]?.message as string}
       </div>
     </>

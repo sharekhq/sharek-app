@@ -584,7 +584,7 @@ export const MediaBox: FC<{
                     onClick={addRemoveSelected(media)}
                   >
                     {!!selected.find((p: any) => p.id === media.id) ? (
-                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-[#0F0E0D] absolute -bottom-[10px] -end-[10px]">
+                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
                         {selected.findIndex((z: any) => z.id === media.id) + 1}
                       </div>
                     ) : (
@@ -650,7 +650,7 @@ export const MediaBox: FC<{
               <button
                 onClick={standalone ? () => {} : addMedia}
                 disabled={selected.length === 0}
-                className="cursor-pointer text-white disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-[#0F0E0D] flex rounded-[10px]"
+                className="cursor-pointer text-white disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-brand flex rounded-[10px]"
               >
                 {t('add_selected_media', 'Add selected media')}
               </button>
@@ -914,7 +914,7 @@ export const MultiMediaComponent: FC<{
           )}
         </div>
       </div>
-      <div className="text-[12px] text-red-400">{error}</div>
+      <div className="text-[12px] text-error">{error}</div>
     </>
   );
 };

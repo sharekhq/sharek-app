@@ -22,7 +22,7 @@ interface Announcement {
 const colorStyles: Record<AnnouncementColor, { bg: string; hover: string }> = {
   INFO: { bg: 'bg-blue-600', hover: 'hover:bg-blue-500' },
   WARNING: { bg: 'bg-amber-600', hover: 'hover:bg-amber-500' },
-  ERROR: { bg: 'bg-red-600', hover: 'hover:bg-red-500' },
+  ERROR: { bg: 'bg-error', hover: 'hover:opacity-90' },
 };
 
 const useAnnouncements = () => {
@@ -81,7 +81,7 @@ const AnnouncementDetailModal: FC<{
           <Button
             onClick={handleDelete}
             loading={deleting}
-            className="!bg-red-700 rounded-[4px]"
+            variant="danger" className="rounded-[4px]"
           >
             {t('delete_announcement', 'Delete Announcement')}
           </Button>

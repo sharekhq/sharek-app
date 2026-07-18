@@ -134,7 +134,7 @@ export const SelectCurrent: FC = () => {
             >
               <div
                 onClick={removeSocial(integration)}
-                className="absolute justify-center items-center flex w-[8px] h-[8px] -top-[1px] -start-[3px] bg-red-500 rounded-full text-white text-[8px]"
+                className="absolute justify-center items-center flex w-[8px] h-[8px] -top-[1px] -start-[3px] bg-error rounded-full text-white text-[8px]"
               >
                 X
               </div>

@@ -301,7 +301,7 @@ export const CommentComponent: FC<{
               <div className="flex gap-[8px]">
                 <div className="w-[40px] flex flex-col items-center">
                   <div
-                    className={`rounded-full relative z-[2] text-blue-500 font-bold flex justify-center items-center w-[40px] h-[40px] bg-white border-tableBorder border`}
+                    className={`rounded-full relative z-[2] text-info font-bold flex justify-center items-center w-[40px] h-[40px] bg-surface border-tableBorder border`}
                   >
                     {comment.user.email[0].toUpperCase()}
                   </div>
@@ -329,7 +329,7 @@ export const CommentComponent: FC<{
                   >
                     <div className="w-[40px] flex flex-col items-center">
                       <div
-                        className={`rounded-full relative z-[2] text-blue-500 font-bold flex justify-center items-center w-[40px] h-[40px] bg-white border-tableBorder border`}
+                        className={`rounded-full relative z-[2] text-info font-bold flex justify-center items-center w-[40px] h-[40px] bg-surface border-tableBorder border`}
                       >
                         {childComment.user.email[0].toUpperCase()}
                       </div>

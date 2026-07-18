@@ -153,7 +153,7 @@ export const MoltbookProvider: FC<Web3ProviderInterface> = (props) => {
               href={claimUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
+              className="text-brandText hover:underline"
             >
               {t('open_claim_page', 'Open claim page')}
             </a>
@@ -163,7 +163,7 @@ export const MoltbookProvider: FC<Web3ProviderInterface> = (props) => {
 
       {step === 'error' && (
         <div className="w-full text-center">
-          <div className="text-red-500 mb-[16px]">{error}</div>
+          <div className="text-error mb-[16px]">{error}</div>
           <Button onClick={() => setStep('init')}>
             {t('try_again', 'Try Again')}
           </Button>

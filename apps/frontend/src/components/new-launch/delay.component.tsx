@@ -103,7 +103,7 @@ export const DelayComponent: FC<{
                 key={option.value}
                 className={clsx(
                   'h-[32px] flex items-center justify-center rounded-[4px] cursor-pointer hover:bg-newBgColor text-[13px]',
-                  currentDelay === option.value && 'bg-[#0F0E0D] text-white hover:bg-[#0F0E0D]'
+                  currentDelay === option.value && 'bg-brandSoft text-brandText hover:bg-brandSoft'
                 )}
               >
                 {option.label}
@@ -133,7 +133,7 @@ export const DelayComponent: FC<{
                     setCustomValue('');
                   }
                 }}
-                className="h-[32px] px-[10px] rounded-[4px] bg-[#0F0E0D] text-white text-[12px] font-[600] hover:bg-[#0F0E0D]/80"
+                className="h-[32px] px-[10px] rounded-[4px] bg-quiet border border-line text-ink text-[12px] font-[600] hover:bg-surface2"
               >
                 Set
               </button>
@@ -142,7 +142,7 @@ export const DelayComponent: FC<{
           {currentDelay > 0 && (
             <button
               onClick={() => handleSelectDelay(0)}
-              className="mt-[8px] h-[32px] w-full rounded-[4px] text-[13px] text-red-400 hover:bg-red-400/10"
+              className="mt-[8px] h-[32px] w-full rounded-[4px] text-[13px] text-error hover:opacity-80"
             >
               Remove delay
             </button>

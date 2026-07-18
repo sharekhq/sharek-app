@@ -243,7 +243,7 @@ export const DeveloperComponent: FC = () => {
             </div>
             <div className="flex gap-[6px] shrink-0 pt-[2px]">
               <a
-                className="cursor-pointer px-[16px] h-[36px] bg-[#0F0E0D] hover:bg-[#2A2724] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+                className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
                 href="https://docs.postiz.com/public-api/oauth"
                 target="_blank"
               >
@@ -256,7 +256,7 @@ export const DeveloperComponent: FC = () => {
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="cursor-pointer px-[20px] h-[44px] bg-[#0F0E0D] hover:bg-[#2A2724] transition-colors text-white rounded-[8px] text-[15px] font-[600]"
+              className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
             >
               {t('create_oauth_app', 'Create OAuth App')}
             </button>
@@ -358,7 +358,7 @@ export const DeveloperComponent: FC = () => {
               <button
                 type="button"
                 onClick={createApp}
-                className="cursor-pointer px-[20px] h-[44px] bg-[#0F0E0D] hover:bg-[#2A2724] transition-colors text-white rounded-[8px] text-[15px] font-[600]"
+                className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
               >
                 {t('create', 'Create')}
               </button>
@@ -406,7 +406,7 @@ export const DeveloperComponent: FC = () => {
           </div>
           <div className="flex gap-[6px] shrink-0 pt-[2px]">
             <a
-              className="cursor-pointer px-[16px] h-[36px] bg-[#0F0E0D] hover:bg-[#2A2724] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               href="https://docs.postiz.com/public-api/oauth"
               target="_blank"
             >
@@ -482,7 +482,7 @@ export const DeveloperComponent: FC = () => {
               <button
                 type="button"
                 onClick={updateApp}
-                className="cursor-pointer px-[20px] h-[44px] bg-[#0F0E0D] hover:bg-[#2A2724] transition-colors text-white rounded-[8px] text-[15px] font-[600]"
+                className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
               >
                 {t('save', 'Save')}
               </button>
@@ -592,7 +592,7 @@ export const DeveloperComponent: FC = () => {
             <button
               type="button"
               onClick={deleteApp}
-              className="cursor-pointer px-[16px] h-[36px] bg-red-600 hover:bg-red-700 text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              className="cursor-pointer px-[16px] h-[36px] bg-error hover:opacity-90 text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
               {t('delete_app', 'Delete App')}

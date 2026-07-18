@@ -110,9 +110,9 @@ export default function OAuthAuthorizePage() {
           <div className="flex justify-center mb-[24px]">
             <Logo />
           </div>
-          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-red-500/20 flex items-center justify-center">
+          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-[color-mix(in_srgb,var(--error)_18%,transparent)] flex items-center justify-center">
             <svg
-              className="w-[40px] h-[40px] text-red-500"
+              className="w-[40px] h-[40px] text-error"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -189,7 +189,7 @@ export default function OAuthAuthorizePage() {
             <button
               onClick={() => handleAction('approve')}
               disabled={submitting}
-              className="flex-1 bg-[#0F0E0D] hover:bg-[#2A2724] disabled:opacity-50 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
+              className="flex-1 bg-quiet border border-line hover:bg-surface2 disabled:opacity-50 text-ink rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
             >
               Authorize
             </button>

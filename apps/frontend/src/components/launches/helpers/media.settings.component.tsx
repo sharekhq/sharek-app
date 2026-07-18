@@ -414,7 +414,7 @@ export const MediaComponentInner: FC<{
                         setNewThumbnail(null);
                         setThumbnail(null);
                       }}
-                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all flex-1 border border-red-700"
+                      className="bg-error text-white px-6 py-2 rounded-lg hover:opacity-80 transition-all flex-1"
                     >
                       Clear Thumbnail
                     </button>

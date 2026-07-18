@@ -45,7 +45,7 @@ const SelectAvatarComponent: FC<{
           className={clsx(
             'w-full h-full p-[20px] min-h-[100px] text-[14px] hover:bg-input transition-all text-textColor relative flex flex-col gap-[15px] cursor-pointer',
             current?.avatar_id === p.avatar_id
-              ? 'bg-input border border-red-500'
+              ? 'bg-input border border-error'
               : 'bg-third'
           )}
         >
@@ -81,7 +81,7 @@ const SelectVoiceComponent: FC<{
           className={clsx(
             'w-full h-full p-[20px] min-h-[100px] text-[14px] hover:bg-input transition-all text-textColor relative flex flex-col gap-[15px] cursor-pointer',
             current?.voice_id === p.voice_id
-              ? 'bg-input border border-red-500'
+              ? 'bg-input border border-error'
               : 'bg-third'
           )}
         >
@@ -218,7 +218,7 @@ const HeygenProviderComponent = () => {
                   );
                 }}
               />
-              <div className="text-red-400 text-[12px] mb-3">
+              <div className="text-error text-[12px] mb-3">
                 {form?.formState?.errors?.avatar?.message || ''}
               </div>
             </>
@@ -231,7 +231,7 @@ const HeygenProviderComponent = () => {
                 voiceList={voices}
                 onChange={(id: string) => form.setValue('selectedVoice', id)}
               />
-              <div className="text-red-400 text-[12px] mb-3">
+              <div className="text-error text-[12px] mb-3">
                 {form?.formState?.errors?.selectedVoice?.message || ''}
               </div>
             </>

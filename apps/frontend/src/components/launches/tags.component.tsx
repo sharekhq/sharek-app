@@ -254,7 +254,7 @@ export const TagsComponentInner: FC<{
           ))}
           <div
             onClick={addTag}
-            className="cursor-pointer gap-[8px] flex w-full h-[34px] rounded-[8px] mt-[12px] px-[16px] justify-center items-center bg-[#0F0E0D] text-white"
+            className="cursor-pointer gap-[8px] flex w-full h-[34px] rounded-[8px] mt-[12px] px-[16px] justify-center items-center bg-quiet border border-line text-ink"
           >
             <div>
               <PlusIcon />
@@ -461,13 +461,13 @@ export const TagsComponentA: FC<{
                 }}
               >
                 <div
-                  className="absolute -top-[5px] start-[10px] text-[12px] text-red-600 bg-white px-[3px] rounded-full"
+                  className="absolute -top-[5px] start-[10px] text-[12px] text-error bg-surface px-[3px] rounded-full"
                   onClick={edit(findTag)}
                 >
                   {t('edit', 'Edit')}
                 </div>
                 <div
-                  className="absolute -top-[5px] -start-[5px] text-[12px] text-red-600 bg-white px-[3px] rounded-full"
+                  className="absolute -top-[5px] -start-[5px] text-[12px] text-error bg-surface px-[3px] rounded-full"
                   onClick={() => onDelete(findIndex)}
                 >
                   X
@@ -513,7 +513,7 @@ const ConfirmDeleteModal: FC<{
             resolve(true);
             close();
           }}
-          className="bg-red-500 hover:bg-red-600"
+          variant="danger"
         >
           {t('delete', 'Delete')}
         </Button>

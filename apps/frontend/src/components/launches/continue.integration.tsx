@@ -275,9 +275,9 @@ export const ContinueIntegration: FC<{
         </div>
 
         <div className="relative z-10 text-center">
-          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-green-500/20 flex items-center justify-center">
+          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-[color-mix(in_srgb,var(--success)_18%,transparent)] flex items-center justify-center">
             <svg
-              className="w-[40px] h-[40px] text-green-500"
+              className="w-[40px] h-[40px] text-success"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -374,9 +374,9 @@ export const ContinueIntegration: FC<{
         </div>
 
         <div className="relative z-10 text-center">
-          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-red-500/20 flex items-center justify-center">
+          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-[color-mix(in_srgb,var(--error)_18%,transparent)] flex items-center justify-center">
             <svg
-              className="w-[40px] h-[40px] text-red-500"
+              className="w-[40px] h-[40px] text-error"
               fill="currentColor"
               viewBox="0 0 20 20"
             >

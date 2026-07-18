@@ -88,7 +88,7 @@ export function Activate() {
         </h2>
         {status === 'sent' ? (
           <div className="flex flex-col gap-4">
-            <div className="text-green-400">
+            <div className="text-success">
               {t(
                 'activation_email_sent',
                 'Activation email has been sent! Please check your inbox.'
@@ -109,7 +109,7 @@ export function Activate() {
           </div>
         ) : status === 'already_activated' ? (
           <div className="flex flex-col gap-4">
-            <div className="text-green-400">
+            <div className="text-success">
               {t(
                 'account_already_activated',
                 'Great news! Your account is already activated.'

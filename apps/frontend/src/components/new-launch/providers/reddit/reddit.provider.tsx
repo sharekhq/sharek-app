@@ -188,7 +188,7 @@ const RedditSettings: FC = () => {
           <div key={field.id} className="flex flex-col relative">
             <div
               onClick={deleteField(index)}
-              className="absolute -start-[10px] justify-center items-center flex -top-[10px] w-[20px] h-[20px] bg-red-600 rounded-full text-textColor"
+              className="absolute -start-[10px] justify-center items-center flex -top-[10px] w-[20px] h-[20px] bg-error rounded-full text-textColor"
             >
               x
             </div>
@@ -198,7 +198,7 @@ const RedditSettings: FC = () => {
       </div>
       <Button onClick={addField}>{t('add_subreddit', 'Add Subreddit')}</Button>
       {fields.length === 0 && (
-        <div className="text-red-500 text-[12px] mt-[10px]">
+        <div className="text-error text-[12px] mt-[10px]">
           {t(
             'please_add_at_least_one_subreddit',
             'Please add at least one Subreddit'
