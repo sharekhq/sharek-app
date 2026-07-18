@@ -434,7 +434,7 @@ const ViewStats = () => {
   }, []);
   return (
     <div
-      className="px-[10px] rounded-[4px] bg-brand text-white cursor-pointer whitespace-nowrap"
+      className="px-[10px] rounded-[4px] bg-[#5C5652] text-white cursor-pointer whitespace-nowrap"
       onClick={handleClick}
     >
       {t('view_stats', 'View Stats')}
@@ -524,7 +524,7 @@ export const Impersonate = () => {
   }, [data]);
   return (
     <div>
-      <div className="bg-brand h-[52px] phone:h-auto phone:py-[8px] phone:px-[12px] flex justify-center items-center border-input border rounded-[8px] text-white">
+      <div className="bg-[#44403D] h-[52px] phone:h-auto phone:py-[8px] phone:px-[12px] flex justify-center items-center border-input border rounded-[8px] text-white">
         <div className="relative flex flex-col w-[600px] phone:w-full">
           <div className="relative z-[1]">
             {user?.impersonate ? (
