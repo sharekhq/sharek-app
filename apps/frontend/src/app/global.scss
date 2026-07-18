@@ -95,7 +95,7 @@ textarea::placeholder {
 }
 
 .swal2-cancel {
-  @apply text-white #{!important};
+  @apply bg-quiet text-ink #{!important};
 }
 .swal2-confirm {
   @apply bg-brand #{!important};
@@ -390,7 +390,7 @@ textarea::placeholder {
 
 .uppy-ProgressBar-percentage {
   position: absolute;
-  color: red;
+  color: var(--brand-text);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -423,7 +423,7 @@ textarea::placeholder {
 
 .loading-shimmer {
   position: relative;
-  color: rgba(255, 255, 255, 0.5);
+  color: color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
 .loading-shimmer:before {
@@ -432,7 +432,7 @@ textarea::placeholder {
   overflow: hidden;
   max-width: 100%;
   white-space: nowrap;
-  color: white;
+  color: var(--ink);
   animation: loading 4s linear 0s infinite;
   filter: blur(0.4px);
 }
@@ -675,7 +675,7 @@ html[dir='rtl'] [dir='ltr'] {
 }
 
 .mantine-Overlay-root {
-  background: rgba(65, 64, 66, 0.3) !important;
+  background: var(--popup-color) !important;
 }
 
 .dropdown-menu {

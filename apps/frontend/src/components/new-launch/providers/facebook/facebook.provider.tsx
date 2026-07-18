@@ -87,7 +87,7 @@ export const FacebookSettings = () => {
                 : undefined
             }
           >
-            <option value="" style={{ background: '#ffffff', color: '#1c1e21' }}>
+            <option value="" style={{ background: 'var(--surface)', color: 'var(--ink)' }}>
               {t('facebook_background_none', 'None (plain text)')}
             </option>
             {FACEBOOK_PRESETS.map((item) => {

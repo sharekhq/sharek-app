@@ -34,7 +34,7 @@ export const ShowNotification: FC<{
     <div
       className={clsx(
         `text-textColor px-[16px] py-[10px] border-b border-tableBorder last:border-b-0 transition-colors`,
-        newNotification && 'font-bold bg-brand animate-newMessages'
+        newNotification && 'font-bold bg-brandSoft animate-newMessages'
       )}
     >
       <div
@@ -74,7 +74,7 @@ export const NotificationOpenComponent = () => {
       <div className="flex flex-col max-h-[400px] overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
         {isLoading && (
           <div className="flex-1 flex justify-center pt-12">
-            <ReactLoading type="spin" color="#fff" width={36} height={36} />
+            <ReactLoading type="spin" width={36} height={36} />
           </div>
         )}
         {!isLoading && !data.notifications.length && (
