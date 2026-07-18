@@ -62,7 +62,7 @@ export const Prorate: FC<{
   if (loading) {
     return (
       <div className="pt-[12px]">
-        <ReactLoading type="spin" width={20} height={20} />
+        <ReactLoading type="spin" color="var(--ink)" width={20} height={20} />
       </div>
     );
   }

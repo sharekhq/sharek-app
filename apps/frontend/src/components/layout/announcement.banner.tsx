@@ -19,10 +19,14 @@ interface Announcement {
   createdAt: string;
 }
 
-const colorStyles: Record<AnnouncementColor, { bg: string; hover: string }> = {
-  INFO: { bg: 'bg-info', hover: 'hover:opacity-90' },
-  WARNING: { bg: 'bg-warning', hover: 'hover:opacity-90' },
-  ERROR: { bg: 'bg-error', hover: 'hover:opacity-90' },
+// v3: soft tinted callouts — semantic tokens are text accents, so a 12% tint
+// fill + colored text + subtle border keeps them legible in both themes
+// (white-on-token failed AA), matching the login "not activated" alert.
+const colorStyles: Record<AnnouncementColor, string> = {
+  INFO: 'bg-[color-mix(in_srgb,var(--info)_12%,transparent)] border-[color-mix(in_srgb,var(--info)_34%,transparent)] text-info hover:bg-[color-mix(in_srgb,var(--info)_18%,transparent)]',
+  WARNING:
+    'bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border-[color-mix(in_srgb,var(--warning)_34%,transparent)] text-warning hover:bg-[color-mix(in_srgb,var(--warning)_18%,transparent)]',
+  ERROR: 'bg-[color-mix(in_srgb,var(--error)_12%,transparent)] border-[color-mix(in_srgb,var(--error)_34%,transparent)] text-error hover:bg-[color-mix(in_srgb,var(--error)_18%,transparent)]',
 };
 
 const useAnnouncements = () => {
@@ -132,7 +136,7 @@ export const AnnouncementBanner: FC = () => {
 
   return (
     <div
-      className={`${style.bg} ${style.hover} text-white px-[16px] py-[8px] text-center cursor-pointer rounded-[8px] text-[14px] font-[500] transition-colors`}
+      className={`${style} border px-[16px] py-[8px] text-center cursor-pointer rounded-[8px] text-[14px] font-[500] transition-colors`}
       onClick={handleClick(latest)}
     >
       {latest.title}

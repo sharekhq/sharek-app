@@ -152,7 +152,7 @@ export const AiImage: FC<{
       >
         {loading && (
           <div className="absolute start-[50%] -translate-x-[50%]">
-            <Loading height={15} width={15} type="spin" />
+            <Loading height={15} width={15} type="spin" color="var(--ink)" />
           </div>
         )}
         <div
