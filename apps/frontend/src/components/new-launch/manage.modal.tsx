@@ -448,7 +448,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px]">
+            <div className="flex-1 flex flex-col gap-[16px] bg-panel">
               <div
                 className={clsx('flex-1 relative', showSettings && 'hidden')}
               >
@@ -537,7 +537,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 <CloseIcon onClick={askClose} className="text-[#A3A3A3]" />
               </div>
             </div>
-            <div className="flex-1 relative">
+            <div className="flex-1 relative bg-panel">
               <Scrollable
                 scrollClasses="!pe-[20px]"
                 className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-scroll scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
