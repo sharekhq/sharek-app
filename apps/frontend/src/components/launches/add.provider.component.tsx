@@ -245,7 +245,7 @@ export const CustomVariables: FC<{
                     <span
                       data-tooltip-id="tooltip"
                       data-tooltip-content={variable.hint}
-                      className="w-[16px] h-[16px] rounded-full border border-textColor/60 text-textColor/60 flex items-center justify-center text-[11px] leading-none cursor-help select-none"
+                      className="w-[16px] h-[16px] rounded-full border border-muted text-muted flex items-center justify-center text-[11px] leading-none cursor-help select-none"
                     >
                       i
                     </span>
@@ -278,7 +278,7 @@ const ExtensionNotFound: FC = () => {
   const t = useT();
   return (
     <div className="flex flex-col gap-[16px] pt-[8px]">
-      <p className="text-[14px] text-textColor/80">
+      <p className="text-[14px] text-muted">
         {t(
           'extension_not_available',
           'The Sharek browser extension is not installed. You need to install it before connecting this channel.'
@@ -318,13 +318,13 @@ const ChromeExtensionWarning: FC<{
   const t = useT();
   return (
     <div className="flex flex-col gap-[16px] pt-[8px]">
-      <p className="text-[14px] text-textColor/80">
+      <p className="text-[14px] text-muted">
         {t(
           'chrome_extension_warning_intro',
           'This channel connects via the browser extension. Please be aware of the following:'
         )}
       </p>
-      <ul className="flex flex-col gap-[8px] list-disc ps-[20px] text-[14px] text-textColor/80">
+      <ul className="flex flex-col gap-[8px] list-disc ps-[20px] text-[14px] text-muted">
         <li>
           {t(
             'chrome_extension_warning_tos',

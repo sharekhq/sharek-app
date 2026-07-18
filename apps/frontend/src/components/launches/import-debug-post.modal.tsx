@@ -138,7 +138,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
       />
 
       {parseError && (
-        <div className="text-red-500 text-[13px]">{parseError}</div>
+        <div className="text-error text-[13px]">{parseError}</div>
       )}
 
       {parsed && (
@@ -147,7 +147,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
             <div className="text-[13px] font-[600] text-textColor">
               {t('debug_info', 'Debug Info')}
             </div>
-            <div className="text-[12px] text-textColor/70 flex flex-col gap-[4px] min-w-0 break-all">
+            <div className="text-[12px] text-muted flex flex-col gap-[4px] min-w-0 break-all">
               <div>
                 <span className="font-[500]">
                   {t('provider', 'Provider')}:
@@ -158,7 +158,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
                 <span className="font-[500]">
                   {t('state', 'State')}:
                 </span>{' '}
-                <span className={parsed._debug.state === 'ERROR' ? 'text-red-500' : ''}>
+                <span className={parsed._debug.state === 'ERROR' ? 'text-error' : ''}>
                   {parsed._debug.state}
                 </span>
               </div>
@@ -196,7 +196,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
           <div className="flex flex-col gap-[8px]">
             <div className="text-[13px] font-[600] text-textColor">
               {t('select_local_integration', 'Select Local Integration')}
-              <span className="text-[12px] font-[400] text-textColor/60 ml-[8px]">
+              <span className="text-[12px] font-[400] text-muted ml-[8px]">
                 ({parsed._debug.providerIdentifier})
               </span>
             </div>
@@ -218,7 +218,7 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
                       'flex items-center gap-[10px] p-[10px] rounded-[8px] border cursor-pointer transition-all',
                       selectedIntegrationId === integration.id
                         ? 'border-brand bg-brandSoft'
-                        : 'border-tableBorder hover:border-textColor/30'
+                        : 'border-tableBorder hover:border-line'
                     )}
                     onClick={() => setSelectedIntegrationId(integration.id)}
                   >

@@ -101,7 +101,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
             </div>
           )}
           {!isLoading && (!data?.results || !data.results.length) && (
-            <div className="flex items-center justify-center h-full text-textColor/60">
+            <div className="flex items-center justify-center h-full text-muted">
               {t('no_media_found', 'No media found')}
             </div>
           )}

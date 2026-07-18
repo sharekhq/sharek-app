@@ -82,7 +82,7 @@ export const MissingReleaseModal: FC<{
 
   return (
     <div className="flex flex-col gap-[16px]">
-      <div className="text-[14px] text-textColor/70">
+      <div className="text-[14px] text-muted">
         {t(
           'select_matching_content',
           'Select the content that matches this post:'
@@ -96,7 +96,7 @@ export const MissingReleaseModal: FC<{
             className={`cursor-pointer rounded-[8px] overflow-hidden border-2 transition-all ${
               selected === item.id
                 ? 'border-brand scale-[1.02]'
-                : 'border-transparent hover:border-textColor/20'
+                : 'border-transparent hover:border-line'
             }`}
           >
             <img

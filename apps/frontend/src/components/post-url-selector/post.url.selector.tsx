@@ -117,7 +117,7 @@ export const PostSelector: FC<{
           <div
             className={
               !noModal
-                ? 'text-textColor fixed start-0 top-0 bg-primary/80 z-[300] w-full h-full p-[60px] animate-fade'
+                ? 'text-textColor fixed start-0 top-0 bg-popup z-[300] w-full h-full p-[60px] animate-fade'
                 : ''
             }
           >

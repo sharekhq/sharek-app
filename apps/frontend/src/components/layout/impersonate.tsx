@@ -177,7 +177,7 @@ const ChargesModal: FC<{ close: () => void }> = ({ close }) => {
                         {t('refunded', 'Refunded')}
                       </span>
                     ) : (
-                      <span className="text-green-400">
+                      <span className="text-success">
                         {t('paid', 'Paid')}
                       </span>
                     )}
@@ -308,7 +308,7 @@ export const Subscription = () => {
 const colorOptions = [
   { value: 'INFO', label: 'Info (Blue)', className: 'bg-info' },
   { value: 'WARNING', label: 'Warning (Amber)', className: 'bg-warning' },
-  { value: 'ERROR', label: 'Error (Red)', className: 'bg-red-600' },
+  { value: 'ERROR', label: 'Error (Red)', className: 'bg-error' },
 ];
 
 const AddAnnouncementModal: FC<{ close: () => void }> = ({ close }) => {
@@ -567,7 +567,7 @@ export const Impersonate = () => {
           {!!data?.length && (
             <>
               <div
-                className="bg-primary/80 fixed start-0 top-0 w-full h-full z-[998]"
+                className="bg-popup fixed start-0 top-0 w-full h-full z-[998]"
                 onClick={() => setName('')}
               />
               <div className="absolute top-[100%] w-full start-0 bg-sixth border border-line text-textColor z-[999]">

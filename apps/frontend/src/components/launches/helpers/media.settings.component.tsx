@@ -241,7 +241,7 @@ export const CreateThumbnail: FC<{
               style={{
                 background: `linear-gradient(to right, var(--brand) 0%, var(--brand) ${
                   (currentTime / duration) * 100
-                }%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`,
+                }%, var(--line) ${(currentTime / duration) * 100}%, var(--line) 100%)`,
               }}
             />
             <div className="flex justify-between text-sm text-textColor">
@@ -254,7 +254,7 @@ export const CreateThumbnail: FC<{
             <button
               onClick={captureFrame}
               disabled={isCapturing}
-              className="bg-brand text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-brand text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCapturing ? 'Capturing...' : 'Select This Frame'}
             </button>
@@ -270,7 +270,7 @@ export const CreateThumbnail: FC<{
           border-radius: 50%;
           background: var(--brand);
           cursor: pointer;
-          border: 2px solid #ffffff;
+          border: 2px solid var(--surface);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
@@ -280,7 +280,7 @@ export const CreateThumbnail: FC<{
           border-radius: 50%;
           background: var(--brand);
           cursor: pointer;
-          border: 2px solid #ffffff;
+          border: 2px solid var(--surface);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
       `}</style>
@@ -401,7 +401,7 @@ export const MediaComponentInner: FC<{
                   <button
                     disabled={loading}
                     onClick={() => setIsEditingThumbnail(true)}
-                    className="bg-third text-textColor px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all flex-1 border border-tableBorder"
+                    className="bg-third text-textColor px-6 py-2 rounded-lg hover:opacity-90 transition-all flex-1 border border-tableBorder"
                   >
                     {media.thumbnail || newThumbnail
                       ? 'Edit Thumbnail'
@@ -477,13 +477,13 @@ export const MediaComponentInner: FC<{
           <button
             disabled={loading}
             onClick={onClose}
-            className="flex-1 bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all"
+            className="flex-1 bg-quiet text-ink px-6 py-2 rounded-lg hover:opacity-90 transition-all"
           >
             Cancel
           </button>
           <button
             onClick={save}
-            className="flex-1 bg-brand text-white px-6 py-2 rounded-lg hover:bg-opacity-80 transition-all"
+            className="flex-1 bg-brand text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all"
           >
             Save Changes
           </button>

@@ -228,7 +228,7 @@ const PriceBreakdown: FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex flex-col">
             <span className="font-[600] text-textColor">{planName}</span>
-            <span className="text-[13px] text-textColor/60">
+            <span className="text-[13px] text-muted">
               {billingInterval}
             </span>
           </div>
@@ -282,7 +282,7 @@ const PriceBreakdown: FC = () => {
 
         {/* Next billing info */}
         {nextBillingTotal && nextBillingDate && (
-          <div className="flex justify-between items-center text-[13px] text-textColor/60">
+          <div className="flex justify-between items-center text-[13px] text-muted">
             <span>
               {t('billing_then', 'Then')} {nextBillingTotal}{' '}
               {t('billing_on', 'on')} {nextBillingDate}
@@ -394,7 +394,7 @@ const AppliedCouponDisplay: FC<{
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
             <span className="font-[600] text-brand">{appliedCode}</span>
-            <span className="text-[14px] text-textColor/70">
+            <span className="text-[14px] text-muted">
               {t('billing_discount_applied', 'applied')}
               {discountDisplay && ` (${discountDisplay})`}
             </span>
@@ -404,13 +404,13 @@ const AppliedCouponDisplay: FC<{
           type="button"
           onClick={onRemove}
           disabled={isApplying}
-          className="text-[14px] text-textColor/50 hover:text-textColor font-[500] disabled:opacity-50"
+          className="text-[14px] text-muted hover:text-textColor font-[500] disabled:opacity-50"
         >
           {t('billing_remove', 'Remove')}
         </button>
       </div>
       {expirationDate && (
-        <p className="text-[13px] text-textColor/50 flex items-center gap-[6px]">
+        <p className="text-[13px] text-muted flex items-center gap-[6px]">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="14"
@@ -526,7 +526,7 @@ export const CouponInput: FC<{ autoApplyCoupon?: string }> = ({
         <button
           type="button"
           onClick={() => setShowInput(true)}
-          className="text-[16px] text-textColor/60 hover:text-textColor font-[500] flex items-center gap-[8px] transition-colors"
+          className="text-[16px] text-muted hover:text-textColor font-[500] flex items-center gap-[8px] transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -560,7 +560,7 @@ export const CouponInput: FC<{ autoApplyCoupon?: string }> = ({
             setShowInput(false);
             setCouponCode('');
           }}
-          className="text-[14px] text-textColor/50 hover:text-textColor transition-colors"
+          className="text-[14px] text-muted hover:text-textColor transition-colors"
         >
           {t('billing_cancel', 'Cancel')}
         </button>
