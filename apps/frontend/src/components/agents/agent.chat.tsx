@@ -57,7 +57,7 @@ export const AgentChat: FC = () => {
       <div
         style={
           {
-            '--copilot-kit-primary-color': 'var(--new-btn-text)',
+            '--copilot-kit-primary-color': 'var(--brand)',
             '--copilot-kit-background-color': 'var(--new-bg-color)',
           } as CopilotKitCSSProperties
         }

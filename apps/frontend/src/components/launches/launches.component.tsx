@@ -29,51 +29,6 @@ import useCookie from 'react-use-cookie';
 import { NoChannelsIllustration } from '@gitroom/frontend/components/launches/no-channels.illustration';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 
-export const SVGLine = () => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="5"
-      height="52"
-      viewBox="0 0 5 52"
-      fill="none"
-      className="rtl:rotate-180"
-    >
-      <path
-        d="M0.5 4C0.5 1.79086 2.29086 0 4.5 0V52C2.29086 52 0.5 50.2091 0.5 48V4Z"
-        fill="url(#paint0_linear_1930_1119)"
-      />
-      <path
-        d="M0.5 4C0.5 1.79086 2.29086 0 4.5 0V52C2.29086 52 0.5 50.2091 0.5 48V4Z"
-        fill="url(#paint1_radial_1930_1119)"
-      />
-      <defs>
-        <linearGradient
-          id="paint0_linear_1930_1119"
-          x1="-7"
-          y1="-27.7727"
-          x2="-2.58929"
-          y2="-28.6843"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#B92D43" />
-          <stop offset="1" stopColor="#8E1F33" />
-        </linearGradient>
-        <radialGradient
-          id="paint1_radial_1930_1119"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(1.19333 7.45342) rotate(21.2064) scale(16.1503 188.627)"
-        >
-          <stop stopColor="#F0708A" />
-          <stop offset="1" stopColor="#F0708A" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-    </svg>
-  );
-};
 interface MenuComponentInterface {
   refreshChannel: (
     integration: Integration & {
@@ -272,9 +227,6 @@ export const MenuComponent: FC<
           integration.disabled && 'opacity-50'
         )}
       >
-        <div className="h-full w-[4px] -ms-[12px] rounded-s-[3px] opacity-0 group-hover/profile:opacity-100 transition-opacity">
-          <SVGLine />
-        </div>
         {(integration.inBetweenSteps || integration.refreshNeeded) && (
           <div
             className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer"

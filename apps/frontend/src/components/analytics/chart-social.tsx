@@ -18,7 +18,16 @@ function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
 
 export const ChartSocial: FC<{
   data: TotalList[];
-  color?: 'purple' | 'green' | 'blue';
+  color?:
+    | 'purple'
+    | 'green'
+    | 'blue'
+    | 'pomegranate'
+    | 'saffron'
+    | 'fayrouz'
+    | 'palm'
+    | 'lapis'
+    | 'clay';
 }> = (props) => {
   const { data, color = 'purple' } = props;
   const [mode] = useCookie('mode', 'dark');
@@ -56,6 +65,38 @@ export const ChartSocial: FC<{
       start: mode === 'dark' ? 'rgba(138, 176, 232, 0.8)' : 'rgba(62, 99, 168, 0.8)',
       end: mode === 'dark' ? 'rgba(138, 176, 232, 0.1)' : 'rgba(62, 99, 168, 0.1)',
       border: mode === 'dark' ? 'rgb(138, 176, 232)' : 'rgb(62, 99, 168)',
+    },
+    // v3 categorical slots (colors.scss §categorical) — cycled per analytics
+    // card so each metric reads distinctly instead of a single blue.
+    pomegranate: {
+      start: mode === 'dark' ? 'rgba(224, 99, 120, 0.8)' : 'rgba(185, 45, 67, 0.8)',
+      end: mode === 'dark' ? 'rgba(224, 99, 120, 0.1)' : 'rgba(185, 45, 67, 0.1)',
+      border: mode === 'dark' ? 'rgb(224, 99, 120)' : 'rgb(185, 45, 67)',
+    },
+    saffron: {
+      start: mode === 'dark' ? 'rgba(196, 133, 25, 0.8)' : 'rgba(201, 133, 0, 0.8)',
+      end: mode === 'dark' ? 'rgba(196, 133, 25, 0.1)' : 'rgba(201, 133, 0, 0.1)',
+      border: mode === 'dark' ? 'rgb(196, 133, 25)' : 'rgb(201, 133, 0)',
+    },
+    fayrouz: {
+      start: mode === 'dark' ? 'rgba(47, 163, 184, 0.8)' : 'rgba(10, 128, 166, 0.8)',
+      end: mode === 'dark' ? 'rgba(47, 163, 184, 0.1)' : 'rgba(10, 128, 166, 0.1)',
+      border: mode === 'dark' ? 'rgb(47, 163, 184)' : 'rgb(10, 128, 166)',
+    },
+    palm: {
+      start: mode === 'dark' ? 'rgba(85, 160, 63, 0.8)' : 'rgba(78, 148, 50, 0.8)',
+      end: mode === 'dark' ? 'rgba(85, 160, 63, 0.1)' : 'rgba(78, 148, 50, 0.1)',
+      border: mode === 'dark' ? 'rgb(85, 160, 63)' : 'rgb(78, 148, 50)',
+    },
+    lapis: {
+      start: mode === 'dark' ? 'rgba(110, 147, 220, 0.8)' : 'rgba(62, 99, 168, 0.8)',
+      end: mode === 'dark' ? 'rgba(110, 147, 220, 0.1)' : 'rgba(62, 99, 168, 0.1)',
+      border: mode === 'dark' ? 'rgb(110, 147, 220)' : 'rgb(62, 99, 168)',
+    },
+    clay: {
+      start: mode === 'dark' ? 'rgba(207, 107, 54, 0.8)' : 'rgba(192, 98, 44, 0.8)',
+      end: mode === 'dark' ? 'rgba(207, 107, 54, 0.1)' : 'rgba(192, 98, 44, 0.1)',
+      border: mode === 'dark' ? 'rgb(207, 107, 54)' : 'rgb(192, 98, 44)',
     },
   };
 

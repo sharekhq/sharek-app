@@ -649,9 +649,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     disabled={
                       selectedIntegrations.length === 0 || loading || locked
                     }
-                    className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] -left-[12px] pb-[8px] w-[206px]"
+                    className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] start-0 pb-[8px] w-full"
                   >
-                    <div className="text-white rounded-[8px] bg-brand h-[44px] w-full flex justify-center items-center post-now">
+                    <div className="text-brand rounded-[8px] bg-surface border border-brand h-[44px] w-full flex justify-center items-center post-now">
                       {t('post_now', 'Post Now')}
                     </div>
                   </button>

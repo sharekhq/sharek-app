@@ -48,15 +48,32 @@ const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
   );
 };
 
+// v3 categorical slots, cycled by card index so each metric reads distinctly
+// instead of a single blue. Chart hue and header dot stay in lock-step.
+const CARD_HUES = [
+  'pomegranate',
+  'saffron',
+  'fayrouz',
+  'palm',
+  'lapis',
+  'clay',
+] as const;
+const CARD_DOTS = [
+  'bg-catPomegranate',
+  'bg-catSaffron',
+  'bg-catFayrouz',
+  'bg-catPalm',
+  'bg-catLapis',
+  'bg-catClay',
+];
+
 const AnalyticsCard: FC<{
   item: AnalyticsDataItem;
   total: string | number;
   index: number;
 }> = ({ item, total, index }) => {
-  // v3: one data hue for every metric card (lapis/info) — the metric line is
-  // neutral, judgment lives in deltas; the old purple/green/blue cycle made
-  // hue depend on card position (and "purple" painted brand-red charts).
-  const color = 'blue' as const;
+  const color = CARD_HUES[index % CARD_HUES.length];
+  const dotClass = CARD_DOTS[index % CARD_DOTS.length];
 
   const hasDataPoints = item.data.length >= 1;
 
@@ -76,7 +93,7 @@ const AnalyticsCard: FC<{
         {/* Header */}
         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
           <div className="flex items-center gap-[10px]">
-            <div className="w-[8px] h-[8px] rounded-full bg-info" />
+            <div className={`w-[8px] h-[8px] rounded-full ${dotClass}`} />
             <span className="text-[15px] font-medium text-newTableText">
               {item.label}
             </span>

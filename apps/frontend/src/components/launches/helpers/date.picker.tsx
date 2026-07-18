@@ -1,7 +1,34 @@
 import { FC, useCallback, useState } from 'react';
 import dayjs from 'dayjs';
 import { Calendar, TimeInput } from '@mantine/dates';
+import { MantineProvider } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
+
+// Pomegranate ramp so Mantine's default states (selected day, focused time
+// input) use the brand instead of Mantine's factory blue. Shade 6 = --brand.
+const brandRamp: [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string
+] = [
+  '#FBE9EC',
+  '#F5CDD4',
+  '#EBA0AC',
+  '#E17284',
+  '#D94A61',
+  '#CE3450',
+  '#B92D43',
+  '#A0263A',
+  '#8E1F33',
+  '#741826',
+];
 import { Button } from '@gitroom/react/form/button';
 import { isUSCitizen } from './isuscitizen.utils';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -50,37 +77,41 @@ export const DatePicker: FC<{
           onClick={(e) => e.stopPropagation()}
           className="animate-fadeIn absolute bottom-[100%] mb-[16px] start-[50%] -translate-x-[50%] bg-sixth border border-tableBorder text-textColor rounded-[16px] z-[300] p-[16px] flex flex-col"
         >
-          <Calendar
-            onChange={changeDate('date')}
-            value={date.toDate()}
-            dayClassName={(date, modifiers) => {
-              if (modifiers.weekend) {
-                return '!text-brand';
-              }
-              if (modifiers.outside) {
-                return '!text-gray';
-              }
-              if (modifiers.selected) {
-                return '!text-white !bg-brand !outline-none';
-              }
-              return '!text-textColor';
-            }}
-            classNames={{
-              day: 'hover:bg-brand',
-              calendarHeaderControl: 'text-textColor hover:bg-third',
-              calendarHeaderLevel: 'text-textColor hover:bg-third', // cell: 'child:!text-textColor'
-            }}
-          />
-          <TimeInput
-            onChange={changeDate('time')}
-            label="Pick time"
-            classNames={{
-              label: 'text-textColor py-[12px]',
-              input:
-                'bg-sixth h-[40px] border border-tableBorder text-textColor rounded-[4px] outline-none',
-            }}
-            defaultValue={date.toDate()}
-          />
+          <MantineProvider
+            theme={{ colors: { brand: brandRamp }, primaryColor: 'brand' }}
+          >
+            <Calendar
+              onChange={changeDate('date')}
+              value={date.toDate()}
+              dayClassName={(date, modifiers) => {
+                if (modifiers.selected) {
+                  return '!text-white !bg-brand !outline-none';
+                }
+                if (modifiers.outside) {
+                  return '!text-gray';
+                }
+                if (modifiers.weekend) {
+                  return '!text-brand';
+                }
+                return '!text-textColor';
+              }}
+              classNames={{
+                day: 'hover:bg-brandSoft',
+                calendarHeaderControl: 'text-textColor hover:bg-third',
+                calendarHeaderLevel: 'text-textColor hover:bg-third', // cell: 'child:!text-textColor'
+              }}
+            />
+            <TimeInput
+              onChange={changeDate('time')}
+              label="Pick time"
+              classNames={{
+                label: 'text-textColor py-[12px]',
+                input:
+                  'bg-sixth h-[40px] border border-tableBorder text-textColor rounded-[4px] outline-none',
+              }}
+              defaultValue={date.toDate()}
+            />
+          </MantineProvider>
           <Button className="mt-[12px]" onClick={changeShow}>
             {t('close', 'Close')}
           </Button>

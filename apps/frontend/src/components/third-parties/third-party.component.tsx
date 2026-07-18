@@ -10,7 +10,6 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import useCookie from 'react-use-cookie';
-import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 
 export const ThirdPartyMenuComponent: FC<{
   reload: () => void;
@@ -159,11 +158,8 @@ export const ThirdPartyComponent = () => {
                   data?.map((p: any) => (
                     <div
                       key={p.id}
-                      className={clsx('flex gap-[8px] items-center group/profile hover:bg-boxHover')}
+                      className={clsx('flex gap-[8px] items-center hover:bg-boxHover')}
                     >
-                      <div className="h-full w-[4px] rounded-s-[3px] opacity-0 group-hover/profile:opacity-100 transition-opacity">
-                        <SVGLine />
-                      </div>
                       <div
                         className={clsx(
                           'relative rounded-full flex justify-center items-center'
