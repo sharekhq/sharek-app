@@ -811,7 +811,7 @@ export const Editor: FC<{
                       <div
                         data-tooltip-id="tooltip"
                         data-tooltip-content={t('insert_emoji', 'Insert Emoji')}
-                        className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
+                        className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-surface border border-line flex justify-center items-center"
                         onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
                       >
                         <EmojiIcon />

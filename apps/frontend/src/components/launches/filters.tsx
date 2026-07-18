@@ -416,7 +416,7 @@ export const Filters = () => {
                 className={clsx(
                   'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] phone:min-w-0 px-[12px] phone:px-[8px] text-center rounded-[6px]',
                   calendar.listState === option.value &&
-                    'text-textItemFocused bg-boxFocused'
+                    'text-brandText bg-brandSoft font-[600]'
                 )}
               >
                 {option.label}
@@ -436,7 +436,7 @@ export const Filters = () => {
           <div
             className={clsx(
               'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
-              calendar.display === 'day' && 'text-textItemFocused bg-boxFocused'
+              calendar.display === 'day' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setDay}
           >
@@ -445,7 +445,7 @@ export const Filters = () => {
           <div
             className={clsx(
               'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
-              calendar.display === 'week' && 'text-textItemFocused bg-boxFocused'
+              calendar.display === 'week' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setWeek}
           >
@@ -454,7 +454,7 @@ export const Filters = () => {
           <div
             className={clsx(
               'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
-              calendar.display === 'month' && 'text-textItemFocused bg-boxFocused'
+              calendar.display === 'month' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setMonth}
           >
@@ -467,7 +467,7 @@ export const Filters = () => {
           onClick={setCalendarView}
           className={clsx(
             'pt-[6px] pb-[5px] cursor-pointer flex justify-center items-center w-[34px] text-center rounded-[6px]',
-            !isListView && 'text-textItemFocused bg-boxFocused'
+            !isListView && 'text-brandText bg-brandSoft font-[600]'
           )}
         >
           {/*calendar*/}
@@ -491,7 +491,7 @@ export const Filters = () => {
           onClick={setList}
           className={clsx(
             'pt-[6px] pb-[5px] flex justify-center items-center cursor-pointer w-[34px] text-center rounded-[6px]',
-            isListView && 'text-textItemFocused bg-boxFocused'
+            isListView && 'text-brandText bg-brandSoft font-[600]'
           )}
         >
           {/*list*/}

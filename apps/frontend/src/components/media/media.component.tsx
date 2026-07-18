@@ -862,7 +862,7 @@ export const MultiMediaComponent: FC<{
             <div className="flex py-[10px] b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
-                className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]"
+                className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
               >
                 <div className="flex gap-[8px] items-center">
                   <div>
@@ -875,7 +875,7 @@ export const MultiMediaComponent: FC<{
               </div>
               <div
                 onClick={designMedia}
-                className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]"
+                className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
               >
                 <div className="flex gap-[5px] items-center">
                   <div>

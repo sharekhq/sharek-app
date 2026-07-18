@@ -70,7 +70,7 @@ const AnalyticsCard: FC<{
           rounded-[12px]
           overflow-hidden
           transition-all duration-200
-          hover:border-brand/50
+          hover:border-muted
         `}
       >
         {/* Header */}

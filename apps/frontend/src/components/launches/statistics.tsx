@@ -113,7 +113,7 @@ export const StatisticsModal: FC<{
                   const color = 'blue' as const;
                   return (
                     <div key={`analytics-${index}`} className="group">
-                      <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-brand/50">
+                      <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-muted">
                         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
                           <div className="flex items-center gap-[10px]">
                             <div className="w-[8px] h-[8px] rounded-full bg-info" />
@@ -151,13 +151,13 @@ export const StatisticsModal: FC<{
               </div>
             ) : (
               <div className="grid grid-cols-3">
-                <div className="bg-brand p-[4px] rounded-tl-lg">
+                <div className="bg-surface2 font-[600] p-[4px] rounded-tl-lg">
                   {t('short_link', 'Short Link')}
                 </div>
-                <div className="bg-brand p-[4px]">
+                <div className="bg-surface2 font-[600] p-[4px]">
                   {t('original_link', 'Original Link')}
                 </div>
-                <div className="bg-brand p-[4px] rounded-tr-lg">
+                <div className="bg-surface2 font-[600] p-[4px] rounded-tr-lg">
                   {t('clicks', 'Clicks')}
                 </div>
                 {statisticsData?.clicks?.map((p: any) => (
