@@ -96,7 +96,7 @@ export const RenderComponents: FC<{
                   {mapUsers[comment.userId]}
                 </h3>
               </div>
-              <p className="text-sm text-gray-300">{comment.content}</p>
+              <p className="text-sm text-newTextColor">{comment.content}</p>
             </div>
           </div>
         ))}

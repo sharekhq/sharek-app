@@ -146,7 +146,7 @@ export const StatisticsModal: FC<{
               {t('short_links_statistics', 'Short Links Statistics')}
             </h3>
             {statisticsData?.clicks?.length === 0 ? (
-              <div className="text-gray-400">
+              <div className="text-muted">
                 {t('no_short_link_results', 'No short link results')}
               </div>
             ) : (
@@ -180,7 +180,7 @@ export const StatisticsModal: FC<{
           {/* No analytics available message */}
           {(!analyticsData || !Array.isArray(analyticsData) || analyticsData.length === 0) &&
             (!statisticsData?.clicks || statisticsData.clicks.length === 0) && (
-              <div className="text-center text-gray-400 py-[20px]">
+              <div className="text-center text-muted py-[20px]">
                 {t('no_statistics_available', 'No statistics available for this post')}
               </div>
             )}

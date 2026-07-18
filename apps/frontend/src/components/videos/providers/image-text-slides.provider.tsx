@@ -101,7 +101,7 @@ const VoiceSelector: FC = () => {
   if (isLoading || !data?.voices?.length) {
     return (
       <div className="flex items-center justify-center py-4">
-        <div className="text-sm text-gray-500">Loading voices...</div>
+        <div className="text-sm text-muted">Loading voices...</div>
       </div>
     );
   }
@@ -118,8 +118,8 @@ const VoiceSelector: FC = () => {
             className={clsx(
               'flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer',
               selectedVoice === voice.id
-                ? 'border-primary bg-primary/10'
-                : 'border-tableBorder bg-sixth hover:bg-brand'
+                ? 'border-brand bg-brandSoft'
+                : 'border-tableBorder bg-sixth hover:bg-boxHover'
             )}
             onClick={() => selectVoice(voice.id)}
           >
@@ -128,7 +128,7 @@ const VoiceSelector: FC = () => {
                 {...register('voice')}
                 type="radio"
                 value={voice.id}
-                className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+                className="w-4 h-4 text-brand border-line focus:ring-brand"
                 checked={selectedVoice === voice.id}
                 onChange={() => selectVoice(voice.id)}
               />

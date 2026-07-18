@@ -106,8 +106,8 @@ export function Login() {
                 />
               </div>
               {notActivated && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-[10px] p-4 mb-4">
-                  <p className="text-amber-400 text-sm mb-2">
+                <div className="bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-[10px] p-4 mb-4">
+                  <p className="text-warning text-sm mb-2">
                     {t(
                       'account_not_activated',
                       'Your account is not activated yet. Please check your email for the activation link.'
@@ -115,7 +115,7 @@ export function Login() {
                   </p>
                   <Link
                     href="/auth/activate"
-                    className="text-amber-400 underline hover:font-bold text-sm"
+                    className="text-warning underline hover:font-bold text-sm"
                   >
                     {t('resend_activation_email', 'Resend Activation Email')}
                   </Link>

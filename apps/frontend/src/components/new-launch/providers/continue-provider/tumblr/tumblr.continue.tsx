@@ -62,14 +62,14 @@ export const TumblrContinue = withContinueProvider<
       </div>
       <div className="text-sm font-medium">{item.name}</div>
       {item.username && (
-        <div className="text-xs text-gray-500 break-all">{item.username}</div>
+        <div className="text-xs text-muted break-all">{item.username}</div>
       )}
       {!!item.followers && (
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-muted">
           {item.followers.toLocaleString()} followers
         </div>
       )}
-      {item.primary && <div className="text-xs text-gray-400">Primary</div>}
+      {item.primary && <div className="text-xs text-muted">Primary</div>}
     </>
   ),
 });

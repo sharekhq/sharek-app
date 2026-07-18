@@ -1,6 +1,7 @@
 'use client';
 
 import { Slider } from '@gitroom/react/form/slider';
+import clsx from 'clsx';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@gitroom/react/form/button';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -456,7 +457,12 @@ export const MainBillingComponent: FC<{
           .map(([name, values]) => (
             <div
               key={name}
-              className="flex-1 bg-sixth border border-line rounded-[4px] p-[24px] gap-[16px] flex flex-col [@media(max-width:1024px)]:items-center"
+              className={clsx(
+                'flex-1 border rounded-[4px] p-[24px] gap-[16px] flex flex-col [@media(max-width:1024px)]:items-center',
+                currentPackage === name.toUpperCase()
+                  ? 'border-brand bg-brandSoft'
+                  : 'border-line bg-sixth'
+              )}
             >
               <div className="text-[18px]">{name}</div>
               <div className="text-[38px] flex gap-[2px] items-center">

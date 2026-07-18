@@ -173,7 +173,7 @@ const ChargesModal: FC<{ close: () => void }> = ({ close }) => {
                   </td>
                   <td className="p-[8px]">
                     {charge.refunded ? (
-                      <span className="text-red-400">
+                      <span className="text-error">
                         {t('refunded', 'Refunded')}
                       </span>
                     ) : (
@@ -306,8 +306,8 @@ export const Subscription = () => {
   );
 };
 const colorOptions = [
-  { value: 'INFO', label: 'Info (Blue)', className: 'bg-blue-600' },
-  { value: 'WARNING', label: 'Warning (Amber)', className: 'bg-amber-600' },
+  { value: 'INFO', label: 'Info (Blue)', className: 'bg-info' },
+  { value: 'WARNING', label: 'Warning (Amber)', className: 'bg-warning' },
   { value: 'ERROR', label: 'Error (Red)', className: 'bg-red-600' },
 ];
 

@@ -163,7 +163,7 @@ export const useMenuItem = () => {
       name: t('UGC', 'UGC'),
       icon: (
         <svg
-          fill="#c52e2e"
+          fill="currentColor"
           height="30"
           width="20"
           version="1.1"

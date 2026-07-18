@@ -162,7 +162,7 @@ export const CustomSelect: FC<{
         </div>
       )}
       {!removeError && (
-        <div className="text-red-400 text-[12px]">
+        <div className="text-error text-[12px]">
           {(err as any) || <>&nbsp;</>}
         </div>
       )}

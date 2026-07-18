@@ -323,7 +323,7 @@ export const AdminErrorsComponent: FC = () => {
       {isLoading ? (
         <LoadingComponent />
       ) : error ? (
-        <div className="text-red-400">Failed to load errors.</div>
+        <div className="text-error">Failed to load errors.</div>
       ) : !data || data.items.length === 0 ? (
         <div className="opacity-70">No errors found.</div>
       ) : (
@@ -358,7 +358,7 @@ export const AdminErrorsComponent: FC = () => {
                   <span
                     className={
                       isUnknown
-                        ? 'text-red-400 font-[600]'
+                        ? 'text-error font-[600]'
                         : 'opacity-90'
                     }
                   >

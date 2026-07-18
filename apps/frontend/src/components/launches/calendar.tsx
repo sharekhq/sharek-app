@@ -1372,7 +1372,7 @@ export const SetSelectionModal: FC<{
           >
             <div className="font-medium">{set.name}</div>
             {set.description && (
-              <div className="text-sm text-gray-400 mt-1">
+              <div className="text-sm text-muted mt-1">
                 {set.description}
               </div>
             )}

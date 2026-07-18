@@ -222,7 +222,7 @@ export const AdminStatsComponent: FC = () => {
       {isLoading ? (
         <LoadingComponent />
       ) : error || !data ? (
-        <div className="text-red-400">Failed to load stats.</div>
+        <div className="text-error">Failed to load stats.</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[12px]">

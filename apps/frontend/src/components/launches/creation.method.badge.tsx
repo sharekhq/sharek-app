@@ -31,13 +31,13 @@ export const CreationMethodBadge: FC<Props> = ({
   return (
     <div
       className={clsx(
-        'inline-flex items-center justify-center rounded-full text-white font-bold uppercase tracking-wide leading-none cursor-default',
+        'inline-flex items-center justify-center rounded-full font-bold uppercase tracking-wide leading-none cursor-default',
         sizeClasses,
-        creationMethod === 'WEB' && 'bg-[#6b7280]',
-        creationMethod === 'API' && 'bg-[#2563eb]',
-        creationMethod === 'MCP' && 'bg-[#9333ea]',
-        creationMethod === 'AUTOPOST' && 'bg-[#d97706]',
-        creationMethod === 'CLI' && 'bg-[#0f766e]',
+        creationMethod === 'WEB' && 'bg-surface2 text-muted',
+        creationMethod === 'API' && 'bg-catLapis text-white',
+        creationMethod === 'MCP' && 'bg-catFayrouz text-white',
+        creationMethod === 'AUTOPOST' && 'bg-catSaffron text-white',
+        creationMethod === 'CLI' && 'bg-catPalm text-white',
         className
       )}
       style={ringColor ? { boxShadow: `0 0 0 2px ${ringColor}` } : undefined}

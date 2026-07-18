@@ -272,8 +272,12 @@ textarea::placeholder {
   @apply text-brand;
 }
 
+/* v3: matched substring wears the brand selection tint, not highlighter yellow */
 .react-tags__listbox-option-highlight {
-  background-color: #ffdd00;
+  background-color: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+  border-radius: 3px;
 }
 
 /*#renderEditor:not(:has(:first-child)) {*/

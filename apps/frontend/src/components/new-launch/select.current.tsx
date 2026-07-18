@@ -110,7 +110,7 @@ export const SelectCurrent: FC = () => {
             className={clsx(
               'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] justify-center items-center bg-newBgLineColor',
               current !== 'global'
-                ? 'text-[#A3A3A3]'
+                ? 'text-muted'
                 : 'border border-brand text-brand'
             )}
           >
