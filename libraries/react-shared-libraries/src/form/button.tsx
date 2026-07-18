@@ -33,13 +33,21 @@ export const Button: FC<
     secondary?: boolean;
     loading?: boolean;
     innerClassName?: string;
+    variant?: 'primary' | 'quiet' | 'ghost' | 'danger' | 'ai';
   }
-> = ({ children, loading, innerClassName, secondary, ...props }) => {
+> = ({ children, loading, innerClassName, secondary, variant, ...props }) => {
   const ref = useRef<HTMLButtonElement | null>(null);
   const [height, setHeight] = useState<number | null>(null);
   useEffect(() => {
     setHeight(ref.current?.offsetHeight || 40);
   }, []);
+  const variantClass = {
+    primary: 'bg-brand text-white',
+    quiet: 'bg-quiet text-ink border border-line',
+    ghost: 'bg-transparent text-ink border border-line',
+    danger: 'bg-error text-white',
+    ai: 'bg-aiSoft text-aiAccent',
+  }[variant || 'primary'];
   return (
     <button
       {...props}
@@ -48,7 +56,7 @@ export const Button: FC<
       className={clsx(
         (props.disabled || loading) && 'opacity-50 pointer-events-none',
         `${
-          secondary ? 'bg-third' : 'bg-brand text-white'
+          secondary ? 'bg-third' : variantClass
         } px-[24px] h-[40px] cursor-pointer items-center justify-center flex relative`,
         props?.className
       )}
@@ -57,7 +65,7 @@ export const Button: FC<
         <div className="absolute inset-0 flex items-center justify-center">
           <ReactLoading
             type="spin"
-            color="#fff"
+            color="currentColor"
             width={height! / 2}
             height={height! / 2}
           />

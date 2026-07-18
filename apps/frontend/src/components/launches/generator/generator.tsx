@@ -354,7 +354,7 @@ export const GeneratorComponent = () => {
   }, [user, all]);
   return (
     <div
-      className="h-[44px] w-[44px] group-[.sidebar]:w-full bg-ai text-brandText justify-center items-center flex rounded-[8px] cursor-pointer"
+      className="h-[44px] w-[44px] group-[.sidebar]:w-full bg-ai text-aiAccent justify-center items-center flex rounded-[8px] cursor-pointer"
       onClick={generate}
     >
       <svg

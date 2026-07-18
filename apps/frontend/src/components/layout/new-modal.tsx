@@ -344,6 +344,7 @@ export const DecisionModal: FC<{
       <div>{description}</div>
       <div className="flex gap-[12px] mt-[16px]">
         <Button
+          variant="danger"
           onClick={() => {
             resolution(true);
             closeCurrent();
@@ -353,6 +354,7 @@ export const DecisionModal: FC<{
         </Button>
         {!onlyApprove && (
           <Button
+            variant="ghost"
             onClick={() => {
               resolution(false);
               closeCurrent();
