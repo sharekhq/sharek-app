@@ -18,6 +18,18 @@ module.exports = {
         warning: 'var(--warning)',
         error: 'var(--error)',
         info: 'var(--info)',
+        // v3 supporting tier (2026-07-18) — panel plane, quiet controls, AI accent, categorical slots
+        panel: 'var(--panel)',
+        quiet: 'var(--quiet)',
+        aiAccent: 'var(--ai-accent)',
+        aiSoft: 'var(--ai-soft)',
+        catPomegranate: 'var(--cat-pomegranate)',
+        catSaffron: 'var(--cat-saffron)',
+        catFayrouz: 'var(--cat-fayrouz)',
+        catPalm: 'var(--cat-palm)',
+        catLapis: 'var(--cat-lapis)',
+        catClay: 'var(--cat-clay)',
+        catClayText: 'var(--cat-clay-text)',
         primary: 'var(--color-primary)',
         secondary: 'var(--color-secondary)',
         textColor: 'var(--new-btn-text)',
@@ -115,6 +127,7 @@ module.exports = {
         menu: 'var(--menu-shadow)',
         previewShadow: 'var(--preview-box-shadow)',
         card: 'var(--shadow-card)',
+        soft: 'var(--shadow-soft)',
       },
       dropShadow: {
         glow: [

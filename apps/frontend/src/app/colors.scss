@@ -18,6 +18,21 @@
     --warning: #F2A33C;
     --error: #F47174;
     --info: #8AB0E8;
+    /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
+    --panel: #1D1518;
+    --quiet: #3E3138; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px -6px rgba(0, 0, 0, 0.45);
+    /* v3 AI accent (saffron) — soft fill + text tone, always paired with the ✦ glyph */
+    --ai-accent: #E8B54A;
+    --ai-soft: #322718;
+    /* v3 categorical slots — fixed order, CVD-validated on --surface (dark) */
+    --cat-pomegranate: #E06378;
+    --cat-saffron: #C48519;
+    --cat-fayrouz: #2FA3B8;
+    --cat-palm: #55A03F;
+    --cat-lapis: #6E93DC;
+    --cat-clay: #CF6B36;
+    --cat-clay-text: #CF6B36;
   }
   .light {
     --brand: #B92D43;
@@ -37,6 +52,21 @@
     --warning: #C2740C;
     --error: #D62B2B;
     --info: #3E63A8;
+    /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
+    --panel: #F7F5F4;
+    --quiet: #E9E6E4; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
+    --shadow-soft: 0 1px 2px rgba(26, 20, 19, 0.05), 0 3px 10px -5px rgba(26, 20, 19, 0.09);
+    /* v3 AI accent (saffron) — soft fill + text tone, always paired with the ✦ glyph */
+    --ai-accent: #8A5B00;
+    --ai-soft: #F8EFDC;
+    /* v3 categorical slots — fixed order, CVD-validated on --surface (light) */
+    --cat-pomegranate: #B92D43;
+    --cat-saffron: #C98500;
+    --cat-fayrouz: #0A80A6;
+    --cat-palm: #4E9432;
+    --cat-lapis: #3E63A8;
+    --cat-clay: #C0622C;
+    --cat-clay-text: #A9551D; /* deep step: small chip labels in light need 4.5:1 (#C0622C is 4.2) */
   }
 }
 
