@@ -631,14 +631,33 @@ html[dir='rtl'] [dir='ltr'] {
   min-height: 24px;
 }
 
+/* v3: past/disabled calendar cells are a flat recessed plane — the old
+   diagonal hatch textured the whole grid and read as noise at month scale */
 .repeated-strip {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--surface),
-    var(--surface) 5px,
-    var(--surface-2) 5px,
-    var(--surface-2) 10px
-  );
+  background: var(--panel);
+}
+
+/* v3: calendar post status chips — state + glyph, never color alone.
+   Solid mix toward --surface so they stay readable on tag-colored strips. */
+.cal-chip {
+  @apply inline-flex items-center gap-[3px] rounded-full px-[6px] text-[10px] font-[600] leading-[16px] whitespace-nowrap;
+}
+.cal-chip-success {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+.cal-chip-info {
+  color: var(--info);
+  background: color-mix(in srgb, var(--info) 14%, var(--surface));
+}
+.cal-chip-error {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 14%, var(--surface));
+}
+.cal-chip-draft {
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--line);
 }
 
 .mantine-Modal-inner {

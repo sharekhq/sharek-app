@@ -53,8 +53,10 @@ const AnalyticsCard: FC<{
   total: string | number;
   index: number;
 }> = ({ item, total, index }) => {
-  const colorVariants = ['purple', 'green', 'blue'] as const;
-  const color = colorVariants[index % colorVariants.length];
+  // v3: one data hue for every metric card (lapis/info) — the metric line is
+  // neutral, judgment lives in deltas; the old purple/green/blue cycle made
+  // hue depend on card position (and "purple" painted brand-red charts).
+  const color = 'blue' as const;
 
   const hasDataPoints = item.data.length >= 1;
 
@@ -74,14 +76,7 @@ const AnalyticsCard: FC<{
         {/* Header */}
         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
           <div className="flex items-center gap-[10px]">
-            <div
-              className={`
-                w-[8px] h-[8px] rounded-full
-                ${color === 'purple' ? 'bg-brand' : ''}
-                ${color === 'green' ? 'bg-success' : ''}
-                ${color === 'blue' ? 'bg-info' : ''}
-              `}
-            />
+            <div className="w-[8px] h-[8px] rounded-full bg-info" />
             <span className="text-[15px] font-medium text-newTableText">
               {item.label}
             </span>

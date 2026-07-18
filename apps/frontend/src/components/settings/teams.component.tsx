@@ -219,7 +219,7 @@ export const TeamsComponent = () => {
           ))}
         </div>
         <div>
-          <Button onClick={addMember}>
+          <Button variant="quiet" onClick={addMember}>
             {t('add_another_member', 'Add another member')}
           </Button>
         </div>

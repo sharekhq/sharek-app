@@ -214,7 +214,7 @@ export const PlugItem: FC<{
           )}
         </div>
         <div className="flex-1">{plug.description}</div>
-        <Button>{!data ? 'Set Plug' : 'Edit Plug'}</Button>
+        <Button variant="quiet">{!data ? 'Set Plug' : 'Edit Plug'}</Button>
       </div>
     </div>
   );

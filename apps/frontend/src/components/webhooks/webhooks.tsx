@@ -101,6 +101,7 @@ export const Webhooks: FC = () => {
           )}
           <div>
             <Button
+              variant="quiet"
               onClick={addWebhook()}
               className={clsx((data?.length || 0) > 0 && 'my-[16px]')}
             >

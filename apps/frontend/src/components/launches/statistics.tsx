@@ -109,20 +109,14 @@ export const StatisticsModal: FC<{
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[16px]">
                 {analyticsData.map((p: AnalyticsData, index: number) => {
-                  const colorVariants = ['purple', 'green', 'blue'] as const;
-                  const color = colorVariants[index % colorVariants.length];
+                  // v3: single data hue (lapis/info) — see render.analytics.tsx
+                  const color = 'blue' as const;
                   return (
                     <div key={`analytics-${index}`} className="group">
                       <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-brand/50">
                         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
                           <div className="flex items-center gap-[10px]">
-                            <div
-                              className={`w-[8px] h-[8px] rounded-full ${
-                                color === 'purple' ? 'bg-brand' : ''
-                              } ${color === 'green' ? 'bg-success' : ''} ${
-                                color === 'blue' ? 'bg-info' : ''
-                              }`}
-                            />
+                            <div className="w-[8px] h-[8px] rounded-full bg-info" />
                             <span className="text-[15px] font-medium text-newTableText">
                               {p.label}
                             </span>

@@ -1044,8 +1044,8 @@ const CalendarItem: FC<{
       ref={dragRef}
       className={clsx(
         'w-full flex h-full flex-1 flex-col group',
-        'relative',
-        state === 'ERROR' && 'rounded-[10px] ring-2 ring-red-500'
+        'relative rounded-[10px] border border-line shadow-soft',
+        state === 'ERROR' && 'ring-2 ring-error'
       )}
       style={{
         opacity,
@@ -1053,7 +1053,7 @@ const CalendarItem: FC<{
     >
       {state === 'ERROR' && (
         <div
-          className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-red-500 flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
+          className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
           data-tooltip-id="tooltip"
           data-tooltip-content={post.error || 'An error occurred while publishing this post'}
         >
@@ -1070,12 +1070,29 @@ const CalendarItem: FC<{
       )}
       <div
         className={clsx(
-          'text-white text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-btnPrimary'
+          post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
+          'text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
         )}
         style={{
           backgroundColor: post?.tags?.[0]?.tag?.color,
         }}
       >
+        {state === 'ERROR' ? (
+          <span className="cal-chip cal-chip-error">
+            ! {t('calendar_state_failed', 'Failed')}
+          </span>
+        ) : state === 'DRAFT' ? (
+          <span className="cal-chip cal-chip-draft">{t('draft', 'Draft')}</span>
+        ) : state === 'PUBLISHED' ||
+          dayjs().isAfter(dayjs.utc(post.publishDate)) ? (
+          <span className="cal-chip cal-chip-success">
+            ✓ {t('calendar_state_published', 'Published')}
+          </span>
+        ) : (
+          <span className="cal-chip cal-chip-info">
+            {t('calendar_state_scheduled', 'Scheduled')}
+          </span>
+        )}
         <div
           className={clsx(
             post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
@@ -1151,7 +1168,7 @@ const CalendarItem: FC<{
       <div
         onClick={editPost}
         className={clsx(
-          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-newColColor',
+          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
           'relative',
           isBeforeNow && '!grayscale'
         )}
@@ -1167,9 +1184,7 @@ const CalendarItem: FC<{
           />
         </div>
         <div className="w-full flex-1 flex flex-col min-h-[40px]">
-          <div className="text-start">
-            {state === 'DRAFT' ? t('draft', 'Draft') + ': ' : ''}
-          </div>
+          <div className="text-start"></div>
             <div className="w-full relative">
               <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start">
                 {stripHtmlValidation('none', post.content, false, true, false) ||

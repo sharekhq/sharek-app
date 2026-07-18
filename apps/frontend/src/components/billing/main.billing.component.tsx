@@ -10,7 +10,6 @@ import ReactLoading from '@gitroom/frontend/components/layout/loading';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import dayjs from 'dayjs';
-import clsx from 'clsx';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { FAQComponent } from '@gitroom/frontend/components/billing/faq.component';
 import { useSWRConfig } from 'swr';
@@ -159,7 +158,7 @@ const Accept: FC<{ resolve: (res: boolean) => void }> = ({ resolve }) => {
         <Button loading={loading} onClick={apply}>
           Apply 50% discount for 3 months
         </Button>
-        <Button onClick={() => resolve(false)} className="!bg-red-800">
+        <Button variant="danger" onClick={() => resolve(false)}>
           Cancel my subscription
         </Button>
       </div>
@@ -495,11 +494,13 @@ export const MainBillingComponent: FC<{
                         name.toUpperCase() === 'FREE') ||
                       currentPackage === name.toUpperCase()
                     }
-                    className={clsx(
-                      subscription &&
-                        name.toUpperCase() === 'FREE' &&
-                        '!bg-red-500'
-                    )}
+                    variant={
+                      subscription && name.toUpperCase() === 'FREE'
+                        ? 'danger'
+                        : currentPackage === name.toUpperCase()
+                        ? 'quiet'
+                        : 'ghost'
+                    }
                     onClick={moveToCheckout(
                       name.toUpperCase() as 'STANDARD' | 'PRO'
                     )}
@@ -539,7 +540,7 @@ export const MainBillingComponent: FC<{
       </div>
       {!!subscription?.id && (
         <div className="flex justify-center mt-[20px] gap-[10px]">
-          <Button onClick={updatePayment}>
+          <Button variant="quiet" onClick={updatePayment}>
             {t(
               'update_payment_method_invoices_history',
               'Update Payment Method / Invoices History'
@@ -547,7 +548,7 @@ export const MainBillingComponent: FC<{
           </Button>
           {isGeneral && !subscription?.cancelAt && (
             <Button
-              className="bg-red-500"
+              variant="danger"
               loading={loading}
               onClick={moveToCheckout('FREE')}
             >
