@@ -47,7 +47,7 @@ export const AddProviderButton: FC<{
   return (
     <div className="flex group-[.sidebar]:block gap-[8px]">
       <button
-        className="flex-1 group-[.sidebar]:w-[100%] group-[.sidebar]:flex-none text-bg bg-ink h-[44px] pt-[12px] pb-[14px] ps-[16px] pe-[20px] justify-center items-center flex rounded-[8px] gap-[8px]"
+        className="flex-1 group-[.sidebar]:w-[100%] group-[.sidebar]:flex-none text-newBgColor bg-ink h-[44px] pt-[12px] pb-[14px] ps-[16px] pe-[20px] justify-center items-center flex rounded-[8px] gap-[8px]"
         onClick={add}
       >
         <div>
