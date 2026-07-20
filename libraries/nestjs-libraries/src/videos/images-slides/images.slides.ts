@@ -30,7 +30,8 @@ async function getAudioDuration(buffer: Buffer): Promise<number> {
 
 class ImagesSlidesParams {
   @JSONSchema({
-    description: 'Elevenlabs voice id, use a special tool to get it, this is a required filed',
+    description:
+      'Elevenlabs voice id, use a special tool to get it, this is a required filed. If the tool response contains "arabicVoices" and the video content is in Arabic, pick the voice id from "arabicVoices"; otherwise pick from "voices"',
   })
   @IsString()
   voice: string;
@@ -261,6 +262,47 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
         name: voice.name,
         preview_url: voice.preview_url,
       })),
+      ...(await this.loadArabicVoices()),
     };
+  }
+
+  private async loadArabicVoices(): Promise<{
+    arabicVoices?: { id: string; name: string; preview_url: string }[];
+  }> {
+    const collectionId = process.env.ELEVENLABS_AR_COLLECTION_ID;
+    if (!collectionId) {
+      return {};
+    }
+
+    // A throwing video function 400s the whole agent chat thread — degrade to
+    // the premade-only payload on any failure instead.
+    try {
+      const { voices } = await (
+        await fetch(
+          `https://api.elevenlabs.io/v2/voices?page_size=100&collection_id=${collectionId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'xi-api-key': process.env.ELEVENSLABS_API_KEY || '',
+            },
+          }
+        )
+      ).json();
+
+      if (!voices?.length) {
+        return {};
+      }
+
+      return {
+        arabicVoices: voices.map((voice: any) => ({
+          id: voice.voice_id,
+          name: voice.name,
+          preview_url: voice.preview_url,
+        })),
+      };
+    } catch (err) {
+      return {};
+    }
   }
 }
