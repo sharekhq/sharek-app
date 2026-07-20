@@ -6,11 +6,13 @@ import { useFormContext } from 'react-hook-form';
 import { Button } from '@gitroom/react/form/button';
 import { Textarea } from '@gitroom/react/form/textarea';
 import clsx from 'clsx';
+import i18next from 'i18next';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export interface Voices {
   voices: Voice[];
+  arabicVoices?: Voice[];
 }
 
 export interface Voice {
@@ -34,12 +36,24 @@ const VoiceSelector: FC = () => {
   const selectedVoice = watch('voice');
   const { isLoading, data } = useSWR<Voices>('load-voices', loadVideos);
 
-  // Auto-select first voice when data loads
+  const [activeSet, setActiveSet] = useState<'english' | 'arabic'>(
+    i18next.language?.startsWith('ar') ? 'arabic' : 'english'
+  );
+
+  const activeVoices =
+    activeSet === 'arabic' && data?.arabicVoices?.length
+      ? data.arabicVoices
+      : data?.voices;
+
+  // Re-anchor selection to the active set (first load and every set switch)
   useEffect(() => {
-    if (data?.voices?.length && !selectedVoice) {
-      setValue('voice', data.voices[0].id);
+    if (
+      activeVoices?.length &&
+      (!selectedVoice || !activeVoices.some((v) => v.id === selectedVoice))
+    ) {
+      setValue('voice', activeVoices[0].id);
     }
-  }, [data, selectedVoice, setValue]);
+  }, [activeVoices, selectedVoice, setValue]);
 
   const playVoice = useCallback(
     async (voiceId: string, previewUrl: string) => {
@@ -111,8 +125,40 @@ const VoiceSelector: FC = () => {
       <div className="text-sm font-medium text-textColor mb-4">
         {t('select_a_voice', 'Select a Voice')}
       </div>
+      {!!data?.arabicVoices?.length && (
+        <div className="flex w-full justify-center items-center gap-[10px]">
+          <div className="flex-1 flex">
+            <Button
+              type="button"
+              variant="ghost"
+              className={clsx(
+                '!flex-1',
+                activeSet === 'english' &&
+                  '!bg-brandSoft !text-brandText !border-brand'
+              )}
+              onClick={() => setActiveSet('english')}
+            >
+              {t('voice_set_english', 'English')}
+            </Button>
+          </div>
+          <div className="flex-1 flex">
+            <Button
+              type="button"
+              variant="ghost"
+              className={clsx(
+                '!flex-1',
+                activeSet === 'arabic' &&
+                  '!bg-brandSoft !text-brandText !border-brand'
+              )}
+              onClick={() => setActiveSet('arabic')}
+            >
+              {t('voice_set_arabic', 'العربية')}
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
-        {data.voices.map((voice) => (
+        {(activeVoices || []).map((voice) => (
           <div
             key={voice.id}
             className={clsx(

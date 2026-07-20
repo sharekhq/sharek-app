@@ -880,6 +880,8 @@
   "payload_wizard_description": "Building a POST request to /posts can be complex. Use the wizard to schedule a post with the UI, then copy the generated payload.",
   "play": "Play",
   "select_a_voice": "Select a Voice",
+  "voice_set_english": "English",
+  "voice_set_arabic": "العربية",
   "loading_voices": "Loading voices...",
   "please_type_your_prompt": "Please type your prompt",
   "please_wait": "Please wait while we connect your account...",
