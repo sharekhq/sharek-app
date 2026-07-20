@@ -144,7 +144,7 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
               onClick={setIntegration(integration)}
               key={integration.id}
               className={clsx(
-                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-e-[8px] hover:opacity-100 cursor-pointer',
+                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] hover:opacity-100 cursor-pointer',
                 !selected.some((p) => p.id === integration.id) && 'opacity-20'
               )}
             >

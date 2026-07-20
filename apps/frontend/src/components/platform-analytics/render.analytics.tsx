@@ -67,12 +67,11 @@ const AnalyticsCard: FC<{
       <div
         className={`
           flex flex-col h-full
-          bg-newTableHeader
-          border border-newTableBorder
-          rounded-[12px]
+          bg-surface
+          border border-line
+          rounded-[14px]
+          shadow-soft
           overflow-hidden
-          transition-all duration-200
-          hover:border-muted
         `}
       >
         {/* Header */}

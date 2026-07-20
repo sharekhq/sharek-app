@@ -741,6 +741,13 @@ html[dir='rtl'] [dir='ltr'] {
     padding: 0 24px !important;
   }
 
+  /* v3 round 4: the user's own messages read soft, not shouting — the brand
+     fill CopilotKit derives from --copilot-kit-primary-color was too loud */
+  .copilotKitMessage.copilotKitUserMessage {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
   /* v3 round 3 (№9): the chat input adopts the compose editor's language —
      writing surface on top, tools + send on a --panel bar below, one border */
   .copilotKitInput {

@@ -10,6 +10,7 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { UserIcon, DropdownArrowIcon } from '@gitroom/frontend/components/ui/icons';
+import { customerHue } from '@gitroom/frontend/components/launches/helpers/customer-hue';
 
 export const SelectCustomer: FC<{
   onChange: (value: string) => void;
@@ -121,20 +122,3 @@ export const SelectCustomer: FC<{
     </div>
   );
 };
-
-/* v3 categorical slots, fixed order — same hash everywhere a customer wears
-   a color, so a customer keeps one hue across the app */
-const CUSTOMER_HUES = [
-  'bg-catPomegranate',
-  'bg-catSaffron',
-  'bg-catFayrouz',
-  'bg-catPalm',
-  'bg-catLapis',
-  'bg-catClay',
-];
-const customerHue = (name: string) =>
-  CUSTOMER_HUES[
-    Math.abs(
-      [...name].reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0)
-    ) % CUSTOMER_HUES.length
-  ];

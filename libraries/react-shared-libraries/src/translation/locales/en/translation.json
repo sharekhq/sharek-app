@@ -815,6 +815,7 @@
   "failure_emails_description": "Receive email notifications when posts fail to publish",
   "fill_in_the_details_for_your_oauth_application": "Fill in the details for your OAuth application.",
   "generate_ai_image": "Generate AI Image",
+  "generate_ai_video": "Generate AI Video",
   "go_to_login": "Go to Login",
   "hide": "Hide",
   "i_understand_continue": "I understand, continue",

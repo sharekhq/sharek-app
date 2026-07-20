@@ -20,6 +20,7 @@
     --info: #8AB0E8;
     /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
     --brand-soft: rgba(240, 112, 138, 0.10); /* selection tint (Tailwind /NN broken on var colors) */
+    --brand-soft-2: rgba(240, 112, 138, 0.16); /* stronger tint tier (contract --brand-soft2) */
     --panel: #1D1518;
     --quiet: #3E3138; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
     --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px -6px rgba(0, 0, 0, 0.45);
@@ -55,6 +56,7 @@
     --info: #3E63A8;
     /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
     --brand-soft: rgba(185, 45, 67, 0.09); /* selection tint (Tailwind /NN broken on var colors) */
+    --brand-soft-2: rgba(185, 45, 67, 0.14); /* stronger tint tier (contract --brand-soft2) */
     --panel: #F7F5F4;
     --quiet: #E9E6E4; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
     --shadow-soft: 0 1px 2px rgba(26, 20, 19, 0.05), 0 3px 10px -5px rgba(26, 20, 19, 0.09);

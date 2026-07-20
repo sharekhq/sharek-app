@@ -733,7 +733,12 @@ export const Editor: FC<{
               }}
             />
             <div className="w-full pointer-events-none">
-              <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
+              <div
+                className={clsx(
+                  'w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange',
+                  !setImages && 'rounded-b-[5px]'
+                )}
+              >
                 <Dashboard
                   height={46}
                   uppy={uppy}

@@ -20,6 +20,7 @@ module.exports = {
         info: 'var(--info)',
         // v3 supporting tier (2026-07-18) — panel plane, quiet controls, AI accent, categorical slots
         brandSoft: 'var(--brand-soft)',
+        brandSoft2: 'var(--brand-soft-2)',
         panel: 'var(--panel)',
         quiet: 'var(--quiet)',
         aiAccent: 'var(--ai-accent)',

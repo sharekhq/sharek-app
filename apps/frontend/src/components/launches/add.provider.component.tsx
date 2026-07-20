@@ -720,7 +720,7 @@ export const AddProviderComponent: FC<{
                   isMobile
                     ? 'flex-row h-[72px] p-[16px]'
                     : 'flex-col p-[10px] h-[100px] justify-center',
-                  'w-full text-[14px] rounded-[8px] bg-newTableHeader text-textColor relative items-center flex gap-[10px] cursor-pointer'
+                  'w-full text-[14px] rounded-[12px] bg-panel border border-line text-textColor relative items-center flex gap-[10px] cursor-pointer hover:bg-boxFocused transition-colors'
                 )}
               >
                 <div>

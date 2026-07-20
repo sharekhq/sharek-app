@@ -1,6 +1,7 @@
 'use client';
 
 import { AddProviderButton } from '@gitroom/frontend/components/launches/add.provider.component';
+import { customerHue } from '@gitroom/frontend/components/launches/helpers/customer-hue';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { capitalize, groupBy, orderBy } from 'lodash';
@@ -137,6 +138,12 @@ export const MenuGroupComponent: FC<
             <OpenClose isOpen={isOpen} />
           </div>
           <div
+            className={clsx(
+              'w-[8px] h-[8px] rounded-full flex-none',
+              customerHue(group.name)
+            )}
+          />
+          <div
             className="line-clamp-1"
             {...(collapsed
               ? {
@@ -217,7 +224,7 @@ export const MenuComponent: FC<
           }
         : {})}
       className={clsx(
-        'flex gap-[12px] items-center bg-newBgColorInner hover:bg-boxHover group/profile transition-all rounded-e-[8px]',
+        'flex gap-[12px] items-center bg-newBgColorInner hover:bg-boxHover group/profile transition-all rounded-[10px]',
         integration.refreshNeeded && 'cursor-pointer'
       )}
     >

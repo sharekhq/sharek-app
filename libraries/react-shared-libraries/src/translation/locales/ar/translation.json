@@ -824,6 +824,7 @@
   "failure_emails_description": "تلقَّ إشعارات بالبريد عند فشل نشر المنشورات",
   "fill_in_the_details_for_your_oauth_application": "املأ تفاصيل تطبيق OAuth الخاص بك.",
   "generate_ai_image": "توليد صورة بالذكاء الاصطناعي",
+  "generate_ai_video": "توليد فيديو بالذكاء الاصطناعي",
   "go_to_login": "الذهاب إلى تسجيل الدخول",
   "hide": "إخفاء",
   "i_understand_continue": "أفهم ذلك، متابعة",

@@ -76,7 +76,11 @@ export const Modal: FC<{
         className="flex flex-col gap-[10px]"
       >
         {createPortal(
-          <>{data?.credits || 0} credits left</>,
+          <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
+            {t('credits_left_count', '{{count}} credits left', {
+              count: data?.credits || 0,
+            })}
+          </div>,
           document.querySelector('.top-title-content') ||
             document.createElement('div')
         )}
@@ -192,7 +196,13 @@ export const AiVideo: FC<{
       return;
     }
     modals.openModal({
-      title: <div className="top-title-content" />,
+      title: (
+        <div className="flex items-center gap-[10px]">
+          <span className="text-aiAccent">✦</span>
+          {t('generate_ai_video', 'Generate AI Video')}
+          <div className="top-title-content flex-1 flex justify-end" />
+        </div>
+      ),
       children: (close) => (
         <AiVideoModal
           list={data}

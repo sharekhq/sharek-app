@@ -458,10 +458,10 @@ export const MainBillingComponent: FC<{
             <div
               key={name}
               className={clsx(
-                'flex-1 border rounded-[4px] p-[24px] gap-[16px] flex flex-col [@media(max-width:1024px)]:items-center',
+                'flex-1 border rounded-[14px] p-[24px] gap-[16px] flex flex-col bg-sixth [@media(max-width:1024px)]:items-center',
                 currentPackage === name.toUpperCase()
-                  ? 'border-brand bg-brandSoft'
-                  : 'border-line bg-sixth'
+                  ? 'border-success shadow-[0_0_0_1px_var(--success)]'
+                  : 'border-line shadow-soft'
               )}
             >
               <div className="text-[18px]">{name}</div>

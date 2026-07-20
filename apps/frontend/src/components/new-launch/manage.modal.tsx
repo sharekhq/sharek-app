@@ -496,7 +496,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(
-                      'bg-brandSoft border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px]',
+                      'bg-brandSoft2 border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px]',
                       showSettings ? '!rounded-b-none' : ''
                     )}
                   >
