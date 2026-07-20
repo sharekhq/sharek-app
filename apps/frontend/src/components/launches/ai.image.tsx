@@ -7,6 +7,19 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { createPortal } from 'react-dom';
+import useSWR from 'swr';
+
+const useImageCredits = () => {
+  const fetch = useFetch();
+  return useSWR('copilot-credits-images', async () =>
+    (
+      await fetch('/copilot/credits?type=ai_images', {
+        method: 'GET',
+      })
+    ).json()
+  );
+};
 const list = [
   'Realistic',
   'Cartoon',
@@ -36,6 +49,7 @@ const AiImageModal: FC<{
   const setLocked = useLaunchStore((p) => p.setLocked);
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState(list[0]);
+  const { data: credits } = useImageCredits();
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -77,6 +91,15 @@ ${style}
 
   return (
     <div className="flex flex-col gap-[16px]">
+      {createPortal(
+        <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
+          {t('credits_left_count', '{{count}} credits left', {
+            count: credits?.credits || 0,
+          })}
+        </div>,
+        document.querySelector('.top-title-content') ||
+          document.createElement('div')
+      )}
       <div className="flex flex-col gap-[6px]">
         <div className="text-[14px]">{t('prompt', 'Prompt')}</div>
         <textarea
@@ -86,7 +109,7 @@ ${style}
             'describe_the_image_you_want_to_generate',
             'Describe the image you want to generate'
           )}
-          className="bg-input min-h-[150px] p-[16px] outline-none border-fifth border rounded-[4px] text-inputText"
+          className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-newTextItemFocused"
         />
       </div>
       <div className="flex flex-col gap-[6px]">
@@ -97,10 +120,10 @@ ${style}
               key={p}
               onClick={() => setStyle(p)}
               className={clsx(
-                'cursor-pointer rounded-[4px] px-[10px] h-[30px] flex items-center text-[12px] border',
+                'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center text-[12px] font-[600] border transition-colors',
                 style === p
-                  ? 'bg-brandSoft border-brand text-ink'
-                  : 'bg-newColColor border-newBgLineColor'
+                  ? 'bg-brandSoft border-brand text-brandText'
+                  : 'bg-newBgColorInner border-newColColor text-newTextItemBlur hover:border-newTextItemFocused'
               )}
             >
               {p}
@@ -131,7 +154,13 @@ export const AiImage: FC<{
       return;
     }
     modals.openModal({
-      title: t('generate_ai_image', 'Generate AI Image'),
+      title: (
+        <div className="flex items-center gap-[10px]">
+          <span className="text-aiAccent">✦</span>
+          {t('generate_ai_image', 'Generate AI Image')}
+          <div className="top-title-content flex-1 flex justify-end" />
+        </div>
+      ),
       children: (close) => (
         <AiImageModal
           close={close}

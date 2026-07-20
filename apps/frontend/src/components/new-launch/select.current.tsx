@@ -108,10 +108,10 @@ export const SelectCurrent: FC = () => {
               setCurrent('global');
             }}
             className={clsx(
-              'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] justify-center items-center bg-newBgLineColor',
+              'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] justify-center items-center border bg-surface',
               current !== 'global'
-                ? 'text-muted'
-                : 'border border-brand text-brand'
+                ? 'text-muted border-line'
+                : 'border-brand text-brand'
             )}
           >
             <div>
@@ -126,10 +126,10 @@ export const SelectCurrent: FC = () => {
               }}
               key={integration.id}
               className={clsx(
-                'border cursor-pointer relative flex gap-[8px] w-[40px] h-[40px] rounded-[8px] items-center bg-newBgLineColor justify-center',
+                'border cursor-pointer relative flex gap-[8px] w-[40px] h-[40px] rounded-[8px] items-center bg-surface justify-center',
                 current === integration.id
                   ? 'border-brand text-brand'
-                  : 'border-transparent'
+                  : 'border-line'
               )}
             >
               <div

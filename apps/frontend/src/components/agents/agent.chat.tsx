@@ -142,14 +142,16 @@ const NewInput: FC<InputProps> = (props) => {
   const { properties } = useContext(PropertiesContext);
   return (
     <>
-      <MediaPortal
-        value={value}
-        media={media}
-        setMedia={(e) => setMedia(e.target.value)}
-      />
       <Input
         {...props}
         onChange={setValue}
+        tools={
+          <MediaPortal
+            value={value}
+            media={media}
+            setMedia={(e) => setMedia(e.target.value)}
+          />
+        }
         onSend={(text) => {
           const send = props.onSend(
             text +

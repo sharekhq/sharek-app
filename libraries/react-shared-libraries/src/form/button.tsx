@@ -57,7 +57,7 @@ export const Button: FC<
         (props.disabled || loading) && 'opacity-50 pointer-events-none',
         `${
           secondary ? 'bg-third' : variantClass
-        } px-[24px] h-[40px] cursor-pointer items-center justify-center flex relative`,
+        } px-[24px] h-[40px] rounded-[8px] cursor-pointer items-center justify-center flex relative`,
         props?.className
       )}
     >

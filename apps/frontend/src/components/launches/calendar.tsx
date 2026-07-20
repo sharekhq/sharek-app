@@ -364,13 +364,17 @@ export const WeekView = () => {
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 relative">
         <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-          <div className="z-10 bg-surface flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
+          <div className="z-10 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
             <div
               key={day.name}
-              className="p-2 text-center bg-surface flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]"
+              className={clsx(
+                'p-2 text-center cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0 z-[20]',
+                day.day === newDayjs().format('L') &&
+                  'shadow-[inset_0_-2px_0_0_var(--brand)]'
+              )}
             >
-              <div className="text-[14px] font-[500] text-newTableText">
+              <div className="text-[14px] font-[600] text-brandText">
                 {day.name}
               </div>
               <div
@@ -466,9 +470,9 @@ export const MonthView = () => {
           {localizedDays.map((day) => (
             <div
               key={day}
-              className="z-[20] p-2 bg-surface flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"
+              className="z-[20] p-2 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"
             >
-              <div>{day}</div>
+              <div className="text-[14px] font-[600] text-brandText">{day}</div>
             </div>
           ))}
           {calendarDays.map((date, index) => (

@@ -439,7 +439,7 @@ export const MediaBox: FC<{
       <button
         disabled={loading}
         onClick={() => uploaderRef?.current?.click()}
-        className="relative cursor-pointer bg-btnSimple changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
+        className="relative cursor-pointer bg-btnPrimary text-white changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
       >
         {loading ? (
           <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -789,8 +789,8 @@ export const MultiMediaComponent: FC<{
   return (
     <>
       <div className="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
+        {!!currentMedia?.length && (
         <div className="flex gap-[10px] px-[12px]">
-          {!!currentMedia && (
             <ReactSortable
               list={currentMedia}
               setList={(value) =>
@@ -855,8 +855,8 @@ export const MultiMediaComponent: FC<{
                   </div>
               ))}
             </ReactSortable>
-          )}
         </div>
+        )}
         <div className="flex gap-[8px] px-[12px] border-t border-newColColor w-full b1 text-textColor">
           {!mediaNotAvailable && (
             <div className="flex py-[10px] b2 items-center gap-[4px]">

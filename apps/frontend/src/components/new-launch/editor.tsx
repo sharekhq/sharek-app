@@ -714,7 +714,7 @@ export const Editor: FC<{
               {t('drop_files_here_to_upload', 'Drop your files here to upload')}
             </div>
             <div className="relative border border-newBorder rounded-[6px] shadow-soft flex flex-1 flex-col">
-            <div className="px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[6px] relative z-[99]">
+            <div className="px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[5px] relative z-[99]">
               <OnlyEditor
                 value={props.value}
                 editorType={editorType}
@@ -748,7 +748,10 @@ export const Editor: FC<{
               </div>
             </div>
             <div
-              className="w-full h-[46px] bg-newBgColorInner cursor-text"
+              className={clsx(
+                'w-full h-[46px] bg-newBgColorInner cursor-text',
+                !setImages && 'rounded-b-[5px]'
+              )}
               onClick={() => {
                 if (editorRef?.current?.editor?.isFocused) {
                   return;
@@ -756,7 +759,7 @@ export const Editor: FC<{
                 editorRef?.current?.editor?.commands?.focus('end');
               }}
             />
-            <div className="flex bg-panel rounded-b-[6px] cursor-default">
+            <div className="flex bg-panel rounded-b-[5px] cursor-default">
               {setImages && (
                 <MultiMediaComponent
                   mediaNotAvailable={num > 0 && comments === 'no-media'}

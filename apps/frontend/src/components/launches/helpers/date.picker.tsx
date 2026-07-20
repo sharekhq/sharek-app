@@ -70,6 +70,10 @@ export const DatePicker: FC<{
               day: 'hover:bg-brandSoft',
               calendarHeaderControl: 'text-textColor hover:bg-third',
               calendarHeaderLevel: 'text-textColor hover:bg-third', // cell: 'child:!text-textColor'
+              // month/year grids use their own styles-API keys — without these
+              // they fall back to Mantine's factory grey hover
+              monthPickerControl: 'text-textColor hover:bg-brandSoft',
+              yearPickerControl: 'text-textColor hover:bg-brandSoft',
             }}
           />
           <TimeInput

@@ -198,11 +198,11 @@ export const PlugItem: FC<{
     <div
       onClick={() => addPlug(data)}
       key={plug.title}
-      className="w-full h-[300px] rounded-[8px] bg-newTableHeader hover:bg-newTableBorder"
+      className="w-full h-full min-h-[100px] rounded-[14px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card cursor-pointer"
     >
-      <div key={plug.title} className="p-[16px] h-full flex flex-col flex-1">
+      <div key={plug.title} className="p-[20px] h-full flex flex-col flex-1 gap-[15px]">
         <div className="flex">
-          <div className="text-[20px] mb-[8px] flex-1">{plug.title}</div>
+          <div className="text-lg flex-1">{plug.title}</div>
           {!!data && (
             <div onClick={(e) => e.stopPropagation()}>
               <Slider
@@ -263,7 +263,7 @@ export const Plug = () => {
     return null;
   }
   return (
-    <div className="grid grid-cols-3 gap-[30px]">
+    <div className="grid grid-cols-4 gap-[16px]">
       {plug.plugs.map((p) => (
         <PlugItem
           key={p.title + '-' + plug.providerId}

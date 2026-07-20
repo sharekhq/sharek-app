@@ -21,6 +21,7 @@ export const Modal: FC<{
   onChange: (params: { id: string; path: string }) => void;
 }> = (props) => {
   const { type, onChange, close, setLoading } = props;
+  const t = useT();
   const fetch = useFetch();
   const setLocked = useLaunchStore((state) => state.setLocked);
   const form = useForm();
@@ -80,35 +81,41 @@ export const Modal: FC<{
             document.createElement('div')
         )}
         <FormProvider {...form}>
-          <div>
-            <div className="relative h-[400px]">
-              <div className="absolute left-0 top-0 w-full h-full overflow-hidden overflow-y-auto">
-                <div className="mt-[10px] flex w-full justify-center items-center gap-[10px]">
-                  <div className="flex-1 flex">
-                    <Button
-                      className="!flex-1"
-                      onClick={() => setPosition('vertical')}
-                      secondary={position === 'horizontal'}
-                    >
-                      Vertical (Stories, Reels)
-                    </Button>
-                  </div>
-                  <div className="flex-1 flex mt-[10px]">
-                    <Button
-                      className="!flex-1"
-                      onClick={() => setPosition('horizontal')}
-                      secondary={position === 'vertical'}
-                    >
-                      Horizontal (Normal Post)
-                    </Button>
-                  </div>
+          <div className="flex flex-col gap-[16px]">
+            <div className="max-h-[400px] overflow-x-hidden overflow-y-auto">
+              <div className="flex w-full justify-center items-center gap-[10px]">
+                <div className="flex-1 flex">
+                  <Button
+                    variant="ghost"
+                    className={clsx(
+                      '!flex-1',
+                      position === 'vertical' &&
+                        '!bg-brandSoft !text-brandText !border-brand'
+                    )}
+                    onClick={() => setPosition('vertical')}
+                  >
+                    {t('vertical_stories_reels', 'Vertical (Stories, Reels)')}
+                  </Button>
                 </div>
-                <VideoWrapper identifier={type.identifier} />
+                <div className="flex-1 flex">
+                  <Button
+                    variant="ghost"
+                    className={clsx(
+                      '!flex-1',
+                      position === 'horizontal' &&
+                        '!bg-brandSoft !text-brandText !border-brand'
+                    )}
+                    onClick={() => setPosition('horizontal')}
+                  >
+                    {t('horizontal_normal_post', 'Horizontal (Normal Post)')}
+                  </Button>
+                </div>
               </div>
+              <VideoWrapper identifier={type.identifier} />
             </div>
             <div className="flex">
               <Button type="submit" className="flex-1">
-                Generate
+                {t('generate', 'Generate')}
               </Button>
             </div>
           </div>

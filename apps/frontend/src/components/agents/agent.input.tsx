@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { ReactNode, useMemo, useRef, useState } from 'react';
 import { useCopilotContext, useCopilotReadable } from '@copilotkit/react-core';
 import AutoResizingTextarea from '@gitroom/frontend/components/agents/agent.textarea';
 import { useChatContext } from '@copilotkit/react-ui';
@@ -13,7 +13,8 @@ export const Input = ({
   onUpload,
   hideStopButton = false,
   onChange,
-}: InputProps & { onChange: (value: string) => void }) => {
+  tools,
+}: InputProps & { onChange: (value: string) => void; tools?: ReactNode }) => {
   const context = useChatContext();
   const copilotContext = useCopilotContext();
   const showPoweredBy = !copilotContext.copilotApiConfig?.publicApiKey;
@@ -93,6 +94,7 @@ export const Input = ({
           }}
         />
         <div className="copilotKitInputControls">
+          {tools}
           {onUpload && (
             <button onClick={onUpload} className="copilotKitInputControlButton">
               {context.icons.uploadIcon}

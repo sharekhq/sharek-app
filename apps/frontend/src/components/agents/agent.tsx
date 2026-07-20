@@ -42,7 +42,7 @@ export const MediaPortal: FC<{
   const t = useT();
   if (!waitForClass) return null;
   return (
-    <div className="pl-[14px] pr-[24px] whitespace-nowrap editor rm-bg">
+    <div className="flex-1 min-w-0 whitespace-nowrap editor rm-bg">
       <MultiMediaComponent
         allData={[{ content: value }]}
         text={value}

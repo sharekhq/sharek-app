@@ -505,7 +505,9 @@ export const MainBillingComponent: FC<{
                         ? 'danger'
                         : currentPackage === name.toUpperCase()
                         ? 'quiet'
-                        : 'ghost'
+                        : name.toUpperCase() === 'FREE'
+                        ? 'ghost'
+                        : 'primary'
                     }
                     onClick={moveToCheckout(
                       name.toUpperCase() as 'STANDARD' | 'PRO'

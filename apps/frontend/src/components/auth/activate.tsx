@@ -116,7 +116,7 @@ export function Activate() {
               )}
             </div>
             <Link href="/auth/login">
-              <Button className="rounded-[10px] !h-[52px] w-full">
+              <Button className="!rounded-[10px] !h-[52px] w-full">
                 {t('go_to_login', 'Go to Login')}
               </Button>
             </Link>

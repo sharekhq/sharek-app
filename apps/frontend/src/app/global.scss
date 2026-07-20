@@ -664,6 +664,12 @@ html[dir='rtl'] [dir='ltr'] {
   border: 1px dashed var(--line);
 }
 
+/* v3 round 3: weekday header band — opaque brand tint (cells are sticky,
+   an alpha fill would let posts show through while scrolling) */
+.cal-weekday {
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface));
+}
+
 .mantine-Modal-inner {
   backdrop-filter: blur(10px);
 }
@@ -735,8 +741,59 @@ html[dir='rtl'] [dir='ltr'] {
     padding: 0 24px !important;
   }
 
+  /* v3 round 3 (№9): the chat input adopts the compose editor's language —
+     writing surface on top, tools + send on a --panel bar below, one border */
   .copilotKitInput {
     width: 100% !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    border-color: var(--line) !important;
+    overflow: hidden;
+  }
+
+  .copilotKitInput > textarea {
+    padding: 14px 16px 10px;
+  }
+
+  .copilotKitInputControls {
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 6px 10px;
+    align-items: center;
+    gap: 6px !important;
+  }
+
+  .copilotKitInputControls .rm-bg .b1 {
+    border-top: 0 !important;
+    padding-inline: 0 !important;
+  }
+
+  .copilotKitInputControls .rm-bg .b2 {
+    padding-block: 4px !important;
+  }
+
+  /* v3 round 3 (№8): send/stop is a solid pomegranate circle, white glyph —
+     CopilotKit ships a bare 24px transparent icon that disappears */
+  .copilotKitInputControlButton:last-child {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 999px;
+    background: var(--brand);
+    color: #fff !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    transition: background 0.2s;
+  }
+
+  .copilotKitInputControlButton:last-child:not([disabled]):hover {
+    background: color-mix(in srgb, var(--brand) 85%, #000);
+  }
+
+  .copilotKitInputControlButton:last-child[disabled] {
+    background: var(--surface-2);
+    color: var(--muted) !important;
   }
 }
 
