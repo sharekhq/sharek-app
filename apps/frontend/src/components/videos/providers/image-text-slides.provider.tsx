@@ -147,9 +147,11 @@ const VoiceSelector: FC = () => {
               type="button"
               variant="ghost"
               className={clsx(
-                'px-3 py-1 text-xs !bg-sixth',
+                'px-3 py-1 text-xs',
                 loadingVoice === voice.id && 'opacity-50 cursor-not-allowed',
-                currentlyPlaying === voice.id && '!bg-brand !text-white'
+                currentlyPlaying === voice.id
+                  ? '!bg-brand !text-white'
+                  : '!bg-sixth'
               )}
               onClick={(e) => {
                 e.stopPropagation();

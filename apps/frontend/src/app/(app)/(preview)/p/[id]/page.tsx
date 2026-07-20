@@ -144,7 +144,7 @@ export default async function Auth(
           </div>
         </div>
         <div className="w-full lg:w-96 lg:flex-shrink-0">
-          <div className="p-4 pt-0">
+          <div className="lg:ps-4">
             <CommentsComponents postId={id} />
           </div>
         </div>
