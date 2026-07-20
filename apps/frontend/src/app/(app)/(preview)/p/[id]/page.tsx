@@ -48,26 +48,24 @@ export default async function Auth(
   return (
     <div>
       <div className="mx-auto w-full max-w-[1346px] py-3 text-textColor">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="min-w-[55px]">
-                <Link
-                  href="/"
-                  className="text-2xl flex items-center justify-center gap-[10px] text-textColor order-1"
-                >
-                  <LogoTextComponent />
-                </Link>
-              </div>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-[16px]">
+            <div className="min-w-[55px]">
+              <Link
+                href="/"
+                className="text-2xl flex items-center justify-center gap-[10px] text-textColor order-1"
+              >
+                <LogoTextComponent />
+              </Link>
             </div>
           </div>
-          <div className="text-sm text-muted flex items-center gap-[20px]">
+          <div className="text-sm text-muted flex flex-col items-end gap-[6px]">
             {!!searchParams?.share && (
               <div>
                 <CopyClient />
               </div>
             )}
-            <div className="flex-1">
+            <div>
               {t('publication_date', 'Publication Date:')}{' '}
               <RenderPreviewDateClient date={post[0].publishDate} />
             </div>
@@ -81,9 +79,9 @@ export default async function Auth(
             {post.map((p: any, index: number) => (
               <div
                 key={String(p.id)}
-                className="relative px-4 py-4 bg-third border border-tableBorder"
+                className="relative px-4 py-4 bg-third border border-tableBorder rounded-[12px]"
               >
-                <div className="flex space-x-3">
+                <div className="flex gap-[12px]">
                   <div>
                     <div className="flex shrink-0 rounded-full h-30 w-30 relative">
                       <div className="w-[50px] h-[50px] z-[20]">
@@ -103,7 +101,7 @@ export default async function Auth(
                     </div>
                   </div>
                   <div className="flex-1 space-y-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-[8px]">
                       <h2 className="text-sm font-semibold">
                         {post[0].integration.name}
                       </h2>

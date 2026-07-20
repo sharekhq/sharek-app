@@ -117,7 +117,7 @@ export const StatisticsModal: FC<{
                   const dotClass = CARD_DOTS[index % CARD_DOTS.length];
                   return (
                     <div key={`analytics-${index}`} className="group">
-                      <div className="flex flex-col h-full bg-newTableHeader border border-newTableBorder rounded-[12px] overflow-hidden transition-all duration-200 hover:border-muted">
+                      <div className="flex flex-col h-full bg-surface border border-line rounded-[14px] shadow-soft overflow-hidden">
                         <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
                           <div className="flex items-center gap-[10px]">
                             <div className={`w-[8px] h-[8px] rounded-full ${dotClass}`} />

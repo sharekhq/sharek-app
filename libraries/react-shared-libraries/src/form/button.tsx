@@ -56,7 +56,9 @@ export const Button: FC<
       className={clsx(
         (props.disabled || loading) && 'opacity-50 pointer-events-none',
         `${
-          secondary ? 'bg-third' : variantClass
+          // legacy `secondary` used to paint bg-third = the modal's own
+          // background (invisible button); it now means the ghost style
+          secondary ? 'bg-transparent text-ink border border-line' : variantClass
         } px-[24px] h-[40px] rounded-[8px] cursor-pointer items-center justify-center flex relative`,
         props?.className
       )}

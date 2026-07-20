@@ -86,7 +86,7 @@ export const Modal: FC<{
         )}
         <FormProvider {...form}>
           <div className="flex flex-col gap-[16px]">
-            <div className="max-h-[400px] overflow-x-hidden overflow-y-auto">
+            <div className="max-h-[400px] overflow-x-hidden overflow-y-auto flex flex-col gap-[16px]">
               <div className="flex w-full justify-center items-center gap-[10px]">
                 <div className="flex-1 flex">
                   <Button

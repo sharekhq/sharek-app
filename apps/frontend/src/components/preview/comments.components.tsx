@@ -48,14 +48,14 @@ export const RenderComponents: FC<{
   }
   return (
     <>
-      <div className="mb-6 flex space-x-3">
+      <div className="mb-6 flex gap-[12px]">
         <form className="flex-1 space-y-2" onSubmit={handleSubmit(submit)}>
           <textarea
             {...register('comment', {
               required: true,
             })}
-            className="flex w-full px-3 py-2 h-[98px] text-sm ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-white bg-third border border-tableBorder focus:ring-0"
-            placeholder="Add a comment..."
+            className="flex w-full px-3 py-2 h-[98px] text-sm ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-textColor bg-third border border-tableBorder rounded-[8px] focus:ring-0"
+            placeholder={t('add_a_comment', 'Add a comment...')}
             defaultValue={''}
           />
           <div className="flex justify-end">
@@ -75,7 +75,7 @@ export const RenderComponents: FC<{
                 <path d="m22 2-7 20-4-9-9-4Z" />
                 <path d="M22 2 11 13" />
               </svg>
-              {t('post', 'Post')}
+              {t('add_comment', 'Add comment')}
             </Button>
           </div>
         </form>
@@ -87,10 +87,10 @@ export const RenderComponents: FC<{
         {data.comments.map((comment: any) => (
           <div
             key={comment.id}
-            className="flex space-x-3 border-t border-tableBorder py-3"
+            className="flex gap-[12px] border-t border-tableBorder py-3"
           >
             <div className="flex-1 space-y-1">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-[8px]">
                 <h3 className="text-sm font-semibold">
                   {t('user', 'User')}
                   {mapUsers[comment.userId]}

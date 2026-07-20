@@ -501,6 +501,7 @@ const ConfirmDeleteModal: FC<{
       </p>
       <div className="flex gap-[8px] justify-end">
         <Button
+          variant="ghost"
           onClick={() => {
             resolve(false);
             close();
