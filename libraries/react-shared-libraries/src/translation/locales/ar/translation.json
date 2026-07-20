@@ -892,6 +892,8 @@
   "select_a_voice": "اختر صوتًا",
   "voice_set_english": "English",
   "voice_set_arabic": "العربية",
+  "video_type_image_text_slides": "شرائح صور ونص (تعليق صوتي + صور)",
+  "video_type_veo3": "Veo3 (صوت + فيديو)",
   "loading_voices": "جارٍ تحميل الأصوات...",
   "please_type_your_prompt": "يُرجى كتابة موجّهك",
   "please_wait": "يُرجى الانتظار بينما نربط حسابك...",

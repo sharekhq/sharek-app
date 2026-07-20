@@ -882,6 +882,8 @@
   "select_a_voice": "Select a Voice",
   "voice_set_english": "English",
   "voice_set_arabic": "العربية",
+  "video_type_image_text_slides": "Image Text Slides (Voiceover + Images)",
+  "video_type_veo3": "Veo3 (Audio + Video)",
   "loading_voices": "Loading voices...",
   "please_type_your_prompt": "Please type your prompt",
   "please_wait": "Please wait while we connect your account...",
