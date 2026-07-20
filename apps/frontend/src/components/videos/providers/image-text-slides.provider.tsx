@@ -4,6 +4,7 @@ import { useVideoFunction } from '@gitroom/frontend/components/videos/video.rend
 import useSWR from 'swr';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@gitroom/react/form/button';
+import { Textarea } from '@gitroom/react/form/textarea';
 import clsx from 'clsx';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -25,11 +26,6 @@ const VoiceSelector: FC = () => {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { value } = useVideo();
-
-  register('prompt', {
-    value,
-  });
 
   const loadVideos = useCallback(() => {
     return videoFunction('loadVoices', {});
@@ -173,7 +169,32 @@ const VoiceSelector: FC = () => {
 };
 
 const ImageSlidesComponent = () => {
-  return <VoiceSelector />;
+  const t = useT();
+  const { register, formState } = useFormContext();
+  const { value } = useVideo();
+
+  return (
+    <div>
+      <Textarea
+        label="Prompt"
+        translationKey="prompt"
+        name="prompt"
+        {...register('prompt', {
+          required: t('please_type_your_prompt', 'Please type your prompt'),
+          minLength: {
+            value: 5,
+            message: t(
+              'the_prompt_should_be_at_least_5_characters_long',
+              'The prompt should be at least 5 characters long'
+            ),
+          },
+          value,
+        })}
+        error={formState?.errors?.prompt?.message}
+      />
+      <VoiceSelector />
+    </div>
+  );
 };
 
 videoWrapper('image-text-slides', ImageSlidesComponent);
