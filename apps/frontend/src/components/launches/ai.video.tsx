@@ -107,6 +107,7 @@ export const Modal: FC<{
               <div className="flex w-full justify-center items-center gap-[10px]">
                 <div className="flex-1 flex">
                   <Button
+                    type="button"
                     variant="ghost"
                     className={clsx(
                       '!flex-1',
@@ -120,6 +121,7 @@ export const Modal: FC<{
                 </div>
                 <div className="flex-1 flex">
                   <Button
+                    type="button"
                     variant="ghost"
                     className={clsx(
                       '!flex-1',
