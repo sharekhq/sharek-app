@@ -14,6 +14,20 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { createPortal } from 'react-dom';
 
+const videoTypeLabel = (
+  t: ReturnType<typeof useT>,
+  type: { identifier: string; title: string }
+) => {
+  const labels: Record<string, string> = {
+    'image-text-slides': t(
+      'video_type_image_text_slides',
+      'Image Text Slides (Voiceover + Images)'
+    ),
+    veo3: t('video_type_veo3', 'Veo3 (Audio + Video)'),
+  };
+  return labels[type.identifier] || type.title;
+};
+
 export const Modal: FC<{
   close: () => void;
   type: any;
@@ -75,6 +89,9 @@ export const Modal: FC<{
         onSubmit={form.handleSubmit(generate)}
         className="flex flex-col gap-[10px]"
       >
+        <div className="text-[14px] text-muted -mt-[12px]">
+          {videoTypeLabel(t, type)}
+        </div>
         {createPortal(
           <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
             {t('credits_left_count', '{{count}} credits left', {
@@ -90,6 +107,7 @@ export const Modal: FC<{
               <div className="flex w-full justify-center items-center gap-[10px]">
                 <div className="flex-1 flex">
                   <Button
+                    type="button"
                     variant="ghost"
                     className={clsx(
                       '!flex-1',
@@ -103,6 +121,7 @@ export const Modal: FC<{
                 </div>
                 <div className="flex-1 flex">
                   <Button
+                    type="button"
                     variant="ghost"
                     className={clsx(
                       '!flex-1',
@@ -149,7 +168,7 @@ const AiVideoModal: FC<{
         </div>
         {list.map((p) => (
           <Button key={p.identifier} type="button" onClick={() => setType(p)}>
-            {p.title}
+            {videoTypeLabel(t, p)}
           </Button>
         ))}
       </div>
