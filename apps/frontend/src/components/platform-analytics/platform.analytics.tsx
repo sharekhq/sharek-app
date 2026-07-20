@@ -242,9 +242,8 @@ export const PlatformAnalytics = () => {
               }}
               className={clsx(
                 'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px]',
-                currentIntegration.id !== integration.id
-                  ? 'opacity-20 hover:opacity-100 cursor-pointer'
-                  : 'bg-brandSoft'
+                currentIntegration.id !== integration.id &&
+                  'opacity-20 hover:opacity-100 cursor-pointer'
               )}
             >
               <div
@@ -280,9 +279,7 @@ export const PlatformAnalytics = () => {
               <div
                 className={clsx(
                   'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
-                  integration.disabled && 'opacity-50',
-                  currentIntegration.id === integration.id &&
-                    'text-brandText font-[600]'
+                  integration.disabled && 'opacity-50'
                 )}
               >
                 {integration.name}
