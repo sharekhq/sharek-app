@@ -199,6 +199,7 @@
   "add_comment_or_post": "أضف تعليقًا / منشورًا",
   "you_are_in_global_editing_mode": "أنت في وضع التحرير العام",
   "the_post_should_be_at_least_6_characters_long": "يجب أن يكون المنشور مكونًا من 6 أحرف على الأقل",
+  "the_prompt_should_be_at_least_5_characters_long": "يجب أن يكون الموجّه مكونًا من 5 أحرف على الأقل",
   "are_you_sure_you_want_to_delete_post": "هل أنت متأكد أنك تريد حذف هذا المنشور؟",
   "post_deleted_successfully": "تم حذف المنشور بنجاح",
   "delete_post": "حذف المنشور",
