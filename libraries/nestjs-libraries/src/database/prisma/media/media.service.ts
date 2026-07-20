@@ -152,6 +152,8 @@ export class MediaService {
       );
     }
 
-    return functionToCall(body);
+    // Invoke bound to the provider instance — a detached call leaves `this`
+    // undefined inside methods that use other instance members (loadVoices).
+    return functionToCall.call(video.instance, body);
   }
 }
