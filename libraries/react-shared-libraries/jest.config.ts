@@ -3,14 +3,14 @@
 // shared React components are tested through this scoped config instead:
 //   npx jest --config libraries/react-shared-libraries/jest.config.ts
 //
-// Components are asserted through react-dom/server, so no jsdom or DOM testing library is
-// needed — these specs check the class strings a component emits, which is where the
-// design-token bugs live.
+// Class-string assertions go through react-dom/server; specs that need to click something get
+// a DOM from jest.setup.js (happy-dom, because jsdom's optional `canvas` dep is unbuilt here).
 import type { Config } from 'jest';
 
 const config: Config = {
   rootDir: 'src',
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/../jest.setup.js'],
   testMatch: ['**/*.spec.tsx'],
   transform: {
     '^.+\\.tsx?$': [

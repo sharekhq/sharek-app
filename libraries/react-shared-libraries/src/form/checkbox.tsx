@@ -8,6 +8,7 @@ export const Checkbox = forwardRef<
   {
     checked?: boolean;
     disableForm?: boolean;
+    disabled?: boolean;
     name?: string;
     className?: string;
     label?: string;
@@ -19,13 +20,17 @@ export const Checkbox = forwardRef<
     }) => void;
   }
 >((props, ref: any) => {
-  const { checked, className, label, disableForm } = props;
+  const { checked, className, label, disableForm, disabled } = props;
   const form = useFormContext();
   const register = disableForm ? {} : form.register(props.name!);
   const watch = disableForm ? false : form.watch(props.name!);
   const val = watch || checked;
 
   const changeStatus = useCallback(() => {
+    // pointer-events-none already blocks the pointer; this guards the programmatic path.
+    if (disabled) {
+      return;
+    }
     props?.onChange?.({
       target: {
         name: props.name!,
@@ -41,15 +46,23 @@ export const Checkbox = forwardRef<
         },
       });
     }
-  }, [val]);
+  }, [val, disabled]);
   return (
-    <div className="flex gap-[10px]">
+    <div
+      className={clsx(
+        'flex gap-[10px]',
+        // dims the label along with the box, the way a disabled Button dims all of itself
+        disabled && 'opacity-50 pointer-events-none'
+      )}
+    >
       <div
         ref={ref}
         {...disableForm ? {} : form.register(props.name!)}
         onClick={changeStatus}
+        aria-disabled={disabled || undefined}
         className={clsx(
-          'cursor-pointer rounded-[4px] select-none w-[24px] h-[24px] justify-center items-center flex text-white border transition-colors',
+          'rounded-[4px] select-none w-[24px] h-[24px] justify-center items-center flex text-white border transition-colors',
+          disabled ? 'cursor-default' : 'cursor-pointer',
           val ? 'bg-brand border-brand' : 'bg-surface border-muted',
           className
         )}
