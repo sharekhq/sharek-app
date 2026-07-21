@@ -181,14 +181,12 @@ const TikTokSettings: FC<{
       <div className="flex gap-[40px]">
         <Checkbox
           label={t('label_comments', 'Comments')}
-          variant="hollow"
           disabled={isUploadMode}
           {...register('comment', {
             value: true,
           })}
         />
         <Checkbox
-          variant="hollow"
           label={t('label_duet', 'Duet')}
           disabled={isUploadMode}
           {...register('duet', {
@@ -197,7 +195,6 @@ const TikTokSettings: FC<{
         />
         <Checkbox
           label={t('label_stitch', 'Stitch')}
-          variant="hollow"
           disabled={isUploadMode}
           {...register('stitch', {
             value: false,
@@ -208,13 +205,11 @@ const TikTokSettings: FC<{
       <div className="flex flex-col gap-[20px]">
         <Checkbox
           label={t('video_made_with_ai', 'Video made with AI')}
-          variant="hollow"
           {...register('video_made_with_ai', {
             value: false,
           })}
         />
         <Checkbox
-          variant="hollow"
           label={t('label_disclose_video_content', 'Disclose Video Content')}
           disabled={isUploadMode}
           {...register('disclose', {
@@ -259,7 +254,6 @@ const TikTokSettings: FC<{
       </div>
       <div className={clsx(!disclose && 'invisible h-0 overflow-hidden', 'mt-[20px]')}>
         <Checkbox
-          variant="hollow"
           label={t('label_your_brand', 'Your brand')}
           disabled={isUploadMode}
           {...register('brand_organic_toggle', {
@@ -278,7 +272,6 @@ const TikTokSettings: FC<{
           )}
         </div>
         <Checkbox
-          variant="hollow"
           label={t('label_branded_content', 'Branded content')}
           disabled={isUploadMode}
           {...register('brand_content_toggle', {
