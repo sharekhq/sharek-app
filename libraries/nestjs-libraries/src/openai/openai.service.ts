@@ -24,7 +24,7 @@ export class OpenaiService {
     const generate = (
       await openai.images.generate({
         prompt,
-        model: 'chatgpt-image-latest',
+        model: 'gpt-image-2',
         size: isVertical ? '1024x1536' : '1024x1024',
         // unset quality defaults to auto → high, ~4x the cost of medium;
         // social platforms recompress uploads, so medium is indistinguishable in-feed
