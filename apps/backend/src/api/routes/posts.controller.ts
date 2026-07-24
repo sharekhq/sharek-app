@@ -20,6 +20,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { GeneratorDto } from '@gitroom/nestjs-libraries/dtos/generator/generator.dto';
 import { CreateGeneratedPostsDto } from '@gitroom/nestjs-libraries/dtos/generator/create.generated.posts.dto';
 import { AgentGraphService } from '@gitroom/nestjs-libraries/agent/agent.graph.service';
+import { withHeartbeat } from '@gitroom/nestjs-libraries/agent/heartbeat';
 import { Response } from 'express';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { ShortLinkService } from '@gitroom/nestjs-libraries/short-linking/short.link.service';
@@ -240,9 +241,24 @@ export class PostsController {
     @Res({ passthrough: false }) res: Response
   ) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    // Tell nginx not to buffer this NDJSON stream — buffered heartbeats can't
+    // keep the proxy connection alive.
+    res.setHeader('X-Accel-Buffering', 'no');
+    // compression() buffers responses; flush after each event so it actually
+    // leaves the process while the graph is still running.
+    const write = (payload: object) => {
+      res.write(JSON.stringify(payload) + '\n');
+      (res as { flush?: () => void }).flush?.();
+    };
     try {
-      for await (const event of this._agentGraphService.start(org.id, body)) {
-        res.write(JSON.stringify(event) + '\n');
+      // Heartbeats cover the silent stretches (image generation emits no graph
+      // events and can exceed the 60-100s proxy idle cuts).
+      for await (const event of withHeartbeat(
+        this._agentGraphService.start(org.id, body),
+        20_000,
+        () => ({ name: 'heartbeat' })
+      )) {
+        write(event);
       }
     } catch (err) {
       // The stream has already started, so we cannot surface a normal HTTP
@@ -254,7 +270,7 @@ export class PostsController {
         err instanceof HttpException
           ? err.message
           : 'Something went wrong while generating your posts, please try again.';
-      res.write(JSON.stringify({ name: 'error', error: true, message }) + '\n');
+      write({ name: 'error', error: true, message });
     }
 
     res.end();
