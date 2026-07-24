@@ -52,7 +52,7 @@ const FirstStep: FC = (props) => {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
-        if (done) return lastResponse.data.output;
+        if (done) return lastResponse?.data?.output;
 
         // Convert chunked binary data to string
         const chunkStr = decoder.decode(value, {
@@ -66,6 +66,11 @@ const FirstStep: FC = (props) => {
             data = JSON.parse(chunk);
           } catch (e) {
             /** ignore partial / unparseable chunks **/
+            continue;
+          }
+
+          // Keep-alive frames from the server; not graph events.
+          if (data?.name === 'heartbeat') {
             continue;
           }
 
