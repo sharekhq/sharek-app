@@ -8,6 +8,7 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Button } from '@gitroom/react/form/button';
+import { SelectChevron } from '@gitroom/react/form/select';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 
 interface ErrorRow {
@@ -252,21 +253,24 @@ export const AdminErrorsComponent: FC = () => {
       <div className="flex flex-wrap gap-[12px] items-end bg-newBgColorInner border border-newTableBorder rounded-[8px] p-[12px]">
         <div className="flex flex-col gap-[6px]">
           <div className="text-[12px] opacity-70">Platform</div>
-          <select
-            value={platform}
-            onChange={(e) => {
-              setPage(0);
-              setPlatform(e.target.value);
-            }}
-            className="bg-newBgColorInner h-[38px] border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor min-w-[180px]"
-          >
-            <option value="">All platforms</option>
-            {(platforms || []).map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={platform}
+              onChange={(e) => {
+                setPage(0);
+                setPlatform(e.target.value);
+              }}
+              className="bg-newBgColorInner h-[38px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor min-w-[180px]"
+            >
+              <option value="">All platforms</option>
+              {(platforms || []).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <SelectChevron className="absolute end-[10px] top-[50%] -translate-y-[50%] pointer-events-none text-muted" />
+          </div>
         </div>
 
         <div className="flex flex-col gap-[6px]">
@@ -299,20 +303,23 @@ export const AdminErrorsComponent: FC = () => {
 
         <div className="flex flex-col gap-[6px]">
           <div className="text-[12px] opacity-70">Per page</div>
-          <select
-            value={limit}
-            onChange={(e) => {
-              setPage(0);
-              setLimit(parseInt(e.target.value, 10));
-            }}
-            className="bg-newBgColorInner h-[38px] border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor"
-          >
-            {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={limit}
+              onChange={(e) => {
+                setPage(0);
+                setLimit(parseInt(e.target.value, 10));
+              }}
+              className="bg-newBgColorInner h-[38px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <SelectChevron className="absolute end-[10px] top-[50%] -translate-y-[50%] pointer-events-none text-muted" />
+          </div>
         </div>
 
         <Button secondary onClick={onClear}>
