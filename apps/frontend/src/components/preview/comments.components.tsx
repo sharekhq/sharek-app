@@ -54,7 +54,7 @@ export const RenderComponents: FC<{
             {...register('comment', {
               required: true,
             })}
-            className="flex w-full px-3 py-2 h-[98px] text-sm ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-textColor bg-third border border-tableBorder rounded-[8px] focus:ring-0"
+            className="flex w-full p-[16px] h-[98px] text-sm ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-textColor bg-third border border-tableBorder rounded-[8px] focus:ring-0"
             placeholder={t('add_a_comment', 'Add a comment...')}
             defaultValue={''}
           />

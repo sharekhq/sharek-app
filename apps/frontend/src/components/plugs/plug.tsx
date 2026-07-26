@@ -47,7 +47,7 @@ export const TextArea: FC<{
         placeholder={props.placeHolder}
         value={value}
         className={clsx(
-          '!min-h-40 !max-h-80 p-[24px] overflow-hidden bg-surface outline-none rounded-[4px] border-fifth border'
+          '!min-h-40 !max-h-80 p-[16px] overflow-hidden bg-newBgColorInner border border-newTableBorder rounded-[8px] outline-none'
         )}
         onChange={(e) => {
           onChange({
