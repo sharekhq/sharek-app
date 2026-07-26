@@ -5,6 +5,7 @@ interface VariableContextInterface {
   stripeClient: string;
   billingEnabled: boolean;
   showUpstreamExtras: boolean;
+  showThirdParty: boolean;
   isChatBase: boolean;
   isGeneral: boolean;
   genericOauth: boolean;
@@ -38,6 +39,7 @@ const VariableContext = createContext({
   stripeClient: '',
   billingEnabled: false,
   showUpstreamExtras: false,
+  showThirdParty: false,
   isGeneral: true,
   genericOauth: false,
   isChatBase: false,

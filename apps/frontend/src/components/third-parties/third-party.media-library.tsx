@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import clsx from 'clsx';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { Pagination } from '@gitroom/frontend/components/media/media.component';
@@ -227,9 +228,23 @@ const ThirdPartyMediaLibraryPicker: FC<{
   );
 };
 
-export const ThirdPartyMediaLibrary: FC<{
+interface ThirdPartyMediaLibraryProps {
   onImported: () => void;
-}> = ({ onImported }) => {
+}
+
+export const ThirdPartyMediaLibrary: FC<ThirdPartyMediaLibraryProps> = (
+  props
+) => {
+  const { showThirdParty } = useVariables();
+  if (!showThirdParty) {
+    return null;
+  }
+  return <ThirdPartyMediaLibraryLoad {...props} />;
+};
+
+const ThirdPartyMediaLibraryLoad: FC<ThirdPartyMediaLibraryProps> = ({
+  onImported,
+}) => {
   const fetch = useFetch();
   const t = useT();
   const modals = useModals();
