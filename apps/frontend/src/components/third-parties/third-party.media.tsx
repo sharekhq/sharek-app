@@ -19,6 +19,7 @@ import './providers/heygen.provider';
 import { thirdPartyList } from '@gitroom/frontend/components/third-parties/third-party.wrapper';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 
 const ThirdPartyContext = createContext({
   id: '',
@@ -144,7 +145,7 @@ export const ThirdPartyPopup: FC<{
   );
 };
 
-export const ThirdPartyMedia: FC<{
+interface ThirdPartyMediaProps {
   onChange: (data: any) => void;
   allData: {
     content: string;
@@ -154,7 +155,17 @@ export const ThirdPartyMedia: FC<{
       path: string;
     }>;
   }[];
-}> = (props) => {
+}
+
+export const ThirdPartyMedia: FC<ThirdPartyMediaProps> = (props) => {
+  const { showThirdParty } = useVariables();
+  if (!showThirdParty) {
+    return null;
+  }
+  return <ThirdPartyMediaLoad {...props} />;
+};
+
+const ThirdPartyMediaLoad: FC<ThirdPartyMediaProps> = (props) => {
   const { allData, onChange } = props;
   const t = useT();
   const fetch = useFetch();

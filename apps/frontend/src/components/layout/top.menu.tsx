@@ -19,7 +19,7 @@ interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral, showUpstreamExtras } = useVariables();
+  const { isGeneral, showUpstreamExtras, showThirdParty } = useVariables();
   const t = useT();
   const { openModal } = useModals();
 
@@ -155,6 +155,7 @@ export const useMenuItem = () => {
         </svg>
       ),
       path: '/third-party',
+      hide: !showThirdParty,
     },
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
