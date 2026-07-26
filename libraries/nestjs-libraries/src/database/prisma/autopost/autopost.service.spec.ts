@@ -25,6 +25,10 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/posts/posts.service',
   () => ({ PostsService: class {} })
 );
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/media/media.service',
+  () => ({ MediaService: class {} })
+);
 jest.mock('nestjs-temporal-core', () => ({ TemporalService: class {} }));
 jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
   UploadFactory: { createStorage: () => ({}) },
@@ -33,14 +37,23 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 import { AutopostService } from './autopost.service';
 
 describe('AutopostService.generatePicture', () => {
-  it('uploads the generated image and stores the hosted URL, not an OpenAI link', async () => {
+  it('uploads the generated image and registers it in the media library', async () => {
     const openai = { generateImage: jest.fn().mockResolvedValue('B64DATA') };
+    // Mirrors the select subset media.repository saveFile actually returns
+    // (no organizationId or timestamps).
+    const mediaRow = {
+      id: 'media-1',
+      name: 'abc.png',
+      path: 'https://uploads.example.com/2026/07/abc.png',
+    };
+    const media = { saveFile: jest.fn().mockResolvedValue(mediaRow) };
     const service = new AutopostService(
       {} as any,
       {} as any,
       {} as any,
       {} as any,
-      openai as unknown as OpenaiService
+      openai as unknown as OpenaiService,
+      media as any
     );
     const storage = {
       uploadSimple: jest
@@ -50,6 +63,7 @@ describe('AutopostService.generatePicture', () => {
     (service as any).storage = storage;
 
     const state: any = await service.generatePicture({
+      body: { organizationId: 'org-1' },
       load: { description: 'New article about pomegranates' },
     } as any);
 
@@ -59,6 +73,51 @@ describe('AutopostService.generatePicture', () => {
     expect(storage.uploadSimple).toHaveBeenCalledWith(
       'data:image/png;base64,B64DATA'
     );
-    expect(state.image).toBe('https://uploads.example.com/2026/07/abc.png');
+    expect(media.saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'abc.png',
+      'https://uploads.example.com/2026/07/abc.png'
+    );
+    expect(state.image).toBe(mediaRow);
+  });
+});
+
+describe('AutopostService.schedulePost', () => {
+  it('attaches the registered media row to the drafted post', async () => {
+    const postsService = {
+      findFreeDateTime: jest.fn().mockResolvedValue('2026-07-27T10:00:00'),
+      createPost: jest.fn().mockResolvedValue([]),
+    };
+    const service = new AutopostService(
+      {} as any,
+      {} as any,
+      {} as any,
+      postsService as any,
+      {} as any,
+      {} as any
+    );
+
+    await service.schedulePost({
+      description: 'Fresh article',
+      load: { url: 'https://blog.example.com/a' },
+      image: {
+        id: 'media-1',
+        name: 'abc.png',
+        path: 'https://uploads.example.com/2026/07/abc.png',
+      },
+      integrations: [
+        { id: 'int-1', providerIdentifier: 'x', organizationId: 'org-1' },
+      ],
+    } as any);
+
+    const dto = postsService.createPost.mock.calls[0][1];
+    expect(dto.posts[0].value[0].image).toEqual([
+      {
+        id: 'media-1',
+        name: 'abc.png',
+        path: 'https://uploads.example.com/2026/07/abc.png',
+        organizationId: 'org-1',
+      },
+    ]);
   });
 });

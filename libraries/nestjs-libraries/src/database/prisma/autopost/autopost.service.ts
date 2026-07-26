@@ -3,7 +3,7 @@ import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/au
 import { AutopostDto } from '@gitroom/nestjs-libraries/dtos/autopost/autopost.dto';
 import dayjs from 'dayjs';
 import { END, START, StateGraph } from '@langchain/langgraph';
-import { AutoPost, Integration } from '@prisma/client';
+import { AutoPost, Integration, Media } from '@prisma/client';
 import { BaseMessage } from '@langchain/core/messages';
 import striptags from 'striptags';
 import { ChatOpenAI } from '@langchain/openai';
@@ -13,6 +13,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import Parser from 'rss-parser';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
+import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -28,7 +29,9 @@ interface WorkflowChannelsState {
   integrations: Integration[];
   body: AutoPost;
   description: string;
-  image: string;
+  // saveFile returns a select subset of Media, not the full row — only claim
+  // the fields schedulePost actually consumes.
+  image: Pick<Media, 'id' | 'name' | 'path'>;
   id: string;
   load: {
     date: string;
@@ -63,7 +66,8 @@ export class AutopostService {
     private _temporalService: TemporalService,
     private _integrationService: IntegrationService,
     private _postsService: PostsService,
-    private _openaiService: OpenaiService
+    private _openaiService: OpenaiService,
+    private _mediaService: MediaService
   ) {}
 
   async stopAll(org: string) {
@@ -264,7 +268,16 @@ export class AutopostService {
         (await this._openaiService.generateImage(generatedTextToBeSentToDallE))
     );
 
-    return { ...state, image };
+    // Register the upload in the media library (like the generate-posts agent
+    // flow does) so the asset is browsable and reusable instead of an orphan
+    // in the bucket.
+    const media = await this._mediaService.saveFile(
+      state.body.organizationId,
+      image.split('/').pop()!,
+      image
+    );
+
+    return { ...state, image: media };
   }
 
   async schedulePost(state: WorkflowChannelsState) {
@@ -299,9 +312,9 @@ export class AutopostService {
               ? []
               : [
                   {
-                    id: makeId(10),
-                    name: makeId(10),
-                    path: state.image,
+                    id: state.image.id,
+                    name: state.image.name,
+                    path: state.image.path,
                     organizationId: state.integrations[0].organizationId,
                   },
                 ],
