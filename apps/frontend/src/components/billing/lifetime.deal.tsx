@@ -4,6 +4,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useCallback, useMemo, useState } from 'react';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import { billingFeatures } from '@gitroom/frontend/components/billing/billing.features';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
 import { useSWRConfig } from 'swr';
@@ -51,51 +52,21 @@ export const LifetimeDeal = () => {
     if (!user?.tier) {
       return [];
     }
-    const currentPricing = user?.tier;
-    const channelsOr = currentPricing.channel;
-    const list = [];
-    list.push(
-      `${user.totalChannels} ${
-        user.totalChannels === 1 ? 'channel' : 'channels'
-      }`
-    );
-    list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
-    );
-    if (currentPricing.team_members) {
-      list.push(`Unlimited team members`);
-    }
-    if (currentPricing?.ai) {
-      list.push(`AI auto-complete`);
-    }
-    return list;
+    // The current package counts the channels actually connected, not the plan cap.
+    return billingFeatures({ ...user.tier, channel: user.totalChannels });
   }, [user]);
   const nextFeature = useMemo(() => {
     if (!user?.tier) {
       return [];
     }
-    const currentPricing = pricing[nextPackage];
-    const channelsOr = currentPricing.channel;
-    const list = [];
-    list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
-    list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
-    );
-    if (currentPricing.team_members) {
-      list.push(`Unlimited team members`);
+    // "EXTRA" is the step past Pro: same plan, five more channels.
+    if (user?.tier?.current === 'PRO') {
+      return billingFeatures({
+        ...user.tier,
+        channel: (user?.totalChannels || 0) + 5,
+      }).filter((feature) => feature.key === 'billing_channels');
     }
-    if (currentPricing?.ai) {
-      list.push(`AI auto-complete`);
-    }
-    return list;
+    return billingFeatures(pricing[nextPackage]);
   }, [user, nextPackage]);
   if (!user?.tier) {
     return null;
@@ -114,7 +85,7 @@ export const LifetimeDeal = () => {
 
         <div className="flex flex-col gap-[10px] justify-center text-[16px] text-muted">
           {features.map((feature) => (
-            <div key={feature} className="flex gap-[20px]">
+            <div key={feature.key} className="flex gap-[20px]">
               <div>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -129,7 +100,7 @@ export const LifetimeDeal = () => {
                   />
                 </svg>
               </div>
-              <div>{feature}</div>
+              <div>{t(feature.key, feature.defaultValue, feature)}</div>
             </div>
           ))}
         </div>
@@ -148,11 +119,8 @@ export const LifetimeDeal = () => {
         </div>
 
         <div className="flex flex-col gap-[10px] justify-center text-[16px] text-muted">
-          {(user?.tier?.current === 'PRO'
-            ? [`${(user?.totalChannels || 0) + 5} channels`]
-            : nextFeature
-          ).map((feature) => (
-            <div key={feature} className="flex gap-[20px]">
+          {nextFeature.map((feature) => (
+            <div key={feature.key} className="flex gap-[20px]">
               <div>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -167,7 +135,7 @@ export const LifetimeDeal = () => {
                   />
                 </svg>
               </div>
-              <div>{feature}</div>
+              <div>{t(feature.key, feature.defaultValue, feature)}</div>
             </div>
           ))}
 

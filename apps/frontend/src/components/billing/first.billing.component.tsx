@@ -13,6 +13,7 @@ import NotificationComponent from '@gitroom/frontend/components/notifications/no
 import dynamic from 'next/dynamic';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import { billingFeatures } from '@gitroom/frontend/components/billing/billing.features';
 import { capitalize } from 'lodash';
 import clsx from 'clsx';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
@@ -309,82 +310,9 @@ export const FirstBillingComponent = () => {
   );
 };
 
-type FeatureItem = {
-  key: string;
-  defaultValue: string;
-  prefix?: string | number;
-};
-
 export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
   const t = useT();
-  const features = useMemo(() => {
-    const currentPricing = pricing[tier];
-    const channelsOr = currentPricing.channel;
-    const list: FeatureItem[] = [];
-
-    list.push({
-      key: channelsOr === 1 ? 'billing_channel' : 'billing_channels',
-      defaultValue: channelsOr === 1 ? 'channel' : 'channels',
-      prefix: channelsOr,
-    });
-
-    list.push({
-      key: 'billing_posts_per_month',
-      defaultValue: 'posts per month',
-      prefix:
-        currentPricing.posts_per_month > 10000
-          ? 'unlimited'
-          : currentPricing.posts_per_month,
-    });
-
-    if (currentPricing.team_members) {
-      list.push({
-        key: 'billing_unlimited_team_members',
-        defaultValue: 'Unlimited team members',
-      });
-    }
-    if (currentPricing?.ai) {
-      list.push({
-        key: 'billing_ai_auto_complete',
-        defaultValue: 'AI auto-complete',
-      });
-      list.push({ key: 'billing_ai_copilots', defaultValue: 'AI copilots' });
-      list.push({
-        key: 'billing_ai_autocomplete',
-        defaultValue: 'AI Autocomplete',
-      });
-    }
-    list.push({
-      key: 'billing_advanced_picture_editor',
-      defaultValue: 'Advanced Picture Editor',
-    });
-    if (currentPricing?.image_generator) {
-      list.push({
-        key: 'billing_ai_images_per_month',
-        defaultValue: 'AI Images per month',
-        prefix: currentPricing?.image_generation_count,
-      });
-    }
-    if (currentPricing?.generate_videos) {
-      list.push({
-        key: 'billing_ai_videos_per_month',
-        defaultValue: 'AI Videos per month',
-        prefix: currentPricing?.generate_videos,
-      });
-    }
-    return list;
-  }, [tier]);
-
-  const renderFeature = (feature: FeatureItem) => {
-    const translatedText = t(feature.key, feature.defaultValue);
-    if (feature.prefix === 'unlimited') {
-      return `${t('billing_unlimited', 'Unlimited')} ${translatedText}`;
-    }
-    if (feature.prefix !== undefined) {
-      return `${feature.prefix} ${translatedText}`;
-    }
-    return translatedText;
-  };
+  const features = useMemo(() => billingFeatures(pricing[tier]), [tier]);
 
   return (
     <div className="grid grid-cols-2 mobile:grid-cols-1 gap-y-[8px] gap-x-[32px]">
@@ -404,7 +332,7 @@ export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
               />
             </svg>
           </div>
-          <div>{renderFeature(feature)}</div>
+          <div>{t(feature.key, feature.defaultValue, feature)}</div>
         </div>
       ))}
     </div>

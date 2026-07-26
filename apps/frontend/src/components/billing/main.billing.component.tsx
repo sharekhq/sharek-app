@@ -12,6 +12,7 @@ import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import dayjs from 'dayjs';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import { billingFeatures } from '@gitroom/frontend/components/billing/billing.features';
 import { FAQComponent } from '@gitroom/frontend/components/billing/faq.component';
 import { useSWRConfig } from 'swr';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
@@ -79,41 +80,12 @@ export const Features: FC<{
   pack: 'FREE' | 'STANDARD' | 'PRO';
 }> = (props) => {
   const { pack } = props;
-  const features = useMemo(() => {
-    const currentPricing = pricing[pack];
-    const channelsOr = currentPricing.channel;
-    const list = [];
-    list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
-    list.push(
-      `${
-        currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
-          : currentPricing.posts_per_month
-      } posts per month`
-    );
-    if (currentPricing.team_members) {
-      list.push(`Unlimited team members`);
-    }
-    if (currentPricing?.ai) {
-      list.push(`AI auto-complete`);
-      list.push(`AI copilots`);
-      list.push(`AI Autocomplete`);
-    }
-    list.push(`Advanced Picture Editor`);
-    if (currentPricing?.image_generator) {
-      list.push(
-        `${currentPricing?.image_generation_count} AI Images per month`
-      );
-    }
-    if (currentPricing?.generate_videos) {
-      list.push(`${currentPricing?.generate_videos} AI Videos per month`);
-    }
-    return list;
-  }, [pack]);
+  const t = useT();
+  const features = useMemo(() => billingFeatures(pricing[pack]), [pack]);
   return (
     <div className="flex flex-col gap-[10px] justify-center text-[16px] text-muted">
       {features.map((feature) => (
-        <div key={feature} className="flex gap-[20px]">
+        <div key={feature.key} className="flex gap-[20px]">
           <div>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -128,7 +100,7 @@ export const Features: FC<{
               />
             </svg>
           </div>
-          <div>{feature}</div>
+          <div>{t(feature.key, feature.defaultValue, feature)}</div>
         </div>
       ))}
     </div>
