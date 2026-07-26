@@ -27,6 +27,7 @@ import {
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { extractAgentMessageText } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import dayjs from 'dayjs';
@@ -90,11 +91,9 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     const data = await (await fetch(`/copilot/${idToSet}/list`)).json();
     console.log(data);
     setMessages(
-      data.messages.map((p: any) => {
-        return new TextMessage({
-          content: p.content.content,
-          role: p.role,
-        });
+      data.messages.flatMap((p: any) => {
+        const content = extractAgentMessageText(p);
+        return content ? [new TextMessage({ content, role: p.role })] : [];
       })
     );
   }, []);
