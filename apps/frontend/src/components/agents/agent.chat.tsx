@@ -302,22 +302,8 @@ const OpenModal: FC<{
     for (const integration of args.list) {
       await new Promise((res) => {
         const group = makeId(10);
-        // The loop opens one editor per channel, so scope the picker to that
-        // channel. Offering the rest lets a single save cover a channel the
-        // loop will open its own editor for later, posting to it twice.
-        // Fall back to the full list for an unknown id (deleted channel, or
-        // one the model invented) rather than rendering an empty picker,
-        // which AddEditModal renders as a blank modal.
-        const scoped = allIntegrations.filter(
-          (p) => p.id === integration.integrationId
-        );
-        const catalog = scoped.length ? scoped : allIntegrations;
         modals.openModal({
-          // Unique per channel: the modal id is the React key in the modal
-          // manager, and every save closes and reopens within one tick. A
-          // shared id reconciles the next channel's modal onto the previous
-          // one, preserving its state and skipping its mount effects.
-          id: `add-edit-modal-${group}`,
+          id: 'add-edit-modal',
           closeOnClickOutside: false,
           removeLayout: true,
           closeOnEscape: false,
@@ -360,8 +346,10 @@ const OpenModal: FC<{
             >
               <AddEditModal
                 date={dayjs.utc(integration.date)}
-                allIntegrations={catalog}
-                integrations={catalog}
+                allIntegrations={allIntegrations}
+                integrations={allIntegrations.filter(
+                  (p) => p.id === integration.integrationId
+                )}
                 onlyValues={integration.posts.map((p) => ({
                   content: p.content,
                   id: makeId(10),
