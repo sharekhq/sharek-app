@@ -303,7 +303,11 @@ const OpenModal: FC<{
       await new Promise((res) => {
         const group = makeId(10);
         modals.openModal({
-          id: 'add-edit-modal',
+          // Unique per channel: the modal id is the React key in the modal
+          // manager, and every save closes and reopens within one tick. A
+          // shared id reconciles the next channel's modal onto the previous
+          // one, preserving its state and skipping its mount effects.
+          id: `add-edit-modal-${group}`,
           closeOnClickOutside: false,
           removeLayout: true,
           closeOnEscape: false,
