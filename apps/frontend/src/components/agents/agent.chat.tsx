@@ -340,7 +340,12 @@ const OpenModal: FC<{
       });
     }
 
-    respond('User scheduled all the posts');
+    // The tool result is what the agent narrates from, and it is resent with
+    // every later turn, so keep it short. 'User scheduled all the posts' read
+    // as the tool having scheduled them itself, which is what it then claimed.
+    respond(
+      `Opened the editor; the user reviewed and saved ${args.list.length} post(s) themselves — this tool scheduled nothing. They may have edited the content, channels or date, so don't restate the details as final.`
+    );
   }, [args, respond, allIntegrations]);
 
   const started = useRef(false);
