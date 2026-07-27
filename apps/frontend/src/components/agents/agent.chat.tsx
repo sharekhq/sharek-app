@@ -35,7 +35,6 @@ import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.m
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
-import { ExistingDataContextProvider } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 
@@ -205,22 +204,18 @@ export const Hooks: FC = () => {
         name: 'list',
         type: 'object[]',
         description:
-          'list of posts to schedule to different social media (integration ids)',
+          'list of posts to schedule, one entry per post. A post going to several channels is a single entry naming all of them, not one entry per channel',
         attributes: [
           {
-            name: 'integrationId',
-            type: 'string',
-            description: 'The integration id',
+            name: 'integrationIds',
+            type: 'string[]',
+            description:
+              'ids of every channel this post goes to. Group all channels sharing the same content and date into this one entry; add another entry only for a post with different content or a different date',
           },
           {
             name: 'date',
             type: 'string',
             description: 'UTC date of the scheduled post',
-          },
-          {
-            name: 'settings',
-            type: 'object',
-            description: 'Settings for the integration [input:settings]',
           },
           {
             name: 'posts',
@@ -269,9 +264,8 @@ const OpenModal: FC<{
   respond: (value: any) => void;
   args: {
     list: {
-      integrationId: string;
+      integrationIds: string[];
       date: string;
-      settings?: Record<string, any>;
       posts: { content: string; attachments: { id: string; path: string }[] }[];
     }[];
   };
@@ -299,11 +293,14 @@ const OpenModal: FC<{
   );
 
   const startModal = useCallback(async () => {
-    for (const integration of args.list) {
+    for (const entry of args.list) {
       await new Promise((res) => {
-        const group = makeId(10);
         modals.openModal({
-          id: 'add-edit-modal',
+          // One editor per post, opened in sequence. This id is the React key
+          // in the modal manager, so it must differ per post: a shared id
+          // reconciles the next editor onto the previous one, which then keeps
+          // its state (a stuck spinner) and skips its mount effects.
+          id: `add-edit-modal-${makeId(10)}`,
           closeOnClickOutside: false,
           removeLayout: true,
           closeOnEscape: false,
@@ -314,55 +311,30 @@ const OpenModal: FC<{
           classNames: {
             modal: 'w-[100%] max-w-[1400px] text-textColor',
           },
+          // Deliberately no ExistingDataContextProvider: these are new posts,
+          // and that context puts AddEditModal into edit-an-existing-post mode.
+          // It takes a single integration, which is what forced one editor per
+          // channel, and it makes the save report itself as an update of a
+          // group the database has never seen. selectedChannels pre-ticks every
+          // channel through the same path the picker uses, so the editor is the
+          // one the calendar opens and the channels stay editable.
           children: (
-            <ExistingDataContextProvider
-              value={{
-                group,
-                integration: integration.integrationId,
-                integrationPicture:
-                  allIntegrations.find(
-                    (p) => p.id === integration.integrationId
-                  )?.picture || '',
-                settings: integration.settings || {},
-                posts: integration.posts.map((p) => ({
-                  approvedSubmitForOrder: 'NO',
-                  content: p.content,
-                  createdAt: new Date().toISOString(),
-                  state: 'DRAFT',
-                  id: makeId(10),
-                  settings: JSON.stringify(integration.settings || {}),
-                  group,
-                  integrationId: integration.integrationId,
-                  integration: allIntegrations.find(
-                    (p) => p.id === integration.integrationId
-                  ),
-                  publishDate: dayjs.utc(integration.date).toISOString(),
-                  image: p.attachments.map((a) => ({
-                    id: a.id,
-                    path: a.path,
-                  })),
+            <AddEditModal
+              date={dayjs.utc(entry.date)}
+              allIntegrations={allIntegrations}
+              integrations={allIntegrations}
+              selectedChannels={entry.integrationIds}
+              onlyValues={entry.posts.map((p) => ({
+                content: p.content,
+                id: makeId(10),
+                image: p.attachments.map((a) => ({
+                  id: a.id,
+                  path: a.path,
                 })),
-              }}
-            >
-              <AddEditModal
-                date={dayjs.utc(integration.date)}
-                allIntegrations={allIntegrations}
-                integrations={allIntegrations.filter(
-                  (p) => p.id === integration.integrationId
-                )}
-                onlyValues={integration.posts.map((p) => ({
-                  content: p.content,
-                  id: makeId(10),
-                  settings: integration.settings || {},
-                  image: p.attachments.map((a) => ({
-                    id: a.id,
-                    path: a.path,
-                  })),
-                }))}
-                reopenModal={() => {}}
-                mutate={() => res(true)}
-              />
-            </ExistingDataContextProvider>
+              }))}
+              reopenModal={() => {}}
+              mutate={() => res(true)}
+            />
           ),
         });
       });
