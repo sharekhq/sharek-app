@@ -6,8 +6,10 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import useSWR from 'swr';
 import { CopilotChat, CopilotKitCSSProperties } from '@copilotkit/react-ui';
 import {
   InputProps,
@@ -30,6 +32,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { extractAgentMessageText } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
+import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { ExistingDataContextProvider } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
@@ -274,7 +277,27 @@ const OpenModal: FC<{
   };
 }> = ({ args, respond }) => {
   const modals = useModals();
-  const { properties } = useContext(PropertiesContext);
+  const fetch = useFetch();
+  const t = useT();
+
+  const load = useCallback(async () => {
+    return (await (await fetch('/integrations/list')).json()).integrations;
+  }, [fetch]);
+
+  const { data: allIntegrations } = useSWR<Integrations[]>(
+    'integrations',
+    load,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      revalidateOnMount: true,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+      fallbackData: [],
+    }
+  );
+
   const startModal = useCallback(async () => {
     for (const integration of args.list) {
       await new Promise((res) => {
@@ -286,7 +309,7 @@ const OpenModal: FC<{
           closeOnEscape: false,
           withCloseButton: false,
           askClose: true,
-          size: '80%',
+          fullScreen: true,
           title: ``,
           classNames: {
             modal: 'w-[100%] max-w-[1400px] text-textColor',
@@ -297,8 +320,9 @@ const OpenModal: FC<{
                 group,
                 integration: integration.integrationId,
                 integrationPicture:
-                  properties.find((p) => p.id === integration.integrationId)
-                    ?.picture || '',
+                  allIntegrations.find(
+                    (p) => p.id === integration.integrationId
+                  )?.picture || '',
                 settings: integration.settings || {},
                 posts: integration.posts.map((p) => ({
                   approvedSubmitForOrder: 'NO',
@@ -309,7 +333,7 @@ const OpenModal: FC<{
                   settings: JSON.stringify(integration.settings || {}),
                   group,
                   integrationId: integration.integrationId,
-                  integration: properties.find(
+                  integration: allIntegrations.find(
                     (p) => p.id === integration.integrationId
                   ),
                   publishDate: dayjs.utc(integration.date).toISOString(),
@@ -322,8 +346,8 @@ const OpenModal: FC<{
             >
               <AddEditModal
                 date={dayjs.utc(integration.date)}
-                allIntegrations={properties}
-                integrations={properties.filter(
+                allIntegrations={allIntegrations}
+                integrations={allIntegrations.filter(
                   (p) => p.id === integration.integrationId
                 )}
                 onlyValues={integration.posts.map((p) => ({
@@ -345,14 +369,20 @@ const OpenModal: FC<{
     }
 
     respond('User scheduled all the posts');
-  }, [args, respond, properties]);
+  }, [args, respond, allIntegrations]);
 
+  const started = useRef(false);
   useEffect(() => {
+    if (started.current || !allIntegrations.length) {
+      return;
+    }
+    started.current = true;
     startModal();
-  }, []);
+  }, [allIntegrations, startModal]);
+
   return (
     <div onClick={() => respond('continue')}>
-      Opening manually ${JSON.stringify(args)}
+      {t('opening_post_editor', 'Opening the post editor…')}
     </div>
   );
 };
