@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Agent } from '@mastra/core/agent';
+import { Agent, AgentExecutionOptions } from '@mastra/core/agent';
 import { openai } from '@ai-sdk/openai';
 import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
@@ -102,6 +102,12 @@ export class LoadToolsService {
         const id = organizationId(
           requestContext.get('organization' as never) as string | undefined
         );
+        // Mastra types defaultOptions as AgentExecutionOptions<TOutput>, which
+        // makes `structuredOutput` required whenever `TOutput extends {}`. The
+        // repo compiles with strictNullChecks off, where `undefined extends {}`
+        // is true, so the branch demanding it is selected even though this agent
+        // has no structured output. Asserting the shape keeps that off the
+        // runtime object — setting structuredOutput: undefined would not.
         return {
           providerOptions: {
             openai: {
@@ -113,7 +119,7 @@ export class LoadToolsService {
               ...(id ? { promptCacheKey: `sharek-agent-${id}` } : {}),
             },
           },
-        };
+        } as AgentExecutionOptions<undefined>;
       },
       tools,
       memory: new Memory({
