@@ -107,3 +107,36 @@ describe('LoadToolsService agent memory', () => {
     expect(config.lastMessages).toBe(1);
   });
 });
+
+describe('LoadToolsService agent provider options', () => {
+  const optionsFor = async (requestContext: RequestContext) => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const options = await agent.getDefaultOptions({ requestContext });
+    return (options.providerOptions as any)?.openai ?? {};
+  };
+
+  const contextWithOrg = (organization: string) => {
+    const requestContext = new RequestContext();
+    requestContext.set('organization' as never, organization as never);
+    return requestContext;
+  };
+
+  it('scopes the prompt cache key to the organization', async () => {
+    const openai = await optionsFor(
+      contextWithOrg(JSON.stringify({ id: 'org-123' }))
+    );
+    expect(openai).toMatchObject({ promptCacheKey: 'sharek-agent-org-123' });
+  });
+
+  // The MCP path only sets `organization` once a tool runs, so these options
+  // resolve without it. A missing or malformed value must not fail the request.
+  it('omits the cache key when there is no organization in context', async () => {
+    const openai = await optionsFor(new RequestContext());
+    expect(openai.promptCacheKey).toBeUndefined();
+  });
+
+  it('omits the cache key when the organization is not valid json', async () => {
+    const openai = await optionsFor(contextWithOrg('not-json'));
+    expect(openai.promptCacheKey).toBeUndefined();
+  });
+});

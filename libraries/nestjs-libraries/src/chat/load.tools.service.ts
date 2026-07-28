@@ -12,6 +12,15 @@ const renderArray = (list: string[], show: boolean) => {
   return list.map((p) => `- ${p}`).join('\n');
 };
 
+const organizationId = (organization?: string) => {
+  if (!organization) return undefined;
+  try {
+    return JSON.parse(organization)?.id as string | undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 @Injectable()
 export class LoadToolsService {
   constructor(private _moduleRef: ModuleRef) {}
@@ -85,6 +94,22 @@ export class LoadToolsService {
 `;
       },
       model: openai('gpt-5.2'),
+      defaultOptions: ({ requestContext }) => {
+        // Requests from one organization share a byte-identical prefix (system
+        // prompt + tool schemas), so key the cache by organization to route
+        // them to the machine already holding it. Absent on the MCP path,
+        // where `organization` only lands during tool execution.
+        const id = organizationId(
+          requestContext.get('organization' as never) as string | undefined
+        );
+        return {
+          providerOptions: {
+            openai: {
+              ...(id ? { promptCacheKey: `sharek-agent-${id}` } : {}),
+            },
+          },
+        };
+      },
       tools,
       memory: new Memory({
         storage: pStore,
