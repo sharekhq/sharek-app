@@ -90,6 +90,12 @@ export class LoadToolsService {
         storage: pStore,
         options: {
           generateTitle: true,
+          // CopilotKit resends the entire thread on every turn, so this window
+          // is history the model already has. Mastra would dedupe it, but only
+          // by message id, and @ag-ui/mastra drops the ids. 1 is the smallest
+          // value that still persists messages — 0 and false write nothing.
+          // Callers of memory.recall() must pass perPage: it defaults to this.
+          lastMessages: 1,
         },
       }),
     });

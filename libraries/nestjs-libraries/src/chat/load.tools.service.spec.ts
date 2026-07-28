@@ -97,4 +97,13 @@ describe('LoadToolsService agent memory', () => {
     const config = await memoryConfig();
     expect(config.generateTitle).toBe(true);
   });
+
+  // The client resends the whole thread on every turn, and Mastra prepends its
+  // own recall window on top of it because @ag-ui/mastra strips the message ids
+  // that its dedupe needs. Anything above 1 is paid for twice. 0 and false are
+  // not options: they stop Mastra persisting the thread at all.
+  it('keeps the server-side recall window at the persistence minimum', async () => {
+    const config = await memoryConfig();
+    expect(config.lastMessages).toBe(1);
+  });
 });

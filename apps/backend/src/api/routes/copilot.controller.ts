@@ -126,6 +126,9 @@ export class CopilotController {
       return await memory.recall({
         resourceId: organization.id,
         threadId,
+        // recall() defaults perPage to the agent's lastMessages, which is now 1.
+        // 10 is the depth this endpoint served before that changed.
+        perPage: 10,
       });
     } catch (err) {
       return { messages: [] };
