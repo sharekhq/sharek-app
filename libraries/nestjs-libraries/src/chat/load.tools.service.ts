@@ -151,7 +151,7 @@ ${channels}
       )}
 `;
       },
-      model: openai('gpt-5.2'),
+      model: openai('gpt-5.6-luna'),
       defaultOptions: ({ requestContext }) => {
         // Requests from one organization share a byte-identical prefix (system
         // prompt + tool schemas), so key the cache by organization to route
@@ -170,10 +170,11 @@ ${channels}
           onFinish: (event: any) => logUsage(event, id ?? 'unknown'),
           providerOptions: {
             openai: {
-              // gpt-5.2 bills reasoning tokens as output ($14/M against $1.75/M
-              // for input). 'none' is its documented default already, so this
-              // changes nothing today — it just stops a provider default from
-              // moving the bill without us noticing.
+              // luna bills reasoning tokens as output ($6/M against $1/M for
+              // input), and unlike gpt-5.2 its default effort is 'medium', not
+              // 'none' — so this pin is what keeps the bill down rather than a
+              // guard against a future default change. Cache writes also cost
+              // 1.25x uncached input on 5.6, which the ~10% miss rate absorbs.
               reasoningEffort: 'none',
               ...(id ? { promptCacheKey: `sharek-agent-${id}` } : {}),
             },
