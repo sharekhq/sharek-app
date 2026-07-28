@@ -139,4 +139,16 @@ describe('LoadToolsService agent provider options', () => {
     const openai = await optionsFor(contextWithOrg('not-json'));
     expect(openai.promptCacheKey).toBeUndefined();
   });
+
+  // gpt-5.2 bills reasoning tokens as output, at $14/M against $1.75/M for
+  // input. Its documented default is already 'none'; pinning it means a change
+  // to that default cannot silently multiply the bill.
+  it('pins reasoning effort off, regardless of organization', async () => {
+    expect(
+      await optionsFor(contextWithOrg(JSON.stringify({ id: 'org-123' })))
+    ).toMatchObject({ reasoningEffort: 'none' });
+    expect(await optionsFor(new RequestContext())).toMatchObject({
+      reasoningEffort: 'none',
+    });
+  });
 });

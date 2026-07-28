@@ -105,6 +105,11 @@ export class LoadToolsService {
         return {
           providerOptions: {
             openai: {
+              // gpt-5.2 bills reasoning tokens as output ($14/M against $1.75/M
+              // for input). 'none' is its documented default already, so this
+              // changes nothing today — it just stops a provider default from
+              // moving the bill without us noticing.
+              reasoningEffort: 'none',
               ...(id ? { promptCacheKey: `sharek-agent-${id}` } : {}),
             },
           },
