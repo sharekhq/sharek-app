@@ -78,3 +78,23 @@ describe('LoadToolsService agent instructions', () => {
     expect(after).not.toBe(before);
   });
 });
+
+describe('LoadToolsService agent memory', () => {
+  const memoryConfig = async () => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const memory = await agent.getMemory();
+    return memory!.getMergedThreadConfig({});
+  };
+
+  // 316 tokens of system block plus a 146-token tool on every turn, for a
+  // `proverbs: string[]` schema left behind by the CopilotKit template.
+  it('does not enable working memory', async () => {
+    const config = await memoryConfig();
+    expect(config.workingMemory?.enabled).not.toBe(true);
+  });
+
+  it('still generates thread titles', async () => {
+    const config = await memoryConfig();
+    expect(config.generateTitle).toBe(true);
+  });
+});
