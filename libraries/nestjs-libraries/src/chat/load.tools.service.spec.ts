@@ -141,9 +141,10 @@ describe('LoadToolsService agent provider options', () => {
     expect(openai.promptCacheKey).toBeUndefined();
   });
 
-  // gpt-5.2 bills reasoning tokens as output, at $14/M against $1.75/M for
-  // input. Its documented default is already 'none'; pinning it means a change
-  // to that default cannot silently multiply the bill.
+  // luna bills reasoning tokens as output, at $6/M against $1/M for input, and
+  // its default effort is 'medium'. Unpinned, every turn would silently buy
+  // reasoning it does not need — this assertion is the only thing standing
+  // between the migration's saving and a larger bill than before it.
   it('pins reasoning effort off, regardless of organization', async () => {
     expect(
       await optionsFor(contextWithOrg(JSON.stringify({ id: 'org-123' })))
@@ -323,5 +324,19 @@ describe('LoadToolsService language', () => {
   it('answers in the language the user writes in', async () => {
     const instructions = await instructionsWith(new RequestContext());
     expect(instructions).toMatch(/same language the user writes in/i);
+  });
+});
+
+// The provider matters as much as the model id here. `openai(...)` resolves to
+// the Responses API, and that is the only reason Samy can run a reasoning model
+// with tools at all: OpenAI refuses function tools on /v1/chat/completions
+// unless reasoning_effort is 'none'. Dropping to openai.chat(...) would fail
+// every scheduling turn at runtime, with nothing to catch it at build time.
+describe('LoadToolsService model', () => {
+  it('runs gpt-5.6-luna on the Responses API', async () => {
+    const agent = (await new LoadToolsService(moduleRef).agent()) as any;
+    const model = await agent.getModel();
+    expect(model.modelId).toBe('gpt-5.6-luna');
+    expect(model.provider).toBe('openai.responses');
   });
 });
