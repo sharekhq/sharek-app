@@ -244,7 +244,7 @@ export const Hooks: FC = () => {
   return null;
 };
 
-const OpenModal: FC<{
+export const OpenModal: FC<{
   respond: (value: any) => void;
   args: {
     list: {
@@ -277,14 +277,24 @@ const OpenModal: FC<{
   );
 
   const startModal = useCallback(async () => {
+    let saved = 0;
+
     for (const entry of args.list) {
-      await new Promise((res) => {
+      // One editor per post, opened in sequence. This id is the React key in
+      // the modal manager, so it must differ per post: a shared id reconciles
+      // the next editor onto the previous one, which then keeps its state (a
+      // stuck spinner) and skips its mount effects.
+      const id = `add-edit-modal-${makeId(10)}`;
+
+      // Resolves on every way out of the editor, not just on a save: `mutate`
+      // when the post is saved, `customClose` when the editor's own close
+      // button is used, `onClose` when the modal manager closes it (Escape).
+      // Waiting on `mutate` alone left the loop — and the copilot action with
+      // it — hanging forever on an editor the user closed.
+      const wasSaved = await new Promise<boolean>((res) => {
         modals.openModal({
-          // One editor per post, opened in sequence. This id is the React key
-          // in the modal manager, so it must differ per post: a shared id
-          // reconciles the next editor onto the previous one, which then keeps
-          // its state (a stuck spinner) and skips its mount effects.
-          id: `add-edit-modal-${makeId(10)}`,
+          id,
+          onClose: () => res(false),
           closeOnClickOutside: false,
           removeLayout: true,
           closeOnEscape: false,
@@ -317,18 +327,37 @@ const OpenModal: FC<{
                 })),
               }))}
               reopenModal={() => {}}
+              // Closes this editor by id rather than every open modal: the
+              // editor also runs customClose two seconds after a successful
+              // save (manage.modal.tsx), by which time the next post's editor
+              // is the one on screen.
+              customClose={() => {
+                modals.closeById(id);
+                res(false);
+              }}
               mutate={() => res(true)}
             />
           ),
         });
       });
+
+      if (wasSaved) {
+        saved++;
+      }
     }
 
     // The tool result is what the agent narrates from, and it is resent with
     // every later turn, so keep it short. 'User scheduled all the posts' read
-    // as the tool having scheduled them itself, which is what it then claimed.
+    // as the tool having scheduled them itself, which is what it then claimed —
+    // and it was unconditional, so it claimed that for posts the user had
+    // closed without saving too.
+    const total = args.list.length;
     respond(
-      `Opened the editor; the user reviewed and saved ${args.list.length} post(s) themselves — this tool scheduled nothing. They may have edited the content, channels or date, so don't restate the details as final.`
+      saved === 0
+        ? `Opened the editor; the user closed it without saving any of the ${total} post(s) — nothing was scheduled. Don't reopen the editor unless they ask.`
+        : saved === total
+        ? `Opened the editor; the user reviewed and saved all ${total} post(s) themselves — this tool scheduled nothing. They may have edited the content, channels or date, so don't restate the details as final.`
+        : `Opened the editor; the user reviewed and saved ${saved} of ${total} post(s) themselves and closed the rest without saving — nothing was scheduled for those, and this tool scheduled nothing itself. They may have edited the content, channels or date, so don't restate the details as final. Don't reopen the editor unless they ask.`
     );
   }, [args, respond, allIntegrations]);
 
@@ -341,9 +370,8 @@ const OpenModal: FC<{
     startModal();
   }, [allIntegrations, startModal]);
 
-  return (
-    <div onClick={() => respond('continue')}>
-      {t('opening_post_editor', 'Opening the post editor…')}
-    </div>
-  );
+  // No click-to-respond escape hatch here: it was the only way out while a
+  // closed editor could hang the loop, and now that every editor resolves, a
+  // stray click on this line would end the action with editors still queued.
+  return <div>{t('opening_post_editor', 'Opening the post editor…')}</div>;
 };
