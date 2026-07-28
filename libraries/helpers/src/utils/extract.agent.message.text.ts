@@ -21,6 +21,16 @@ export interface StoredAgentMessage {
     | null;
 }
 
+// Until the selected-channel list moved into the agent's system prompt, the
+// frontend appended it to the text of every user message. Stored threads still
+// carry those blocks, and resending them costs ~315 tokens per message per turn,
+// so strip them when rehydrating a thread and before rendering it. The lazy
+// quantifier means an unterminated marker matches nothing and the text survives.
+const INTEGRATIONS_BLOCK = /\n?\[--integrations--\][\s\S]*?\[--integrations--\]/g;
+
+export const stripIntegrationsBlock = (text: string): string =>
+  text.replace(INTEGRATIONS_BLOCK, '').trimEnd();
+
 export const extractAgentMessageText = (message: StoredAgentMessage): string => {
   const { content } = message;
   if (typeof content === 'string') {

@@ -1,4 +1,7 @@
-import { extractAgentMessageText } from './extract.agent.message.text';
+import {
+  extractAgentMessageText,
+  stripIntegrationsBlock,
+} from './extract.agent.message.text';
 
 describe('extractAgentMessageText', () => {
   it('returns the flattened content string of a healthy v2 message', () => {
@@ -83,5 +86,44 @@ describe('extractAgentMessageText', () => {
         content: { format: 2, content: '', parts: [{ type: 'text', text: 'recovered' }] },
       })
     ).toBe('recovered');
+  });
+});
+
+describe('stripIntegrationsBlock', () => {
+  const block = `[--integrations--]
+Use the following social media platforms: [{"id":"abc","platform":"x"}]
+[--integrations--]`;
+
+  it('leaves text without a block untouched', () => {
+    expect(stripIntegrationsBlock('just a message')).toBe('just a message');
+  });
+
+  it('removes the block and the whitespace it leaves behind', () => {
+    expect(stripIntegrationsBlock(`schedule this\n${block}`)).toBe(
+      'schedule this'
+    );
+  });
+
+  // Threads written before the list moved into the system prompt carry one
+  // block per user message; a rehydrated thread can hold several.
+  it('removes every block, not just the first', () => {
+    expect(stripIntegrationsBlock(`a\n${block}\nb\n${block}`)).toBe('a\nb');
+  });
+
+  it('returns empty string for a message that was only a block', () => {
+    expect(stripIntegrationsBlock(block)).toBe('');
+  });
+
+  it('keeps a [--Media--] block, which is a different feature', () => {
+    const media = '[--Media--]Image: https://x/y.png\n[--Media--]';
+    expect(stripIntegrationsBlock(`caption\n${media}\n${block}`)).toBe(
+      `caption\n${media}`
+    );
+  });
+
+  it('tolerates an unterminated block without hanging', () => {
+    expect(stripIntegrationsBlock('text\n[--integrations--]\nhalf')).toBe(
+      'text\n[--integrations--]\nhalf'
+    );
   });
 });
