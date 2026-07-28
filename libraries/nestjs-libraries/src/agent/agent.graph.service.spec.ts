@@ -3,8 +3,14 @@ import type { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.serv
 // Keep the module import hermetic: no real LangChain clients, no storage SDKs,
 // and none of the heavy service dependency chains (they are constructor
 // metadata only — generatePictures never touches them).
+// Capture what the module-scope `new ChatOpenAI({...})` was constructed with,
+// so the model configuration can be asserted without a network call.
+const mockChatOpenAIFields: any[] = [];
 jest.mock('@langchain/openai', () => ({
   ChatOpenAI: class {
+    constructor(fields: any) {
+      mockChatOpenAIFields.push(fields);
+    }
     withStructuredOutput() {
       return {};
     }
@@ -108,5 +114,22 @@ describe('AgentGraphService prompt language', () => {
     expect(mockTemplates).toHaveLength(1);
     expect(mockTemplates[0]).not.toMatch(/english/i);
     expect(mockTemplates[0]).toMatch(/same language as the user/i);
+  });
+});
+
+// gpt-5.x rejects any non-default temperature outright, and @langchain/openai
+// forwards the field without stripping it, so a leftover `temperature` is a 400
+// on the first request rather than a quality question. Reasoning goes through
+// `reasoning.effort` — the flat `reasoningEffort` field is call-options-only and
+// deprecated, so setting it here would not typecheck and would not reach OpenAI.
+// Effort must be 'none': this graph binds Tavily tools, and OpenAI refuses
+// function tools on /v1/chat/completions at any other effort.
+describe('AgentGraphService model', () => {
+  it('runs gpt-5.6-luna with reasoning off and no temperature', () => {
+    expect(mockChatOpenAIFields).toHaveLength(1);
+    const [fields] = mockChatOpenAIFields;
+    expect(fields.model).toBe('gpt-5.6-luna');
+    expect(fields.reasoning).toEqual({ effort: 'none' });
+    expect(fields).not.toHaveProperty('temperature');
   });
 });

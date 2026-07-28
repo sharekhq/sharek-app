@@ -23,10 +23,15 @@ const tools = !process.env.TAVILY_API_KEY
   : [new TavilySearch({ maxResults: 3 })];
 const toolNode = new ToolNode(tools);
 
+// Effort must stay 'none'. This graph binds Tavily tools, and OpenAI refuses
+// function tools on /v1/chat/completions at any other effort — so quality
+// cannot be bought here by raising it without moving to the Responses API.
+// `temperature` is deliberately absent: gpt-5.x accepts only the default, and
+// @langchain/openai forwards the field rather than stripping it.
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-  model: 'gpt-4.1',
-  temperature: 0.7,
+  model: 'gpt-5.6-luna',
+  reasoning: { effort: 'none' },
 });
 
 interface WorkflowChannelsState {

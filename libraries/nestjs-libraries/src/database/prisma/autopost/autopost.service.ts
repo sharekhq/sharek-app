@@ -40,10 +40,14 @@ interface WorkflowChannelsState {
   };
 }
 
+// Reasoning tokens bill as output and gpt-5.6 defaults to 'medium', so the pin
+// is what keeps this cheaper than the gpt-4.1 it replaces. `temperature` is
+// deliberately absent: gpt-5.x accepts only the default, and @langchain/openai
+// forwards the field rather than stripping it.
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-  model: 'gpt-4.1',
-  temperature: 0.7,
+  model: 'gpt-5.6-luna',
+  reasoning: { effort: 'none' },
 });
 
 const generateContent = z.object({

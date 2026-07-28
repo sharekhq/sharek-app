@@ -4,8 +4,12 @@ import type { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.serv
 // structured-output prompt chain in generatePicture (LangChain coerces the
 // returned function into a Runnable), and the NestJS dependencies are
 // constructor metadata only — generatePicture never touches them.
+const mockChatOpenAIFields: any[] = [];
 jest.mock('@langchain/openai', () => ({
   ChatOpenAI: class {
+    constructor(fields: any) {
+      mockChatOpenAIFields.push(fields);
+    }
     withStructuredOutput() {
       return async () => ({
         generatedTextToBeSentToDallE: 'a pomegranate on a desk',
@@ -119,5 +123,20 @@ describe('AutopostService.schedulePost', () => {
         organizationId: 'org-1',
       },
     ]);
+  });
+});
+
+// Same contract as the post generator: gpt-5.x 400s on a non-default
+// temperature, and reasoning is configured through `reasoning.effort` rather
+// than the deprecated call-option-only `reasoningEffort`. This graph binds no
+// tools, so 'none' here is purely about not paying for reasoning tokens — they
+// bill as output, and gpt-5.6 defaults to 'medium'.
+describe('AutopostService model', () => {
+  it('runs gpt-5.6-luna with reasoning off and no temperature', () => {
+    expect(mockChatOpenAIFields).toHaveLength(1);
+    const [fields] = mockChatOpenAIFields;
+    expect(fields.model).toBe('gpt-5.6-luna');
+    expect(fields.reasoning).toEqual({ effort: 'none' });
+    expect(fields).not.toHaveProperty('temperature');
   });
 });
