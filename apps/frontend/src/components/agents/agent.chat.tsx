@@ -29,7 +29,10 @@ import {
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { extractAgentMessageText } from '@gitroom/helpers/utils/extract.agent.message.text';
+import {
+  extractAgentMessageText,
+  stripIntegrationsBlock,
+} from '@gitroom/helpers/utils/extract.agent.message.text';
 import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
@@ -94,7 +97,10 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     console.log(data);
     setMessages(
       data.messages.flatMap((p: any) => {
-        const content = extractAgentMessageText(p);
+        // Threads written before the channel list moved into the system prompt
+        // carry it in the message text. Drop it here so reopening an old thread
+        // does not resend it to the model on every turn.
+        const content = stripIntegrationsBlock(extractAgentMessageText(p));
         return content ? [new TextMessage({ content, role: p.role })] : [];
       })
     );
@@ -113,7 +119,7 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
 
 const Message: FC<UserMessageProps> = (props) => {
   const convertContentToImagesAndVideo = useMemo(() => {
-    return (props.message?.content || '')
+    return stripIntegrationsBlock(props.message?.content || '')
       .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
         return `<video controls class="h-[150px] w-[150px] rounded-[8px] mb-[10px]"><source src="${p1.trim()}" type="video/mp4">Your browser does not support the video tag.</video>`;
       })
@@ -122,13 +128,7 @@ const Message: FC<UserMessageProps> = (props) => {
       })
       .replace(/\[\-\-Media\-\-\](.*)\[\-\-Media\-\-\]/g, (match, p1) => {
         return `<div class="flex justify-center mt-[20px]">${p1}</div>`;
-      })
-      .replace(
-        /(\[--integrations--\][\s\S]*?\[--integrations--\])/g,
-        (match, p1) => {
-          return ``;
-        }
-      );
+      });
   }, [props.message?.content]);
   return (
     <div
@@ -140,7 +140,6 @@ const Message: FC<UserMessageProps> = (props) => {
 const NewInput: FC<InputProps> = (props) => {
   const [media, setMedia] = useState([] as { path: string; id: string }[]);
   const [value, setValue] = useState('');
-  const { properties } = useContext(PropertiesContext);
   return (
     <>
       <Input
@@ -166,22 +165,7 @@ const NewInput: FC<InputProps> = (props) => {
                     )
                     .join('\n') +
                   '\n[--Media--]'
-                : '') +
-              `
-${
-  properties.length
-    ? `[--integrations--]
-Use the following social media platforms: ${JSON.stringify(
-        properties.map((p) => ({
-          id: p.id,
-          platform: p.identifier,
-          profilePicture: p.picture,
-          additionalSettings: p.additionalSettings,
-        }))
-      )}
-[--integrations--]`
-    : ``
-}`
+                : '')
           );
           setValue('');
           setMedia([]);

@@ -25,7 +25,9 @@ import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permis
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 export type ChannelsContext = {
-  integrations: string;
+  // The selected channels as the browser sent them through CopilotKit
+  // `properties`; the agent's instructions render them and validate the shape.
+  integrations: unknown[];
   organization: string;
   ui: string;
 };
