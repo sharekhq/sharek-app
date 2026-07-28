@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { RequestContext } from '@mastra/core/di';
 import dayjs from 'dayjs';
 
@@ -230,5 +231,87 @@ describe('LoadToolsService selected channels', () => {
     const a = await instructionsWith(contextWithChannels(CHANNELS));
     const b = await instructionsWith(contextWithChannels([...CHANNELS]));
     expect(b).toBe(a);
+  });
+});
+
+describe('LoadToolsService usage logging', () => {
+  const onFinishFor = async (organization?: string) => {
+    const requestContext = new RequestContext();
+    if (organization) {
+      requestContext.set('organization' as never, organization as never);
+    }
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const options: any = await agent.getDefaultOptions({ requestContext });
+    return options.onFinish as (event: unknown) => void;
+  };
+
+  const usage = {
+    inputTokens: 2577,
+    cachedInputTokens: 2432,
+    outputTokens: 301,
+    totalTokens: 2878,
+  };
+
+  let logged: string[];
+  let spy: jest.SpyInstance;
+
+  beforeEach(() => {
+    logged = [];
+    spy = jest
+      .spyOn(Logger, 'log')
+      .mockImplementation((message: any) => logged.push(String(message)));
+  });
+
+  afterEach(() => spy.mockRestore());
+
+  it('logs the whole-turn token counts', async () => {
+    const onFinish = await onFinishFor(JSON.stringify({ id: 'org-9' }));
+    onFinish({ runId: 'run-1', totalUsage: usage });
+
+    expect(logged).toHaveLength(1);
+    const line = JSON.parse(logged[0]);
+    expect(line).toMatchObject({
+      org: 'org-9',
+      run: 'run-1',
+      input: 2577,
+      cached: 2432,
+      output: 301,
+    });
+  });
+
+  // Mastra reports usage already summed across steps, but the field name differs
+  // by call path; falling back keeps a tool-calling turn from logging zeroes.
+  it('falls back to usage when totalUsage is absent', async () => {
+    const onFinish = await onFinishFor(JSON.stringify({ id: 'org-9' }));
+    onFinish({ runId: 'run-2', usage });
+    expect(JSON.parse(logged[0])).toMatchObject({ input: 2577, cached: 2432 });
+  });
+
+  it('records a zero cache hit rather than omitting it', async () => {
+    const onFinish = await onFinishFor(JSON.stringify({ id: 'org-9' }));
+    onFinish({ runId: 'run-3', totalUsage: { ...usage, cachedInputTokens: undefined } });
+    expect(JSON.parse(logged[0])).toMatchObject({ cached: 0 });
+  });
+
+  // Telemetry must never be able to fail a chat turn.
+  it('never throws, whatever it is handed', async () => {
+    const onFinish = await onFinishFor(JSON.stringify({ id: 'org-9' }));
+    for (const event of [undefined, null, {}, { totalUsage: null }, 'nonsense']) {
+      expect(() => onFinish(event)).not.toThrow();
+    }
+  });
+
+  it('survives a logger that throws', async () => {
+    spy.mockImplementation(() => {
+      throw new Error('transport down');
+    });
+    const onFinish = await onFinishFor(JSON.stringify({ id: 'org-9' }));
+    expect(() => onFinish({ runId: 'r', totalUsage: usage })).not.toThrow();
+  });
+
+  it('still logs when there is no organization in context (MCP path)', async () => {
+    const onFinish = await onFinishFor();
+    onFinish({ runId: 'run-4', totalUsage: usage });
+    expect(JSON.parse(logged[0])).toMatchObject({ org: 'unknown', input: 2577 });
   });
 });
