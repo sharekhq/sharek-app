@@ -152,3 +152,83 @@ describe('LoadToolsService agent provider options', () => {
     });
   });
 });
+
+const instructionsWith = async (requestContext: RequestContext) => {
+  const agent = await new LoadToolsService(moduleRef).agent();
+  return String(await agent.getInstructions({ requestContext }));
+};
+
+const contextWithChannels = (integrations: unknown) => {
+  const requestContext = new RequestContext();
+  requestContext.set('ui' as never, 'true' as never);
+  requestContext.set('integrations' as never, integrations as never);
+  return requestContext;
+};
+
+const CHANNELS = [
+  {
+    id: 'int-1',
+    identifier: 'instagram',
+    picture: 'https://cdn/x.png',
+    additionalSettings: '[]',
+  },
+  {
+    id: 'int-2',
+    identifier: 'x',
+    picture: 'https://cdn/y.png',
+    additionalSettings: '[{"title":"Verified","value":true}]',
+  },
+];
+
+describe('LoadToolsService selected channels', () => {
+  // Assert the whole rendered line: 'x' alone appears all over the prompt, so a
+  // bare toContain('x') would pass without anything being rendered.
+  it('names each selected channel with its id and platform', async () => {
+    const instructions = await instructionsWith(contextWithChannels(CHANNELS));
+    expect(instructions).toContain('- instagram (id: int-1)');
+    expect(instructions).toContain('- x (id: int-2, settings:');
+  });
+
+  // The only place the model learns an X account is Verified, which it feeds to
+  // integrationSchema's isPremium input, which decides maxLength.
+  it('keeps additionalSettings when they carry something', async () => {
+    const instructions = await instructionsWith(contextWithChannels(CHANNELS));
+    expect(instructions).toContain('Verified');
+  });
+
+  it('omits empty additionalSettings', async () => {
+    const instructions = await instructionsWith(contextWithChannels(CHANNELS));
+    expect(instructions).not.toContain('settings: []');
+  });
+
+  // The model cannot see an image from a URL here, and these were ~36% of the
+  // block's tokens.
+  it('never sends profile pictures', async () => {
+    const instructions = await instructionsWith(contextWithChannels(CHANNELS));
+    expect(instructions).not.toContain('https://cdn/');
+  });
+
+  it('renders no channel section when nothing is selected', async () => {
+    for (const value of [[], undefined, null]) {
+      const instructions = await instructionsWith(contextWithChannels(value));
+      expect(instructions).not.toContain('Channels selected');
+    }
+  });
+
+  // The value comes from the browser via requestContext, so a malformed payload
+  // must not throw: instructions run on every turn and would 500 the chat.
+  it('survives a malformed payload', async () => {
+    for (const value of ['nonsense', 42, [null, {}, { id: 'no-identifier' }]]) {
+      await expect(
+        instructionsWith(contextWithChannels(value))
+      ).resolves.toBeDefined();
+    }
+  });
+
+  // Same selection must produce a byte-identical prefix or the cache misses.
+  it('is stable for the same selection', async () => {
+    const a = await instructionsWith(contextWithChannels(CHANNELS));
+    const b = await instructionsWith(contextWithChannels([...CHANNELS]));
+    expect(b).toBe(a);
+  });
+});

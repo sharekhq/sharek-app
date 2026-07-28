@@ -12,6 +12,37 @@ const renderArray = (list: string[], show: boolean) => {
   return list.map((p) => `- ${p}`).join('\n');
 };
 
+type SelectedChannel = {
+  id: string;
+  identifier: string;
+  additionalSettings?: string;
+};
+
+// The browser sends this through CopilotKit `properties`, so nothing about its
+// shape is guaranteed. Keep only entries the model can actually act on, and
+// never throw: instructions run on every turn, so a malformed payload here
+// would fail the whole chat rather than one field.
+const renderChannels = (integrations: unknown) => {
+  if (!Array.isArray(integrations)) return '';
+  const channels = (integrations as SelectedChannel[]).filter(
+    (p) => p && typeof p.id === 'string' && typeof p.identifier === 'string'
+  );
+  if (!channels.length) return '';
+  const lines = channels.map((p) => {
+    // additionalSettings defaults to the literal '[]'; it only carries anything
+    // for the few providers that have their own toggles (X's Verified).
+    const settings =
+      p.additionalSettings && p.additionalSettings !== '[]'
+        ? `, settings: ${p.additionalSettings}`
+        : '';
+    return `        - ${p.identifier} (id: ${p.id}${settings})`;
+  });
+  return `
+      Channels selected for this conversation — schedule to these unless the user names others, and use these ids:
+${lines.join('\n')}
+`;
+};
+
 const organizationId = (organization?: string) => {
   if (!organization) return undefined;
   try {
@@ -52,12 +83,15 @@ export class LoadToolsService {
       description: 'Agent that helps manage and schedule social media posts for users',
       instructions: ({ requestContext }) => {
         const ui: string = requestContext.get('ui' as never);
+        const channels = renderChannels(
+          requestContext.get('integrations' as never)
+        );
         return `
       Global information:
         - Date and hour (UTC), rounded down: ${dayjs().format(
           'YYYY-MM-DD HH'
         )}:00 (minutes are not shown, treat the time as approximate)
-
+${channels}
       You are an agent that helps manage and schedule social media posts for users, you can:
         - Schedule posts into the future, or now, adding texts, images and videos
         - Generate pictures for posts
@@ -79,8 +113,8 @@ export class LoadToolsService {
       - Sometimes 'integrationSchema' will return rules, make sure you follow them (these rules are set in stone, even if the user asks to ignore them)
       - Each socials media platform has different settings and rules, you can get them by using the integrationSchema tool.
       - Always make sure you use this tool before you schedule any post.
-      - In every message I will send you the list of needed social medias (id and platform), if you already have the information use it, if not, use the integrationSchema tool to get it.
-      - Make sure you always take the last information I give you about the socials, it might have changed.
+      - The channels listed above are the ones selected right now, and the list is refreshed every turn — always prefer it over channel ids mentioned earlier in the conversation.
+      - For a channel's rules and settings, use the integrationSchema tool.
       - Before scheduling a post, always make sure you ask the user confirmation by providing all the details of the post (text, images, videos, date, time, social media platform, account).
       - Between tools, we will reference things like: [output:name] and [input:name] to set the information right.
       - When outputting a date for the user, make sure it's human readable with time
