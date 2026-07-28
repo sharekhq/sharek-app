@@ -17,7 +17,7 @@ import {
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
-import { MastraAgent } from '@ag-ui/mastra';
+import { getSharekAgents } from '@gitroom/nestjs-libraries/chat/sharek.agent';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { Request, Response } from 'express';
 import { RequestContext } from '@mastra/core/di';
@@ -83,7 +83,9 @@ export class CopilotController {
     requestContext.set('organization', JSON.stringify(organization));
     requestContext.set('ui', 'true');
 
-    const agents = MastraAgent.getLocalAgents({
+    // Same shape as MastraAgent.getLocalAgents, but the agents forward only the
+    // newest exchange instead of the whole thread the browser resends.
+    const agents = getSharekAgents({
       resourceId: organization.id,
       mastra,
       requestContext: requestContext as any,
