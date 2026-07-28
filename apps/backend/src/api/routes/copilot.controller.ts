@@ -25,7 +25,9 @@ import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permis
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 export type ChannelsContext = {
-  integrations: string;
+  // The selected channels as the browser sent them through CopilotKit
+  // `properties`; the agent's instructions render them and validate the shape.
+  integrations: unknown[];
   organization: string;
   ui: string;
 };
@@ -126,6 +128,9 @@ export class CopilotController {
       return await memory.recall({
         resourceId: organization.id,
         threadId,
+        // recall() defaults perPage to the agent's lastMessages, which is now 1.
+        // 10 is the depth this endpoint served before that changed.
+        perPage: 10,
       });
     } catch (err) {
       return { messages: [] };
