@@ -220,7 +220,8 @@ export class AgentGraphService {
         - Use ${state.tone === 'personal' ? '1st' : '3rd'} person mode
         - Make sure it's engaging
         - Don't be cringy
-        - Use simple english
+        - Write in the same language as the user's request
+        - Keep the language simple and direct
         - Make sure you add "\n" between the lines
         - Don't take the hook from "request of the user"
 
@@ -273,7 +274,8 @@ export class AgentGraphService {
         - Use the hook as inspiration
         - Make sure it's engaging
         - Don't be cringy
-        - Use simple english
+        - Write in the same language as the user's request
+        - Keep the language simple and direct
         - The Content should not contain the hook
         - Try to put some call to action at the end of the post
         - Make sure you add "\n" between the lines
