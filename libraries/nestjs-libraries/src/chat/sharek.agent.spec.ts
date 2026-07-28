@@ -1,4 +1,4 @@
-import { messagesToSend } from './sharek.agent';
+import { messagesToSend, SharekAgent } from './sharek.agent';
 
 const u = (id: string) => ({ id, role: 'user', content: 'hi' });
 const a = (id: string) => ({ id, role: 'assistant', content: 'hello' });
@@ -43,5 +43,59 @@ describe('messagesToSend', () => {
     expect(messagesToSend([])).toEqual([]);
     expect(messagesToSend(undefined as any)).toEqual(undefined);
     expect(messagesToSend('nonsense' as any)).toEqual('nonsense');
+  });
+});
+
+describe('SharekAgent', () => {
+  // Capture what reaches the vendor implementation by stubbing MastraAgent's
+  // own run, two prototypes up from the instance.
+  const build = () => {
+    const seen: any[] = [];
+    const agent: any = new SharekAgent({
+      agentId: 'postiz',
+      agent: { getMemory: () => undefined } as any,
+      resourceId: 'org-1',
+    });
+    const vendorProto = Object.getPrototypeOf(Object.getPrototypeOf(agent));
+    vendorProto.run = function (input: any) {
+      seen.push(input);
+      return { subscribe: () => undefined };
+    };
+    return { agent, seen };
+  };
+
+  it('passes only the newest exchange to the vendor run', () => {
+    const { agent, seen } = build();
+    agent.run({
+      threadId: 't',
+      runId: 'r',
+      messages: [
+        { id: '1', role: 'user' },
+        { id: '2', role: 'assistant' },
+        { id: '3', role: 'user' },
+      ],
+      tools: [],
+      context: [],
+    });
+    expect(seen[0].messages).toEqual([{ id: '3', role: 'user' }]);
+  });
+
+  it('leaves every other field of the input untouched', () => {
+    const { agent, seen } = build();
+    agent.run({
+      threadId: 't',
+      runId: 'r',
+      messages: [{ id: '1', role: 'user' }],
+      tools: [{ name: 'x' }],
+      context: [{ k: 'v' }],
+      state: { a: 1 },
+    } as any);
+    expect(seen[0]).toMatchObject({
+      threadId: 't',
+      runId: 'r',
+      tools: [{ name: 'x' }],
+      context: [{ k: 'v' }],
+      state: { a: 1 },
+    });
   });
 });
