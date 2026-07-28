@@ -4,13 +4,14 @@
 //   npx jest --config libraries/react-shared-libraries/jest.config.ts
 //
 // Class-string assertions go through react-dom/server; specs that need to click something get
-// a DOM from jest.setup.js (happy-dom, because jsdom's optional `canvas` dep is unbuilt here).
+// a DOM from the repo-root jest.setup.js (happy-dom, because jsdom's optional `canvas` dep is
+// unbuilt here), shared with apps/frontend/jest.config.ts.
 import type { Config } from 'jest';
 
 const config: Config = {
   rootDir: 'src',
   testEnvironment: 'node',
-  setupFiles: ['<rootDir>/../jest.setup.js'],
+  setupFiles: ['<rootDir>/../../../jest.setup.js'],
   testMatch: ['**/*.spec.tsx'],
   transform: {
     '^.+\\.tsx?$': [

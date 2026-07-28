@@ -18,6 +18,7 @@ const GLOBALS = [
   'DocumentFragment',
   'Event',
   'MouseEvent',
+  'KeyboardEvent',
   'CustomEvent',
   'getComputedStyle',
   'requestAnimationFrame',
