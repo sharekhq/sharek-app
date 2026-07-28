@@ -39,7 +39,8 @@ export class OpenaiService {
     return (
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
           messages: [
             {
               role: 'system',
@@ -60,7 +61,8 @@ export class OpenaiService {
     return (
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
           messages: [
             {
               role: 'system',
@@ -168,7 +170,8 @@ export class OpenaiService {
     const posts =
       (
         await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
           messages: [
             {
               role: 'system',
@@ -201,7 +204,8 @@ export class OpenaiService {
               return (
                 (
                   await openai.chat.completions.parse({
-                    model: 'gpt-4.1',
+                    model: 'gpt-5.6-luna',
+                    reasoning_effort: 'none',
                     messages: [
                       {
                         role: 'system',
@@ -237,7 +241,8 @@ export class OpenaiService {
         const parse =
           (
             await openai.chat.completions.parse({
-              model: 'gpt-4.1',
+              model: 'gpt-5.6-luna',
+              reasoning_effort: 'none',
               messages: [
                 {
                   role: 'system',
