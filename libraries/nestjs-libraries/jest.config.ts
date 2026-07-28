@@ -8,6 +8,9 @@ const config: Config = {
   rootDir: 'src',
   testEnvironment: 'node',
   testMatch: ['**/*.spec.ts'],
+  // *.integration.spec.ts drive a real Mastra agent and need Node flags this
+  // config cannot set — see jest.integration.config.ts.
+  testPathIgnorePatterns: ['\\.integration\\.spec\\.ts$'],
   setupFiles: ['reflect-metadata'],
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
