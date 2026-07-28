@@ -315,3 +315,13 @@ describe('LoadToolsService usage logging', () => {
     expect(JSON.parse(logged[0])).toMatchObject({ org: 'unknown', input: 2577 });
   });
 });
+
+// Sharek is Arabic-first, and reasoning effort is pinned to 'none' — there is no
+// deliberation step to fall back on if the model drifts to English. Mirroring the
+// user's language has to be stated, not assumed.
+describe('LoadToolsService language', () => {
+  it('answers in the language the user writes in', async () => {
+    const instructions = await instructionsWith(new RequestContext());
+    expect(instructions).toMatch(/same language the user writes in/i);
+  });
+});
