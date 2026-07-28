@@ -1,8 +1,15 @@
 import { MastraAgent } from '@ag-ui/mastra';
-import type { AbstractAgent, BaseEvent, RunAgentInput } from '@ag-ui/client';
-import type { Observable } from 'rxjs';
 import type { Mastra } from '@mastra/core';
 import type { RequestContext } from '@mastra/core/request-context';
+
+// @copilotkit/runtime ships its own nested rxjs and @ag-ui/client, so importing
+// Observable/RunAgentInput/AbstractAgent here resolves to a *different* copy of
+// those types than the vendor's own signature uses, and nothing lines up.
+// Deriving from MastraAgent keeps us on whichever copy it actually compiled
+// against, whatever the install hoists.
+type VendorRun = MastraAgent['run'];
+type VendorRunInput = Parameters<VendorRun>[0];
+type VendorRunOutput = ReturnType<VendorRun>;
 
 export type AguiMessage = { id?: string; role?: string; [key: string]: unknown };
 
@@ -42,7 +49,7 @@ export const messagesToSend = (messages: AguiMessage[]): AguiMessage[] => {
  * converter, on the hot path of every message.
  */
 export class SharekAgent extends MastraAgent {
-  run(input: RunAgentInput): Observable<BaseEvent> {
+  run(input: VendorRunInput): VendorRunOutput {
     return super.run({
       ...input,
       messages: messagesToSend(input.messages as AguiMessage[]) as any,
@@ -61,13 +68,15 @@ export const getSharekAgents = ({
   mastra: Mastra;
   resourceId: string;
   requestContext?: RequestContext;
-}): Record<string, AbstractAgent> =>
+}): ReturnType<typeof MastraAgent.getLocalAgents> =>
   Object.entries(mastra.listAgents() || {}).reduce((all, [agentId, agent]) => {
+    // `as any` only bridges the duplicate-package type identity described above;
+    // this is a real MastraAgent subclass at runtime.
     all[agentId] = new SharekAgent({
       agentId,
       agent: agent as any,
       resourceId,
       requestContext,
-    });
+    }) as any;
     return all;
-  }, {} as Record<string, AbstractAgent>);
+  }, {} as ReturnType<typeof MastraAgent.getLocalAgents>);

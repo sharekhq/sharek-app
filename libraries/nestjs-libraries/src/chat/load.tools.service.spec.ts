@@ -99,13 +99,13 @@ describe('LoadToolsService agent memory', () => {
     expect(config.generateTitle).toBe(true);
   });
 
-  // The client resends the whole thread on every turn, and Mastra prepends its
-  // own recall window on top of it because @ag-ui/mastra strips the message ids
-  // that its dedupe needs. Anything above 1 is paid for twice. 0 and false are
-  // not options: they stop Mastra persisting the thread at all.
-  it('keeps the server-side recall window at the persistence minimum', async () => {
+  // Memory is now the only source of conversation history: SharekAgent forwards
+  // just the newest exchange. This window is what the model actually sees, so it
+  // has to hold a real conversation — it was 1 only while the client was still
+  // resending the whole thread.
+  it('keeps a real conversation window, since memory is the only history', async () => {
     const config = await memoryConfig();
-    expect(config.lastMessages).toBe(1);
+    expect(config.lastMessages).toBe(20);
   });
 });
 

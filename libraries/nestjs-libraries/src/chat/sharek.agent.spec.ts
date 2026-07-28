@@ -99,3 +99,9 @@ describe('SharekAgent', () => {
     });
   });
 });
+
+// The multi-turn storage proof lives outside jest: Mastra's LLM execution path
+// uses a dynamic import(), which jest's VM rejects without
+// --experimental-vm-modules, and enabling that flag breaks the tokenx CJS
+// transform this config needs. It is verified with a standalone script instead
+// (see documentation/superpowers/plans/2026-07-28-samy-token-cost-tier3.md).

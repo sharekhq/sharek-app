@@ -184,12 +184,12 @@ ${channels}
         storage: pStore,
         options: {
           generateTitle: true,
-          // CopilotKit resends the entire thread on every turn, so this window
-          // is history the model already has. Mastra would dedupe it, but only
-          // by message id, and @ag-ui/mastra drops the ids. 1 is the smallest
-          // value that still persists messages — 0 and false write nothing.
+          // SharekAgent forwards only the newest exchange, so this window IS the
+          // conversation the model sees — memory is the single source of history.
+          // It was 1 while the client still resent the whole thread; that is no
+          // longer true. 0 and false are not options: they write nothing.
           // Callers of memory.recall() must pass perPage: it defaults to this.
-          lastMessages: 1,
+          lastMessages: 20,
         },
       }),
     });
