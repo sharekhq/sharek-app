@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Agent, AgentExecutionOptions } from '@mastra/core/agent';
 import { openai } from '@ai-sdk/openai';
 import { Memory } from '@mastra/memory';
@@ -41,6 +41,29 @@ const renderChannels = (integrations: unknown) => {
       Channels selected for this conversation — schedule to these unless the user names others, and use these ids:
 ${lines.join('\n')}
 `;
+};
+
+// One line per completed Samy turn, so per-turn cost and the prompt-cache hit
+// rate are visible in `pm2 logs backend` without going to the OpenAI dashboard.
+// Mastra fires onFinish once per turn with usage already summed across steps,
+// so these are whole-turn figures even when the model called tools.
+// Telemetry must never be able to fail a chat turn: everything is swallowed.
+const logUsage = (event: any, org: string) => {
+  try {
+    const usage = event?.totalUsage ?? event?.usage ?? {};
+    Logger.log(
+      JSON.stringify({
+        org,
+        run: event?.runId ?? 'unknown',
+        input: usage.inputTokens ?? 0,
+        cached: usage.cachedInputTokens ?? 0,
+        output: usage.outputTokens ?? 0,
+      }),
+      'SamyUsage'
+    );
+  } catch {
+    // deliberately silent
+  }
 };
 
 const organizationId = (organization?: string) => {
@@ -143,6 +166,7 @@ ${channels}
         // has no structured output. Asserting the shape keeps that off the
         // runtime object — setting structuredOutput: undefined would not.
         return {
+          onFinish: (event: any) => logUsage(event, id ?? 'unknown'),
           providerOptions: {
             openai: {
               // gpt-5.2 bills reasoning tokens as output ($14/M against $1.75/M
