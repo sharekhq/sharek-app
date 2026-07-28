@@ -13,7 +13,7 @@ const config: Config = {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
   },
   transform: {
-    '^.+\\.ts$': [
+    '^.+\\.[mc]?[tj]s$': [
       'ts-jest',
       {
         // isolatedModules = transpile each file alone, no whole-program type-check.
@@ -25,10 +25,15 @@ const config: Config = {
           isolatedModules: true,
           experimentalDecorators: true,
           emitDecoratorMetadata: true,
+          allowJs: true,
         },
       },
     ],
   },
+  // @mastra/core's CJS build requires tokenx, which ships ESM only. node_modules
+  // is untransformed by default, so importing anything from @mastra/core throws
+  // "Unexpected token 'export'" until tokenx goes through the transform too.
+  transformIgnorePatterns: ['/node_modules/(?!tokenx/)'],
 };
 
 export default config;

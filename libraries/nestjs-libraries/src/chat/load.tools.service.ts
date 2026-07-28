@@ -50,7 +50,9 @@ export class LoadToolsService {
         const ui: string = requestContext.get('ui' as never);
         return `
       Global information:
-        - Date (UTC): ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
+        - Date and hour (UTC), rounded down: ${dayjs().format(
+          'YYYY-MM-DD HH'
+        )}:00 (minutes are not shown, treat the time as approximate)
 
       You are an agent that helps manage and schedule social media posts for users, you can:
         - Schedule posts into the future, or now, adding texts, images and videos
