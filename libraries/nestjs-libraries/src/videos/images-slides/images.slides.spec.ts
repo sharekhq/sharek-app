@@ -5,7 +5,11 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
   UploadFactory: { createStorage: () => ({ uploadFile: jest.fn() }) },
 }));
 
-import { ImagesSlides, ImagesSlidesParams } from './images.slides';
+import {
+  ImagesSlides,
+  ImagesSlidesParams,
+  MAX_CHARS_PER_SLIDE,
+} from './images.slides';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
@@ -81,5 +85,80 @@ describe('ImagesSlides.plan', () => {
     await expect(
       provider.plan({ prompt: 'p', voice: 'v', slides: 4, voiceover: true })
     ).rejects.toThrow();
+  });
+});
+
+describe('ImagesSlides.create', () => {
+  const storyboard = {
+    styleGuide: 'warm cinematic, brass palette',
+    slides: [{ text: 'One.' }],
+  };
+  const params = { prompt: 'p', voice: 'v', slides: 1, voiceover: true };
+
+  const drain = async (gen: AsyncGenerator<any>) => {
+    const events: any[] = [];
+    for await (const e of gen) events.push(e);
+    return events;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    openai.generateImagePromptsForSlides.mockResolvedValue(['a brass tray']);
+    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+  });
+
+  it('requests ideogram/v4 at the vertical frame size with expansion disabled', async () => {
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      () => undefined
+    );
+    expect(fal.generateImageFromText).toHaveBeenCalledWith(
+      'ideogram/v4',
+      expect.stringContaining('a brass tray'),
+      expect.objectContaining({
+        image_size: { width: 1080, height: 1920 },
+        rendering_speed: 'BALANCED',
+        expansion_model: 'None',
+      })
+    );
+  });
+
+  it('appends the shared style guide to every image prompt', async () => {
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      () => undefined
+    );
+    expect(fal.generateImageFromText.mock.calls[0][1]).toContain(
+      'warm cinematic, brass palette'
+    );
+  });
+
+  it('uses the horizontal frame size when asked', async () => {
+    await drain(provider.create('horizontal', storyboard, params)).catch(
+      () => undefined
+    );
+    expect(fal.generateImageFromText.mock.calls[0][2].image_size).toEqual({
+      width: 1920,
+      height: 1080,
+    });
+  });
+
+  // The cap is the cost guard: unbounded slide text means unbounded TTS and a
+  // proportionally unbounded encode, all against one video credit (D27).
+  it('rejects a slide longer than the hard character cap', async () => {
+    const long = {
+      styleGuide: 's',
+      slides: [{ text: 'x'.repeat(MAX_CHARS_PER_SLIDE + 1) }],
+    };
+    await expect(drain(provider.create('vertical', long, params))).rejects.toThrow();
+  });
+
+  it('makes no voice call when voiceover is off', async () => {
+    const fetchSpy = jest.fn();
+    global.fetch = fetchSpy as any;
+    await drain(
+      provider.create('vertical', storyboard, { ...params, voiceover: false })
+    ).catch(() => undefined);
+    for (const call of fetchSpy.mock.calls) {
+      expect(String(call[0])).not.toContain('elevenlabs');
+    }
   });
 });

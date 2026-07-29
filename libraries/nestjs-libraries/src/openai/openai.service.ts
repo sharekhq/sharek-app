@@ -284,7 +284,11 @@ Also produce one styleGuide describing how every image in this video should look
 
         return {
           styleGuide: parsed?.styleGuide || '',
-          slides: parsed?.slides || [],
+          // The SDK types every parsed field as optional, so the text is
+          // narrowed here rather than asserted; create() drops empty slides.
+          slides: (parsed?.slides || []).map((slide) => ({
+            text: slide.text || '',
+          })),
         };
       } catch (err) {
         console.log(err);

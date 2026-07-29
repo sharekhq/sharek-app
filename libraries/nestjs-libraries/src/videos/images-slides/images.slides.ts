@@ -5,7 +5,6 @@ import {
   Video,
   VideoAbstract,
 } from '@gitroom/nestjs-libraries/videos/video.interface';
-import { chunk } from 'lodash';
 import Transloadit from 'transloadit';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { Readable } from 'stream';
@@ -24,6 +23,12 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
+import {
+  splitIntoCues,
+  timeCuesFromAlignment,
+  timeCuesByReading,
+  TimedCue,
+} from './captions';
 const limit = pLimit(2);
 
 /** ~8s of narration per slide keeps 6 slides near 54s, inside the 60s Shorts ceiling (D14). */
@@ -150,6 +155,17 @@ export interface Storyboard {
   slides: { text: string }[];
 }
 
+export interface SlideAudio {
+  /** Absent when the video is silent. */
+  audioUrl?: string;
+  seconds: number;
+  cues: TimedCue[];
+}
+
+export type CreateEvent =
+  | { name: 'progress'; step: string; done: number; total: number }
+  | { name: 'done'; url: string };
+
 @Video({
   identifier: 'image-text-slides',
   title: 'Image Text Slides',
@@ -199,170 +215,289 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
     output: 'vertical' | 'horizontal',
     customParams: ImagesSlidesParams
   ): Promise<URL> {
-    const list = await this._openaiService.generateSlidesFromText(
-      customParams.prompt
+    const storyboard = await this.plan(customParams);
+    let url = '';
+    for await (const event of this.create(output, storyboard, customParams)) {
+      if (event.name === 'done') {
+        url = event.url;
+      }
+    }
+    if (!url) {
+      throw new Error('Video generation produced no output');
+    }
+    return url;
+  }
+
+  /**
+   * Second phase. Yields progress so the caller can keep a streamed HTTP
+   * response alive across a render that outlives any proxy idle timeout, and
+   * finishes with the video URL.
+   */
+  async *create(
+    output: 'vertical' | 'horizontal',
+    storyboard: Storyboard,
+    customParams: ImagesSlidesParams
+  ): AsyncGenerator<CreateEvent> {
+    const frame = FRAME[output];
+    const texts = storyboard.slides.map((s) => s.text.trim()).filter(Boolean);
+
+    if (!texts.length) {
+      throw new Error('This video has no slides');
+    }
+    // Cost guard, enforced here rather than only in the form (D27).
+    const overlong = texts.find((t) => t.length > MAX_CHARS_PER_SLIDE);
+    if (overlong) {
+      throw new Error(
+        `One slide is too long (${overlong.length} characters, limit ${MAX_CHARS_PER_SLIDE})`
+      );
+    }
+
+    // Font, size and cue length all follow the script the slides are written
+    // in, so this is derived once from the text the user approved.
+    const caption = captionStyleFor(texts.join(' '), output);
+
+    yield { name: 'progress', step: 'planning', done: 0, total: texts.length };
+
+    const imagePrompts = await this._openaiService.generateImagePromptsForSlides(
+      texts,
+      storyboard.styleGuide
     );
 
-    const generated = await Promise.all(
-      list.reduce((all, current) => {
-        all.push(
-          new Promise(async (res) => {
-            res({
-              len: 0,
-              url: await this._falService.generateImageFromText(
-                'ideogram/v2',
-                current.imagePrompt,
-                output === 'vertical'
-              ),
-            });
-          })
-        );
+    yield { name: 'progress', step: 'images', done: 0, total: texts.length };
 
-        all.push(
-          new Promise(async (res) => {
-            const buffer = Buffer.from(
-              await (
-                await limit(() =>
-                  fetch(
-                    `https://api.elevenlabs.io/v1/text-to-speech/${customParams.voice}?output_format=mp3_44100_128`,
-                    {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'xi-api-key': process.env.ELEVENSLABS_API_KEY || '',
-                      },
-                      body: JSON.stringify({
-                        text: current.voiceText,
-                        model_id: 'eleven_multilingual_v2',
-                      }),
-                    }
-                  )
-                )
-              ).arrayBuffer()
-            );
-
-            const { path } = await this.storage.uploadFile({
-              buffer,
-              mimetype: 'audio/mp3',
-              size: buffer.length,
-              path: '',
-              fieldname: '',
-              destination: '',
-              stream: new Readable(),
-              filename: '',
-              originalname: '',
-              encoding: '',
-            });
-
-            res({
-              len: await getAudioDuration(buffer),
-              url:
-                path.indexOf('http') === -1
-                  ? process.env.FRONTEND_URL +
-                    '/' +
-                    process.env.NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY +
-                    path
-                  : path,
-            });
-          })
-        );
-
-        return all;
-      }, [] as Promise<any>[])
+    // Parallel, as before — six sequential image calls would add a minute to a
+    // render already fighting a proxy timeout. The fix for the old hang is the
+    // *shape*, not the concurrency: `Promise.all` over real async functions
+    // propagates a rejection, whereas the previous `new Promise(async …)` had
+    // no reject path and simply never settled.
+    const seed = this.seedFor(storyboard);
+    const images = await Promise.all(
+      texts.map(async (_text, i) =>
+        this._falService.generateImageFromText(
+          'ideogram/v4',
+          `${imagePrompts[i]}. ${storyboard.styleGuide}`,
+          {
+            image_size: { width: frame.width, height: frame.height },
+            rendering_speed: 'BALANCED',
+            expansion_model: 'None',
+            seed,
+          }
+        )
+      )
     );
 
-    const split = chunk(generated, 2);
+    yield { name: 'progress', step: 'images', done: texts.length, total: texts.length };
+
+    const slides = customParams.voiceover
+      ? await this.narrate(texts, customParams.voice, caption.maxCueChars)
+      : this.silent(texts, caption.maxCueChars);
+
+    yield {
+      name: 'progress',
+      step: 'assembling',
+      done: texts.length,
+      total: texts.length,
+    };
+
+    const url = await this.assemble(images, slides, caption);
+    yield { name: 'done', url };
+  }
+
+  /** One seed per video; varies between videos, constant across a deck. */
+  private seedFor(storyboard: Storyboard): number {
+    let hash = 0;
+    for (const ch of storyboard.styleGuide +
+      storyboard.slides.map((s) => s.text).join('')) {
+      hash = (hash * 31 + ch.charCodeAt(0)) % 2_147_483_647;
+    }
+    return hash;
+  }
+
+  private async narrate(
+    texts: string[],
+    voice: string,
+    maxCueChars: number
+  ): Promise<SlideAudio[]> {
+    // Parallel with the existing pLimit(2) concurrency cap, for the same reason
+    // the images are: sequential TTS would add tens of seconds. `Promise.all`
+    // over async functions rejects properly, which the old shape did not.
+    return Promise.all(
+      texts.map((text) => this.narrateOne(text, voice, maxCueChars))
+    );
+  }
+
+  private async narrateOne(
+    text: string,
+    voice: string,
+    maxCueChars: number
+  ): Promise<SlideAudio> {
+    // The timestamps variant returns JSON rather than raw audio, and carries
+    // per-character timings so caption boundaries are looked up rather than
+    // estimated (D24).
+    const response = await limit(() =>
+      fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': process.env.ELEVENSLABS_API_KEY || '',
+          },
+          body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
+        }
+      )
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Voice generation failed (${response.status}). Please try again.`
+      );
+    }
+
+    const payload = await response.json();
+    if (!payload?.audio_base64) {
+      throw new Error('Voice generation returned no audio');
+    }
+
+    const buffer = Buffer.from(payload.audio_base64, 'base64');
+    const { path } = await this.storage.uploadFile({
+      buffer,
+      mimetype: 'audio/mp3',
+      size: buffer.length,
+      path: '',
+      fieldname: '',
+      destination: '',
+      stream: new Readable(),
+      filename: '',
+      originalname: '',
+      encoding: '',
+    });
+
+    // `alignment` follows the original string; `normalized_alignment` times the
+    // expanded form ("40%" → "forty percent") and its indices would not map to
+    // what is displayed.
+    const cues = splitIntoCues(text, maxCueChars);
+    return {
+      audioUrl:
+        path.indexOf('http') === -1
+          ? process.env.FRONTEND_URL +
+            '/' +
+            process.env.NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY +
+            path
+          : path,
+      seconds: await getAudioDuration(buffer),
+      cues: payload.alignment
+        ? timeCuesFromAlignment(cues, payload.alignment, MIN_CUE_SECONDS)
+        : timeCuesByReading(
+            cues,
+            SILENT_CHARS_PER_SECOND,
+            MIN_CUE_SECONDS,
+            SILENT_CUE_MAX_SECONDS
+          ),
+    };
+  }
+
+  private silent(texts: string[], maxCueChars: number): SlideAudio[] {
+    return texts.map((text) => {
+      const cues = timeCuesByReading(
+        splitIntoCues(text, maxCueChars),
+        SILENT_CHARS_PER_SECOND,
+        SILENT_CUE_MIN_SECONDS,
+        SILENT_CUE_MAX_SECONDS
+      );
+      return {
+        audioUrl: undefined,
+        seconds: cues.length ? cues[cues.length - 1].end : SILENT_CUE_MIN_SECONDS,
+        cues,
+      };
+    });
+  }
+
+  private async assemble(
+    images: string[],
+    slides: SlideAudio[],
+    caption: CaptionStyle
+  ): Promise<string> {
+    // Cue times are per-slide; the SRT needs them on the video's timeline.
+    let offset = 0;
+    const entries: { start: number; end: number; text: string }[] = [];
+    for (const slide of slides) {
+      for (const cue of slide.cues) {
+        // A cue that trims to nothing would burn an empty caption row.
+        if (!cue.text) {
+          continue;
+        }
+        entries.push({
+          start: Math.round((offset + cue.start) * 1000),
+          end: Math.round((offset + cue.end) * 1000),
+          text: cue.text,
+        });
+      }
+      offset += slide.seconds + 1;
+    }
 
     const srt = stringifySync(
-      list
-        .reduce((all, current, index) => {
-          const start = all.length ? all[all.length - 1].end : 0;
-          const end = start + split[index][1].len * 1000 + 1000;
-          all.push({
-            start: start,
-            end: end,
-            text: current.voiceText,
-          });
-
-          return all;
-        }, [] as { start: number; end: number; text: string }[])
-        .map((item) => ({
-          type: 'cue',
-          data: item,
-        })),
+      entries.map((data) => ({ type: 'cue', data })),
       { format: 'SRT' }
     );
 
-    console.log(split);
+    const steps: Record<string, any> = {};
+    slides.forEach((slide, index) => {
+      steps[`image${index}`] = { robot: '/http/import', url: images[index] };
+      const use: any[] = [{ name: `image${index}`, as: 'image' }];
+      if (slide.audioUrl) {
+        steps[`audio${index}`] = { robot: '/http/import', url: slide.audioUrl };
+        use.push({ name: `audio${index}`, as: 'audio' });
+      }
+      steps[`merge${index}`] = {
+        use,
+        robot: '/video/merge',
+        duration: slide.seconds + 1,
+        preset: 'hls-1080p',
+        resize_strategy: 'min_fit',
+        loop: true,
+      };
+    });
+
+    steps.concatenated = {
+      robot: '/video/concat',
+      result: false,
+      video_fade_seconds: 0.5,
+      use: slides.map((_, index) => ({
+        name: `merge${index}`,
+        as: `video_${index + 1}`,
+      })),
+    };
+
+    steps.subtitled = {
+      robot: '/video/subtitle',
+      result: true,
+      preset: 'hls-1080p',
+      use: {
+        bundle_steps: true,
+        steps: [
+          { name: 'concatenated', as: 'video' },
+          { name: ':original', as: 'subtitles' },
+        ],
+      },
+      // The default face has no Arabic coverage, so the renderer fell back to
+      // one missing the mandatory lam-alef ligature — a tofu box at every ل+ا
+      // pair. Noto Kufi Arabic is the only face that renders it, and an outline
+      // keeps the text legible over the image without the slab a box border
+      // puts behind every line.
+      font: caption.font,
+      font_size: caption.fontSize,
+      font_color: 'FFFFFF',
+      position: 'bottom',
+      border_style: 'outline',
+      border_color: '00000000',
+      subtitles_type: 'burned',
+    };
 
     const { results } = await transloadit.createAssembly({
-      uploads: {
-        'subtitles.srt': srt,
-      },
+      uploads: { 'subtitles.srt': srt },
       waitForCompletion: true,
-      params: {
-        steps: {
-          ...split.reduce((all, current, index) => {
-            all[`image${index}`] = {
-              robot: '/http/import',
-              url: current[0].url,
-            };
-            all[`audio${index}`] = {
-              robot: '/http/import',
-              url: current[1].url,
-            };
-            all[`merge${index}`] = {
-              use: [
-                {
-                  name: `image${index}`,
-                  as: 'image',
-                },
-                {
-                  name: `audio${index}`,
-                  as: 'audio',
-                },
-              ],
-              robot: '/video/merge',
-              duration: current[1].len + 1,
-              audio_delay: 0.5,
-              preset: 'hls-1080p',
-              resize_strategy: 'min_fit',
-              loop: true,
-            };
-            return all;
-          }, {} as any),
-          concatenated: {
-            robot: '/video/concat',
-            result: false,
-            video_fade_seconds: 0.5,
-            use: split.map((p, index) => ({
-              name: `merge${index}`,
-              as: `video_${index + 1}`,
-            })),
-          },
-          subtitled: {
-            robot: '/video/subtitle',
-            result: true,
-            preset: 'hls-1080p',
-            use: {
-              bundle_steps: true,
-              steps: [
-                {
-                  name: 'concatenated',
-                  as: 'video',
-                },
-                {
-                  name: ':original',
-                  as: 'subtitles',
-                },
-              ],
-            },
-            position: 'center',
-            font_size: 8,
-            subtitles_type: 'burned',
-          },
-        },
-      },
+      params: { steps },
     });
 
     return results.subtitled[0].url;
