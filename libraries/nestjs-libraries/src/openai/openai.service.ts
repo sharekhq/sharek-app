@@ -323,7 +323,13 @@ Describe only the subject of the image. Do not describe style, palette, lighting
             },
             {
               role: 'user',
-              content: slideTexts.map((t, i) => `Slide ${i + 1}: ${t}`).join('\n'),
+              content: [
+                // The style guide is applied to the rendered prompt separately;
+                // it is given here so subjects are chosen to suit the palette
+                // and medium rather than fighting them.
+                `Style the images will be rendered in: ${styleGuide}`,
+                ...slideTexts.map((t, i) => `Slide ${i + 1}: ${t}`),
+              ].join('\n'),
             },
           ],
           response_format: zodResponseFormat(

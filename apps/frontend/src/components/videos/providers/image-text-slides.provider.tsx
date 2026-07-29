@@ -465,7 +465,11 @@ const ReviewScreen: FC<{
         <Button
           type="button"
           onClick={onCreate}
-          disabled={!!progress || !slides.length}
+          // An empty row is dropped server-side, so blocking here is the only
+          // thing that stops a slide vanishing without explanation.
+          disabled={
+            !!progress || !slides.length || slides.some((s) => !s.text.trim())
+          }
         >
           {progress || t('create_video', 'Create video')}
         </Button>
