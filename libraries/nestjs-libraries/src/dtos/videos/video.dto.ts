@@ -32,3 +32,8 @@ export class VideoDto {
 
   customParams: any;
 }
+
+export class CreateVideoDto extends VideoDto {
+  /** The storyboard the user reviewed, as edited. */
+  storyboard: { styleGuide: string; slides: { text: string }[] };
+}
