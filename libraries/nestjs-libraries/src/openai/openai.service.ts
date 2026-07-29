@@ -234,47 +234,63 @@ export class OpenaiService {
     };
   }
 
-  async generateSlidesFromText(text: string) {
+  async generateSlidesFromText(
+    text: string,
+    options: { slides: number; wordsPerSlide: number }
+  ): Promise<{ styleGuide: string; slides: { text: string }[] }> {
     for (let i = 0; i < 3; i++) {
       try {
-        const message = `You are an assistant that takes a text and break it into slides, each slide should have an image prompt and voice text to be later used to generate a video and voice, image prompt should capture the essence of the slide and also have a back dark gradient on top, image prompt should not contain text in the picture, generate between 3-5 slides maximum`;
-        const parse =
-          (
-            await openai.chat.completions.parse({
-              model: 'gpt-5.6-luna',
-              reasoning_effort: 'none',
-              messages: [
-                {
-                  role: 'system',
-                  content: message,
-                },
-                {
-                  role: 'user',
-                  content: text,
-                },
-              ],
-              response_format: zodResponseFormat(
-                z.object({
-                  slides: z
-                    .array(
-                      z.object({
-                        imagePrompt: z.string(),
-                        voiceText: z.string(),
-                      })
-                    )
-                    .describe('an array of slides'),
-                }),
-                'slides'
-              ),
-            })
-          ).choices[0].message.parsed?.slides || [];
+        const message = `You are an assistant that breaks a text into slides for a narrated video.
+Produce exactly ${options.slides} slides. Each slide carries only its spoken text, about ${options.wordsPerSlide} words, written in the same language as the user's input.
+Also produce one styleGuide describing how every image in this video should look. The styleGuide is shared by all slides — it is what makes the video look like one piece rather than unrelated stock images.`;
 
-        return parse;
+        const parsed = (
+          await openai.chat.completions.parse({
+            model: 'gpt-5.6-luna',
+            reasoning_effort: 'none',
+            messages: [
+              {
+                role: 'system',
+                content: message,
+              },
+              {
+                role: 'user',
+                content: text,
+              },
+            ],
+            response_format: zodResponseFormat(
+              z.object({
+                styleGuide: z
+                  .string()
+                  .describe(
+                    'One English clause naming a medium, a colour palette, a lighting condition and a camera or rendering treatment, applied to every image in this video. Name no subject and no on-image text.'
+                  ),
+                slides: z
+                  .array(
+                    z.object({
+                      text: z
+                        .string()
+                        .describe(
+                          "The words spoken on this slide, in the same language as the user's input."
+                        ),
+                    })
+                  )
+                  .describe('an array of slides'),
+              }),
+              'slides'
+            ),
+          })
+        ).choices[0].message.parsed;
+
+        return {
+          styleGuide: parsed?.styleGuide || '',
+          slides: parsed?.slides || [],
+        };
       } catch (err) {
         console.log(err);
       }
     }
 
-    return [];
+    return { styleGuide: '', slides: [] };
   }
 }
