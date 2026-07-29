@@ -14,9 +14,89 @@ import { stringifySync } from 'subtitle';
 
 import pLimit from 'p-limit';
 import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
-import { IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 const limit = pLimit(2);
+
+/** ~8s of narration per slide keeps 6 slides near 54s, inside the 60s Shorts ceiling (D14). */
+export const WORDS_PER_SLIDE = 20;
+/** Hard server-side cost guard (D27): characters in roughly twice the word budget. */
+export const MAX_CHARS_PER_SLIDE = 280;
+/** Input-token guard on the prompt (D28). */
+export const MAX_PROMPT_CHARS = 2000;
+/** Stops short cues flashing (D23). */
+export const MIN_CUE_SECONDS = 1.5;
+/** Silent-slide clamp when voiceover is off (D17). */
+export const SILENT_CUE_MIN_SECONDS = 2;
+export const SILENT_CUE_MAX_SECONDS = 8;
+/** Reading pace for the silent path. */
+export const SILENT_CHARS_PER_SECOND = 14;
+
+export const FRAME = {
+  vertical: { width: 1080, height: 1920 },
+  horizontal: { width: 1920, height: 1080 },
+} as const;
+
+/**
+ * Caption styling, calibrated against real Transloadit renders.
+ *
+ * `fontSize` is not pixels. FFmpeg burns an SRT by converting it to ASS at a
+ * fixed PlayRes and scaling that up to the frame, so these numbers sit far
+ * below the rendered glyph height. They also differ per script: an Arabic face
+ * carries less glyph per em, so Noto Kufi Arabic needs roughly 1.75x Inter's
+ * value to read at the same size.
+ *
+ * `maxCueChars` is the measured two-line ceiling less ~10%. Nothing reached a
+ * third line at any tested length, so erring low only means more cues, which
+ * paces better anyway.
+ */
+export const CAPTION = {
+  arabic: {
+    font: 'Noto Kufi Arabic',
+    maxCueChars: 64,
+    fontSize: { vertical: 14, horizontal: 18 },
+  },
+  latin: {
+    font: 'Inter',
+    maxCueChars: 72,
+    fontSize: { vertical: 8, horizontal: 10 },
+  },
+} as const;
+
+/** Arabic ranges plus the presentation forms; used only to pick a caption face. */
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+export interface CaptionStyle {
+  font: string;
+  fontSize: number;
+  maxCueChars: number;
+}
+
+/**
+ * Almarai renders a tofu box at every mandatory lam-alef ligature and Amiri is
+ * a naskh serif whose line box dominates the frame, so Arabic takes Noto Kufi
+ * Arabic. Latin keeps its own face: neither problem applies to it and Inter
+ * simply reads better.
+ */
+export function captionStyleFor(
+  text: string,
+  output: 'vertical' | 'horizontal'
+): CaptionStyle {
+  const set = ARABIC_SCRIPT.test(text) ? CAPTION.arabic : CAPTION.latin;
+  return {
+    font: set.font,
+    fontSize: set.fontSize[output],
+    maxCueChars: set.maxCueChars,
+  };
+}
 
 const transloadit = new Transloadit({
   authKey: process.env.TRANSLOADIT_AUTH || 'just empty text',
@@ -28,19 +108,46 @@ async function getAudioDuration(buffer: Buffer): Promise<number> {
   return metadata.format.duration || 0;
 }
 
-class ImagesSlidesParams {
+/**
+ * Doubles as the server-side validation contract and Samy's tool schema, so
+ * every field carries a description the agent can act on.
+ */
+export class ImagesSlidesParams {
   @JSONSchema({
     description:
-      'Elevenlabs voice id, use a special tool to get it, this is a required filed. If the tool response contains "arabicVoices" and the video content is in Arabic, pick the voice id from "arabicVoices"; otherwise pick from "voices"',
+      'What the video should be about. The planner writes the narration from this.',
   })
   @IsString()
-  voice: string;
+  @MaxLength(MAX_PROMPT_CHARS)
+  prompt: string;
 
   @JSONSchema({
-    description: 'Simple string of the prompt, not a json',
+    description: 'How many slides the video should have, between 1 and 6.',
   })
+  @IsInt()
+  @Min(1)
+  @Max(6)
+  slides: number;
+
+  @JSONSchema({
+    description:
+      'Whether the video is narrated. When false no voice is generated, the slide text is shown on screen, and no voice id is needed.',
+  })
+  @IsBoolean()
+  voiceover: boolean;
+
+  @JSONSchema({
+    description:
+      'Elevenlabs voice id, use a special tool to get it. Required only when voiceover is true. If the tool response contains "arabicVoices" and the video content is in Arabic, pick the voice id from "arabicVoices"; otherwise pick from "voices"',
+  })
+  @ValidateIf((o) => o.voiceover)
   @IsString()
-  prompt: string;
+  voice: string;
+}
+
+export interface Storyboard {
+  styleGuide: string;
+  slides: { text: string }[];
 }
 
 @Video({
@@ -66,6 +173,26 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
     private _falService: FalService
   ) {
     super();
+  }
+
+  /**
+   * Cheap first phase: text only, no images and no audio. The user reviews and
+   * edits the result before anything expensive runs (D8).
+   */
+  async plan(customParams: ImagesSlidesParams): Promise<Storyboard> {
+    const storyboard = await this._openaiService.generateSlidesFromText(
+      customParams.prompt,
+      {
+        slides: customParams.slides,
+        wordsPerSlide: WORDS_PER_SLIDE,
+      }
+    );
+
+    if (!storyboard.slides.length) {
+      throw new Error('Could not write a script for this prompt, please try again');
+    }
+
+    return storyboard;
   }
 
   async process(
