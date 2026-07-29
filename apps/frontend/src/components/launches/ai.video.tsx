@@ -102,7 +102,14 @@ export const Modal: FC<{
       }}
     >
       <form
-        onSubmit={form.handleSubmit(generate)}
+        // Hiding the button is not enough to stop a submit: Enter on a focused
+        // control still fires one, which would run the one-shot path and spend
+        // a credit behind the provider's own review step.
+        onSubmit={
+          videoOwnsSubmit(type.identifier)
+            ? (e) => e.preventDefault()
+            : form.handleSubmit(generate)
+        }
         className="flex flex-col gap-[10px]"
       >
         <div className="text-[14px] text-muted -mt-[12px]">
