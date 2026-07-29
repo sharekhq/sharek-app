@@ -82,12 +82,24 @@ export class MediaController {
       (res as { flush?: () => void }).flush?.();
     };
 
+    // Writing to a closed socket does not throw, so without this the loop would
+    // run the render to completion for a client that has gone away. Breaking
+    // closes the generator chain, which stops the render and refunds the credit.
+    // Worst case it is noticed one heartbeat late, which is close enough.
+    let disconnected = false;
+    res.on('close', () => {
+      disconnected = true;
+    });
+
     try {
       for await (const event of withHeartbeat(
         this._mediaService.createVideo(org, body, video),
         20_000,
         () => ({ name: 'heartbeat' })
       )) {
+        if (disconnected) {
+          break;
+        }
         write(event);
       }
     } catch (err) {

@@ -312,3 +312,70 @@ describe('ImagesSlides.assemble via the silent path', () => {
     });
   });
 });
+
+// The queue bridge in MediaService only pays off if create() actually emits
+// progress while work is still outstanding, rather than in a burst at the end.
+describe('ImagesSlides.create progress', () => {
+  const params = { prompt: 'p', voice: 'v', slides: 3, voiceover: false };
+  const storyboard = {
+    styleGuide: 's',
+    slides: [{ text: 'One' }, { text: 'Two' }, { text: 'Three' }],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    openai.generateImagePromptsForSlides.mockResolvedValue(['a', 'b', 'c']);
+  });
+
+  it('reports each image as it lands, not all of them at the end', async () => {
+    // Resolve the three image calls out of order and one at a time, so a
+    // Promise.all implementation would emit nothing until the slowest settled.
+    const release: ((url: string) => void)[] = [];
+    fal.generateImageFromText.mockImplementation(
+      () => new Promise((resolve) => release.push(resolve))
+    );
+
+    const events: any[] = [];
+    const gen = provider.create('vertical', storyboard, params);
+
+    // Drain until the generator is waiting on the images.
+    let next = await gen.next();
+    while (!next.done && next.value.step !== 'images') {
+      events.push(next.value);
+      next = await gen.next();
+    }
+    events.push(next.value);
+
+    // Resume without awaiting: this call is what creates the fal promises, and
+    // it will not settle until one of them does.
+    let pending = gen.next();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(release).toHaveLength(3);
+
+    const counts: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      release[i]('https://fal.media/a.jpeg');
+      // eslint-disable-next-line no-await-in-loop
+      const event = await pending;
+      counts.push(event.value.done);
+      if (i < 2) {
+        pending = gen.next();
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+
+    expect(counts).toEqual([1, 2, 3]);
+    await gen.return(undefined as any);
+  });
+
+  it('announces assembling directly when there is no voiceover', async () => {
+    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    const steps: string[] = [];
+    for await (const event of provider.create('vertical', storyboard, params)) {
+      if (event.name === 'progress') steps.push(event.step);
+    }
+    expect(steps).not.toContain('voicing');
+    expect(steps[steps.length - 1]).toBe('assembling');
+  });
+});

@@ -283,26 +283,55 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
 
     // Parallel, as before — six sequential image calls would add a minute to a
     // render already fighting a proxy timeout. The fix for the old hang is the
-    // *shape*, not the concurrency: `Promise.all` over real async functions
-    // propagates a rejection, whereas the previous `new Promise(async …)` had
-    // no reject path and simply never settled.
+    // *shape*, not the concurrency: awaiting real async functions propagates a
+    // rejection, whereas the previous `new Promise(async …)` had no reject path
+    // and simply never settled.
+    //
+    // Raced rather than Promise.all'd so each image reports the moment it
+    // lands: a bare 0/6 followed by 6/6 is barely better than a blank spinner.
     const seed = this.seedFor(storyboard);
-    const images = await Promise.all(
-      texts.map(async (_text, i) =>
-        this._falService.generateImageFromText(
-          'ideogram/v4',
-          `${imagePrompts[i]}. ${storyboard.styleGuide}`,
-          {
-            image_size: { width: frame.width, height: frame.height },
-            rendering_speed: 'BALANCED',
-            expansion_model: 'None',
-            seed,
-          }
-        )
-      )
-    );
+    const images: string[] = new Array(texts.length);
+    const inflight = new Map<number, Promise<number>>();
 
-    yield { name: 'progress', step: 'images', done: texts.length, total: texts.length };
+    texts.forEach((_text, i) => {
+      inflight.set(
+        i,
+        this._falService
+          .generateImageFromText(
+            'ideogram/v4',
+            `${imagePrompts[i]}. ${storyboard.styleGuide}`,
+            {
+              image_size: { width: frame.width, height: frame.height },
+              rendering_speed: 'BALANCED',
+              expansion_model: 'None',
+              seed,
+            }
+          )
+          .then((url) => {
+            images[i] = url;
+            return i;
+          })
+      );
+    });
+
+    while (inflight.size) {
+      // A rejection surfaces here and aborts the render, as before.
+      const finished = await Promise.race(inflight.values());
+      inflight.delete(finished);
+      yield {
+        name: 'progress',
+        step: 'images',
+        done: texts.length - inflight.size,
+        total: texts.length,
+      };
+    }
+
+    yield {
+      name: 'progress',
+      step: customParams.voiceover ? 'voicing' : 'assembling',
+      done: texts.length,
+      total: texts.length,
+    };
 
     const slides = customParams.voiceover
       ? await this.narrate(texts, customParams.voice, caption.maxCueChars)

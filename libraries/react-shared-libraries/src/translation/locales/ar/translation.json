@@ -1033,5 +1033,8 @@
   "create_video": "إنشاء الفيديو",
   "starting": "جارٍ البدء…",
   "creating_step": "جارٍ الإنشاء… {{done}}/{{total}}",
-  "video_creation_failed": "تعذّر إنشاء الفيديو. لم يتم خصم أي رصيد."
+  "video_creation_failed": "تعذّر إنشاء الفيديو. لم يتم خصم أي رصيد.",
+  "step_planning": "جارٍ كتابة أوصاف الصور…",
+  "step_voicing": "جارٍ تسجيل التعليق الصوتي…",
+  "step_assembling": "جارٍ تجميع الفيديو…"
 }

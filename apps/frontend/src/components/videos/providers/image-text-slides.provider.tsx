@@ -232,6 +232,13 @@ type CreateStreamEvent =
   | { name: 'done'; media: { id: string; path: string } }
   | { name: 'error'; error: true; message: string };
 
+/** The render's phases, other than images, which carries a live count instead. */
+const STEP_LABELS: Record<string, (t: ReturnType<typeof useT>) => string> = {
+  planning: (t) => t('step_planning', 'Writing image prompts…'),
+  voicing: (t) => t('step_voicing', 'Recording the voiceover…'),
+  assembling: (t) => t('step_assembling', 'Putting the video together…'),
+};
+
 const SLIDE_OPTIONS = [1, 2, 3, 4, 5, 6];
 const MAX_SLIDES = SLIDE_OPTIONS[SLIDE_OPTIONS.length - 1];
 
@@ -538,10 +545,12 @@ const ImageSlidesComponent = () => {
           if (data.name === 'error') throw new Error(data.message);
           if (data.name === 'progress') {
             setProgress(
-              t('creating_step', 'Creating… {{done}}/{{total}}', {
-                done: data.done,
-                total: data.total,
-              })
+              data.step === 'images'
+                ? t('creating_step', 'Creating… {{done}}/{{total}}', {
+                    done: data.done,
+                    total: data.total,
+                  })
+                : STEP_LABELS[data.step]?.(t) ?? t('starting', 'Starting…')
             );
           }
           if (data.name === 'done') {

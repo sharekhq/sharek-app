@@ -194,7 +194,13 @@ export class MediaService {
 
   /**
    * Phase two. Yields the provider's progress events through to the controller
-   * so the HTTP response keeps producing bytes for the whole render.
+   * as they happen, so the response carries real progress for the whole render.
+   *
+   * `useCredit` takes a callback and `yield` cannot cross a callback boundary,
+   * so the render pushes onto a queue that this generator drains concurrently.
+   * The credit row is still held for the entire render and still deleted if it
+   * throws — collecting into an array and re-yielding afterwards would have
+   * been simpler, but nothing would reach the client until the render was over.
    *
    * `video` comes from an already-awaited resolveTwoPhaseVideo, so everything
    * that can fail with a meaningful status has failed before the stream opened.
@@ -204,45 +210,84 @@ export class MediaService {
     body: CreateVideoDto,
     video: NonNullable<ReturnType<VideoManager['getVideoByName']>>
   ) {
-    // useCredit deletes its credit row when the wrapped call throws, so a
-    // failed render is not billed. Collect inside the wrapper and re-yield
-    // outside it so a mid-render client disconnect still propagates a throw.
-    const events: any[] = [];
+    const queue: any[] = [];
+    let wake: (() => void) | null = null;
+    const poke = () => {
+      const resume = wake;
+      wake = null;
+      resume?.();
+    };
+
+    let finished = false;
+    let failure: unknown;
     let saved: any;
+    let render: AsyncGenerator<any> | undefined;
+
+    const work = this._subscriptionService
+      .useCredit(org, 'ai_videos', async () => {
+        render = video.instance.create!(
+          body.output,
+          body.storyboard,
+          body.customParams
+        );
+
+        let url = '';
+        for await (const event of render) {
+          if (event.name === 'done') {
+            url = event.url;
+          } else {
+            queue.push(event);
+            poke();
+          }
+        }
+
+        if (!url) {
+          throw new Error('Video generation produced no output');
+        }
+
+        const file = await this.storage.uploadSimple(url);
+        return this.saveFile(org.id, file.split('/').pop(), file);
+      })
+      .then((result) => {
+        saved = result;
+      })
+      .catch((err) => {
+        failure = err;
+      })
+      .finally(() => {
+        finished = true;
+        poke();
+      });
 
     try {
-      saved = await this._subscriptionService.useCredit(
-        org,
-        'ai_videos',
-        async () => {
-          let url = '';
-          for await (const event of video.instance.create!(
-            body.output,
-            body.storyboard,
-            body.customParams
-          )) {
-            if (event.name === 'done') {
-              url = event.url;
-            } else {
-              events.push(event);
-            }
-          }
-          if (!url) {
-            throw new Error('Video generation produced no output');
-          }
-          const file = await this.storage.uploadSimple(url);
-          return this.saveFile(org.id, file.split('/').pop(), file);
+      while (!finished || queue.length) {
+        if (queue.length) {
+          yield queue.shift();
+          continue;
         }
-      );
-    } catch (err) {
-      // Same normalisation the one-shot route applies, so a provider safety
-      // rejection reaches the user as itself rather than as a generic failure.
-      throw generationError(err);
+        // Nothing buffered and the render is still going: sleep until it either
+        // produces an event or completes. `wake` is assigned synchronously with
+        // the emptiness check, so an event cannot slip in unnoticed between.
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+        });
+      }
+    } finally {
+      // The consumer stopped early — a client disconnect. Close the provider's
+      // generator so the render stops rather than finishing on a credit nobody
+      // is waiting for; `useCredit` then refunds it, because an unfinished
+      // render throws. Note this only takes effect at the provider's next
+      // yield: an async generator parked on an await cannot be interrupted.
+      await render?.return(undefined).catch(() => undefined);
+      await work;
     }
 
-    for (const event of events) {
-      yield event;
+    if (failure) {
+      // Same normalisation the one-shot route applies, so a provider safety
+      // rejection reaches the user as itself rather than as a generic failure.
+      throw generationError(failure);
     }
+
     yield { name: 'done', media: saved };
   }
 
