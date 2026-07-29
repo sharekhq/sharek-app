@@ -138,14 +138,20 @@ export class MediaService {
   }
 
   /**
-   * Phase one. Credits are checked but not spent: the credit belongs to the
-   * render, and a user with none should find out before writing a script (D33).
+   * Shared gate for both phases. Awaited by the controller *before* the create
+   * route commits to a streamed response, so a credit or trial refusal is still
+   * a real HTTP status the billing and finish-trial dialogs can act on rather
+   * than an in-band error frame delivered with a 200.
+   *
+   * Credits are checked but not spent here: the credit belongs to the render,
+   * and a user with none should find out before writing a script (D33).
    */
-  async planVideo(org: Organization, body: VideoDto) {
+  async resolveTwoPhaseVideo(org: Organization, body: VideoDto) {
     const totalCredits = await this._subscriptionService.checkCredits(
       org,
       'ai_videos'
     );
+
     if (totalCredits.credits <= 0) {
       throw new SubscriptionException({
         action: AuthorizationActions.Create,
@@ -155,72 +161,84 @@ export class MediaService {
 
     const video = this._videoManager.getVideoByName(body.type);
     if (!video) {
-      throw new Error(`Video type ${body.type} not found`);
+      throw new HttpException(`Video type ${body.type} not found`, 404);
     }
+
     if (!video.trial && org.isTrailing) {
       throw new HttpException('This video is not available in trial mode', 406);
     }
 
+    // The two-phase flow is optional on the provider interface, so a provider
+    // that only implements process() must be refused cleanly rather than
+    // crashing on an undefined method.
+    if (!video.instance.plan || !video.instance.create) {
+      throw new HttpException(
+        `${body.type} does not support reviewing a script before rendering`,
+        400
+      );
+    }
+
     await video.instance.processAndValidate(body.customParams);
-    // Provider methods are dispatched off a metadata reference and lose their
-    // `this` binding otherwise.
-    return (video.instance as any).plan.call(video.instance, body.customParams);
+
+    return video;
+  }
+
+  async planVideo(org: Organization, body: VideoDto) {
+    try {
+      const video = await this.resolveTwoPhaseVideo(org, body);
+      return await video.instance.plan!(body.customParams);
+    } catch (err) {
+      throw generationError(err);
+    }
   }
 
   /**
    * Phase two. Yields the provider's progress events through to the controller
    * so the HTTP response keeps producing bytes for the whole render.
+   *
+   * `video` comes from an already-awaited resolveTwoPhaseVideo, so everything
+   * that can fail with a meaningful status has failed before the stream opened.
    */
-  async *createVideo(org: Organization, body: CreateVideoDto) {
-    const totalCredits = await this._subscriptionService.checkCredits(
-      org,
-      'ai_videos'
-    );
-    if (totalCredits.credits <= 0) {
-      throw new SubscriptionException({
-        action: AuthorizationActions.Create,
-        section: Sections.VIDEOS_PER_MONTH,
-      });
-    }
-
-    const video = this._videoManager.getVideoByName(body.type);
-    if (!video) {
-      throw new Error(`Video type ${body.type} not found`);
-    }
-    if (!video.trial && org.isTrailing) {
-      throw new HttpException('This video is not available in trial mode', 406);
-    }
-
-    await video.instance.processAndValidate(body.customParams);
-
+  async *createVideo(
+    org: Organization,
+    body: CreateVideoDto,
+    video: NonNullable<ReturnType<VideoManager['getVideoByName']>>
+  ) {
     // useCredit deletes its credit row when the wrapped call throws, so a
     // failed render is not billed. Collect inside the wrapper and re-yield
     // outside it so a mid-render client disconnect still propagates a throw.
     const events: any[] = [];
-    const saved = await this._subscriptionService.useCredit(
-      org,
-      'ai_videos',
-      async () => {
-        let url = '';
-        for await (const event of (video.instance as any).create.call(
-          video.instance,
-          body.output,
-          body.storyboard,
-          body.customParams
-        )) {
-          if (event.name === 'done') {
-            url = event.url;
-          } else {
-            events.push(event);
+    let saved: any;
+
+    try {
+      saved = await this._subscriptionService.useCredit(
+        org,
+        'ai_videos',
+        async () => {
+          let url = '';
+          for await (const event of video.instance.create!(
+            body.output,
+            body.storyboard,
+            body.customParams
+          )) {
+            if (event.name === 'done') {
+              url = event.url;
+            } else {
+              events.push(event);
+            }
           }
+          if (!url) {
+            throw new Error('Video generation produced no output');
+          }
+          const file = await this.storage.uploadSimple(url);
+          return this.saveFile(org.id, file.split('/').pop(), file);
         }
-        if (!url) {
-          throw new Error('Video generation produced no output');
-        }
-        const file = await this.storage.uploadSimple(url);
-        return this.saveFile(org.id, file.split('/').pop(), file);
-      }
-    );
+      );
+    } catch (err) {
+      // Same normalisation the one-shot route applies, so a provider safety
+      // rejection reaches the user as itself rather than as a generic failure.
+      throw generationError(err);
+    }
 
     for (const event of events) {
       yield event;

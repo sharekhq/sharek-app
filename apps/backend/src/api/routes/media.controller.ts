@@ -65,6 +65,12 @@ export class MediaController {
     @Body() body: CreateVideoDto,
     @Res({ passthrough: false }) res: Response
   ) {
+    // Deliberately outside the try below: credit, trial and provider checks must
+    // still be able to fail with a real status code. Once a byte is written the
+    // status line is fixed at 200, and the billing and finish-trial dialogs key
+    // off the status, not the body.
+    const video = await this._mediaService.resolveTwoPhaseVideo(org, body);
+
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     // Tell nginx not to buffer this NDJSON stream — buffered heartbeats cannot
     // keep the proxy connection alive.
@@ -78,7 +84,7 @@ export class MediaController {
 
     try {
       for await (const event of withHeartbeat(
-        this._mediaService.createVideo(org, body),
+        this._mediaService.createVideo(org, body, video),
         20_000,
         () => ({ name: 'heartbeat' })
       )) {
@@ -86,7 +92,9 @@ export class MediaController {
       }
     } catch (err) {
       // The stream has already started, so a normal HTTP error is no longer
-      // possible. Emit a final error event instead.
+      // possible. Emit a final error event instead. createVideo normalises
+      // everything through generationError, so an HttpException here carries a
+      // message written for the user.
       const message =
         err instanceof HttpException
           ? err.message

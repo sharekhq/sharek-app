@@ -497,20 +497,36 @@ const ImageSlidesComponent = () => {
           storyboard,
         }),
       });
+      // The credit, trial and provider checks run before the stream opens, so
+      // they still arrive as a status. 402 and 406 never reach here — the
+      // fetch wrapper shows the billing and trial dialogs and never resolves.
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || '');
+      }
+
       const reader = response.body!.getReader();
       const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let settled = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        for (const chunk of decoder
-          .decode(value, { stream: true })
-          .split('\n')
-          .filter((f) => f && f.indexOf('{') > -1)) {
+        // A frame can straddle two reads. Hold the trailing partial line back
+        // until the rest arrives — dropping it would lose the `done` event and
+        // strand a video the user has already been charged for.
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
           let data: CreateStreamEvent;
           try {
-            data = JSON.parse(chunk);
+            data = JSON.parse(line);
           } catch {
-            /** ignore partial / unparseable chunks **/
+            /** ignore anything that is not a frame **/
             continue;
           }
           // Keep-alive frames from the server; not render events.
@@ -527,10 +543,17 @@ const ImageSlidesComponent = () => {
           if (data.name === 'done') {
             // Hands the saved media back to the modal, which attaches it to the
             // post and closes.
+            settled = true;
             setProgress('');
             onMedia(data.media);
           }
         }
+      }
+
+      // A stream that ends without either terminal frame would otherwise leave
+      // the button disabled and the user with no idea what happened.
+      if (!settled) {
+        throw new Error('');
       }
     } catch (e) {
       toaster.show(

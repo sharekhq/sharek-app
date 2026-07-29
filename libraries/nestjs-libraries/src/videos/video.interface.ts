@@ -2,7 +2,17 @@ import { Injectable, Type, ValidationPipe } from '@nestjs/common';
 
 export type URL = string;
 
-export abstract class VideoAbstract<T> {
+/** What a two-phase provider hands the user to review between the phases. */
+export interface VideoStoryboard {
+  styleGuide: string;
+  slides: { text: string }[];
+}
+
+export type VideoCreateEvent =
+  | { name: 'progress'; step: string; done: number; total: number }
+  | { name: 'done'; url: URL };
+
+export abstract class VideoAbstract<T, S = VideoStoryboard> {
   dto: Type<T>;
 
   async processAndValidate(customParams?: T) {
@@ -24,6 +34,21 @@ export abstract class VideoAbstract<T> {
     output: 'vertical' | 'horizontal',
     customParams?: T
   ): Promise<URL>;
+
+  /**
+   * Optional two-phase flow. `plan` is a cheap pass whose result the user
+   * reviews and edits; `create` renders what they approved, yielding progress
+   * so a caller can keep a streamed response alive. A provider implementing
+   * neither is driven through `process` alone, so callers must check first
+   * rather than assume.
+   */
+  plan?(customParams: T): Promise<S>;
+
+  create?(
+    output: 'vertical' | 'horizontal',
+    storyboard: S,
+    customParams: T
+  ): AsyncGenerator<VideoCreateEvent>;
 }
 
 export interface VideoParams {

@@ -23,6 +23,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
+import { HttpException } from '@nestjs/common';
 import {
   splitIntoCues,
   timeCuesFromAlignment,
@@ -33,6 +34,8 @@ const limit = pLimit(2);
 
 /** ~8s of narration per slide keeps 6 slides near 54s, inside the 60s Shorts ceiling (D14). */
 export const WORDS_PER_SLIDE = 20;
+/** Ceiling on a video, enforced on the submitted storyboard and not just the request (D27). */
+export const MAX_SLIDES = 6;
 /** Hard server-side cost guard (D27): characters in roughly twice the word budget. */
 export const MAX_CHARS_PER_SLIDE = 280;
 /** Input-token guard on the prompt (D28). */
@@ -131,7 +134,7 @@ export class ImagesSlidesParams {
   })
   @IsInt()
   @Min(1)
-  @Max(6)
+  @Max(MAX_SLIDES)
   slides: number;
 
   @JSONSchema({
@@ -169,7 +172,8 @@ export type CreateEvent =
 @Video({
   identifier: 'image-text-slides',
   title: 'Image Text Slides',
-  description: 'Generate videos slides from images and text, Don\'t break down the slides, provide only the first slide information',
+  description:
+    'Generate a narrated slideshow from a single prompt. Give the topic, how many slides (1-6) and whether it should be narrated — the script is written for you, so do not break the topic into slides yourself.',
   placement: 'text-to-image',
   tools: [{ functionName: 'loadVoices', output: 'voice id' }],
   dto: ImagesSlidesParams,
@@ -181,7 +185,7 @@ export type CreateEvent =
     !!process.env.OPENAI_API_KEY &&
     !!process.env.FAL_KEY,
 })
-export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
+export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> {
   override dto = ImagesSlidesParams;
   private storage = UploadFactory.createStorage();
   constructor(
@@ -195,7 +199,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
    * Cheap first phase: text only, no images and no audio. The user reviews and
    * edits the result before anything expensive runs (D8).
    */
-  async plan(customParams: ImagesSlidesParams): Promise<Storyboard> {
+  override async plan(customParams: ImagesSlidesParams): Promise<Storyboard> {
     const storyboard = await this._openaiService.generateSlidesFromText(
       customParams.prompt,
       {
@@ -205,7 +209,10 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
     );
 
     if (!storyboard.slides.length) {
-      throw new Error('Could not write a script for this prompt, please try again');
+      throw new HttpException(
+        'Could not write a script for this prompt, please try again',
+        422
+      );
     }
 
     return storyboard;
@@ -233,7 +240,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
    * response alive across a render that outlives any proxy idle timeout, and
    * finishes with the video URL.
    */
-  async *create(
+  override async *create(
     output: 'vertical' | 'horizontal',
     storyboard: Storyboard,
     customParams: ImagesSlidesParams
@@ -242,13 +249,22 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
     const texts = storyboard.slides.map((s) => s.text.trim()).filter(Boolean);
 
     if (!texts.length) {
-      throw new Error('This video has no slides');
+      throw new HttpException('This video has no slides', 400);
     }
-    // Cost guard, enforced here rather than only in the form (D27).
+    // Cost guards, enforced on the storyboard the client actually submitted
+    // rather than on the slide count it asked to plan (D27). Both are what stop
+    // a single video credit buying an unbounded image, TTS and encode bill.
+    if (texts.length > MAX_SLIDES) {
+      throw new HttpException(
+        `A video can have at most ${MAX_SLIDES} slides (received ${texts.length})`,
+        400
+      );
+    }
     const overlong = texts.find((t) => t.length > MAX_CHARS_PER_SLIDE);
     if (overlong) {
-      throw new Error(
-        `One slide is too long (${overlong.length} characters, limit ${MAX_CHARS_PER_SLIDE})`
+      throw new HttpException(
+        `One slide is too long (${overlong.length} characters, limit ${MAX_CHARS_PER_SLIDE})`,
+        400
       );
     }
 
@@ -349,14 +365,15 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
     );
 
     if (!response.ok) {
-      throw new Error(
-        `Voice generation failed (${response.status}). Please try again.`
+      throw new HttpException(
+        `Voice generation failed (${response.status}). Please try again.`,
+        502
       );
     }
 
     const payload = await response.json();
     if (!payload?.audio_base64) {
-      throw new Error('Voice generation returned no audio');
+      throw new HttpException('Voice generation returned no audio', 502);
     }
 
     const buffer = Buffer.from(payload.audio_base64, 'base64');
