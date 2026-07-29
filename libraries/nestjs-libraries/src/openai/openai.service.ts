@@ -234,47 +234,127 @@ export class OpenaiService {
     };
   }
 
-  async generateSlidesFromText(text: string) {
+  async generateSlidesFromText(
+    text: string,
+    options: { slides: number; wordsPerSlide: number }
+  ): Promise<{ styleGuide: string; slides: { text: string }[] }> {
     for (let i = 0; i < 3; i++) {
       try {
-        const message = `You are an assistant that takes a text and break it into slides, each slide should have an image prompt and voice text to be later used to generate a video and voice, image prompt should capture the essence of the slide and also have a back dark gradient on top, image prompt should not contain text in the picture, generate between 3-5 slides maximum`;
-        const parse =
-          (
-            await openai.chat.completions.parse({
-              model: 'gpt-5.6-luna',
-              reasoning_effort: 'none',
-              messages: [
-                {
-                  role: 'system',
-                  content: message,
-                },
-                {
-                  role: 'user',
-                  content: text,
-                },
-              ],
-              response_format: zodResponseFormat(
-                z.object({
-                  slides: z
-                    .array(
-                      z.object({
-                        imagePrompt: z.string(),
-                        voiceText: z.string(),
-                      })
-                    )
-                    .describe('an array of slides'),
-                }),
-                'slides'
-              ),
-            })
-          ).choices[0].message.parsed?.slides || [];
+        const message = `You are an assistant that breaks a text into slides for a narrated video.
+Produce exactly ${options.slides} slides. Each slide carries only its spoken text, about ${options.wordsPerSlide} words, written in the same language as the user's input.
+Also produce one styleGuide describing how every image in this video should look. The styleGuide is shared by all slides — it is what makes the video look like one piece rather than unrelated stock images.`;
 
-        return parse;
+        const parsed = (
+          await openai.chat.completions.parse({
+            model: 'gpt-5.6-luna',
+            reasoning_effort: 'none',
+            messages: [
+              {
+                role: 'system',
+                content: message,
+              },
+              {
+                role: 'user',
+                content: text,
+              },
+            ],
+            response_format: zodResponseFormat(
+              z.object({
+                styleGuide: z
+                  .string()
+                  .describe(
+                    'One English clause naming a medium, a colour palette, a lighting condition and a camera or rendering treatment, applied to every image in this video. Name no subject and no on-image text.'
+                  ),
+                slides: z
+                  .array(
+                    z.object({
+                      text: z
+                        .string()
+                        .describe(
+                          "The words spoken on this slide, in the same language as the user's input."
+                        ),
+                    })
+                  )
+                  .describe('an array of slides'),
+              }),
+              'slides'
+            ),
+          })
+        ).choices[0].message.parsed;
+
+        return {
+          styleGuide: parsed?.styleGuide || '',
+          // The SDK types every parsed field as optional, so the text is
+          // narrowed here rather than asserted; create() drops empty slides.
+          slides: (parsed?.slides || []).map((slide) => ({
+            text: slide.text || '',
+          })),
+        };
       } catch (err) {
         console.log(err);
       }
     }
 
-    return [];
+    return { styleGuide: '', slides: [] };
+  }
+
+  /**
+   * Image prompts are derived from the slide text the user actually approved,
+   * not from the planning pass, so an edited or hand-written slide still gets
+   * an image that matches what is said on it.
+   */
+  async generateImagePromptsForSlides(
+    slideTexts: string[],
+    styleGuide: string
+  ): Promise<string[]> {
+    const fallback = () => slideTexts.map((t) => t);
+
+    try {
+      const parsed = (
+        await openai.chat.completions.parse({
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
+          messages: [
+            {
+              role: 'system',
+              content: `You write image prompts for the slides of a narrated video.
+Return one prompt per slide, in the same order, in English regardless of the slide language.
+Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.`,
+            },
+            {
+              role: 'user',
+              content: [
+                // The style guide is applied to the rendered prompt separately;
+                // it is given here so subjects are chosen to suit the palette
+                // and medium rather than fighting them.
+                `Style the images will be rendered in: ${styleGuide}`,
+                ...slideTexts.map((t, i) => `Slide ${i + 1}: ${t}`),
+              ].join('\n'),
+            },
+          ],
+          response_format: zodResponseFormat(
+            z.object({
+              prompts: z
+                .array(z.string())
+                .describe(
+                  'one image prompt per slide, in the same order as the input'
+                ),
+            }),
+            'prompts'
+          ),
+        })
+      ).choices[0].message.parsed;
+
+      if (!parsed?.prompts?.length) {
+        return fallback();
+      }
+
+      // Pin the length by index — a short or long array would pair images with
+      // the wrong slides.
+      return slideTexts.map((text, i) => parsed.prompts[i] || text);
+    } catch (err) {
+      console.log(err);
+      return fallback();
+    }
   }
 }

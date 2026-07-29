@@ -9,6 +9,8 @@ import clsx from 'clsx';
 import i18next from 'i18next';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 
 export interface Voices {
   voices: Voice[];
@@ -214,13 +216,87 @@ const VoiceSelector: FC = () => {
   );
 };
 
-const ImageSlidesComponent = () => {
+interface Storyboard {
+  styleGuide: string;
+  slides: { text: string }[];
+}
+
+/**
+ * The NDJSON frames the create route emits. The provider's own `done` event
+ * carries a URL and never leaves the server — this is the service's, which
+ * carries the saved media row.
+ */
+type CreateStreamEvent =
+  | { name: 'heartbeat' }
+  | { name: 'progress'; step: string; done: number; total: number }
+  | { name: 'done'; media: { id: string; path: string } }
+  | { name: 'error'; error: true; message: string };
+
+/** The render's phases, other than images, which carries a live count instead. */
+const STEP_LABELS: Record<string, (t: ReturnType<typeof useT>) => string> = {
+  planning: (t) => t('step_planning', 'Writing image prompts…'),
+  voicing: (t) => t('step_voicing', 'Recording the voiceover…'),
+  assembling: (t) => t('step_assembling', 'Putting the video together…'),
+};
+
+const SLIDE_OPTIONS = [1, 2, 3, 4, 5, 6];
+const MAX_SLIDES = SLIDE_OPTIONS[SLIDE_OPTIONS.length - 1];
+
+/**
+ * Mirrors the backend's WORDS_PER_SLIDE budget and SILENT_CHARS_PER_SECOND
+ * reading pace so the review screen can show a length before anything renders.
+ * Changing either constant in images.slides.ts means changing these too.
+ */
+const SOFT_CHARS_PER_SLIDE = 140;
+const CHARS_PER_SECOND = 14;
+const estimateSeconds = (text: string) => text.length / CHARS_PER_SECOND;
+
+const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
+  onPlanned,
+}) => {
   const t = useT();
-  const { register, formState } = useFormContext();
-  const { value } = useVideo();
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const { register, watch, setValue, trigger, getValues, formState } =
+    useFormContext();
+  const { output } = useVideo();
+  const [loading, setLoading] = useState(false);
+  const voiceover = watch('voiceover');
+  const slides = watch('slides');
+
+  useEffect(() => {
+    if (slides === undefined) setValue('slides', 4);
+    if (voiceover === undefined) setValue('voiceover', true);
+  }, [slides, voiceover, setValue]);
+
+  const plan = useCallback(async () => {
+    if (!(await trigger())) return;
+    setLoading(true);
+    try {
+      const response = await fetch('/media/generate-video/plan', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'image-text-slides',
+          output,
+          customParams: getValues(),
+        }),
+      });
+      if (!response.ok) throw new Error();
+      onPlanned(await response.json());
+    } catch {
+      toaster.show(
+        t(
+          'could_not_write_script',
+          'Could not write a script for this. Please try again.'
+        ),
+        'warning'
+      );
+    }
+    setLoading(false);
+  }, [trigger, getValues, output, onPlanned, toaster, t, fetch]);
 
   return (
-    <div>
+    <div className="flex flex-col gap-[16px]">
       <Textarea
         label="Prompt"
         translationKey="prompt"
@@ -234,13 +310,316 @@ const ImageSlidesComponent = () => {
               'The prompt should be at least 5 characters long'
             ),
           },
-          value,
         })}
         error={formState?.errors?.prompt?.message}
       />
-      <VoiceSelector />
+
+      <div>
+        <div className="text-[14px] mb-[6px]">{t('slides_count', 'Slides')}</div>
+        <div className="flex gap-[8px]">
+          {SLIDE_OPTIONS.map((count) => (
+            <Button
+              key={count}
+              type="button"
+              variant="ghost"
+              className={clsx(
+                '!flex-1',
+                slides === count && '!bg-brandSoft !text-brandText !border-brand'
+              )}
+              onClick={() => setValue('slides', count)}
+            >
+              {count}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border border-tableBorder rounded-[8px] p-[12px]">
+        <div className="text-[14px]">{t('voiceover', 'Voiceover')}</div>
+        <input
+          type="checkbox"
+          {...register('voiceover')}
+          className="w-4 h-4 accent-brand"
+        />
+      </div>
+
+      {!!voiceover && <VoiceSelector />}
+      {!voiceover && (
+        <div className="text-[12px] text-muted">
+          {t(
+            'silent_video_note',
+            'No narration — the slide text is shown on screen.'
+          )}
+        </div>
+      )}
+
+      <Button type="button" onClick={plan} disabled={loading}>
+        {loading
+          ? t('writing_script', 'Writing the script…')
+          : t('continue', 'Continue')}
+      </Button>
     </div>
   );
 };
 
-videoWrapper('image-text-slides', ImageSlidesComponent);
+const ReviewScreen: FC<{
+  storyboard: Storyboard;
+  onChangeStoryboard: (storyboard: Storyboard) => void;
+  onBack: () => void;
+  onCreate: () => void;
+  progress: string;
+}> = ({ storyboard, onChangeStoryboard, onBack, onCreate, progress }) => {
+  const t = useT();
+  const slides = storyboard.slides;
+
+  const setText = (index: number, text: string) =>
+    onChangeStoryboard({
+      ...storyboard,
+      slides: slides.map((slide, i) => (i === index ? { text } : slide)),
+    });
+
+  const move = (index: number, by: number) => {
+    const next = [...slides];
+    const target = index + by;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChangeStoryboard({ ...storyboard, slides: next });
+  };
+
+  const remove = (index: number) =>
+    onChangeStoryboard({
+      ...storyboard,
+      slides: slides.filter((_, i) => i !== index),
+    });
+
+  const add = () =>
+    onChangeStoryboard({ ...storyboard, slides: [...slides, { text: '' }] });
+
+  const totalSeconds = slides.reduce(
+    (sum, slide) => sum + estimateSeconds(slide.text),
+    0
+  );
+
+  return (
+    <div className="flex flex-col gap-[12px]">
+      <div className="text-[12px] text-muted">
+        {t('estimated_length', 'About {{seconds}}s', {
+          seconds: Math.round(totalSeconds),
+        })}
+      </div>
+
+      {slides.map((slide, index) => {
+        const seconds = estimateSeconds(slide.text);
+        const tooLong = slide.text.length > SOFT_CHARS_PER_SLIDE;
+        return (
+          <div
+            key={index}
+            className="flex gap-[10px] items-start border border-tableBorder rounded-[10px] p-[10px]"
+          >
+            <div className="w-[22px] h-[22px] rounded-[6px] bg-sixth text-[11px] flex items-center justify-center shrink-0">
+              {index + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <textarea
+                value={slide.text}
+                onChange={(e) => setText(index, e.target.value)}
+                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor"
+              />
+              <div
+                className={clsx(
+                  'text-[11px] mt-[4px]',
+                  tooLong ? 'text-brand' : 'text-muted'
+                )}
+              >
+                {tooLong
+                  ? t(
+                      'slide_text_too_long',
+                      'This slide runs about {{seconds}}s — that is long for one image.',
+                      { seconds: Math.round(seconds) }
+                    )
+                  : t('slide_seconds', '{{seconds}}s', {
+                      seconds: Math.round(seconds),
+                    })}
+              </div>
+            </div>
+            <div className="flex gap-[4px] shrink-0">
+              <Button type="button" variant="ghost" onClick={() => move(index, -1)}>
+                ↑
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => move(index, 1)}>
+                ↓
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => remove(index)}>
+                ✕
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="flex justify-between gap-[10px]">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={add}
+          disabled={slides.length >= MAX_SLIDES}
+        >
+          {t('add_slide', 'Add slide')}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onBack}>
+          {t('back', 'Back')}
+        </Button>
+        <Button
+          type="button"
+          onClick={onCreate}
+          // An empty row is dropped server-side, so blocking here is the only
+          // thing that stops a slide vanishing without explanation.
+          disabled={
+            !!progress || !slides.length || slides.some((s) => !s.text.trim())
+          }
+        >
+          {progress || t('create_video', 'Create video')}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const ImageSlidesComponent = () => {
+  const t = useT();
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const { getValues } = useFormContext();
+  const { output, onMedia } = useVideo();
+  const [storyboard, setStoryboard] = useState<Storyboard | null>(null);
+  const [planned, setPlanned] = useState<Storyboard | null>(null);
+  const [progress, setProgress] = useState('');
+
+  const create = useCallback(async () => {
+    if (!storyboard) return;
+    setProgress(t('starting', 'Starting…'));
+    try {
+      const response = await fetch('/media/generate-video/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'image-text-slides',
+          output,
+          customParams: getValues(),
+          storyboard,
+        }),
+      });
+      // The credit, trial and provider checks run before the stream opens, so
+      // they still arrive as a status. 402 and 406 never reach here — the
+      // fetch wrapper shows the billing and trial dialogs and never resolves.
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || '');
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let settled = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        // A frame can straddle two reads. Hold the trailing partial line back
+        // until the rest arrives — dropping it would lose the `done` event and
+        // strand a video the user has already been charged for.
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let data: CreateStreamEvent;
+          try {
+            data = JSON.parse(line);
+          } catch {
+            /** ignore anything that is not a frame **/
+            continue;
+          }
+          // Keep-alive frames from the server; not render events.
+          if (data.name === 'heartbeat') continue;
+          if (data.name === 'error') throw new Error(data.message);
+          if (data.name === 'progress') {
+            setProgress(
+              data.step === 'images'
+                ? t('creating_step', 'Creating… {{done}}/{{total}}', {
+                    done: data.done,
+                    total: data.total,
+                  })
+                : STEP_LABELS[data.step]?.(t) ?? t('starting', 'Starting…')
+            );
+          }
+          if (data.name === 'done') {
+            // Hands the saved media back to the modal, which attaches it to the
+            // post and closes.
+            settled = true;
+            setProgress('');
+            onMedia(data.media);
+          }
+        }
+      }
+
+      // A stream that ends without either terminal frame would otherwise leave
+      // the button disabled and the user with no idea what happened.
+      if (!settled) {
+        throw new Error('');
+      }
+    } catch (e) {
+      toaster.show(
+        (e instanceof Error && e.message) ||
+          t(
+            'video_creation_failed',
+            'Could not create the video. You have not been charged.'
+          ),
+        'warning'
+      );
+      setProgress('');
+    }
+  }, [storyboard, getValues, output, onMedia, toaster, t, fetch]);
+
+  // Going back re-plans, which replaces the script. Warn only when that would
+  // actually throw work away — comparing against the storyboard as planned, not
+  // a dirty flag, so an edit-and-undo does not nag.
+  const back = useCallback(() => {
+    const edited = JSON.stringify(storyboard) !== JSON.stringify(planned);
+    if (
+      edited &&
+      !window.confirm(
+        t(
+          'back_discards_edits',
+          'Going back rewrites the script and your edits will be lost. Continue?'
+        )
+      )
+    ) {
+      return;
+    }
+    setStoryboard(null);
+  }, [storyboard, planned, t]);
+
+  if (!storyboard) {
+    return (
+      <SetupScreen
+        onPlanned={(next) => {
+          setPlanned(next);
+          setStoryboard(next);
+        }}
+      />
+    );
+  }
+
+  return (
+    <ReviewScreen
+      storyboard={storyboard}
+      onChangeStoryboard={setStoryboard}
+      onBack={back}
+      onCreate={create}
+      progress={progress}
+    />
+  );
+};
+
+videoWrapper('image-text-slides', ImageSlidesComponent, { ownsSubmit: true });

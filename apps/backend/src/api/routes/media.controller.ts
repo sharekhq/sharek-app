@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
   Param,
   Post,
   Query,
@@ -23,8 +24,12 @@ import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custo
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
-import { VideoDto } from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
+import {
+  CreateVideoDto,
+  VideoDto,
+} from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.function.dto';
+import { withHeartbeat } from '@gitroom/nestjs-libraries/agent/heartbeat';
 
 @ApiTags('Media')
 @Controller('/media')
@@ -47,6 +52,69 @@ export class MediaController {
   ) {
     console.log('hello');
     return this._mediaService.generateVideo(org, body);
+  }
+
+  @Post('/generate-video/plan')
+  planVideo(@GetOrgFromRequest() org: Organization, @Body() body: VideoDto) {
+    return this._mediaService.planVideo(org, body);
+  }
+
+  @Post('/generate-video/create')
+  async createVideo(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: CreateVideoDto,
+    @Res({ passthrough: false }) res: Response
+  ) {
+    // Deliberately outside the try below: credit, trial and provider checks must
+    // still be able to fail with a real status code. Once a byte is written the
+    // status line is fixed at 200, and the billing and finish-trial dialogs key
+    // off the status, not the body.
+    const video = await this._mediaService.resolveTwoPhaseVideo(org, body);
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    // Tell nginx not to buffer this NDJSON stream — buffered heartbeats cannot
+    // keep the proxy connection alive.
+    res.setHeader('X-Accel-Buffering', 'no');
+    // compression() buffers responses; flush after each event so it actually
+    // leaves the process while the render is still running.
+    const write = (payload: object) => {
+      res.write(JSON.stringify(payload) + '\n');
+      (res as { flush?: () => void }).flush?.();
+    };
+
+    // Writing to a closed socket does not throw, so without this the loop would
+    // run the render to completion for a client that has gone away. Breaking
+    // closes the generator chain, which stops the render and refunds the credit.
+    // Worst case it is noticed one heartbeat late, which is close enough.
+    let disconnected = false;
+    res.on('close', () => {
+      disconnected = true;
+    });
+
+    try {
+      for await (const event of withHeartbeat(
+        this._mediaService.createVideo(org, body, video),
+        20_000,
+        () => ({ name: 'heartbeat' })
+      )) {
+        if (disconnected) {
+          break;
+        }
+        write(event);
+      }
+    } catch (err) {
+      // The stream has already started, so a normal HTTP error is no longer
+      // possible. Emit a final error event instead. createVideo normalises
+      // everything through generationError, so an HttpException here carries a
+      // message written for the user.
+      const message =
+        err instanceof HttpException
+          ? err.message
+          : 'Something went wrong while creating your video, please try again.';
+      write({ name: 'error', error: true, message });
+    }
+
+    res.end();
   }
 
   @Post('/generate-image')

@@ -1003,5 +1003,22 @@
   "platform_youtube": "YouTube",
   "generation_failed": "Failed to generate posts, please try again.",
   "facebook_background_none": "None (plain text)",
-  "facebook_background_note": "Unofficial list: the colors shown are approximate, an unsupported background is dropped (published as plain text)"
+  "facebook_background_note": "Unofficial list: the colors shown are approximate, an unsupported background is dropped (published as plain text)",
+  "slides_count": "Slides",
+  "voiceover": "Voiceover",
+  "silent_video_note": "No narration — the slide text is shown on screen.",
+  "writing_script": "Writing the script…",
+  "could_not_write_script": "Could not write a script for this. Please try again.",
+  "estimated_length": "About {{seconds}}s",
+  "slide_seconds": "{{seconds}}s",
+  "slide_text_too_long": "This slide runs about {{seconds}}s — that is long for one image.",
+  "add_slide": "Add slide",
+  "back_discards_edits": "Going back rewrites the script and your edits will be lost. Continue?",
+  "create_video": "Create video",
+  "starting": "Starting…",
+  "creating_step": "Creating… {{done}}/{{total}}",
+  "video_creation_failed": "Could not create the video. You have not been charged.",
+  "step_planning": "Writing image prompts…",
+  "step_voicing": "Recording the voiceover…",
+  "step_assembling": "Putting the video together…"
 }

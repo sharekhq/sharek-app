@@ -1019,5 +1019,22 @@
   "platform_youtube": "يوتيوب",
   "generation_failed": "تعذّر إنشاء المنشورات، يرجى المحاولة مرة أخرى.",
   "facebook_background_none": "بدون (نص عادي)",
-  "facebook_background_note": "قائمة غير رسمية: الألوان المعروضة تقريبية، والخلفية غير المدعومة تُهمل (يُنشر كنص عادي)"
+  "facebook_background_note": "قائمة غير رسمية: الألوان المعروضة تقريبية، والخلفية غير المدعومة تُهمل (يُنشر كنص عادي)",
+  "slides_count": "الشرائح",
+  "voiceover": "التعليق الصوتي",
+  "silent_video_note": "بدون تعليق صوتي — يظهر نص الشريحة على الشاشة.",
+  "writing_script": "جارٍ كتابة النص…",
+  "could_not_write_script": "تعذّرت كتابة نص لهذا الطلب. يرجى المحاولة مرة أخرى.",
+  "estimated_length": "حوالي {{seconds}} ث",
+  "slide_seconds": "{{seconds}} ث",
+  "slide_text_too_long": "تستغرق هذه الشريحة حوالي {{seconds}} ث — وهذه مدة طويلة لصورة واحدة.",
+  "add_slide": "إضافة شريحة",
+  "back_discards_edits": "الرجوع يعيد كتابة النص وستفقد تعديلاتك. هل تريد المتابعة؟",
+  "create_video": "إنشاء الفيديو",
+  "starting": "جارٍ البدء…",
+  "creating_step": "جارٍ الإنشاء… {{done}}/{{total}}",
+  "video_creation_failed": "تعذّر إنشاء الفيديو. لم يتم خصم أي رصيد.",
+  "step_planning": "جارٍ كتابة أوصاف الصور…",
+  "step_voicing": "جارٍ تسجيل التعليق الصوتي…",
+  "step_assembling": "جارٍ تجميع الفيديو…"
 }

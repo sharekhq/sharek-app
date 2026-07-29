@@ -29,6 +29,13 @@ export const useVideoFunction = () => {
   );
 };
 
+/**
+ * Whether the provider draws its own submit control. Keeps the modal free of
+ * per-provider branching: it asks the registry rather than the identifier.
+ */
+export const videoOwnsSubmit = (identifier: string) =>
+  !!videosList.find((v) => v.identifier === identifier)?.ownsSubmit;
+
 export const VideoWrapper: FC<{ identifier: string }> = (props) => {
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   useEffect(() => {

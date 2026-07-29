@@ -6,7 +6,10 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import useSWR from 'swr';
-import { VideoWrapper } from '@gitroom/frontend/components/videos/video.render.component';
+import {
+  VideoWrapper,
+  videoOwnsSubmit,
+} from '@gitroom/frontend/components/videos/video.render.component';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { VideoContextWrapper } from '@gitroom/frontend/components/videos/video.context.wrapper';
@@ -83,10 +86,30 @@ export const Modal: FC<{
   }, [type, position]);
 
   return (
-    // Start with an empty prompt — we no longer copy the post's text field.
-    <VideoContextWrapper.Provider value={{ value: '' }}>
+    <VideoContextWrapper.Provider
+      value={{
+        // Start with an empty prompt — we no longer copy the post's text field.
+        value: '',
+        output: position as 'vertical' | 'horizontal',
+        // A provider that owns submission still needs the modal to attach the
+        // finished media to the post and close, exactly as generate() does.
+        onMedia: (media) => {
+          onChange(media);
+          setLocked(false);
+          close();
+        },
+        close,
+      }}
+    >
       <form
-        onSubmit={form.handleSubmit(generate)}
+        // Hiding the button is not enough to stop a submit: Enter on a focused
+        // control still fires one, which would run the one-shot path and spend
+        // a credit behind the provider's own review step.
+        onSubmit={
+          videoOwnsSubmit(type.identifier)
+            ? (e) => e.preventDefault()
+            : form.handleSubmit(generate)
+        }
         className="flex flex-col gap-[10px]"
       >
         <div className="text-[14px] text-muted -mt-[12px]">
@@ -136,11 +159,13 @@ export const Modal: FC<{
               </div>
               <VideoWrapper identifier={type.identifier} />
             </div>
-            <div className="flex">
-              <Button type="submit" className="flex-1">
-                {t('generate', 'Generate')}
-              </Button>
-            </div>
+            {!videoOwnsSubmit(type.identifier) && (
+              <div className="flex">
+                <Button type="submit" className="flex-1">
+                  {t('generate', 'Generate')}
+                </Button>
+              </div>
+            )}
           </div>
         </FormProvider>
       </form>
