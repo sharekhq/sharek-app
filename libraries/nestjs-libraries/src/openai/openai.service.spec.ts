@@ -39,6 +39,10 @@ describe('OpenaiService model configuration', () => {
           wordsPerSlide: 20,
         }),
     ],
+    [
+      'generateImagePromptsForSlides',
+      () => service.generateImagePromptsForSlides(['one'], 'warm cinematic'),
+    ],
   ];
 
   it.each(liveCalls)(
@@ -158,5 +162,41 @@ describe('OpenaiService.generateSlidesFromText', () => {
         wordsPerSlide: 20,
       })
     ).toEqual({ styleGuide: '', slides: [] });
+  });
+});
+
+describe('OpenaiService.generateImagePromptsForSlides', () => {
+  beforeEach(() => {
+    mockParse.mockReset();
+    mockParse.mockResolvedValue({ choices: [{ message: { parsed: {} } }] });
+  });
+
+  it('asks for English prompts describing subject only', async () => {
+    mockParse.mockResolvedValue({
+      choices: [{ message: { parsed: { prompts: ['a brass tray', 'a lantern'] } } }],
+    });
+    const prompts = await service.generateImagePromptsForSlides(
+      ['أهلاً', 'مرحباً'],
+      'warm cinematic'
+    );
+    expect(prompts).toEqual(['a brass tray', 'a lantern']);
+  });
+
+  // A short or long array would silently misalign images against slides, so the
+  // length is pinned by index rather than trusted.
+  it('falls back to the slide text for any prompt the model omitted', async () => {
+    mockParse.mockResolvedValue({
+      choices: [{ message: { parsed: { prompts: ['a brass tray'] } } }],
+    });
+    expect(
+      await service.generateImagePromptsForSlides(['one', 'two'], 'warm cinematic')
+    ).toEqual(['a brass tray', 'two']);
+  });
+
+  it('falls back entirely when the call fails', async () => {
+    mockParse.mockRejectedValue(new Error('boom'));
+    expect(
+      await service.generateImagePromptsForSlides(['one', 'two'], 'warm')
+    ).toEqual(['one', 'two']);
   });
 });

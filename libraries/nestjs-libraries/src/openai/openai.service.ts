@@ -293,4 +293,58 @@ Also produce one styleGuide describing how every image in this video should look
 
     return { styleGuide: '', slides: [] };
   }
+
+  /**
+   * Image prompts are derived from the slide text the user actually approved,
+   * not from the planning pass, so an edited or hand-written slide still gets
+   * an image that matches what is said on it.
+   */
+  async generateImagePromptsForSlides(
+    slideTexts: string[],
+    styleGuide: string
+  ): Promise<string[]> {
+    const fallback = () => slideTexts.map((t) => t);
+
+    try {
+      const parsed = (
+        await openai.chat.completions.parse({
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
+          messages: [
+            {
+              role: 'system',
+              content: `You write image prompts for the slides of a narrated video.
+Return one prompt per slide, in the same order, in English regardless of the slide language.
+Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.`,
+            },
+            {
+              role: 'user',
+              content: slideTexts.map((t, i) => `Slide ${i + 1}: ${t}`).join('\n'),
+            },
+          ],
+          response_format: zodResponseFormat(
+            z.object({
+              prompts: z
+                .array(z.string())
+                .describe(
+                  'one image prompt per slide, in the same order as the input'
+                ),
+            }),
+            'prompts'
+          ),
+        })
+      ).choices[0].message.parsed;
+
+      if (!parsed?.prompts?.length) {
+        return fallback();
+      }
+
+      // Pin the length by index — a short or long array would pair images with
+      // the wrong slides.
+      return slideTexts.map((text, i) => parsed.prompts[i] || text);
+    } catch (err) {
+      console.log(err);
+      return fallback();
+    }
+  }
 }
