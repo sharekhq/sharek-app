@@ -24,6 +24,8 @@ jest.mock('music-metadata', () => ({
 }));
 
 import {
+  FRAME,
+  GEN_SIZE,
   ImagesSlides,
   ImagesSlidesParams,
   MAX_CHARS_PER_SLIDE,
@@ -42,6 +44,32 @@ const provider = new ImagesSlides(openai as any);
 
 const validateParams = (params: Partial<ImagesSlidesParams>) =>
   validate(plainToInstance(ImagesSlidesParams, params));
+
+const ORIENTATIONS = ['vertical', 'horizontal'] as const;
+const edgesOf = (output: (typeof ORIENTATIONS)[number]) =>
+  GEN_SIZE[output].split('x').map(Number);
+
+// The two constraints that collided in production: gpt-image-2 only accepts
+// edges divisible by 16, and the merge scales the render onto FRAME. When the
+// two aspects differed, Transloadit's fillcrop fitted first and then cropped to
+// a box taller than the fitted frame — ffmpeg exit 234, every render dead.
+describe('ImagesSlides generation size', () => {
+  it('generates at sizes gpt-image-2 accepts', () => {
+    ORIENTATIONS.forEach((output) => {
+      edgesOf(output).forEach((edge) => expect(edge % 16).toBe(0));
+    });
+  });
+
+  it('generates at the same aspect ratio as the encoded frame', () => {
+    ORIENTATIONS.forEach((output) => {
+      const [width, height] = edgesOf(output);
+      expect(width / height).toBeCloseTo(
+        FRAME[output].width / FRAME[output].height,
+        5
+      );
+    });
+  });
+});
 
 describe('ImagesSlidesParams', () => {
   const base = { prompt: 'a ramadan offer', voice: 'v1', slides: 4, voiceover: true };
@@ -140,13 +168,13 @@ describe('ImagesSlides.create', () => {
     })) as any;
   });
 
-  it('renders the vertical frame at 1088x1920 with the style guide appended', async () => {
+  it('renders the vertical frame at 1008x1792 with the style guide appended', async () => {
     await drain(provider.create('vertical', storyboard, params)).catch(
       () => undefined
     );
     expect(openai.generateImageAtSize).toHaveBeenCalledWith(
       expect.stringContaining('a brass tray'),
-      '1088x1920'
+      '1008x1792'
     );
     expect(openai.generateImageAtSize.mock.calls[0][0]).toContain(
       'warm cinematic, brass palette'
@@ -166,11 +194,11 @@ describe('ImagesSlides.create', () => {
     );
   });
 
-  it('renders the horizontal frame at 1920x1088', async () => {
+  it('renders the horizontal frame at 1792x1008', async () => {
     await drain(provider.create('horizontal', storyboard, params)).catch(
       () => undefined
     );
-    expect(openai.generateImageAtSize.mock.calls[0][1]).toBe('1920x1088');
+    expect(openai.generateImageAtSize.mock.calls[0][1]).toBe('1792x1008');
   });
 
   // The cap is the cost guard: unbounded slide text means unbounded TTS and a
@@ -446,14 +474,17 @@ describe('ImagesSlides.assemble via the silent path', () => {
     expect(steps.subtitled).toMatchObject({ width: 1920, height: 1080 });
   });
 
-  // The render is 8px wider than the frame (the divisible-by-16 rule), so the
-  // merge has to crop that back rather than fit it inside and letterbox.
-  it('crops the render onto the frame instead of fitting it inside', async () => {
+  // pad lands both edges exactly on the frame. With GEN_SIZE at the frame's own
+  // aspect nothing is ever padded, but if a future size reintroduces a mismatch
+  // this letterboxes by a pixel instead of killing the render — fillcrop failed
+  // hard here (ffmpeg exit 234) because it crops AFTER fitting, so the crop box
+  // was taller than the fitted frame.
+  it('scales the render onto the frame without cropping it', async () => {
     const { steps } = await render(
       { styleGuide: 's', slides: [{ text: 'One two' }] },
       'vertical'
     );
-    expect(steps.merge0.resize_strategy).toBe('fillcrop');
+    expect(steps.merge0.resize_strategy).toBe('pad');
   });
 
   // The hyphenated hls- presets carry a removal notice; web/mp4/1080p is the
