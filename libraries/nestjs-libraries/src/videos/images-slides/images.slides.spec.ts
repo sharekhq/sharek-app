@@ -9,10 +9,11 @@ jest.mock('transloadit', () => ({
     createAssembly = mockCreateAssembly;
   },
 }));
+const mockUploadFile = jest.fn(async () => ({ path: 'https://cdn/audio.mp3' }));
 jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
   UploadFactory: {
     createStorage: () => ({
-      uploadFile: jest.fn(async () => ({ path: 'https://cdn/audio.mp3' })),
+      uploadFile: mockUploadFile,
     }),
   },
 }));
@@ -274,14 +275,14 @@ describe('ImagesSlides.create safety retry', () => {
 
   it('propagates a non-safety failure without rewriting', async () => {
     openai.generateImageAtSize.mockRejectedValue(
-      new Error('fal ideogram/v4 returned no image: {"detail":"Exhausted balance"}')
+      new Error('429 Rate limit reached for gpt-image-2')
     );
 
     await expect(
       drain(
         provider.create('vertical', { ...storyboard, slides: [{ text: 'One' }] }, params)
       )
-    ).rejects.toThrow(/Exhausted balance/);
+    ).rejects.toThrow(/Rate limit/);
     expect(openai.rewriteFlaggedImagePrompt).not.toHaveBeenCalled();
   });
 });
@@ -413,6 +414,13 @@ describe('ImagesSlides.assemble via the silent path', () => {
       robot: '/http/import',
       url: 'https://cdn/audio.mp3',
     });
+    expect(mockUploadFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buffer: Buffer.from('B64', 'base64'),
+        mimetype: 'image/jpeg',
+        size: 2,
+      })
+    );
   });
 });
 

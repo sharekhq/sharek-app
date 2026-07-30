@@ -49,9 +49,9 @@ export const SILENT_CUE_MAX_SECONDS = 8;
 export const SILENT_CHARS_PER_SECOND = 14;
 
 /**
- * gpt-image-2 needs both edges divisible by 16, so the vertical frame rides at
- * 1088x1920 — the size ideogram already returned, which the Transloadit
- * min_fit merge crops to the 1080p preset (D37).
+ * gpt-image-2 needs both edges divisible by 16, and 1080 isn't, so the
+ * vertical frame rounds up to 1088 and the Transloadit min_fit merge crops it
+ * back to the 1080p preset (D37).
  */
 export const GEN_SIZE = {
   vertical: '1088x1920',
@@ -299,26 +299,13 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         `${prompt}. ${storyboard.styleGuide}`,
         size
       );
-      const { path } = await this.storage.uploadFile({
-        buffer,
-        mimetype: 'image/jpeg',
-        size: buffer.length,
-        path: '',
-        fieldname: '',
-        destination: '',
-        stream: new Readable(),
-        filename: '',
-        originalname: '',
-        encoding: '',
-      });
-      return this.staticUrl(path);
+      return this.uploadStatic(buffer, 'image/jpeg');
     };
 
-    // ideogram screens every prompt with a text moderation pass before
-    // rendering, so a content flag on one slide is recoverable: rewrite that
-    // prompt once and re-render. A second flag fails the render naming the
-    // slide, so the user knows what to reword rather than facing a deck-wide
-    // rejection.
+    // The image model screens every prompt before rendering, so a content flag
+    // on one slide is recoverable: rewrite that prompt once and re-render. A
+    // second flag fails the render naming the slide, so the user knows what to
+    // reword rather than facing a deck-wide rejection.
     const renderWithSafetyRetry = async (i: number): Promise<string> => {
       try {
         return await render(imagePrompts[i]);
@@ -404,6 +391,23 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
       : path;
   }
 
+  /** Uploads bytes and returns the URL; shared by the image and narration paths. */
+  private async uploadStatic(buffer: Buffer, mimetype: string): Promise<string> {
+    const { path } = await this.storage.uploadFile({
+      buffer,
+      mimetype,
+      size: buffer.length,
+      path: '',
+      fieldname: '',
+      destination: '',
+      stream: new Readable(),
+      filename: '',
+      originalname: '',
+      encoding: '',
+    });
+    return this.staticUrl(path);
+  }
+
   private async narrate(
     texts: string[],
     voice: string,
@@ -452,25 +456,13 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     }
 
     const buffer = Buffer.from(payload.audio_base64, 'base64');
-    const { path } = await this.storage.uploadFile({
-      buffer,
-      mimetype: 'audio/mp3',
-      size: buffer.length,
-      path: '',
-      fieldname: '',
-      destination: '',
-      stream: new Readable(),
-      filename: '',
-      originalname: '',
-      encoding: '',
-    });
 
     // `alignment` follows the original string; `normalized_alignment` times the
     // expanded form ("40%" → "forty percent") and its indices would not map to
     // what is displayed.
     const cues = splitIntoCues(text, maxCueChars);
     return {
-      audioUrl: this.staticUrl(path),
+      audioUrl: await this.uploadStatic(buffer, 'audio/mp3'),
       seconds: await getAudioDuration(buffer),
       cues: payload.alignment
         ? timeCuesFromAlignment(cues, payload.alignment, MIN_CUE_SECONDS)
