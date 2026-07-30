@@ -110,6 +110,44 @@ describe('OpenaiService.generateImage', () => {
   });
 });
 
+// Slide renders ask for the exact video frame: gpt-image-2 takes arbitrary
+// WIDTHxHEIGHT (both divisible by 16), unlike the fixed portrait sizes the
+// post-image path uses. moderation stays 'low' — the default filter's false
+// positives on benign festival scenes are what killed the ideogram renderer.
+describe('OpenaiService.generateImageAtSize', () => {
+  beforeEach(() => mockImagesGenerate.mockClear());
+
+  it('renders gpt-image-2 at the requested size in medium quality', async () => {
+    await service.generateImageAtSize('a scene', '1088x1920');
+    expect(mockImagesGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gpt-image-2',
+        size: '1088x1920',
+        quality: 'medium',
+        moderation: 'low',
+        output_format: 'jpeg',
+      })
+    );
+  });
+
+  it('returns the image as raw bytes', async () => {
+    const buffer = await service.generateImageAtSize('a scene', '1920x1088');
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.equals(Buffer.from('B64', 'base64'))).toBe(true);
+  });
+
+  // A silently empty buffer here surfaces three frames later as a storage
+  // driver's "Unsupported file type" — reporting an upstream provider problem
+  // as a storage problem. Fail at the source instead, with the response body
+  // attached, mirroring FalService's equivalent guard.
+  it('throws when the model returns no image', async () => {
+    mockImagesGenerate.mockResolvedValueOnce({ data: [{}] });
+    await expect(
+      service.generateImageAtSize('a scene', '1088x1920')
+    ).rejects.toThrow(/returned no image/);
+  });
+});
+
 // A shared style clause applied to every slide is the mechanism that stops a
 // deck looking like four unrelated stock images, so it has to survive as a
 // first-class field rather than prose inside each slide's prompt.

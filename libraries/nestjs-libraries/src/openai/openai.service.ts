@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
+import type { ImageGenerateParams } from 'openai/resources/images';
 import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
@@ -33,6 +34,34 @@ export class OpenaiService {
     ).data[0];
 
     return generate.b64_json;
+  }
+
+  /**
+   * Frame-native renders for video slides: gpt-image-2 accepts arbitrary
+   * WIDTHxHEIGHT (both edges divisible by 16), so the video frame is requested
+   * directly. moderation 'low' keeps benign scenes from tripping the default
+   * filter, and jpeg keeps a ~2MP payload small for the storage hop.
+   */
+  async generateImageAtSize(prompt: string, size: string): Promise<Buffer> {
+    const response = await openai.images.generate({
+      prompt,
+      model: 'gpt-image-2',
+      // openai@6.27 types predate gpt-image-2's arbitrary sizes; the API
+      // accepts any WIDTHxHEIGHT with both edges divisible by 16.
+      size: size as ImageGenerateParams['size'],
+      quality: 'medium',
+      moderation: 'low',
+      output_format: 'jpeg',
+    });
+    const generate = response.data[0];
+
+    if (!generate?.b64_json) {
+      throw new Error(
+        `gpt-image-2 returned no image: ${JSON.stringify(response).slice(0, 300)}`
+      );
+    }
+
+    return Buffer.from(generate.b64_json, 'base64');
   }
 
   async generatePromptForPicture(prompt: string) {

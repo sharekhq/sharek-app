@@ -12,7 +12,6 @@ import { parseBuffer } from 'music-metadata';
 import { stringifySync } from 'subtitle';
 
 import pLimit from 'p-limit';
-import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
 import { isSafetyRejection } from '@gitroom/nestjs-libraries/openai/generation.error';
 import {
   IsBoolean,
@@ -49,9 +48,14 @@ export const SILENT_CUE_MAX_SECONDS = 8;
 /** Reading pace for the silent path. */
 export const SILENT_CHARS_PER_SECOND = 14;
 
-export const FRAME = {
-  vertical: { width: 1080, height: 1920 },
-  horizontal: { width: 1920, height: 1080 },
+/**
+ * gpt-image-2 needs both edges divisible by 16, and 1080 isn't, so the
+ * vertical frame rounds up to 1088 and the Transloadit min_fit merge crops it
+ * back to the 1080p preset (D37).
+ */
+export const GEN_SIZE = {
+  vertical: '1088x1920',
+  horizontal: '1920x1088',
 } as const;
 
 /**
@@ -183,16 +187,12 @@ export type CreateEvent =
     !!process.env.ELEVENSLABS_API_KEY &&
     !!process.env.TRANSLOADIT_AUTH &&
     !!process.env.TRANSLOADIT_SECRET &&
-    !!process.env.OPENAI_API_KEY &&
-    !!process.env.FAL_KEY,
+    !!process.env.OPENAI_API_KEY,
 })
 export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> {
   override dto = ImagesSlidesParams;
   private storage = UploadFactory.createStorage();
-  constructor(
-    private _openaiService: OpenaiService,
-    private _falService: FalService
-  ) {
+  constructor(private _openaiService: OpenaiService) {
     super();
   }
 
@@ -246,7 +246,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     storyboard: Storyboard,
     customParams: ImagesSlidesParams
   ): AsyncGenerator<CreateEvent> {
-    const frame = FRAME[output];
+    const size = GEN_SIZE[output];
     const texts = storyboard.slides.map((s) => s.text.trim()).filter(Boolean);
 
     if (!texts.length) {
@@ -291,34 +291,21 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     //
     // Raced rather than Promise.all'd so each image reports the moment it
     // lands: a bare 0/6 followed by 6/6 is barely better than a blank spinner.
-    const seed = this.seedFor(storyboard);
     const images: string[] = new Array(texts.length);
     const inflight = new Map<number, Promise<number>>();
 
-    const render = (prompt: string) =>
-      this._falService.generateImageFromText(
-        'ideogram/v4',
+    const render = async (prompt: string) => {
+      const buffer = await this._openaiService.generateImageAtSize(
         `${prompt}. ${storyboard.styleGuide}`,
-        {
-          image_size: { width: frame.width, height: frame.height },
-          rendering_speed: 'BALANCED',
-          expansion_model: 'None',
-          // The output-image checker (default on) false-positives heavily on
-          // benign scenes — it blocked crowds at a festival and parked cars
-          // (2026-07-30), and upstream reports match. Prompts here are our own
-          // LLM-derived scene descriptions with real people and brands banned,
-          // and ideogram's prompt-level screening still applies, so the render
-          // runs without the output filter.
-          enable_safety_checker: false,
-          seed,
-        }
+        size
       );
+      return this.uploadStatic(buffer, 'image/jpeg');
+    };
 
-    // ideogram screens every prompt with a text moderation pass before
-    // rendering, so a content flag on one slide is recoverable: rewrite that
-    // prompt once and re-render. A second flag fails the render naming the
-    // slide, so the user knows what to reword rather than facing a deck-wide
-    // rejection.
+    // The image model screens every prompt before rendering, so a content flag
+    // on one slide is recoverable: rewrite that prompt once and re-render. A
+    // second flag fails the render naming the slide, so the user knows what to
+    // reword rather than facing a deck-wide rejection.
     const renderWithSafetyRetry = async (i: number): Promise<string> => {
       try {
         return await render(imagePrompts[i]);
@@ -394,14 +381,34 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     yield { name: 'done', url };
   }
 
-  /** One seed per video; varies between videos, constant across a deck. */
-  private seedFor(storyboard: Storyboard): number {
-    let hash = 0;
-    for (const ch of storyboard.styleGuide +
-      storyboard.slides.map((s) => s.text).join('')) {
-      hash = (hash * 31 + ch.charCodeAt(0)) % 2_147_483_647;
-    }
-    return hash;
+  /**
+   * Both shipped drivers already return a full URL; the bare-path branch is
+   * a legacy fallback for one that doesn't.
+   */
+  private staticUrl(path: string): string {
+    return path.indexOf('http') === -1
+      ? process.env.FRONTEND_URL +
+          '/' +
+          process.env.NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY +
+          path
+      : path;
+  }
+
+  /** Uploads bytes and returns the URL; shared by the image and narration paths. */
+  private async uploadStatic(buffer: Buffer, mimetype: string): Promise<string> {
+    const { path } = await this.storage.uploadFile({
+      buffer,
+      mimetype,
+      size: buffer.length,
+      path: '',
+      fieldname: '',
+      destination: '',
+      stream: new Readable(),
+      filename: '',
+      originalname: '',
+      encoding: '',
+    });
+    return this.staticUrl(path);
   }
 
   private async narrate(
@@ -452,31 +459,13 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     }
 
     const buffer = Buffer.from(payload.audio_base64, 'base64');
-    const { path } = await this.storage.uploadFile({
-      buffer,
-      mimetype: 'audio/mp3',
-      size: buffer.length,
-      path: '',
-      fieldname: '',
-      destination: '',
-      stream: new Readable(),
-      filename: '',
-      originalname: '',
-      encoding: '',
-    });
 
     // `alignment` follows the original string; `normalized_alignment` times the
     // expanded form ("40%" → "forty percent") and its indices would not map to
     // what is displayed.
     const cues = splitIntoCues(text, maxCueChars);
     return {
-      audioUrl:
-        path.indexOf('http') === -1
-          ? process.env.FRONTEND_URL +
-            '/' +
-            process.env.NEXT_PUBLIC_UPLOAD_STATIC_DIRECTORY +
-            path
-          : path,
+      audioUrl: await this.uploadStatic(buffer, 'audio/mp3'),
       seconds: await getAudioDuration(buffer),
       cues: payload.alignment
         ? timeCuesFromAlignment(cues, payload.alignment, MIN_CUE_SECONDS)
