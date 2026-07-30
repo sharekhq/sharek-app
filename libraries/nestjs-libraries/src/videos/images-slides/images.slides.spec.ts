@@ -34,6 +34,7 @@ import { plainToInstance } from 'class-transformer';
 const openai = {
   generateSlidesFromText: jest.fn(),
   generateImagePromptsForSlides: jest.fn(),
+  rewriteFlaggedImagePrompt: jest.fn(),
 };
 const fal = { generateImageFromText: jest.fn() };
 const provider = new ImagesSlides(openai as any, fal as any);
@@ -191,6 +192,102 @@ describe('ImagesSlides.create', () => {
     for (const call of fetchSpy.mock.calls) {
       expect(String(call[0])).not.toContain('elevenlabs');
     }
+  });
+});
+
+// A provider content flag on one slide's prompt is recoverable: rewrite that
+// prompt once and re-render, instead of failing a deck the user already
+// scripted. A second flag names the slide so the user knows what to reword.
+describe('ImagesSlides.create safety retry', () => {
+  const params = { prompt: 'p', voice: 'v', slides: 2, voiceover: false };
+  const storyboard = {
+    styleGuide: 'warm cinematic',
+    slides: [{ text: 'One' }, { text: 'Two' }],
+  };
+  const flaggedBody =
+    'fal ideogram/v4 returned no image: {"detail":{"type":"content_policy_violation"}}';
+
+  const drain = async (gen: AsyncGenerator<any>) => {
+    const events: any[] = [];
+    for await (const e of gen) events.push(e);
+    return events;
+  };
+
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    openai.generateImagePromptsForSlides.mockResolvedValue(['a star', 'a tray']);
+    openai.rewriteFlaggedImagePrompt.mockResolvedValue('an athlete');
+  });
+
+  afterEach(() => logSpy.mockRestore());
+
+  it('re-renders a flagged slide once with a sanitized prompt', async () => {
+    fal.generateImageFromText
+      .mockRejectedValueOnce(new Error(flaggedBody))
+      .mockResolvedValue('https://fal.media/a.jpeg');
+
+    const events = await drain(provider.create('vertical', storyboard, params));
+
+    expect(events[events.length - 1].name).toBe('done');
+    expect(openai.rewriteFlaggedImagePrompt).toHaveBeenCalledWith('a star');
+    // Calls land in order: slide 1, slide 2, then slide 1's retry — which must
+    // carry the sanitized subject and still get the shared style guide.
+    expect(fal.generateImageFromText).toHaveBeenCalledTimes(3);
+    expect(fal.generateImageFromText.mock.calls[2][1]).toContain('an athlete');
+    expect(fal.generateImageFromText.mock.calls[2][1]).toContain(
+      'warm cinematic'
+    );
+  });
+
+  it('fails naming the slide when the sanitized prompt is flagged again', async () => {
+    fal.generateImageFromText.mockImplementation(
+      async (_model: string, prompt: string) => {
+        if (prompt.includes('a tray') || prompt.includes('an athlete')) {
+          throw new Error(flaggedBody);
+        }
+        return 'https://fal.media/a.jpeg';
+      }
+    );
+
+    const failing = drain(provider.create('vertical', storyboard, params));
+
+    await expect(failing).rejects.toThrow(/slide 2/);
+    // 422, not the generic mapping — the message must reach the user as-is.
+    await expect(failing).rejects.toHaveProperty('status', 422);
+  });
+
+  it('gives up without a second render when the rewrite fails', async () => {
+    openai.rewriteFlaggedImagePrompt.mockResolvedValue('');
+    fal.generateImageFromText.mockImplementation(
+      async (_model: string, prompt: string) => {
+        if (prompt.includes('a star')) {
+          throw new Error(flaggedBody);
+        }
+        return 'https://fal.media/a.jpeg';
+      }
+    );
+
+    await expect(
+      drain(provider.create('vertical', storyboard, params))
+    ).rejects.toThrow(/slide 1/);
+    // One render for the flagged slide, one for the healthy one — no retry.
+    expect(fal.generateImageFromText).toHaveBeenCalledTimes(2);
+  });
+
+  it('propagates a non-safety failure without rewriting', async () => {
+    fal.generateImageFromText.mockRejectedValue(
+      new Error('fal ideogram/v4 returned no image: {"detail":"Exhausted balance"}')
+    );
+
+    await expect(
+      drain(
+        provider.create('vertical', { ...storyboard, slides: [{ text: 'One' }] }, params)
+      )
+    ).rejects.toThrow(/Exhausted balance/);
+    expect(openai.rewriteFlaggedImagePrompt).not.toHaveBeenCalled();
   });
 });
 

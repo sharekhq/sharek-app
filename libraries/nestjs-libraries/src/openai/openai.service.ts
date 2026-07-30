@@ -319,7 +319,8 @@ Also produce one styleGuide describing how every image in this video should look
               role: 'system',
               content: `You write image prompts for the slides of a narrated video.
 Return one prompt per slide, in the same order, in English regardless of the slide language.
-Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.`,
+Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.
+Never name real people, celebrities, public figures or brands — image providers reject those. Describe an anonymous person or a generic scene instead.`,
             },
             {
               role: 'user',
@@ -355,6 +356,47 @@ Describe only the subject of the image. Do not describe style, palette, lighting
     } catch (err) {
       console.log(err);
       return fallback();
+    }
+  }
+
+  /**
+   * Recovery path for a provider content flag: image providers screen prompts
+   * before rendering and reject real-person or brand references outright. One
+   * rewrite keeps the scene while dropping what checkers reject; empty on
+   * failure so the caller can give up cleanly rather than pay for a render
+   * that will be flagged again.
+   */
+  async rewriteFlaggedImagePrompt(prompt: string): Promise<string> {
+    try {
+      const parsed = (
+        await openai.chat.completions.parse({
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
+          messages: [
+            {
+              role: 'system',
+              content: `An image generation service flagged the user's image prompt as violating its content policy.
+Rewrite the prompt so it keeps the same scene, mood and composition while removing everything a content checker rejects: names of real people, celebrities or public figures (describe an anonymous person instead), brand names, logos, flags and political references.
+Return only the rewritten prompt, in English.`,
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          response_format: zodResponseFormat(
+            z.object({
+              prompt: z.string().describe('the rewritten image prompt'),
+            }),
+            'rewrittenPrompt'
+          ),
+        })
+      ).choices[0].message.parsed;
+
+      return parsed?.prompt || '';
+    } catch (err) {
+      console.log(err);
+      return '';
     }
   }
 }

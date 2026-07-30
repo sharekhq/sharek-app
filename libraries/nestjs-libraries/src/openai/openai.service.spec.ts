@@ -43,6 +43,10 @@ describe('OpenaiService model configuration', () => {
       'generateImagePromptsForSlides',
       () => service.generateImagePromptsForSlides(['one'], 'warm cinematic'),
     ],
+    [
+      'rewriteFlaggedImagePrompt',
+      () => service.rewriteFlaggedImagePrompt('a football star on stage'),
+    ],
   ];
 
   it.each(liveCalls)(
@@ -198,5 +202,66 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
     expect(
       await service.generateImagePromptsForSlides(['one', 'two'], 'warm')
     ).toEqual(['one', 'two']);
+  });
+
+  // Image providers screen prompts before rendering and reject real-person
+  // references outright. Cheaper to never write the name than to rewrite
+  // after a flag.
+  it('instructs the model never to name real people', async () => {
+    await service.generateImagePromptsForSlides(['one'], 'warm cinematic');
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      /real people/i
+    );
+  });
+});
+
+// The recovery path for a provider content flag: keep the scene, drop what the
+// checker rejects. Empty on failure so the caller can give up cleanly instead
+// of paying for a render that will be flagged again.
+describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockParse.mockReset();
+    mockParse.mockResolvedValue({ choices: [{ message: { parsed: {} } }] });
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => logSpy.mockRestore());
+
+  it('returns the rewritten prompt', async () => {
+    mockParse.mockResolvedValue({
+      choices: [{ message: { parsed: { prompt: 'an athlete on stage' } } }],
+    });
+    expect(
+      await service.rewriteFlaggedImagePrompt('a football star on stage')
+    ).toBe('an athlete on stage');
+  });
+
+  it('sends the flagged prompt as the user message', async () => {
+    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    expect((mockParse.mock.calls[0][0] as any).messages[1].content).toBe(
+      'a football star on stage'
+    );
+  });
+
+  it('tells the model what a content checker rejects', async () => {
+    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      /real people/i
+    );
+  });
+
+  it('returns an empty string when the call fails', async () => {
+    mockParse.mockRejectedValue(new Error('boom'));
+    expect(
+      await service.rewriteFlaggedImagePrompt('a football star on stage')
+    ).toBe('');
+  });
+
+  it('returns an empty string when nothing was parsed', async () => {
+    expect(
+      await service.rewriteFlaggedImagePrompt('a football star on stage')
+    ).toBe('');
   });
 });
