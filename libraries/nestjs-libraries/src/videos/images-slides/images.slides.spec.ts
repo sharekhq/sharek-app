@@ -455,6 +455,18 @@ describe('ImagesSlides.assemble via the silent path', () => {
     );
     expect(steps.merge0.resize_strategy).toBe('fillcrop');
   });
+
+  // The hyphenated hls- presets carry a removal notice; web/mp4/1080p is the
+  // current mp4/h264 profile. Geometry is pinned separately, so this only
+  // changes the codec profile.
+  it('encodes with the current mp4 preset', async () => {
+    const { steps } = await render(
+      { styleGuide: 's', slides: [{ text: 'One two' }] },
+      'vertical'
+    );
+    expect(steps.merge0.preset).toBe('web/mp4/1080p');
+    expect(steps.subtitled.preset).toBe('web/mp4/1080p');
+  });
 });
 
 // The queue bridge in MediaService only pays off if create() actually emits

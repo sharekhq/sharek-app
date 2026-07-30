@@ -60,9 +60,9 @@ export const GEN_SIZE = {
 
 /**
  * The frame the video is actually encoded at. Every encoding step states it:
- * `width`/`height` fall back to the preset's own geometry when unset, and
- * hls-1080p supplies 1920x1080, so an unstated portrait frame gets fitted into
- * that landscape box and a vertical deck ships at 612x1080 (D44).
+ * `width`/`height` fall back to the preset's own geometry when unset, and the
+ * 1080p presets supply 1920x1080, so an unstated portrait frame gets fitted
+ * into that landscape box and a vertical deck ships at 612x1080 (D44).
  */
 export const FRAME = {
   vertical: { width: 1080, height: 1920 },
@@ -547,7 +547,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         use,
         robot: '/video/merge',
         duration: slide.seconds + 1,
-        preset: 'hls-1080p',
+        preset: 'web/mp4/1080p',
         width: frame.width,
         height: frame.height,
         resize_strategy: 'fillcrop',
@@ -570,7 +570,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     steps.subtitled = {
       robot: '/video/subtitle',
       result: true,
-      preset: 'hls-1080p',
+      preset: 'web/mp4/1080p',
       width: frame.width,
       height: frame.height,
       use: {
