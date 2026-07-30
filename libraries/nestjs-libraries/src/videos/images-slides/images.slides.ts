@@ -49,13 +49,17 @@ export const SILENT_CUE_MAX_SECONDS = 8;
 export const SILENT_CHARS_PER_SECOND = 14;
 
 /**
- * What the image model is asked for. gpt-image-2 needs both edges divisible by
- * 16 and 1080 isn't, so the vertical render rides 8px wide at 1088x1920 and the
- * merge's fillcrop trims it onto FRAME (D37, D45).
+ * What the image model is asked for: FRAME's exact aspect, at the nearest size
+ * gpt-image-2 accepts (both edges divisible by 16, so 1080x1920 itself is out).
+ * The aspect has to match FRAME — the merge scales the render onto the frame,
+ * and when the two differed Transloadit fitted first and then cropped to a box
+ * taller than the fitted frame, killing every render with ffmpeg exit 234.
+ * 1008x1792 is the largest exact 9:16 below the frame, so it costs less than a
+ * frame-sized render and the merge upscales it 7% (D37, D45).
  */
 export const GEN_SIZE = {
-  vertical: '1088x1920',
-  horizontal: '1920x1088',
+  vertical: '1008x1792',
+  horizontal: '1792x1008',
 } as const;
 
 /**
@@ -550,7 +554,10 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         preset: 'web/mp4/1080p',
         width: frame.width,
         height: frame.height,
-        resize_strategy: 'fillcrop',
+        // pad lands both edges exactly on the frame. GEN_SIZE shares the
+        // frame's aspect so nothing is ever actually padded — but a future size
+        // mismatch letterboxes by a pixel here instead of failing the render.
+        resize_strategy: 'pad',
         loop: true,
       };
     });
