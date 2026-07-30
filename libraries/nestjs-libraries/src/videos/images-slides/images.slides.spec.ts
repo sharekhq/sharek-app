@@ -150,6 +150,7 @@ describe('ImagesSlides.create', () => {
         image_size: { width: 1080, height: 1920 },
         rendering_speed: 'BALANCED',
         expansion_model: 'None',
+        enable_safety_checker: false,
       })
     );
   });

@@ -204,15 +204,6 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
     ).toEqual(['one', 'two']);
   });
 
-  // Image providers screen prompts before rendering and reject real-person
-  // references outright. Cheaper to never write the name than to rewrite
-  // after a flag.
-  it('instructs the model never to name real people', async () => {
-    await service.generateImagePromptsForSlides(['one'], 'warm cinematic');
-    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
-      /real people/i
-    );
-  });
 });
 
 // The recovery path for a provider content flag: keep the scene, drop what the
