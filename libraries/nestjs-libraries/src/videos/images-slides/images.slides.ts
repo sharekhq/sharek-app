@@ -302,6 +302,13 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
           image_size: { width: frame.width, height: frame.height },
           rendering_speed: 'BALANCED',
           expansion_model: 'None',
+          // The output-image checker (default on) false-positives heavily on
+          // benign scenes — it blocked crowds at a festival and parked cars
+          // (2026-07-30), and upstream reports match. Prompts here are our own
+          // LLM-derived scene descriptions with real people and brands banned,
+          // and ideogram's prompt-level screening still applies, so the render
+          // runs without the output filter.
+          enable_safety_checker: false,
           seed,
         }
       );

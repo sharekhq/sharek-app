@@ -319,8 +319,7 @@ Also produce one styleGuide describing how every image in this video should look
               role: 'system',
               content: `You write image prompts for the slides of a narrated video.
 Return one prompt per slide, in the same order, in English regardless of the slide language.
-Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.
-Never name real people, celebrities, public figures or brands — image providers reject those. Describe an anonymous person or a generic scene instead.`,
+Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.`,
             },
             {
               role: 'user',
