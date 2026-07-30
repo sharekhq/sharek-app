@@ -35,9 +35,9 @@ const openai = {
   generateSlidesFromText: jest.fn(),
   generateImagePromptsForSlides: jest.fn(),
   rewriteFlaggedImagePrompt: jest.fn(),
+  generateImageAtSize: jest.fn(),
 };
-const fal = { generateImageFromText: jest.fn() };
-const provider = new ImagesSlides(openai as any, fal as any);
+const provider = new ImagesSlides(openai as any);
 
 const validateParams = (params: Partial<ImagesSlidesParams>) =>
   validate(plainToInstance(ImagesSlidesParams, params));
@@ -123,7 +123,7 @@ describe('ImagesSlides.create', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     openai.generateImagePromptsForSlides.mockResolvedValue(['a brass tray']);
-    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
     // narrateOne hits ElevenLabs over global fetch; without this the suite
     // makes real unauthenticated requests on every run.
     global.fetch = jest.fn(async () => ({
@@ -139,19 +139,16 @@ describe('ImagesSlides.create', () => {
     })) as any;
   });
 
-  it('requests ideogram/v4 at the vertical frame size with expansion disabled', async () => {
+  it('renders the vertical frame at 1088x1920 with the style guide appended', async () => {
     await drain(provider.create('vertical', storyboard, params)).catch(
       () => undefined
     );
-    expect(fal.generateImageFromText).toHaveBeenCalledWith(
-      'ideogram/v4',
+    expect(openai.generateImageAtSize).toHaveBeenCalledWith(
       expect.stringContaining('a brass tray'),
-      expect.objectContaining({
-        image_size: { width: 1080, height: 1920 },
-        rendering_speed: 'BALANCED',
-        expansion_model: 'None',
-        enable_safety_checker: false,
-      })
+      '1088x1920'
+    );
+    expect(openai.generateImageAtSize.mock.calls[0][0]).toContain(
+      'warm cinematic, brass palette'
     );
   });
 
@@ -168,23 +165,11 @@ describe('ImagesSlides.create', () => {
     );
   });
 
-  it('appends the shared style guide to every image prompt', async () => {
-    await drain(provider.create('vertical', storyboard, params)).catch(
-      () => undefined
-    );
-    expect(fal.generateImageFromText.mock.calls[0][1]).toContain(
-      'warm cinematic, brass palette'
-    );
-  });
-
-  it('uses the horizontal frame size when asked', async () => {
+  it('renders the horizontal frame at 1920x1088', async () => {
     await drain(provider.create('horizontal', storyboard, params)).catch(
       () => undefined
     );
-    expect(fal.generateImageFromText.mock.calls[0][2].image_size).toEqual({
-      width: 1920,
-      height: 1080,
-    });
+    expect(openai.generateImageAtSize.mock.calls[0][1]).toBe('1920x1088');
   });
 
   // The cap is the cost guard: unbounded slide text means unbounded TTS and a
@@ -219,7 +204,7 @@ describe('ImagesSlides.create safety retry', () => {
     slides: [{ text: 'One' }, { text: 'Two' }],
   };
   const flaggedBody =
-    'fal ideogram/v4 returned no image: {"detail":{"type":"content_policy_violation"}}';
+    '400 Your request was rejected as a result of our safety system.';
 
   const drain = async (gen: AsyncGenerator<any>) => {
     const events: any[] = [];
@@ -239,9 +224,9 @@ describe('ImagesSlides.create safety retry', () => {
   afterEach(() => logSpy.mockRestore());
 
   it('re-renders a flagged slide once with a sanitized prompt', async () => {
-    fal.generateImageFromText
+    openai.generateImageAtSize
       .mockRejectedValueOnce(new Error(flaggedBody))
-      .mockResolvedValue('https://fal.media/a.jpeg');
+      .mockResolvedValue(Buffer.from('B64', 'base64'));
 
     const events = await drain(provider.create('vertical', storyboard, params));
 
@@ -249,22 +234,20 @@ describe('ImagesSlides.create safety retry', () => {
     expect(openai.rewriteFlaggedImagePrompt).toHaveBeenCalledWith('a star');
     // Calls land in order: slide 1, slide 2, then slide 1's retry — which must
     // carry the sanitized subject and still get the shared style guide.
-    expect(fal.generateImageFromText).toHaveBeenCalledTimes(3);
-    expect(fal.generateImageFromText.mock.calls[2][1]).toContain('an athlete');
-    expect(fal.generateImageFromText.mock.calls[2][1]).toContain(
+    expect(openai.generateImageAtSize).toHaveBeenCalledTimes(3);
+    expect(openai.generateImageAtSize.mock.calls[2][0]).toContain('an athlete');
+    expect(openai.generateImageAtSize.mock.calls[2][0]).toContain(
       'warm cinematic'
     );
   });
 
   it('fails naming the slide when the sanitized prompt is flagged again', async () => {
-    fal.generateImageFromText.mockImplementation(
-      async (_model: string, prompt: string) => {
-        if (prompt.includes('a tray') || prompt.includes('an athlete')) {
-          throw new Error(flaggedBody);
-        }
-        return 'https://fal.media/a.jpeg';
+    openai.generateImageAtSize.mockImplementation(async (prompt: string) => {
+      if (prompt.includes('a tray') || prompt.includes('an athlete')) {
+        throw new Error(flaggedBody);
       }
-    );
+      return Buffer.from('B64', 'base64');
+    });
 
     const failing = drain(provider.create('vertical', storyboard, params));
 
@@ -275,24 +258,22 @@ describe('ImagesSlides.create safety retry', () => {
 
   it('gives up without a second render when the rewrite fails', async () => {
     openai.rewriteFlaggedImagePrompt.mockResolvedValue('');
-    fal.generateImageFromText.mockImplementation(
-      async (_model: string, prompt: string) => {
-        if (prompt.includes('a star')) {
-          throw new Error(flaggedBody);
-        }
-        return 'https://fal.media/a.jpeg';
+    openai.generateImageAtSize.mockImplementation(async (prompt: string) => {
+      if (prompt.includes('a star')) {
+        throw new Error(flaggedBody);
       }
-    );
+      return Buffer.from('B64', 'base64');
+    });
 
     await expect(
       drain(provider.create('vertical', storyboard, params))
     ).rejects.toThrow(/slide 1/);
     // One render for the flagged slide, one for the healthy one — no retry.
-    expect(fal.generateImageFromText).toHaveBeenCalledTimes(2);
+    expect(openai.generateImageAtSize).toHaveBeenCalledTimes(2);
   });
 
   it('propagates a non-safety failure without rewriting', async () => {
-    fal.generateImageFromText.mockRejectedValue(
+    openai.generateImageAtSize.mockRejectedValue(
       new Error('fal ideogram/v4 returned no image: {"detail":"Exhausted balance"}')
     );
 
@@ -331,7 +312,7 @@ describe('ImagesSlides.create cost guards', () => {
     openai.generateImagePromptsForSlides.mockResolvedValue(
       Array.from({ length: MAX_SLIDES }, () => 'a brass tray')
     );
-    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
     const exactly = {
       styleGuide: 's',
       slides: Array.from({ length: MAX_SLIDES }, () => ({ text: 'a slide' })),
@@ -362,7 +343,7 @@ describe('ImagesSlides.assemble via the silent path', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     openai.generateImagePromptsForSlides.mockResolvedValue(['a', 'b']);
-    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
   });
 
   it('merges each image with no audio input when there is no voiceover', async () => {
@@ -403,7 +384,7 @@ describe('ImagesSlides.assemble via the silent path', () => {
 
     jest.clearAllMocks();
     openai.generateImagePromptsForSlides.mockResolvedValue(['a']);
-    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
     const latin = await render(
       { styleGuide: 's', slides: [{ text: 'Do not miss the offer' }] },
       'horizontal'
@@ -420,6 +401,17 @@ describe('ImagesSlides.assemble via the silent path', () => {
     expect(events[events.length - 1]).toEqual({
       name: 'done',
       url: 'https://transloadit/out.mp4',
+    });
+  });
+
+  it('imports each slide image from the storage url', async () => {
+    const { steps } = await render(
+      { styleGuide: 's', slides: [{ text: 'One two' }] },
+      'vertical'
+    );
+    expect(steps.image0).toEqual({
+      robot: '/http/import',
+      url: 'https://cdn/audio.mp3',
     });
   });
 });
@@ -441,8 +433,8 @@ describe('ImagesSlides.create progress', () => {
   it('reports each image as it lands, not all of them at the end', async () => {
     // Resolve the three image calls out of order and one at a time, so a
     // Promise.all implementation would emit nothing until the slowest settled.
-    const release: ((url: string) => void)[] = [];
-    fal.generateImageFromText.mockImplementation(
+    const release: ((img: Buffer) => void)[] = [];
+    openai.generateImageAtSize.mockImplementation(
       () => new Promise((resolve) => release.push(resolve))
     );
 
@@ -457,15 +449,15 @@ describe('ImagesSlides.create progress', () => {
     }
     events.push(next.value);
 
-    // Resume without awaiting: this call is what creates the fal promises, and
-    // it will not settle until one of them does.
+    // Resume without awaiting: this call is what creates the openai promises,
+    // and it will not settle until one of them does.
     let pending = gen.next();
     await new Promise((r) => setTimeout(r, 0));
     expect(release).toHaveLength(3);
 
     const counts: number[] = [];
     for (let i = 0; i < 3; i++) {
-      release[i]('https://fal.media/a.jpeg');
+      release[i](Buffer.from('B64', 'base64'));
       // eslint-disable-next-line no-await-in-loop
       const event = await pending;
       counts.push(event.value.done);
@@ -481,7 +473,7 @@ describe('ImagesSlides.create progress', () => {
   });
 
   it('announces assembling directly when there is no voiceover', async () => {
-    fal.generateImageFromText.mockResolvedValue('https://fal.media/a.jpeg');
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
     const steps: string[] = [];
     for await (const event of provider.create('vertical', storyboard, params)) {
       if (event.name === 'progress') steps.push(event.step);
