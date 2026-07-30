@@ -381,7 +381,10 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     yield { name: 'done', url };
   }
 
-  /** Storage returns a bare path on the local driver and a full URL on R2. */
+  /**
+   * Both shipped drivers already return a full URL; the bare-path branch is
+   * a legacy fallback for one that doesn't.
+   */
   private staticUrl(path: string): string {
     return path.indexOf('http') === -1
       ? process.env.FRONTEND_URL +

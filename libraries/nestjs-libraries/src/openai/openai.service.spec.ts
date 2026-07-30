@@ -135,6 +135,17 @@ describe('OpenaiService.generateImageAtSize', () => {
     expect(Buffer.isBuffer(buffer)).toBe(true);
     expect(buffer.equals(Buffer.from('B64', 'base64'))).toBe(true);
   });
+
+  // A silently empty buffer here surfaces three frames later as a storage
+  // driver's "Unsupported file type" — reporting an upstream provider problem
+  // as a storage problem. Fail at the source instead, with the response body
+  // attached, mirroring FalService's equivalent guard.
+  it('throws when the model returns no image', async () => {
+    mockImagesGenerate.mockResolvedValueOnce({ data: [{}] });
+    await expect(
+      service.generateImageAtSize('a scene', '1088x1920')
+    ).rejects.toThrow(/returned no image/);
+  });
 });
 
 // A shared style clause applied to every slide is the mechanism that stops a
