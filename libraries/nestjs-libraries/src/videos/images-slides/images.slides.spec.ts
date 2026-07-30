@@ -155,6 +155,19 @@ describe('ImagesSlides.create', () => {
     );
   });
 
+  // The topic is what keeps a slide that never repeats the event's name from
+  // rendering as an anonymous generic scene.
+  it('forwards the video topic to the image prompt writer', async () => {
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      () => undefined
+    );
+    expect(openai.generateImagePromptsForSlides).toHaveBeenCalledWith(
+      ['One.'],
+      'warm cinematic, brass palette',
+      'p'
+    );
+  });
+
   it('appends the shared style guide to every image prompt', async () => {
     await drain(provider.create('vertical', storyboard, params)).catch(
       () => undefined
