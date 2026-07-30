@@ -9,6 +9,19 @@ const SAFETY_VIOLATIONS_REGEX = /safety_violations=\[([^\]]*)\]/i;
 const SAFETY_MESSAGE_REGEX =
   /safety system|safety_violations|content[ _]policy|rejected as a result of our safety|moderation/i;
 
+const messageOf = (err: any): string =>
+  err?.error?.message || err?.message || String(err || '');
+
+/**
+ * Whether a provider error is a content-safety rejection (fal's
+ * content_policy_violation, OpenAI's safety system, a moderation flag) rather
+ * than an ordinary failure. Exported so a pipeline can recover from a flag —
+ * e.g. retry one slide with a sanitized prompt — instead of failing outright.
+ */
+export function isSafetyRejection(err: unknown): boolean {
+  return SAFETY_MESSAGE_REGEX.test(messageOf(err));
+}
+
 /**
  * Normalizes errors thrown by AI generation providers (OpenAI image/chat,
  * LangChain DALL-E, Fal, Veo3, HeyGen, ElevenLabs, ...) into a clean
@@ -24,8 +37,11 @@ export function generationError(err: any): HttpException {
     return err;
   }
 
-  const message: string =
-    err?.error?.message || err?.message || String(err || '');
+  // The normalized message is all the user sees — without this line the
+  // provider's body (which call failed, what was flagged) leaves no trace.
+  console.error('AI generation failed:', err);
+
+  const message: string = messageOf(err);
 
   if (SAFETY_MESSAGE_REGEX.test(message)) {
     const categories = message.match(SAFETY_VIOLATIONS_REGEX)?.[1]?.trim();

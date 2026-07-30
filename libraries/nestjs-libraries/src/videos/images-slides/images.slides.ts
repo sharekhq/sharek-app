@@ -13,6 +13,7 @@ import { stringifySync } from 'subtitle';
 
 import pLimit from 'p-limit';
 import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
+import { isSafetyRejection } from '@gitroom/nestjs-libraries/openai/generation.error';
 import {
   IsBoolean,
   IsInt,
@@ -293,24 +294,61 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     const images: string[] = new Array(texts.length);
     const inflight = new Map<number, Promise<number>>();
 
+    const render = (prompt: string) =>
+      this._falService.generateImageFromText(
+        'ideogram/v4',
+        `${prompt}. ${storyboard.styleGuide}`,
+        {
+          image_size: { width: frame.width, height: frame.height },
+          rendering_speed: 'BALANCED',
+          expansion_model: 'None',
+          seed,
+        }
+      );
+
+    // ideogram screens every prompt with a text moderation pass before
+    // rendering, so a content flag on one slide is recoverable: rewrite that
+    // prompt once and re-render. A second flag fails the render naming the
+    // slide, so the user knows what to reword rather than facing a deck-wide
+    // rejection.
+    const renderWithSafetyRetry = async (i: number): Promise<string> => {
+      try {
+        return await render(imagePrompts[i]);
+      } catch (err) {
+        if (!isSafetyRejection(err)) {
+          throw err;
+        }
+        console.log(`slide ${i + 1} image prompt flagged:`, err);
+        const rewritten = await this._openaiService.rewriteFlaggedImagePrompt(
+          imagePrompts[i]
+        );
+        if (rewritten) {
+          try {
+            return await render(rewritten);
+          } catch (retryErr) {
+            if (!isSafetyRejection(retryErr)) {
+              throw retryErr;
+            }
+            console.log(
+              `slide ${i + 1} sanitized prompt still flagged:`,
+              retryErr
+            );
+          }
+        }
+        throw new HttpException(
+          `The image for slide ${i + 1} was rejected by the AI safety system. Please reword that slide and try again.`,
+          422
+        );
+      }
+    };
+
     texts.forEach((_text, i) => {
       inflight.set(
         i,
-        this._falService
-          .generateImageFromText(
-            'ideogram/v4',
-            `${imagePrompts[i]}. ${storyboard.styleGuide}`,
-            {
-              image_size: { width: frame.width, height: frame.height },
-              rendering_speed: 'BALANCED',
-              expansion_model: 'None',
-              seed,
-            }
-          )
-          .then((url) => {
-            images[i] = url;
-            return i;
-          })
+        renderWithSafetyRetry(i).then((url) => {
+          images[i] = url;
+          return i;
+        })
       );
     });
 
