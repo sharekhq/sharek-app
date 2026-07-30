@@ -49,13 +49,24 @@ export const SILENT_CUE_MAX_SECONDS = 8;
 export const SILENT_CHARS_PER_SECOND = 14;
 
 /**
- * gpt-image-2 needs both edges divisible by 16, and 1080 isn't, so the
- * vertical frame rounds up to 1088 and the Transloadit min_fit merge crops it
- * back to the 1080p preset (D37).
+ * What the image model is asked for. gpt-image-2 needs both edges divisible by
+ * 16 and 1080 isn't, so the vertical render rides 8px wide at 1088x1920 and the
+ * merge's fillcrop trims it onto FRAME (D37, D45).
  */
 export const GEN_SIZE = {
   vertical: '1088x1920',
   horizontal: '1920x1088',
+} as const;
+
+/**
+ * The frame the video is actually encoded at. Every encoding step states it:
+ * `width`/`height` fall back to the preset's own geometry when unset, and
+ * hls-1080p supplies 1920x1080, so an unstated portrait frame gets fitted into
+ * that landscape box and a vertical deck ships at 612x1080 (D44).
+ */
+export const FRAME = {
+  vertical: { width: 1080, height: 1920 },
+  horizontal: { width: 1920, height: 1080 },
 } as const;
 
 /**
@@ -377,7 +388,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
       total: texts.length,
     };
 
-    const url = await this.assemble(images, slides, caption);
+    const url = await this.assemble(images, slides, caption, output);
     yield { name: 'done', url };
   }
 
@@ -497,7 +508,8 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
   private async assemble(
     images: string[],
     slides: SlideAudio[],
-    caption: CaptionStyle
+    caption: CaptionStyle,
+    output: 'vertical' | 'horizontal'
   ): Promise<string> {
     // Cue times are per-slide; the SRT needs them on the video's timeline.
     let offset = 0;
@@ -522,6 +534,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
       { format: 'SRT' }
     );
 
+    const frame = FRAME[output];
     const steps: Record<string, any> = {};
     slides.forEach((slide, index) => {
       steps[`image${index}`] = { robot: '/http/import', url: images[index] };
@@ -535,7 +548,9 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         robot: '/video/merge',
         duration: slide.seconds + 1,
         preset: 'hls-1080p',
-        resize_strategy: 'min_fit',
+        width: frame.width,
+        height: frame.height,
+        resize_strategy: 'fillcrop',
         loop: true,
       };
     });
@@ -544,6 +559,8 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
       robot: '/video/concat',
       result: false,
       video_fade_seconds: 0.5,
+      width: frame.width,
+      height: frame.height,
       use: slides.map((_, index) => ({
         name: `merge${index}`,
         as: `video_${index + 1}`,
@@ -554,6 +571,8 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
       robot: '/video/subtitle',
       result: true,
       preset: 'hls-1080p',
+      width: frame.width,
+      height: frame.height,
       use: {
         bundle_steps: true,
         steps: [
