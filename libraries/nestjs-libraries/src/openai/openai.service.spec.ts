@@ -41,7 +41,12 @@ describe('OpenaiService model configuration', () => {
     ],
     [
       'generateImagePromptsForSlides',
-      () => service.generateImagePromptsForSlides(['one'], 'warm cinematic'),
+      () =>
+        service.generateImagePromptsForSlides(
+          ['one'],
+          'warm cinematic',
+          'a video about Riyadh Season'
+        ),
     ],
     [
       'rewriteFlaggedImagePrompt',
@@ -181,7 +186,8 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
     });
     const prompts = await service.generateImagePromptsForSlides(
       ['أهلاً', 'مرحباً'],
-      'warm cinematic'
+      'warm cinematic',
+      'a ramadan offer'
     );
     expect(prompts).toEqual(['a brass tray', 'a lantern']);
   });
@@ -193,15 +199,42 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
       choices: [{ message: { parsed: { prompts: ['a brass tray'] } } }],
     });
     expect(
-      await service.generateImagePromptsForSlides(['one', 'two'], 'warm cinematic')
+      await service.generateImagePromptsForSlides(
+        ['one', 'two'],
+        'warm cinematic',
+        'a ramadan offer'
+      )
     ).toEqual(['a brass tray', 'two']);
   });
 
   it('falls back entirely when the call fails', async () => {
     mockParse.mockRejectedValue(new Error('boom'));
     expect(
-      await service.generateImagePromptsForSlides(['one', 'two'], 'warm')
+      await service.generateImagePromptsForSlides(['one', 'two'], 'warm', 't')
     ).toEqual(['one', 'two']);
+  });
+
+  // A slide's spoken line often never repeats the video's topic — the deck
+  // about Riyadh Season had lines that only said "luxury cars for visitors" —
+  // so the writer needs the topic to set every scene in the right place.
+  it('passes the video topic to the model', async () => {
+    await service.generateImagePromptsForSlides(
+      ['one'],
+      'warm cinematic',
+      'فيديو عن موسم الرياض بالسعودية'
+    );
+    expect((mockParse.mock.calls[0][0] as any).messages[1].content).toContain(
+      'فيديو عن موسم الرياض بالسعودية'
+    );
+  });
+
+  // Abstracting «موسم الرياض» into "a grand festival" is what made every deck
+  // look like anonymous stock footage.
+  it('tells the model to keep proper nouns and write concrete scenes', async () => {
+    await service.generateImagePromptsForSlides(['one'], 'warm', 't');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/proper nouns/i);
+    expect(system).toMatch(/vantage/i);
   });
 
 });

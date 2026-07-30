@@ -277,7 +277,8 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
 
     const imagePrompts = await this._openaiService.generateImagePromptsForSlides(
       texts,
-      storyboard.styleGuide
+      storyboard.styleGuide,
+      customParams.prompt
     );
 
     yield { name: 'progress', step: 'images', done: 0, total: texts.length };

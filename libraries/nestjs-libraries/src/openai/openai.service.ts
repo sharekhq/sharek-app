@@ -301,11 +301,14 @@ Also produce one styleGuide describing how every image in this video should look
   /**
    * Image prompts are derived from the slide text the user actually approved,
    * not from the planning pass, so an edited or hand-written slide still gets
-   * an image that matches what is said on it.
+   * an image that matches what is said on it. The video's topic rides along
+   * because spoken lines rarely repeat it — without it, a slide saying only
+   * "luxury cars for visitors" renders as a scene from nowhere in particular.
    */
   async generateImagePromptsForSlides(
     slideTexts: string[],
-    styleGuide: string
+    styleGuide: string,
+    topic: string
   ): Promise<string[]> {
     const fallback = () => slideTexts.map((t) => t);
 
@@ -319,11 +322,14 @@ Also produce one styleGuide describing how every image in this video should look
               role: 'system',
               content: `You write image prompts for the slides of a narrated video.
 Return one prompt per slide, in the same order, in English regardless of the slide language.
-Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.`,
+Describe only the subject of the image. Do not describe style, palette, lighting or camera — those are applied separately. Never ask for text, lettering or writing in the picture.
+Keep the proper nouns: when the topic or a slide names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
+Write each prompt as one concrete scene: the setting, three or four distinctive visual elements, and a vantage point, with culturally accurate details — never vague crowds in unnamed places.`,
             },
             {
               role: 'user',
               content: [
+                `The video's topic: ${topic}`,
                 // The style guide is applied to the rendered prompt separately;
                 // it is given here so subjects are chosen to suit the palette
                 // and medium rather than fighting them.
