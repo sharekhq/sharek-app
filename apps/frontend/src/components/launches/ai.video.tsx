@@ -240,6 +240,9 @@ export const AiVideo: FC<{
       return;
     }
     modals.openModal({
+      // The default min-w-[600px] left the voice list and the slide editors
+      // scrolling inside a narrow column.
+      size: '880px',
       title: (
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>

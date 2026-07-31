@@ -5,6 +5,8 @@ import useSWR from 'swr';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@gitroom/react/form/button';
 import { Textarea } from '@gitroom/react/form/textarea';
+import { Slider } from '@gitroom/react/form/slider';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import clsx from 'clsx';
 import i18next from 'i18next';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
@@ -342,10 +344,9 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
 
       <div className="flex items-center justify-between border border-tableBorder rounded-[8px] p-[12px]">
         <div className="text-[14px]">{t('voiceover', 'Voiceover')}</div>
-        <input
-          type="checkbox"
-          {...register('voiceover')}
-          className="w-4 h-4 accent-brand"
+        <Slider
+          value={voiceover ? 'on' : 'off'}
+          onChange={(value) => setValue('voiceover', value === 'on')}
         />
       </div>
 
@@ -436,7 +437,8 @@ const ReviewScreen: FC<{
               <textarea
                 value={slide.text}
                 onChange={(e) => setText(index, e.target.value)}
-                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor"
+                rows={4}
+                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor resize-y"
               />
               <div className="flex justify-between items-baseline gap-[10px] text-[11px] mt-[4px]">
                 <span className={tooLong ? 'text-brand' : 'text-muted'}>
@@ -488,32 +490,36 @@ const ReviewScreen: FC<{
         </div>
       )}
 
+      {/* Adding a slide edits the deck; back and create leave the screen. The
+          two jobs sit on opposite ends rather than reading as one row of three. */}
       <div className="flex justify-between gap-[10px]">
         <Button
           type="button"
-          variant="ghost"
+          variant="quiet"
           onClick={add}
           disabled={slides.length >= MAX_SLIDES}
         >
           {t('add_slide', 'Add slide')}
         </Button>
-        <Button type="button" variant="ghost" onClick={onBack}>
-          {t('back', 'Back')}
-        </Button>
-        <Button
-          type="button"
-          onClick={onCreate}
-          // An empty row is dropped server-side, so blocking here is the only
-          // thing that stops a slide vanishing without explanation.
-          disabled={
-            !!progress ||
-            !slides.length ||
-            slides.some((s) => !s.text.trim()) ||
-            anyOverLimit
-          }
-        >
-          {progress || t('create_video', 'Create video')}
-        </Button>
+        <div className="flex gap-[10px]">
+          <Button type="button" variant="ghost" onClick={onBack}>
+            {t('back', 'Back')}
+          </Button>
+          <Button
+            type="button"
+            onClick={onCreate}
+            // An empty row is dropped server-side, so blocking here is the only
+            // thing that stops a slide vanishing without explanation.
+            disabled={
+              !!progress ||
+              !slides.length ||
+              slides.some((s) => !s.text.trim()) ||
+              anyOverLimit
+            }
+          >
+            {progress || t('create_video', 'Create video')}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -618,16 +624,19 @@ const ImageSlidesComponent = () => {
   // Going back re-plans, which replaces the script. Warn only when that would
   // actually throw work away — comparing against the storyboard as planned, not
   // a dirty flag, so an edit-and-undo does not nag.
-  const back = useCallback(() => {
+  const back = useCallback(async () => {
     const edited = JSON.stringify(storyboard) !== JSON.stringify(planned);
     if (
       edited &&
-      !window.confirm(
+      !(await deleteDialog(
         t(
           'back_discards_edits',
           'Going back rewrites the script and your edits will be lost. Continue?'
-        )
-      )
+        ),
+        t('yes_rewrite_it', 'Yes, rewrite it'),
+        t('rewrite_the_script', 'Rewrite the script?'),
+        t('no_keep_editing', 'No, keep editing')
+      ))
     ) {
       return;
     }
