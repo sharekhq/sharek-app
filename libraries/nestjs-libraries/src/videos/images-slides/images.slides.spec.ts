@@ -46,13 +46,15 @@ const validateParams = (params: Partial<ImagesSlidesParams>) =>
   validate(plainToInstance(ImagesSlidesParams, params));
 
 const ORIENTATIONS = ['vertical', 'horizontal'] as const;
-const edgesOf = (output: (typeof ORIENTATIONS)[number]) =>
-  GEN_SIZE[output].split('x').map(Number);
+const edgesOf = (output: (typeof ORIENTATIONS)[number]) => [
+  GEN_SIZE[output].width,
+  GEN_SIZE[output].height,
+];
 
 // The two constraints that collided in production: gpt-image-2 only accepts
-// edges divisible by 16, and the merge scales the render onto FRAME. When the
-// two aspects differed, Transloadit's fillcrop fitted first and then cropped to
-// a box taller than the fitted frame — ffmpeg exit 234, every render dead.
+// edges divisible by 16, and 1080 isn't one, so the render can never be the
+// frame itself. It has to carry the frame's aspect instead — the concat step
+// scales it up onto FRAME, and a mismatch there letterboxes the whole deck.
 describe('ImagesSlides generation size', () => {
   it('generates at sizes gpt-image-2 accepts', () => {
     ORIENTATIONS.forEach((output) => {
@@ -451,35 +453,53 @@ describe('ImagesSlides.assemble via the silent path', () => {
     );
   });
 
-  // width/height fall back to the preset's own geometry when unset, and
-  // hls-1080p supplies a landscape 1920x1080 box — so an unstated portrait
-  // frame ships at 612x1080. Every re-encoding step has to state the frame.
-  it('pins every encoding step to the vertical frame', async () => {
+  // /video/merge cannot resize a still. Measured against the live API: `pad`
+  // emits no scale filter at all, so a render smaller than the stated frame is
+  // letterboxed and a larger one dies on "Padded dimensions cannot be smaller
+  // than input dimensions" (ffmpeg exit 234); `fit`, `min_fit` and `stretch`
+  // ignore the stated frame and hand back the render's own size. So the merge
+  // gets the render's size, where every strategy is a no-op.
+  it('merges each slide at the render size, not the frame — vertical', async () => {
     const { steps } = await render(
       { styleGuide: 's', slides: [{ text: 'One two' }] },
       'vertical'
     );
-    expect(steps.merge0).toMatchObject({ width: 1080, height: 1920 });
-    expect(steps.concatenated).toMatchObject({ width: 1080, height: 1920 });
-    expect(steps.subtitled).toMatchObject({ width: 1080, height: 1920 });
+    expect(steps.merge0).toMatchObject({ width: 1008, height: 1792 });
   });
 
-  it('pins every encoding step to the horizontal frame', async () => {
+  it('merges each slide at the render size, not the frame — horizontal', async () => {
     const { steps } = await render(
       { styleGuide: 's', slides: [{ text: 'One two' }] },
       'horizontal'
     );
-    expect(steps.merge0).toMatchObject({ width: 1920, height: 1080 });
+    expect(steps.merge0).toMatchObject({ width: 1792, height: 1008 });
+  });
+
+  // width/height fall back to the preset's own geometry when unset, and the
+  // 1080p presets supply a landscape 1920x1080 box — so an unstated portrait
+  // frame ships at 612x1080. These two robots do scale, so stating the frame
+  // here is what lands the deck on it (D49).
+  it('pins the frame on the steps that can scale — vertical', async () => {
+    const { steps } = await render(
+      { styleGuide: 's', slides: [{ text: 'One two' }] },
+      'vertical'
+    );
+    expect(steps.concatenated).toMatchObject({ width: 1080, height: 1920 });
+    expect(steps.subtitled).toMatchObject({ width: 1080, height: 1920 });
+  });
+
+  it('pins the frame on the steps that can scale — horizontal', async () => {
+    const { steps } = await render(
+      { styleGuide: 's', slides: [{ text: 'One two' }] },
+      'horizontal'
+    );
     expect(steps.concatenated).toMatchObject({ width: 1920, height: 1080 });
     expect(steps.subtitled).toMatchObject({ width: 1920, height: 1080 });
   });
 
-  // pad lands both edges exactly on the frame. With GEN_SIZE at the frame's own
-  // aspect nothing is ever padded, but if a future size reintroduces a mismatch
-  // this letterboxes by a pixel instead of killing the render — fillcrop failed
-  // hard here (ffmpeg exit 234) because it crops AFTER fitting, so the crop box
-  // was taller than the fitted frame.
-  it('scales the render onto the frame without cropping it', async () => {
+  // Every merge strategy is a no-op once the stated size is the render's own,
+  // so this keeps the robot default rather than the crop that killed renders.
+  it('neither crops nor pads the render at the merge', async () => {
     const { steps } = await render(
       { styleGuide: 's', slides: [{ text: 'One two' }] },
       'vertical'
