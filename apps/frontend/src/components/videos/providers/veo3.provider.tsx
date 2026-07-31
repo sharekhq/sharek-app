@@ -5,6 +5,7 @@ import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrap
 import { Textarea } from '@gitroom/react/form/textarea';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export interface Voice {
   id: string;
@@ -13,6 +14,7 @@ export interface Voice {
 }
 
 const VEO3Settings: FC = () => {
+  const t = useT();
   const { register, watch, setValue, formState } = useFormContext();
   const { value } = useVideo();
 
@@ -26,6 +28,7 @@ const VEO3Settings: FC = () => {
     <div>
       <Textarea
         label="Prompt"
+        translationKey="prompt"
         name="prompt"
         {...register('prompt', {
           required: true,
@@ -34,10 +37,23 @@ const VEO3Settings: FC = () => {
         })}
         error={formState?.errors?.prompt?.message}
       />
-      <div className="mb-[6px]">Images (max 3)</div>
+      <div className="flex flex-col gap-[2px] mb-[6px]">
+        <div className="text-[14px]">
+          {t('reference_images', 'Reference images')}
+        </div>
+        <div className="text-[12px] text-muted">
+          {t(
+            'reference_images_hint',
+            'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
+          )}
+        </div>
+      </div>
       <MultiMediaComponent
         allData={[]}
         dummy={true}
+        designNotAvailable={true}
+        aiVideoNotAvailable={true}
+        hideTopBorder={true}
         text="Images"
         description="Images"
         name="images"

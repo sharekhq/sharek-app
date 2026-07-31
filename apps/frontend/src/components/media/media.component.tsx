@@ -665,6 +665,9 @@ export const MultiMediaComponent: FC<{
   label: string;
   description: string;
   mediaNotAvailable?: boolean;
+  designNotAvailable?: boolean;
+  aiVideoNotAvailable?: boolean;
+  hideTopBorder?: boolean;
   dummy: boolean;
   allData: {
     content: string;
@@ -709,6 +712,9 @@ export const MultiMediaComponent: FC<{
     toolBar,
     information,
     mediaNotAvailable,
+    designNotAvailable,
+    aiVideoNotAvailable,
+    hideTopBorder,
   } = props;
   const user = useUser();
   const modals = useModals();
@@ -857,7 +863,12 @@ export const MultiMediaComponent: FC<{
             </ReactSortable>
         </div>
         )}
-        <div className="flex gap-[8px] px-[12px] border-t border-newColColor w-full b1 text-textColor">
+        <div
+          className={clsx(
+            'flex gap-[8px] px-[12px] w-full b1 text-textColor',
+            !hideTopBorder && 'border-t border-newColColor'
+          )}
+        >
           {!mediaNotAvailable && (
             <div className="flex py-[10px] b2 items-center gap-[4px]">
               <div
@@ -873,26 +884,30 @@ export const MultiMediaComponent: FC<{
                   </div>
                 </div>
               </div>
-              <div
-                onClick={designMedia}
-                className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
-              >
-                <div className="flex gap-[5px] items-center">
-                  <div>
-                    <DesignMediaIcon />
-                  </div>
-                  <div className="text-[12px] font-[600] iconBreak:hidden block">
-                    {t('design_media', 'Design Media')}
+              {!designNotAvailable && (
+                <div
+                  onClick={designMedia}
+                  className="cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                >
+                  <div className="flex gap-[5px] items-center">
+                    <div>
+                      <DesignMediaIcon />
+                    </div>
+                    <div className="text-[12px] font-[600] iconBreak:hidden block">
+                      {t('design_media', 'Design Media')}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <ThirdPartyMedia allData={allData} onChange={changeMedia} />
 
               {!!user?.tier?.ai && (
                 <>
                   <AiImage value={text} onChange={changeMedia} />
-                  <AiVideo value={text} onChange={changeMedia} />
+                  {!aiVideoNotAvailable && (
+                    <AiVideo value={text} onChange={changeMedia} />
+                  )}
                 </>
               )}
             </div>
