@@ -127,6 +127,22 @@ export function captionStyleFor(
   };
 }
 
+/**
+ * libass burns every cue with a fixed LTR base direction. A bidi-neutral at the
+ * end of an Arabic cue — a comma, a full stop — therefore resolves to that base
+ * and is laid out after the Arabic run in LTR order, landing at the visual
+ * right, which in RTL is the *start* of the line. Wrapping the cue in an
+ * explicit RTL embedding puts it at embedding level 1, so the neutral resolves
+ * inside the run and stays where it belongs (D50).
+ *
+ * Measured on real burns rather than reasoned about: a U+200F prefix does not
+ * fix it (the base direction is fixed, not detected from the text), while the
+ * embedding does, wrapped two-line cues included.
+ */
+export function embedRtl(text: string): string {
+  return ARABIC_SCRIPT.test(text) ? `\u202B${text}\u202C` : text;
+}
+
 const transloadit = new Transloadit({
   authKey: process.env.TRANSLOADIT_AUTH || 'just empty text',
   authSecret: process.env.TRANSLOADIT_SECRET || 'just empty text',
@@ -529,7 +545,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         entries.push({
           start: Math.round((offset + cue.start) * 1000),
           end: Math.round((offset + cue.end) * 1000),
-          text: cue.text,
+          text: embedRtl(cue.text),
         });
       }
       offset += slide.seconds + 1;
