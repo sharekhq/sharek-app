@@ -1027,6 +1027,8 @@
   "could_not_write_script": "تعذّرت كتابة نص لهذا الطلب. يرجى المحاولة مرة أخرى.",
   "estimated_length": "حوالي {{seconds}} ث",
   "slide_seconds": "{{seconds}} ث",
+  "slide_chars": "{{used}} / {{max}}",
+  "slide_over_limit": "إحدى الشرائح تجاوزت حد {{max}} حرف — اختصرها للمتابعة.",
   "slide_text_too_long": "تستغرق هذه الشريحة حوالي {{seconds}} ث — وهذه مدة طويلة لصورة واحدة.",
   "add_slide": "إضافة شريحة",
   "back_discards_edits": "الرجوع يعيد كتابة النص وستفقد تعديلاتك. هل تريد المتابعة؟",

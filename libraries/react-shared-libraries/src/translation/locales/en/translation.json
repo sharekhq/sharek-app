@@ -1011,6 +1011,8 @@
   "could_not_write_script": "Could not write a script for this. Please try again.",
   "estimated_length": "About {{seconds}}s",
   "slide_seconds": "{{seconds}}s",
+  "slide_chars": "{{used}} / {{max}}",
+  "slide_over_limit": "One slide is over the {{max}} character limit — trim it to continue.",
   "slide_text_too_long": "This slide runs about {{seconds}}s — that is long for one image.",
   "add_slide": "Add slide",
   "back_discards_edits": "Going back rewrites the script and your edits will be lost. Continue?",
