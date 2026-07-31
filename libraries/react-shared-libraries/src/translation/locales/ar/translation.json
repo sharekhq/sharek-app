@@ -1041,6 +1041,10 @@
   "starting": "جارٍ البدء…",
   "creating_step": "جارٍ الإنشاء… {{done}}/{{total}}",
   "video_creation_failed": "تعذّر إنشاء الفيديو. لم يتم خصم أي رصيد.",
+  "image_generation_failed": "تعذّر إنشاء الصورة. لم يتم خصم أي رصيد.",
+  "no_ai_credits_left": "لقد نفد رصيد الذكاء الاصطناعي لديك.",
+  "reference_images": "صور مرجعية",
+  "reference_images_hint": "اختياري: أضف حتى 3 صور يستند إليها الفيديو — مثل منتج أو شخصية أو مشهد.",
   "step_planning": "جارٍ كتابة أوصاف الصور…",
   "step_voicing": "جارٍ تسجيل التعليق الصوتي…",
   "step_assembling": "جارٍ تجميع الفيديو…"

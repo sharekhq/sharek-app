@@ -67,7 +67,7 @@ export const Modal: FC<{
       return;
     }
     try {
-      const image = await fetch(`/media/generate-video`, {
+      const response = await fetch(`/media/generate-video`, {
         method: 'POST',
         body: JSON.stringify({
           type: type.identifier,
@@ -76,10 +76,21 @@ export const Modal: FC<{
         }),
       });
 
-      if (image.status == 200 || image.status == 201) {
-        onChange(await image.json());
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || '');
       }
-    } catch (e) {}
+      onChange(await response.json());
+    } catch (e) {
+      toaster.show(
+        (e instanceof Error && e.message) ||
+          t(
+            'video_creation_failed',
+            'Could not create the video. You have not been charged.'
+          ),
+        'warning'
+      );
+    }
 
     setLocked(false);
     setLoading(false);

@@ -64,11 +64,10 @@ const AiImageModal: FC<{
     close();
     setLocked(true);
     try {
-      const image = await (
-        await fetch('/media/generate-image-with-prompt', {
-          method: 'POST',
-          body: JSON.stringify({
-            prompt: `
+      const response = await fetch('/media/generate-image-with-prompt', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: `
 <!-- description -->
 ${prompt}
 <!-- /description -->
@@ -78,13 +77,33 @@ ${style}
 <!-- /style -->
 
 `,
-          }),
-        })
-      ).json();
-      if (image) {
-        onChange(image);
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || '');
       }
-    } catch (e) {}
+      const image = await response.json();
+      // `false` means the credit check refused the generation; anything else
+      // without a path is not a media record and must not reach the post.
+      if (!image?.path) {
+        throw new Error(
+          image === false
+            ? t('no_ai_credits_left', 'You have run out of AI credits.')
+            : ''
+        );
+      }
+      onChange(image);
+    } catch (e) {
+      toaster.show(
+        (e instanceof Error && e.message) ||
+          t(
+            'image_generation_failed',
+            'Could not generate the image. You have not been charged.'
+          ),
+        'warning'
+      );
+    }
     setLocked(false);
     setLoading(false);
   }, [prompt, style, onChange]);
