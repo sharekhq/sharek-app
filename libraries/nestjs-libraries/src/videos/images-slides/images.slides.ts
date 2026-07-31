@@ -51,22 +51,23 @@ export const SILENT_CHARS_PER_SECOND = 14;
 /**
  * What the image model is asked for: FRAME's exact aspect, at the nearest size
  * gpt-image-2 accepts (both edges divisible by 16, so 1080x1920 itself is out).
- * The aspect has to match FRAME — the merge scales the render onto the frame,
- * and when the two differed Transloadit fitted first and then cropped to a box
- * taller than the fitted frame, killing every render with ffmpeg exit 234.
  * 1008x1792 is the largest exact 9:16 below the frame, so it costs less than a
- * frame-sized render and the merge upscales it 7% (D37, D45).
+ * frame-sized render and /video/concat scales it up 7% (D37, D45, D49).
+ *
+ * The aspect has to match FRAME. Nothing crops the render onto the frame any
+ * more — concat scales it — so a mismatch here letterboxes the whole deck.
  */
 export const GEN_SIZE = {
-  vertical: '1008x1792',
-  horizontal: '1792x1008',
+  vertical: { width: 1008, height: 1792 },
+  horizontal: { width: 1792, height: 1008 },
 } as const;
 
 /**
- * The frame the video is actually encoded at. Every encoding step states it:
- * `width`/`height` fall back to the preset's own geometry when unset, and the
- * 1080p presets supply 1920x1080, so an unstated portrait frame gets fitted
- * into that landscape box and a vertical deck ships at 612x1080 (D44).
+ * The frame the video is actually encoded at, stated on concat and subtitle —
+ * the two steps that can scale. `width`/`height` fall back to the preset's own
+ * geometry when unset, and the 1080p presets supply 1920x1080, so an unstated
+ * portrait frame gets fitted into that landscape box and a vertical deck ships
+ * at 612x1080 (D44).
  */
 export const FRAME = {
   vertical: { width: 1080, height: 1920 },
@@ -261,7 +262,8 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     storyboard: Storyboard,
     customParams: ImagesSlidesParams
   ): AsyncGenerator<CreateEvent> {
-    const size = GEN_SIZE[output];
+    const { width, height } = GEN_SIZE[output];
+    const size = `${width}x${height}`;
     const texts = storyboard.slides.map((s) => s.text.trim()).filter(Boolean);
 
     if (!texts.length) {
@@ -539,6 +541,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
     );
 
     const frame = FRAME[output];
+    const render = GEN_SIZE[output];
     const steps: Record<string, any> = {};
     slides.forEach((slide, index) => {
       steps[`image${index}`] = { robot: '/http/import', url: images[index] };
@@ -552,11 +555,15 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
         robot: '/video/merge',
         duration: slide.seconds + 1,
         preset: 'web/mp4/1080p',
-        width: frame.width,
-        height: frame.height,
-        // pad lands both edges exactly on the frame. GEN_SIZE shares the
-        // frame's aspect so nothing is ever actually padded — but a future size
-        // mismatch letterboxes by a pixel here instead of failing the render.
+        // The render's own size, not the frame: /video/merge cannot resize a
+        // still. `pad` emits no scale filter, so a smaller render is letterboxed
+        // and a larger one fails on "Padded dimensions cannot be smaller than
+        // input dimensions" (ffmpeg exit 234); `fit`, `min_fit` and `stretch`
+        // hand back the render's size and ignore the frame outright. Stating
+        // the render's size makes every strategy a no-op, and concat — which
+        // does scale — lands the deck on the frame (D49).
+        width: render.width,
+        height: render.height,
         resize_strategy: 'pad',
         loop: true,
       };
