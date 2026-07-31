@@ -36,6 +36,8 @@
   "actions": "الإجراءات",
   "use_signature": "استخدم التوقيع",
   "add_a_signature": "أضف توقيعًا",
+  "add_a_thread_finisher": "إضافة منشور ختامي للسلسلة",
+  "thread_finisher_description": "منشور يُضاف في نهاية السلسلة.",
   "no": "لا",
   "yes": "نعم",
   "your_git_repository": "مستودع Git الخاص بك",

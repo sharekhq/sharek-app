@@ -1,7 +1,6 @@
 'use client';
 
 import { Slider } from '@gitroom/react/form/slider';
-import clsx from 'clsx';
 import { Editor } from '@gitroom/frontend/components/new-launch/editor';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
@@ -29,40 +28,38 @@ export const ThreadFinisher = () => {
   const value = watch('thread_finisher');
 
   return (
-    <div className="flex flex-col gap-[10px] bg-surface2 border-tableBorder border p-[15px] rounded-lg mt-5 mb-5">
-      <div className="flex items-center">
-        <div className="flex-1">Add a thread finisher</div>
-        <div>
-          <Slider
-            value={slider ? 'on' : 'off'}
-            onChange={(p) => setValue('active_thread_finisher', p === 'on')}
-            fill={true}
-          />
-        </div>
-      </div>
-      <div className="w-full mt-[20px]">
-        <div
-          className={clsx(
-            !slider && 'relative opacity-25 pointer-events-none editor'
-          )}
-        >
-          <div>
-            <div className="flex gap-[4px]">
-              <div className="flex-1 editor text-textColor">
-                <Editor
-                  comments={true}
-                  chars={{}}
-                  selectedIntegration={[]}
-                  onChange={(val) => setValue('thread_finisher', val)}
-                  value={value}
-                  totalPosts={1}
-                  dummy={dummy}
-                />
-              </div>
-            </div>
+    <div className="flex flex-col gap-[12px] border border-tableBorder rounded-[8px] p-[12px] my-[20px]">
+      <div className="flex items-center gap-[12px]">
+        <div className="flex-1 flex flex-col">
+          <div className="text-[14px]">
+            {t('add_a_thread_finisher', 'Add a thread finisher')}
+          </div>
+          <div className="text-[12px] text-muted">
+            {t(
+              'thread_finisher_description',
+              'A closing post added to the end of the thread.'
+            )}
           </div>
         </div>
+        <Slider
+          value={slider ? 'on' : 'off'}
+          onChange={(p) => setValue('active_thread_finisher', p === 'on')}
+          fill={true}
+        />
       </div>
+      {!!slider && (
+        <div className="editor text-textColor">
+          <Editor
+            comments={true}
+            chars={{}}
+            selectedIntegration={[]}
+            onChange={(val) => setValue('thread_finisher', val)}
+            value={value}
+            totalPosts={1}
+            dummy={dummy}
+          />
+        </div>
+      )}
     </div>
   );
 };
