@@ -45,6 +45,9 @@ const provider = new ImagesSlides(openai as any);
 const validateParams = (params: Partial<ImagesSlidesParams>) =>
   validate(plainToInstance(ImagesSlidesParams, params));
 
+/** U+202B RIGHT-TO-LEFT EMBEDDING and U+202C POP DIRECTIONAL FORMATTING. */
+const RTL_EMBED = { open: '\u202B', close: '\u202C' };
+
 const ORIENTATIONS = ['vertical', 'horizontal'] as const;
 const edgesOf = (output: (typeof ORIENTATIONS)[number]) => [
   GEN_SIZE[output].width,
@@ -402,6 +405,30 @@ describe('ImagesSlides.assemble via the silent path', () => {
     expect(startsMs[startsMs.length - 1]).toBeGreaterThanOrEqual(
       steps.merge0.duration * 1000
     );
+  });
+
+  // libass burns with a fixed LTR base direction, so a bidi-neutral at the end
+  // of an Arabic cue — a comma, a full stop — takes that base and renders at
+  // the visual right, which in RTL is the *start* of the line. Measured on real
+  // burns: a U+200F prefix does not fix it (the base is not detected from the
+  // text), an explicit RTL embedding does, wrapped cues included.
+  it('wraps Arabic cues in an RTL embedding so trailing commas stay put', async () => {
+    const { srt } = await render(
+      { styleGuide: 's', slides: [{ text: 'وعلى الضفة الغربية، تنتظرك' }] },
+      'vertical'
+    );
+    expect(srt).toContain(
+      `${RTL_EMBED.open}وعلى الضفة الغربية، تنتظرك${RTL_EMBED.close}`
+    );
+  });
+
+  it('leaves Latin cues unembedded', async () => {
+    const { srt } = await render(
+      { styleGuide: 's', slides: [{ text: 'Do not miss the offer' }] },
+      'vertical'
+    );
+    expect(srt).toContain('Do not miss the offer');
+    expect(srt).not.toContain(RTL_EMBED.open);
   });
 
   it('burns Arabic captions in Noto Kufi Arabic and Latin in Inter', async () => {
