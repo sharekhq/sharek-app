@@ -5,6 +5,8 @@ import useSWR from 'swr';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@gitroom/react/form/button';
 import { Textarea } from '@gitroom/react/form/textarea';
+import { Slider } from '@gitroom/react/form/slider';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import clsx from 'clsx';
 import i18next from 'i18next';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
@@ -251,6 +253,12 @@ const SOFT_CHARS_PER_SLIDE = 140;
 const CHARS_PER_SECOND = 14;
 const estimateSeconds = (text: string) => text.length / CHARS_PER_SECOND;
 
+/**
+ * The server's own MAX_CHARS_PER_SLIDE. Past it `create` rejects the whole deck,
+ * so the count is shown against this rather than the soft budget above.
+ */
+const MAX_CHARS_PER_SLIDE = 280;
+
 const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
   onPlanned,
 }) => {
@@ -336,10 +344,9 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
 
       <div className="flex items-center justify-between border border-tableBorder rounded-[8px] p-[12px]">
         <div className="text-[14px]">{t('voiceover', 'Voiceover')}</div>
-        <input
-          type="checkbox"
-          {...register('voiceover')}
-          className="w-4 h-4 accent-brand"
+        <Slider
+          value={voiceover ? 'on' : 'off'}
+          onChange={(value) => setValue('voiceover', value === 'on')}
         />
       </div>
 
@@ -399,6 +406,11 @@ const ReviewScreen: FC<{
     (sum, slide) => sum + estimateSeconds(slide.text),
     0
   );
+  // Server-side this is a 400 on the whole deck, so the button is blocked here
+  // and the offending slide's own count turns red beside it.
+  const anyOverLimit = slides.some(
+    (slide) => slide.text.length > MAX_CHARS_PER_SLIDE
+  );
 
   return (
     <div className="flex flex-col gap-[12px]">
@@ -410,7 +422,9 @@ const ReviewScreen: FC<{
 
       {slides.map((slide, index) => {
         const seconds = estimateSeconds(slide.text);
-        const tooLong = slide.text.length > SOFT_CHARS_PER_SLIDE;
+        const chars = slide.text.length;
+        const tooLong = chars > SOFT_CHARS_PER_SLIDE;
+        const overLimit = chars > MAX_CHARS_PER_SLIDE;
         return (
           <div
             key={index}
@@ -423,23 +437,32 @@ const ReviewScreen: FC<{
               <textarea
                 value={slide.text}
                 onChange={(e) => setText(index, e.target.value)}
-                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor"
+                rows={4}
+                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor resize-y"
               />
-              <div
-                className={clsx(
-                  'text-[11px] mt-[4px]',
-                  tooLong ? 'text-brand' : 'text-muted'
-                )}
-              >
-                {tooLong
-                  ? t(
-                      'slide_text_too_long',
-                      'This slide runs about {{seconds}}s — that is long for one image.',
-                      { seconds: Math.round(seconds) }
-                    )
-                  : t('slide_seconds', '{{seconds}}s', {
-                      seconds: Math.round(seconds),
-                    })}
+              <div className="flex justify-between items-baseline gap-[10px] text-[11px] mt-[4px]">
+                <span className={tooLong ? 'text-brand' : 'text-muted'}>
+                  {tooLong
+                    ? t(
+                        'slide_text_too_long',
+                        'This slide runs about {{seconds}}s — that is long for one image.',
+                        { seconds: Math.round(seconds) }
+                      )
+                    : t('slide_seconds', '{{seconds}}s', {
+                        seconds: Math.round(seconds),
+                      })}
+                </span>
+                <span
+                  className={clsx(
+                    'shrink-0 tabular-nums',
+                    overLimit ? 'text-brand font-[600]' : 'text-muted'
+                  )}
+                >
+                  {t('slide_chars', '{{used}} / {{max}}', {
+                    used: chars,
+                    max: MAX_CHARS_PER_SLIDE,
+                  })}
+                </span>
               </div>
             </div>
             <div className="flex gap-[4px] shrink-0">
@@ -457,29 +480,46 @@ const ReviewScreen: FC<{
         );
       })}
 
+      {anyOverLimit && (
+        <div className="text-[12px] text-brand">
+          {t(
+            'slide_over_limit',
+            'One slide is over the {{max}} character limit — trim it to continue.',
+            { max: MAX_CHARS_PER_SLIDE }
+          )}
+        </div>
+      )}
+
+      {/* Adding a slide edits the deck; back and create leave the screen. The
+          two jobs sit on opposite ends rather than reading as one row of three. */}
       <div className="flex justify-between gap-[10px]">
         <Button
           type="button"
-          variant="ghost"
+          variant="quiet"
           onClick={add}
           disabled={slides.length >= MAX_SLIDES}
         >
           {t('add_slide', 'Add slide')}
         </Button>
-        <Button type="button" variant="ghost" onClick={onBack}>
-          {t('back', 'Back')}
-        </Button>
-        <Button
-          type="button"
-          onClick={onCreate}
-          // An empty row is dropped server-side, so blocking here is the only
-          // thing that stops a slide vanishing without explanation.
-          disabled={
-            !!progress || !slides.length || slides.some((s) => !s.text.trim())
-          }
-        >
-          {progress || t('create_video', 'Create video')}
-        </Button>
+        <div className="flex gap-[10px]">
+          <Button type="button" variant="ghost" onClick={onBack}>
+            {t('back', 'Back')}
+          </Button>
+          <Button
+            type="button"
+            onClick={onCreate}
+            // An empty row is dropped server-side, so blocking here is the only
+            // thing that stops a slide vanishing without explanation.
+            disabled={
+              !!progress ||
+              !slides.length ||
+              slides.some((s) => !s.text.trim()) ||
+              anyOverLimit
+            }
+          >
+            {progress || t('create_video', 'Create video')}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -584,16 +624,19 @@ const ImageSlidesComponent = () => {
   // Going back re-plans, which replaces the script. Warn only when that would
   // actually throw work away — comparing against the storyboard as planned, not
   // a dirty flag, so an edit-and-undo does not nag.
-  const back = useCallback(() => {
+  const back = useCallback(async () => {
     const edited = JSON.stringify(storyboard) !== JSON.stringify(planned);
     if (
       edited &&
-      !window.confirm(
+      !(await deleteDialog(
         t(
           'back_discards_edits',
           'Going back rewrites the script and your edits will be lost. Continue?'
-        )
-      )
+        ),
+        t('yes_rewrite_it', 'Yes, rewrite it'),
+        t('rewrite_the_script', 'Rewrite the script?'),
+        t('no_keep_editing', 'No, keep editing')
+      ))
     ) {
       return;
     }
