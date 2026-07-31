@@ -4,6 +4,8 @@ import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { useCustomProviderFunction } from '@gitroom/frontend/components/launches/helpers/use.custom.provider.function';
 import { Select } from '@gitroom/react/form/select';
+import { Button } from '@gitroom/react/form/button';
+import { CloseIconSmall } from '@gitroom/frontend/components/ui/icons';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import clsx from 'clsx';
 
@@ -174,17 +176,24 @@ export const InstagramAudioSelector: FC<{
     return (
       <div className="flex flex-col gap-[6px]">
         <div className="text-[14px]">{label}</div>
-        <div>
-          <div
+        <div className="flex">
+          <span
             data-tooltip-id="tooltip"
             data-tooltip-content={t(
               'instagram_audio_facebook_login_only',
               'Only available on Instagram with Facebook Login'
             )}
-            className="h-[42px] px-[16px] inline-flex items-center cursor-not-allowed opacity-50 bg-newBgColorInner border-newTableBorder border rounded-[8px] text-[14px]"
+            className="inline-flex"
           >
-            {t('instagram_add_audio', 'Add audio')}
-          </div>
+            <Button
+              type="button"
+              variant="quiet"
+              disabled={true}
+              className="!h-[42px] !px-[16px] text-[14px]"
+            >
+              {t('instagram_add_audio', 'Add audio')}
+            </Button>
+          </span>
         </div>
       </div>
     );
@@ -208,12 +217,14 @@ export const InstagramAudioSelector: FC<{
                 <div className="text-[12px] opacity-70">{value.artist}</div>
               )}
             </div>
-            <div
-              className="cursor-pointer text-[14px] opacity-70 hover:opacity-100"
+            <button
+              type="button"
+              aria-label={t('remove', 'Remove')}
+              className="w-[28px] h-[28px] flex items-center justify-center rounded-[6px] text-muted hover:text-ink hover:bg-surface2 transition-colors"
               onClick={removeAudio}
             >
-              X
-            </div>
+              <CloseIconSmall />
+            </button>
           </div>
           <div className="flex gap-[18px]">
             <div className="flex-1 flex flex-col gap-[6px]">
@@ -249,13 +260,15 @@ export const InstagramAudioSelector: FC<{
           </div>
         </div>
       ) : !open ? (
-        <div>
-          <div
-            className="h-[42px] px-[16px] inline-flex items-center cursor-pointer bg-newBgColorInner border-newTableBorder border rounded-[8px] text-[14px]"
+        <div className="flex">
+          <Button
+            type="button"
+            variant="quiet"
+            className="!h-[42px] !px-[16px] text-[14px]"
             onClick={() => setOpen(true)}
           >
             {t('instagram_add_audio', 'Add audio')}
-          </div>
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-[6px]">
@@ -286,15 +299,17 @@ export const InstagramAudioSelector: FC<{
                 onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-            <div
-              className="h-[42px] px-[16px] flex items-center cursor-pointer bg-newBgColorInner border-newTableBorder border rounded-[8px] text-[14px]"
+            <Button
+              type="button"
+              variant="quiet"
+              className="!h-[42px] !px-[16px] text-[14px]"
               onClick={() => {
                 stopPreview();
                 setOpen(false);
               }}
             >
               {t('cancel', 'Cancel')}
-            </div>
+            </Button>
           </div>
           <div className="max-h-[250px] overflow-y-auto flex flex-col bg-newBgColorInner border-newTableBorder border rounded-[8px]">
             {loading ? (
@@ -309,7 +324,7 @@ export const InstagramAudioSelector: FC<{
               results.map((audio) => (
                 <div
                   key={audio.id}
-                  className="flex items-center gap-[12px] p-[8px] hover:bg-newTableBorder cursor-pointer"
+                  className="flex items-center gap-[12px] p-[8px] hover:bg-surface2 cursor-pointer"
                   onClick={() => selectAudio(audio)}
                 >
                   {!!audio.image && (
@@ -327,10 +342,14 @@ export const InstagramAudioSelector: FC<{
                     </div>
                   </div>
                   {!!audio.previewUrl && (
-                    <div
+                    <Button
+                      type="button"
+                      variant="ghost"
                       className={clsx(
-                        'px-[12px] text-[12px] opacity-70 hover:opacity-100',
-                        playingId === audio.id && 'opacity-100'
+                        'px-3 py-1 text-xs',
+                        playingId === audio.id
+                          ? '!bg-brand !text-white'
+                          : '!bg-sixth'
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -338,9 +357,9 @@ export const InstagramAudioSelector: FC<{
                       }}
                     >
                       {playingId === audio.id
-                        ? t('stop', 'Stop')
-                        : t('play', 'Play')}
-                    </div>
+                        ? `⏹ ${t('stop', 'Stop')}`
+                        : `▶ ${t('play', 'Play')}`}
+                    </Button>
                   )}
                 </div>
               ))

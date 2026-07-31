@@ -30,6 +30,8 @@
   "actions": "Actions",
   "use_signature": "Use Signature",
   "add_a_signature": "Add a signature",
+  "add_a_thread_finisher": "Add a thread finisher",
+  "thread_finisher_description": "A closing post added to the end of the thread.",
   "no": "No",
   "yes": "Yes",
   "your_git_repository": "Your Git Repository",
