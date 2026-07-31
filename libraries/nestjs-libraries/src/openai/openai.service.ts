@@ -270,13 +270,17 @@ export class OpenaiService {
     for (let i = 0; i < 3; i++) {
       try {
         const message = `You are an assistant that breaks a text into slides for a narrated video.
-Produce exactly ${options.slides} slides. Each slide carries only its spoken text, about ${options.wordsPerSlide} words, written in the same language as the user's input.
+First decide the language: the language the user's prompt is mainly written in, unless the prompt explicitly asks for another language. Name it in the language field and write every slide's text in that language.
+Produce exactly ${options.slides} slides. Each slide carries only its spoken text, about ${options.wordsPerSlide} words.
 Also produce one styleGuide describing how every image in this video should look. The styleGuide is shared by all slides — it is what makes the video look like one piece rather than unrelated stock images.`;
 
         const parsed = (
           await openai.chat.completions.parse({
             model: 'gpt-5.6-luna',
-            reasoning_effort: 'none',
+            // 'low', not 'none': at zero reasoning luna randomly ignored the
+            // language rule below (English or Arabic in, Spanish out). Runs
+            // once per planned video, so the extra reasoning tokens are noise.
+            reasoning_effort: 'low',
             messages: [
               {
                 role: 'system',
@@ -289,6 +293,14 @@ Also produce one styleGuide describing how every image in this video should look
             ],
             response_format: zodResponseFormat(
               z.object({
+                // Emitted first — structured outputs write fields in schema
+                // order, so the language is resolved into a stated value
+                // before any slide text is written against it.
+                language: z
+                  .string()
+                  .describe(
+                    "The language the slides will be spoken in: the language the user's prompt is mainly written in, unless the prompt explicitly asks for another language. Name it in English, e.g. 'Arabic'."
+                  ),
                 styleGuide: z
                   .string()
                   .describe(
@@ -300,7 +312,7 @@ Also produce one styleGuide describing how every image in this video should look
                       text: z
                         .string()
                         .describe(
-                          "The words spoken on this slide, in the same language as the user's input."
+                          'The words spoken on this slide, written in the language named in the language field.'
                         ),
                     })
                   )
