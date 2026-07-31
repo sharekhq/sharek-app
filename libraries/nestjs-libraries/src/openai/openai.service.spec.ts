@@ -24,6 +24,8 @@ const service = new OpenaiService();
 // Reasoning tokens bill as output and gpt-5.6 defaults to 'medium', so an
 // unpinned call costs more than the gpt-4.1 it replaced rather than less. None
 // of these calls binds a tool, so 'none' is purely about not buying reasoning.
+// generateSlidesFromText is the one exception — it runs at 'low' and is pinned
+// in its own describe block below.
 describe('OpenaiService model configuration', () => {
   beforeEach(() => mockParse.mockClear());
 
@@ -31,14 +33,6 @@ describe('OpenaiService model configuration', () => {
     ['generatePromptForPicture', () => service.generatePromptForPicture('a cat')],
     ['generateVoiceFromText', () => service.generateVoiceFromText('some post')],
     ['separatePosts', () => service.separatePosts('a long post', 280)],
-    [
-      'generateSlidesFromText',
-      () =>
-        service.generateSlidesFromText('a script', {
-          slides: 4,
-          wordsPerSlide: 20,
-        }),
-    ],
     [
       'generateImagePromptsForSlides',
       () =>
@@ -209,6 +203,60 @@ describe('OpenaiService.generateSlidesFromText', () => {
         wordsPerSlide: 20,
       })
     ).toEqual({ styleGuide: '', slides: [] });
+  });
+
+  // Language drift fix: at zero reasoning luna randomly botched the relative
+  // "same language as the user's input" (English and Arabic prompts both came
+  // back Spanish or Hindi). Pinned here: buy back 'low' reasoning, and resolve
+  // the language into an explicit field emitted before any slide text.
+  describe('output language anchoring', () => {
+    const plan = () =>
+      service.generateSlidesFromText('a script', {
+        slides: 4,
+        wordsPerSlide: 20,
+      });
+
+    it('runs gpt-5.6-luna with low reasoning', async () => {
+      await plan();
+      const [params] = mockParse.mock.calls[0] as unknown as [
+        { model: string; reasoning_effort: string; temperature?: number }
+      ];
+      expect(params.model).toBe('gpt-5.6-luna');
+      expect(params.reasoning_effort).toBe('low');
+      expect(params).not.toHaveProperty('temperature');
+    });
+
+    // Structured outputs emit fields in schema property order, so first place
+    // is what makes the language a decision the slides can anchor to rather
+    // than an afterthought written below them.
+    it('asks for the language as the first field of the schema', async () => {
+      await plan();
+      expect(Object.keys(schemaOf().properties)[0]).toBe('language');
+    });
+
+    // "Mainly written in" is what handles mixed-language prompts, and the
+    // explicit-request escape is what keeps "make a video in Arabic about X"
+    // typed in English working.
+    it('derives the language from the prompt, honouring an explicit request', async () => {
+      await plan();
+      const description = schemaOf().properties.language.description;
+      expect(description).toMatch(/mainly/i);
+      expect(description).toMatch(/explicitly/i);
+    });
+
+    it('ties each slide text to the named language field', async () => {
+      await plan();
+      expect(
+        schemaOf().properties.slides.items.properties.text.description
+      ).toMatch(/language field/i);
+    });
+
+    // The relative phrasing was the bug — it must not come back.
+    it('no longer asks for "the same language as the user\'s input"', async () => {
+      await plan();
+      const everywhere = JSON.stringify(mockParse.mock.calls[0][0]);
+      expect(everywhere).not.toMatch(/same language as/i);
+    });
   });
 });
 
