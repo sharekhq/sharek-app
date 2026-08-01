@@ -477,6 +477,20 @@ describe('OpenaiService.generateVideoPrompt', () => {
     expect(schema).not.toMatch(/"language"/);
   });
 
+  // The first version named a subject shape and a camera move ("a tall upright
+  // subject filling the height", "movement that rises"). Every render obeyed it
+  // literally — Riyadh Season and Luxor Temple both came back as a rising shot
+  // of a tall central structure. The rule may constrain the frame; it must not
+  // choose the content.
+  it('constrains the frame without dictating the subject or the camera move', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).not.toMatch(/tall upright subject/i);
+    expect(system).not.toMatch(/movement that rises/i);
+    expect(system).not.toMatch(/three or four/i);
+    expect(system).toMatch(/let the scene decide/i);
+  });
+
   it.each([
     ['vertical', /vertical 9:16/i],
     ['horizontal', /horizontal 16:9/i],
