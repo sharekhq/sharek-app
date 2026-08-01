@@ -37,7 +37,7 @@ const AUDIO_DIRECTIVES = {
   ambient:
     'The video has no spoken words: only natural ambient sound and music that suit the scene.',
   narration:
-    'The video has a spoken voiceover describing the scene, and no on-screen speaker.',
+    'The video has a spoken voiceover and no on-screen speaker. Write the exact words it says, inside quotation marks, in the spoken language identified above — one or two sentences about the scene itself, never a restatement of the user\'s request.',
 } as const;
 
 @Injectable()
