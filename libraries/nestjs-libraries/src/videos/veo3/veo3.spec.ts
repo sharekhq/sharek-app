@@ -187,4 +187,59 @@ describe('Veo3.process', () => {
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.prompt).toBe(`p. ${VEO3_NO_TEXT_DIRECTIVE}`);
   });
+
+  it('reports a render that failed to start', async () => {
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ code: 500, msg: 'boom' })) as any;
+
+    await expect(
+      new Veo3(openaiMock() as any).process('vertical', {
+        prompt: 'p',
+        images: [],
+      })
+    ).rejects.toThrow('The video render failed to start, please try again.');
+    errorSpy.mockRestore();
+  });
+
+  it('fails fast when the task reports failure instead of waiting for the timeout', async () => {
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const openai = openaiMock();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: {
+            successFlag: 2,
+            errorCode: 500,
+            errorMessage: 'internal error',
+            response: { resultUrls: [] },
+          },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    result.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    const err = await result.catch((e) => e);
+    expect(generationError(err).getResponse()).toBe(
+      'The video render failed, please try again.'
+    );
+    // A non-policy failure must not trigger the sanitized retry.
+    expect(openai.rewriteFlaggedPrompt).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });

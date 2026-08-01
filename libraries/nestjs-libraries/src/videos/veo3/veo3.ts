@@ -105,7 +105,13 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     ).json();
 
     if (value.code !== 200 && value.code !== 201) {
-      throw new Error(`Failed to generate video`);
+      // The body says which call failed and why; the user-facing message stays
+      // curated because kie.ai's msg is developer text.
+      console.error('veo3 generate failed:', value);
+      throw new HttpException(
+        'The video render failed to start, please try again.',
+        502
+      );
     }
 
     const taskId = value.data.taskId;
@@ -139,7 +145,28 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
         throw new Error(`Failed to get video info`);
       }
 
-      videoUrl = data?.data?.response?.resultUrls || [];
+      // successFlag: 0 generating, 1 success, 2/3 failed. Without this a failed
+      // task polls blind until the 10-minute ceiling and reports a timeout
+      // instead of the real reason. errorCode 400 covers content policy and
+      // unsupported language — both recoverable by the sanitized English
+      // rewrite in process(), so it is thrown in the safety vocabulary that
+      // isSafetyRejection() matches.
+      const info = data?.data;
+      if (info?.successFlag === 2 || info?.successFlag === 3) {
+        console.error('veo3 render failed:', info.errorCode, info.errorMessage);
+        if (info.errorCode === 400) {
+          throw new HttpException(
+            'The video was rejected by the AI safety system. Please reword your prompt and try again.',
+            422
+          );
+        }
+        throw new HttpException(
+          'The video render failed, please try again.',
+          502
+        );
+      }
+
+      videoUrl = info?.response?.resultUrls || [];
       await timer(10000);
     }
 
