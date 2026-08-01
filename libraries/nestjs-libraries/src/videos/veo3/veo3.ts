@@ -7,6 +7,7 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsIn,
   IsOptional,
   IsString,
   ValidateNested,
@@ -35,6 +36,12 @@ class Veo3Params {
   @IsArray()
   @ArrayMaxSize(3)
   images: Image[];
+
+  // Optional like `images` — an older client submits no `audio` key, and the
+  // hygiene pass defaults it to ambient.
+  @IsOptional()
+  @IsIn(['none', 'ambient', 'narration'])
+  audio: 'none' | 'ambient' | 'narration';
 }
 
 // kie.ai occasionally leaves a task pending forever; without a ceiling the
@@ -78,7 +85,8 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     // and otherwise letters garbled glyphs onto every implied sign. Empty means
     // the rewrite failed; the raw prompt still ships with the directive.
     const rewritten = await this._openaiService.generateVideoPrompt(
-      customParams.prompt
+      customParams.prompt,
+      customParams.audio || 'ambient'
     );
     const base = rewritten || customParams.prompt;
     try {

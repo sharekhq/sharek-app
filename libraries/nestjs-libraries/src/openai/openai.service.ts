@@ -17,6 +17,16 @@ const VoicePrompt = z.object({
   voice: z.string(),
 });
 
+// Veo has no audio parameter — the soundtrack is whatever the prompt implies,
+// so the user's choice has to be spelled out in words.
+const AUDIO_DIRECTIVES = {
+  none: 'The video has no spoken words and no music — only quiet natural ambience.',
+  ambient:
+    'The video has no spoken words: only natural ambient sound and music that suit the scene.',
+  narration:
+    'The video has a spoken voiceover describing the scene, and no on-screen speaker.',
+} as const;
+
 @Injectable()
 export class OpenaiService {
   async generateImage(prompt: string, isVertical = false) {
@@ -413,8 +423,18 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
    * all. Quoted dialogue is the one thing kept verbatim: it is spoken, not
    * rendered, and the user chose its language deliberately. Empty on failure
    * so the caller can fall back to the raw prompt.
+   *
+   * Shipping English has two side effects the prompt has to undo. Veo reads the
+   * spoken language off the prompt text, so an Arabic description came back
+   * narrated in English until the language was named outright; and anything it
+   * reads as filmic gets letterboxed, which cost 17% of a 9:16 frame to black
+   * bars. The clip is a hard 8 seconds, so a multi-shot description ends
+   * mid-transition — hence the single-continuous-shot rule.
    */
-  async generateVideoPrompt(prompt: string): Promise<string> {
+  async generateVideoPrompt(
+    prompt: string,
+    audio: 'none' | 'ambient' | 'narration' = 'ambient'
+  ): Promise<string> {
     try {
       const parsed = (
         await openai.chat.completions.parse({
@@ -428,6 +448,10 @@ Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
 Keep quoted dialogue exactly as written, in its original language, described as spoken lines.
+Any spoken audio must be in the same language as the user's description — name that language explicitly, for example "the narrator speaks in Arabic".
+${AUDIO_DIRECTIVES[audio]}
+Describe a single continuous shot: no cuts, no scene changes, no transitions, and an action that resolves within eight seconds.
+The scene must fill the entire frame edge to edge — never describe it as cinematic, widescreen or letterboxed, and never mention black bars or film borders.
 When the description refers to an attached or reference image, keep that reference intact.
 Never ask for readable text: no words, letters, numbers, logos, captions or subtitles anywhere in the scene — billboards, screens, banners and signs show only abstract shapes, patterns or light.`,
             },

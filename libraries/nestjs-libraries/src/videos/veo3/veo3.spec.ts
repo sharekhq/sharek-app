@@ -35,6 +35,26 @@ describe('Veo3 params validation', () => {
     ).rejects.toThrow();
   });
 
+  // Audio is prompt-driven — kie.ai has no audio parameter — so the choice is
+  // an enum the hygiene pass turns into words. Absent means ambient.
+  it('accepts a known audio choice', async () => {
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a calm sea at dawn',
+        audio: 'narration',
+      } as any)
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects an unknown audio choice', async () => {
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a calm sea at dawn',
+        audio: 'karaoke',
+      } as any)
+    ).rejects.toThrow();
+  });
+
   it('rejects a non-array images value', async () => {
     await expect(
       veo3.processAndValidate({
@@ -157,11 +177,36 @@ describe('Veo3.process', () => {
     await jest.advanceTimersByTimeAsync(30_000);
     await expect(result).resolves.toBe('https://cdn/video.mp4');
 
-    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p');
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p', 'ambient');
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.prompt).toBe(
       `a night festival scene. ${VEO3_NO_TEXT_DIRECTIVE}`
     );
+  });
+
+  it('passes the chosen audio through to the hygiene pass', async () => {
+    const openai = openaiMock();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+      audio: 'narration',
+    } as any);
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p', 'narration');
   });
 
   it('falls back to the raw prompt when the rewrite is empty', async () => {
