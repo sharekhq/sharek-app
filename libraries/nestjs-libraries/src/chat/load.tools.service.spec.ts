@@ -363,4 +363,14 @@ describe('LoadToolsService video guidance', () => {
     const instructions = await instructionsWith(uiContext());
     expect(instructions).not.toMatch(/veo3|image-text-slides/i);
   });
+
+  // getAllVideos() filters on `available`, which is env-gated per provider —
+  // veo3 needs KIEAI_API_KEY, slides needs four keys. A deployment missing one
+  // returns a single option, so an instruction that asserts a choice exists
+  // would have the model name an alternative it invented.
+  it('does not promise alternatives that the tool may not return', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('may be more than one way');
+    expect(instructions).toContain('name any other options it returned');
+  });
 });
