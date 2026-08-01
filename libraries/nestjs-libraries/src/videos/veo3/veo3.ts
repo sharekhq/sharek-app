@@ -34,6 +34,10 @@ class Veo3Params {
   images: Image[];
 }
 
+// kie.ai occasionally leaves a task pending forever; without a ceiling the
+// streamed response would keep heartbeating indefinitely.
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
 @Video({
   identifier: 'veo3',
   title: 'Veo3 (Audio + Video)',
@@ -71,8 +75,12 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     }
 
     const taskId = value.data.taskId;
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
     let videoUrl = [];
     while (videoUrl.length === 0) {
+      if (Date.now() > deadline) {
+        throw new Error('The video render timed out, please try again.');
+      }
       console.log('waiting for video to be ready');
       const data = await (
         await fetch(

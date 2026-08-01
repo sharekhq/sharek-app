@@ -40,3 +40,57 @@ describe('Veo3 params validation', () => {
     ).rejects.toThrow();
   });
 });
+
+const jsonResponse = (payload: unknown) => ({ json: async () => payload });
+
+const pendingPoll = jsonResponse({
+  code: 200,
+  data: { response: { resultUrls: [] } },
+});
+
+describe('Veo3.process', () => {
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    process.env.KIEAI_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    global.fetch = realFetch;
+  });
+
+  it('returns the first result url once the task completes', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(pendingPoll)
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+  });
+
+  it('gives up when the task never completes', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValue(pendingPoll) as any;
+
+    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    result.catch(() => undefined); // no unhandled rejection while timers advance
+    await jest.advanceTimersByTimeAsync(11 * 60 * 1000);
+    await expect(result).rejects.toThrow('timed out');
+  });
+});
