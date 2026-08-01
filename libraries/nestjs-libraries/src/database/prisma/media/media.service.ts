@@ -89,64 +89,16 @@ export class MediaService {
     return true;
   }
 
-  async generateVideo(org: Organization, body: VideoDto) {
-    try {
-      const totalCredits = await this._subscriptionService.checkCredits(
-        org,
-        'ai_videos'
-      );
-
-      if (totalCredits.credits <= 0) {
-        throw new SubscriptionException({
-          action: AuthorizationActions.Create,
-          section: Sections.VIDEOS_PER_MONTH,
-        });
-      }
-
-      const video = this._videoManager.getVideoByName(body.type);
-      if (!video) {
-        throw new Error(`Video type ${body.type} not found`);
-      }
-
-      if (!video.trial && org.isTrailing) {
-        throw new HttpException(
-          'This video is not available in trial mode',
-          406
-        );
-      }
-
-      console.log(body.customParams);
-      await video.instance.processAndValidate(body.customParams);
-      console.log('no err');
-
-      return await this._subscriptionService.useCredit(
-        org,
-        'ai_videos',
-        async () => {
-          const loadedData = await video.instance.process(
-            body.output,
-            body.customParams
-          );
-
-          const file = await this.storage.uploadSimple(loadedData);
-          return this.saveFile(org.id, file.split('/').pop(), file);
-        }
-      );
-    } catch (err) {
-      throw generationError(err);
-    }
-  }
-
   /**
-   * Shared gate for both phases. Awaited by the controller *before* the create
-   * route commits to a streamed response, so a credit or trial refusal is still
-   * a real HTTP status the billing and finish-trial dialogs can act on rather
-   * than an in-band error frame delivered with a 200.
+   * Shared pre-flight for every render path. Awaited by the controllers
+   * *before* a streamed response is committed to, so a credit or trial refusal
+   * is still a real HTTP status the billing and finish-trial dialogs can act on
+   * rather than an in-band error frame delivered with a 200.
    *
    * Credits are checked but not spent here: the credit belongs to the render,
    * and a user with none should find out before writing a script (D33).
    */
-  async resolveTwoPhaseVideo(org: Organization, body: VideoDto) {
+  async resolveVideo(org: Organization, body: VideoDto) {
     const totalCredits = await this._subscriptionService.checkCredits(
       org,
       'ai_videos'
@@ -168,6 +120,62 @@ export class MediaService {
       throw new HttpException('This video is not available in trial mode', 406);
     }
 
+    await video.instance.processAndValidate(body.customParams);
+
+    return video;
+  }
+
+  /**
+   * One-shot render as a stream. `process()` has no progress events, so the
+   * single frame is the terminal one — the controller's heartbeat wrapper
+   * supplies the keep-alives in between. Unlike the two-phase flow the render
+   * cannot be cancelled mid-flight (a promise has no yield points), so a
+   * client that disconnects still gets the finished video in the media
+   * library, on the credit that was already committed.
+   */
+  async *processVideo(
+    org: Organization,
+    body: VideoDto,
+    video: NonNullable<ReturnType<VideoManager['getVideoByName']>>
+  ) {
+    let saved: any;
+    try {
+      saved = await this._subscriptionService.useCredit(
+        org,
+        'ai_videos',
+        async () => {
+          const url = await video.instance.process(
+            body.output,
+            body.customParams
+          );
+          const file = await this.storage.uploadSimple(url);
+          return this.saveFile(org.id, file.split('/').pop(), file);
+        }
+      );
+    } catch (err) {
+      throw generationError(err);
+    }
+
+    yield { name: 'done', media: saved };
+  }
+
+  async generateVideo(org: Organization, body: VideoDto) {
+    const video = await this.resolveVideo(org, body);
+    for await (const event of this.processVideo(org, body, video)) {
+      if (event.name === 'done') {
+        return event.media;
+      }
+    }
+
+    throw new HttpException(
+      'AI generation failed, please try again later.',
+      500
+    );
+  }
+
+  async resolveTwoPhaseVideo(org: Organization, body: VideoDto) {
+    const video = await this.resolveVideo(org, body);
+
     // The two-phase flow is optional on the provider interface, so a provider
     // that only implements process() must be refused cleanly rather than
     // crashing on an undefined method.
@@ -177,8 +185,6 @@ export class MediaService {
         400
       );
     }
-
-    await video.instance.processAndValidate(body.customParams);
 
     return video;
   }
