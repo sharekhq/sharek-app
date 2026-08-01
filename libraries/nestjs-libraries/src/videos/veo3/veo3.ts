@@ -14,6 +14,7 @@ import {
 import { Type } from 'class-transformer';
 import { HttpException } from '@nestjs/common';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
+import { isSafetyRejection } from '@gitroom/nestjs-libraries/openai/generation.error';
 
 class Image {
   @IsString()
@@ -80,7 +81,36 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
       customParams.prompt
     );
     const base = rewritten || customParams.prompt;
-    return this.render(withNoTextDirective(base), output, imageUrls);
+    try {
+      return await this.render(withNoTextDirective(base), output, imageUrls);
+    } catch (err) {
+      if (!isSafetyRejection(err)) {
+        throw err;
+      }
+      // Same recovery the slides pipeline gives a flagged slide: one sanitized
+      // rewrite, one more render, then give up naming the cause.
+      console.log('veo3 prompt flagged:', err);
+      const sanitized = await this._openaiService.rewriteFlaggedPrompt(base);
+      if (!sanitized) {
+        throw err;
+      }
+      try {
+        return await this.render(
+          withNoTextDirective(sanitized),
+          output,
+          imageUrls
+        );
+      } catch (retryErr) {
+        if (!isSafetyRejection(retryErr)) {
+          throw retryErr;
+        }
+        console.log('veo3 sanitized prompt still flagged:', retryErr);
+        throw new HttpException(
+          'The video was rejected by the AI safety system even after a rewrite. Please reword your prompt and try again.',
+          422
+        );
+      }
+    }
   }
 
   private async render(

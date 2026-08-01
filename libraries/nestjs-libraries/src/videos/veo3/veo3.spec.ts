@@ -242,4 +242,123 @@ describe('Veo3.process', () => {
     expect(openai.rewriteFlaggedPrompt).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
+
+  const flaggedPoll = jsonResponse({
+    code: 200,
+    data: {
+      successFlag: 3,
+      errorCode: 400,
+      errorMessage: 'flagged',
+      response: { resultUrls: [] },
+    },
+  });
+
+  it('retries once with a sanitized prompt when the render is flagged', async () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const openai = openaiMock();
+    openai.rewriteFlaggedPrompt.mockResolvedValue('a calm festival');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(flaggedPoll)
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't2' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    // The rewriter gets the base prompt, not the directive-suffixed one; the
+    // retry ships with the directive re-appended.
+    expect(openai.rewriteFlaggedPrompt).toHaveBeenCalledWith('p');
+    const retryBody = JSON.parse(
+      (global.fetch as jest.Mock).mock.calls[2][1].body
+    );
+    expect(retryBody.prompt).toBe(`a calm festival. ${VEO3_NO_TEXT_DIRECTIVE}`);
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('gives up with the safety message when the sanitized prompt is flagged again', async () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const openai = openaiMock();
+    openai.rewriteFlaggedPrompt.mockResolvedValue('a calm festival');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(flaggedPoll)
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't2' } })
+      )
+      .mockResolvedValueOnce(flaggedPoll) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    result.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    const err = await result.catch((e) => e);
+    expect(generationError(err).getResponse()).toBe(
+      'The video was rejected by the AI safety system even after a rewrite. Please reword your prompt and try again.'
+    );
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('surfaces the original rejection when no rewrite is available', async () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(flaggedPoll) as any;
+
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    result.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(1_000);
+
+    const err = await result.catch((e) => e);
+    expect(generationError(err).getResponse()).toBe(
+      'The video was rejected by the AI safety system. Please reword your prompt and try again.'
+    );
+    // Only the original submit + poll — no second render without a rewrite.
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
 });
