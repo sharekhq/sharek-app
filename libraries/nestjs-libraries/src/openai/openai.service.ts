@@ -406,13 +406,13 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
   }
 
   /**
-   * Recovery path for a provider content flag: image providers screen prompts
+   * Recovery path for a provider content flag: generation providers screen prompts
    * before rendering and reject real-person or brand references outright. One
    * rewrite keeps the scene while dropping what checkers reject; empty on
    * failure so the caller can give up cleanly rather than pay for a render
    * that will be flagged again.
    */
-  async rewriteFlaggedImagePrompt(prompt: string): Promise<string> {
+  async rewriteFlaggedPrompt(prompt: string): Promise<string> {
     try {
       const parsed = (
         await openai.chat.completions.parse({
@@ -421,7 +421,7 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
           messages: [
             {
               role: 'system',
-              content: `An image generation service flagged the user's image prompt as violating its content policy.
+              content: `A generation service flagged the user's prompt as violating its content policy.
 Rewrite the prompt so it keeps the same scene, mood and composition while removing everything a content checker rejects: names of real people, celebrities or public figures (describe an anonymous person instead), brand names, logos, flags and political references.
 Return only the rewritten prompt, in English.`,
             },
@@ -432,7 +432,7 @@ Return only the rewritten prompt, in English.`,
           ],
           response_format: zodResponseFormat(
             z.object({
-              prompt: z.string().describe('the rewritten image prompt'),
+              prompt: z.string().describe('the rewritten prompt'),
             }),
             'rewrittenPrompt'
           ),

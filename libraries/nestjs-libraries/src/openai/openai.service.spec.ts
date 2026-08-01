@@ -43,8 +43,8 @@ describe('OpenaiService model configuration', () => {
         ),
     ],
     [
-      'rewriteFlaggedImagePrompt',
-      () => service.rewriteFlaggedImagePrompt('a football star on stage'),
+      'rewriteFlaggedPrompt',
+      () => service.rewriteFlaggedPrompt('a football star on stage'),
     ],
   ];
 
@@ -328,7 +328,7 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
 // The recovery path for a provider content flag: keep the scene, drop what the
 // checker rejects. Empty on failure so the caller can give up cleanly instead
 // of paying for a render that will be flagged again.
-describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
+describe('OpenaiService.rewriteFlaggedPrompt', () => {
   let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -344,19 +344,19 @@ describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
       choices: [{ message: { parsed: { prompt: 'an athlete on stage' } } }],
     });
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('an athlete on stage');
   });
 
   it('sends the flagged prompt as the user message', async () => {
-    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    await service.rewriteFlaggedPrompt('a football star on stage');
     expect((mockParse.mock.calls[0][0] as any).messages[1].content).toBe(
       'a football star on stage'
     );
   });
 
   it('tells the model what a content checker rejects', async () => {
-    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    await service.rewriteFlaggedPrompt('a football star on stage');
     expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
       /real people/i
     );
@@ -365,13 +365,13 @@ describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
   it('returns an empty string when the call fails', async () => {
     mockParse.mockRejectedValue(new Error('boom'));
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('');
   });
 
   it('returns an empty string when nothing was parsed', async () => {
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('');
   });
 });

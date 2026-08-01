@@ -347,7 +347,7 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
           throw err;
         }
         console.log(`slide ${i + 1} image prompt flagged:`, err);
-        const rewritten = await this._openaiService.rewriteFlaggedImagePrompt(
+        const rewritten = await this._openaiService.rewriteFlaggedPrompt(
           imagePrompts[i]
         );
         if (rewritten) {

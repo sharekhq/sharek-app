@@ -37,7 +37,7 @@ import { plainToInstance } from 'class-transformer';
 const openai = {
   generateSlidesFromText: jest.fn(),
   generateImagePromptsForSlides: jest.fn(),
-  rewriteFlaggedImagePrompt: jest.fn(),
+  rewriteFlaggedPrompt: jest.fn(),
   generateImageAtSize: jest.fn(),
 };
 const provider = new ImagesSlides(openai as any);
@@ -252,7 +252,7 @@ describe('ImagesSlides.create safety retry', () => {
     jest.clearAllMocks();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     openai.generateImagePromptsForSlides.mockResolvedValue(['a star', 'a tray']);
-    openai.rewriteFlaggedImagePrompt.mockResolvedValue('an athlete');
+    openai.rewriteFlaggedPrompt.mockResolvedValue('an athlete');
   });
 
   afterEach(() => logSpy.mockRestore());
@@ -265,7 +265,7 @@ describe('ImagesSlides.create safety retry', () => {
     const events = await drain(provider.create('vertical', storyboard, params));
 
     expect(events[events.length - 1].name).toBe('done');
-    expect(openai.rewriteFlaggedImagePrompt).toHaveBeenCalledWith('a star');
+    expect(openai.rewriteFlaggedPrompt).toHaveBeenCalledWith('a star');
     // Calls land in order: slide 1, slide 2, then slide 1's retry — which must
     // carry the sanitized subject and still get the shared style guide.
     expect(openai.generateImageAtSize).toHaveBeenCalledTimes(3);
@@ -291,7 +291,7 @@ describe('ImagesSlides.create safety retry', () => {
   });
 
   it('gives up without a second render when the rewrite fails', async () => {
-    openai.rewriteFlaggedImagePrompt.mockResolvedValue('');
+    openai.rewriteFlaggedPrompt.mockResolvedValue('');
     openai.generateImageAtSize.mockImplementation(async (prompt: string) => {
       if (prompt.includes('a star')) {
         throw new Error(flaggedBody);
@@ -316,7 +316,7 @@ describe('ImagesSlides.create safety retry', () => {
         provider.create('vertical', { ...storyboard, slides: [{ text: 'One' }] }, params)
       )
     ).rejects.toThrow(/Rate limit/);
-    expect(openai.rewriteFlaggedImagePrompt).not.toHaveBeenCalled();
+    expect(openai.rewriteFlaggedPrompt).not.toHaveBeenCalled();
   });
 });
 
