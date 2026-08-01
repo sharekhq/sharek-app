@@ -1,11 +1,14 @@
-import { Veo3 } from '@gitroom/nestjs-libraries/videos/veo3/veo3';
+import {
+  Veo3,
+  VEO3_NO_TEXT_DIRECTIVE,
+} from '@gitroom/nestjs-libraries/videos/veo3/veo3';
 import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
 
 // Reference images are optional — the modal's hint says so and process() maps a
 // missing list to []. A prompt-only submit sends no `images` key at all, so the
 // DTO must accept an absent list while still capping a present one at 3.
 describe('Veo3 params validation', () => {
-  const veo3 = new Veo3();
+  const veo3 = new Veo3({} as any);
   const image = (n: number) => ({ id: `id-${n}`, path: `https://x/${n}.png` });
 
   it('accepts a prompt without images', async () => {
@@ -52,6 +55,13 @@ const pendingPoll = jsonResponse({
 describe('Veo3.process', () => {
   const realFetch = global.fetch;
 
+  // The provider's two luna hooks. Defaults: rewrite unavailable, so the raw
+  // prompt goes through — tests that exercise the rewrite override these.
+  const openaiMock = () => ({
+    generateVideoPrompt: jest.fn().mockResolvedValue(''),
+    rewriteFlaggedPrompt: jest.fn().mockResolvedValue(''),
+  });
+
   beforeEach(() => {
     jest.useFakeTimers();
     process.env.KIEAI_API_KEY = 'test-key';
@@ -76,7 +86,10 @@ describe('Veo3.process', () => {
         })
       ) as any;
 
-    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
     await jest.advanceTimersByTimeAsync(30_000);
     await expect(result).resolves.toBe('https://cdn/video.mp4');
   });
@@ -89,7 +102,10 @@ describe('Veo3.process', () => {
       )
       .mockResolvedValue(pendingPoll) as any;
 
-    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
     result.catch(() => undefined); // no unhandled rejection while timers advance
     await jest.advanceTimersByTimeAsync(11 * 60 * 1000);
     await expect(result).rejects.toThrow('timed out');
@@ -106,7 +122,10 @@ describe('Veo3.process', () => {
       )
       .mockResolvedValue(pendingPoll) as any;
 
-    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
     result.catch(() => undefined);
     await jest.advanceTimersByTimeAsync(11 * 60 * 1000);
 
@@ -114,5 +133,58 @@ describe('Veo3.process', () => {
     expect(generationError(err).getResponse()).toBe(
       'The video render timed out, please try again.'
     );
+  });
+
+  it('sends the rewritten prompt with the no-text directive', async () => {
+    const openai = openaiMock();
+    openai.generateVideoPrompt.mockResolvedValue('a night festival scene');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p');
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.prompt).toBe(
+      `a night festival scene. ${VEO3_NO_TEXT_DIRECTIVE}`
+    );
+  });
+
+  it('falls back to the raw prompt when the rewrite is empty', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.prompt).toBe(`p. ${VEO3_NO_TEXT_DIRECTIVE}`);
   });
 });

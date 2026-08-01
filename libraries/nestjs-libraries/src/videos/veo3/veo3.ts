@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { HttpException } from '@nestjs/common';
+import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 
 class Image {
   @IsString()
@@ -39,6 +40,18 @@ class Veo3Params {
 // streamed response would keep heartbeating indefinitely.
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * Appended to every outgoing prompt. Veo3 fills implied signage (billboards,
+ * stage screens, festival arches) with garbled glyph textures — Arabic script
+ * worst of all — and kie.ai exposes no negative-prompt control, so the prompt
+ * text is the only lever.
+ */
+export const VEO3_NO_TEXT_DIRECTIVE =
+  'Do not render any readable text, words, letters, numbers, logos, captions or subtitles anywhere in the scene, in any script or language; billboards, screens, banners and signage show only abstract shapes, patterns or light.';
+
+const withNoTextDirective = (prompt: string) =>
+  `${prompt}. ${VEO3_NO_TEXT_DIRECTIVE}`;
+
 @Video({
   identifier: 'veo3',
   title: 'Veo3 (Audio + Video)',
@@ -50,10 +63,30 @@ const POLL_TIMEOUT_MS = 10 * 60 * 1000;
   available: !!process.env.KIEAI_API_KEY,
 })
 export class Veo3 extends VideoAbstract<Veo3Params> {
+  constructor(private _openaiService: OpenaiService) {
+    super();
+  }
+
   override dto = Veo3Params;
   async process(
     output: 'vertical' | 'horizontal',
     customParams: Veo3Params
+  ): Promise<URL> {
+    const imageUrls = customParams?.images?.map((p) => p.path) || [];
+    // English hygiene pass first — Veo follows English far better than Arabic
+    // and otherwise letters garbled glyphs onto every implied sign. Empty means
+    // the rewrite failed; the raw prompt still ships with the directive.
+    const rewritten = await this._openaiService.generateVideoPrompt(
+      customParams.prompt
+    );
+    const base = rewritten || customParams.prompt;
+    return this.render(withNoTextDirective(base), output, imageUrls);
+  }
+
+  private async render(
+    prompt: string,
+    output: 'vertical' | 'horizontal',
+    imageUrls: string[]
   ): Promise<URL> {
     const value = await (
       await fetch('https://api.kie.ai/api/v1/veo/generate', {
@@ -63,8 +96,8 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
         },
         method: 'POST',
         body: JSON.stringify({
-          prompt: customParams.prompt,
-          imageUrls: customParams?.images?.map((p) => p.path) || [],
+          prompt,
+          imageUrls,
           model: 'veo3_fast',
           aspectRatio: output === 'horizontal' ? '16:9' : '9:16',
         }),
