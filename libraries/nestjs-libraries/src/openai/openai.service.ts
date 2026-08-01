@@ -445,7 +445,10 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
    * at reasoning_effort 'none' drifts on rules it can satisfy implicitly — the
    * same drift that produced random-language slides. It has to name speech
    * explicitly: as a bare `language` field it anchored the whole rewrite, and
-   * an Arabic description came back as an Arabic prompt.
+   * an Arabic description came back as an Arabic prompt. Paired with 'low'
+   * reasoning for the same reason generateSlidesFromText buys it back — ten
+   * constraints at once, two of which pull against each other, since the
+   * prompt stays English while the speech follows the user's language.
    */
   async generateVideoPrompt(
     prompt: string,
@@ -456,7 +459,7 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
       const parsed = (
         await openai.chat.completions.parse({
           model: 'gpt-5.6-luna',
-          reasoning_effort: 'none',
+          reasoning_effort: 'low',
           messages: [
             {
               role: 'system',
