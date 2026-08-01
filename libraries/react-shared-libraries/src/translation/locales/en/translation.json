@@ -1025,6 +1025,7 @@
   "starting": "Starting…",
   "creating_step": "Creating… {{done}}/{{total}}",
   "video_creation_failed": "Could not create the video. You have not been charged.",
+  "video_connection_dropped": "The connection dropped before the video was ready. It may still finish — check your media library in a few minutes.",
   "image_generation_failed": "Could not generate the image. You have not been charged.",
   "no_ai_credits_left": "You have run out of AI credits.",
   "reference_images": "Reference images",

@@ -103,10 +103,18 @@ export const Modal: FC<{
         }
       }
 
-      // A stream that ends without a terminal frame means the render died
-      // silently; surface it rather than leaving the button spinning forever.
+      // A stream that ends without a terminal frame means the connection went
+      // away mid-render. Deliberately NOT the default "you have not been
+      // charged" message: a one-shot render cannot be cancelled, so the server
+      // finishes on the credit it already committed and the video still lands
+      // in the media library. Telling the user it was free would be a lie.
       if (!settled) {
-        throw new Error('');
+        throw new Error(
+          t(
+            'video_connection_dropped',
+            'The connection dropped before the video was ready. It may still finish — check your media library in a few minutes.'
+          )
+        );
       }
     } catch (e) {
       toaster.show(
