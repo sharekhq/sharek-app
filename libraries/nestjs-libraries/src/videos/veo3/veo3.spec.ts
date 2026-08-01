@@ -155,7 +155,9 @@ describe('Veo3.process', () => {
     );
   });
 
-  it('sends the rewritten prompt with the no-text directive', async () => {
+  // The hygiene pass writes the no-text rule into the prompt itself, so
+  // appending the directive too stated it twice and joined it with '..'.
+  it('sends the rewritten prompt without repeating the no-text directive', async () => {
     const openai = openaiMock();
     openai.generateVideoPrompt.mockResolvedValue('a night festival scene');
     global.fetch = jest
@@ -183,8 +185,35 @@ describe('Veo3.process', () => {
       'vertical'
     );
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.prompt).toBe('a night festival scene');
+    expect(body.resolution).toBe('1080p');
+  });
+
+  // The raw prompt never went through the hygiene pass, so it still needs the
+  // rule — and a prompt that already ends in a period must not gain a second.
+  it('appends the directive to a fallback prompt without doubling the period', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'a market at night.',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.prompt).toBe(
-      `a night festival scene. ${VEO3_NO_TEXT_DIRECTIVE}`
+      `a market at night. ${VEO3_NO_TEXT_DIRECTIVE}`
     );
   });
 
