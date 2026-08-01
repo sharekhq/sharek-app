@@ -1,4 +1,5 @@
 import { Veo3 } from '@gitroom/nestjs-libraries/videos/veo3/veo3';
+import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
 
 // Reference images are optional — the modal's hint says so and process() maps a
 // missing list to []. A prompt-only submit sends no `images` key at all, so the
@@ -38,5 +39,80 @@ describe('Veo3 params validation', () => {
         images: 'not-an-array',
       } as any)
     ).rejects.toThrow();
+  });
+});
+
+const jsonResponse = (payload: unknown) => ({ json: async () => payload });
+
+const pendingPoll = jsonResponse({
+  code: 200,
+  data: { response: { resultUrls: [] } },
+});
+
+describe('Veo3.process', () => {
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    process.env.KIEAI_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    global.fetch = realFetch;
+  });
+
+  it('returns the first result url once the task completes', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(pendingPoll)
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+  });
+
+  it('gives up when the task never completes', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValue(pendingPoll) as any;
+
+    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    result.catch(() => undefined); // no unhandled rejection while timers advance
+    await jest.advanceTimersByTimeAsync(11 * 60 * 1000);
+    await expect(result).rejects.toThrow('timed out');
+  });
+
+  // The message is only worth writing if it survives the normalisation every
+  // render path applies: generationError() swaps a plain Error for a generic
+  // 500 and only lets an HttpException through.
+  it('reports the timeout as an error the user actually sees', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValue(pendingPoll) as any;
+
+    const result = new Veo3().process('vertical', { prompt: 'p', images: [] });
+    result.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(11 * 60 * 1000);
+
+    const err = await result.catch((e) => e);
+    expect(generationError(err).getResponse()).toBe(
+      'The video render timed out, please try again.'
+    );
   });
 });

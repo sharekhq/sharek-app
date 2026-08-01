@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { HttpException } from '@nestjs/common';
 
 class Image {
   @IsString()
@@ -33,6 +34,10 @@ class Veo3Params {
   @ArrayMaxSize(3)
   images: Image[];
 }
+
+// kie.ai occasionally leaves a task pending forever; without a ceiling the
+// streamed response would keep heartbeating indefinitely.
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 @Video({
   identifier: 'veo3',
@@ -71,8 +76,19 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     }
 
     const taskId = value.data.taskId;
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
     let videoUrl = [];
     while (videoUrl.length === 0) {
+      if (Date.now() > deadline) {
+        // An HttpException, not a plain Error: generationError() passes
+        // HttpExceptions through untouched but replaces anything else with a
+        // generic 500, which would throw this message away before the user
+        // ever sees why the render stopped.
+        throw new HttpException(
+          'The video render timed out, please try again.',
+          504
+        );
+      }
       console.log('waiting for video to be ready');
       const data = await (
         await fetch(

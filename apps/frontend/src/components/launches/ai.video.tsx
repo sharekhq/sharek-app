@@ -16,6 +16,7 @@ import { VideoContextWrapper } from '@gitroom/frontend/components/videos/video.c
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { createPortal } from 'react-dom';
+import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 
 const videoTypeLabel = (
   t: ReturnType<typeof useT>,
@@ -76,11 +77,45 @@ export const Modal: FC<{
         }),
       });
 
+      // Credit, trial and provider checks fail before the stream opens, so
+      // they still arrive as a status — 402 and 406 never reach here, the
+      // fetch wrapper shows the billing and trial dialogs instead.
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
-      onChange(await response.json());
+
+      // The render takes minutes; the response is an NDJSON stream whose
+      // heartbeat frames keep the proxies from cutting the connection.
+      let settled = false;
+      for await (const frame of ndjsonFrames<{
+        name: string;
+        media?: { id: string; path: string };
+        message?: string;
+      }>(response.body!)) {
+        if (frame.name === 'error') {
+          throw new Error(frame.message || '');
+        }
+        if (frame.name === 'done' && frame.media) {
+          settled = true;
+          onChange(frame.media);
+          break;
+        }
+      }
+
+      // A stream that ends without a terminal frame means the connection went
+      // away mid-render. Deliberately NOT the default "you have not been
+      // charged" message: a one-shot render cannot be cancelled, so the server
+      // finishes on the credit it already committed and the video still lands
+      // in the media library. Telling the user it was free would be a lie.
+      if (!settled) {
+        throw new Error(
+          t(
+            'video_connection_dropped',
+            'The connection dropped before the video was ready. It may still finish — check your media library in a few minutes.'
+          )
+        );
+      }
     } catch (e) {
       toaster.show(
         (e instanceof Error && e.message) ||

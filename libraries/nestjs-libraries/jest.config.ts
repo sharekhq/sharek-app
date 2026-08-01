@@ -15,6 +15,9 @@ const config: Config = {
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
     '^@gitroom/helpers/(.*)$': '<rootDir>/../../helpers/src/$1',
+    // A handful of libraries import back into the backend app (media.service
+    // raises SubscriptionException); same mapping as tsconfig.base.json.
+    '^@gitroom/backend/(.*)$': '<rootDir>/../../../apps/backend/src/$1',
   },
   transform: {
     '^.+\\.[mc]?[tj]s$': [

@@ -13,6 +13,7 @@ import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrap
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 
 export interface Voices {
   voices: Voice[];
@@ -556,50 +557,30 @@ const ImageSlidesComponent = () => {
         throw new Error(payload?.message || '');
       }
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
       let settled = false;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        // A frame can straddle two reads. Hold the trailing partial line back
-        // until the rest arrives — dropping it would lose the `done` event and
-        // strand a video the user has already been charged for.
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          let data: CreateStreamEvent;
-          try {
-            data = JSON.parse(line);
-          } catch {
-            /** ignore anything that is not a frame **/
-            continue;
-          }
-          // Keep-alive frames from the server; not render events.
-          if (data.name === 'heartbeat') continue;
-          if (data.name === 'error') throw new Error(data.message);
-          if (data.name === 'progress') {
-            setProgress(
-              data.step === 'images'
-                ? t('creating_step', 'Creating… {{done}}/{{total}}', {
-                    done: data.done,
-                    total: data.total,
-                  })
-                : STEP_LABELS[data.step]?.(t) ?? t('starting', 'Starting…')
-            );
-          }
-          if (data.name === 'done') {
-            // Hands the saved media back to the modal, which attaches it to the
-            // post and closes.
-            settled = true;
-            setProgress('');
-            onMedia(data.media);
-          }
+      for await (const data of ndjsonFrames<CreateStreamEvent>(
+        response.body!
+      )) {
+        // Keep-alive frames from the server; not render events.
+        if (data.name === 'heartbeat') continue;
+        if (data.name === 'error') throw new Error(data.message);
+        if (data.name === 'progress') {
+          setProgress(
+            data.step === 'images'
+              ? t('creating_step', 'Creating… {{done}}/{{total}}', {
+                  done: data.done,
+                  total: data.total,
+                })
+              : STEP_LABELS[data.step]?.(t) ?? t('starting', 'Starting…')
+          );
+        }
+        if (data.name === 'done') {
+          // Hands the saved media back to the modal, which attaches it to the
+          // post and closes.
+          settled = true;
+          setProgress('');
+          onMedia(data.media);
         }
       }
 
