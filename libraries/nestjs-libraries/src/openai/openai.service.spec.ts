@@ -451,14 +451,19 @@ describe('OpenaiService.generateVideoPrompt', () => {
     );
   });
 
-  // luna at reasoning_effort 'none' drifts on instructions it can satisfy
-  // implicitly; the slides pipeline hit the same random-language drift and the
-  // fix was to make the model commit to the language in a field of its own
-  // before it writes the prompt.
-  it('makes the model name the description language before writing', async () => {
+  // The model commits to the language field before writing the prompt, so a
+  // field called just "language" anchored the whole rewrite to it — an Arabic
+  // description came back as an Arabic prompt. The field has to be scoped to
+  // speech, and the prompt field has to restate English, because the schema
+  // descriptions are what the model actually reads.
+  it('scopes the language field to speech and keeps the prompt English', async () => {
     await service.generateVideoPrompt('a lantern festival');
-    const schema = (mockParse.mock.calls[0][0] as any).response_format;
-    expect(JSON.stringify(schema)).toMatch(/language/i);
+    const schema = JSON.stringify(
+      (mockParse.mock.calls[0][0] as any).response_format
+    );
+    expect(schema).toMatch(/spokenLanguage/);
+    expect(schema).toMatch(/written in English/i);
+    expect(schema).not.toMatch(/"language"/);
   });
 
   it.each([
