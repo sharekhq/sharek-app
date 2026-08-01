@@ -14,6 +14,7 @@ const config: Config = {
   setupFiles: ['reflect-metadata'],
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
+    '^@gitroom/helpers/(.*)$': '<rootDir>/../../helpers/src/$1',
   },
   transform: {
     '^.+\\.[mc]?[tj]s$': [
