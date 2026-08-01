@@ -43,8 +43,12 @@ describe('OpenaiService model configuration', () => {
         ),
     ],
     [
-      'rewriteFlaggedImagePrompt',
-      () => service.rewriteFlaggedImagePrompt('a football star on stage'),
+      'rewriteFlaggedPrompt',
+      () => service.rewriteFlaggedPrompt('a football star on stage'),
+    ],
+    [
+      'generateVideoPrompt',
+      () => service.generateVideoPrompt('a festival in Riyadh'),
     ],
   ];
 
@@ -328,7 +332,7 @@ describe('OpenaiService.generateImagePromptsForSlides', () => {
 // The recovery path for a provider content flag: keep the scene, drop what the
 // checker rejects. Empty on failure so the caller can give up cleanly instead
 // of paying for a render that will be flagged again.
-describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
+describe('OpenaiService.rewriteFlaggedPrompt', () => {
   let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -344,19 +348,19 @@ describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
       choices: [{ message: { parsed: { prompt: 'an athlete on stage' } } }],
     });
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('an athlete on stage');
   });
 
   it('sends the flagged prompt as the user message', async () => {
-    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    await service.rewriteFlaggedPrompt('a football star on stage');
     expect((mockParse.mock.calls[0][0] as any).messages[1].content).toBe(
       'a football star on stage'
     );
   });
 
   it('tells the model what a content checker rejects', async () => {
-    await service.rewriteFlaggedImagePrompt('a football star on stage');
+    await service.rewriteFlaggedPrompt('a football star on stage');
     expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
       /real people/i
     );
@@ -365,13 +369,62 @@ describe('OpenaiService.rewriteFlaggedImagePrompt', () => {
   it('returns an empty string when the call fails', async () => {
     mockParse.mockRejectedValue(new Error('boom'));
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('');
   });
 
   it('returns an empty string when nothing was parsed', async () => {
     expect(
-      await service.rewriteFlaggedImagePrompt('a football star on stage')
+      await service.rewriteFlaggedPrompt('a football star on stage')
     ).toBe('');
+  });
+});
+
+// Veo3's hygiene pass: English out regardless of the input language, no
+// readable text anywhere in the scene, quoted dialogue kept verbatim. Empty on
+// failure so the provider falls back to the raw prompt plus a static directive.
+describe('OpenaiService.generateVideoPrompt', () => {
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockParse.mockReset();
+    mockParse.mockResolvedValue({ choices: [{ message: { parsed: {} } }] });
+    logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => logSpy.mockRestore());
+
+  it('returns the rewritten prompt', async () => {
+    mockParse.mockResolvedValue({
+      choices: [{ message: { parsed: { prompt: 'a night market scene' } } }],
+    });
+    expect(await service.generateVideoPrompt('سوق ليلي في الرياض')).toBe(
+      'a night market scene'
+    );
+  });
+
+  it('sends the description as the user message', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    expect((mockParse.mock.calls[0][0] as any).messages[1].content).toBe(
+      'a lantern festival'
+    );
+  });
+
+  it('asks for English, bans readable text, and keeps dialogue and proper nouns', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/in English regardless/i);
+    expect(system).toMatch(/never ask for readable text/i);
+    expect(system).toMatch(/quoted dialogue/i);
+    expect(system).toMatch(/proper nouns/i);
+  });
+
+  it('returns an empty string when the call fails', async () => {
+    mockParse.mockRejectedValue(new Error('boom'));
+    expect(await service.generateVideoPrompt('a lantern festival')).toBe('');
+  });
+
+  it('returns an empty string when nothing was parsed', async () => {
+    expect(await service.generateVideoPrompt('a lantern festival')).toBe('');
   });
 });

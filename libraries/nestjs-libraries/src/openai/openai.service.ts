@@ -406,13 +406,15 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
   }
 
   /**
-   * Recovery path for a provider content flag: image providers screen prompts
-   * before rendering and reject real-person or brand references outright. One
-   * rewrite keeps the scene while dropping what checkers reject; empty on
-   * failure so the caller can give up cleanly rather than pay for a render
-   * that will be flagged again.
+   * Video prompts get the same hygiene as slide image prompts: English out
+   * regardless of the input language (video models follow English far better),
+   * proper nouns kept, and no readable text anywhere in the scene — video
+   * models fill implied signage with garbled glyphs, Arabic script worst of
+   * all. Quoted dialogue is the one thing kept verbatim: it is spoken, not
+   * rendered, and the user chose its language deliberately. Empty on failure
+   * so the caller can fall back to the raw prompt.
    */
-  async rewriteFlaggedImagePrompt(prompt: string): Promise<string> {
+  async generateVideoPrompt(prompt: string): Promise<string> {
     try {
       const parsed = (
         await openai.chat.completions.parse({
@@ -421,7 +423,52 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
           messages: [
             {
               role: 'system',
-              content: `An image generation service flagged the user's image prompt as violating its content policy.
+              content: `You rewrite a user's description into one prompt for an AI video generation model.
+Return one prompt, in English regardless of the description's language.
+Write one concrete scene: the setting, three or four distinctive visual elements, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate details — never vague crowds in unnamed places.
+Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
+Keep quoted dialogue exactly as written, in its original language, described as spoken lines.
+When the description refers to an attached or reference image, keep that reference intact.
+Never ask for readable text: no words, letters, numbers, logos, captions or subtitles anywhere in the scene — billboards, screens, banners and signs show only abstract shapes, patterns or light.`,
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          response_format: zodResponseFormat(
+            z.object({
+              prompt: z.string().describe('the rewritten video prompt'),
+            }),
+            'videoPrompt'
+          ),
+        })
+      ).choices[0].message.parsed;
+
+      return parsed?.prompt || '';
+    } catch (err) {
+      console.log(err);
+      return '';
+    }
+  }
+
+  /**
+   * Recovery path for a provider content flag: generation providers screen prompts
+   * before rendering and reject real-person or brand references outright. One
+   * rewrite keeps the scene while dropping what checkers reject; empty on
+   * failure so the caller can give up cleanly rather than pay for a render
+   * that will be flagged again.
+   */
+  async rewriteFlaggedPrompt(prompt: string): Promise<string> {
+    try {
+      const parsed = (
+        await openai.chat.completions.parse({
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'none',
+          messages: [
+            {
+              role: 'system',
+              content: `A generation service flagged the user's prompt as violating its content policy.
 Rewrite the prompt so it keeps the same scene, mood and composition while removing everything a content checker rejects: names of real people, celebrities or public figures (describe an anonymous person instead), brand names, logos, flags and political references.
 Return only the rewritten prompt, in English.`,
             },
@@ -432,7 +479,7 @@ Return only the rewritten prompt, in English.`,
           ],
           response_format: zodResponseFormat(
             z.object({
-              prompt: z.string().describe('the rewritten image prompt'),
+              prompt: z.string().describe('the rewritten prompt'),
             }),
             'rewrittenPrompt'
           ),
