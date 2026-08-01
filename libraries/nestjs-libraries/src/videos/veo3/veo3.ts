@@ -4,7 +4,13 @@ import {
   VideoAbstract,
 } from '@gitroom/nestjs-libraries/videos/video.interface';
 import { timer } from '@gitroom/helpers/utils/timer';
-import { ArrayMaxSize, IsArray, IsString, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class Image {
@@ -18,6 +24,9 @@ class Veo3Params {
   @IsString()
   prompt: string;
 
+  // The reference images are optional — the UI submits no `images` key when
+  // none are picked, and process() already maps a missing list to [].
+  @IsOptional()
   @Type(() => Image)
   @ValidateNested({ each: true })
   @IsArray()
