@@ -86,7 +86,8 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     // the rewrite failed; the raw prompt still ships with the directive.
     const rewritten = await this._openaiService.generateVideoPrompt(
       customParams.prompt,
-      customParams.audio || 'ambient'
+      customParams.audio || 'ambient',
+      output
     );
     const base = rewritten || customParams.prompt;
     try {
@@ -126,6 +127,10 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     output: 'vertical' | 'horizontal',
     imageUrls: string[]
   ): Promise<URL> {
+    // The only record of what the rewrite actually produced — without it a
+    // video that ignored the user's intent can only be diagnosed by rendering
+    // it again.
+    console.log('veo3 prompt:', prompt);
     const value = await (
       await fetch('https://api.kie.ai/api/v1/veo/generate', {
         headers: {

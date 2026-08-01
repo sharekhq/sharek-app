@@ -177,7 +177,11 @@ describe('Veo3.process', () => {
     await jest.advanceTimersByTimeAsync(30_000);
     await expect(result).resolves.toBe('https://cdn/video.mp4');
 
-    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p', 'ambient');
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith(
+      'p',
+      'ambient',
+      'vertical'
+    );
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.prompt).toBe(
       `a night festival scene. ${VEO3_NO_TEXT_DIRECTIVE}`
@@ -206,7 +210,48 @@ describe('Veo3.process', () => {
     await jest.advanceTimersByTimeAsync(30_000);
     await expect(result).resolves.toBe('https://cdn/video.mp4');
 
-    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p', 'narration');
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith(
+      'p',
+      'narration',
+      'vertical'
+    );
+  });
+
+  // Nothing recorded what actually reached kie.ai, so a video that ignored the
+  // prompt could only be diagnosed by re-rendering.
+  it('logs the prompt it actually sends', async () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    const openai = openaiMock();
+    openai.generateVideoPrompt.mockResolvedValue('a night festival scene');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('horizontal', {
+      prompt: 'p',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    expect(
+      logSpy.mock.calls.some(
+        (call) =>
+          String(call[0]).includes('veo3 prompt') &&
+          String(call[1]).includes('a night festival scene')
+      )
+    ).toBe(true);
+    logSpy.mockRestore();
   });
 
   it('falls back to the raw prompt when the rewrite is empty', async () => {

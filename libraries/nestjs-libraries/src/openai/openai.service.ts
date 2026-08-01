@@ -17,6 +17,16 @@ const VoicePrompt = z.object({
   voice: z.string(),
 });
 
+// The aspect ratio reaches Veo as an API field, but the rewrite never saw it —
+// so it wrote wide establishing shots and sweeping camera moves for a frame
+// that is taller than it is wide.
+const FRAMING_DIRECTIVES = {
+  vertical:
+    'Compose for a vertical 9:16 frame: a tall upright subject filling the height, the camera close and centred, movement that rises, falls or pushes in rather than panning wide.',
+  horizontal:
+    'Compose for a horizontal 16:9 frame: the subject set within a wide scene, with room either side and camera movement that travels across it.',
+} as const;
+
 // Veo has no audio parameter — the soundtrack is whatever the prompt implies,
 // so the user's choice has to be spelled out in words.
 const AUDIO_DIRECTIVES = {
@@ -430,10 +440,16 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
    * reads as filmic gets letterboxed, which cost 17% of a 9:16 frame to black
    * bars. The clip is a hard 8 seconds, so a multi-shot description ends
    * mid-transition — hence the single-continuous-shot rule.
+   *
+   * `language` is a schema field rather than an instruction because luna at
+   * reasoning_effort 'none' drifts on rules it can satisfy implicitly — the
+   * same drift that produced random-language slides. Making it commit to the
+   * language first is what holds the narration to it.
    */
   async generateVideoPrompt(
     prompt: string,
-    audio: 'none' | 'ambient' | 'narration' = 'ambient'
+    audio: 'none' | 'ambient' | 'narration' = 'ambient',
+    output: 'vertical' | 'horizontal' = 'vertical'
   ): Promise<string> {
     try {
       const parsed = (
@@ -448,9 +464,10 @@ Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
 Keep quoted dialogue exactly as written, in its original language, described as spoken lines.
-Any spoken audio must be in the same language as the user's description — name that language explicitly, for example "the narrator speaks in Arabic".
+First identify the language the user wrote in. Any spoken audio must be in that language — name it explicitly, for example "the narrator speaks in Arabic".
 ${AUDIO_DIRECTIVES[audio]}
 Describe a single continuous shot: no cuts, no scene changes, no transitions, and an action that resolves within eight seconds.
+${FRAMING_DIRECTIVES[output]}
 The scene must fill the entire frame edge to edge — never describe it as cinematic, widescreen or letterboxed, and never mention black bars or film borders.
 When the description refers to an attached or reference image, keep that reference intact.
 Never ask for readable text: no words, letters, numbers, logos, captions or subtitles anywhere in the scene — billboards, screens, banners and signs show only abstract shapes, patterns or light.`,
@@ -462,6 +479,9 @@ Never ask for readable text: no words, letters, numbers, logos, captions or subt
           ],
           response_format: zodResponseFormat(
             z.object({
+              language: z
+                .string()
+                .describe('the language the user wrote the description in'),
               prompt: z.string().describe('the rewritten video prompt'),
             }),
             'videoPrompt'
