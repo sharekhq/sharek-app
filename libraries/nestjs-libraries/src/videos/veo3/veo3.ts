@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { JSONSchema } from 'class-validator-jsonschema';
 import { HttpException } from '@nestjs/common';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import { isSafetyRejection } from '@gitroom/nestjs-libraries/openai/generation.error';
@@ -25,11 +26,19 @@ class Image {
   path: string;
 }
 class Veo3Params {
+  @JSONSchema({
+    description:
+      'The scene to film, as one description. It is rewritten into an English cinematic prompt before rendering, so plain language in any language is fine.',
+  })
   @IsString()
   prompt: string;
 
   // The reference images are optional — the UI submits no `images` key when
   // none are picked, and process() already maps a missing list to [].
+  @JSONSchema({
+    description:
+      'Up to 3 reference images the shot should draw on. Omit the key entirely when there are none.',
+  })
   @IsOptional()
   @Type(() => Image)
   @ValidateNested({ each: true })
@@ -39,6 +48,10 @@ class Veo3Params {
 
   // Optional like `images` — an older client submits no `audio` key, and the
   // hygiene pass defaults it to ambient.
+  @JSONSchema({
+    description:
+      'Choose "none" for silence, "ambient" for natural sound and music with no speech, or "narration" for a spoken voiceover in the language the user wrote in — the words are written for you, so never supply a script.',
+  })
   @IsOptional()
   @IsIn(['none', 'ambient', 'narration'])
   audio: 'none' | 'ambient' | 'narration';
@@ -66,7 +79,8 @@ const withNoTextDirective = (prompt: string) =>
 @Video({
   identifier: 'veo3',
   title: 'Veo3 (Audio + Video)',
-  description: 'Generate videos with the most advanced video model.',
+  description:
+    'One continuous ~8 second AI-generated shot: real camera movement and live action, 1080p, with no cuts, no scene changes and no transitions. Audio is your choice of silent, ambient sound and music, or a spoken voiceover in the language the user wrote in, whose words are written for you. Accepts up to 3 reference images. It renders no readable text anywhere — no captions, titles or legible signage. Best for a single vivid moment: one scene, one action that resolves in eight seconds. It cannot cover a list of points.',
   placement: 'text-to-image',
   dto: Veo3Params,
   tools: [],
