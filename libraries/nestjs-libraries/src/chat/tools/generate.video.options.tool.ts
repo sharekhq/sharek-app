@@ -16,7 +16,7 @@ export class GenerateVideoOptionsTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'generateVideoOptions',
-      description: `All the options to generate videos, some tools might require another call to generateVideoFunction`,
+      description: `All the options to generate videos, some tools might require another call to generateVideoFunction. Each option carries a title and a description saying what it actually produces and what it suits — read them before choosing, and tell the user which one you picked and why`,
       inputSchema: z.object({
         reasoning: z
           .string()
@@ -38,6 +38,8 @@ export class GenerateVideoOptionsTool implements AgentToolInterface {
         video: z.array(
           z.object({
             type: z.string(),
+            title: z.string(),
+            description: z.string(),
             output: z.string(),
             tools: z.array(
               z.object({
@@ -51,34 +53,20 @@ export class GenerateVideoOptionsTool implements AgentToolInterface {
       }),
       execute: async (inputData, context) => {
         checkAuth(inputData, context);
-        const videos = this._videoManagerService.getAllVideos();
-        console.log(
-          JSON.stringify(
-            {
-              video: videos.map((p) => {
-                return {
-                  type: p.identifier,
-                  output: 'vertical|horizontal',
-                  tools: p.tools,
-                  customParams: getValidationSchemas()[p.dto.name],
-                };
-              }),
-            },
-            null,
-            2
-          )
-        );
+        // Built once. The log and the return were two identical maps, so a
+        // field added to one could silently miss the other.
+        const video = this._videoManagerService.getAllVideos().map((p) => ({
+          type: p.identifier,
+          title: p.title,
+          description: p.description,
+          output: 'vertical|horizontal',
+          tools: p.tools,
+          customParams: getValidationSchemas()[p.dto.name],
+        }));
 
-        return {
-          video: videos.map((p) => {
-            return {
-              type: p.identifier,
-              output: 'vertical|horizontal',
-              tools: p.tools,
-              customParams: getValidationSchemas()[p.dto.name],
-            };
-          }),
-        };
+        console.log(JSON.stringify({ video }, null, 2));
+
+        return { video };
       },
     });
   }

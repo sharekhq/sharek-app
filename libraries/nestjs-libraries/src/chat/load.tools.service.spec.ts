@@ -340,3 +340,37 @@ describe('LoadToolsService model', () => {
     expect(model.provider).toBe('openai.responses');
   });
 });
+
+// Samy used to pick a video provider silently: asked for a video about
+// Hurghada excursions it went straight to image slides and never mentioned that
+// veo3 exists. The provider descriptions give it the facts; these two lines are
+// what make it use them and show its reasoning.
+describe('LoadToolsService video guidance', () => {
+  it('sends the model to generateVideoOptions before generating a video', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('call generateVideoOptions');
+  });
+
+  it('requires the pick to be explained and the alternatives named', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('why you picked it');
+    expect(instructions).toContain('Never pick silently');
+  });
+
+  // Provider specifics belong in the provider's own @Video metadata. A name
+  // here would mean a fourth place to edit when a provider is added or dropped.
+  it('names no provider, so a new provider needs no prompt edit', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).not.toMatch(/veo3|image-text-slides/i);
+  });
+
+  // getAllVideos() filters on `available`, which is env-gated per provider —
+  // veo3 needs KIEAI_API_KEY, slides needs four keys. A deployment missing one
+  // returns a single option, so an instruction that asserts a choice exists
+  // would have the model name an alternative it invented.
+  it('does not promise alternatives that the tool may not return', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('may be more than one way');
+    expect(instructions).toContain('name any other options it returned');
+  });
+});

@@ -210,7 +210,7 @@ export type CreateEvent =
   identifier: 'image-text-slides',
   title: 'Image Text Slides',
   description:
-    'Generate a narrated slideshow from a single prompt. Give the topic, how many slides (1-6) and whether it should be narrated — the script is written for you, so do not break the topic into slides yourself.',
+    'A slideshow of 1-6 still AI images, each held while a narrator reads that slide, with captions burned in — roughly 10 to 55 seconds when narrated, shorter when silent. Give the topic, the slide count and whether it is narrated; the script is written for you, so do not break the topic into slides yourself. Best when the video has several points to make — lists, itineraries, tips, explainers — because the narration carries the content. No camera movement and no live action: still images with a cut between them.',
   placement: 'text-to-image',
   tools: [{ functionName: 'loadVoices', output: 'voice id' }],
   dto: ImagesSlidesParams,
