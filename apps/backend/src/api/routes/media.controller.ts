@@ -46,12 +46,58 @@ export class MediaController {
   }
 
   @Post('/generate-video')
-  generateVideo(
+  async generateVideo(
     @GetOrgFromRequest() org: Organization,
-    @Body() body: VideoDto
+    @Body() body: VideoDto,
+    @Res({ passthrough: false }) res: Response
   ) {
-    console.log('hello');
-    return this._mediaService.generateVideo(org, body);
+    // Same contract as the two-phase route below: everything that can fail
+    // with a meaningful status (credits, trial, unknown type, validation)
+    // fails before the first byte, because the billing and finish-trial
+    // dialogs key off the status code.
+    const video = await this._mediaService.resolveVideo(org, body);
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    // Tell nginx not to buffer this NDJSON stream — buffered heartbeats cannot
+    // keep the proxy connection alive.
+    res.setHeader('X-Accel-Buffering', 'no');
+    const write = (payload: object) => {
+      res.write(JSON.stringify(payload) + '\n');
+      (res as { flush?: () => void }).flush?.();
+    };
+
+    // A one-shot render has no yield points, so unlike the two-phase route a
+    // disconnect cannot cancel it: the render finishes on the committed
+    // credit and the video still lands in the media library.
+    let disconnected = false;
+    res.on('close', () => {
+      disconnected = true;
+    });
+
+    try {
+      for await (const event of withHeartbeat(
+        this._mediaService.processVideo(org, body, video),
+        20_000,
+        () => ({ name: 'heartbeat' })
+      )) {
+        if (disconnected) {
+          break;
+        }
+        write(event);
+      }
+    } catch (err) {
+      // The stream has already started, so a normal HTTP error is no longer
+      // possible. Emit a final error event instead; processVideo normalises
+      // everything through generationError, so an HttpException here carries
+      // a message written for the user.
+      const message =
+        err instanceof HttpException
+          ? err.message
+          : 'Something went wrong while creating your video, please try again.';
+      write({ name: 'error', error: true, message });
+    }
+
+    res.end();
   }
 
   @Post('/generate-video/plan')
