@@ -419,6 +419,76 @@ describe('OpenaiService.generateVideoPrompt', () => {
     expect(system).toMatch(/proper nouns/i);
   });
 
+  // The rewrite ships English to Veo, and Veo takes the spoken language from
+  // the prompt text — so an Arabic description silently produced an English
+  // narrator until the language was stated outright.
+  it('ties any spoken audio to the language of the description', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/identify the language the user wrote in/i);
+    expect(system).toMatch(/spoken audio must be in that language/i);
+  });
+
+  // Veo hard-stops at 8 seconds and letterboxes anything it reads as filmic,
+  // which cost 17% of the frame to black bars on a 9:16 render.
+  it('asks for one continuous shot that fills the frame', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/single continuous shot/i);
+    expect(system).toMatch(/no cuts/i);
+    expect(system).toMatch(/fill the entire frame/i);
+    expect(system).toMatch(/letterbox/i);
+  });
+
+  it.each([
+    ['none', /no spoken words and no music/i],
+    ['ambient', /no spoken words/i],
+    ['narration', /spoken voiceover/i],
+  ])('states the %s audio intent', async (audio, expected) => {
+    await service.generateVideoPrompt('a lantern festival', audio as any);
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      expected
+    );
+  });
+
+  // luna at reasoning_effort 'none' drifts on instructions it can satisfy
+  // implicitly; the slides pipeline hit the same random-language drift and the
+  // fix was to make the model commit to the language in a field of its own
+  // before it writes the prompt.
+  it('makes the model name the description language before writing', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const schema = (mockParse.mock.calls[0][0] as any).response_format;
+    expect(JSON.stringify(schema)).toMatch(/language/i);
+  });
+
+  it.each([
+    ['vertical', /vertical 9:16/i],
+    ['horizontal', /horizontal 16:9/i],
+  ])('composes for a %s frame', async (output, expected) => {
+    await service.generateVideoPrompt(
+      'a lantern festival',
+      'ambient',
+      output as any
+    );
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      expected
+    );
+  });
+
+  it('defaults to a vertical frame', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      /vertical 9:16/i
+    );
+  });
+
+  it('defaults to ambient audio when no intent is given', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
+      /no spoken words/i
+    );
+  });
+
   it('returns an empty string when the call fails', async () => {
     mockParse.mockRejectedValue(new Error('boom'));
     expect(await service.generateVideoPrompt('a lantern festival')).toBe('');

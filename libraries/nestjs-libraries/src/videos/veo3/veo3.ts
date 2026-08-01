@@ -7,6 +7,7 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsIn,
   IsOptional,
   IsString,
   ValidateNested,
@@ -35,6 +36,12 @@ class Veo3Params {
   @IsArray()
   @ArrayMaxSize(3)
   images: Image[];
+
+  // Optional like `images` — an older client submits no `audio` key, and the
+  // hygiene pass defaults it to ambient.
+  @IsOptional()
+  @IsIn(['none', 'ambient', 'narration'])
+  audio: 'none' | 'ambient' | 'narration';
 }
 
 // kie.ai occasionally leaves a task pending forever; without a ceiling the
@@ -50,8 +57,11 @@ const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 export const VEO3_NO_TEXT_DIRECTIVE =
   'Do not render any readable text, words, letters, numbers, logos, captions or subtitles anywhere in the scene, in any script or language; billboards, screens, banners and signage show only abstract shapes, patterns or light.';
 
+// Only for prompts that skipped the hygiene pass — its own output already ends
+// with the rule, and stating it twice both wastes prompt budget and repeats the
+// very nouns ("logos", "captions") the model should not be reaching for.
 const withNoTextDirective = (prompt: string) =>
-  `${prompt}. ${VEO3_NO_TEXT_DIRECTIVE}`;
+  `${prompt.replace(/\s*\.\s*$/, '')}. ${VEO3_NO_TEXT_DIRECTIVE}`;
 
 @Video({
   identifier: 'veo3',
@@ -78,11 +88,17 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     // and otherwise letters garbled glyphs onto every implied sign. Empty means
     // the rewrite failed; the raw prompt still ships with the directive.
     const rewritten = await this._openaiService.generateVideoPrompt(
-      customParams.prompt
+      customParams.prompt,
+      customParams.audio || 'ambient',
+      output
     );
     const base = rewritten || customParams.prompt;
+    // A rewritten prompt carries the no-text rule already; a raw one does not.
+    // The safety rewriter below is the shared one, which knows nothing about
+    // in-scene text, so its output always needs the directive.
+    const outgoing = rewritten ? base : withNoTextDirective(base);
     try {
-      return await this.render(withNoTextDirective(base), output, imageUrls);
+      return await this.render(outgoing, output, imageUrls);
     } catch (err) {
       if (!isSafetyRejection(err)) {
         throw err;
@@ -118,6 +134,10 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     output: 'vertical' | 'horizontal',
     imageUrls: string[]
   ): Promise<URL> {
+    // The only record of what the rewrite actually produced — without it a
+    // video that ignored the user's intent can only be diagnosed by rendering
+    // it again.
+    console.log('veo3 prompt:', prompt);
     const value = await (
       await fetch('https://api.kie.ai/api/v1/veo/generate', {
         headers: {
@@ -129,6 +149,11 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
           prompt,
           imageUrls,
           model: 'veo3_fast',
+          // kie.ai defaults to 720p, which is where the softness comes from.
+          // 1080p is documented for both 16:9 and 9:16, and only 4k is listed
+          // as costing extra credits — verify on the usage log before trusting
+          // that. It adds roughly a minute or two, well inside POLL_TIMEOUT_MS.
+          resolution: '1080p',
           aspectRatio: output === 'horizontal' ? '16:9' : '9:16',
         }),
       })

@@ -35,6 +35,26 @@ describe('Veo3 params validation', () => {
     ).rejects.toThrow();
   });
 
+  // Audio is prompt-driven — kie.ai has no audio parameter — so the choice is
+  // an enum the hygiene pass turns into words. Absent means ambient.
+  it('accepts a known audio choice', async () => {
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a calm sea at dawn',
+        audio: 'narration',
+      } as any)
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects an unknown audio choice', async () => {
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a calm sea at dawn',
+        audio: 'karaoke',
+      } as any)
+    ).rejects.toThrow();
+  });
+
   it('rejects a non-array images value', async () => {
     await expect(
       veo3.processAndValidate({
@@ -135,7 +155,9 @@ describe('Veo3.process', () => {
     );
   });
 
-  it('sends the rewritten prompt with the no-text directive', async () => {
+  // The hygiene pass writes the no-text rule into the prompt itself, so
+  // appending the directive too stated it twice and joined it with '..'.
+  it('sends the rewritten prompt without repeating the no-text directive', async () => {
     const openai = openaiMock();
     openai.generateVideoPrompt.mockResolvedValue('a night festival scene');
     global.fetch = jest
@@ -157,11 +179,108 @@ describe('Veo3.process', () => {
     await jest.advanceTimersByTimeAsync(30_000);
     await expect(result).resolves.toBe('https://cdn/video.mp4');
 
-    expect(openai.generateVideoPrompt).toHaveBeenCalledWith('p');
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith(
+      'p',
+      'ambient',
+      'vertical'
+    );
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.prompt).toBe('a night festival scene');
+    expect(body.resolution).toBe('1080p');
+  });
+
+  // The raw prompt never went through the hygiene pass, so it still needs the
+  // rule — and a prompt that already ends in a period must not gain a second.
+  it('appends the directive to a fallback prompt without doubling the period', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openaiMock() as any).process('vertical', {
+      prompt: 'a market at night.',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.prompt).toBe(
-      `a night festival scene. ${VEO3_NO_TEXT_DIRECTIVE}`
+      `a market at night. ${VEO3_NO_TEXT_DIRECTIVE}`
     );
+  });
+
+  it('passes the chosen audio through to the hygiene pass', async () => {
+    const openai = openaiMock();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('vertical', {
+      prompt: 'p',
+      images: [],
+      audio: 'narration',
+    } as any);
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    expect(openai.generateVideoPrompt).toHaveBeenCalledWith(
+      'p',
+      'narration',
+      'vertical'
+    );
+  });
+
+  // Nothing recorded what actually reached kie.ai, so a video that ignored the
+  // prompt could only be diagnosed by re-rendering.
+  it('logs the prompt it actually sends', async () => {
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    const openai = openaiMock();
+    openai.generateVideoPrompt.mockResolvedValue('a night festival scene');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 200, data: { taskId: 't1' } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          code: 200,
+          data: { response: { resultUrls: ['https://cdn/video.mp4'] } },
+        })
+      ) as any;
+
+    const result = new Veo3(openai as any).process('horizontal', {
+      prompt: 'p',
+      images: [],
+    });
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(result).resolves.toBe('https://cdn/video.mp4');
+
+    expect(
+      logSpy.mock.calls.some(
+        (call) =>
+          String(call[0]).includes('veo3 prompt') &&
+          String(call[1]).includes('a night festival scene')
+      )
+    ).toBe(true);
+    logSpy.mockRestore();
   });
 
   it('falls back to the raw prompt when the rewrite is empty', async () => {
