@@ -12,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { HttpException } from '@nestjs/common';
 
 class Image {
   @IsString()
@@ -79,7 +80,14 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     let videoUrl = [];
     while (videoUrl.length === 0) {
       if (Date.now() > deadline) {
-        throw new Error('The video render timed out, please try again.');
+        // An HttpException, not a plain Error: generationError() passes
+        // HttpExceptions through untouched but replaces anything else with a
+        // generic 500, which would throw this message away before the user
+        // ever sees why the render stopped.
+        throw new HttpException(
+          'The video render timed out, please try again.',
+          504
+        );
       }
       console.log('waiting for video to be ready');
       const data = await (
