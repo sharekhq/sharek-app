@@ -441,10 +441,11 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
    * bars. The clip is a hard 8 seconds, so a multi-shot description ends
    * mid-transition — hence the single-continuous-shot rule.
    *
-   * `language` is a schema field rather than an instruction because luna at
-   * reasoning_effort 'none' drifts on rules it can satisfy implicitly — the
-   * same drift that produced random-language slides. Making it commit to the
-   * language first is what holds the narration to it.
+   * `spokenLanguage` is a schema field rather than an instruction because luna
+   * at reasoning_effort 'none' drifts on rules it can satisfy implicitly — the
+   * same drift that produced random-language slides. It has to name speech
+   * explicitly: as a bare `language` field it anchored the whole rewrite, and
+   * an Arabic description came back as an Arabic prompt.
    */
   async generateVideoPrompt(
     prompt: string,
@@ -464,7 +465,7 @@ Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
 Keep quoted dialogue exactly as written, in its original language, described as spoken lines.
-First identify the language the user wrote in. Any spoken audio must be in that language — name it explicitly, for example "the narrator speaks in Arabic".
+Identify the language the user wrote in: any spoken audio must be in that language — name it explicitly, for example "the narrator speaks in Arabic". The prompt itself is still written in English.
 ${AUDIO_DIRECTIVES[audio]}
 Describe a single continuous shot: no cuts, no scene changes, no transitions, and an action that resolves within eight seconds.
 ${FRAMING_DIRECTIVES[output]}
@@ -479,10 +480,14 @@ Never ask for readable text: no words, letters, numbers, logos, captions or subt
           ],
           response_format: zodResponseFormat(
             z.object({
-              language: z
+              spokenLanguage: z
                 .string()
-                .describe('the language the user wrote the description in'),
-              prompt: z.string().describe('the rewritten video prompt'),
+                .describe(
+                  'the language any spoken audio must use — the language the user wrote the description in'
+                ),
+              prompt: z
+                .string()
+                .describe('the rewritten video prompt, written in English'),
             }),
             'videoPrompt'
           ),
