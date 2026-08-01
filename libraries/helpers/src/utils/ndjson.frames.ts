@@ -8,7 +8,9 @@
  */
 export async function* ndjsonFrames<T = any>(
   body: ReadableStream<Uint8Array>
-): AsyncGenerator<T> {
+  // TNext is `undefined` (nothing is ever passed back into this generator) so
+  // the `yield*` delegations below line up with a plain array iterator.
+): AsyncGenerator<T, void, undefined> {
   const reader = body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';

@@ -16,6 +16,7 @@ import { VideoContextWrapper } from '@gitroom/frontend/components/videos/video.c
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { createPortal } from 'react-dom';
+import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 
 const videoTypeLabel = (
   t: ReturnType<typeof useT>,
@@ -76,11 +77,37 @@ export const Modal: FC<{
         }),
       });
 
+      // Credit, trial and provider checks fail before the stream opens, so
+      // they still arrive as a status — 402 and 406 never reach here, the
+      // fetch wrapper shows the billing and trial dialogs instead.
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
-      onChange(await response.json());
+
+      // The render takes minutes; the response is an NDJSON stream whose
+      // heartbeat frames keep the proxies from cutting the connection.
+      let settled = false;
+      for await (const frame of ndjsonFrames<{
+        name: string;
+        media?: { id: string; path: string };
+        message?: string;
+      }>(response.body!)) {
+        if (frame.name === 'error') {
+          throw new Error(frame.message || '');
+        }
+        if (frame.name === 'done' && frame.media) {
+          settled = true;
+          onChange(frame.media);
+          break;
+        }
+      }
+
+      // A stream that ends without a terminal frame means the render died
+      // silently; surface it rather than leaving the button spinning forever.
+      if (!settled) {
+        throw new Error('');
+      }
     } catch (e) {
       toaster.show(
         (e instanceof Error && e.message) ||
