@@ -46,10 +46,6 @@ describe('OpenaiService model configuration', () => {
       'rewriteFlaggedPrompt',
       () => service.rewriteFlaggedPrompt('a football star on stage'),
     ],
-    [
-      'generateVideoPrompt',
-      () => service.generateVideoPrompt('a festival in Riyadh'),
-    ],
   ];
 
   it.each(liveCalls)(
@@ -449,6 +445,21 @@ describe('OpenaiService.generateVideoPrompt', () => {
     expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
       expected
     );
+  });
+
+  // Kept out of the shared reasoning-off table on purpose: this is the same
+  // remedy generateSlidesFromText needed, and it is a pair. The rewrite holds
+  // ten constraints at once and two of them pull against each other — the
+  // prompt must be English while the speech tracks the user's language — which
+  // is exactly what zero reasoning drops.
+  it('runs gpt-5.6-luna with low reasoning', async () => {
+    await service.generateVideoPrompt('a lantern festival');
+    const [params] = mockParse.mock.calls[0] as unknown as [
+      { model: string; reasoning_effort: string; temperature?: number }
+    ];
+    expect(params.model).toBe('gpt-5.6-luna');
+    expect(params.reasoning_effort).toBe('low');
+    expect(params).not.toHaveProperty('temperature');
   });
 
   // The model commits to the language field before writing the prompt, so a
