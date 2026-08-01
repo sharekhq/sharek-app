@@ -19,12 +19,15 @@ const VoicePrompt = z.object({
 
 // The aspect ratio reaches Veo as an API field, but the rewrite never saw it —
 // so it wrote wide establishing shots and sweeping camera moves for a frame
-// that is taller than it is wide.
+// that is taller than it is wide. These constrain the frame only: an earlier
+// version named a subject shape and a camera move, and every render obeyed it
+// literally, so a Riyadh street festival and an Egyptian temple came back as
+// the same rising shot of a tall central structure.
 const FRAMING_DIRECTIVES = {
   vertical:
-    'Compose for a vertical 9:16 frame: a tall upright subject filling the height, the camera close and centred, movement that rises, falls or pushes in rather than panning wide.',
+    'Compose for a vertical 9:16 frame: the subject must read clearly in a tall narrow frame, and the shot must never depend on width to make sense. Let the scene decide the framing and the camera — a quiet moment may want a still close-up, a crowd a slow drift, a performance a locked-off wide.',
   horizontal:
-    'Compose for a horizontal 16:9 frame: the subject set within a wide scene, with room either side and camera movement that travels across it.',
+    'Compose for a horizontal 16:9 frame: the subject must read clearly across a wide frame. Let the scene decide the framing and the camera — a quiet moment may want a still close-up, a crowd a slow drift, a performance a locked-off wide.',
 } as const;
 
 // Veo has no audio parameter — the soundtrack is whatever the prompt implies,
@@ -465,7 +468,7 @@ Write each prompt as one concrete scene: the setting, three or four distinctive 
               role: 'system',
               content: `You rewrite a user's description into one prompt for an AI video generation model.
 Return one prompt, in English regardless of the description's language.
-Write one concrete scene: the setting, three or four distinctive visual elements, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate details — never vague crowds in unnamed places.
+Write one concrete scene: the setting, its distinctive visual details, the camera framing and movement, the lighting, and the ambient sound or music, with culturally accurate specifics — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
 Keep quoted dialogue exactly as written, in its original language, described as spoken lines.
 Identify the language the user wrote in: any spoken audio must be in that language — name it explicitly, for example "the narrator speaks in Arabic". The prompt itself is still written in English.
