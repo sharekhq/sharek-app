@@ -512,6 +512,18 @@ describe('OpenaiService.generateVideoPrompt', () => {
     );
   });
 
+  // Asking only for "a voiceover describing the scene" produced three different
+  // things across three renders: a written line, the user's own request read
+  // back aloud, and no line at all — leaving the Arabic words for Veo to
+  // invent, which is where it is weakest. The line has to be written here.
+  it('requires narration to be an explicit written line', async () => {
+    await service.generateVideoPrompt('a lantern festival', 'narration');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/exact words it says/i);
+    expect(system).toMatch(/quotation marks/i);
+    expect(system).toMatch(/never a restatement/i);
+  });
+
   it('defaults to ambient audio when no intent is given', async () => {
     await service.generateVideoPrompt('a lantern festival');
     expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
