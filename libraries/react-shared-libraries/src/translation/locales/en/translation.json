@@ -577,7 +577,8 @@
   "start_a_new_chat": "Start a new chat",
   "your_assistant": "Your Assistant",
   "samy": "Samy",
-  "samy_welcome_message": "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Public API.",  "last_github_trending": "Last Github Trending",
+  "samy_welcome_message": "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Public API.",
+  "last_github_trending": "Last Github Trending",
   "next_predicted_github_trending": "Next Predicted GitHub Trending",
   "repository": "Repository",
   "date": "Date",
@@ -923,7 +924,7 @@
   "rotate_api_key_description": "This will generate a new API key and invalidate the current one. Any integrations using the old key will stop working.",
   "rotate_key": "Rotate Key",
   "rotate_secret": "Rotate Secret",
-  "save_changes": "Save Changes",
+  "save_changes": "Save changes",
   "scheduled": "Scheduled",
   "scheduled_times": "Scheduled Times",
   "search_media_by_name": "Search by file name",
@@ -1110,5 +1111,11 @@
   "search_styles": "Search styles",
   "no_styles_found": "No styles match your search",
   "styles_count_one": "{{count}} style",
-  "styles_count_other": "{{count}} styles"
+  "styles_count_other": "{{count}} styles",
+  "alt_text_accessibility": "Alt text (for accessibility)",
+  "alt_text_placeholder": "Describe the image or video content…",
+  "thumbnail": "Thumbnail",
+  "create_thumbnail": "Create thumbnail",
+  "change_frame": "Change frame",
+  "select_this_frame": "Select this frame"
 }
