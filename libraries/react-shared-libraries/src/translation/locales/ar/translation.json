@@ -599,7 +599,8 @@
   "start_a_new_chat": "ابدأ محادثة جديدة",
   "your_assistant": "مساعدك",
   "samy": "سامي",
-  "samy_welcome_message": "مرحبًا، أنا سامي 👋 — مساعدك في Sharek. أستطيع جدولة منشور واحد أو عدة منشورات على قنواتك المتصلة، وتوليد الصور والفيديوهات لها. اختر القنوات التي تريدها من لوحة القنوات، وستجد محادثاتنا السابقة في لوحة المحادثات. يمكنك أيضًا استخدامي كخادم MCP — راجع الإعدادات ← Public API.",  "last_github_trending": "آخر الترندات على Github",
+  "samy_welcome_message": "مرحبًا، أنا سامي 👋 — مساعدك في Sharek. أستطيع جدولة منشور واحد أو عدة منشورات على قنواتك المتصلة، وتوليد الصور والفيديوهات لها. اختر القنوات التي تريدها من لوحة القنوات، وستجد محادثاتنا السابقة في لوحة المحادثات. يمكنك أيضًا استخدامي كخادم MCP — راجع الإعدادات ← Public API.",
+  "last_github_trending": "آخر الترندات على Github",
   "next_predicted_github_trending": "الترند المتوقع القادم على Github",
   "repository": "المستودع",
   "date": "التاريخ",
@@ -1130,5 +1131,11 @@
   "styles_count_two": "نمطان",
   "styles_count_few": "{{count}} أنماط",
   "styles_count_many": "{{count}} نمطاً",
-  "styles_count_other": "{{count}} نمط"
+  "styles_count_other": "{{count}} نمط",
+  "alt_text_accessibility": "النص البديل (لتسهيل الوصول)",
+  "alt_text_placeholder": "صف محتوى الصورة أو الفيديو…",
+  "thumbnail": "الصورة المصغّرة",
+  "create_thumbnail": "إنشاء صورة مصغّرة",
+  "change_frame": "تغيير اللقطة",
+  "select_this_frame": "اختيار هذه اللقطة"
 }
