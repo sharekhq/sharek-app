@@ -1,8 +1,15 @@
 import {
   Veo3,
+  Veo3Params,
   VEO3_NO_TEXT_DIRECTIVE,
 } from '@gitroom/nestjs-libraries/videos/veo3/veo3';
 import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import {
+  VIDEO_PROMPT_MAX_CHARS,
+  VIDEO_PROMPT_MIN_CHARS,
+} from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
 
 // Reference images are optional — the modal's hint says so and process() maps a
 // missing list to []. A prompt-only submit sends no `images` key at all, so the
@@ -62,6 +69,64 @@ describe('Veo3 params validation', () => {
         images: 'not-an-array',
       } as any)
     ).rejects.toThrow();
+  });
+});
+
+// This field had no bounds at all: the only guard was an unmessaged
+// `minLength: 5` in the modal's register() call, so the API accepted "a" and a
+// too-short prompt failed with no message. The bound belongs on the field the
+// API validates — the same class Samy's tool schema is generated from.
+describe('Veo3Params prompt bounds', () => {
+  const failures = async (prompt: string) =>
+    (await validate(plainToInstance(Veo3Params, { prompt }))).map(
+      (error) => error.property
+    );
+
+  it('rejects a prompt one character below the minimum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MIN_CHARS - 1))).toContain(
+      'prompt'
+    );
+  });
+
+  it('accepts a prompt of exactly the minimum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MIN_CHARS))).toEqual([]);
+  });
+
+  it('accepts a prompt of exactly the maximum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MAX_CHARS))).toEqual([]);
+  });
+
+  it('rejects a prompt one character above the maximum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MAX_CHARS + 1))).toContain(
+      'prompt'
+    );
+  });
+
+  // Length is JavaScript string length — no script-specific handling, so an
+  // Arabic prompt at the minimum is as acceptable as a Latin one.
+  it('accepts an Arabic prompt of exactly the minimum', async () => {
+    expect(await failures('ب'.repeat(VIDEO_PROMPT_MIN_CHARS))).toEqual([]);
+  });
+
+  // The route reaches these bounds through processAndValidate, which runs the
+  // Nest validation pipe — the step that turns a bounds failure into a real 400
+  // before the render is committed to and before any credit is spent.
+  it('refuses a below-minimum prompt through the route’s own validation', async () => {
+    const veo3 = new Veo3({} as any);
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a'.repeat(VIDEO_PROMPT_MIN_CHARS - 1),
+      } as any)
+    ).rejects.toThrow();
+  });
+
+  it('lets a prompt at the minimum through that same validation', async () => {
+    const veo3 = new Veo3({} as any);
+    await expect(
+      veo3.processAndValidate({
+        prompt: 'a'.repeat(VIDEO_PROMPT_MIN_CHARS),
+      } as any)
+    ).resolves.toBeUndefined();
   });
 });
 

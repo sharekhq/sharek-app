@@ -3,11 +3,11 @@ import { FC, useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { Button } from '@gitroom/react/form/button';
-import { Textarea } from '@gitroom/react/form/textarea';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import clsx from 'clsx';
+import { VideoPromptField } from '@gitroom/frontend/components/videos/video.modal.parts';
 
 export interface Voice {
   id: string;
@@ -52,16 +52,12 @@ const VEO3Settings: FC = () => {
 
   return (
     <div>
-      <Textarea
-        label="Prompt"
-        translationKey="prompt"
-        name="prompt"
-        {...register('prompt', {
-          required: true,
-          minLength: 5,
-          value,
-        })}
-        error={formState?.errors?.prompt?.message}
+      <VideoPromptField
+        value={value}
+        placeholder={t(
+          'veo3_prompt_placeholder',
+          'Describe the scene: who or what is in it, where, and what happens'
+        )}
       />
       <div className="mb-[16px]">
         <div className="text-[14px] mb-[6px]">{t('veo3_audio', 'Audio')}</div>
@@ -126,4 +122,61 @@ const VeoComponent = () => {
   return <VEO3Settings />;
 };
 
-videoWrapper('veo3', VeoComponent);
+/**
+ * One film frame, not a stack: the sprocket holes read as cinema and the single
+ * frame says there are no cuts, which is the whole difference from a slideshow.
+ * The subject trails motion streaks because this is the type that moves.
+ */
+const Veo3Diagram = (
+  <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+    <rect
+      x="4"
+      y="12"
+      width="44"
+      height="28"
+      rx="4"
+      fill="var(--ai-soft)"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    />
+    <g fill="currentColor" opacity=".55">
+      {[15, 34].map((y) =>
+        [8, 15, 22, 29, 36, 41].map((x) => (
+          <rect key={`${x}-${y}`} x={x} y={y} width="3" height="3" rx="1" />
+        ))
+      )}
+    </g>
+    <circle cx="35" cy="26" r="4.6" fill="currentColor" opacity=".9" />
+    <path
+      d="M11 22.5h11M9 26h15M11 29.5h11"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      opacity=".42"
+    />
+  </svg>
+);
+
+videoWrapper('veo3', VeoComponent, {
+  card: {
+    name: { key: 'video_type_veo3', fallback: 'Veo 3' },
+    description: {
+      key: 'video_type_veo3_desc',
+      fallback:
+        'One continuous live-action shot with real camera movement and sound. No cuts, and it renders no readable text.',
+    },
+    pills: [
+      { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+      { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+      {
+        key: 'video_type_veo3_pill_refs',
+        fallback: 'Up to 3 reference images',
+      },
+      {
+        key: 'video_type_veo3_pill_bestfor',
+        fallback: 'Best for one vivid moment',
+      },
+    ],
+    diagram: Veo3Diagram,
+  },
+});

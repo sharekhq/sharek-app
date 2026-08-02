@@ -10,8 +10,14 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  MaxLength,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
+import {
+  VIDEO_PROMPT_MAX_CHARS,
+  VIDEO_PROMPT_MIN_CHARS,
+} from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
 import { Type } from 'class-transformer';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { HttpException } from '@nestjs/common';
@@ -25,12 +31,17 @@ class Image {
   @IsString()
   path: string;
 }
-class Veo3Params {
+export class Veo3Params {
+  // The description states the minimum because this class doubles as Samy's
+  // tool schema: an agent that is not told the rule submits short prompts and
+  // gets a validation error it was never warned about.
   @JSONSchema({
     description:
-      'The scene to film, as one description. It is rewritten into an English cinematic prompt before rendering, so plain language in any language is fine.',
+      'The scene to film, as one description. It is rewritten into an English cinematic prompt before rendering, so plain language in any language is fine. At least 15 characters.',
   })
   @IsString()
+  @MinLength(VIDEO_PROMPT_MIN_CHARS)
+  @MaxLength(VIDEO_PROMPT_MAX_CHARS)
   prompt: string;
 
   // The reference images are optional — the UI submits no `images` key when
