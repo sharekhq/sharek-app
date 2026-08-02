@@ -245,6 +245,23 @@ describe('generateImageWithPrompt', () => {
     expect(ai.generatePromptForPicture.mock.calls[0][1]).toBeUndefined();
   });
 
+  // The enhancement returns '' when the model refuses or its reply will not
+  // parse. Passing that on asks the renderer for an empty prompt, which 400s
+  // as an invalid parameter and reaches the user as a generic failure — a dead
+  // end for a request that would have worked on their own words.
+  it('falls back to the user\'s prompt when the enhancement comes back empty', async () => {
+    const ai = openAi();
+    ai.generatePromptForPicture.mockResolvedValue('');
+    const { service } = makeService({ openAi: ai });
+
+    await service.generateImageWithPrompt(dto(), org);
+
+    expect(ai.generateImageAtSize).toHaveBeenCalledWith(
+      'قهوة مختصة في الرياض',
+      '1024x1024'
+    );
+  });
+
   // FR-013: one image per request, never a set of variations.
   it('renders exactly one image', async () => {
     const ai = openAi();
