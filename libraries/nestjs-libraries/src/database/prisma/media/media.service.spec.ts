@@ -110,6 +110,54 @@ describe('resolveVideo', () => {
   });
 });
 
+// The pre-flight the modal calls before it shows a waiting screen. It has to
+// refuse everything the render would refuse, or the UI commits to a render that
+// is about to be turned away — and the client's billing dialog stops the
+// request dead, so the refusal never gets back to the screen.
+describe('generateVideoAllowed', () => {
+  it('throws SubscriptionException when no credits remain', async () => {
+    const { service } = makeService({ credits: 0, video: oneShotVideo() });
+    await expect(
+      service.generateVideoAllowed(org, 'veo3')
+    ).rejects.toBeInstanceOf(SubscriptionException);
+  });
+
+  it('refuses a non-trial video for a trialing org', async () => {
+    const { service } = makeService({
+      video: { ...oneShotVideo(), trial: false },
+    });
+    const err = await service
+      .generateVideoAllowed({ ...org, isTrailing: true }, 'veo3')
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(406);
+  });
+
+  // The trial refusal is the status this endpoint already returned, and the
+  // finish-trial dialog keys off it. Adding the credit check must not move it.
+  it('keeps the trial refusal ahead of the credit one', async () => {
+    const { service } = makeService({
+      credits: 0,
+      video: { ...oneShotVideo(), trial: false },
+    });
+    const err = await service
+      .generateVideoAllowed({ ...org, isTrailing: true }, 'veo3')
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(406);
+  });
+
+  it('rejects an unknown video type', async () => {
+    const { service } = makeService({ video: undefined });
+    await expect(service.generateVideoAllowed(org, 'nope')).rejects.toThrow();
+  });
+
+  it('allows a render when credits remain', async () => {
+    const { service } = makeService({ video: oneShotVideo() });
+    await expect(service.generateVideoAllowed(org, 'veo3')).resolves.toBe(true);
+  });
+});
+
 describe('processVideo', () => {
   it('renders, uploads, saves and yields a single done frame', async () => {
     const video = oneShotVideo();

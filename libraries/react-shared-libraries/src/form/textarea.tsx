@@ -1,6 +1,12 @@
 'use client';
 
-import { DetailedHTMLProps, FC, InputHTMLAttributes, useMemo } from 'react';
+import {
+  DetailedHTMLProps,
+  FC,
+  InputHTMLAttributes,
+  ReactNode,
+  useMemo,
+} from 'react';
 import clsx from 'clsx';
 import { useFormContext } from 'react-hook-form';
 import { TranslatedLabel } from '../translation/translated-label';
@@ -16,6 +22,13 @@ export const Textarea: FC<
     name: string;
     translationKey?: string;
     translationParams?: Record<string, string | number>;
+    /**
+     * Stands in the error's place while there is no error, so a requirement can
+     * be shown before the click and be replaced in place afterwards.
+     */
+    hint?: ReactNode;
+    /** Sits at the end of that same line in both states — a character counter. */
+    counter?: ReactNode;
   }
 > = (props) => {
   const {
@@ -25,6 +38,8 @@ export const Textarea: FC<
     error,
     translationKey,
     translationParams,
+    hint,
+    counter,
     ...rest
   } = props;
   const form = useFormContext();
@@ -55,7 +70,12 @@ export const Textarea: FC<
         )}
         {...rest}
       />
-      <div className="text-error text-[12px]">{err || <>&nbsp;</>}</div>
+      <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
+        <span className={clsx(err ? 'text-error' : 'text-muted')}>
+          {err || hint || <>&nbsp;</>}
+        </span>
+        {counter}
+      </div>
     </div>
   );
 };

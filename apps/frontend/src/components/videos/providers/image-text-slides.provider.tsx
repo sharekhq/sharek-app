@@ -1,10 +1,21 @@
 import { videoWrapper } from '@gitroom/frontend/components/videos/video.wrapper';
-import { FC, useCallback, useRef, useState, useEffect } from 'react';
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+} from 'react';
+import { createPortal } from 'react-dom';
+import {
+  VideoCostNote,
+  VideoPromptField,
+} from '@gitroom/frontend/components/videos/video.modal.parts';
 import { useVideoFunction } from '@gitroom/frontend/components/videos/video.render.component';
 import useSWR from 'swr';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@gitroom/react/form/button';
-import { Textarea } from '@gitroom/react/form/textarea';
 import { Slider } from '@gitroom/react/form/slider';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import clsx from 'clsx';
@@ -130,75 +141,117 @@ const VoiceSelector: FC = () => {
       <div className="text-sm font-medium text-textColor mb-4">
         {t('select_a_voice', 'Select a Voice')}
       </div>
+      {/* Two anonymous buttons said nothing about what they switched. Each set
+          now names its language in that language's own script and says how many
+          voices it holds (FR-019). Omitted entirely when there is only one set,
+          which is the pre-existing behaviour. */}
       {!!data?.arabicVoices?.length && (
-        <div className="flex w-full justify-center items-center gap-[10px]">
-          <div className="flex-1 flex">
-            <Button
-              type="button"
-              variant="ghost"
-              className={clsx(
-                '!flex-1',
-                activeSet === 'english' &&
-                  '!bg-brandSoft !text-brandText !border-brand'
-              )}
-              onClick={() => setActiveSet('english')}
-            >
-              {t('voice_set_english', 'English')}
-            </Button>
-          </div>
-          <div className="flex-1 flex">
-            <Button
-              type="button"
-              variant="ghost"
-              className={clsx(
-                '!flex-1',
-                activeSet === 'arabic' &&
-                  '!bg-brandSoft !text-brandText !border-brand'
-              )}
-              onClick={() => setActiveSet('arabic')}
-            >
-              {t('voice_set_arabic', 'العربية')}
-            </Button>
-          </div>
+        <div className="flex gap-[8px]">
+          {[
+            {
+              id: 'english' as const,
+              label: t('voice_set_english', 'English'),
+              count: data.voices?.length || 0,
+            },
+            {
+              id: 'arabic' as const,
+              label: t('voice_set_arabic', 'العربية'),
+              count: data.arabicVoices?.length || 0,
+            },
+          ].map((set) => {
+            const selected = activeSet === set.id;
+            return (
+              <button
+                key={set.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setActiveSet(set.id)}
+                className={clsx(
+                  'flex-1 min-w-0 h-[52px] px-[8px] rounded-[8px] border flex flex-col items-center justify-center gap-[1px] whitespace-nowrap transition-colors',
+                  'focus-visible:ring-2 focus-visible:ring-brand',
+                  selected
+                    ? 'bg-brandSoft border-brand text-brandText font-[600]'
+                    : 'bg-surface border-line text-ink hover:border-inkSoft'
+                )}
+              >
+                <span className="inline-flex items-center gap-[6px] text-[14px] font-[600]">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    className="flex-none opacity-80"
+                  >
+                    <circle
+                      cx="8"
+                      cy="8"
+                      r="6"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                    />
+                    <path
+                      d="M2 8h12M8 2c1.8 2 1.8 10 0 12M8 2C6.2 4 6.2 12 8 14"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                    />
+                  </svg>
+                  {set.label}
+                </span>
+                <span
+                  className={clsx(
+                    'text-[11px] font-[400]',
+                    selected ? 'opacity-80' : 'text-muted'
+                  )}
+                >
+                  {t('voice_set_count', '{{count}} voices', {
+                    count: set.count,
+                  })}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
-      <div className="space-y-2">
+      {/* One row per voice — a radio, the name, and a round preview button.
+          A labelled full-size button per voice turned a six-voice list into a
+          column taller than the modal. */}
+      <div className="flex flex-col gap-[6px]">
         {(activeVoices || []).map((voice) => (
           <div
             key={voice.id}
             className={clsx(
-              'flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer',
+              'flex items-center gap-[10px] ps-[12px] pe-[8px] py-[8px] rounded-[8px] border transition-colors cursor-pointer',
               selectedVoice === voice.id
                 ? 'border-brand bg-brandSoft'
-                : 'border-tableBorder bg-sixth hover:bg-boxHover'
+                : 'border-line bg-surface hover:border-inkSoft'
             )}
             onClick={() => selectVoice(voice.id)}
           >
-            <div className="flex items-center space-x-3">
-              <input
-                {...register('voice')}
-                type="radio"
-                value={voice.id}
-                className="w-4 h-4 text-brand border-line focus:ring-brand"
-                checked={selectedVoice === voice.id}
-                onChange={() => selectVoice(voice.id)}
-              />
-              <div>
-                <div className="text-sm font-medium text-textColor">
-                  {voice.name}
-                </div>
-              </div>
-            </div>
-
-            <Button
+            <input
+              {...register('voice')}
+              type="radio"
+              value={voice.id}
+              className="w-[16px] h-[16px] flex-none accent-brand focus-visible:ring-2 focus-visible:ring-brand"
+              checked={selectedVoice === voice.id}
+              onChange={() => selectVoice(voice.id)}
+            />
+            <span className="text-[14px]">{voice.name}</span>
+            <span className="flex-1" />
+            <button
               type="button"
-              variant="ghost"
-              className={clsx(
-                'px-3 py-1 text-xs',
-                loadingVoice === voice.id && 'opacity-50 cursor-not-allowed',
+              aria-label={
                 currentlyPlaying === voice.id
-                  ? '!bg-brand !text-white'
-                  : '!bg-sixth'
+                  ? t('stop', 'Stop')
+                  : t('play', 'Play')
+              }
+              className={clsx(
+                'w-[30px] h-[30px] rounded-full flex-none inline-flex items-center justify-center border transition-colors',
+                'focus-visible:ring-2 focus-visible:ring-brand',
+                loadingVoice === voice.id && 'opacity-50 pointer-events-none',
+                currentlyPlaying === voice.id
+                  ? 'bg-brand border-brand text-white'
+                  : 'bg-surface border-line text-ink hover:border-inkSoft'
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -206,12 +259,16 @@ const VoiceSelector: FC = () => {
               }}
               disabled={loadingVoice === voice.id}
             >
-              {loadingVoice === voice.id
-                ? '...'
-                : currentlyPlaying === voice.id
-                ? `⏹ ${t('stop', 'Stop')}`
-                : `▶ ${t('play', 'Play')}`}
-            </Button>
+              {currentlyPlaying === voice.id ? (
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                  <rect x="2" y="2" width="8" height="8" rx="1.5" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                  <path d="M3.5 2.4l6 3.6-6 3.6V2.4z" />
+                </svg>
+              )}
+            </button>
           </div>
         ))}
       </div>
@@ -235,12 +292,26 @@ type CreateStreamEvent =
   | { name: 'done'; media: { id: string; path: string } }
   | { name: 'error'; error: true; message: string };
 
-/** The render's phases, other than images, which carries a live count instead. */
-const STEP_LABELS: Record<string, (t: ReturnType<typeof useT>) => string> = {
-  planning: (t) => t('step_planning', 'Writing image prompts…'),
-  voicing: (t) => t('step_voicing', 'Recording the voiceover…'),
-  assembling: (t) => t('step_assembling', 'Putting the video together…'),
-};
+/**
+ * The render's phases, in the order the stream emits them. Ordered rather than
+ * keyed: the waiting screen renders them as a list and is driven by position,
+ * so a frame's step name has to resolve to an index. `images` is the one that
+ * also carries a live count — the modal appends it to the active step.
+ */
+const STEPS: {
+  step: string;
+  /** Its frames carry a real running count; every other step repeats the total. */
+  counted?: boolean;
+  label: (t: ReturnType<typeof useT>) => string;
+}[] = [
+  { step: 'planning', label: (t) => t('step_planning', 'Writing image prompts…') },
+  { step: 'images', counted: true, label: (t) => t('step_images', 'Creating images') },
+  { step: 'voicing', label: (t) => t('step_voicing', 'Recording the voiceover…') },
+  {
+    step: 'assembling',
+    label: (t) => t('step_assembling', 'Putting the video together…'),
+  },
+];
 
 const SLIDE_OPTIONS = [1, 2, 3, 4, 5, 6];
 const MAX_SLIDES = SLIDE_OPTIONS[SLIDE_OPTIONS.length - 1];
@@ -266,9 +337,8 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
-  const { register, watch, setValue, trigger, getValues, formState } =
-    useFormContext();
-  const { output } = useVideo();
+  const { watch, setValue, trigger, getValues } = useFormContext();
+  const { output, actionsSlot } = useVideo();
   const [loading, setLoading] = useState(false);
   const voiceover = watch('voiceover');
   const slides = watch('slides');
@@ -280,6 +350,13 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
 
   const plan = useCallback(async () => {
     if (!(await trigger())) return;
+    // Planning is free, but it is credit-gated on purpose — a user with none
+    // should find out before writing a script, not after. Asking the pre-flight
+    // first is what makes that refusal survivable: a refused request stops dead
+    // inside the fetch wrapper, so anything already committed to — the button's
+    // loading label here, the waiting screen in `create()` — would stay that way
+    // for good.
+    await fetch('/media/generate-video/image-text-slides/allowed');
     setLoading(true);
     try {
       const response = await fetch('/media/generate-video/plan', {
@@ -306,21 +383,11 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
 
   return (
     <div className="flex flex-col gap-[16px]">
-      <Textarea
-        label="Prompt"
-        translationKey="prompt"
-        name="prompt"
-        {...register('prompt', {
-          required: t('please_type_your_prompt', 'Please type your prompt'),
-          minLength: {
-            value: 5,
-            message: t(
-              'the_prompt_should_be_at_least_5_characters_long',
-              'The prompt should be at least 5 characters long'
-            ),
-          },
-        })}
-        error={formState?.errors?.prompt?.message}
+      <VideoPromptField
+        placeholder={t(
+          'slides_prompt_placeholder',
+          'What should the video be about? A topic, an offer, or a short brief'
+        )}
       />
 
       <div>
@@ -361,23 +428,63 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
         </div>
       )}
 
-      <Button type="button" onClick={plan} disabled={loading}>
-        {loading
-          ? t('writing_script', 'Writing the script…')
-          : t('continue', 'Continue')}
-      </Button>
+      {/* Planning the script costs nothing — the credit is spent by Create
+          video on the next screen, and saying so here stops the user hesitating
+          over a button that does not charge (FR-018). */}
+      {!!actionsSlot &&
+        createPortal(
+          <>
+            <VideoCostNote>
+              {t('video_nothing_charged_yet', 'Nothing is charged yet')}
+            </VideoCostNote>
+            <span className="flex-1" />
+            <Button type="button" onClick={plan} disabled={loading}>
+              {loading
+                ? t('writing_script', 'Writing the script…')
+                : t('continue', 'Continue')}
+            </Button>
+          </>,
+          actionsSlot
+        )}
     </div>
   );
 };
+
+/** One 28px control in a slide card's header. Icon-only, so it carries a label. */
+const SlideControl: FC<{
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}> = ({ label, disabled, onClick, children }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    disabled={disabled}
+    onClick={onClick}
+    className={clsx(
+      'w-[28px] h-[28px] rounded-[6px] flex-none inline-flex items-center justify-center text-muted transition-colors',
+      'focus-visible:ring-2 focus-visible:ring-brand',
+      disabled
+        ? 'opacity-35 pointer-events-none'
+        : 'hover:bg-quiet hover:text-ink'
+    )}
+  >
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      {children}
+    </svg>
+  </button>
+);
 
 const ReviewScreen: FC<{
   storyboard: Storyboard;
   onChangeStoryboard: (storyboard: Storyboard) => void;
   onBack: () => void;
   onCreate: () => void;
-  progress: string;
-}> = ({ storyboard, onChangeStoryboard, onBack, onCreate, progress }) => {
+}> = ({ storyboard, onChangeStoryboard, onBack, onCreate }) => {
   const t = useT();
+  const { actionsSlot } = useVideo();
   const slides = storyboard.slides;
 
   const setText = (index: number, text: string) =>
@@ -427,62 +534,95 @@ const ReviewScreen: FC<{
         const tooLong = chars > SOFT_CHARS_PER_SLIDE;
         const overLimit = chars > MAX_CHARS_PER_SLIDE;
         return (
+          // The controls sit in the card's own header rather than a third
+          // column, so the text area gets the card's full width — which is what
+          // lets the modal be 600px wide instead of 880px.
           <div
             key={index}
-            className="flex gap-[10px] items-start border border-tableBorder rounded-[10px] p-[10px]"
+            className={clsx(
+              'flex flex-col gap-[8px] border rounded-[10px] p-[10px] bg-surface',
+              overLimit ? 'border-error' : 'border-line'
+            )}
           >
-            <div className="w-[22px] h-[22px] rounded-[6px] bg-sixth text-[11px] flex items-center justify-center shrink-0">
-              {index + 1}
+            <div className="flex items-center gap-[8px]">
+              <span className="w-[22px] h-[22px] rounded-[6px] bg-quiet text-[11px] font-[600] flex items-center justify-center flex-none">
+                {index + 1}
+              </span>
+              <span className="flex-1" />
+              <SlideControl
+                label={t('move_slide_up', 'Move slide up')}
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+              >
+                <path
+                  d="M8 12.5V4M4.5 7.5L8 4l3.5 3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </SlideControl>
+              <SlideControl
+                label={t('move_slide_down', 'Move slide down')}
+                disabled={index === slides.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                <path
+                  d="M8 3.5V12M4.5 8.5L8 12l3.5-3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </SlideControl>
+              <SlideControl
+                label={t('delete', 'Delete')}
+                onClick={() => remove(index)}
+              >
+                <path
+                  d="M11.5 4.5l-7 7M4.5 4.5l7 7"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </SlideControl>
             </div>
-            <div className="flex-1 min-w-0">
-              <textarea
-                value={slide.text}
-                onChange={(e) => setText(index, e.target.value)}
-                rows={4}
-                className="w-full bg-newBgColorInner border border-newTableBorder rounded-[7px] p-[8px] text-[14px] outline-none text-textColor resize-y"
-              />
-              <div className="flex justify-between items-baseline gap-[10px] text-[11px] mt-[4px]">
-                <span className={tooLong ? 'text-brand' : 'text-muted'}>
-                  {tooLong
-                    ? t(
-                        'slide_text_too_long',
-                        'This slide runs about {{seconds}}s — that is long for one image.',
-                        { seconds: Math.round(seconds) }
-                      )
-                    : t('slide_seconds', '{{seconds}}s', {
-                        seconds: Math.round(seconds),
-                      })}
-                </span>
-                <span
-                  className={clsx(
-                    'shrink-0 tabular-nums',
-                    overLimit ? 'text-brand font-[600]' : 'text-muted'
-                  )}
-                >
-                  {t('slide_chars', '{{used}} / {{max}}', {
-                    used: chars,
-                    max: MAX_CHARS_PER_SLIDE,
-                  })}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-[4px] shrink-0">
-              <Button type="button" variant="ghost" onClick={() => move(index, -1)}>
-                ↑
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => move(index, 1)}>
-                ↓
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => remove(index)}>
-                ✕
-              </Button>
+            <textarea
+              value={slide.text}
+              onChange={(e) => setText(index, e.target.value)}
+              className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[14px] outline-none text-textColor resize-y"
+            />
+            <div className="flex justify-between items-baseline gap-[10px] text-[11px]">
+              <span className={tooLong ? 'text-brandText font-[600]' : 'text-muted'}>
+                {tooLong
+                  ? t(
+                      'slide_text_too_long',
+                      'This slide runs about {{seconds}}s — that is long for one image.',
+                      { seconds: Math.round(seconds) }
+                    )
+                  : t('slide_seconds', '{{seconds}}s', {
+                      seconds: Math.round(seconds),
+                    })}
+              </span>
+              <span
+                dir="ltr"
+                className={clsx(
+                  'flex-none tabular-nums',
+                  overLimit ? 'text-error font-[600]' : 'text-muted'
+                )}
+              >
+                {t('slide_chars', '{{used}} / {{max}}', {
+                  used: chars,
+                  max: MAX_CHARS_PER_SLIDE,
+                })}
+              </span>
             </div>
           </div>
         );
       })}
 
       {anyOverLimit && (
-        <div className="text-[12px] text-brand">
+        <div className="text-[12px] text-error">
           {t(
             'slide_over_limit',
             'One slide is over the {{max}} character limit — trim it to continue.',
@@ -492,36 +632,42 @@ const ReviewScreen: FC<{
       )}
 
       {/* Adding a slide edits the deck; back and create leave the screen. The
-          two jobs sit on opposite ends rather than reading as one row of three. */}
-      <div className="flex justify-between gap-[10px]">
-        <Button
-          type="button"
-          variant="quiet"
-          onClick={add}
-          disabled={slides.length >= MAX_SLIDES}
-        >
-          {t('add_slide', 'Add slide')}
-        </Button>
-        <div className="flex gap-[10px]">
-          <Button type="button" variant="ghost" onClick={onBack}>
-            {t('back', 'Back')}
-          </Button>
-          <Button
-            type="button"
-            onClick={onCreate}
-            // An empty row is dropped server-side, so blocking here is the only
-            // thing that stops a slide vanishing without explanation.
-            disabled={
-              !!progress ||
-              !slides.length ||
-              slides.some((s) => !s.text.trim()) ||
-              anyOverLimit
-            }
-          >
-            {progress || t('create_video', 'Create video')}
-          </Button>
-        </div>
-      </div>
+          two jobs sit on opposite ends rather than reading as one row of three.
+          Create video carries its own cost, so the bar needs no separate note. */}
+      {!!actionsSlot &&
+        createPortal(
+          <>
+            <Button
+              type="button"
+              variant="quiet"
+              onClick={add}
+              disabled={slides.length >= MAX_SLIDES}
+            >
+              {t('add_slide', 'Add slide')}
+            </Button>
+            <span className="flex-1" />
+            <Button type="button" variant="ghost" onClick={onBack}>
+              {t('back', 'Back')}
+            </Button>
+            <Button
+              type="button"
+              onClick={onCreate}
+              // An empty row is dropped server-side, so blocking here is the only
+              // thing that stops a slide vanishing without explanation.
+              disabled={
+                !slides.length ||
+                slides.some((s) => !s.text.trim()) ||
+                anyOverLimit
+              }
+            >
+              {t('create_video', 'Create video')}
+              <span className="ms-[6px] font-[500] opacity-75">
+                · {t('one_credit', '1 credit')}
+              </span>
+            </Button>
+          </>,
+          actionsSlot
+        )}
     </div>
   );
 };
@@ -531,14 +677,40 @@ const ImageSlidesComponent = () => {
   const fetch = useFetch();
   const toaster = useToaster();
   const { getValues } = useFormContext();
-  const { output, onMedia } = useVideo();
+  const {
+    output,
+    onMedia,
+    startRender,
+    reportProgress,
+    failRender,
+    phase,
+    setTrail,
+  } = useVideo();
   const [storyboard, setStoryboard] = useState<Storyboard | null>(null);
   const [planned, setPlanned] = useState<Storyboard | null>(null);
-  const [progress, setProgress] = useState('');
 
-  const create = useCallback(async () => {
+  // Three screens deep, so the header says which one this is. Declared from
+  // here rather than at registration because the labels need `t()`.
+  const trailStep = phase === 'setup' ? (storyboard ? 1 : 0) : 2;
+  useEffect(() => {
+    setTrail({
+      steps: [
+        t('video_step_script', 'Script'),
+        t('video_step_review', 'Review'),
+        t('video_step_render', 'Render'),
+      ],
+      current: trailStep,
+    });
+  }, [trailStep, setTrail, t]);
+
+  const create: () => Promise<void> = useCallback(async () => {
     if (!storyboard) return;
-    setProgress(t('starting', 'Starting…'));
+    // A silent render never emits `voicing` — the server sends `assembling`
+    // straight after the images — so listing that phase would leave "Recording
+    // the voiceover…" ticked as done on a video that has no voice.
+    const steps = STEPS.filter(
+      ({ step }) => step !== 'voicing' || !!getValues().voiceover
+    );
     try {
       const response = await fetch('/media/generate-video/create', {
         method: 'POST',
@@ -551,11 +723,24 @@ const ImageSlidesComponent = () => {
       });
       // The credit, trial and provider checks run before the stream opens, so
       // they still arrive as a status. 402 and 406 never reach here — the
-      // fetch wrapper shows the billing and trial dialogs and never resolves.
+      // fetch wrapper shows the billing and trial dialogs and never resolves,
+      // which is also why the waiting screen waits for this response: entering
+      // it first would strand the user on a render that never started.
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
+
+      // Regenerate re-renders this same storyboard rather than re-planning it —
+      // the images are written fresh each time, which is the point.
+      startRender({
+        steps: steps.map(({ label }) => label(t)),
+        regenerate: () => create(),
+        backLabel: t('edit_script', 'Edit script'),
+        // The review screen it returns to is still mounted with the storyboard,
+        // so returning to it needs nothing from here.
+        onBack: () => undefined,
+      });
 
       let settled = false;
 
@@ -566,30 +751,36 @@ const ImageSlidesComponent = () => {
         if (data.name === 'heartbeat') continue;
         if (data.name === 'error') throw new Error(data.message);
         if (data.name === 'progress') {
-          setProgress(
-            data.step === 'images'
-              ? t('creating_step', 'Creating… {{done}}/{{total}}', {
-                  done: data.done,
-                  total: data.total,
-                })
-              : STEP_LABELS[data.step]?.(t) ?? t('starting', 'Starting…')
-          );
+          const index = steps.findIndex(({ step }) => step === data.step);
+          // An unknown step name would otherwise reset the list to the first
+          // phase, which reads as the render going backwards.
+          if (index >= 0) {
+            reportProgress({
+              index,
+              // Every frame carries done/total, but only the image step's
+              // numbers move — showing the rest would put a static "4 / 4"
+              // beside a phase that has not started counting anything.
+              ...(steps[index].counted
+                ? { done: data.done, total: data.total }
+                : {}),
+            });
+          }
         }
         if (data.name === 'done') {
-          // Hands the saved media back to the modal, which attaches it to the
-          // post and closes.
+          // Hands the saved media back to the modal, which shows it on the
+          // result screen — or attaches it, if the modal was closed.
           settled = true;
-          setProgress('');
           onMedia(data.media);
         }
       }
 
       // A stream that ends without either terminal frame would otherwise leave
-      // the button disabled and the user with no idea what happened.
+      // the waiting screen running with no idea what happened.
       if (!settled) {
         throw new Error('');
       }
     } catch (e) {
+      failRender();
       toaster.show(
         (e instanceof Error && e.message) ||
           t(
@@ -598,9 +789,19 @@ const ImageSlidesComponent = () => {
           ),
         'warning'
       );
-      setProgress('');
     }
-  }, [storyboard, getValues, output, onMedia, toaster, t, fetch]);
+  }, [
+    storyboard,
+    getValues,
+    output,
+    onMedia,
+    startRender,
+    reportProgress,
+    failRender,
+    toaster,
+    t,
+    fetch,
+  ]);
 
   // Going back re-plans, which replaces the script. Warn only when that would
   // actually throw work away — comparing against the storyboard as planned, not
@@ -641,9 +842,98 @@ const ImageSlidesComponent = () => {
       onChangeStoryboard={setStoryboard}
       onBack={back}
       onCreate={create}
-      progress={progress}
     />
   );
 };
 
-videoWrapper('image-text-slides', ImageSlidesComponent, { ownsSubmit: true });
+/**
+ * A stack of offset frames — stills with cuts between them — under a burned-in
+ * caption bar and a narration waveform: the three things this type produces
+ * that the single-shot one does not.
+ */
+const SlidesDiagram = (
+  <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+    <rect
+      x="4"
+      y="6"
+      width="28"
+      height="21"
+      rx="3"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      opacity=".38"
+    />
+    <rect
+      x="9"
+      y="10"
+      width="28"
+      height="21"
+      rx="3"
+      fill="var(--ai-soft)"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      opacity=".62"
+    />
+    <rect
+      x="14"
+      y="14"
+      width="28"
+      height="21"
+      rx="3"
+      fill="var(--ai-soft)"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    />
+    <path
+      d="M17 31l4.5-5 3.4 3.6 4-4.8 5.6 6.2"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="21" cy="20" r="1.9" stroke="currentColor" strokeWidth="1.3" />
+    <rect
+      x="19"
+      y="37.5"
+      width="18"
+      height="2.6"
+      rx="1.3"
+      fill="currentColor"
+      opacity=".55"
+    />
+    <path
+      d="M6 44v-4M10 46v-8M14 45v-6M18 47v-10M22 45v-6M26 46.5v-9M30 44v-4"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+videoWrapper('image-text-slides', ImageSlidesComponent, {
+  ownsActions: true,
+  card: {
+    name: {
+      key: 'video_type_image_text_slides',
+      fallback: 'Image Text Slides',
+    },
+    description: {
+      key: 'video_type_slides_desc',
+      fallback:
+        'A narrated slideshow of AI images with captions burned in. You review and edit the script before anything is rendered.',
+    },
+    pills: [
+      { key: 'video_type_slides_pill_slides', fallback: '1–6 slides' },
+      { key: 'video_type_slides_pill_length', fallback: '10–55 s' },
+      {
+        key: 'video_type_slides_pill_voiceover',
+        fallback: 'Voiceover optional',
+      },
+      {
+        key: 'video_type_slides_pill_bestfor',
+        fallback: 'Best for lists & explainers',
+      },
+    ],
+    diagram: SlidesDiagram,
+  },
+});

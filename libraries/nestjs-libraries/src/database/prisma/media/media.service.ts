@@ -149,6 +149,27 @@ export class MediaService {
       throw new HttpException('This video is not available in trial mode', 406);
     }
 
+    // The same guard `resolveVideo` applies, mirrored here so the answer this
+    // pre-flight gives matches the answer the render would give. Without it the
+    // client is told "allowed", opens a waiting screen, and only then meets the
+    // billing dialog — which stops the request dead, so the screen never learns
+    // the render was refused and waits forever.
+    //
+    // Deliberately *after* the trial check, not before it as in `resolveVideo`:
+    // this endpoint already answered 406 for a trialing org and the
+    // finish-trial dialog keys off that status.
+    const totalCredits = await this._subscriptionService.checkCredits(
+      org,
+      'ai_videos'
+    );
+
+    if (totalCredits.credits <= 0) {
+      throw new SubscriptionException({
+        action: AuthorizationActions.Create,
+        section: Sections.VIDEOS_PER_MONTH,
+      });
+    }
+
     return true;
   }
 

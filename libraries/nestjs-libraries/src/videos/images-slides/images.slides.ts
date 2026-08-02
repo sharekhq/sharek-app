@@ -20,8 +20,13 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateIf,
 } from 'class-validator';
+import {
+  VIDEO_PROMPT_MAX_CHARS,
+  VIDEO_PROMPT_MIN_CHARS,
+} from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { HttpException } from '@nestjs/common';
 import {
@@ -38,8 +43,8 @@ export const WORDS_PER_SLIDE = 20;
 export const MAX_SLIDES = 6;
 /** Hard server-side cost guard (D27): characters in roughly twice the word budget. */
 export const MAX_CHARS_PER_SLIDE = 280;
-/** Input-token guard on the prompt (D28). */
-export const MAX_PROMPT_CHARS = 2000;
+/** Input-token guard on the prompt (D28), shared with the other video provider. */
+export const MAX_PROMPT_CHARS = VIDEO_PROMPT_MAX_CHARS;
 /** Stops short cues flashing (D23). */
 export const MIN_CUE_SECONDS = 1.5;
 /** Silent-slide clamp when voiceover is off (D17). */
@@ -158,11 +163,15 @@ async function getAudioDuration(buffer: Buffer): Promise<number> {
  * every field carries a description the agent can act on.
  */
 export class ImagesSlidesParams {
+  // The description states the minimum because this class doubles as Samy's
+  // tool schema: an agent that is not told the rule submits short prompts and
+  // gets a validation error it was never warned about.
   @JSONSchema({
     description:
-      'What the video should be about. The planner writes the narration from this.',
+      'What the video should be about. The planner writes the narration from this. At least 15 characters.',
   })
   @IsString()
+  @MinLength(VIDEO_PROMPT_MIN_CHARS)
   @MaxLength(MAX_PROMPT_CHARS)
   prompt: string;
 

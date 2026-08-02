@@ -19,6 +19,7 @@ import {
   ImageAspectId,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import { AspectTile } from '@gitroom/frontend/components/ui/aspect.tile';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -35,29 +36,29 @@ const useImageCredits = () => {
 // ~23px box rather than computed from the ratio.
 const ASPECT_TILES: Record<
   ImageAspectId,
-  { label: string; glyph: string; tooltip: string }
+  { label: string; glyph: { width: number; height: number }; tooltip: string }
 > = {
   square: {
     label: 'Square',
-    glyph: 'w-[22px] h-[22px]',
+    glyph: { width: 22, height: 22 },
     tooltip:
       '<strong>Square · 1:1 — {{size}} px</strong><br />Instagram &amp; Facebook feed posts · profile artwork.',
   },
   portrait: {
     label: 'Portrait',
-    glyph: 'w-[18px] h-[22px]',
+    glyph: { width: 18, height: 22 },
     tooltip:
       '<strong>Portrait · 4:5 — {{size}} px</strong><br />The tallest feed post Instagram and Facebook allow — it fills more of the screen.',
   },
   story: {
     label: 'Story',
-    glyph: 'w-[13px] h-[23px]',
+    glyph: { width: 13, height: 23 },
     tooltip:
       '<strong>Story · 9:16 — {{size}} px</strong><br />Instagram Stories &amp; Reels · TikTok · YouTube Shorts.<br /><span style="opacity:.72">Also the right frame for Veo 3 vertical video references.</span>',
   },
   landscape: {
     label: 'Landscape',
-    glyph: 'w-[23px] h-[13px]',
+    glyph: { width: 23, height: 13 },
     tooltip:
       '<strong>Landscape · 16:9 — {{size}} px</strong><br />X &amp; LinkedIn posts · YouTube thumbnails.<br /><span style="opacity:.72">Also the right frame for Veo 3 horizontal video references.</span>',
   },
@@ -304,44 +305,18 @@ const AiImageModal: FC<{
           <div className="flex gap-[8px]">
             {IMAGE_ASPECT_IDS.map((id) => {
               const tile = ASPECT_TILES[id];
-              const selected = aspectRatio === id;
               return (
-                // A button, not a div: the tooltip has to be reachable by keyboard
-                // focus and by tap, not only by hover.
-                <button
+                <AspectTile
                   key={id}
-                  type="button"
-                  onClick={() => setAspectRatio(id)}
-                  data-tooltip-id="tooltip"
-                  data-tooltip-html={t(`image_aspect_${id}_tooltip`, tile.tooltip, {
+                  label={t(`image_aspect_${id}`, tile.label)}
+                  ratio={IMAGE_ASPECT_PRESETS[id].ratio}
+                  glyph={tile.glyph}
+                  selected={aspectRatio === id}
+                  tooltipHtml={t(`image_aspect_${id}_tooltip`, tile.tooltip, {
                     size: IMAGE_ASPECT_PRESETS[id].size.replace('x', '×'),
                   })}
-                  className={clsx(
-                    'flex-1 flex flex-col items-center gap-[6px] px-[6px] pt-[12px] pb-[10px] rounded-[14px] border transition-colors',
-                    selected
-                      ? 'bg-brandSoft border-brand'
-                      : 'bg-surface border-line hover:border-inkSoft'
-                  )}
-                >
-                  <span
-                    className={clsx(
-                      'block border-2 rounded-[3px]',
-                      tile.glyph,
-                      selected ? 'border-brandText' : 'border-muted'
-                    )}
-                  />
-                  <span
-                    className={clsx(
-                      'text-[13px] font-[600]',
-                      selected && 'text-brandText'
-                    )}
-                  >
-                    {t(`image_aspect_${id}`, tile.label)}
-                  </span>
-                  <span className="text-[11px] text-muted">
-                    {IMAGE_ASPECT_PRESETS[id].ratio}
-                  </span>
-                </button>
+                  onSelect={() => setAspectRatio(id)}
+                />
               );
             })}
           </div>

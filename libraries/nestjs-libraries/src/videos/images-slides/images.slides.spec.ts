@@ -29,10 +29,15 @@ import {
   ImagesSlides,
   ImagesSlidesParams,
   MAX_CHARS_PER_SLIDE,
+  MAX_PROMPT_CHARS,
   MAX_SLIDES,
 } from './images.slides';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import {
+  VIDEO_PROMPT_MAX_CHARS,
+  VIDEO_PROMPT_MIN_CHARS,
+} from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
 
 const openai = {
   generateSlidesFromText: jest.fn(),
@@ -100,6 +105,69 @@ describe('ImagesSlidesParams', () => {
     expect(
       await validateParams({ prompt: 'a ramadan offer', slides: 3, voiceover: true })
     ).not.toHaveLength(0);
+  });
+});
+
+// The maximum was already here; the minimum was only ever an unmessaged
+// `minLength: 5` in the modal's register() call. Both bounds now come from the
+// module the frontend hint reads too, so the number that rejects and the
+// number the user is told cannot drift apart.
+describe('ImagesSlidesParams prompt bounds', () => {
+  const base = { voice: 'v1', slides: 4, voiceover: true };
+  const failures = async (prompt: string) =>
+    (await validateParams({ ...base, prompt })).map((error) => error.property);
+
+  it('rejects a prompt one character below the minimum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MIN_CHARS - 1))).toContain(
+      'prompt'
+    );
+  });
+
+  it('accepts a prompt of exactly the minimum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MIN_CHARS))).toEqual([]);
+  });
+
+  it('accepts a prompt of exactly the maximum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MAX_CHARS))).toEqual([]);
+  });
+
+  it('rejects a prompt one character above the maximum', async () => {
+    expect(await failures('a'.repeat(VIDEO_PROMPT_MAX_CHARS + 1))).toContain(
+      'prompt'
+    );
+  });
+
+  // Length is JavaScript string length — no script-specific handling, so an
+  // Arabic prompt at the minimum is as acceptable as a Latin one.
+  it('accepts an Arabic prompt of exactly the minimum', async () => {
+    expect(await failures('ب'.repeat(VIDEO_PROMPT_MIN_CHARS))).toEqual([]);
+  });
+
+  // The provider's own export is what the render path reads; re-pointing it at
+  // the shared module is the whole reason there is only one maximum.
+  it('keeps the provider maximum pointed at the shared bound', () => {
+    expect(MAX_PROMPT_CHARS).toBe(VIDEO_PROMPT_MAX_CHARS);
+  });
+
+  // Both /plan and /create reach these bounds through processAndValidate, which
+  // runs the Nest validation pipe — the step that turns a bounds failure into a
+  // real 400 before the render is committed to and before any credit is spent.
+  it('refuses a below-minimum prompt through the routes’ own validation', async () => {
+    await expect(
+      provider.processAndValidate({
+        ...base,
+        prompt: 'a'.repeat(VIDEO_PROMPT_MIN_CHARS - 1),
+      } as any)
+    ).rejects.toThrow();
+  });
+
+  it('lets a prompt at the minimum through that same validation', async () => {
+    await expect(
+      provider.processAndValidate({
+        ...base,
+        prompt: 'a'.repeat(VIDEO_PROMPT_MIN_CHARS),
+      } as any)
+    ).resolves.toBeUndefined();
   });
 });
 

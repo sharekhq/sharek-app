@@ -30,11 +30,20 @@ export const useVideoFunction = () => {
 };
 
 /**
- * Whether the provider draws its own submit control. Keeps the modal free of
- * per-provider branching: it asks the registry rather than the identifier.
+ * Whether the provider fills the modal's action bar itself. Keeps the modal
+ * free of per-provider branching: it asks the registry rather than the
+ * identifier.
  */
-export const videoOwnsSubmit = (identifier: string) =>
-  !!videosList.find((v) => v.identifier === identifier)?.ownsSubmit;
+export const videoOwnsActions = (identifier: string) =>
+  !!videosList.find((v) => v.identifier === identifier)?.ownsActions;
+
+/**
+ * How the chooser should present this provider, or undefined when it declared
+ * nothing. Same reason as above: the modal asks the registry, never the
+ * identifier.
+ */
+export const videoTypeCard = (identifier: string) =>
+  videosList.find((v) => v.identifier === identifier)?.card;
 
 export const VideoWrapper: FC<{ identifier: string }> = (props) => {
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
