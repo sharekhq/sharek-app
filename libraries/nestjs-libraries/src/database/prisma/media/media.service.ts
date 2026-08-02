@@ -83,10 +83,15 @@ export class MediaService {
           const style = IMAGE_STYLES.find(
             (entry) => entry.id === dto.style
           )?.prompt;
-          const prompt = await this._openAi.generatePromptForPicture(
+          // The enhancement yields '' when the model refuses or its reply will
+          // not parse. Sending that on asks the renderer for an empty prompt —
+          // an invalid-parameter 400 the user reads as a generic failure — so
+          // fall back to their own words, as the video providers do.
+          const enhanced = await this._openAi.generatePromptForPicture(
             dto.prompt,
             style
           );
+          const prompt = enhanced || dto.prompt;
 
           const size = IMAGE_ASPECT_PRESETS[dto.aspectRatio].size;
           const render = async (text: string) =>
