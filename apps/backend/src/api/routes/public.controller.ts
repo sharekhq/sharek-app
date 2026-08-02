@@ -171,6 +171,12 @@ export class PublicController {
     req.on('aborted', onClose);
     res.on('close', onClose);
 
+    // Seeking a video is a Range request. Without forwarding it the upstream
+    // always answers 200 with the whole file, so the browser marks the stream
+    // non-seekable and clamps every seek back to 0 (the thumbnail picker could
+    // only ever capture the first frame).
+    const { range } = req.headers;
+
     // Manually follow redirects so every hop is re-validated against
     // the SSRF blocklist (see GHSA-34w8-5j2v-h6ww). `fetch` defaults to
     // `redirect: 'follow'`, which bypasses the DTO-level URL check.
@@ -185,6 +191,7 @@ export class PublicController {
       r = await fetch(currentUrl, {
         signal: ac.signal,
         redirect: 'manual',
+        ...(range ? { headers: { range } } : {}),
         // @ts-ignore — undici option, not in lib.dom fetch types
         dispatcher: ssrfSafeDispatcher,
       });
