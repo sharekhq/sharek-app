@@ -24,13 +24,12 @@ const service = new OpenaiService();
 // Reasoning tokens bill as output and gpt-5.6 defaults to 'medium', so an
 // unpinned call costs more than the gpt-4.1 it replaced rather than less. None
 // of these calls binds a tool, so 'none' is purely about not buying reasoning.
-// generateSlidesFromText is the one exception — it runs at 'low' and is pinned
-// in its own describe block below.
+// The calls that hold many constraints at once are the exceptions — they run
+// at 'low' and are pinned in their own describe blocks below.
 describe('OpenaiService model configuration', () => {
   beforeEach(() => mockParse.mockClear());
 
   const liveCalls: [string, () => Promise<unknown>][] = [
-    ['generatePromptForPicture', () => service.generatePromptForPicture('a cat')],
     ['generateVoiceFromText', () => service.generateVoiceFromText('some post')],
     ['separatePosts', () => service.separatePosts('a long post', 280)],
     [
@@ -76,6 +75,126 @@ describe('OpenaiService model configuration', () => {
     ];
     expect(params.response_format.type).toBe('json_schema');
     expect(params.response_format.json_schema.strict).toBe(true);
+  });
+});
+
+// The style the user picked travels as its own segment of the model input, not
+// spliced into their sentence — the client used to wrap it in HTML comments
+// inside the prompt, which made the style indistinguishable from the request.
+describe('OpenaiService.generatePromptForPicture', () => {
+  beforeEach(() => {
+    mockParse.mockReset();
+    mockParse.mockResolvedValue({ choices: [{ message: { parsed: {} } }] });
+  });
+
+  const userMessage = () =>
+    (mockParse.mock.calls[0][0] as any).messages[1].content as string;
+
+  it('sends the description as its own line', async () => {
+    await service.generatePromptForPicture('a pomegranate on a brass tray');
+    expect(userMessage()).toContain('a pomegranate on a brass tray');
+  });
+
+  it('adds the style as a separate segment when one was chosen', async () => {
+    await service.generatePromptForPicture(
+      'a pomegranate on a brass tray',
+      'a watercolour painting with soft bleeding washes'
+    );
+    const lines = userMessage().split('\n');
+    expect(lines.length).toBeGreaterThan(1);
+    expect(
+      lines.some((line) =>
+        line.includes('a watercolour painting with soft bleeding washes')
+      )
+    ).toBe(true);
+    // The style must not be glued onto the description's line.
+    expect(
+      lines.find((line) => line.includes('a pomegranate on a brass tray'))
+    ).not.toContain('watercolour');
+  });
+
+  // Auto imposes nothing: no style segment at all, rather than a segment
+  // saying "auto" that the model would then have to interpret.
+  it('sends no style segment for Auto', async () => {
+    await service.generatePromptForPicture('a pomegranate on a brass tray');
+    expect(userMessage().toLowerCase()).not.toContain('style');
+  });
+
+  it('keeps quoted Arabic in-image text untouched', async () => {
+    await service.generatePromptForPicture(
+      'صمّم لافتة مكتوب عليها "تخفيضات 50%"'
+    );
+    expect(userMessage()).toContain('"تخفيضات 50%"');
+  });
+
+  // The instruction set the enhancement is worth having at all. Upstream's was
+  // a one-liner asking for "a very long and descriptive explanation", which
+  // left the model free to translate the words a user asked to see in the
+  // image — the failure that ships a banner with the wrong Arabic on it.
+  describe('instruction set', () => {
+    const systemPrompt = async () => {
+      await service.generatePromptForPicture('a banner');
+      return (mockParse.mock.calls[0][0] as any).messages[0].content as string;
+    };
+
+    it('requires requested in-image text to survive verbatim, in its own script', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/verbatim/i);
+      expect(system).toMatch(/original script/i);
+      expect(system).toMatch(/never translate/i);
+    });
+
+    it('defaults to an image with no text at all', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/no text/i);
+      expect(system).toMatch(/watermark/i);
+      expect(system).toMatch(/logos/i);
+    });
+
+    it('asks for a concrete scene and keeps proper nouns', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/concrete scene/i);
+      expect(system).toMatch(/proper nouns/i);
+      expect(system).toMatch(/culturally accurate/i);
+    });
+
+    // Auto is the default, so "no style given" has to be a case the prompt
+    // handles rather than a gap it falls into.
+    it('tells the model what to do when no style is given', async () => {
+      expect(await systemPrompt()).toMatch(/when no style is given/i);
+    });
+
+    // Paired with the same remedy generateSlidesFromText and
+    // generateVideoPrompt needed: at zero reasoning luna drops constraints it
+    // could satisfy implicitly, and this prompt now carries seven of them —
+    // two of which pull against each other, since the prompt is written in
+    // English while the quoted in-image text must stay in its own script.
+    it('runs gpt-5.6-luna with low reasoning', async () => {
+      await service.generatePromptForPicture('a banner');
+      const [params] = mockParse.mock.calls[0] as unknown as [
+        { model: string; reasoning_effort: string; temperature?: number }
+      ];
+      expect(params.model).toBe('gpt-5.6-luna');
+      expect(params.reasoning_effort).toBe('low');
+      expect(params).not.toHaveProperty('temperature');
+    });
+
+    it('still returns a single prompt through a strict schema', async () => {
+      await service.generatePromptForPicture('a banner');
+      const [params] = mockParse.mock.calls[0] as unknown as [
+        {
+          response_format: {
+            type: string;
+            json_schema: { strict: boolean; schema: any };
+          };
+        }
+      ];
+      expect(params.response_format.type).toBe('json_schema');
+      expect(params.response_format.json_schema.strict).toBe(true);
+      expect(
+        Object.keys(params.response_format.json_schema.schema.properties)
+      ).toEqual(['prompt']);
+    });
   });
 });
 
@@ -360,6 +479,17 @@ describe('OpenaiService.rewriteFlaggedPrompt', () => {
     expect((mockParse.mock.calls[0][0] as any).messages[0].content).toMatch(
       /real people/i
     );
+  });
+
+  // Shared with the slides renderer, whose prompts never carry in-image text —
+  // but the image modal's do, and "return the prompt in English" on its own
+  // would translate the Arabic a user asked to see on their banner while
+  // sanitizing everything else.
+  it('keeps quoted in-image text in its original script', async () => {
+    await service.rewriteFlaggedPrompt('a banner reading "تخفيضات 50%"');
+    const system = (mockParse.mock.calls[0][0] as any).messages[0].content;
+    expect(system).toMatch(/original script/i);
+    expect(system).toMatch(/never translate/i);
   });
 
   it('returns an empty string when the call fails', async () => {

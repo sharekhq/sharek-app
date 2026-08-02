@@ -24,6 +24,7 @@ import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custo
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
+import { GenerateImageWithPromptDto } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
   CreateVideoDto,
   VideoDto,
@@ -167,8 +168,7 @@ export class MediaController {
   async generateImage(
     @GetOrgFromRequest() org: Organization,
     @Req() req: Request,
-    @Body('prompt') prompt: string,
-    isPicturePrompt = false
+    @Body('prompt') prompt: string
   ) {
     const total = await this._subscriptionService.checkCredits(org);
     if (process.env.STRIPE_PUBLISHABLE_KEY && total.credits <= 0) {
@@ -178,22 +178,26 @@ export class MediaController {
     return {
       output:
         'data:image/png;base64,' +
-        (await this._mediaService.generateImage(prompt, org, isPicturePrompt)),
+        (await this._mediaService.generateImage(prompt, org)),
     };
   }
 
   @Post('/generate-image-with-prompt')
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
-    @Req() req: Request,
-    @Body('prompt') prompt: string
+    @Body() body: GenerateImageWithPromptDto
   ) {
-    const image = await this.generateImage(org, req, prompt, true);
-    if (!image) {
+    const total = await this._subscriptionService.checkCredits(org);
+    if (process.env.STRIPE_PUBLISHABLE_KEY && total.credits <= 0) {
+      // Legacy convention the modal already handles: a bare `false` body with
+      // a 200, not an error status.
       return false;
     }
 
-    const file = await this.storage.uploadSimple(image.output);
+    const image = await this._mediaService.generateImageWithPrompt(body, org);
+    const file = await this.storage.uploadSimple(
+      'data:image/jpeg;base64,' + image
+    );
 
     return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
   }
