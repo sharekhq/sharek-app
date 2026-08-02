@@ -1,10 +1,18 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
-import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
+import {
+  generationError,
+  isSafetyRejection,
+} from '@gitroom/nestjs-libraries/openai/generation.error';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { Organization } from '@prisma/client';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
+import { GenerateImageWithPromptDto } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
+import {
+  IMAGE_ASPECT_PRESETS,
+  IMAGE_STYLES,
+} from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import {
   CreateVideoDto,
@@ -36,25 +44,75 @@ export class MediaService {
     return this._mediaRepository.getMediaById(id);
   }
 
-  async generateImage(
-    prompt: string,
-    org: Organization,
-    generatePromptFirst?: boolean
-  ) {
+  async generateImage(prompt: string, org: Organization) {
     try {
       const generating = await this._subscriptionService.useCredit(
         org,
         'ai_images',
-        async () => {
-          if (generatePromptFirst) {
-            prompt = await this._openAi.generatePromptForPicture(prompt);
-            console.log('Prompt:', prompt);
-          }
-          return this._openAi.generateImage(prompt);
-        }
+        async () => this._openAi.generateImage(prompt)
       );
 
       return generating;
+    } catch (err) {
+      throw generationError(err);
+    }
+  }
+
+  /**
+   * The AI image modal's own render path. The client sends a size preset id and
+   * the pixels are resolved here, so a tampered client cannot ask for an
+   * arbitrary render, and the exact dimensions the size tooltips promise are
+   * the ones the renderer is given.
+   *
+   * Everything — including the flagged-prompt retry — sits inside the credit
+   * callback: charge-on-success means a generation that never happens must
+   * never reach the renderer either, and a generation that only succeeded on
+   * the second attempt still costs exactly one credit.
+   */
+  async generateImageWithPrompt(
+    dto: GenerateImageWithPromptDto,
+    org: Organization
+  ) {
+    try {
+      return await this._subscriptionService.useCredit(
+        org,
+        'ai_images',
+        async () => {
+          // The wire carries a style id; the phrase behind it is resolved here
+          // so the client cannot hand the model instructions of its own.
+          const style = IMAGE_STYLES.find(
+            (entry) => entry.id === dto.style
+          )?.prompt;
+          const prompt = await this._openAi.generatePromptForPicture(
+            dto.prompt,
+            style
+          );
+
+          const size = IMAGE_ASPECT_PRESETS[dto.aspectRatio].size;
+          const render = async (text: string) =>
+            (await this._openAi.generateImageAtSize(text, size)).toString(
+              'base64'
+            );
+
+          try {
+            return await render(prompt);
+          } catch (err) {
+            // Same recovery the slides renderer uses: a content flag is worth
+            // one sanitized retry, an ordinary failure is not. A second flag
+            // falls through to generationError's 422 with its categories.
+            if (!isSafetyRejection(err)) {
+              throw err;
+            }
+
+            const rewritten = await this._openAi.rewriteFlaggedPrompt(prompt);
+            if (!rewritten) {
+              throw err;
+            }
+
+            return await render(rewritten);
+          }
+        }
+      );
     } catch (err) {
       throw generationError(err);
     }

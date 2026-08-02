@@ -87,20 +87,48 @@ export class OpenaiService {
     return Buffer.from(generate.b64_json, 'base64');
   }
 
-  async generatePromptForPicture(prompt: string) {
+  /**
+   * `style` is the catalog's English phrase for the style the user picked, and
+   * it arrives as its own line rather than spliced into the description — the
+   * client used to wrap it in HTML comments inside the prompt itself, which
+   * left the model to work out which half was the request. Absent for Auto, so
+   * the style is inferred from the description instead of imposed.
+   *
+   * The instruction set is modelled on generateImagePromptsForSlides, with the
+   * text rules inverted: slides never carry words by construction, while this
+   * modal's core use is a banner whose words the user typed. Upstream's
+   * one-line prompt let the rewrite translate «تخفيضات 50%» on its way to the
+   * renderer, which ships a real Arabic banner with the wrong words on it.
+   *
+   * 'low' rather than 'none' for the same reason generateSlidesFromText and
+   * generateVideoPrompt buy it back: luna at zero reasoning drops constraints
+   * it can satisfy implicitly, and two of these pull against each other — the
+   * prompt is written in English while quoted text keeps its own script.
+   */
+  async generatePromptForPicture(prompt: string, style?: string) {
     return (
       (
         await openai.chat.completions.parse({
           model: 'gpt-5.6-luna',
-          reasoning_effort: 'none',
+          reasoning_effort: 'low',
           messages: [
             {
               role: 'system',
-              content: `You are an assistant that take a description and style and generate a prompt that will be used later to generate images, make it a very long and descriptive explanation, and write a lot of things for the renderer like, if it${"'"}s realistic describe the camera`,
+              content: `You rewrite a user's description into one prompt for an AI image generation model.
+Return one prompt, in English regardless of the description's language.
+Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
+Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
+When the user asks for words to appear in the image, carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
+A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
+Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
             },
             {
               role: 'user',
-              content: `prompt: ${prompt}`,
+              content: [
+                `prompt: ${prompt}`,
+                ...(style ? [`Render in this style: ${style}`] : []),
+              ].join('\n'),
             },
           ],
           response_format: zodResponseFormat(PicturePrompt, 'picturePrompt'),
@@ -525,7 +553,8 @@ Never ask for readable text: no words, letters, numbers, logos, captions or subt
               role: 'system',
               content: `A generation service flagged the user's prompt as violating its content policy.
 Rewrite the prompt so it keeps the same scene, mood and composition while removing everything a content checker rejects: names of real people, celebrities or public figures (describe an anonymous person instead), brand names, logos, flags and political references.
-Return only the rewritten prompt, in English.`,
+Keep any quoted text that must appear inside the image exactly as it is written, in its original script — never translate, transliterate or reword it.
+Return only the rewritten prompt, written in English apart from that quoted text.`,
             },
             {
               role: 'user',
