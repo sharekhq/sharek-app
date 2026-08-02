@@ -1,5 +1,5 @@
 import { Button } from '@gitroom/react/form/button';
-import { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -9,6 +9,16 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { createPortal } from 'react-dom';
 import useSWR from 'swr';
+import {
+  IMAGE_ASPECT_IDS,
+  IMAGE_ASPECT_PRESETS,
+  IMAGE_POPULAR_STYLES,
+  IMAGE_STYLE_CATEGORIES,
+  IMAGE_STYLE_CATEGORY_LABELS,
+  IMAGE_STYLES,
+  ImageAspectId,
+  ImageStyle,
+} from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -20,22 +30,63 @@ const useImageCredits = () => {
     ).json()
   );
 };
-const list = [
-  'Realistic',
-  'Cartoon',
-  'Anime',
-  'Fantasy',
-  'Abstract',
-  'Pixel Art',
-  'Sketch',
-  'Watercolor',
-  'Minimalist',
-  'Cyberpunk',
-  'Monochromatic',
-  'Surreal',
-  'Pop Art',
-  'Fantasy Realism',
-];
+// Presentation only — the ids, ratios and render sizes come from the shared
+// catalog. The glyph proportions are the approved mockup's, drawn to fit a
+// ~23px box rather than computed from the ratio.
+const ASPECT_TILES: Record<
+  ImageAspectId,
+  { label: string; glyph: string; tooltip: string }
+> = {
+  square: {
+    label: 'Square',
+    glyph: 'w-[22px] h-[22px]',
+    tooltip:
+      '<strong>Square · 1:1 — {{size}} px</strong><br />Instagram &amp; Facebook feed posts · profile artwork.',
+  },
+  portrait: {
+    label: 'Portrait',
+    glyph: 'w-[18px] h-[22px]',
+    tooltip:
+      '<strong>Portrait · 4:5 — {{size}} px</strong><br />The tallest feed post Instagram and Facebook allow — it fills more of the screen.',
+  },
+  story: {
+    label: 'Story',
+    glyph: 'w-[13px] h-[23px]',
+    tooltip:
+      '<strong>Story · 9:16 — {{size}} px</strong><br />Instagram Stories &amp; Reels · TikTok · YouTube Shorts.<br /><span style="opacity:.72">Also the right frame for Veo 3 vertical video references.</span>',
+  },
+  landscape: {
+    label: 'Landscape',
+    glyph: 'w-[23px] h-[13px]',
+    tooltip:
+      '<strong>Landscape · 16:9 — {{size}} px</strong><br />X &amp; LinkedIn posts · YouTube thumbnails.<br /><span style="opacity:.72">Also the right frame for Veo 3 horizontal video references.</span>',
+  },
+};
+
+/**
+ * The placeholder and the finished image share one box so the layout does not
+ * jump between them: the preset's own proportions scaled into a 320px square,
+ * which reproduces the mockup's 180×320 Story frame.
+ */
+const previewBox = (size: string) => {
+  const [width, height] = size.split('x').map(Number);
+  const scale = Math.min(320 / width, 320 / height);
+  return { width: Math.round(width * scale), height: Math.round(height * scale) };
+};
+
+const pillClasses =
+  'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
+
+const CHIP_BASE =
+  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors';
+
+const chipClasses = (selected: boolean) =>
+  clsx(
+    CHIP_BASE,
+    selected
+      ? 'bg-brandSoft border-brand text-brandText'
+      : 'bg-newBgColorInner border-newColColor text-newTextItemBlur hover:border-newTextItemFocused'
+  );
 
 const AiImageModal: FC<{
   close: () => void;
@@ -48,8 +99,62 @@ const AiImageModal: FC<{
   const toaster = useToaster();
   const setLocked = useLaunchStore((p) => p.setLocked);
   const [prompt, setPrompt] = useState('');
-  const [style, setStyle] = useState(list[0]);
-  const { data: credits } = useImageCredits();
+  const [aspectRatio, setAspectRatio] = useState<ImageAspectId>('square');
+  // Auto imposes nothing, so it is the absence of a style rather than a value.
+  const [style, setStyle] = useState<string | undefined>(undefined);
+  const [phase, setPhase] = useState<'compose' | 'generating' | 'result'>(
+    'compose'
+  );
+  const [image, setImage] = useState<{ id: string; path: string } | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const { data: credits, mutate: mutateCredits } = useImageCredits();
+
+  // A generation outlives the modal: the closure keeps running after an early
+  // close and attaches the image itself, so it has to know whether anyone is
+  // still watching.
+  const mounted = useRef(true);
+  const inFlight = useRef(false);
+  const holdsLock = useRef(false);
+
+  // `loading` follows the request; the composer lock follows the whole flow,
+  // which is not over until the image is attached or the user gives it up.
+  const startRequest = () => {
+    inFlight.current = true;
+    setLoading(true);
+    if (!holdsLock.current) {
+      holdsLock.current = true;
+      setLocked(true);
+    }
+  };
+
+  const endRequest = () => {
+    inFlight.current = false;
+    setLoading(false);
+  };
+
+  // Memoized so the unmount cleanup below keeps a stable dependency: a fresh
+  // identity every render would re-run that cleanup and drop the lock early.
+  const releaseLock = useCallback(() => {
+    if (!holdsLock.current) {
+      return;
+    }
+    holdsLock.current = false;
+    setLocked(false);
+  }, [setLocked]);
+
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      // A render still in flight keeps the composer locked until it lands
+      // (FR-009). Anything else — an unused result, an untouched modal —
+      // is given up here, or the composer would stay locked forever.
+      if (!inFlight.current) {
+        releaseLock();
+      }
+    },
+    [releaseLock]
+  );
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) {
@@ -60,41 +165,44 @@ const AiImageModal: FC<{
       return;
     }
 
-    setLoading(true);
-    close();
-    setLocked(true);
+    setImage(null);
+    setPhase('generating');
+    startRequest();
     try {
       const response = await fetch('/media/generate-image-with-prompt', {
         method: 'POST',
-        body: JSON.stringify({
-          prompt: `
-<!-- description -->
-${prompt}
-<!-- /description -->
-
-<!-- style -->
-${style}
-<!-- /style -->
-
-`,
-        }),
+        body: JSON.stringify({ prompt, aspectRatio, ...(style && { style }) }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
-      const image = await response.json();
+      const generated = await response.json();
       // `false` means the credit check refused the generation; anything else
       // without a path is not a media record and must not reach the post.
-      if (!image?.path) {
+      if (!generated?.path) {
         throw new Error(
-          image === false
+          generated === false
             ? t('no_ai_credits_left', 'You have run out of AI credits.')
             : ''
         );
       }
-      onChange(image);
+      endRequest();
+      mutateCredits();
+
+      // Closed mid-generation: nobody is left to review it, so it goes
+      // straight into the post exactly as it did before this step existed.
+      if (!mounted.current) {
+        onChange(generated);
+        releaseLock();
+        return;
+      }
+
+      setImage(generated);
+      setPhase('result');
     } catch (e) {
+      endRequest();
+      releaseLock();
       toaster.show(
         (e instanceof Error && e.message) ||
           t(
@@ -103,10 +211,67 @@ ${style}
           ),
         'warning'
       );
+      // Nothing was charged, so the inputs are kept for another attempt.
+      if (mounted.current) {
+        setPhase('compose');
+      }
     }
-    setLocked(false);
-    setLoading(false);
-  }, [prompt, style, onChange]);
+  }, [prompt, aspectRatio, style, onChange]);
+
+  const useImage = () => {
+    releaseLock();
+    onChange(image!);
+    close();
+  };
+
+  const editPrompt = () => {
+    // Giving up the result ends the flow; the inputs stay as they were.
+    releaseLock();
+    setImage(null);
+    setPhase('compose');
+  };
+
+  const styleLabel = (entry: ImageStyle) =>
+    t(`image_style_${entry.id}`, entry.label);
+
+  const chosenStyle = IMAGE_STYLES.find((entry) => entry.id === style);
+  const styleSummary = chosenStyle ? (
+    styleLabel(chosenStyle)
+  ) : (
+    <>
+      <span className="text-aiAccent">✦</span>
+      {t('auto_style', 'Auto')}
+    </>
+  );
+
+  // A style picked deep in the catalog joins the collapsed row, so the choice
+  // stays visible once the catalog closes.
+  const rowStyles =
+    chosenStyle &&
+    !IMAGE_POPULAR_STYLES.some((entry) => entry.id === chosenStyle.id)
+      ? [...IMAGE_POPULAR_STYLES, chosenStyle]
+      : IMAGE_POPULAR_STYLES;
+
+  const query = search.trim().toLowerCase();
+  const groups = IMAGE_STYLE_CATEGORIES.map((category) => ({
+    category,
+    styles: IMAGE_STYLES.filter(
+      (entry) =>
+        entry.category === category &&
+        (!query || styleLabel(entry).toLowerCase().includes(query))
+    ),
+  })).filter((group) => group.styles.length);
+
+  const listedStyles = groups.reduce(
+    (total, group) => total + group.styles.length,
+    0
+  );
+
+  const pickStyle = (id: string) => {
+    setStyle(id);
+    setCatalogOpen(false);
+    setSearch('');
+  };
 
   return (
     <div className="flex flex-col gap-[16px]">
@@ -119,42 +284,293 @@ ${style}
         document.querySelector('.top-title-content') ||
           document.createElement('div')
       )}
-      <div className="flex flex-col gap-[6px]">
-        <div className="text-[14px]">{t('prompt', 'Prompt')}</div>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder={t(
-            'describe_the_image_you_want_to_generate',
-            'Describe the image you want to generate'
-          )}
-          className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-newTextItemFocused"
-        />
-      </div>
-      <div className="flex flex-col gap-[6px]">
-        <div className="text-[14px]">{t('style', 'Style')}</div>
-        <div className="flex flex-wrap gap-[8px]">
-          {list.map((p) => (
-            <div
-              key={p}
-              onClick={() => setStyle(p)}
+      {phase === 'compose' && !catalogOpen && (
+        <>
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[14px]">{t('prompt', 'Prompt')}</div>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            maxLength={2000}
+            placeholder={t(
+              'describe_the_image_you_want_to_generate',
+              'Describe the image you want to generate'
+            )}
+            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-newTextItemFocused"
+          />
+        </div>
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[14px]">{t('image_size', 'Size')}</div>
+          <div className="flex gap-[8px]">
+            {IMAGE_ASPECT_IDS.map((id) => {
+              const tile = ASPECT_TILES[id];
+              const selected = aspectRatio === id;
+              return (
+                // A button, not a div: the tooltip has to be reachable by keyboard
+                // focus and by tap, not only by hover.
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setAspectRatio(id)}
+                  data-tooltip-id="tooltip"
+                  data-tooltip-html={t(`image_aspect_${id}_tooltip`, tile.tooltip, {
+                    size: IMAGE_ASPECT_PRESETS[id].size.replace('x', '×'),
+                  })}
+                  className={clsx(
+                    'flex-1 flex flex-col items-center gap-[6px] px-[6px] pt-[12px] pb-[10px] rounded-[14px] border transition-colors',
+                    selected
+                      ? 'bg-brandSoft border-brand'
+                      : 'bg-surface border-line hover:border-inkSoft'
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'block border-2 rounded-[3px]',
+                      tile.glyph,
+                      selected ? 'border-brandText' : 'border-muted'
+                    )}
+                  />
+                  <span
+                    className={clsx(
+                      'text-[13px] font-[600]',
+                      selected && 'text-brandText'
+                    )}
+                  >
+                    {t(`image_aspect_${id}`, tile.label)}
+                  </span>
+                  <span className="text-[11px] text-muted">
+                    {IMAGE_ASPECT_PRESETS[id].ratio}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[14px]">{t('style', 'Style')}</div>
+          <div className="flex flex-wrap gap-[8px]">
+            <button
+              type="button"
+              onClick={() => setStyle(undefined)}
+              className={chipClasses(!style)}
+            >
+              <span className="text-aiAccent">✦</span>
+              {t('auto_style', 'Auto')}
+            </button>
+            {rowStyles.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => setStyle(entry.id)}
+                className={chipClasses(style === entry.id)}
+              >
+                {styleLabel(entry)}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCatalogOpen(true)}
               className={clsx(
-                'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center text-[12px] font-[600] border transition-colors',
-                style === p
-                  ? 'bg-brandSoft border-brand text-brandText'
-                  : 'bg-newBgColorInner border-newColColor text-newTextItemBlur hover:border-newTextItemFocused'
+                CHIP_BASE,
+                'bg-quiet border-transparent text-inkSoft'
               )}
             >
-              {p}
-            </div>
-          ))}
+              {t('all_styles', 'All styles')}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="none"
+                className="rtl:rotate-180"
+              >
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="flex">
-        <Button type="button" onClick={generate} className="flex-1">
-          {t('generate', 'Generate')}
-        </Button>
-      </div>
+        <div className="flex">
+          <Button type="button" onClick={generate} className="flex-1">
+            {t('generate', 'Generate')}
+          </Button>
+        </div>
+        </>
+      )}
+
+      {phase === 'compose' && catalogOpen && (
+        <>
+          <div className="flex flex-col gap-[6px]">
+            <div className="text-[14px]">{t('style', 'Style')}</div>
+            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px]">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle
+                  cx="7"
+                  cy="7"
+                  r="4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                />
+                <path
+                  d="M10.5 10.5L14 14"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('search_styles', 'Search styles')}
+                className="flex-1 bg-transparent border-0 outline-none text-[14px] text-ink"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-[16px]">
+            {groups.map((group) => (
+              <div key={group.category} className="flex flex-col gap-[8px]">
+                <div className="text-[12px] font-[600] text-muted">
+                  {t(
+                    `image_style_cat_${group.category}`,
+                    IMAGE_STYLE_CATEGORY_LABELS[group.category]
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-[8px]">
+                  {group.styles.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => pickStyle(entry.id)}
+                      className={chipClasses(style === entry.id)}
+                    >
+                      {styleLabel(entry)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {!listedStyles && (
+              <div className="text-[12px] text-muted">
+                {t('no_styles_found', 'No styles match your search')}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center text-[12px] text-muted">
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogOpen(false);
+                setSearch('');
+              }}
+              className="text-[12px] font-[600] text-brandText cursor-pointer"
+            >
+              {t('show_less', '- Show less')}
+            </button>
+            {/* Auto is a sentinel, not an entry, so it is not counted. */}
+            <span>
+              {t('styles_count', '{{count}} styles', { count: listedStyles })}
+            </span>
+          </div>
+        </>
+      )}
+
+      {phase === 'generating' && (
+        <>
+          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
+            <div className="flex gap-[8px]">
+              <span className={pillClasses}>
+                {t(`image_aspect_${aspectRatio}`, ASPECT_TILES[aspectRatio].label)}
+                {' · '}
+                {IMAGE_ASPECT_PRESETS[aspectRatio].ratio}
+              </span>
+              <span className={pillClasses}>{styleSummary}</span>
+            </div>
+            {/* The placeholder carries the chosen shape so the wait shows what
+                is coming. The app's reduced-motion layer stops the pulse. */}
+            <div
+              className="bg-surface2 rounded-[14px] animate-pulse"
+              style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
+            />
+            <div className="text-center">
+              <div className="text-[14px] font-[600]">
+                {t('creating_your_image', 'Creating your image…')}
+              </div>
+              <div className="text-[12px] text-muted mt-[2px]">
+                {t(
+                  'usually_takes_half_minute',
+                  'Usually takes about half a minute'
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-[8px] items-start text-[12px] text-muted">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              className="flex-none mt-[3px]"
+            >
+              <circle
+                cx="8"
+                cy="8"
+                r="6.5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+              />
+              <path
+                d="M8 7.5V11M8 5v.5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+            </svg>
+            {t(
+              'close_window_note',
+              "You can close this window — the image will be added to your post when it's ready."
+            )}
+          </div>
+        </>
+      )}
+
+      {phase === 'result' && image && (
+        <>
+          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center">
+            <img
+              src={image.path}
+              alt={prompt}
+              style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
+              className="rounded-[14px] border border-line object-cover"
+            />
+          </div>
+          <div className="text-[12px] text-muted text-center line-clamp-2">
+            {prompt}
+            {' · '}
+            {t(`image_aspect_${aspectRatio}`, ASPECT_TILES[aspectRatio].label)}
+            {' · '}
+            {styleSummary}
+          </div>
+          <div className="flex items-center gap-[10px]">
+            <Button variant="quiet" onClick={editPrompt}>
+              {t('edit_prompt', 'Edit prompt')}
+            </Button>
+            <div className="flex-1" />
+            <Button variant="ghost" onClick={generate}>
+              {t('regenerate', 'Regenerate')}
+              <span className="ms-[6px] font-[500] opacity-75">
+                · {t('one_credit', '1 credit')}
+              </span>
+            </Button>
+            <Button onClick={useImage}>{t('use_image', 'Use image')}</Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
