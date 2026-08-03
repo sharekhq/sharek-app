@@ -1,4 +1,4 @@
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 import clsx from 'clsx';
 import { useFormContext } from 'react-hook-form';
 import { Textarea } from '@gitroom/react/form/textarea';
@@ -7,37 +7,6 @@ import {
   VIDEO_PROMPT_MAX_CHARS,
   VIDEO_PROMPT_MIN_CHARS,
 } from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
-
-/**
- * The pieces of the AI Video modal's chrome that both the modal and its
- * providers render. They live here rather than in either caller because a
- * provider that owns the action bar states its own cost, while the modal states
- * the cost of its own submit button — the same note, written by whoever owns
- * the action it describes.
- */
-
-/** The action bar's cost line: what the primary action on this screen will spend. */
-export const VideoCostNote: FC<{ children: ReactNode }> = ({ children }) => (
-  <span className="flex items-center gap-[6px] text-[12px] text-muted">
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      fill="none"
-      className="flex-none"
-      aria-hidden="true"
-    >
-      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
-      <path
-        d="M8 7.4V11M8 5v.6"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
-    </svg>
-    {children}
-  </span>
-);
 
 /**
  * Both providers' prompt field. The bounds are the API's own, imported rather
@@ -75,6 +44,8 @@ export const VideoPromptField: FC<{
     <Textarea
       label="Prompt"
       translationKey="prompt"
+      // Matches the section labels the provider draws around it.
+      labelClassName="font-[600]"
       name="prompt"
       placeholder={placeholder}
       {...register('prompt', {
@@ -135,7 +106,7 @@ export const VideoPromptField: FC<{
               : 'text-muted'
           )}
         >
-          {t('video_prompt_counter', '{{used}} / {{max}}', {
+          {t('prompt_counter', '{{used}} / {{max}}', {
             used: prompt.length,
             max: VIDEO_PROMPT_MAX_CHARS,
           })}

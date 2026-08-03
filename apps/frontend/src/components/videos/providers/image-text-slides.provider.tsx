@@ -8,10 +8,8 @@ import {
   useEffect,
 } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  VideoCostNote,
-  VideoPromptField,
-} from '@gitroom/frontend/components/videos/video.modal.parts';
+import { VideoPromptField } from '@gitroom/frontend/components/videos/video.modal.parts';
+import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { useVideoFunction } from '@gitroom/frontend/components/videos/video.render.component';
 import useSWR from 'swr';
 import { useFormContext } from 'react-hook-form';
@@ -138,8 +136,8 @@ const VoiceSelector: FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-textColor mb-4">
-        {t('select_a_voice', 'Select a Voice')}
+      <div className="text-[14px] font-[600] mb-[6px]">
+        {t('select_a_voice', 'Select a voice')}
       </div>
       {/* Two anonymous buttons said nothing about what they switched. Each set
           now names its language in that language's own script and says how many
@@ -391,7 +389,9 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
       />
 
       <div>
-        <div className="text-[14px] mb-[6px]">{t('slides_count', 'Slides')}</div>
+        <div className="text-[14px] font-[600] mb-[6px]">
+          {t('slides_count', 'Slides')}
+        </div>
         <div className="flex gap-[8px]">
           {SLIDE_OPTIONS.map((count) => (
             <Button
@@ -434,9 +434,9 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
       {!!actionsSlot &&
         createPortal(
           <>
-            <VideoCostNote>
+            <CostNote>
               {t('video_nothing_charged_yet', 'Nothing is charged yet')}
-            </VideoCostNote>
+            </CostNote>
             <span className="flex-1" />
             <Button type="button" onClick={plan} disabled={loading}>
               {loading
@@ -454,9 +454,11 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
 const SlideControl: FC<{
   label: string;
   disabled?: boolean;
+  /** Marks a control that destroys content, so its hover reads as a warning. */
+  danger?: boolean;
   onClick: () => void;
   children: ReactNode;
-}> = ({ label, disabled, onClick, children }) => (
+}> = ({ label, disabled, danger, onClick, children }) => (
   <button
     type="button"
     aria-label={label}
@@ -468,6 +470,8 @@ const SlideControl: FC<{
       'focus-visible:ring-2 focus-visible:ring-brand',
       disabled
         ? 'opacity-35 pointer-events-none'
+        : danger
+        ? 'hover:bg-quiet hover:text-error'
         : 'hover:bg-quiet hover:text-ink'
     )}
   >
@@ -575,14 +579,24 @@ const ReviewScreen: FC<{
                   strokeLinejoin="round"
                 />
               </SlideControl>
+              {/* A bin, not a cross: the cross is the modal's own close glyph,
+                  and this removes a slide rather than dismissing anything. */}
               <SlideControl
                 label={t('delete', 'Delete')}
+                danger
                 onClick={() => remove(index)}
               >
                 <path
-                  d="M11.5 4.5l-7 7M4.5 4.5l7 7"
+                  d="M2.8 4.3h10.4M6.4 4.3V3.2a.7.7 0 0 1 .7-.7h1.8a.7.7 0 0 1 .7.7v1.1M12.1 4.3l-.5 8a1 1 0 0 1-1 .95H5.4a1 1 0 0 1-1-.95l-.5-8"
                   stroke="currentColor"
-                  strokeWidth="1.5"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M6.7 7v3.6M9.3 7v3.6"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
                   strokeLinecap="round"
                 />
               </SlideControl>
@@ -590,7 +604,9 @@ const ReviewScreen: FC<{
             <textarea
               value={slide.text}
               onChange={(e) => setText(index, e.target.value)}
-              className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[14px] outline-none text-textColor resize-y"
+              // 16px, the app's own default: this is the text the user came
+              // here to edit, so it cannot be the smallest input in the flow.
+              className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[16px] outline-none text-textColor resize-y"
             />
             <div className="flex justify-between items-baseline gap-[10px] text-[11px]">
               <span className={tooLong ? 'text-brandText font-[600]' : 'text-muted'}>

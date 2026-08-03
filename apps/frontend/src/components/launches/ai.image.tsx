@@ -13,13 +13,20 @@ import {
   IMAGE_ASPECT_IDS,
   IMAGE_ASPECT_PRESETS,
   IMAGE_POPULAR_STYLES,
+  IMAGE_PROMPT_MAX_CHARS,
   IMAGE_STYLE_CATEGORIES,
   IMAGE_STYLE_CATEGORY_LABELS,
   IMAGE_STYLES,
   ImageAspectId,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
-import { AspectTile } from '@gitroom/frontend/components/ui/aspect.tile';
+import {
+  AspectTile,
+  MEDIA_PREVIEW_MAX_HEIGHT,
+  MEDIA_PREVIEW_MAX_WIDTH,
+} from '@gitroom/frontend/components/ui/aspect.tile';
+import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
+import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -66,12 +73,15 @@ const ASPECT_TILES: Record<
 
 /**
  * The placeholder and the finished image share one box so the layout does not
- * jump between them: the preset's own proportions scaled into a 320px square,
- * which reproduces the mockup's 180×320 Story frame.
+ * jump between them: the preset's own proportions scaled into the preview box
+ * both AI modals use, so a 9:16 image and a 9:16 video come out the same size.
  */
 const previewBox = (size: string) => {
   const [width, height] = size.split('x').map(Number);
-  const scale = Math.min(320 / width, 320 / height);
+  const scale = Math.min(
+    MEDIA_PREVIEW_MAX_WIDTH / width,
+    MEDIA_PREVIEW_MAX_HEIGHT / height
+  );
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
 };
 
@@ -288,20 +298,51 @@ const AiImageModal: FC<{
       {phase === 'compose' && !catalogOpen && (
         <>
         <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px]">{t('prompt', 'Prompt')}</div>
+          <div className="text-[14px] font-[600]">{t('prompt', 'Prompt')}</div>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            maxLength={2000}
+            maxLength={IMAGE_PROMPT_MAX_CHARS}
             placeholder={t(
               'describe_the_image_you_want_to_generate',
               'Describe the image you want to generate'
             )}
             className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-newTextItemFocused"
           />
+          {/* The field simply stops accepting characters at the ceiling, so the
+              count has to be on screen for that to read as a limit rather than
+              a broken keyboard. Marked in the warning tone, not the error one:
+              the ceiling is a valid length — the DTO accepts it — so the
+              counter says "this is as far as it goes", not "this is wrong". */}
+          <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
+            <span className="text-muted">
+              {t(
+                'image_prompt_hint',
+                'Describe the subject, the setting and the light.'
+              )}
+            </span>
+            {/* Fixed direction: a counter that reverses under RTL reads as a
+                different number entirely. */}
+            <span
+              dir="ltr"
+              className={clsx(
+                'flex-none tabular-nums',
+                prompt.length >= IMAGE_PROMPT_MAX_CHARS
+                  ? 'text-warning font-[600]'
+                  : 'text-muted'
+              )}
+            >
+              {t('prompt_counter', '{{used}} / {{max}}', {
+                used: prompt.length,
+                max: IMAGE_PROMPT_MAX_CHARS,
+              })}
+            </span>
+          </div>
         </div>
         <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px]">{t('image_size', 'Size')}</div>
+          <div className="text-[14px] font-[600]">
+            {t('image_orientation', 'Orientation')}
+          </div>
           <div className="flex gap-[8px]">
             {IMAGE_ASPECT_IDS.map((id) => {
               const tile = ASPECT_TILES[id];
@@ -322,7 +363,7 @@ const AiImageModal: FC<{
           </div>
         </div>
         <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px]">{t('style', 'Style')}</div>
+          <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
           <div className="flex flex-wrap gap-[8px]">
             <button
               type="button"
@@ -369,18 +410,13 @@ const AiImageModal: FC<{
             </button>
           </div>
         </div>
-        <div className="flex">
-          <Button type="button" onClick={generate} className="flex-1">
-            {t('generate', 'Generate')}
-          </Button>
-        </div>
         </>
       )}
 
       {phase === 'compose' && catalogOpen && (
         <>
           <div className="flex flex-col gap-[6px]">
-            <div className="text-[14px]">{t('style', 'Style')}</div>
+            <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
             <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px]">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <circle
@@ -517,12 +553,47 @@ const AiImageModal: FC<{
       {phase === 'result' && image && (
         <>
           <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center">
-            <img
-              src={image.path}
-              alt={prompt}
-              style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
-              className="rounded-[14px] border border-line object-cover"
-            />
+            {/* A rendered video plays where it sits; an image had no way to be
+                seen at its real size. A link rather than an onClick so
+                ⌘-click, middle-click and the keyboard all reach it. */}
+            <a
+              href={image.path}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={t('open_image_full_size', 'Open the image full size')}
+              className="group relative cursor-zoom-in rounded-[14px] focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <img
+                src={image.path}
+                alt={prompt}
+                style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
+                // `block` rather than the inline default: an inline image
+                // leaves descender space inside the link, which would put the
+                // focus ring and the corner badge a few pixels below the
+                // picture's own edge.
+                className="block rounded-[14px] border border-line object-cover"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute bottom-[8px] end-[8px] w-[28px] h-[28px] rounded-[8px] bg-black/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M9.5 2.5H13.5V6.5M13.5 2.5L8 8"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12 10v2.5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1H6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </a>
           </div>
           <div className="text-[12px] text-muted text-center line-clamp-2">
             {prompt}
@@ -531,20 +602,40 @@ const AiImageModal: FC<{
             {' · '}
             {styleSummary}
           </div>
-          <div className="flex items-center gap-[10px]">
-            <Button variant="quiet" onClick={editPrompt}>
-              {t('edit_prompt', 'Edit prompt')}
-            </Button>
-            <div className="flex-1" />
-            <Button variant="ghost" onClick={generate}>
-              {t('regenerate', 'Regenerate')}
-              <span className="ms-[6px] font-[500] opacity-75">
-                · {t('one_credit', '1 credit')}
-              </span>
-            </Button>
-            <Button onClick={useImage}>{t('use_image', 'Use image')}</Button>
-          </div>
         </>
+      )}
+
+      {/* No bar while a generation runs — there is nothing to act on until it
+          lands — and none over the style catalog, which is a sub-screen of
+          compose with no action of its own. */}
+      {(phase === 'result' || (phase === 'compose' && !catalogOpen)) && (
+        <ModalActionBar>
+          {phase === 'result' ? (
+            <>
+              <Button variant="quiet" onClick={editPrompt}>
+                {t('edit_prompt', 'Edit prompt')}
+              </Button>
+              <div className="flex-1" />
+              <Button variant="ghost" onClick={generate}>
+                {t('regenerate', 'Regenerate')}
+                <span className="ms-[6px] font-[500] opacity-75">
+                  · {t('one_credit', '1 credit')}
+                </span>
+              </Button>
+              <Button onClick={useImage}>{t('use_image', 'Use image')}</Button>
+            </>
+          ) : (
+            <>
+              <CostNote>
+                {t('image_uses_one_credit', 'Uses 1 image credit')}
+              </CostNote>
+              <div className="flex-1" />
+              <Button type="button" onClick={generate}>
+                {t('generate', 'Generate')}
+              </Button>
+            </>
+          )}
+        </ModalActionBar>
       )}
     </div>
   );

@@ -667,7 +667,13 @@ export const MultiMediaComponent: FC<{
   mediaNotAvailable?: boolean;
   designNotAvailable?: boolean;
   aiVideoNotAvailable?: boolean;
-  hideTopBorder?: boolean;
+  /**
+   * Drops the chrome this component wears inside the composer — the divider
+   * above it and the 12px inset that lines its row up with the editor's own
+   * padding. Set it when the component sits directly in a modal, where both
+   * read as a stray border and a stray indent.
+   */
+  flush?: boolean;
   dummy: boolean;
   allData: {
     content: string;
@@ -714,7 +720,7 @@ export const MultiMediaComponent: FC<{
     mediaNotAvailable,
     designNotAvailable,
     aiVideoNotAvailable,
-    hideTopBorder,
+    flush,
   } = props;
   const user = useUser();
   const modals = useModals();
@@ -796,7 +802,7 @@ export const MultiMediaComponent: FC<{
     <>
       <div className="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
         {!!currentMedia?.length && (
-        <div className="flex gap-[10px] px-[12px]">
+        <div className={clsx('flex gap-[10px]', !flush && 'px-[12px]')}>
             <ReactSortable
               list={currentMedia}
               setList={(value) =>
@@ -865,8 +871,8 @@ export const MultiMediaComponent: FC<{
         )}
         <div
           className={clsx(
-            'flex gap-[8px] px-[12px] w-full b1 text-textColor',
-            !hideTopBorder && 'border-t border-newColColor'
+            'flex gap-[8px] w-full b1 text-textColor',
+            !flush && 'px-[12px] border-t border-newColColor'
           )}
         >
           {!mediaNotAvailable && (

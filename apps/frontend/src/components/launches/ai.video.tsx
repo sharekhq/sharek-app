@@ -38,8 +38,13 @@ import {
   VIDEO_ORIENTATIONS,
   VideoOrientationId,
 } from '@gitroom/nestjs-libraries/dtos/videos/video.orientation.catalog';
-import { VideoCostNote } from '@gitroom/frontend/components/videos/video.modal.parts';
-import { AspectTile } from '@gitroom/frontend/components/ui/aspect.tile';
+import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
+import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
+import {
+  AspectTile,
+  MEDIA_PREVIEW_MAX_HEIGHT,
+  MEDIA_PREVIEW_MAX_WIDTH,
+} from '@gitroom/frontend/components/ui/aspect.tile';
 
 type Media = { id: string; path: string };
 
@@ -124,8 +129,8 @@ const VideoTypeChooserCard: FC<{
  * The waiting placeholder and the finished player share one shape — the chosen
  * orientation's own proportions fitted into the given box — so the wait shows
  * what is coming. The centred layout gives both the same box as well, so the
- * result fills the outline the wait drew; the step-list layout has to sit the
- * placeholder beside a column of text, so it draws the same shape smaller.
+ * result fills the outline the wait drew; only the step-list layout, which has
+ * to sit the placeholder beside a column of text, draws the shape smaller.
  */
 const orientationBox = (ratio: string, maxWidth: number, maxHeight: number) => {
   const [width, height] = ratio.split(':').map(Number);
@@ -136,8 +141,14 @@ const orientationBox = (ratio: string, maxWidth: number, maxHeight: number) => {
   };
 };
 
-/** Tallest the player is allowed to be — and the centred placeholder with it. */
-const RESULT_BOX_HEIGHT = 300;
+/**
+ * The waiting placeholder in the step-list layout sits beside the step column,
+ * so it is the one box that cannot take the full preview width: at 460 a 16:9
+ * render would leave the steps 16px to live in. Capped here instead, which
+ * still puts a 9:16 placeholder within 13px of the player that replaces it —
+ * the shape the wait draws is the shape that arrives.
+ */
+const STEP_LIST_PLACEHOLDER_MAX_WIDTH = 240;
 
 const pillClasses =
   'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
@@ -414,6 +425,16 @@ export const Modal: FC<{
   };
 
   const orientation = VIDEO_ORIENTATIONS[position];
+  const [ratioWidth, ratioHeight] = orientation.ratio.split(':').map(Number);
+  /**
+   * A step list can only sit beside the placeholder while the placeholder is
+   * narrow enough to leave it room, which a portrait shape is and a landscape
+   * one is not: at the full preview width a 16:9 box takes 460 of the panel's
+   * 496px. Landscape therefore stacks — and gains, because a stacked
+   * placeholder can be the player's exact outline rather than a shrunken
+   * stand-in for it. Derived from the shape, not from who is rendering it.
+   */
+  const stepsBeside = hasSteps && ratioHeight > ratioWidth;
   const orientationSummary = (
     <>
       {t(`video_orientation_${position}`, VIDEO_ORIENTATION_LABELS[position])}
@@ -422,7 +443,14 @@ export const Modal: FC<{
     </>
   );
   const summaryPills = (
-    <div className="flex gap-[8px] flex-wrap justify-center">
+    // Centred only in the layout that is itself a centred column. Beside the
+    // step list it belongs on the same edge as the heading under it.
+    <div
+      className={clsx(
+        'flex gap-[8px] flex-wrap',
+        stepsBeside ? 'justify-start' : 'justify-center'
+      )}
+    >
       <span className={pillClasses}>{orientationSummary}</span>
     </div>
   );
@@ -569,7 +597,7 @@ export const Modal: FC<{
               phase !== 'setup' && 'hidden'
             )}
           >
-            <div className="text-[14px]">
+            <div className="text-[14px] font-[600]">
               {t('video_orientation', 'Orientation')}
             </div>
             <div className="flex gap-[8px]">
@@ -606,12 +634,12 @@ export const Modal: FC<{
               <div
                 className={clsx(
                   'bg-panel rounded-[18px] p-[20px] flex',
-                  hasSteps
+                  stepsBeside
                     ? 'gap-[20px] items-center'
                     : 'flex-col items-center justify-center text-center gap-[16px]'
                 )}
               >
-                {!hasSteps && summaryPills}
+                {!stepsBeside && summaryPills}
                 {/* The placeholder carries the chosen shape so the wait shows
                     what is coming. The app's reduced-motion layer stops the
                     pulse. */}
@@ -619,17 +647,24 @@ export const Modal: FC<{
                   className="bg-surface2 rounded-[12px] flex-none animate-pulse flex items-center justify-center text-muted"
                   style={orientationBox(
                     orientation.ratio,
-                    320,
-                    hasSteps ? 240 : RESULT_BOX_HEIGHT
+                    stepsBeside
+                      ? STEP_LIST_PLACEHOLDER_MAX_WIDTH
+                      : MEDIA_PREVIEW_MAX_WIDTH,
+                    MEDIA_PREVIEW_MAX_HEIGHT
                   )}
                 >
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5.5l10 6.5-10 6.5V5.5z" />
                   </svg>
                 </div>
-                <div className={clsx(hasSteps && 'flex-1 min-w-0')}>
-                  {hasSteps && summaryPills}
-                  <div className={clsx('text-[15px] font-[600]', hasSteps && 'mt-[10px]')}>
+                <div className={clsx(stepsBeside && 'flex-1 min-w-0')}>
+                  {stepsBeside && summaryPills}
+                  <div
+                    className={clsx(
+                      'text-[15px] font-[600]',
+                      stepsBeside && 'mt-[10px]'
+                    )}
+                  >
                     {t('creating_your_video', 'Creating your video…')}
                   </div>
                   <div className="text-[12px] text-muted mt-[2px]">
@@ -644,7 +679,15 @@ export const Modal: FC<{
                     )}
                   </div>
                   {hasSteps && (
-                    <div className="flex flex-col gap-[9px] mt-[14px]">
+                    // Stacked, the list keeps its own start edge inside a
+                    // centred column: a checklist whose ticks do not line up
+                    // is not a checklist.
+                    <div
+                      className={clsx(
+                        'flex flex-col gap-[9px] mt-[14px]',
+                        !stepsBeside && 'w-fit mx-auto text-start'
+                      )}
+                    >
                       {handshake!.steps!.map((label, index) => {
                         const at = progress?.index ?? 0;
                         const done = index < at;
@@ -732,7 +775,11 @@ export const Modal: FC<{
                 src={result.path}
                 controls
                 playsInline
-                style={orientationBox(orientation.ratio, 320, RESULT_BOX_HEIGHT)}
+                style={orientationBox(
+                  orientation.ratio,
+                  MEDIA_PREVIEW_MAX_WIDTH,
+                  MEDIA_PREVIEW_MAX_HEIGHT
+                )}
                 // The same recessed fill the waiting placeholder used, so the
                 // result reads as that box filled in — and so a video whose
                 // own aspect differs letterboxes into a neutral both themes
@@ -748,23 +795,8 @@ export const Modal: FC<{
           {/* No bar while a render runs — there is nothing to act on until it
               lands. */}
           {phase !== 'rendering' && (
-            <div className="relative">
-              {/* Content running under the bar reads as scrollable rather than
-                  cut off. Premultiplied-alpha interpolation is why this fades
-                  to `transparent` without greying through the midpoint. */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-[-32px] bottom-full h-[24px]"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(to top, var(--surface), transparent)',
-                }}
-              />
-              {/* Full-bleed: the bar spans the modal's own 32px padding so its
-                  divider reaches both edges and its fill meets the rounded
-                  corners. */}
-              <div className="-mx-[32px] -mb-[32px] px-[32px] py-[16px] border-t border-line rounded-b-[24px] bg-surface flex items-center gap-[10px]">
-                {phase === 'result' ? (
+            <ModalActionBar>
+              {phase === 'result' ? (
                   <>
                     <Button variant="quiet" onClick={backFromResult}>
                       {handshake?.backLabel}
@@ -793,15 +825,14 @@ export const Modal: FC<{
                   />
                 ) : (
                   <>
-                    <VideoCostNote>
+                    <CostNote>
                       {t('video_uses_one_credit', 'Uses 1 video credit')}
-                    </VideoCostNote>
+                    </CostNote>
                     <div className="flex-1" />
                     <Button type="submit">{t('generate', 'Generate')}</Button>
                   </>
                 )}
-              </div>
-            </div>
+            </ModalActionBar>
           )}
         </FormProvider>
       </form>

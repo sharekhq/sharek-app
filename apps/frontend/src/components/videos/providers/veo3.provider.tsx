@@ -51,7 +51,9 @@ const VEO3Settings: FC = () => {
   }, [audio, setValue]);
 
   return (
-    <div>
+    // One 16px rhythm between groups. Without it the prompt's hint line sits
+    // flush against the next label and the two read as one block.
+    <div className="flex flex-col gap-[16px]">
       <VideoPromptField
         value={value}
         placeholder={t(
@@ -59,8 +61,8 @@ const VEO3Settings: FC = () => {
           'Describe the scene: who or what is in it, where, and what happens'
         )}
       />
-      <div className="mb-[16px]">
-        <div className="text-[14px] mb-[6px]">{t('veo3_audio', 'Audio')}</div>
+      <div className="flex flex-col gap-[6px]">
+        <div className="text-[14px] font-[600]">{t('veo3_audio', 'Audio')}</div>
         <div className="flex gap-[8px]">
           {AUDIO_OPTIONS.map((option) => (
             <Button
@@ -78,42 +80,44 @@ const VEO3Settings: FC = () => {
             </Button>
           ))}
         </div>
-        <div className="text-[12px] text-muted mt-[6px]">
+        <div className="text-[12px] text-muted">
           {t(`veo3_audio_${selected}_hint`, AUDIO_HINTS[selected])}
         </div>
       </div>
-      <div className="flex flex-col gap-[2px] mb-[6px]">
-        <div className="text-[14px]">
-          {t('reference_images', 'Reference images')}
+      <div className="flex flex-col gap-[6px]">
+        <div className="flex flex-col gap-[2px]">
+          <div className="text-[14px] font-[600]">
+            {t('reference_images', 'Reference images')}
+          </div>
+          <div className="text-[12px] text-muted">
+            {t(
+              'reference_images_hint',
+              'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
+            )}
+          </div>
         </div>
-        <div className="text-[12px] text-muted">
-          {t(
-            'reference_images_hint',
-            'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
-          )}
-        </div>
+        <MultiMediaComponent
+          allData={[]}
+          dummy={true}
+          designNotAvailable={true}
+          aiVideoNotAvailable={true}
+          flush={true}
+          text="Images"
+          description="Images"
+          name="images"
+          label="Media"
+          value={mediaValue}
+          onChange={(val) =>
+            setValue(
+              'images',
+              val.target.value
+                .filter((f) => !hasExtension(f.path, 'mp4'))
+                .slice(0, 3)
+            )
+          }
+          error={formState?.errors?.media?.message}
+        />
       </div>
-      <MultiMediaComponent
-        allData={[]}
-        dummy={true}
-        designNotAvailable={true}
-        aiVideoNotAvailable={true}
-        hideTopBorder={true}
-        text="Images"
-        description="Images"
-        name="images"
-        label="Media"
-        value={mediaValue}
-        onChange={(val) =>
-          setValue(
-            'images',
-            val.target.value
-              .filter((f) => !hasExtension(f.path, 'mp4'))
-              .slice(0, 3)
-          )
-        }
-        error={formState?.errors?.media?.message}
-      />
     </div>
   );
 };

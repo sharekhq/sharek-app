@@ -26,15 +26,22 @@ const en = readLocale('en');
 const ar = readLocale('ar');
 
 const KEYS = [
-  // Size presets (T010)
-  'image_size',
+  // Shape presets (T010). Named Orientation, the video modal's word for the
+  // same control, so one concept does not go by two names across the two AI
+  // modals.
+  'image_orientation',
   ...IMAGE_ASPECT_IDS.map((id) => `image_aspect_${id}`),
   ...IMAGE_ASPECT_IDS.map((id) => `image_aspect_${id}_tooltip`),
+  // The prompt field's own line: what to write, and how much room is left.
+  'image_prompt_hint',
+  'prompt_counter',
   // Generating / result states and actions (T013)
   'creating_your_image',
   'usually_takes_half_minute',
   'close_window_note',
   'use_image',
+  'open_image_full_size',
+  'image_uses_one_credit',
   'regenerate',
   'one_credit',
   'edit_prompt',
