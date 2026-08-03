@@ -15,6 +15,7 @@ import { Button } from '@gitroom/react/form/button';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { formatDuration } from '@gitroom/helpers/utils/format.duration';
 import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
@@ -32,8 +33,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
+import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
-import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import {
+  ModalHeaderSlotTarget,
+  useModals,
+} from '@gitroom/frontend/components/layout/new-modal';
 import { ThirdPartyMediaLibrary } from '@gitroom/frontend/components/third-parties/third-party.media-library';
 import { Dashboard } from '@uppy/react';
 import {
@@ -240,6 +245,41 @@ export const showMediaBox = (
 };
 const CHUNK_SIZE = 1024 * 1024;
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
+
+/**
+ * A video tile: the frame, plus the badge that marks it as video and carries
+ * its length. The duration comes from the metadata the tile already preloads,
+ * so the badge costs no extra request — and a stream, which reports a
+ * non-finite duration, shows the glyph alone rather than a confident 0:00.
+ *
+ * The badge is `aria-hidden`: it repeats visually what the `<video>` element
+ * already tells assistive technology.
+ */
+const VideoTile: FC<{ url: string }> = ({ url }) => {
+  const [duration, setDuration] = useState(NaN);
+  const length = formatDuration(duration);
+  return (
+    <>
+      <VideoFrame
+        url={url}
+        onLoadedMetadata={(video) => setDuration(video.duration)}
+      />
+      <div
+        aria-hidden="true"
+        dir="ltr"
+        className="absolute z-[30] top-[6px] start-[6px] pointer-events-none flex items-center gap-[4px] h-[20px] px-[6px] rounded-[4px] bg-black/60 text-white text-[11px] font-[500]"
+      >
+        <svg width="7" height="8" viewBox="0 0 7 8" fill="none">
+          <path
+            d="M6.5 3.567a.5.5 0 0 1 0 .866L.75 7.763A.5.5 0 0 1 0 7.33V.67A.5.5 0 0 1 .75.237L6.5 3.567Z"
+            fill="currentColor"
+          />
+        </svg>
+        {!!length && <span>{length}</span>}
+      </div>
+    </>
+  );
+};
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
@@ -265,6 +305,20 @@ export const MediaBox: FC<{
   const { data, mutate, isLoading } = useSWR(
     `get-media-${page}-${debouncedSearch}`,
     loadMedia
+  );
+  // The tiles and the preview read the same array, so they can never disagree
+  // about a position or a count.
+  const visibleMedia = useMemo(
+    () =>
+      ((data?.results || []) as Media[]).filter((f) => {
+        if (type === 'video') {
+          return hasExtension(f.path, 'mp4');
+        } else if (type === 'image') {
+          return !hasExtension(f.path, 'mp4');
+        }
+        return true;
+      }),
+    [data?.results, type]
   );
   const [selected, setSelected] = useState([]);
   const t = useT();
@@ -385,32 +439,24 @@ export const MediaBox: FC<{
   );
 
   const maximize = useCallback(
-    (media: Media) => async (e: any) => {
+    (media: Media, index: number) => (e: any) => {
       e.stopPropagation();
+      // All three options are load-bearing: `top` keeps the modal out of its
+      // centring branch, whose pt/pb-[100px] costs a third of a 1366x768
+      // viewport, and `size` is what disables the card's min-w-[600px].
       modals.openModal({
-        title: '',
-        top: 10,
-        children: (
-          <div className="w-full h-full p-[50px]">
-            {hasExtension(media.path, 'mp4') ? (
-              <VideoFrame
-                autoplay={true}
-                url={mediaDirectory.set(media.path)}
-              />
-            ) : (
-              <img
-                width="100%"
-                height="100%"
-                className="w-full h-full max-h-[100%] max-w-[100%] object-cover"
-                src={mediaDirectory.set(media.path)}
-                alt="media"
-              />
-            )}
-          </div>
-        ),
+        // The header describes whichever item the preview is showing, which
+        // only the preview knows, so it fills the title row from the body.
+        title: <ModalHeaderSlotTarget />,
+        top: 20,
+        size: 'min(1120px, calc(100vw - 40px))',
+        height: 'calc(100vh - 40px)',
+        // On a phone the card's own 32px padding is 18% of its width.
+        cardClassName: 'phone:!p-[16px]',
+        children: <MediaPreview items={visibleMedia} index={index} />,
       });
     },
-    []
+    [visibleMedia]
   );
 
   const deleteImage = useCallback(
@@ -419,8 +465,8 @@ export const MediaBox: FC<{
       if (
         !(await deleteDialog(
           t(
-            'are_you_sure_you_want_to_delete_the_image',
-            'Are you sure you want to delete the image?'
+            'are_you_sure_you_want_to_delete_this_file',
+            'Are you sure you want to delete this file?'
           )
         ))
       ) {
@@ -458,14 +504,16 @@ export const MediaBox: FC<{
       <div className="flex flex-col flex-1">
         <div
           className={clsx(
-            'flex items-center gap-[12px]',
+            'flex flex-wrap items-center gap-[12px]',
             !isLoading &&
               !data?.results?.length &&
               !debouncedSearch &&
               'hidden'
           )}
         >
-          <div className="flex-1">
+          {/* The search takes its own line on a phone, so Upload and Import
+              wrap below it instead of off the edge. */}
+          <div className="flex-1 phone:basis-full">
             <input
               type="text"
               value={search}
@@ -481,7 +529,7 @@ export const MediaBox: FC<{
             className="hidden"
             multiple={true}
           />
-          <div className="flex gap-[8px]">
+          <div className="flex flex-wrap gap-[8px]">
             {btn}
             <ThirdPartyMediaLibrary onImported={() => mutate()} />
           </div>
@@ -505,10 +553,10 @@ export const MediaBox: FC<{
         <div className="flex-1 relative">
           <div
             className={clsx(
-              'absolute -left-[3px] -top-[3px] withp3 h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
-              !isLoading &&
-                !data?.results?.length &&
-                'w-full flex justify-center items-center flex-col'
+              'absolute inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
+              !isLoading && !data?.results?.length
+                ? 'w-full flex justify-center items-center flex-col'
+                : 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] phone:grid-cols-2 gap-[6px] content-start'
             )}
           >
             {!isLoading && !data?.results?.length && (
@@ -545,11 +593,11 @@ export const MediaBox: FC<{
             )}
             {isLoading && (
               <>
-                {[...new Array(16)].map((_, i) => (
+                {/* One skeleton per item the page will hold — MEDIA_PAGE_SIZE
+                    in media.repository.ts. */}
+                {[...new Array(32)].map((_, i) => (
                   <div
-                    className={clsx(
-                      'px-[3px] py-[3px] float-left rounded-[6px] cursor-pointer w8-max aspect-square'
-                    )}
+                    className="rounded-[6px] cursor-pointer aspect-square"
                     key={i}
                   >
                     <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
@@ -557,78 +605,99 @@ export const MediaBox: FC<{
                 ))}
               </>
             )}
-            {data?.results
-              ?.filter((f: any) => {
-                if (type === 'video') {
-                  return hasExtension(f.path, 'mp4');
-                } else if (type === 'image') {
-                  return !hasExtension(f.path, 'mp4');
-                }
-                return true;
-              })
-              .map((media: any) => (
+            {visibleMedia.map((media: any, index: number) => (
+              <div
+                className={clsx(
+                  'group rounded-[6px] aspect-square',
+                  !standalone && 'cursor-pointer'
+                )}
+                key={media.id}
+              >
                 <div
                   className={clsx(
-                    'group px-[3px] py-[3px] float-left rounded-[6px] w8-max aspect-square',
-                    !standalone && 'cursor-pointer'
+                    'w-full h-full rounded-[6px] border-[4px] relative',
+                    !!selected.find((p) => p.id === media.id)
+                      ? 'border-brand'
+                      : 'border-transparent'
                   )}
-                  key={media.id}
+                  onClick={addRemoveSelected(media)}
                 >
+                  {!!selected.find((p: any) => p.id === media.id) ? (
+                    <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
+                      {selected.findIndex((z: any) => z.id === media.id) + 1}
+                    </div>
+                  ) : (
+                    /* Inside the tile and revealed by opacity rather than
+                       `display`, so the button can take focus at all — a
+                       `hidden` control is out of the tab order, which would
+                       leave its focus ring unreachable, and a 36px target
+                       hanging over the tile edge would swallow clicks meant
+                       for the neighbouring cell.
+                       An `opacity: 0` element is still hit-tested and there is
+                       no hover on touch, so it stays `pointer-events-none`
+                       until it is actually revealed — otherwise a tap on this
+                       corner would open the delete prompt instead of selecting
+                       the item. */
+                    <button
+                      type="button"
+                      onClick={deleteImage(media)}
+                      aria-label={t('delete_media_named', 'Delete {{name}}', {
+                        name: media.originalName,
+                      })}
+                      className="cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      <DeleteCircleIcon size={28} />
+                    </button>
+                  )}
+                  {/* The tile carries the tooltip, not the caption strip: the
+                      strip is pointer-events-none, so a `title` on it would
+                      never be reachable. */}
                   <div
-                    className={clsx(
-                      'w-full h-full rounded-[6px] border-[4px] relative',
-                      !!selected.find((p) => p.id === media.id)
-                        ? 'border-brand'
-                        : 'border-transparent'
-                    )}
-                    onClick={addRemoveSelected(media)}
+                    title={media.originalName}
+                    className="w-full h-full rounded-[6px] overflow-hidden relative"
                   >
-                    {!!selected.find((p: any) => p.id === media.id) ? (
-                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
-                        {selected.findIndex((z: any) => z.id === media.id) + 1}
+                    <div className="absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%]">
+                      <div
+                        onClick={maximize(media, index)}
+                        className="cursor-pointer p-[4px] bg-black/40 hidden group-hover:block hover:scale-150 transition-all"
+                      >
+                        <svg
+                          width="30"
+                          height="30"
+                          viewBox="0 0 14 14"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
+                            fill="#F1F5F9"
+                          />
+                        </svg>
                       </div>
+                    </div>
+                    {hasExtension(media.path, 'mp4') ? (
+                      <VideoTile url={mediaDirectory.set(media.path)} />
                     ) : (
-                      <DeleteCircleIcon
-                        className="cursor-pointer hidden z-[100] group-hover:block absolute -top-[5px] -end-[5px]"
-                        onClick={deleteImage(media)}
+                      <img
+                        width="100%"
+                        height="100%"
+                        className="w-full h-full object-cover"
+                        src={mediaDirectory.set(media.path)}
+                        alt={media.originalName}
                       />
                     )}
-                    <div className="absolute bottom-[10px] end-[10px] z-[100]">{media.originalName}</div>
-                    <div className="w-full h-full rounded-[6px] overflow-hidden relative">
-                      <div className="absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%]">
-                        <div
-                          onClick={maximize(media)}
-                          className="cursor-pointer p-[4px] bg-black/40 hidden group-hover:block hover:scale-150 transition-all"
-                        >
-                          <svg
-                            width="30"
-                            height="30"
-                            viewBox="0 0 14 14"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
-                              fill="#F1F5F9"
-                            />
-                          </svg>
-                        </div>
-                      </div>
-                      {hasExtension(media.path, 'mp4') ? (
-                        <VideoFrame url={mediaDirectory.set(media.path)} />
-                      ) : (
-                        <img
-                          width="100%"
-                          height="100%"
-                          className="w-full h-full object-cover"
-                          src={mediaDirectory.set(media.path)}
-                          alt="media"
-                        />
-                      )}
+                    {/* Inside the clip wrapper, which is what makes an overlap
+                        with a neighbouring tile structurally impossible. */}
+                    <div
+                      dir="ltr"
+                      className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                    >
+                      {media.originalName}
                     </div>
                   </div>
                 </div>
-              ))}
+              </div>
+            ))}
           </div>
         </div>
         {(data?.pages || 0) > 1 && (

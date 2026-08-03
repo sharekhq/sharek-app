@@ -5,6 +5,7 @@ import React, { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { TopTitle } from '@gitroom/frontend/components/launches/helpers/top.title.component';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { formatDuration } from '@gitroom/helpers/utils/format.duration';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { Button } from '@gitroom/react/form/button';
@@ -198,12 +199,6 @@ export const CreateThumbnail: FC<{
     }
   }, [onSelect, currentTime]);
 
-  const formatTime = useCallback((seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, []);
-
   if (!media) return null;
 
   return (
@@ -251,8 +246,8 @@ export const CreateThumbnail: FC<{
             }}
           />
           <div className="flex justify-between text-[13px] text-muted">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatDuration(currentTime)}</span>
+            <span>{formatDuration(duration)}</span>
           </div>
         </div>
       )}

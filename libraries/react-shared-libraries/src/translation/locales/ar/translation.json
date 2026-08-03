@@ -1191,5 +1191,8 @@
   "voice_set_count_two": "صوتان",
   "voice_set_count_few": "{{count}} أصوات",
   "voice_set_count_many": "{{count}} صوتًا",
-  "voice_set_count_other": "{{count}} صوت"
+  "voice_set_count_other": "{{count}} صوت",
+  "open_original": "فتح الملف الأصلي",
+  "are_you_sure_you_want_to_delete_this_file": "هل أنت متأكد أنك تريد حذف هذا الملف؟",
+  "delete_media_named": "حذف {{name}}"
 }
