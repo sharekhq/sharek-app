@@ -35,6 +35,16 @@ const oneShotVideo = () => ({
   },
 });
 
+const openAi = () => ({
+  generateImage: jest.fn().mockResolvedValue('LEGACYB64'),
+  generatePromptForPicture: jest.fn().mockResolvedValue('an enhanced scene'),
+  generateImageAtSize: jest.fn().mockResolvedValue(Buffer.from('JPEG-BYTES')),
+  rewriteFlaggedPrompt: jest.fn().mockResolvedValue('an anonymous scene'),
+});
+
+const dto = (over: Partial<Record<string, any>> = {}) =>
+  ({ prompt: 'قهوة مختصة في الرياض', aspectRatio: 'square', ...over } as any);
+
 const makeService = (
   over: { credits?: number; video?: any; openAi?: any; spendCredit?: boolean } = {}
 ) => {
@@ -232,17 +242,8 @@ describe('resolveTwoPhaseVideo', () => {
 // tooltips make, so the preset id has to reach the renderer as exact pixels;
 // legacy generateImage() keeps its fixed square for its other callers.
 describe('generateImageWithPrompt', () => {
-  const openAi = () => ({
-    generatePromptForPicture: jest.fn().mockResolvedValue('an enhanced scene'),
-    generateImageAtSize: jest.fn().mockResolvedValue(Buffer.from('JPEG-BYTES')),
-    rewriteFlaggedPrompt: jest.fn().mockResolvedValue('an anonymous scene'),
-  });
-
   const flagged = () =>
     new Error('400 Your request was rejected by the safety system');
-
-  const dto = (over: Partial<Record<string, any>> = {}) =>
-    ({ prompt: 'قهوة مختصة في الرياض', aspectRatio: 'square', ...over } as any);
 
   it.each([
     ['square', '1024x1024'],
@@ -450,6 +451,155 @@ describe('generateImageWithPrompt', () => {
       expect(ai.generateImageAtSize).toHaveBeenCalledTimes(1);
       expect(err.getStatus()).toBe(422);
       expect(charged.value).toBe(false);
+    });
+  });
+});
+
+// The image allowance used to be enforced by whichever route remembered to ask,
+// so the wizard, autopost and Samy each generated unmetered. Both image methods
+// now refuse for themselves — the same shape `resolveVideo` gives videos — which
+// is what makes every caller metered by construction rather than by discipline.
+describe('image credit enforcement', () => {
+  // Read once at collection time, restored after every case: the gate is an
+  // env var, and a test that leaves it set decides the outcome of the next one.
+  const initial = process.env.STRIPE_PUBLISHABLE_KEY;
+  const billing = (enabled: boolean) => {
+    if (enabled) {
+      process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_billing_on';
+      return;
+    }
+    delete process.env.STRIPE_PUBLISHABLE_KEY;
+  };
+
+  afterEach(() => {
+    if (initial === undefined) {
+      delete process.env.STRIPE_PUBLISHABLE_KEY;
+      return;
+    }
+    process.env.STRIPE_PUBLISHABLE_KEY = initial;
+  });
+
+  describe('with the allowance exhausted', () => {
+    beforeEach(() => billing(true));
+
+    // The refusal has to land before the credit row exists and before the
+    // renderer is asked for anything: an org with nothing left must cost
+    // neither a credit nor a generation.
+    it('refuses generateImage without touching the renderer or a credit', async () => {
+      const ai = openAi();
+      const { service, subscription, charged } = makeService({
+        credits: 0,
+        openAi: ai,
+      });
+
+      await expect(
+        service.generateImage('a pomegranate', org)
+      ).rejects.toBeInstanceOf(SubscriptionException);
+
+      expect(subscription.checkCredits).toHaveBeenCalledWith(org, 'ai_images');
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+      expect(ai.generateImage).not.toHaveBeenCalled();
+      expect(charged.value).toBe(false);
+    });
+
+    it('refuses generateImageWithPrompt without touching the renderer or a credit', async () => {
+      const ai = openAi();
+      const { service, subscription, charged } = makeService({
+        credits: 0,
+        openAi: ai,
+      });
+
+      await expect(
+        service.generateImageWithPrompt(dto(), org)
+      ).rejects.toBeInstanceOf(SubscriptionException);
+
+      expect(subscription.checkCredits).toHaveBeenCalledWith(org, 'ai_images');
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+      expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+      expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+      expect(charged.value).toBe(false);
+    });
+
+    // generationError normalises anything the render throws, and it passes an
+    // HttpException through untouched — so the 402 must survive as itself
+    // rather than arriving as a generic 500 the billing dialog cannot read.
+    it('keeps the refusal a 402 rather than a generation failure', async () => {
+      const { service } = makeService({ credits: 0, openAi: openAi() });
+
+      const err = await service.generateImage('a pomegranate', org).catch((e) => e);
+
+      expect(err.getStatus()).toBe(402);
+    });
+  });
+
+  describe('with credits remaining', () => {
+    beforeEach(() => billing(true));
+
+    it('generates and charges as before', async () => {
+      const ai = openAi();
+      const { service, subscription, charged } = makeService({ openAi: ai });
+
+      await expect(service.generateImage('a pomegranate', org)).resolves.toBe(
+        'LEGACYB64'
+      );
+
+      expect(ai.generateImage).toHaveBeenCalledWith('a pomegranate');
+      expect(subscription.useCredit).toHaveBeenCalledWith(
+        org,
+        'ai_images',
+        expect.any(Function)
+      );
+      expect(charged.value).toBe(true);
+    });
+
+    // Charge-on-success: the pre-flight admits the render, but a render that
+    // never delivers must still leave the allowance where it was.
+    it('leaves the allowance alone when the render fails', async () => {
+      const ai = openAi();
+      ai.generateImage.mockRejectedValue(new Error('socket hang up'));
+      const { service, charged } = makeService({ openAi: ai });
+
+      const err = await service
+        .generateImage('a pomegranate', org)
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(500);
+      expect(charged.value).toBe(false);
+    });
+  });
+
+  // Self-hosted deployments have no payment provider, so there is no allowance
+  // to spend down — the balance is not even consulted, and generation stays
+  // unlimited exactly as it is today. Usage is still recorded.
+  describe('with billing not configured', () => {
+    beforeEach(() => billing(false));
+
+    it('never consults the allowance for generateImage', async () => {
+      const { service, subscription, charged } = makeService({
+        credits: 0,
+        openAi: openAi(),
+      });
+
+      await expect(service.generateImage('a pomegranate', org)).resolves.toBe(
+        'LEGACYB64'
+      );
+
+      expect(subscription.checkCredits).not.toHaveBeenCalled();
+      expect(charged.value).toBe(true);
+    });
+
+    it('never consults the allowance for generateImageWithPrompt', async () => {
+      const { service, subscription } = makeService({
+        credits: 0,
+        openAi: openAi(),
+      });
+
+      await expect(service.generateImageWithPrompt(dto(), org)).resolves.toBe(
+        Buffer.from('JPEG-BYTES').toString('base64')
+      );
+
+      expect(subscription.checkCredits).not.toHaveBeenCalled();
     });
   });
 });

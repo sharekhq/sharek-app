@@ -1006,6 +1006,7 @@
   "platform_x": "X",
   "platform_youtube": "YouTube",
   "generation_failed": "Failed to generate posts, please try again.",
+  "generator_images_skipped": "Posts were created without images — your AI image credits are used up.",
   "facebook_background_none": "None (plain text)",
   "facebook_background_note": "Unofficial list: the colors shown are approximate, an unsupported background is dropped (published as plain text)",
   "slides_count": "Slides",

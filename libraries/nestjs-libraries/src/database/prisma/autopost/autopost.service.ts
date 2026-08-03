@@ -14,7 +14,8 @@ import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/po
 import Parser from 'rss-parser';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
-import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
+import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { TemporalService } from 'nestjs-temporal-core';
@@ -70,8 +71,8 @@ export class AutopostService {
     private _temporalService: TemporalService,
     private _integrationService: IntegrationService,
     private _postsService: PostsService,
-    private _openaiService: OpenaiService,
-    private _mediaService: MediaService
+    private _mediaService: MediaService,
+    private _organizationService: OrganizationService
   ) {}
 
   async stopAll(org: string) {
@@ -264,12 +265,35 @@ export class AutopostService {
           content: state.load.description || state.description,
         });
 
+    // Fetched per run rather than carried in workflow state, where the
+    // subscription would go stale against the customer's real one.
+    const org = await this._organizationService.getOrgById(
+      state.body.organizationId
+    );
+
+    let generated: string;
+    try {
+      generated = await this._mediaService.generateImage(
+        generatedTextToBeSentToDallE,
+        org!
+      );
+    } catch (err) {
+      // This run is unattended and nobody is watching to retry it, so an
+      // exhausted allowance must cost the customer the picture and not the
+      // article. schedulePost already drafts without an image when state
+      // carries none. Anything else is a real failure and still fails the run.
+      if (!(err instanceof SubscriptionException)) {
+        throw err;
+      }
+
+      return { ...state };
+    }
+
     // gpt-image models return base64 only, and the post is scheduled for a
     // future slot — so the image must live in our storage, not behind an
     // expiring OpenAI URL.
     const image = await this.storage.uploadSimple(
-      'data:image/png;base64,' +
-        (await this._openaiService.generateImage(generatedTextToBeSentToDallE))
+      'data:image/png;base64,' + generated
     );
 
     // Register the upload in the media library (like the generate-posts agent

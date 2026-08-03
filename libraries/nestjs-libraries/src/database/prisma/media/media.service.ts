@@ -44,7 +44,42 @@ export class MediaService {
     return this._mediaRepository.getMediaById(id);
   }
 
+  /**
+   * Shared pre-flight for every image render, the counterpart of
+   * `resolveVideo`. It belongs to the service and not to a route because the
+   * routes were never the only callers — the post generator, autopost and the
+   * assistant reach these two methods directly, and each surface that had to
+   * remember the check on its own eventually forgot it.
+   *
+   * Gated on a configured payment provider: a self-hosted deployment has no
+   * subscription, which `checkCredits` reads as tier FREE and therefore zero
+   * allowance — without this gate every such install would refuse outright.
+   * Usage is still recorded there, it is simply never enforced.
+   */
+  private async resolveImage(org: Organization) {
+    if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+      return;
+    }
+
+    const totalCredits = await this._subscriptionService.checkCredits(
+      org,
+      'ai_images'
+    );
+
+    if (totalCredits.credits <= 0) {
+      throw new SubscriptionException({
+        action: AuthorizationActions.Create,
+        section: Sections.IMAGES_PER_MONTH,
+      });
+    }
+  }
+
   async generateImage(prompt: string, org: Organization) {
+    // Outside the try below: a refusal is not a generation failure, and it must
+    // reach the caller as the 402 it is rather than as a normalised render
+    // error, because that is the status the surfaces branch on.
+    await this.resolveImage(org);
+
     try {
       const generating = await this._subscriptionService.useCredit(
         org,
@@ -73,6 +108,8 @@ export class MediaService {
     dto: GenerateImageWithPromptDto,
     org: Organization
   ) {
+    await this.resolveImage(org);
+
     try {
       return await this._subscriptionService.useCredit(
         org,

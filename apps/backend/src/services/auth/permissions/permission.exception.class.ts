@@ -4,6 +4,7 @@ export enum Sections {
   CHANNEL = 'channel',
   POSTS_PER_MONTH = 'posts_per_month',
   VIDEOS_PER_MONTH = 'videos_per_month',
+  IMAGES_PER_MONTH = 'images_per_month',
   TEAM_MEMBERS = 'team_members',
   COMMUNITY_FEATURES = 'community_features',
   FEATURED_BY_GITROOM = 'featured_by_gitroom',
