@@ -532,9 +532,10 @@ html[dir='rtl'] .lbox {
   direction: ltr !important;
 }
 
-html[dir='rtl'] [dir='ltr'] {
-  direction: rtl !important;
-}
+/* Upstream forced every [dir='ltr'] back to RTL here, which made the dir
+   attribute a no-op in Arabic and reordered every LTR island in the product —
+   file names, dimensions, aspect ratios, durations. Upstream writes no
+   dir='ltr' of its own, so the rule only ever hit this fork's markup. */
 //
 .uppy-Dashboard-AddFiles {
   display: none !important;

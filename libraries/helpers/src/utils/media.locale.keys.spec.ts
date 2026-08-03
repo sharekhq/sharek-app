@@ -20,7 +20,11 @@ describe('media page locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
-  it.each(['open_original', 'are_you_sure_you_want_to_delete_this_file'])(
+  it.each([
+    'open_original',
+    'open_preview',
+    'are_you_sure_you_want_to_delete_this_file',
+  ])(
     'has a non-empty English and Arabic %s',
     (key) => {
       expect(typeof en[key]).toBe('string');
@@ -38,6 +42,7 @@ describe('media page locale keys', () => {
   it('translates the Arabic strings rather than echoing the English', () => {
     for (const key of [
       'open_original',
+      'open_preview',
       'are_you_sure_you_want_to_delete_this_file',
       'delete_media_named',
     ]) {

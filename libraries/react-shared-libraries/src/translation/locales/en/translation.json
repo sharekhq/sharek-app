@@ -1162,5 +1162,6 @@
   "voice_set_count_other": "{{count}} voices",
   "open_original": "Open original",
   "are_you_sure_you_want_to_delete_this_file": "Are you sure you want to delete this file?",
-  "delete_media_named": "Delete {{name}}"
+  "delete_media_named": "Delete {{name}}",
+  "open_preview": "Open preview"
 }
