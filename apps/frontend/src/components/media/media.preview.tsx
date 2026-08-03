@@ -51,6 +51,10 @@ export const MediaPreview: FC<{
   const [loaded, setLoaded] = useState<LoadedMetadata>();
 
   const media = items[current];
+  // `originalName` is nullable; `name` never is. Without the fallback a
+  // nameless item renders a blank header, and the title row collapses from
+  // 24px to 20px, shifting the stage as you step onto it.
+  const displayName = media.originalName || media.name;
   const url = mediaDirectory.set(media.path);
   const metadata = loaded?.id === media.id ? loaded : undefined;
   const length = formatDuration(metadata?.duration ?? NaN);
@@ -91,11 +95,11 @@ export const MediaPreview: FC<{
       <ModalHeaderSlot>
         {/* Clears the modal's own absolutely positioned close button. */}
         <div className="flex items-baseline gap-[12px] pe-[44px] text-[16px] font-[600]">
-          <div className="min-w-0 truncate" dir="ltr" title={media.originalName}>
-            {media.originalName}
+          <div className="min-w-0 truncate" dir="ltr" title={displayName}>
+            {displayName}
           </div>
           <div className="flex-1 flex items-baseline justify-end gap-[12px] text-[13px] font-[400] text-muted whitespace-nowrap">
-            {/* A phone has no room for these beside the close button — the
+            {/* A phone has no room for this beside the close button — the
                 untrimmed header wraps to two lines at 390px. */}
             {!!metadata && (
               <span dir="ltr" className="phone:hidden">
@@ -103,9 +107,6 @@ export const MediaPreview: FC<{
                 {!!length && ` · ${length}`}
               </span>
             )}
-            <span dir="ltr" className="phone:hidden">
-              {current + 1} / {items.length}
-            </span>
             {/* Not "Download": `media.path` is a full URL on another origin, so
                 the browser would ignore a `download` attribute and open a tab
                 anyway. */}
@@ -114,12 +115,12 @@ export const MediaPreview: FC<{
               target="_blank"
               rel="noreferrer"
               aria-label={t('open_original', 'Open original')}
-              className="flex items-center rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+              className="cursor-pointer shrink-0 h-[30px] px-[8px] rounded-[6px] flex items-center gap-[6px] bg-surface border border-line text-[12px] font-[600] text-ink hover:border-inkSoft transition-colors focus-visible:ring-2 focus-visible:ring-brand"
             >
+              <ExternalLinkIcon size={13} />
               <span className="phone:hidden">
                 {t('open_original', 'Open original')}
               </span>
-              <ExternalLinkIcon size={16} className="hidden phone:block" />
             </a>
           </div>
         </div>
@@ -133,10 +134,14 @@ export const MediaPreview: FC<{
           then makes the card 1877px tall. Measured across five viewports. */}
       <div className="flex-1 relative flex items-center justify-center bg-surface2 rounded-[12px] overflow-hidden">
         {hasExtension(media.path, 'mp4') ? (
+          /* No autoplay: opening a preview should not start audio, and
+             stepping with the arrows would start it again on every video. It
+             also stops the browser's own live-caption overlay engaging
+             unprompted. The `#t=0.1` fragment VideoFrame appends is what gives
+             a still frame instead of a black rectangle until play. */
           <VideoFrame
             key={media.id}
             url={url}
-            autoplay={true}
             controls={true}
             playsInline={true}
             className="absolute inset-0 w-full h-full object-contain"
@@ -154,7 +159,7 @@ export const MediaPreview: FC<{
             key={media.id}
             className="absolute inset-0 w-full h-full object-contain"
             src={url}
-            alt={media.originalName}
+            alt={displayName}
             onLoad={(e) =>
               setLoaded({
                 id: media.id,

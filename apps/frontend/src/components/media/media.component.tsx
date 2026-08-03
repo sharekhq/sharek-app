@@ -556,7 +556,11 @@ export const MediaBox: FC<{
               'absolute inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
               !isLoading && !data?.results?.length
                 ? 'w-full flex justify-center items-center flex-col'
-                : 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] phone:grid-cols-2 gap-[6px] content-start'
+                : // Capped at eight columns past the target width: auto-fill
+                  // would otherwise keep adding 150px columns, so a wide screen
+                  // gets denser rather than bigger and 32 items stop filling
+                  // whole rows. Below 2xl this changes nothing.
+                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 phone:grid-cols-2 gap-[6px] content-start'
             )}
           >
             {!isLoading && !data?.results?.length && (
@@ -605,99 +609,110 @@ export const MediaBox: FC<{
                 ))}
               </>
             )}
-            {visibleMedia.map((media: any, index: number) => (
-              <div
-                className={clsx(
-                  'group rounded-[6px] aspect-square',
-                  !standalone && 'cursor-pointer'
-                )}
-                key={media.id}
-              >
+            {visibleMedia.map((media: any, index: number) => {
+              // `originalName` is nullable; `name` never is. Without this the
+              // caption, the tooltip, the alt text and the delete button's
+              // label are all empty for older uploads.
+              const displayName = media.originalName || media.name;
+              return (
                 <div
                   className={clsx(
-                    'w-full h-full rounded-[6px] border-[4px] relative',
-                    !!selected.find((p) => p.id === media.id)
-                      ? 'border-brand'
-                      : 'border-transparent'
+                    'group rounded-[6px] aspect-square',
+                    !standalone && 'cursor-pointer'
                   )}
-                  onClick={addRemoveSelected(media)}
+                  key={media.id}
                 >
-                  {!!selected.find((p: any) => p.id === media.id) ? (
-                    <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
-                      {selected.findIndex((z: any) => z.id === media.id) + 1}
-                    </div>
-                  ) : (
-                    /* Inside the tile and revealed by opacity rather than
-                       `display`, so the button can take focus at all — a
-                       `hidden` control is out of the tab order, which would
-                       leave its focus ring unreachable, and a 36px target
-                       hanging over the tile edge would swallow clicks meant
-                       for the neighbouring cell.
-                       An `opacity: 0` element is still hit-tested and there is
-                       no hover on touch, so it stays `pointer-events-none`
-                       until it is actually revealed — otherwise a tap on this
-                       corner would open the delete prompt instead of selecting
-                       the item. */
-                    <button
-                      type="button"
-                      onClick={deleteImage(media)}
-                      aria-label={t('delete_media_named', 'Delete {{name}}', {
-                        name: media.originalName,
-                      })}
-                      className="cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      <DeleteCircleIcon size={28} />
-                    </button>
-                  )}
-                  {/* The tile carries the tooltip, not the caption strip: the
-                      strip is pointer-events-none, so a `title` on it would
-                      never be reachable. */}
                   <div
-                    title={media.originalName}
-                    className="w-full h-full rounded-[6px] overflow-hidden relative"
+                    className={clsx(
+                      'w-full h-full rounded-[6px] border-[4px] relative',
+                      !!selected.find((p) => p.id === media.id)
+                        ? 'border-brand'
+                        : 'border-transparent'
+                    )}
+                    onClick={addRemoveSelected(media)}
                   >
-                    <div className="absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%]">
-                      <div
+                    {!!selected.find((p: any) => p.id === media.id) ? (
+                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
+                        {selected.findIndex((z: any) => z.id === media.id) + 1}
+                      </div>
+                    ) : (
+                      /* Inside the tile and revealed by opacity rather than
+                         `display`, so the button can take focus at all — a
+                         `hidden` control is out of the tab order, which would
+                         leave its focus ring unreachable, and a 36px target
+                         hanging over the tile edge would swallow clicks meant
+                         for the neighbouring cell.
+                         An `opacity: 0` element is still hit-tested and there is
+                         no hover on touch, so it stays `pointer-events-none`
+                         until it is actually revealed — otherwise a tap on this
+                         corner would open the delete prompt instead of selecting
+                         the item. */
+                      <button
+                        type="button"
+                        onClick={deleteImage(media)}
+                        aria-label={t('delete_media_named', 'Delete {{name}}', {
+                          name: displayName,
+                        })}
+                        className="cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        <DeleteCircleIcon size={28} />
+                      </button>
+                    )}
+                    {/* The tile carries the tooltip, not the caption strip: the
+                        strip is pointer-events-none, so a `title` on it would
+                        never be reachable. */}
+                    <div
+                      title={displayName}
+                      className="w-full h-full rounded-[6px] overflow-hidden relative"
+                    >
+                      {/* A 36px circle matching the lightbox's own prev/next
+                          controls, revealed by colour rather than by growing
+                          50% under the cursor. A button rather than a div
+                          because this is the only way into the preview, and a
+                          div cannot be reached from the keyboard. */}
+                      <button
+                        type="button"
                         onClick={maximize(media, index)}
-                        className="cursor-pointer p-[4px] bg-black/40 hidden group-hover:block hover:scale-150 transition-all"
+                        aria-label={t('open_preview', 'Open preview')}
+                        className="cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         <svg
-                          width="30"
-                          height="30"
+                          width="18"
+                          height="18"
                           viewBox="0 0 14 14"
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <path
                             d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
-                            fill="#F1F5F9"
+                            fill="currentColor"
                           />
                         </svg>
+                      </button>
+                      {hasExtension(media.path, 'mp4') ? (
+                        <VideoTile url={mediaDirectory.set(media.path)} />
+                      ) : (
+                        <img
+                          width="100%"
+                          height="100%"
+                          className="w-full h-full object-cover"
+                          src={mediaDirectory.set(media.path)}
+                          alt={displayName}
+                        />
+                      )}
+                      {/* Inside the clip wrapper, which is what makes an overlap
+                          with a neighbouring tile structurally impossible. */}
+                      <div
+                        dir="ltr"
+                        className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                      >
+                        {displayName}
                       </div>
-                    </div>
-                    {hasExtension(media.path, 'mp4') ? (
-                      <VideoTile url={mediaDirectory.set(media.path)} />
-                    ) : (
-                      <img
-                        width="100%"
-                        height="100%"
-                        className="w-full h-full object-cover"
-                        src={mediaDirectory.set(media.path)}
-                        alt={media.originalName}
-                      />
-                    )}
-                    {/* Inside the clip wrapper, which is what makes an overlap
-                        with a neighbouring tile structurally impossible. */}
-                    <div
-                      dir="ltr"
-                      className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    >
-                      {media.originalName}
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         {(data?.pages || 0) > 1 && (
