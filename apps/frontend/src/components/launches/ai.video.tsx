@@ -947,7 +947,7 @@ export const AiVideo: FC<{
       >
         {loading && (
           <div className="absolute start-[50%] -translate-x-[50%]">
-            <Loading height={30} width={30} type="spin" color="var(--ink)" />
+            <Loading height={15} width={15} type="spin" color="var(--ink)" />
           </div>
         )}
         <div
