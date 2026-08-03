@@ -32,6 +32,14 @@ interface OpenModalInterface {
   classNames?: {
     modal?: string;
   };
+  /**
+   * Extra classes for the modal card itself. Deliberately not `classNames.modal`
+   * — that option predates this component and is ignored here, and the ~29
+   * call sites still passing it carry Mantine-era values (`bg-transparent`,
+   * `w-[100%] max-w-[1400px]`) that would change those modals if it were ever
+   * honoured.
+   */
+  cardClassName?: string;
   size?: string | number;
   maxSize?: string | number;
   height?: string | number;
@@ -232,7 +240,8 @@ export const Component: FC<{
                 !modal.removeLayout && 'gap-[24px] p-[32px]',
                 'bg-newBgColorInner mx-auto flex flex-col w-fit rounded-[24px] relative shadow-card',
                 modal.size ? '' : 'min-w-[600px]',
-                modal.fullScreen && 'h-full'
+                modal.fullScreen && 'h-full',
+                modal.cardClassName
               )}
               {...((!!modal.size || !!modal.height || !!modal.maxSize) && {
                 style: {

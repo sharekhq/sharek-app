@@ -889,16 +889,6 @@ html[dir='rtl'] [dir='ltr'] {
   pointer-events: none;
 }
 
-.w8-max {
-  width: calc(100% / 6);
-  max-width: calc(100% / 6);
-}
-
-.withp3 {
-  width: calc(100% + 9px);
-  height: calc(100% + 6px);
-}
-
 .forceChange .changeColor {
   background: var(--new-btn-primary) !important;
   color: #fff !important;

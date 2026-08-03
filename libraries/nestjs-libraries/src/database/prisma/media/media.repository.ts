@@ -2,6 +2,10 @@ import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/pris
 import { Injectable } from '@nestjs/common';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 
+// Four rows of the eight columns the library grid yields on a target screen.
+// The composer's media picker reads the same endpoint, so it gets 32 too.
+const MEDIA_PAGE_SIZE = 32;
+
 @Injectable()
 export class MediaRepository {
   constructor(private _media: PrismaRepository<'media'>) {}
@@ -92,7 +96,9 @@ export class MediaRepository {
         ...searchFilter,
       },
     };
-    const pages = Math.ceil((await this._media.model.media.count(query)) / 18);
+    const pages = Math.ceil(
+      (await this._media.model.media.count(query)) / MEDIA_PAGE_SIZE
+    );
     const results = await this._media.model.media.findMany({
       where: {
         organizationId: org,
@@ -111,8 +117,8 @@ export class MediaRepository {
         alt: true,
         thumbnailTimestamp: true,
       },
-      skip: pageNum * 18,
-      take: 18,
+      skip: pageNum * MEDIA_PAGE_SIZE,
+      take: MEDIA_PAGE_SIZE,
     });
 
     return {
