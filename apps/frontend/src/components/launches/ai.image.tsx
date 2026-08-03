@@ -5,9 +5,12 @@ import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
-import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import {
+  ModalHeaderSlot,
+  ModalHeaderSlotTarget,
+  useModals,
+} from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import { createPortal } from 'react-dom';
 import useSWR from 'swr';
 import {
   IMAGE_ASPECT_IDS,
@@ -286,15 +289,13 @@ const AiImageModal: FC<{
 
   return (
     <div className="flex flex-col gap-[16px]">
-      {createPortal(
+      <ModalHeaderSlot>
         <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
           {t('credits_left_count', '{{count}} credits left', {
             count: credits?.credits || 0,
           })}
-        </div>,
-        document.querySelector('.top-title-content') ||
-          document.createElement('div')
-      )}
+        </div>
+      </ModalHeaderSlot>
       {phase === 'compose' && !catalogOpen && (
         <>
         <div className="flex flex-col gap-[6px]">
@@ -659,7 +660,7 @@ export const AiImage: FC<{
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
           {t('generate_ai_image', 'Generate AI Image')}
-          <div className="top-title-content flex-1 flex justify-end" />
+          <ModalHeaderSlotTarget className="flex-1 flex justify-end" />
         </div>
       ),
       children: (close) => (
