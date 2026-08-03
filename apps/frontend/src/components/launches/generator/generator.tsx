@@ -158,6 +158,18 @@ const FirstStep: FC = (props) => {
             t('generation_failed', 'Failed to generate posts, please try again.')
           );
         }
+        // The run succeeded — the posts are here, just without their pictures,
+        // and an imageless item is already what the modal renders. Only the
+        // reason is missing, so it is said before the modal takes the screen.
+        if (load.imagesSkipped) {
+          toaster.show(
+            t(
+              'generator_images_skipped',
+              'Posts were created without images — your AI image credits are used up.'
+            ),
+            'warning'
+          );
+        }
         const messages = load.content.map((p: any, index: number) => {
           if (index === 0) {
             return {

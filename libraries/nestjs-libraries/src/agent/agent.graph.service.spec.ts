@@ -1,5 +1,3 @@
-import type { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
-
 // Keep the module import hermetic: no real LangChain clients, no storage SDKs,
 // and none of the heavy service dependency chains (they are constructor
 // metadata only — generatePictures never touches them).
@@ -44,43 +42,157 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
   UploadFactory: { createStorage: () => ({}) },
 }));
 
+import { HttpException } from '@nestjs/common';
 import { AgentGraphService } from './agent.graph.service';
+import {
+  AuthorizationActions,
+  Sections,
+  SubscriptionException,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 describe('AgentGraphService.generatePictures', () => {
-  const openai = { generateImage: jest.fn() };
-  const service = new AgentGraphService(
-    {} as any,
-    {} as any,
-    openai as unknown as OpenaiService
-  );
+  // The wizard used to call the raw generator, so a thread of images cost the
+  // customer nothing and told billing nothing. Going through MediaService is
+  // what makes each one checked and recorded like every other surface.
+  const media = { generateImage: jest.fn() };
+  const service = new AgentGraphService({} as any, media as any);
+
+  const org = { id: 'org-1' } as any;
 
   afterEach(() => jest.clearAllMocks());
 
   it('returns no update when pictures are off', async () => {
-    expect(await service.generatePictures({ isPicture: false } as any)).toEqual(
-      {}
-    );
-    expect(openai.generateImage).not.toHaveBeenCalled();
+    expect(
+      await service.generatePictures({ isPicture: false } as any, org)
+    ).toEqual({});
+    expect(media.generateImage).not.toHaveBeenCalled();
   });
 
   it('generates a gpt-image data URL for every content item', async () => {
-    openai.generateImage
+    media.generateImage
       .mockResolvedValueOnce('FIRSTB64')
       .mockResolvedValueOnce('SECONDB64');
 
-    const result: any = await service.generatePictures({
-      isPicture: true,
-      content: [
-        { content: 'post 1', prompt: 'a red pomegranate' },
-        { content: 'post 2', prompt: 'a calendar with posts' },
-      ],
-    } as any);
+    const result: any = await service.generatePictures(
+      {
+        isPicture: true,
+        content: [
+          { content: 'post 1', prompt: 'a red pomegranate' },
+          { content: 'post 2', prompt: 'a calendar with posts' },
+        ],
+      } as any,
+      org
+    );
 
-    expect(openai.generateImage).toHaveBeenCalledTimes(2);
-    expect(openai.generateImage).toHaveBeenCalledWith('a red pomegranate');
-    expect(openai.generateImage).toHaveBeenCalledWith('a calendar with posts');
+    expect(media.generateImage).toHaveBeenCalledTimes(2);
+    expect(media.generateImage).toHaveBeenCalledWith('a red pomegranate', org);
+    expect(media.generateImage).toHaveBeenCalledWith('a calendar with posts', org);
     expect(result.content[0].image).toBe('data:image/png;base64,FIRSTB64');
     expect(result.content[1].image).toBe('data:image/png;base64,SECONDB64');
+  });
+
+  // `streamMode: 'values'` emits the full state after every node and
+  // posts.controller writes those frames to the client verbatim, so an org in
+  // state would hand any member running the wizard the apiKey, the paymentId
+  // and the subscription row.
+  it('keeps the organization out of the state it returns', async () => {
+    media.generateImage.mockResolvedValue('B64');
+
+    const result = await service.generatePictures(
+      {
+        isPicture: true,
+        content: [{ content: 'post 1', prompt: 'a red pomegranate' }],
+      } as any,
+      { id: 'org-1', apiKey: 'sk-secret', paymentId: 'cus_leak' } as any
+    );
+
+    expect(JSON.stringify(result)).not.toContain('sk-secret');
+    expect(JSON.stringify(result)).not.toContain('cus_leak');
+  });
+
+  it('does not flag a run where nothing was skipped', async () => {
+    media.generateImage.mockResolvedValue('B64');
+
+    const result: any = await service.generatePictures(
+      {
+        isPicture: true,
+        content: [{ content: 'post 1', prompt: 'a red pomegranate' }],
+      } as any,
+      org
+    );
+
+    expect(result.imagesSkipped).toBeUndefined();
+  });
+
+  // Enforcement without this turns a working feature into a hard failure: the
+  // posts are the wizard's actual output, and they are still worth having
+  // without their pictures. The flag rides the final state to the client, which
+  // already renders an imageless item as text — all it needs is the reason.
+  describe('when the image allowance runs out', () => {
+    const refusal = () =>
+      new SubscriptionException({
+        action: AuthorizationActions.Create,
+        section: Sections.IMAGES_PER_MONTH,
+      });
+
+    it('delivers the item without an image and flags the run', async () => {
+      media.generateImage.mockRejectedValue(refusal());
+
+      const result: any = await service.generatePictures(
+        {
+          isPicture: true,
+          content: [{ content: 'post 1', prompt: 'a red pomegranate' }],
+        } as any,
+        org
+      );
+
+      expect(result.content[0].content).toBe('post 1');
+      expect(result.content[0].image).toBeUndefined();
+      expect(result.imagesSkipped).toBe(true);
+    });
+
+    // Credits can run out partway through a thread. Whatever was covered keeps
+    // its picture — refusing the whole batch would throw away images the
+    // customer already paid for.
+    it('keeps the images it did cover', async () => {
+      media.generateImage
+        .mockResolvedValueOnce('FIRSTB64')
+        .mockRejectedValueOnce(refusal());
+
+      const result: any = await service.generatePictures(
+        {
+          isPicture: true,
+          content: [
+            { content: 'post 1', prompt: 'a red pomegranate' },
+            { content: 'post 2', prompt: 'a calendar with posts' },
+          ],
+        } as any,
+        org
+      );
+
+      expect(result.content[0].image).toBe('data:image/png;base64,FIRSTB64');
+      expect(result.content[1].image).toBeUndefined();
+      expect(result.imagesSkipped).toBe(true);
+    });
+
+    // A safety rejection or a provider outage is not a degraded run — it is a
+    // failed one, and it must keep failing the node the way it does today.
+    it('still fails the run for anything that is not a credit refusal', async () => {
+      media.generateImage.mockRejectedValue(new Error('socket hang up'));
+
+      const err = await service
+        .generatePictures(
+          {
+            isPicture: true,
+            content: [{ content: 'post 1', prompt: 'a red pomegranate' }],
+          } as any,
+          org
+        )
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(500);
+    });
   });
 });
 
@@ -89,7 +201,7 @@ describe('AgentGraphService.generatePictures', () => {
 // posts for an Arabic-first product — and gpt-5.x follows instructions more
 // literally than gpt-4.1 did. The rule has to stay gone across upstream merges.
 describe('AgentGraphService prompt language', () => {
-  const service = new AgentGraphService({} as any, {} as any, {} as any);
+  const service = new AgentGraphService({} as any, {} as any);
 
   beforeEach(() => {
     mockTemplates.length = 0;

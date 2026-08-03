@@ -200,6 +200,20 @@ export class OrganizationRepository {
       where: {
         id,
       },
+      // Credit checks price the allowance off the tier and the cycle start, and
+      // an org without the relation loaded reads as FREE. Same selection the
+      // other org lookups here make, so the added relation stays a few scalars
+      // rather than the whole row.
+      include: {
+        subscription: {
+          select: {
+            subscriptionTier: true,
+            totalChannels: true,
+            isLifetime: true,
+            createdAt: true,
+          },
+        },
+      },
     });
   }
 

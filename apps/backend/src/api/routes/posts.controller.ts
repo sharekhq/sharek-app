@@ -254,7 +254,7 @@ export class PostsController {
       // Heartbeats cover the silent stretches (image generation emits no graph
       // events and can exceed the 60-100s proxy idle cuts).
       for await (const event of withHeartbeat(
-        this._agentGraphService.start(org.id, body),
+        this._agentGraphService.start(org, body),
         20_000,
         () => ({ name: 'heartbeat' })
       )) {

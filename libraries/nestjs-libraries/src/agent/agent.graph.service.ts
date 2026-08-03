@@ -16,7 +16,8 @@ import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/me
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { GeneratorDto } from '@gitroom/nestjs-libraries/dtos/generator/generator.dto';
 import { generationError } from '@gitroom/nestjs-libraries/openai/generation.error';
-import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
+import { Organization } from '@prisma/client';
+import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 const tools = !process.env.TAVILY_API_KEY
   ? []
@@ -52,6 +53,10 @@ interface WorkflowChannelsState {
     image?: string;
   }[];
   isPicture?: boolean;
+  // Set when at least one item's picture was refused for lack of credits. Rides
+  // the final payload to the client, which turns it into the notice explaining
+  // why the posts arrived without images.
+  imagesSkipped?: boolean;
   popularPosts?: { content: string; hook: string }[];
 }
 
@@ -108,8 +113,7 @@ export class AgentGraphService {
   private storage = UploadFactory.createStorage();
   constructor(
     private _postsService: PostsService,
-    private _mediaService: MediaService,
-    private _openaiService: OpenaiService
+    private _mediaService: MediaService
   ) {}
   static state = () =>
     new StateGraph<WorkflowChannelsState>({
@@ -131,6 +135,7 @@ export class AgentGraphService {
         popularPosts: null,
         topic: null,
         isPicture: null,
+        imagesSkipped: null,
       },
     });
 
@@ -318,26 +323,46 @@ export class AgentGraphService {
     return {};
   }
 
-  async generatePictures(state: WorkflowChannelsState) {
+  async generatePictures(state: WorkflowChannelsState, org: Organization) {
     if (!state.isPicture) {
       return {};
     }
 
+    // Set per item rather than decided up front: credits can run out partway
+    // through a thread, and whatever was covered keeps its picture.
+    let imagesSkipped = false;
+
     try {
       const newContent = await Promise.all(
         (state.content || []).map(async (p) => {
-          const image =
-            'data:image/png;base64,' +
-            (await this._openaiService.generateImage(p.prompt!));
-          return {
-            ...p,
-            image,
-          };
+          try {
+            const image =
+              'data:image/png;base64,' +
+              (await this._mediaService.generateImage(p.prompt!, org));
+            return {
+              ...p,
+              image,
+            };
+          } catch (err) {
+            // Out of credits is not a failed run: the posts are the wizard's
+            // real output and are still worth delivering without pictures.
+            // Anything else is a genuine failure and keeps failing the node.
+            if (!(err instanceof SubscriptionException)) {
+              throw err;
+            }
+
+            imagesSkipped = true;
+            return p;
+          }
         })
       );
 
       return {
         content: newContent,
+        // Only when something actually was skipped — the client shows a notice
+        // on this flag, and an always-present `false` would be a lie the
+        // consumer has to interpret.
+        ...(imagesSkipped ? { imagesSkipped: true } : {}),
       };
     } catch (err) {
       throw generationError(err);
@@ -381,7 +406,16 @@ export class AgentGraphService {
     return { date: await this._postsService.findFreeDateTime(state.orgId) };
   }
 
-  start(orgId: string, body: GeneratorDto) {
+  /**
+   * The org travels as a closure argument into the picture node and never into
+   * graph state: this streams with `streamMode: 'values'`, which emits the full
+   * state after every node, and the controller writes those frames to the
+   * client verbatim — an org in state would hand any member running the wizard
+   * the apiKey, the paymentId and the subscription row. `orgId` alone would not
+   * do: the metering point needs the loaded subscription to price the
+   * allowance, and the controller already holds that row.
+   */
+  start(org: Organization, body: GeneratorDto) {
     const state = AgentGraphService.state();
     const workflow = state
       .addNode('agent', this.startCall.bind(this))
@@ -393,7 +427,9 @@ export class AgentGraphService {
       .addNode('generate-hook', this.generateHook.bind(this))
       .addNode('generate-content', this.generateContent.bind(this))
       .addNode('generate-content-fix', this.fixArray.bind(this))
-      .addNode('generate-picture', this.generatePictures.bind(this))
+      .addNode('generate-picture', (state: WorkflowChannelsState) =>
+        this.generatePictures(state, org)
+      )
       .addNode('upload-pictures', this.uploadPictures.bind(this))
       .addNode('post-time', this.postDateTime.bind(this))
       .addEdge(START, 'agent')
@@ -421,7 +457,7 @@ export class AgentGraphService {
         isPicture: body.isPicture,
         format: body.format,
         tone: body.tone,
-        orgId,
+        orgId: org.id,
       },
       {
         streamMode: 'values',
