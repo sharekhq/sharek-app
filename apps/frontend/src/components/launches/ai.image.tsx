@@ -556,13 +556,16 @@ const AiImageModal: FC<{
           <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center">
             {/* A rendered video plays where it sits; an image had no way to be
                 seen at its real size. A link rather than an onClick so
-                ⌘-click, middle-click and the keyboard all reach it. */}
+                ⌘-click, middle-click and the keyboard all reach it. The corner
+                badge below names where it goes, so the cursor is the plain
+                pointer: a magnifier would promise a lightbox that opening a
+                tab does not deliver. */}
             <a
               href={image.path}
               target="_blank"
               rel="noreferrer"
               aria-label={t('open_image_full_size', 'Open the image full size')}
-              className="group relative cursor-zoom-in rounded-[14px] focus-visible:ring-2 focus-visible:ring-brand"
+              className="group relative cursor-pointer rounded-[14px] focus-visible:ring-2 focus-visible:ring-brand"
             >
               <img
                 src={image.path}
