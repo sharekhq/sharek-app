@@ -10,7 +10,9 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@gitroom/react/form/button';
 import { useHotkeys } from 'react-hotkeys-hook';
 import clsx from 'clsx';
@@ -66,7 +68,35 @@ const useModalStore = create<State>((set) => ({
   closeAll: () => set({ modalManager: [] }),
 }));
 
-const CurrentModalContext = createContext({ id: '' });
+const CurrentModalContext = createContext<{
+  id: string;
+  headerSlot: HTMLElement | null;
+  setHeaderSlot: (element: HTMLElement | null) => void;
+}>({ id: '', headerSlot: null, setHeaderSlot: () => {} });
+
+/**
+ * Marks the spot in a modal title that the modal's body may render into — the
+ * AI modals put their credits pill there, since the count is only known once
+ * the body has loaded it. Placed by whoever writes the title, so the title
+ * keeps deciding its own layout.
+ */
+export const ModalHeaderSlotTarget: FC<{ className?: string }> = ({
+  className,
+}) => {
+  const { setHeaderSlot } = useContext(CurrentModalContext);
+  return <div ref={setHeaderSlot} className={className} />;
+};
+
+/**
+ * Renders its children into the title of the modal it sits in. Scoped to that
+ * one modal: a modal opened on top of another fills its own header, which a
+ * document-wide lookup for the slot could not do — it returns the first match,
+ * and the modals render in the order they were opened.
+ */
+export const ModalHeaderSlot: FC<{ children: ReactNode }> = ({ children }) => {
+  const { headerSlot } = useContext(CurrentModalContext);
+  return headerSlot ? createPortal(children, headerSlot) : null;
+};
 
 interface ModalManagerInterface extends ModalManagerStoreInterface {
   closeCurrent(): void;
@@ -102,6 +132,7 @@ export const Component: FC<{
   modal: { id: string } & OpenModalInterface;
 }> = memo(({ isLast, modal, closeModal, zIndex }) => {
   const decision = useDecisionModal();
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   const closeModalFunction = useCallback(async () => {
     if (modal.askClose) {
       const open = await decision.open();
@@ -166,7 +197,9 @@ export const Component: FC<{
   }
 
   return (
-    <CurrentModalContext.Provider value={{ id: modal.id }}>
+    <CurrentModalContext.Provider
+      value={{ id: modal.id, headerSlot, setHeaderSlot }}
+    >
       <div
         onClick={closeModalFunction}
         style={{ zIndex }}

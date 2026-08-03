@@ -34,14 +34,13 @@ const AUDIO_HINTS = {
 
 const VEO3Settings: FC = () => {
   const t = useT();
-  const { register, watch, setValue, formState } = useFormContext();
+  const { watch, setValue } = useFormContext();
   const { value } = useVideo();
 
-  const media = register('media', {
-    value: [],
-  });
-
-  const mediaValue = watch('media');
+  // The field the params class declares, and the one the row shows back: the
+  // selection is filtered before it is stored, so reading anything else would
+  // promise images the request never carries.
+  const images = watch('images');
   const audio = watch('audio');
   // The effect defaults the field, but the first render happens before it runs.
   const selected: (typeof AUDIO_OPTIONS)[number] = audio || 'ambient';
@@ -106,7 +105,7 @@ const VEO3Settings: FC = () => {
           description="Images"
           name="images"
           label="Media"
-          value={mediaValue}
+          value={images}
           onChange={(val) =>
             setValue(
               'images',
@@ -115,7 +114,6 @@ const VEO3Settings: FC = () => {
                 .slice(0, 3)
             )
           }
-          error={formState?.errors?.media?.message}
         />
       </div>
     </div>

@@ -28,8 +28,11 @@ import {
   VideoTrail,
 } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { createPortal } from 'react-dom';
+import {
+  ModalHeaderSlot,
+  ModalHeaderSlotTarget,
+  useModals,
+} from '@gitroom/frontend/components/layout/new-modal';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import {
   VIDEO_ORIENTATION_IDS,
@@ -482,15 +485,13 @@ export const Modal: FC<{
         }
         className="flex flex-col gap-[16px] -mt-[12px]"
       >
-        {createPortal(
+        <ModalHeaderSlot>
           <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
             {t('credits_left_count', '{{count}} credits left', {
               count: data?.credits || 0,
             })}
-          </div>,
-          document.querySelector('.top-title-content') ||
-            document.createElement('div')
-        )}
+          </div>
+        </ModalHeaderSlot>
         <div className="flex items-center gap-[10px] text-[13px] text-muted">
           {/* Only while nothing is running: a type cannot be swapped out from
               under a render, and the result belongs to the type that made it. */}
@@ -918,7 +919,7 @@ export const AiVideo: FC<{
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
           {t('generate_ai_video', 'Generate AI Video')}
-          <div className="top-title-content flex-1 flex justify-end" />
+          <ModalHeaderSlotTarget className="flex-1 flex justify-end" />
         </div>
       ),
       children: (close) => (
