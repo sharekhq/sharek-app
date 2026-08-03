@@ -3,6 +3,17 @@
 import { FC } from 'react';
 import { clsx } from 'clsx';
 
+/**
+ * The box a finished image or video is fitted into, shared by both AI modals so
+ * the same shape comes out the same size whichever one made it. The width clears
+ * the narrower of the two panels — the image modal leaves 488px inside its own
+ * padding, the video modal 496px — and the height is what keeps the tallest
+ * case, a 1:1 image, inside a laptop viewport once the modal's chrome and
+ * action bar are counted.
+ */
+export const MEDIA_PREVIEW_MAX_WIDTH = 460;
+export const MEDIA_PREVIEW_MAX_HEIGHT = 440;
+
 export interface AspectTileProps {
   /** Rendered label, already translated by the caller. */
   label: string;

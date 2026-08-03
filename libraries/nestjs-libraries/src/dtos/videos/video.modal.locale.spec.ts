@@ -34,8 +34,9 @@ const KEYS = [
   // Action bar cost statements (T029)
   'video_nothing_charged_yet',
   'video_uses_one_credit',
-  // Prompt bounds (T034)
-  'video_prompt_counter',
+  // Prompt bounds (T034). The counter is shared with the AI image modal, so
+  // its key carries neither modal's name.
+  'prompt_counter',
   'video_prompt_too_long',
   // Orientation (T039)
   'video_orientation',
@@ -123,7 +124,7 @@ describe('AI video modal Arabic quality', () => {
     'video_type_veo3',
     'video_type_veo3_pill_quality',
     // Two placeholders and a slash — there is nothing here to translate.
-    'video_prompt_counter',
+    'prompt_counter',
   ];
 
   it.each(KEYS.filter((key) => !LATIN_BY_CONVENTION.includes(key)))(

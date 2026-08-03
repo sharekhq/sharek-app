@@ -29,6 +29,12 @@ export const Textarea: FC<
     hint?: ReactNode;
     /** Sits at the end of that same line in both states — a character counter. */
     counter?: ReactNode;
+    /**
+     * Extra classes on the label. Opt-in rather than a new default, so a
+     * caller can weight its label to match the section labels around it
+     * without restyling every other form in the app.
+     */
+    labelClassName?: string;
   }
 > = (props) => {
   const {
@@ -40,6 +46,7 @@ export const Textarea: FC<
     translationParams,
     hint,
     counter,
+    labelClassName,
     ...rest
   } = props;
   const form = useFormContext();
@@ -55,7 +62,7 @@ export const Textarea: FC<
         props.disabled && 'opacity-50'
       )}
     >
-      <div className={`text-[14px]`}>
+      <div className={clsx('text-[14px]', labelClassName)}>
         <TranslatedLabel
           label={label}
           translationKey={translationKey}

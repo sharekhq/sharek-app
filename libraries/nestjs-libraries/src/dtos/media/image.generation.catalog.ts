@@ -28,6 +28,14 @@ export const IMAGE_ASPECT_IDS = Object.keys(
   IMAGE_ASPECT_PRESETS
 ) as ImageAspectId[];
 
+/**
+ * The prompt's ceiling, shared by the DTO that enforces it and the counter that
+ * shows it — a field that stops accepting characters without saying why is the
+ * failure this replaces. There is no floor: unlike a video prompt, a two-word
+ * image prompt is a legitimate request.
+ */
+export const IMAGE_PROMPT_MAX_CHARS = 2000;
+
 export const IMAGE_STYLE_CATEGORIES = [
   'photography',
   'illustration',
