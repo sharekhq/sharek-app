@@ -8,6 +8,7 @@ import {
   languages,
   languageNames,
 } from '../../../react-shared-libraries/src/translation/i18n.config';
+import { englishLanguageNames } from './language.names';
 
 const LOCALES_DIR = path.join(
   __dirname,
@@ -45,6 +46,15 @@ describe('language catalog (i18n.config)', () => {
 
   it('maps every listed code to its exact native name (and nothing else)', () => {
     expect(languageNames).toEqual(EXPECTED_NAMES);
+  });
+
+  // Samy states the interface language by name (language.names.ts). A listed
+  // code missing from that map silently drops the anchor back to the relative
+  // wording it replaced, which is the drift feature 96 exists to stop.
+  it('has an English name for every listed code (and nothing else)', () => {
+    expect(Object.keys(englishLanguageNames).sort()).toEqual(
+      [...languages].sort()
+    );
   });
 
   it('has a locale directory on disk for every listed code', () => {
