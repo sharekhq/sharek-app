@@ -317,6 +317,28 @@ describe('LoadToolsService usage logging', () => {
   });
 });
 
+// Asked for a video with no credits left, Samy answered "your current
+// subscription doesn't include access to Veo3 video generation" — a cause it
+// invented, about a plan that does include it. The video tool now hands back a
+// written refusal, but the next tool to throw would produce the next invented
+// explanation without a standing rule covering all of them.
+describe('LoadToolsService tool failures', () => {
+  it('forbids inventing a reason for a failure a tool did not give', async () => {
+    const instructions = await instructionsWith(new RequestContext());
+
+    expect(instructions).toMatch(/report only what it reported/i);
+    expect(instructions).toMatch(/never invent a reason/i);
+  });
+
+  it('names the plan, subscription and account explicitly', async () => {
+    const instructions = await instructionsWith(new RequestContext());
+
+    expect(instructions).toMatch(
+      /plan, subscription or account does not include something unless a tool said so/i
+    );
+  });
+});
+
 // Sharek is Arabic-first, and reasoning effort is pinned to 'none' — there is no
 // deliberation step to fall back on if the model drifts to English. Mirroring the
 // user's language has to be stated, not assumed.
