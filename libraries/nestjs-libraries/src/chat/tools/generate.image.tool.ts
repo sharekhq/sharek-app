@@ -20,7 +20,7 @@ export class GenerateImageTool implements AgentToolInterface {
       description: `Generate image to use in a post,
                     in case the user specified a platform that requires attachment and attachment was not provided,
                     ask if they want to generate a picture of a video.
-                    Returns the hosted media { id, path } to use as an attachment, or { error } when the image allowance is exhausted.
+                    Returns the hosted media { id, path } to use as an attachment, or { error } when the image credits are exhausted.
       `,
       mcp: {
         annotations: {
@@ -69,7 +69,7 @@ export class GenerateImageTool implements AgentToolInterface {
           if (err instanceof SubscriptionException) {
             return {
               error:
-                'The monthly AI image allowance for this organization is used up, so no image was generated. Tell the user their AI image credits have run out, and that they can upgrade their plan or wait for the allowance to reset next month.',
+                'The monthly AI image credits for this organization are used up, so no image was generated. Tell the user their AI image credits have run out, and that they can upgrade their plan or wait for their credits to reset next month.',
             };
           }
 

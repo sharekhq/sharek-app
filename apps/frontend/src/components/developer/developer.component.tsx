@@ -2,6 +2,7 @@
 
 import { FC, useCallback, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import useSWR from 'swr';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useDecisionModal, useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -140,7 +141,9 @@ export const DeveloperComponent: FC = () => {
       }
       setCreating(false);
       mutate();
-    } catch {
+    } catch (e) {
+      // The limit modal has already explained it.
+      if (isAlreadyAnswered(e)) return;
       toaster.show('Failed to create app', 'warning');
     }
   }, [name, description, redirectUrl, pictureId]);
@@ -159,7 +162,8 @@ export const DeveloperComponent: FC = () => {
       toaster.show('App updated', 'success');
       setEditing(false);
       mutate();
-    } catch {
+    } catch (e) {
+      if (isAlreadyAnswered(e)) return;
       toaster.show('Failed to update app', 'warning');
     }
   }, [name, description, redirectUrl, pictureId]);
@@ -185,7 +189,8 @@ export const DeveloperComponent: FC = () => {
         );
         mutate();
       }
-    } catch {
+    } catch (e) {
+      if (isAlreadyAnswered(e)) return;
       toaster.show('Failed to rotate secret', 'warning');
     }
   }, [decision]);
@@ -204,7 +209,8 @@ export const DeveloperComponent: FC = () => {
       toaster.show('OAuth app deleted', 'success');
       setPlaintextSecret(null);
       mutate();
-    } catch {
+    } catch (e) {
+      if (isAlreadyAnswered(e)) return;
       toaster.show('Failed to delete app', 'warning');
     }
   }, [decision]);

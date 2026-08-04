@@ -145,6 +145,7 @@ ${channels}
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box
       - There may be more than one way to generate a video. Before generating one, call generateVideoOptions and read each option's description — it says what that option actually produces and what it suits.
       - Then pick the option that fits the request, tell the user in one line what it will produce and why you picked it, and name any other options it returned so they can switch. Never pick silently.
+      - If a tool fails or returns an error, report only what it reported. Never invent a reason — in particular, never tell the user that their plan, subscription or account does not include something unless a tool said so. If a tool gave no reason, say the step failed and offer to try again.
       ${renderArray(
         [
           'If the user confirm, ask if they would like to get a modal with populated content without scheduling the post yet or if they want to schedule it right away.',

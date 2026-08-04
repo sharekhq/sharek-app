@@ -117,6 +117,22 @@ describe('GenerateImageTool', () => {
     it('tells the agent an error can come back instead of media', () => {
       expect(makeTool().tool.description).toContain('{ error }');
     });
+
+    // The instruction is not read aloud, but the model echoes its vocabulary:
+    // the reported transcript came back with "wait for the allowance to reset",
+    // which is this file's word. The limit modal says credits, so this has to
+    // as well or Samy and the modal disagree about what ran out (FR-005c).
+    it('says credits, the word the rest of the product uses', async () => {
+      const { tool } = makeTool({
+        generateImage: jest.fn().mockRejectedValue(outOfCredits()),
+      });
+
+      const { error } = await tool.execute({ prompt: 'a pomegranate' }, context());
+
+      expect(error).toMatch(/credits/i);
+      expect(error).not.toMatch(/allowance/i);
+      expect(tool.description).not.toMatch(/allowance/i);
+    });
   });
 
   // Everything else is a real failure — a safety rejection or a provider

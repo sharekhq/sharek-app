@@ -30,28 +30,12 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.function.dto';
 import { withHeartbeat } from '@gitroom/nestjs-libraries/agent/heartbeat';
-import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Media')
 @Controller('/media')
 export class MediaController {
   private storage = UploadFactory.createStorage();
   constructor(private _mediaService: MediaService) {}
-
-  /**
-   * The image modal reads a bare `false` body (with a 200) as "out of credits"
-   * — a convention older than the typed exception, and what its own message and
-   * credit counter key off. Enforcement now belongs to the service, so every
-   * surface refuses the same way; this translates that refusal back into the
-   * answer this route has always given. Anything else is a real failure.
-   */
-  private outOfCreditsOrThrow(err: unknown) {
-    if (err instanceof SubscriptionException) {
-      return false;
-    }
-
-    throw err;
-  }
 
   @Delete('/:id')
   deleteMedia(@GetOrgFromRequest() org: Organization, @Param('id') id: string) {
@@ -182,15 +166,11 @@ export class MediaController {
     @Req() req: Request,
     @Body('prompt') prompt: string
   ) {
-    try {
-      return {
-        output:
-          'data:image/png;base64,' +
-          (await this._mediaService.generateImage(prompt, org)),
-      };
-    } catch (err) {
-      return this.outOfCreditsOrThrow(err);
-    }
+    return {
+      output:
+        'data:image/png;base64,' +
+        (await this._mediaService.generateImage(prompt, org)),
+    };
   }
 
   @Post('/generate-image-with-prompt')
@@ -198,16 +178,12 @@ export class MediaController {
     @GetOrgFromRequest() org: Organization,
     @Body() body: GenerateImageWithPromptDto
   ) {
-    try {
-      const image = await this._mediaService.generateImageWithPrompt(body, org);
-      const file = await this.storage.uploadSimple(
-        'data:image/jpeg;base64,' + image
-      );
+    const image = await this._mediaService.generateImageWithPrompt(body, org);
+    const file = await this.storage.uploadSimple(
+      'data:image/jpeg;base64,' + image
+    );
 
-      return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
-    } catch (err) {
-      return this.outOfCreditsOrThrow(err);
-    }
+    return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
   }
 
   @Post('/upload-server')

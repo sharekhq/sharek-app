@@ -7,6 +7,30 @@ export interface Params {
     response: Response
   ) => Promise<boolean>;
 }
+
+/**
+ * Raised when `afterRequest` returns false — the interceptor has already
+ * answered the request on the caller's behalf (the limit modal, the trial
+ * dialog, a redirect), so the caller must stop without reporting anything.
+ *
+ * It **rejects** rather than resolving because most callers in this app never
+ * inspect a response: `await fetch('/webhooks', …)` and straight on to
+ * toast('added successfully'). A resolved response is indistinguishable from
+ * success to them, so they would announce something the server refused.
+ *
+ * It rejects rather than *hanging*, which is what this used to do: an
+ * unsettled promise stops the success path but also strands the caller's
+ * `finally`, leaving surfaces spinning forever.
+ */
+export class AlreadyAnsweredError extends Error {
+  constructor(public readonly status: number) {
+    super(`Request already answered by the fetch interceptor (${status})`);
+    this.name = 'AlreadyAnsweredError';
+  }
+}
+
+export const isAlreadyAnswered = (err: unknown): err is AlreadyAnsweredError =>
+  err instanceof AlreadyAnsweredError;
 export const customFetch = (
   params: Params,
   auth?: string,
@@ -80,8 +104,7 @@ export const customFetch = (
       return fetchRequest;
     }
 
-    // @ts-ignore
-    return new Promise((res) => {}) as Response;
+    throw new AlreadyAnsweredError(fetchRequest.status);
   };
 };
 
