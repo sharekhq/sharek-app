@@ -107,6 +107,9 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
+const asked = (url: string) =>
+  request.mock.calls.filter(([called]) => called === url);
+
 // The reported symptom: the image modal showed its own warning toast where the
 // limit modal belongs, because the route answered `200 false` instead of a 402.
 describe('when the generation is refused for credits', () => {
@@ -128,9 +131,38 @@ describe('when the generation is refused for credits', () => {
     expect(field.value).toBe('a pomegranate on a table');
   });
 
-  it('gives the composer lock back', async () => {
+  // The pre-flight refuses before anything is committed to, so the composer is
+  // never locked in the first place — stronger than locking and releasing.
+  it('never locks the composer at all', async () => {
     await generate();
 
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  // The reported glitch: the loader ran for about half a second and was then
+  // replaced by the limit card. Asking first is what the video modal does, and
+  // it is why videos never showed it.
+  it('never enters the generating phase, so no loader flashes', async () => {
+    await generate();
+
+    expect(asked('/media/generate-image/allowed')).toHaveLength(1);
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
+    // Still the composer: its Generate action is what the setup phase renders.
+    expect(buttonStarting('Generate')).toBeTruthy();
+  });
+});
+
+// Credits can run out between the pre-flight and the generation, so the silent
+// reset behind it still has to work.
+describe('when the generation is refused after the pre-flight passed', () => {
+  it('resets without a second message', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed') ? Promise.resolve(answer(200, true)) : refused()
+    );
+
+    await generate();
+
+    expect(toast).not.toHaveBeenCalled();
     expect(setLocked).toHaveBeenLastCalledWith(false);
   });
 });

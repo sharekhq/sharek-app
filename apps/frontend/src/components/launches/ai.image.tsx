@@ -184,6 +184,21 @@ const AiImageModal: FC<{
       return;
     }
 
+    // Asked before the generating phase begins, exactly as the video modal
+    // asks: a refusal lands on a composer that never moved, instead of a
+    // loader that appears for half a second and is replaced by the limit card.
+    try {
+      await fetch('/media/generate-image/allowed');
+    } catch (e) {
+      // Already answered — nothing has been committed to yet, so there is
+      // nothing to reset and nothing more to say.
+      if (isAlreadyAnswered(e)) {
+        return;
+      }
+      // Anything else would fail the generation the same way; fall through so
+      // it is reported once, by the path that reports it properly.
+    }
+
     setImage(null);
     setPhase('generating');
     startRequest();

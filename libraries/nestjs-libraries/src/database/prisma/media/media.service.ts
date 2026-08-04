@@ -75,6 +75,18 @@ export class MediaService {
     }
   }
 
+  /**
+   * The image counterpart of `generateVideoAllowed`. Asked before the composer
+   * commits to its generating phase, so a refusal lands instead of a loader
+   * that flashes for half a second and is replaced by the limit card.
+   *
+   * Credits are checked but not spent: the credit belongs to the generation.
+   */
+  async generateImageAllowed(org: Organization) {
+    await this.resolveImage(org);
+    return true;
+  }
+
   async generateImage(prompt: string, org: Organization) {
     // Outside the try below: a refusal is not a generation failure, and it must
     // reach the caller as the 402 it is rather than as a normalised render

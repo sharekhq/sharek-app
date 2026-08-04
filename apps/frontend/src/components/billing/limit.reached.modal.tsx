@@ -78,9 +78,12 @@ const LimitGauge: FC<{ spark?: boolean }> = ({ spark }) => (
       opacity="0.45"
       strokeLinecap="round"
     />
+    {/* Clear of the dial: at x=108 the outer arc sits at y≈53, so the star's
+        lowest point at y=27 keeps a comfortable gap instead of resting on the
+        stroke. */}
     {spark && (
       <path
-        d="M100 20 L103 28 L111 31 L103 34 L100 42 L97 34 L89 31 L97 28 Z"
+        d="M108 9 L110 16 L117 18 L110 20 L108 27 L106 20 L99 18 L106 16 Z"
         className="text-brand"
         fill="currentColor"
         opacity="0.9"
@@ -180,13 +183,15 @@ export const LimitReachedModal: FC<LimitModalInput> = ({
       )}
 
       {nextTier && (
-        <div className="mt-[24px] w-full border-t border-line pt-[20px] text-start">
-          <div className="text-[13px] font-[600] text-muted">
+        <div className="mt-[24px] w-full border-t border-line pt-[20px] text-center">
+          <div className="text-[15px] font-[600] text-ink">
             {t('limit_next_up', 'With {{plan}} you get', {
               plan: capitalize(nextTier.plan.current),
             })}
           </div>
-          <ul className="mt-[10px] flex flex-col gap-[8px]">
+          {/* Centred as a block rather than line by line, so the ticks stay in
+              one column instead of stepping with each row's length. */}
+          <ul className="mt-[12px] inline-flex flex-col gap-[8px] text-start">
             {nextTier.rows.map((row) => (
               <li
                 key={row.key}
