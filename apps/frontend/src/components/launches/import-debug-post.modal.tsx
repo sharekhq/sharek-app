@@ -2,6 +2,7 @@
 
 import { FC, useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Button } from '@gitroom/react/form/button';
@@ -115,11 +116,14 @@ export const ImportDebugPostModal: FC<{ close: () => void }> = ({ close }) => {
         'success'
       );
       close();
-    } catch {
-      toaster.show(
-        t('debug_post_import_failed', 'Failed to import post'),
-        'warning'
-      );
+    } catch (e) {
+      // The limit modal has already explained it.
+      if (!isAlreadyAnswered(e)) {
+        toaster.show(
+          t('debug_post_import_failed', 'Failed to import post'),
+          'warning'
+        );
+      }
     } finally {
       setImporting(false);
     }

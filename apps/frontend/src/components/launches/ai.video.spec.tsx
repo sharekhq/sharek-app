@@ -38,6 +38,7 @@ jest.mock(
 );
 
 import { Modal } from '@gitroom/frontend/components/launches/ai.video';
+import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 
 const answer = (status: number, body: any) => ({
   ok: status >= 200 && status < 300,
@@ -45,6 +46,12 @@ const answer = (status: number, body: any) => ({
   json: async () => body,
   body: null,
 });
+
+// What the fetch wrapper actually does with a credit refusal: the interceptor
+// raises the limit modal and the request *rejects*. It must not resolve — a
+// resolved response is indistinguishable from success to every caller that
+// does not inspect one.
+const refused = () => Promise.reject(new AlreadyAnsweredError(402));
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -95,11 +102,7 @@ afterEach(() => {
 describe('when the pre-flight refuses', () => {
   beforeEach(() => {
     request.mockImplementation((url: string) =>
-      Promise.resolve(
-        url.endsWith('/allowed')
-          ? answer(402, { statusCode: 402, section: 'videos_per_month' })
-          : answer(200, {})
-      )
+      url.endsWith('/allowed') ? refused() : Promise.resolve(answer(200, {}))
     );
   });
 
@@ -117,14 +120,31 @@ describe('when the pre-flight refuses', () => {
   });
 });
 
-describe('when the render itself is refused', () => {
-  it('resets without a second message', async () => {
+// A 404 (provider gone) or a 5xx resolves rather than rejecting, and the
+// pre-flight has no error handling of its own. Bailing here would leave the
+// Generate button doing nothing at all, so it falls through and lets the
+// render call report it once, properly.
+describe('when the pre-flight fails for anything else', () => {
+  it('still goes on to the render, which surfaces the failure', async () => {
     request.mockImplementation((url: string) =>
       Promise.resolve(
         url.endsWith('/allowed')
-          ? answer(200, true)
-          : answer(402, { statusCode: 402, section: 'videos_per_month' })
+          ? answer(404, { message: 'Video type veo3 not found' })
+          : answer(500, { message: 'the renderer fell over' })
       )
+    );
+
+    await generate();
+
+    expect(posted('/media/generate-video')).toHaveLength(1);
+    expect(toast).toHaveBeenCalledWith('the renderer fell over', 'warning');
+  });
+});
+
+describe('when the render itself is refused', () => {
+  it('resets without a second message', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed') ? Promise.resolve(answer(200, true)) : refused()
     );
 
     await generate();

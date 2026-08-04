@@ -8,6 +8,7 @@ import { SectionTab } from 'polotno/side-panel';
 import { getImageSize } from 'polotno/utils/image';
 import { ImagesGrid } from 'polotno/side-panel/images-grid';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import useSWR from 'swr';
 import { Button } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -46,25 +47,28 @@ const GenerateTab = observer(({ store }: any) => {
     }
     setLoading(true);
     setImage(null);
-    const req = await fetch(`/media/generate-image`, {
-      method: 'POST',
-      body: JSON.stringify({
-        prompt: inputRef.current.value,
-      }),
-    });
-    setLoading(false);
-    // Already answered by the limit modal — a second, blocking message on top
-    // of it would say less than the card behind it does.
-    if (req.status === 402) {
-      return;
+    try {
+      const req = await fetch(`/media/generate-image`, {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: inputRef.current.value,
+        }),
+      });
+      if (!req.ok) {
+        throw new Error();
+      }
+      mutate();
+      const newData = await req.json();
+      setImage(newData.output);
+    } catch (e) {
+      // Already answered by the limit modal — a second, blocking message on
+      // top of it would say less than the card behind it does.
+      if (!isAlreadyAnswered(e)) {
+        alert('Something went wrong, please try again later...');
+      }
+    } finally {
+      setLoading(false);
     }
-    if (!req.ok) {
-      alert('Something went wrong, please try again later...');
-      return;
-    }
-    mutate();
-    const newData = await req.json();
-    setImage(newData.output);
   };
   return (
     <>

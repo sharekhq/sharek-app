@@ -21,6 +21,7 @@ import i18next from 'i18next';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 
@@ -353,10 +354,15 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
     // makes that refusal survivable: it lands before anything is committed to —
     // the button's loading label here, the waiting screen in `create()` — and
     // the limit modal has already spoken by the time it comes back.
-    const allowed = await fetch(
-      '/media/generate-video/image-text-slides/allowed'
-    );
-    if (!allowed.ok) return;
+    try {
+      await fetch('/media/generate-video/image-text-slides/allowed');
+    } catch (e) {
+      // Already answered — nothing has been committed to yet, so there is
+      // nothing to reset and nothing more to say.
+      if (isAlreadyAnswered(e)) return;
+      // Anything else would fail the plan call the same way; fall through so
+      // it is reported once rather than leaving the button doing nothing.
+    }
     setLoading(true);
     try {
       const response = await fetch('/media/generate-video/plan', {
@@ -369,14 +375,18 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
       });
       if (!response.ok) throw new Error();
       onPlanned(await response.json());
-    } catch {
-      toaster.show(
-        t(
-          'could_not_write_script',
-          'Could not write a script for this. Please try again.'
-        ),
-        'warning'
-      );
+    } catch (e) {
+      // The credits can run out between the pre-flight and this call; the
+      // limit modal has spoken, so this must not speak again.
+      if (!isAlreadyAnswered(e)) {
+        toaster.show(
+          t(
+            'could_not_write_script',
+            'Could not write a script for this. Please try again.'
+          ),
+          'warning'
+        );
+      }
     }
     setLoading(false);
   }, [trigger, getValues, output, onPlanned, toaster, t, fetch]);
@@ -741,9 +751,10 @@ const ImageSlidesComponent = () => {
       });
       // The credit, trial and provider checks run before the stream opens, so
       // they still arrive as a status. 402 and 406 never reach here — the
-      // fetch wrapper shows the billing and trial dialogs and never resolves,
-      // which is also why the waiting screen waits for this response: entering
-      // it first would strand the user on a render that never started.
+      // fetch wrapper raises the limit modal or the trial dialog and rejects,
+      // which the catch below absorbs. It is also why the waiting screen waits
+      // for this response: entering it first would strand the user on a render
+      // that never started.
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
@@ -799,6 +810,12 @@ const ImageSlidesComponent = () => {
       }
     } catch (e) {
       failRender();
+      // Regenerate has no pre-flight, so this is where a credit refusal lands
+      // on a second render. The limit modal has already said it, in the
+      // viewer's language — the backend's English message must not follow it.
+      if (isAlreadyAnswered(e)) {
+        return;
+      }
       toaster.show(
         (e instanceof Error && e.message) ||
           t(

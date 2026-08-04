@@ -10,6 +10,7 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { GeneratorDto } from '@gitroom/nestjs-libraries/dtos/generator/generator.dto';
 import { Button } from '@gitroom/react/form/button';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { Textarea } from '@gitroom/react/form/textarea';
 import { Checkbox } from '@gitroom/react/form/checkbox';
 import clsx from 'clsx';
@@ -219,11 +220,18 @@ const FirstStep: FC = (props) => {
           size: '80%',
         });
       } catch (e: any) {
-        toaster.show(
-          e?.message ||
-            t('generation_failed', 'Failed to generate posts, please try again.'),
-          'warning'
-        );
+        // Out of monthly posts: the limit modal has said so. A "please try
+        // again" on top of it would invite a retry that can only fail.
+        if (!isAlreadyAnswered(e)) {
+          toaster.show(
+            e?.message ||
+              t(
+                'generation_failed',
+                'Failed to generate posts, please try again.'
+              ),
+            'warning'
+          );
+        }
       } finally {
         setShowStep('');
         setLoading(false);

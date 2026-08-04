@@ -28,12 +28,19 @@ import {
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
+import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 
 const answer = (status: number, body: any) => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
 });
+
+// What the fetch wrapper actually does with a credit refusal: the interceptor
+// raises the limit modal and the request *rejects*. It must not resolve — a
+// resolved response is indistinguishable from success to every caller that
+// does not inspect one.
+const refused = () => Promise.reject(new AlreadyAnsweredError(402));
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -59,6 +66,13 @@ const type = async (element: HTMLTextAreaElement, value: string) => {
 const button = (label: string) =>
   Array.from(document.querySelectorAll('button')).find(
     (node) => node.textContent?.trim() === label
+  );
+
+// Some actions carry a credit cost after the label ("Regenerate· 1 credit"),
+// so an exact match silently finds nothing and clicking it does nothing.
+const buttonStarting = (label: string) =>
+  Array.from(document.querySelectorAll('button')).find((node) =>
+    node.textContent?.trim().startsWith(label)
   );
 
 /** Opens the AI image modal, types a prompt, and presses Generate. */
@@ -97,9 +111,7 @@ afterEach(() => {
 // limit modal belongs, because the route answered `200 false` instead of a 402.
 describe('when the generation is refused for credits', () => {
   beforeEach(() => {
-    request.mockResolvedValue(
-      answer(402, { statusCode: 402, section: 'images_per_month' })
-    );
+    request.mockImplementation(refused);
   });
 
   it('says nothing — the limit modal has already spoken', async () => {
@@ -134,5 +146,36 @@ describe('when the generation fails for anything else', () => {
     await generate();
 
     expect(toast).toHaveBeenCalledWith('the renderer fell over', 'warning');
+  });
+});
+
+// The credit for the first image was already spent, and `generate()` clears the
+// result before it asks. A refused Regenerate must not take the image with it —
+// `ai.video`'s failRender holds its result for exactly this reason.
+describe('when a Regenerate is refused', () => {
+  it('keeps the image the credit already paid for', async () => {
+    request.mockResolvedValue(
+      answer(200, { id: 'media-1', path: 'https://media/first.png' })
+    );
+    await generate();
+
+    // On screen, and reachable: the result phase is what offers "Use image".
+    expect(button('Use image')).toBeTruthy();
+
+    request.mockImplementation(refused);
+    const regenerate = buttonStarting('Regenerate');
+    expect(regenerate).toBeTruthy();
+    await click(regenerate);
+    // The rejection is handled a microtask after the click; asserting before
+    // this flush reads the pre-click DOM and passes whatever the code does.
+    await act(async () => {
+      await new Promise((res) => setTimeout(res, 0));
+    });
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(button('Use image')).toBeTruthy();
+    expect(
+      document.querySelector('img[src="https://media/first.png"]')
+    ).toBeTruthy();
   });
 });

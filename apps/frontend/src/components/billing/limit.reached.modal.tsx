@@ -216,8 +216,11 @@ export const LimitReachedModal: FC<LimitModalInput> = ({
       )}
 
       {/* Billing is hidden from a member's nav and its routes refuse them, so
-          the only honest thing to offer is who to ask (FR-009a). */}
-      {!canBuy && (
+          the only honest thing to offer is who to ask (FR-009a). Not for a
+          `permission` shape: that limit is the viewer's role, not the plan, so
+          an upgrade would not lift it — and its own body already says to ask
+          for the role instead. */}
+      {!canBuy && entry.shape !== 'permission' && (
         <p className="mt-[16px] text-[14px] leading-[1.6] text-muted">
           {t(
             'limit_ask_owner',
@@ -254,13 +257,15 @@ export const LimitReachedModal: FC<LimitModalInput> = ({
 };
 
 /**
- * Opened from the global 402 handler, which is not a component. The id is fixed
- * so two refusals landing together raise one card rather than stacking two —
- * `useModalStore` already drops an open whose id is present.
+ * Opened from the global 402 handler, which is not a component. The id is keyed
+ * on the section so two refusals for the *same* limit landing together raise
+ * one card rather than stacking two — `useModalStore` drops an open whose id is
+ * present. Keying it on a constant instead would drop a refusal for a
+ * *different* limit, leaving that action unexplained or explained wrongly.
  */
 export const showLimitReachedModal = (input: LimitModalInput) => {
   showModalEmitter({
-    id: 'limit-reached',
+    id: `limit-reached-${input.section ?? 'unknown'}`,
     size: 460,
     // The card carries its own close control, which the shared one cannot: the
     // global stylesheet kills focus outlines and that button declares none.

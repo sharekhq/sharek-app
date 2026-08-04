@@ -14,6 +14,12 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
       ),
 }));
 
+const showModalEmitter = jest.fn();
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
+  showModalEmitter: (params: unknown) => showModalEmitter(params),
+  useModals: () => ({ closeCurrent: jest.fn() }),
+}));
+
 import {
   pricing,
   PricingInnerInterface,
@@ -24,7 +30,10 @@ import {
   limitCopyFor,
   limitSectionFor,
 } from '@gitroom/frontend/components/billing/limit.sections';
-import { LimitReachedModal } from '@gitroom/frontend/components/billing/limit.reached.modal';
+import {
+  LimitReachedModal,
+  showLimitReachedModal,
+} from '@gitroom/frontend/components/billing/limit.reached.modal';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -220,6 +229,22 @@ describe('a viewer who cannot buy', () => {
     expect(buttons(host)).not.toContain('Upgrade plan');
     expect(buttons(host).filter(Boolean)).toEqual(['Got it']);
   });
+
+  // A `permission` refusal is a role gate, not a plan one. Its own body already
+  // says to ask for the role; adding "ask them to upgrade your plan" underneath
+  // gives two near-identical sentences, the second of which is false — the
+  // upgrade would not lift it.
+  it('is not sent after an upgrade when the plan is not what refused them', async () => {
+    const host = await render({ section: 'admin' }, asUser);
+
+    expect(limitSectionFor('admin').shape).toBe('permission');
+    expect(host.textContent).toContain(
+      'Ask an account owner or admin to do this, or to change your role.'
+    );
+    expect(host.textContent).not.toContain(
+      'Ask an account owner or admin to upgrade your plan.'
+    );
+  });
 });
 
 // global.scss:19-21 sets `body * { outline: none !important }` and the shared
@@ -238,5 +263,36 @@ describe('keyboard visibility', () => {
       expect(element.className).toContain('focus-visible:ring-2');
       expect(element.className).toContain('focus-visible:ring-brand');
     });
+  });
+});
+
+// `useModalStore.openModal` drops an open whose id is already present. That is
+// wanted for two refusals about the same limit — the billing page makes two
+// ADMIN-gated calls and must raise one card — but a constant id would also
+// discard a refusal about a *different* limit, leaving that action unexplained
+// or, worse, explained by the wrong card.
+describe('raising the card', () => {
+  beforeEach(() => showModalEmitter.mockClear());
+
+  it('reuses one id for two refusals about the same limit', () => {
+    showLimitReachedModal({ section: 'admin' });
+    showLimitReachedModal({ section: 'admin' });
+
+    const [first, second] = showModalEmitter.mock.calls.map(([p]) => p.id);
+    expect(first).toBe(second);
+  });
+
+  it('gives a different limit its own id, so it is not swallowed', () => {
+    showLimitReachedModal({ section: 'images_per_month' });
+    showLimitReachedModal({ section: 'videos_per_month' });
+
+    const [first, second] = showModalEmitter.mock.calls.map(([p]) => p.id);
+    expect(first).not.toBe(second);
+  });
+
+  it('still has an id when the 402 named no section', () => {
+    showLimitReachedModal({});
+
+    expect(showModalEmitter.mock.calls[0][0].id).toBeTruthy();
   });
 });

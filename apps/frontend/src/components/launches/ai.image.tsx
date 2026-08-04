@@ -3,6 +3,7 @@ import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import {
@@ -130,6 +131,10 @@ const AiImageModal: FC<{
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const holdsLock = useRef(false);
+  // The last result that a credit was actually spent on, mirrored in a ref
+  // because `generate` clears `image` before it asks again — a Regenerate that
+  // fails must not throw away something already paid for.
+  const held = useRef<{ id: string; path: string } | null>(null);
 
   // `loading` follows the request; the composer lock follows the whole flow,
   // which is not over until the image is attached or the user gives it up.
@@ -187,16 +192,6 @@ const AiImageModal: FC<{
         method: 'POST',
         body: JSON.stringify({ prompt, aspectRatio, ...(style && { style }) }),
       });
-      // Already answered: the limit modal is on screen. Say nothing, and hand
-      // the composer back exactly as it was — nothing was charged.
-      if (response.status === 402) {
-        endRequest();
-        releaseLock();
-        if (mounted.current) {
-          setPhase('compose');
-        }
-        return;
-      }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
@@ -218,11 +213,37 @@ const AiImageModal: FC<{
         return;
       }
 
+      held.current = generated;
       setImage(generated);
       setPhase('result');
     } catch (e) {
       endRequest();
-      releaseLock();
+      // An earlier result was already paid for, so a failed Regenerate puts it
+      // back rather than losing it — the same thing `ai.video`'s failRender
+      // does, and the reason the lock stays: that image can still be used.
+      if (held.current) {
+        if (mounted.current) {
+          setImage(held.current);
+          setPhase('result');
+        } else {
+          // Closed mid-Regenerate. It is paid for, and the composer was
+          // promised an image — attaching it is closer to that than nothing.
+          onChange(held.current);
+          releaseLock();
+        }
+      } else {
+        releaseLock();
+        // Nothing was charged, so the inputs are kept for another attempt.
+        if (mounted.current) {
+          setPhase('compose');
+        }
+      }
+      // Already answered: the limit modal is on screen and the composer is
+      // back exactly as it was. A second message would be the same refusal
+      // twice, in two different voices.
+      if (isAlreadyAnswered(e)) {
+        return;
+      }
       toaster.show(
         (e instanceof Error && e.message) ||
           t(
@@ -231,10 +252,6 @@ const AiImageModal: FC<{
           ),
         'warning'
       );
-      // Nothing was charged, so the inputs are kept for another attempt.
-      if (mounted.current) {
-        setPhase('compose');
-      }
     }
   }, [prompt, aspectRatio, style, onChange]);
 

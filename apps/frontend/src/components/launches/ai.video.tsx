@@ -10,6 +10,7 @@ import React, {
 import clsx from 'clsx';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import useSWR from 'swr';
@@ -335,11 +336,17 @@ export const Modal: FC<{
     // The point of asking first: a refusal here has already raised its own
     // modal, so the flow stops before the waiting screen exists. Falling
     // through would only reach the same refusal again, from the render call.
-    const allowed = await fetch(
-      `/media/generate-video/${type.identifier}/allowed`
-    );
-    if (!allowed.ok) {
-      return;
+    try {
+      await fetch(`/media/generate-video/${type.identifier}/allowed`);
+    } catch (e) {
+      // Already answered — a refusal here rejects before the waiting screen
+      // exists, so there is nothing to reset and nothing more to say.
+      if (isAlreadyAnswered(e)) {
+        return;
+      }
+      // Any other failure would fail the render call the same way a moment
+      // later; fall through so it is reported once, by the path that reports
+      // it properly, rather than leaving the button doing nothing.
     }
 
     const customParams = form.getValues();
@@ -368,15 +375,9 @@ export const Modal: FC<{
         }),
       });
 
-      // Credit, trial and provider checks fail before the stream opens, so
-      // they still arrive as a status rather than as an error frame.
-      //
-      // A 402 is already answered by the limit modal — reset to the inputs
-      // without a second message. Everything else keeps its own.
-      if (response.status === 402) {
-        failRender();
-        return;
-      }
+      // Trial and provider checks fail before the stream opens, so they still
+      // arrive as a status rather than as an error frame. A credit refusal
+      // does not reach here at all — it rejects, and the catch resets.
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
@@ -415,6 +416,11 @@ export const Modal: FC<{
       }
     } catch (e) {
       failRender();
+      // Already answered by the limit modal: the screen is reset and an
+      // earlier paid-for result is back where it was. Nothing left to say.
+      if (isAlreadyAnswered(e)) {
+        return;
+      }
       toaster.show(
         (e instanceof Error && e.message) ||
           t(

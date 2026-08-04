@@ -1,8 +1,10 @@
 'use client';
 
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback, useEffect } from 'react';
 import { MantineProvider } from '@mantine/core';
+import { SWRConfig } from 'swr';
 import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import {
   LimitModalInput,
@@ -136,9 +138,11 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
 
       if (response.status === 402) {
-        // Cloned, so the caller's own `response.json()` still works. The modal
-        // owns its CTA, so nothing here waits on the customer — and the caller
-        // always gets its 402 back rather than a promise that never settles.
+        // Cloned, so the body is still readable if a caller does inspect it.
+        // The modal owns the refusal from here, so nothing waits on the
+        // customer — but the request must NOT resolve: most callers never
+        // check a response and would announce a success the server refused.
+        // Returning false rejects it with AlreadyAnsweredError instead.
         const body: LimitModalInput = await response
           .clone()
           .json()
@@ -148,19 +152,42 @@ function LayoutContextInner(params: { children: ReactNode }) {
           message: body?.message,
           resetsAt: body?.resetsAt,
         });
-        return true;
+        return false;
       }
       return true;
     },
     []
   );
+  // A refusal the interceptor already answered stops its caller by rejecting,
+  // and the many callers that never inspect a response have no catch to land
+  // in. That is the intended outcome — they simply stop — but the browser
+  // still reports it as an unhandled rejection, and Sentry would file every
+  // limit refusal as an error. The modal is the user-facing half; this is the
+  // console half.
+  useEffect(() => {
+    const swallow = (event: PromiseRejectionEvent) => {
+      if (isAlreadyAnswered(event.reason)) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('unhandledrejection', swallow);
+    return () => window.removeEventListener('unhandledrejection', swallow);
+  }, []);
+
   return (
     <FetchWrapperComponent baseUrl={backendUrl} afterRequest={afterRequest}>
-      <MantineProvider
-        theme={{ colors: { brand: brandRamp }, primaryColor: 'brand' }}
-      >
-        {params?.children || <></>}
-      </MantineProvider>
+      {/* A guarded GET behind SWR — the AI assistant's thread list, billing,
+          teams — now rejects on a 402 instead of resolving, and SWR retries a
+          rejected fetcher with backoff. Every retry is refused again, so it
+          would raise the card once more each time the customer dismissed it.
+          A refusal is not a transient failure; there is nothing to retry. */}
+      <SWRConfig value={{ shouldRetryOnError: (err) => !isAlreadyAnswered(err) }}>
+        <MantineProvider
+          theme={{ colors: { brand: brandRamp }, primaryColor: 'brand' }}
+        >
+          {params?.children || <></>}
+        </MantineProvider>
+      </SWRConfig>
     </FetchWrapperComponent>
   );
 }
