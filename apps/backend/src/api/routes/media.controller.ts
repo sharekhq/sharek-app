@@ -308,4 +308,9 @@ export class MediaController {
   ) {
     return this._mediaService.generateVideoAllowed(org, type);
   }
+
+  @Get('/generate-image/allowed')
+  generateImageAllowed(@GetOrgFromRequest() org: Organization) {
+    return this._mediaService.generateImageAllowed(org);
+  }
 }

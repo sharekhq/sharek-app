@@ -174,6 +174,67 @@ describe('generateVideoAllowed', () => {
   });
 });
 
+// Images had no pre-flight, so the modal entered its generating phase and only
+// then met the refusal — a loader that flashes for half a second before the
+// limit card. Videos ask first; this is the same question for images.
+describe('generateImageAllowed', () => {
+  // resolveImage short-circuits without a Stripe key (the self-hosted
+  // carve-out), and the runner has none — so enforcement has to be switched on
+  // deliberately or every case below would pass for the wrong reason.
+  const previousKey = process.env.STRIPE_PUBLISHABLE_KEY;
+  beforeEach(() => {
+    process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_x';
+  });
+  afterEach(() => {
+    if (previousKey === undefined) {
+      delete process.env.STRIPE_PUBLISHABLE_KEY;
+    } else {
+      process.env.STRIPE_PUBLISHABLE_KEY = previousKey;
+    }
+  });
+
+  it('throws SubscriptionException when no credits remain', async () => {
+    const { service } = makeService({ credits: 0 });
+    await expect(service.generateImageAllowed(org)).rejects.toBeInstanceOf(
+      SubscriptionException
+    );
+  });
+
+  // The pre-flight must carry everything the render's refusal carries, or the
+  // card it raises would be missing its reset date.
+  it('quotes the same reset date the refusal carries', async () => {
+    const { service } = makeService({ credits: 0 });
+    const err = await service.generateImageAllowed(org).catch((e) => e);
+    expect(err.getResponse()).toMatchObject({
+      section: 'images_per_month',
+      resetsAt: RESETS_AT,
+    });
+  });
+
+  it('allows a generation when credits remain', async () => {
+    const { service } = makeService({ credits: 3 });
+    await expect(service.generateImageAllowed(org)).resolves.toBe(true);
+  });
+
+  // The same carve-out resolveImage already makes: a self-hosted install has no
+  // Stripe key, reads as tier FREE, and would otherwise refuse every image.
+  it('allows everything when billing is switched off', async () => {
+    delete process.env.STRIPE_PUBLISHABLE_KEY;
+    const { service, subscription } = makeService({ credits: 0 });
+
+    await expect(service.generateImageAllowed(org)).resolves.toBe(true);
+    expect(subscription.checkCredits).not.toHaveBeenCalled();
+  });
+
+  // It asks, it does not spend: the credit belongs to the generation.
+  it('spends nothing', async () => {
+    const { service, subscription, charged } = makeService({ credits: 3 });
+    await service.generateImageAllowed(org);
+    expect(subscription.useCredit).not.toHaveBeenCalled();
+    expect(charged.value).toBe(false);
+  });
+});
+
 describe('processVideo', () => {
   it('renders, uploads, saves and yields a single done frame', async () => {
     const video = oneShotVideo();
