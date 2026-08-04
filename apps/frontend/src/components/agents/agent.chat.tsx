@@ -37,6 +37,7 @@ import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
+import i18next from 'i18next';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
@@ -56,6 +57,9 @@ export const AgentChat: FC = () => {
       agent="postiz"
       properties={{
         integrations: properties,
+        // Samy states this language in its system prompt instead of inferring
+        // it from the conversation, which it got wrong (Spanish, unprompted).
+        language: i18next.language,
       }}
     >
       <Hooks />

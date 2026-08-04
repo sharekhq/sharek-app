@@ -5,6 +5,7 @@ import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
+import { languageName } from '@gitroom/helpers/utils/language.names';
 import dayjs from 'dayjs';
 
 const renderArray = (list: string[], show: boolean) => {
@@ -41,6 +42,21 @@ const renderChannels = (integrations: unknown) => {
       Channels selected for this conversation — schedule to these unless the user names others, and use these ids:
 ${lines.join('\n')}
 `;
+};
+
+// Naming the language beats describing it. "Reply in the same language the user
+// writes in" is a judgment the model has to make every turn, and luna makes it
+// at zero reasoning: asked in English for an image it had no credits for, Samy
+// refused in Spanish, twice. The slides planner hit the same drift out of the
+// same model and into the same language (openai.service.ts:331), and was fixed
+// the same way — resolve the judgment into a stated value. The relative rule
+// stays on as the override, so writing in another language still switches, and
+// as the whole rule on the MCP path, where there is no interface to read.
+const renderLanguage = (language: unknown) => {
+  const name = languageName(language);
+  return name
+    ? `- The user's interface is set to ${name}, so reply in ${name} — unless the user writes to you in another language, in which case reply in that one.`
+    : '- Reply in the same language the user writes in.';
 };
 
 // One line per completed Samy turn, so per-turn cost and the prompt-cache hit
@@ -124,7 +140,7 @@ ${channels}
         - List integrations (channels)
         - List groups (customers) and filter the channels by a group
 
-      - Reply in the same language the user writes in.
+      ${renderLanguage(requestContext.get('language' as never))}
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
       - When scheduling a post, you must follow the social media rules and best practices.
       - When scheduling a post, you can pass an array for list of posts for a social media platform, But it has different behavior depending on the platform.
