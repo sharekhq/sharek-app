@@ -4,6 +4,10 @@ import { ReactNode, useCallback } from 'react';
 import { MantineProvider } from '@mantine/core';
 import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import {
+  LimitModalInput,
+  showLimitReachedModal,
+} from '@gitroom/frontend/components/billing/limit.reached.modal';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 
@@ -132,18 +136,18 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
 
       if (response.status === 402) {
-        if (
-          await deleteDialog(
-            (
-              await response.json()
-            ).message,
-            'Move to billing',
-            'Payment Required'
-          )
-        ) {
-          window.open('/billing', '_blank');
-          return false;
-        }
+        // Cloned, so the caller's own `response.json()` still works. The modal
+        // owns its CTA, so nothing here waits on the customer — and the caller
+        // always gets its 402 back rather than a promise that never settles.
+        const body: LimitModalInput = await response
+          .clone()
+          .json()
+          .catch(() => ({}));
+        showLimitReachedModal({
+          section: body?.section,
+          message: body?.message,
+          resetsAt: body?.resetsAt,
+        });
         return true;
       }
       return true;

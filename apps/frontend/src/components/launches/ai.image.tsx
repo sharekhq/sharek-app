@@ -187,19 +187,25 @@ const AiImageModal: FC<{
         method: 'POST',
         body: JSON.stringify({ prompt, aspectRatio, ...(style && { style }) }),
       });
+      // Already answered: the limit modal is on screen. Say nothing, and hand
+      // the composer back exactly as it was — nothing was charged.
+      if (response.status === 402) {
+        endRequest();
+        releaseLock();
+        if (mounted.current) {
+          setPhase('compose');
+        }
+        return;
+      }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
       const generated = await response.json();
-      // `false` means the credit check refused the generation; anything else
-      // without a path is not a media record and must not reach the post.
+      // Anything without a path is not a media record and must not reach the
+      // post.
       if (!generated?.path) {
-        throw new Error(
-          generated === false
-            ? t('no_ai_credits_left', 'You have run out of AI credits.')
-            : ''
-        );
+        throw new Error('');
       }
       endRequest();
       mutateCredits();

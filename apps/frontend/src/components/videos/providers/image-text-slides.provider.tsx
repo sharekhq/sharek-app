@@ -349,12 +349,14 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
   const plan = useCallback(async () => {
     if (!(await trigger())) return;
     // Planning is free, but it is credit-gated on purpose — a user with none
-    // should find out before writing a script, not after. Asking the pre-flight
-    // first is what makes that refusal survivable: a refused request stops dead
-    // inside the fetch wrapper, so anything already committed to — the button's
-    // loading label here, the waiting screen in `create()` — would stay that way
-    // for good.
-    await fetch('/media/generate-video/image-text-slides/allowed');
+    // should find out before writing a script, not after. Asking first is what
+    // makes that refusal survivable: it lands before anything is committed to —
+    // the button's loading label here, the waiting screen in `create()` — and
+    // the limit modal has already spoken by the time it comes back.
+    const allowed = await fetch(
+      '/media/generate-video/image-text-slides/allowed'
+    );
+    if (!allowed.ok) return;
     setLoading(true);
     try {
       const response = await fetch('/media/generate-video/plan', {

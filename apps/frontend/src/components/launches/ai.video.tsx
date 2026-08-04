@@ -332,7 +332,15 @@ export const Modal: FC<{
   }, [phase, hasSteps]);
 
   const generate: () => Promise<void> = useCallback(async () => {
-    await fetch(`/media/generate-video/${type.identifier}/allowed`);
+    // The point of asking first: a refusal here has already raised its own
+    // modal, so the flow stops before the waiting screen exists. Falling
+    // through would only reach the same refusal again, from the render call.
+    const allowed = await fetch(
+      `/media/generate-video/${type.identifier}/allowed`
+    );
+    if (!allowed.ok) {
+      return;
+    }
 
     const customParams = form.getValues();
     if (!(await form.trigger())) {
@@ -361,8 +369,14 @@ export const Modal: FC<{
       });
 
       // Credit, trial and provider checks fail before the stream opens, so
-      // they still arrive as a status — 402 and 406 never reach here, the
-      // fetch wrapper shows the billing and trial dialogs instead.
+      // they still arrive as a status rather than as an error frame.
+      //
+      // A 402 is already answered by the limit modal — reset to the inputs
+      // without a second message. Everything else keeps its own.
+      if (response.status === 402) {
+        failRender();
+        return;
+      }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');

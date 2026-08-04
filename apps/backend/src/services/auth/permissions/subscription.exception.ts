@@ -12,8 +12,11 @@ export class SubscriptionExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const status = exception.getStatus();
-    const error: { section: Sections; action: AuthorizationActions } =
-      exception.getResponse() as any;
+    const error: {
+      section: Sections;
+      action: AuthorizationActions;
+      resetsAt?: string;
+    } = exception.getResponse() as any;
 
     const message = getErrorMessage(error);
 
@@ -21,6 +24,10 @@ export class SubscriptionExceptionFilter implements ExceptionFilter {
       statusCode: status,
       message,
       url: process.env.FRONTEND_URL + '/billing',
+      // What the browser keys its copy on; `message` stays as it is for the
+      // clients that read it. Undefined `resetsAt` serializes away.
+      section: error.section,
+      resetsAt: error.resetsAt,
     });
   }
 }

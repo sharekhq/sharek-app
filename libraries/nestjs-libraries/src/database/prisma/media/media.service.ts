@@ -70,6 +70,7 @@ export class MediaService {
       throw new SubscriptionException({
         action: AuthorizationActions.Create,
         section: Sections.IMAGES_PER_MONTH,
+        resetsAt: totalCredits.resetsAt,
       });
     }
   }
@@ -204,6 +205,7 @@ export class MediaService {
       throw new SubscriptionException({
         action: AuthorizationActions.Create,
         section: Sections.VIDEOS_PER_MONTH,
+        resetsAt: totalCredits.resetsAt,
       });
     }
 
@@ -229,6 +231,7 @@ export class MediaService {
       throw new SubscriptionException({
         action: AuthorizationActions.Create,
         section: Sections.VIDEOS_PER_MONTH,
+        resetsAt: totalCredits.resetsAt,
       });
     }
 

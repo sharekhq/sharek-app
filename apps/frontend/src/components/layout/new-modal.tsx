@@ -350,7 +350,10 @@ export const ModalManager: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 const emitter = new EventEmitter();
-export const showModalEmitter = (params: ModalManagerInterface) => {
+// Opens a modal from outside React — the global 402 handler is a plain
+// callback, not a component. The listener below hands this straight to
+// `openModal`, which is what the parameter has to be.
+export const showModalEmitter = (params: OpenModalInterface) => {
   emitter.emit('show', params);
 };
 

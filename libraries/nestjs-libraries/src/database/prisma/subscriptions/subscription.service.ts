@@ -216,7 +216,10 @@ export class SubscriptionService {
     return this._subscriptionRepository.getSubscription(organizationId);
   }
 
-  async checkCredits(organization: Organization, checkType = 'ai_images') {
+  async checkCredits(
+    organization: Organization,
+    checkType = 'ai_images'
+  ): Promise<{ credits: number; resetsAt?: string }> {
     // @ts-ignore
     const type = organization?.subscription?.subscriptionTier || 'FREE';
 
@@ -244,6 +247,9 @@ export class SubscriptionService {
 
     return {
       credits: imageGenerationCount - totalUse,
+      // The far end of the window the usage above was counted over, so a
+      // refusal and the date it quotes can never disagree.
+      resetsAt: date.toISOString(),
     };
   }
 

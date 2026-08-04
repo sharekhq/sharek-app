@@ -22,7 +22,13 @@ export enum AuthorizationActions {
 }
 
 export class SubscriptionException extends HttpException {
-  constructor(message: { section: Sections; action: AuthorizationActions }) {
+  constructor(message: {
+    section: Sections;
+    action: AuthorizationActions;
+    // Only the sites that computed the credit window know when it resets; the
+    // permissions guard does not, and omits it.
+    resetsAt?: string;
+  }) {
     super(message, HttpStatus.PAYMENT_REQUIRED);
   }
 }

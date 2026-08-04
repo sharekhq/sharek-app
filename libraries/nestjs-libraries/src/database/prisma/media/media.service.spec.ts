@@ -45,6 +45,10 @@ const openAi = () => ({
 const dto = (over: Partial<Record<string, any>> = {}) =>
   ({ prompt: 'قهوة مختصة في الرياض', aspectRatio: 'square', ...over } as any);
 
+// The real checkCredits returns the far end of the window it counted usage
+// over alongside the balance; a refusal quotes it.
+const RESETS_AT = '2026-09-12T08:31:04.000Z';
+
 const makeService = (
   over: { credits?: number; video?: any; openAi?: any; spendCredit?: boolean } = {}
 ) => {
@@ -52,7 +56,9 @@ const makeService = (
   // refunds when it throws, so `charged` is what "no charge on failure" means.
   const charged = { value: false };
   const subscription = {
-    checkCredits: jest.fn().mockResolvedValue({ credits: over.credits ?? 1 }),
+    checkCredits: jest
+      .fn()
+      .mockResolvedValue({ credits: over.credits ?? 1, resetsAt: RESETS_AT }),
     useCredit: jest.fn((_org: any, _type: any, func: () => any) =>
       over.spendCredit === false
         ? undefined
@@ -601,5 +607,45 @@ describe('image credit enforcement', () => {
 
       expect(subscription.checkCredits).not.toHaveBeenCalled();
     });
+  });
+});
+
+// Every credit refusal quotes the window the balance was read against, so the
+// date the customer is shown cannot disagree with the call that refused them.
+describe('every credit refusal carries its reset date', () => {
+  // Only the image path is gated on the payment provider; set it for all three
+  // so the table stays one case per throw site.
+  const initial = process.env.STRIPE_PUBLISHABLE_KEY;
+  beforeEach(() => {
+    process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test_billing_on';
+  });
+  afterEach(() => {
+    if (initial === undefined) {
+      delete process.env.STRIPE_PUBLISHABLE_KEY;
+      return;
+    }
+    process.env.STRIPE_PUBLISHABLE_KEY = initial;
+  });
+
+  const refusals: [string, (service: MediaService) => Promise<unknown>][] = [
+    ['resolveVideo', (service) => service.resolveVideo(org, body())],
+    [
+      'generateVideoAllowed',
+      (service) => service.generateVideoAllowed(org, 'veo3'),
+    ],
+    ['generateImage', (service) => service.generateImage('a pomegranate', org)],
+  ];
+
+  it.each(refusals)('%s', async (_path, refuse) => {
+    const { service } = makeService({
+      credits: 0,
+      video: oneShotVideo(),
+      openAi: openAi(),
+    });
+
+    const err = await refuse(service).catch((e) => e);
+
+    expect(err).toBeInstanceOf(SubscriptionException);
+    expect(err.getResponse()).toMatchObject({ resetsAt: RESETS_AT });
   });
 });

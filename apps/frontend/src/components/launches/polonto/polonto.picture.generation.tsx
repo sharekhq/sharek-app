@@ -53,6 +53,11 @@ const GenerateTab = observer(({ store }: any) => {
       }),
     });
     setLoading(false);
+    // Already answered by the limit modal — a second, blocking message on top
+    // of it would say less than the card behind it does.
+    if (req.status === 402) {
+      return;
+    }
     if (!req.ok) {
       alert('Something went wrong, please try again later...');
       return;
