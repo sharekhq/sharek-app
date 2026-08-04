@@ -36,6 +36,17 @@ describe('languageName', () => {
     expect(languageName('ja')).toBeNull();
   });
 
+  // A plain object inherits from Object.prototype, so a bare lookup answers
+  // `constructor` with a function and `__proto__` with an object — both truthy,
+  // neither a language, and both typed as `string` by the Record. Left alone,
+  // "constructor" from the browser would put `function Object() { [native
+  // code] }` into Samy's system prompt as the language to reply in.
+  it('returns null for a key it inherits rather than declares', () => {
+    expect(languageName('constructor')).toBeNull();
+    expect(languageName('__proto__')).toBeNull();
+    expect(languageName('hasOwnProperty')).toBeNull();
+  });
+
   // The value is browser-supplied through CopilotKit `properties`, so nothing
   // about its type is guaranteed and this may never throw.
   it('returns null for anything that is not a language code', () => {

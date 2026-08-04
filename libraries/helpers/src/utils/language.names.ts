@@ -25,5 +25,12 @@ export const englishLanguageNames: Record<string, string> = {
  */
 export const languageName = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
-  return englishLanguageNames[value.split('-')[0].toLowerCase()] || null;
+  const code = value.split('-')[0].toLowerCase();
+  // Declared, not inherited: a bare lookup answers 'constructor' with a
+  // function and '__proto__' with an object, both truthy and both typed
+  // `string` by the Record above, so neither TypeScript nor the caller would
+  // notice one reaching the prompt.
+  return Object.prototype.hasOwnProperty.call(englishLanguageNames, code)
+    ? englishLanguageNames[code]
+    : null;
 };

@@ -70,8 +70,15 @@ describe('CopilotController agent request context', () => {
     process.env.OPENAI_API_KEY = key;
   });
 
+  // Assigning `undefined` would leave the literal string 'undefined' behind,
+  // which the controller reads as a key that is set. process.env is shared by
+  // every spec file in the worker, so it has to come back unset.
   afterAll(() => {
-    process.env.OPENAI_API_KEY = previous;
+    if (previous === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = previous;
+    }
   });
 
   it('carries the interface language the browser sent', async () => {
