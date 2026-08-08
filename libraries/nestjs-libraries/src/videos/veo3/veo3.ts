@@ -170,6 +170,7 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
           Authorization: `Bearer ${process.env.KIEAI_API_KEY}`,
         },
         method: 'POST',
+        signal: AbortSignal.timeout(30000),
         body: JSON.stringify({
           prompt,
           imageUrls,
@@ -195,6 +196,7 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
     }
 
     const taskId = value.data.taskId;
+    console.log('veo3 taskId', taskId);
     const deadline = Date.now() + POLL_TIMEOUT_MS;
     let videoUrl = [];
     while (videoUrl.length === 0) {
@@ -217,6 +219,7 @@ export class Veo3 extends VideoAbstract<Veo3Params> {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${process.env.KIEAI_API_KEY}`,
             },
+            signal: AbortSignal.timeout(30000),
           }
         )
       ).json();

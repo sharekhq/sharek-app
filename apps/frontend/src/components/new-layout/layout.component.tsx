@@ -44,6 +44,7 @@ import { PreConditionComponent } from '@gitroom/frontend/components/layout/pre-c
 import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/sentry.feedback.component';
 import { FirstBillingComponent } from '@gitroom/frontend/components/billing/first.billing.component';
 import { TrialTracker } from '@gitroom/frontend/components/layout/gtm.component';
+import { setSentryUser } from '@gitroom/react/sentry/initialize.sentry.client';
 
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();
@@ -87,6 +88,12 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
       document.body.style.overflow = previousOverflow;
     };
   }, [drawerOpen, isPhone]);
+
+  useEffect(() => {
+    setSentryUser(
+      user ? { id: user.id, email: user.email, orgId: user.orgId } : null
+    );
+  }, [user]);
 
   if (!user) return null;
 

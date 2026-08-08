@@ -145,6 +145,7 @@ export class CopilotController {
         perPage: 10,
       });
     } catch (err) {
+      Logger.warn(`Could not recall messages for thread ${threadId}: ${err}`);
       return { messages: [] };
     }
   }

@@ -33,7 +33,10 @@ import {
   extractAgentMessageText,
   stripIntegrationsBlock,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
-import { TextMessage } from '@copilotkit/runtime-client-gql';
+import {
+  Message as CopilotMessage,
+  TextMessage,
+} from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
@@ -93,30 +96,58 @@ export const AgentChat: FC = () => {
 };
 
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
-  const { setMessages } = useCopilotMessagesContext();
+  const { messages, setMessages } = useCopilotMessagesContext();
   const fetch = useFetch();
+  const currentId = useRef<string | null>(null);
+  const loaded = useRef<{ id: string; messages: CopilotMessage[] } | null>(
+    null
+  );
 
   const loadMessages = useCallback(async (idToSet: string) => {
     const data = await (await fetch(`/copilot/${idToSet}/list`)).json();
-    console.log(data);
-    setMessages(
-      data.messages.flatMap((p: any) => {
-        // Threads written before the channel list moved into the system prompt
-        // carry it in the message text. Drop it here so reopening an old thread
-        // does not resend it to the model on every turn.
-        const content = stripIntegrationsBlock(extractAgentMessageText(p));
-        return content ? [new TextMessage({ content, role: p.role })] : [];
-      })
-    );
+    const list = data.messages.flatMap((p: any) => {
+      // Threads written before the channel list moved into the system prompt
+      // carry it in the message text. Drop it here so reopening an old thread
+      // does not resend it to the model on every turn.
+      const content = stripIntegrationsBlock(extractAgentMessageText(p));
+      return content ? [new TextMessage({ content, role: p.role })] : [];
+    });
+
+    if (currentId.current !== idToSet) {
+      return;
+    }
+
+    loaded.current = { id: idToSet, messages: list };
+    setMessages(list);
   }, []);
 
   useEffect(() => {
+    currentId.current = id;
     if (id === 'new') {
+      loaded.current = { id, messages: [] };
       setMessages([]);
       return;
     }
+    loaded.current = null;
     loadMessages(id);
   }, [id]);
+
+  // CopilotKit resolves loadAgentState to an empty list for Mastra local agents
+  // and can clobber the messages we hold, depending on which request resolves last
+  useEffect(() => {
+    if (loaded.current?.id !== id) {
+      return;
+    }
+
+    if (messages.length) {
+      loaded.current.messages = messages;
+      return;
+    }
+
+    if (loaded.current.messages.length) {
+      setMessages(loaded.current.messages);
+    }
+  }, [messages, id]);
 
   return null;
 };
