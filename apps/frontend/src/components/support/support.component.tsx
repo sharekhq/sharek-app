@@ -285,12 +285,17 @@ export const SupportComponent = () => {
             {/* The sender cannot change who this comes from, so it is shown: a
               reply landing at an unexpected address is the surprise this avoids. */}
             <div className="bg-panel rounded-[8px] p-[16px] flex flex-col gap-[4px] text-[14px]">
-              <div>
-                <span className="text-muted">
-                  {t('support_identity_from', 'From')}:{' '}
-                </span>
-                {user?.name}
-              </div>
+              {/* Signup never writes a name, so for most accounts there is
+                  nothing to put here, and a label with a blank after it reads
+                  as a fault. The reply address below carries the identity. */}
+              {!!user?.name && (
+                <div>
+                  <span className="text-muted">
+                    {t('support_identity_from', 'From')}:{' '}
+                  </span>
+                  {user.name}
+                </div>
+              )}
               <div>
                 <span className="text-muted">
                   {t('support_identity_reply', 'Reply to')}:{' '}

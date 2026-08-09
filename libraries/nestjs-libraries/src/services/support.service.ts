@@ -220,13 +220,17 @@ export class SupportService {
     }
 
     // `lastName` is the only field Zoho requires, so a name with no space goes
-    // there whole. A name is not always "first last" — this is a storage
-    // requirement of the destination, never shown back to the customer. With no
-    // name at all the email is the identity we do have, and it beats a blank
-    // `lastName`, which Zoho rejects outright.
-    const [firstName, ...rest] = (sender.name?.trim() || sender.email).split(
-      ' '
-    );
+    // there whole. A name is not always "first last", so the split is storage
+    // for the destination rather than a claim about the person.
+    //
+    // It is not private to the destination either: Desk reads it back out as
+    // `${Cases.Contact Name}` in every notification template it sends, so the
+    // whole address here greets the customer with their own email — and the
+    // signup path never writes `User.name`, which makes that nearly everyone.
+    // The local part is the handle they chose; it is taken as written, because
+    // reshaping "moataz.khalifa" into a name would be inventing one.
+    const identity = sender.name?.trim() || sender.email.split('@')[0];
+    const [firstName, ...rest] = identity.split(' ');
     const created = await this.deskRequest<{ id: string }>('/contacts', {
       method: 'POST',
       body: JSON.stringify({
@@ -324,11 +328,45 @@ export class SupportService {
     });
 
     await this.recordEnquiry(sender.organizationId);
-    await this.attachTags(ticket.id, payload.tags);
+
+    // Both are best-effort and independent of each other, and the customer is
+    // waiting on this request — running them together keeps the fifth and sixth
+    // round trips off the end of the wait rather than adding to it.
+    await Promise.all([
+      this.attachTags(ticket.id, payload.tags),
+      this.addContext(ticket.id, payload.context),
+    ]);
 
     // The short sequential reference the customer is shown and the
     // acknowledgement email carries — not Zoho's internal record id.
     return ticket.ticketNumber;
+  }
+
+  // A private comment rather than part of the description: Desk quotes the
+  // description into every reply, so diagnostics left there are read back to the
+  // customer under our own signature. `isPublic: false` is agent-only and never
+  // quoted, and it can only be set when the comment is made.
+  //
+  // Best-effort for the same reason the tags are — the ticket already exists and
+  // the customer already has their reference, so a comment that did not stick
+  // must not report a failure for an enquiry that was filed. It is the one part
+  // of the enquiry an agent can ask for directly if it is ever missing.
+  private async addContext(ticketId: string, context: string): Promise<void> {
+    try {
+      await this.deskRequest(`/tickets/${ticketId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({
+          content: context,
+          contentType: 'html',
+          isPublic: false,
+          // Required by the schema even with nothing to attach; omitting it is
+          // a 422 that names no field.
+          attachmentIds: [],
+        }),
+      });
+    } catch (error) {
+      console.error('[support] could not attach the context', ticketId, error);
+    }
   }
 
   // Best-effort by design: this runs after the ticket exists, so the customer

@@ -1,8 +1,6 @@
 import { CreateSupportTicketDto } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
+import { escapeHtml } from '@gitroom/helpers/utils/email.html';
 import { SupportSender } from './support.service';
-
-export const SUPPORT_CONTEXT_DELIMITER =
-  '--- Sharek context (attached automatically) ---';
 
 /**
  * One row per connected channel. Read from `Integration`, and deliberately only
@@ -20,7 +18,10 @@ export interface ChannelHealth {
 
 export interface SupportTicketPayload {
   subject: string;
+  /** The customer's words, alone. Desk quotes this into every reply. */
   description: string;
+  /** The diagnostics, for a private comment the customer never sees. */
+  context: string;
   channel: 'Web';
   language?: string;
   tags: string[];
@@ -52,15 +53,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const yesNo = (value: boolean) => (value ? 'yes' : 'no');
 
-// The delimiter is the one structural marker in what is otherwise free text, so
-// it is how an agent tells the customer's words from ours. A message containing
-// it would open a second block above the genuine one — and the forged one reads
-// first, which is enough to claim a plan or a role the account does not have.
-// Neutralised rather than dropped: the customer still gets to say what they
-// said, and the substitution is visible instead of silent.
-const defang = (message: string) =>
-  message.split(SUPPORT_CONTEXT_DELIMITER).join('--- [removed] ---');
-
 // Every state a channel is in, rather than the first one that matched: an agent
 // needs to know a channel was switched off *and* that its token was rejected.
 const stateOf = (channel: ChannelHealth) => {
@@ -81,9 +73,9 @@ const channelLines = (channels: ChannelHealth[]) => {
 
   return channels.map((channel, index) => {
     const label = index === 0 ? 'Channels:     ' : '              ';
-    return `${label} ${channel.providerIdentifier} "${channel.name}" — ${stateOf(
-      channel
-    )}`;
+    return `${label} ${channel.providerIdentifier} "${
+      channel.name
+    }" — ${stateOf(channel)}`;
   });
 };
 
@@ -119,11 +111,16 @@ export const buildSupportTicket = (
 
   return {
     subject: enquiry.subject,
-    // The customer's own words first, always; the block follows a delimiter so
-    // an agent reads the human before the machine.
-    description: `${defang(
-      enquiry.message
-    )}\n\n${SUPPORT_CONTEXT_DELIMITER}\n${lines.join('\n')}`,
+    // Desk quotes the description into every reply, so a block appended here
+    // goes back to the customer over their own signature. Their words, alone.
+    description: enquiry.message,
+    // Verified against the live API: a plainText comment loses the column
+    // alignment this block is built from, and html inside <pre> keeps it. The
+    // whole block is escaped in one pass at the boundary rather than field by
+    // field — channel and workspace names are named by the customer, and every
+    // browser-reported value arrives from the client, so there is no interior
+    // value that could be trusted and none that can be forgotten.
+    context: `<pre>${escapeHtml(lines.join('\n'))}</pre>`,
     channel: 'Web',
     // An unmapped locale omits the key rather than guessing: language is a
     // nicety, and losing a ticket over a newly-added locale is not a trade worth

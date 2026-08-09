@@ -4,7 +4,7 @@ const BRAND_LINK_STYLE = 'color:#B92D43;font-weight:600;';
 const FONT_STACK =
   "'IBM Plex Sans','IBM Plex Sans Arabic',-apple-system,'Segoe UI',Arial,sans-serif";
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

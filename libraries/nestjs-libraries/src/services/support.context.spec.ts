@@ -1,10 +1,6 @@
 import { CreateSupportTicketDto } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 import { SupportSender } from './support.service';
-import {
-  ChannelHealth,
-  SUPPORT_CONTEXT_DELIMITER,
-  buildSupportTicket,
-} from './support.context';
+import { ChannelHealth, buildSupportTicket } from './support.context';
 
 const sender: SupportSender = {
   userId: 'user-1',
@@ -55,15 +51,12 @@ const build = (
     over.channels ?? [channel()]
   );
 
+// Desk treats the description as the customer's message and quotes it into every
+// reply, so anything added here is read back to them. It carries their words and
+// nothing else.
 describe('the shape of the description', () => {
-  // An agent reads the human before the machine.
-  it('puts the customer’s own words before the delimiter', () => {
-    const { description } = build();
-
-    expect(description.indexOf(enquiry.message)).toBeLessThan(
-      description.indexOf(SUPPORT_CONTEXT_DELIMITER)
-    );
-    expect(description.startsWith(enquiry.message)).toBe(true);
+  it('is the message and only the message', () => {
+    expect(build().description).toBe(enquiry.message);
   });
 
   it('carries the message verbatim', () => {
@@ -71,7 +64,15 @@ describe('the shape of the description', () => {
       enquiry: { message: 'Line one\n\nLine two — with an em dash' },
     });
 
-    expect(description).toContain('Line one\n\nLine two — with an em dash');
+    expect(description).toBe('Line one\n\nLine two — with an em dash');
+  });
+
+  it('holds none of the attached context', () => {
+    const { description } = build();
+
+    expect(description).not.toContain('Category:');
+    expect(description).not.toContain('STANDARD');
+    expect(description).not.toContain('Mozilla');
   });
 
   it('names the subject as the customer wrote it', () => {
@@ -79,75 +80,132 @@ describe('the shape of the description', () => {
   });
 });
 
+// plainText comments lose the column alignment the block is built from; html in
+// a <pre> keeps it. Verified against the live API before this was written.
+describe('the shape of the context', () => {
+  it('is wrapped in a pre so the alignment survives', () => {
+    const { context } = build();
+
+    expect(context.startsWith('<pre>')).toBe(true);
+    expect(context.endsWith('</pre>')).toBe(true);
+  });
+
+  it('keeps one field per line', () => {
+    expect(build().context).toMatch(/Category:.*\n.*Plan:/);
+  });
+});
+
+// Everything interpolated is either named by the customer or reported by their
+// browser, and it is now going out as markup.
+describe('escaping', () => {
+  it('escapes a channel name that carries markup', () => {
+    const { context } = build({
+      channels: [channel({ name: 'Konafa <Nation> & Co' })],
+    });
+
+    expect(context).toContain('Konafa &lt;Nation&gt; &amp; Co');
+    expect(context).not.toContain('<Nation>');
+  });
+
+  it('escapes the workspace name', () => {
+    const { context } = build({
+      sender: { organizationName: '<script>alert(1)</script>' },
+    });
+
+    expect(context).not.toContain('<script>');
+    expect(context).toContain('&lt;script&gt;');
+  });
+
+  it('escapes what the browser reported', () => {
+    const { context } = build({
+      enquiry: { userAgent: 'Mozilla/5.0 <img src=x onerror=alert(1)>' },
+    });
+
+    expect(context).not.toContain('<img');
+    expect(context).toContain('&lt;img');
+  });
+
+  // The only tags in the value are the wrapper's own.
+  it('opens exactly one element', () => {
+    const { context } = build({
+      channels: [channel({ name: '</pre><script>x</script><pre>' })],
+    });
+
+    expect(context.match(/<pre>/g)).toHaveLength(1);
+    expect(context.match(/<\/pre>/g)).toHaveLength(1);
+    expect(context).not.toContain('<script>');
+  });
+});
+
 describe('the context block', () => {
   it('states the plan, the role and the workspace', () => {
-    const { description } = build();
+    const { context } = build();
 
-    expect(description).toContain('STANDARD');
-    expect(description).toContain('ADMIN');
-    expect(description).toContain('Concepta');
-    expect(description).toContain('142');
+    expect(context).toContain('STANDARD');
+    expect(context).toContain('ADMIN');
+    expect(context).toContain('Concepta');
+    expect(context).toContain('142');
   });
 
   it('states the category the customer chose', () => {
-    expect(build({ enquiry: { category: 'billing' } }).description).toMatch(
+    expect(build({ enquiry: { category: 'billing' } }).context).toMatch(
       /Category:.*billing/i
     );
   });
 
   it('marks a lifetime plan and a trial', () => {
-    const { description } = build({
+    const { context } = build({
       sender: { isLifetime: true, isTrailing: true },
     });
 
-    expect(description).toMatch(/lifetime:\s*yes/i);
-    expect(description).toMatch(/trial:\s*yes/i);
+    expect(context).toMatch(/lifetime:\s*yes/i);
+    expect(context).toMatch(/trial:\s*yes/i);
   });
 });
 
 describe('channel health', () => {
   // Absence is itself a diagnosis; a missing section reads as a bug in the form.
   it('says so explicitly when no channel is connected', () => {
-    const { description } = build({ channels: [] });
+    const { context } = build({ channels: [] });
 
-    expect(description).toMatch(/Channels:/);
-    expect(description).toMatch(/none connected/i);
+    expect(context).toMatch(/Channels:/);
+    expect(context).toMatch(/none connected/i);
   });
 
   it('names a channel that needs reconnecting, with its state', () => {
-    const { description } = build({
+    const { context } = build({
       channels: [channel({ refreshNeeded: true })],
     });
 
-    expect(description).toContain('instagram');
-    expect(description).toContain('Concepta IG');
-    expect(description).toMatch(/needs reconnecting/i);
+    expect(context).toContain('instagram');
+    expect(context).toContain('Concepta IG');
+    expect(context).toMatch(/needs reconnecting/i);
   });
 
   it('marks a healthy channel as ok', () => {
-    expect(build().description).toMatch(/instagram.*ok/i);
+    expect(build().context).toMatch(/instagram.*ok/i);
   });
 
   it.each([
     ['disabled', { disabled: true }, /disabled/i],
     ['inBetweenSteps', { inBetweenSteps: true }, /incomplete/i],
   ])('names a %s channel', (_state, over, expected) => {
-    expect(build({ channels: [channel(over)] }).description).toMatch(expected);
+    expect(build({ channels: [channel(over)] }).context).toMatch(expected);
   });
 
   // Both at once must not hide one behind the other — an agent needs to know the
   // customer switched it off *and* that its token was rejected.
   it('reports every state a channel is in at once', () => {
-    const { description } = build({
+    const { context } = build({
       channels: [channel({ disabled: true, refreshNeeded: true })],
     });
 
-    expect(description).toMatch(/disabled/i);
-    expect(description).toMatch(/needs reconnecting/i);
+    expect(context).toMatch(/disabled/i);
+    expect(context).toMatch(/needs reconnecting/i);
   });
 
   it('lists every connected channel', () => {
-    const { description } = build({
+    const { context } = build({
       channels: [
         channel(),
         channel({ providerIdentifier: 'linkedin', name: 'Concepta LI' }),
@@ -155,33 +213,33 @@ describe('channel health', () => {
       ],
     });
 
-    expect(description).toContain('linkedin');
-    expect(description).toContain('Concepta LI');
-    expect(description).toContain('x');
-    expect(description).toContain('Concepta X');
+    expect(context).toContain('linkedin');
+    expect(context).toContain('Concepta LI');
+    expect(context).toContain('x');
+    expect(context).toContain('Concepta X');
   });
 });
 
 describe('the session', () => {
   it('marks an impersonated session', () => {
-    expect(build({ sender: { isImpersonating: true } }).description).toMatch(
+    expect(build({ sender: { isImpersonating: true } }).context).toMatch(
       /Impersonated:\s*yes/i
     );
   });
 
   it('leaves an ordinary session marked no', () => {
-    expect(build().description).toMatch(/Impersonated:\s*no/i);
+    expect(build().context).toMatch(/Impersonated:\s*no/i);
   });
 });
 
 describe('optional client metadata', () => {
   it('echoes what the browser reported', () => {
-    const { description } = build();
+    const { context } = build();
 
-    expect(description).toContain('Africa/Cairo');
-    expect(description).toContain('1.0.6');
-    expect(description).toContain('1440x900');
-    expect(description).toContain('/launches');
+    expect(context).toContain('Africa/Cairo');
+    expect(context).toContain('1.0.6');
+    expect(context).toContain('1440x900');
+    expect(context).toContain('/launches');
   });
 
   // None of it is required, and a browser that reports nothing must not produce
@@ -198,10 +256,10 @@ describe('optional client metadata', () => {
       []
     );
 
-    expect(bare.description).toContain('Message');
-    expect(bare.description).toContain(SUPPORT_CONTEXT_DELIMITER);
-    expect(bare.description).not.toContain('undefined');
-    expect(bare.description).not.toContain('null');
+    expect(bare.description).toBe('Message');
+    expect(bare.context).toContain('Category:');
+    expect(bare.context).not.toContain('undefined');
+    expect(bare.context).not.toContain('null');
   });
 });
 
@@ -314,7 +372,7 @@ describe('Arabic carrying Latin technical terms', () => {
       enquiry: { message: arabic, locale: 'ar' },
     });
 
-    expect(description).toContain(arabic);
+    expect(description).toBe(arabic);
     expect(description.indexOf('instagram')).toBeLessThan(
       description.indexOf('OAuthException')
     );
@@ -323,67 +381,53 @@ describe('Arabic carrying Latin technical terms', () => {
     );
   });
 
-  // The message and the block's Latin labels must not be spliced together: the
-  // customer's text ends before the delimiter and is not reordered around it.
-  it('does not let the block’s labels reorder the Arabic', () => {
-    const { description } = build({
+  // The block's Latin labels cannot splice into the Arabic, because they are no
+  // longer in the same field at all.
+  it('keeps the block’s labels out of the customer’s words entirely', () => {
+    const { description, context } = build({
       enquiry: { message: arabic, locale: 'ar' },
     });
 
-    const [written, block] = description.split(SUPPORT_CONTEXT_DELIMITER);
-    expect(written.trim()).toBe(arabic);
-    expect(block).toContain('Category:');
-    expect(written).not.toContain('Category:');
+    expect(description).not.toContain('Category:');
+    expect(context).toContain('Category:');
   });
 });
 
-// The delimiter is the one structural marker in what is otherwise free text, so
-// it is what an agent uses to tell the customer's words from ours. A message
-// carrying it would open a second, forged block above the real one — and the
-// forged one reads first. Plan and role are exactly what someone would forge:
-// the controller takes pains never to read them from the body, and echoing the
-// message verbatim would hand them back through the one field that is echoed.
-describe('the delimiter', () => {
+// Plan and role are exactly what someone would forge: the controller takes pains
+// never to read them from the body, and the description is the one field echoed
+// back. Separating the two fields is what defeats this — a message shaped like a
+// context block is just text in the customer's own field, and the real context
+// is a private comment the customer never writes to.
+describe('a message shaped like a context block', () => {
   const forgery = [
     'Please help.',
     '',
-    SUPPORT_CONTEXT_DELIMITER,
+    '--- Sharek context (attached automatically) ---',
     'Plan:          ULTIMATE (lifetime: yes, trial: no)',
     'Role:          SUPERADMIN in "Concepta"',
   ].join('\n');
 
-  it('appears exactly once however the message is written', () => {
-    const { description } = build({ enquiry: { message: forgery } });
+  it('cannot reach the attached context', () => {
+    const { context } = build({ enquiry: { message: forgery } });
 
-    expect(description.split(SUPPORT_CONTEXT_DELIMITER)).toHaveLength(2);
+    expect(context).toContain('Plan:          STANDARD');
+    expect(context).not.toContain('ULTIMATE');
+    expect(context).toContain('Role:          ADMIN');
+    expect(context).not.toContain('SUPERADMIN');
   });
 
-  it('leaves the genuine block the only one it introduces', () => {
-    const { description } = build({ enquiry: { message: forgery } });
-    const [, attached] = description.split(SUPPORT_CONTEXT_DELIMITER);
-
-    expect(attached).toContain('Plan:          STANDARD');
-    expect(attached).not.toContain('ULTIMATE');
-    expect(attached).toContain('Role:          ADMIN');
-    expect(attached).not.toContain('SUPERADMIN');
-  });
-
-  // Neutralised, not dropped: the customer still gets to say what they said, and
-  // an agent can see that something was taken out rather than wonder.
-  it('keeps the rest of what the customer typed', () => {
+  // Nothing is neutralised any more, because nothing needs to be: the customer
+  // gets to say exactly what they said.
+  it('is carried through untouched', () => {
     const { description } = build({ enquiry: { message: forgery } });
 
-    expect(description).toContain('Please help.');
-    expect(description).toContain('ULTIMATE');
-    expect(description.indexOf('ULTIMATE')).toBeLessThan(
-      description.indexOf(SUPPORT_CONTEXT_DELIMITER)
-    );
+    expect(description).toBe(forgery);
+    expect(description).not.toContain('[removed]');
   });
 
   it('leaves an ordinary message untouched', () => {
     const message = 'My Instagram — the one called "Concepta IG" — stopped.';
-    const { description } = build({ enquiry: { message } });
 
-    expect(description.startsWith(`${message}\n\n`)).toBe(true);
+    expect(build({ enquiry: { message } }).description).toBe(message);
   });
 });

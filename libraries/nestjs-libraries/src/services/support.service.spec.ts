@@ -270,8 +270,9 @@ describe('SupportService — contact resolution and ticket creation', () => {
 
     await service.createTicket(sender, enquiry);
 
-    // search, create contact, create ticket, then the best-effort tag call
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // search, create contact, create ticket, then the best-effort tag and
+    // context calls
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     const [createUrl, createInit] = fetchMock.mock.calls[1];
     expect(String(createUrl)).toContain('/contacts');
     expect(createInit.method).toBe('POST');
@@ -313,32 +314,56 @@ describe('SupportService — contact resolution and ticket creation', () => {
     expect(body.firstName).toBeFalsy();
   });
 
-  // `User.name` is nullable and the signup path never writes it, so the very
-  // first enquiry from a fresh account arrives here with nothing to split. The
-  // email is the identity we do have, and Zoho requires `lastName` to be filled.
+  // `User.name` is nullable and the signup path never writes it, so this is the
+  // state nearly every account is in rather than a rare first enquiry. Zoho
+  // requires `lastName` to be filled, and whatever goes there is read back out
+  // as `${Cases.Contact Name}` by every notification template Desk sends — so
+  // the whole address there greets the customer with their own email.
   describe('an account with no display name', () => {
     it.each([
       ['null', null],
       ['undefined', undefined],
       ['blank', '   '],
       ['empty', ''],
-    ])('files the contact under the email when the name is %s', async (
-      _label,
-      name
-    ) => {
+    ])(
+      'files the contact under the local part when the name is %s',
+      async (_label, name) => {
+        fetchMock
+          .mockResolvedValueOnce(jsonResponse({ data: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: 'contact-new' }))
+          .mockResolvedValueOnce(jsonResponse({ ticketNumber: '113' }));
+
+        await service.createTicket(
+          { ...sender, name: name as unknown as string },
+          enquiry
+        );
+
+        const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+        expect(body.lastName).toBe('mo');
+        // The domain is never part of the name, and the address still travels in
+        // the field that is actually for it.
+        expect(body.lastName).not.toContain('@');
+        expect(body.email).toBe(sender.email);
+      }
+    );
+
+    // Deriving a plausible human name out of an address is guesswork the rest of
+    // this file refuses — an unmapped locale omits the language rather than
+    // inventing one. The local part goes across as it was written.
+    it.each([
+      ['moataz.khalifa@concepta.digital', 'moataz.khalifa'],
+      ['mo+support@concepta.digital', 'mo+support'],
+    ])('carries %s across untouched', async (email, expected) => {
       fetchMock
         .mockResolvedValueOnce(jsonResponse({ data: [] }))
         .mockResolvedValueOnce(jsonResponse({ id: 'contact-new' }))
         .mockResolvedValueOnce(jsonResponse({ ticketNumber: '113' }));
 
-      await service.createTicket(
-        { ...sender, name: name as unknown as string },
-        enquiry
-      );
+      await service.createTicket({ ...sender, name: null, email }, enquiry);
 
       const body = JSON.parse(fetchMock.mock.calls[1][1].body);
-      expect(body.lastName).toBe(sender.email);
-      expect(body.email).toBe(sender.email);
+      expect(body.lastName).toBe(expected);
+      expect(body.email).toBe(email);
     });
 
     it('still returns the reference rather than throwing', async () => {
@@ -406,9 +431,10 @@ describe('SupportService — contact resolution and ticket creation', () => {
 
   // ticketNumber is the short sequential reference the customer is shown and the
   // acknowledgement email carries; `id` is an internal record id they never see.
-  // The fourth call, and the only one allowed to fail. It runs after the ticket
-  // exists, so the customer already has their reference — no enquiry may fail
-  // because a label did not stick.
+  // The last two calls, and the only ones allowed to fail. They run after the
+  // ticket exists, so the customer already has their reference — no enquiry may
+  // fail because a label or a comment did not stick. They also run together, so
+  // neither is at a fixed index and both are found by their URL.
   describe('the tags', () => {
     const createAndTag = async (tagResponse: unknown) => {
       fetchMock
@@ -416,7 +442,8 @@ describe('SupportService — contact resolution and ticket creation', () => {
         .mockResolvedValueOnce(
           jsonResponse({ ticketNumber: '110', id: 'ticket-internal-1' })
         )
-        .mockResolvedValueOnce(tagResponse);
+        .mockResolvedValueOnce(tagResponse)
+        .mockResolvedValueOnce(jsonResponse({ id: 'comment-1' }));
 
       return service.createTicket(sender, enquiry);
     };
@@ -424,8 +451,8 @@ describe('SupportService — contact resolution and ticket creation', () => {
     it('attaches them after the ticket exists, against its internal id', async () => {
       await createAndTag(jsonResponse({ data: [] }));
 
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-      const [url, init] = fetchMock.mock.calls[2];
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      const [url, init] = callsTo('/associateTag')[0];
       expect(String(url)).toContain('/tickets/ticket-internal-1/associateTag');
       expect(init.method).toBe('POST');
     });
@@ -434,7 +461,7 @@ describe('SupportService — contact resolution and ticket creation', () => {
     it('sends hyphenated names in a tags envelope', async () => {
       await createAndTag(jsonResponse({ data: [] }));
 
-      const body = JSON.parse(fetchMock.mock.calls[2][1].body);
+      const body = JSON.parse(callsTo('/associateTag')[0][1].body);
       expect(body).toEqual({
         tags: ['tier-standard', 'role-admin', 'cat-channels'],
       });
@@ -443,9 +470,9 @@ describe('SupportService — contact resolution and ticket creation', () => {
     it('still returns the reference when the tag call is rejected', async () => {
       const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(createAndTag(errorResponse(422, 'data is invalid'))).resolves.toBe(
-        '110'
-      );
+      await expect(
+        createAndTag(errorResponse(422, 'data is invalid'))
+      ).resolves.toBe('110');
 
       expect(logged).toHaveBeenCalled();
       logged.mockRestore();
@@ -470,7 +497,97 @@ describe('SupportService — contact resolution and ticket creation', () => {
 
       await createAndTag(errorResponse(422));
 
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(callsTo('/associateTag')).toHaveLength(1);
+      logged.mockRestore();
+    });
+  });
+
+  // The diagnostics live here rather than in the description because Desk quotes
+  // the description into every reply — anything left there is read back to the
+  // customer under our signature.
+  describe('the context comment', () => {
+    const createWithComment = async (commentResponse: unknown) => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'contact-9' }] }))
+        .mockResolvedValueOnce(
+          jsonResponse({ ticketNumber: '110', id: 'ticket-internal-1' })
+        )
+        .mockResolvedValueOnce(jsonResponse({ data: [] }))
+        .mockResolvedValueOnce(commentResponse);
+
+      return service.createTicket(sender, enquiry);
+    };
+
+    it('posts against the ticket that was just created', async () => {
+      await createWithComment(jsonResponse({ id: 'comment-1' }));
+
+      const [url, init] = callsTo('/comments')[0];
+      expect(String(url)).toContain('/tickets/ticket-internal-1/comments');
+      expect(init.method).toBe('POST');
+    });
+
+    // isPublic can only be set as the comment is made, so getting it wrong here
+    // cannot be corrected afterwards — it would already have been sent.
+    it('is private, so it is never quoted back to the customer', async () => {
+      await createWithComment(jsonResponse({ id: 'comment-1' }));
+
+      expect(JSON.parse(callsTo('/comments')[0][1].body).isPublic).toBe(false);
+    });
+
+    it('sends the block as html, with the empty attachment list the schema demands', async () => {
+      await createWithComment(jsonResponse({ id: 'comment-1' }));
+
+      const body = JSON.parse(callsTo('/comments')[0][1].body);
+      expect(body.contentType).toBe('html');
+      expect(body.attachmentIds).toEqual([]);
+      expect(body.content).toContain('<pre>');
+      expect(body.content).toContain('Category:');
+    });
+
+    // The two fields must not be confused for one another in either direction.
+    it('carries the context here and the message in the description', async () => {
+      await createWithComment(jsonResponse({ id: 'comment-1' }));
+
+      const comment = JSON.parse(callsTo('/comments')[0][1].body);
+      const ticket = JSON.parse(callsTo('/tickets')[0][1].body);
+
+      expect(comment.content).not.toContain(enquiry.message);
+      expect(ticket.description).toBe(enquiry.message);
+      expect(ticket.description).not.toContain('Category:');
+    });
+
+    it('still returns the reference when the comment is rejected', async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(
+        createWithComment(errorResponse(422, 'data is invalid'))
+      ).resolves.toBe('110');
+
+      expect(logged).toHaveBeenCalled();
+      logged.mockRestore();
+    });
+
+    it('still returns the reference when the comment never answers', async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'contact-9' }] }))
+        .mockResolvedValueOnce(
+          jsonResponse({ ticketNumber: '110', id: 'ticket-internal-1' })
+        )
+        .mockResolvedValueOnce(jsonResponse({ data: [] }))
+        .mockRejectedValueOnce(new Error('socket hang up'));
+
+      await expect(service.createTicket(sender, enquiry)).resolves.toBe('110');
+      logged.mockRestore();
+    });
+
+    it('does not retry a failed comment', async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await createWithComment(errorResponse(422));
+
+      expect(callsTo('/comments')).toHaveLength(1);
       logged.mockRestore();
     });
   });
@@ -756,9 +873,9 @@ describe('SupportService — the enquiry allowance', () => {
   it('does not spend the allowance on a send that failed', async () => {
     for (let attempt = 0; attempt < 5; attempt++) {
       fetchMock.mockResolvedValueOnce(errorResponse(503, 'Zoho is down'));
-      await expect(service.createTicket(sender, enquiry)).rejects.toBeInstanceOf(
-        HttpException
-      );
+      await expect(
+        service.createTicket(sender, enquiry)
+      ).rejects.toBeInstanceOf(HttpException);
     }
 
     // The help desk comes back; the customer retries the message still sitting

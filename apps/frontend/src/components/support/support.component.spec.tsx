@@ -51,7 +51,7 @@ const answer = (status: number, body: any) => ({
 
 const mounted: Array<{ unmount: () => void }> = [];
 
-const render = async () => {
+const render = async (as = user) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -59,7 +59,7 @@ const render = async () => {
 
   await act(async () => {
     root.render(
-      <UserContext.Provider value={user}>
+      <UserContext.Provider value={as}>
         <SupportComponent />
       </UserContext.Provider>
     );
@@ -295,6 +295,20 @@ describe('the identity strip', () => {
     expect(host.textContent).toContain('mo@concepta.digital');
     expect(host.textContent).toContain('Concepta');
     expect(host.textContent).not.toContain('Somewhere Else');
+  });
+
+  // `User.name` is null for every self-registered account — the signup path
+  // never writes one — so a label with nothing after it is what nearly every
+  // customer sees, not an edge case. The workspace row already guards itself.
+  it('drops the sender row rather than labelling a blank', async () => {
+    const host = await render({ ...user, name: null });
+
+    expect(host.textContent).not.toContain('From:');
+    // Falling back to the email would print the same address twice, one line
+    // above "Reply to", which reads as a rendering fault. The reply address is
+    // the part that has to be visible, and it still is.
+    expect(host.textContent).toContain('mo@concepta.digital');
+    expect(host.textContent).toContain('Concepta');
   });
 });
 
