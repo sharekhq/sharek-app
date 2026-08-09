@@ -13,6 +13,7 @@ import { VariableContextComponent } from '@gitroom/react/helpers/variable.contex
 import { Fragment } from 'react';
 import { PHProvider } from '@gitroom/react/helpers/posthog';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
+import { isSupportConfigured } from '@gitroom/helpers/utils/is.support.configured';
 import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
 import { DubAnalytics } from '@gitroom/frontend/components/layout/dubAnalytics';
 import { FacebookComponent } from '@gitroom/frontend/components/layout/facebook.component';
@@ -65,6 +66,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           billingEnabled={!!process.env.STRIPE_PUBLISHABLE_KEY}
           showUpstreamExtras={!!process.env.SHOW_UPSTREAM_EXTRAS}
           showThirdParty={!!process.env.SHOW_THIRD_PARTY}
+          supportEnabled={isSupportConfigured()}
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}
           isGeneral={!!process.env.IS_GENERAL}

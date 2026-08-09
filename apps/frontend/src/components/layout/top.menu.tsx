@@ -19,7 +19,8 @@ interface MenuItemInterface {
 }
 
 export const useMenuItem = () => {
-  const { isGeneral, showUpstreamExtras, showThirdParty } = useVariables();
+  const { isGeneral, showUpstreamExtras, showThirdParty, supportEnabled } =
+    useVariables();
   const t = useT();
   const { openModal } = useModals();
 
@@ -252,6 +253,44 @@ export const useMenuItem = () => {
       hide: !showUpstreamExtras,
       role: ['ADMIN', 'SUPERADMIN', 'USER'],
       requireBilling: true,
+    },
+    {
+      name: t('support', 'Support'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="21"
+          viewBox="0 0 20 21"
+          fill="none"
+        >
+          <path
+            d="M10.0001 18.8337C14.6025 18.8337 18.3334 15.1027 18.3334 10.5003C18.3334 5.89795 14.6025 2.16699 10.0001 2.16699C5.39771 2.16699 1.66675 5.89795 1.66675 10.5003C1.66675 15.1027 5.39771 18.8337 10.0001 18.8337Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M7.87508 8.00033C7.87508 6.84973 8.80782 5.91699 9.95841 5.91699C11.109 5.91699 12.0417 6.84973 12.0417 8.00033C12.0417 8.83046 11.5561 9.54726 10.8536 9.88175C10.3232 10.1342 10.0001 10.6748 10.0001 11.2622V12.167"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M9.99593 14.667H10.0034"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/support',
+      // Billing below is admin-only; asking for help must not be.
+      role: ['ADMIN', 'SUPERADMIN', 'USER'],
+      hide: !supportEnabled,
     },
     {
       name: t('billing', 'Billing'),
