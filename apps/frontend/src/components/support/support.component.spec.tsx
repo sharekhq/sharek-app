@@ -445,6 +445,32 @@ describe('when the send fails', () => {
   });
 });
 
+// The app shell drops each page straight into `flex flex-1` over the line
+// colour (new-layout/layout.component.tsx), so a page that does not claim that
+// row is sized by its own content and leaves the grey showing beside it. Every
+// sibling page — billing, settings, plugs — supplies this surface itself.
+describe('the page surface', () => {
+  const surface = (host: HTMLElement) => host.firstElementChild!.className;
+
+  it('claims the row the shell gives it', async () => {
+    const host = await render();
+
+    expect(surface(host)).toContain('flex-1');
+    expect(surface(host)).toContain('bg-newBgColorInner');
+  });
+
+  it('claims it once the enquiry is sent too', async () => {
+    request.mockResolvedValue(answer(201, { ticketNumber: '1042' }));
+    const host = await render();
+
+    await fillCompletely(host);
+    await submit(host);
+
+    expect(surface(host)).toContain('flex-1');
+    expect(surface(host)).toContain('bg-newBgColorInner');
+  });
+});
+
 // global.scss sets `body * { outline: none !important }`, so anything without an
 // explicit focus-visible ring has none at all — a missing one is a bug here, not
 // a browser quirk.

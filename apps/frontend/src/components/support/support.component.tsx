@@ -22,6 +22,16 @@ const MESSAGE_LIMIT = 2000;
 const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
 
+// The shell hands each page a flex row laid over the line colour, so covering
+// that row is the page's own job: without this the card is sized by its content
+// and the grey shows beside it. The inner cap keeps a single-column form at a
+// measure it still reads at once the row is wider than the form needs.
+const Page = ({ children }: { children: React.ReactNode }) => (
+  <div className="bg-newBgColorInner flex-1 flex flex-col p-[20px]">
+    <div className="w-full max-w-[720px]">{children}</div>
+  </div>
+);
+
 const useOrganizations = () => {
   const fetch = useFetch();
   const load = useCallback(async () => {
@@ -184,242 +194,255 @@ export const SupportComponent = () => {
 
   if (ticketNumber) {
     return (
-      <div className="flex flex-col gap-[16px] bg-surface border-line border rounded-[8px] p-[24px]">
-        <h2 className="text-[20px]">
-          {t('support_sent_title', 'Your enquiry is with us')}
-        </h2>
-        <div className="text-muted">
-          {t(
-            'support_sent_body',
-            'We have emailed you a confirmation. Reply to that email to add a screenshot or anything else that helps.'
-          )}
-        </div>
-        <div className="bg-panel rounded-[8px] p-[16px]">
-          <div className="text-[12px] text-muted">
-            {t('support_sent_reference', 'Your reference')}
+      <Page>
+        <div className="flex flex-col gap-[16px] bg-surface border-line border shadow-soft rounded-[8px] p-[24px]">
+          <h2 className="text-[20px]">
+            {t('support_sent_title', 'Your enquiry is with us')}
+          </h2>
+          <div className="text-muted">
+            {t(
+              'support_sent_body',
+              'We have emailed you a confirmation. Reply to that email to add a screenshot or anything else that helps.'
+            )}
           </div>
-          <div className="text-[20px]">#{ticketNumber}</div>
+          <div className="bg-panel rounded-[8px] p-[16px]">
+            <div className="text-[12px] text-muted">
+              {t('support_sent_reference', 'Your reference')}
+            </div>
+            <div className="text-[20px]">#{ticketNumber}</div>
+          </div>
+          <div>
+            <Button
+              type="button"
+              variant="quiet"
+              className={FOCUS_RING}
+              onClick={() => {
+                form.reset();
+                setTicketNumber(null);
+              }}
+            >
+              {t('support_send_another', 'Send another enquiry')}
+            </Button>
+          </div>
         </div>
-        <div>
-          <Button
-            type="button"
-            variant="quiet"
-            className={FOCUS_RING}
-            onClick={() => {
-              form.reset();
-              setTicketNumber(null);
-            }}
-          >
-            {t('support_send_another', 'Send another enquiry')}
-          </Button>
-        </div>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(submit)}>
-        <div className="flex flex-col gap-[24px] bg-surface border-line border rounded-[8px] p-[24px]">
-          {/* Paired with an icon so colour is never the only signal. */}
-          {failed && (
-            <div
-              role="alert"
-              className="flex items-start gap-[10px] border border-line rounded-[8px] py-[12px] px-[14px] text-[14px] bg-[color-mix(in_srgb,var(--error)_8%,transparent)]"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="shrink-0 mt-[1px] text-error"
+    <Page>
+      <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(submit)}>
+          <div className="flex flex-col gap-[24px] bg-surface border-line border shadow-soft rounded-[8px] p-[24px]">
+            {/* Paired with an icon so colour is never the only signal. */}
+            {failed && (
+              <div
+                role="alert"
+                className="flex items-start gap-[10px] border border-line rounded-[8px] py-[12px] px-[14px] text-[14px] bg-[color-mix(in_srgb,var(--error)_8%,transparent)]"
               >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v5M12 16h.01" />
-              </svg>
-              <div>
-                <b className="block">
-                  {t('support_failed_title', "We couldn't send your enquiry.")}
-                </b>
-                <span className="text-inkSoft">
-                  {t(
-                    'support_failed_body',
-                    'Try again in a moment, or email support@sharek.app directly.'
-                  )}
-                </span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="shrink-0 mt-[1px] text-error"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v5M12 16h.01" />
+                </svg>
+                <div>
+                  <b className="block">
+                    {t(
+                      'support_failed_title',
+                      "We couldn't send your enquiry."
+                    )}
+                  </b>
+                  <span className="text-inkSoft">
+                    {t(
+                      'support_failed_body',
+                      'Try again in a moment, or email support@sharek.app directly.'
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-[4px]">
+              <h2 className="text-[20px]">{t('support_title', 'Get help')}</h2>
+              <div className="text-muted">
+                {t(
+                  'support_intro',
+                  'Tell us what happened and we will get back to you by email.'
+                )}
               </div>
             </div>
-          )}
 
-          <div className="flex flex-col gap-[4px]">
-            <h2 className="text-[20px]">{t('support_title', 'Get help')}</h2>
-            <div className="text-muted">
-              {t(
-                'support_intro',
-                'Tell us what happened and we will get back to you by email.'
-              )}
-            </div>
-          </div>
-
-          {/* The sender cannot change who this comes from, so it is shown: a
+            {/* The sender cannot change who this comes from, so it is shown: a
               reply landing at an unexpected address is the surprise this avoids. */}
-          <div className="bg-panel rounded-[8px] p-[16px] flex flex-col gap-[4px] text-[14px]">
-            <div>
-              <span className="text-muted">
-                {t('support_identity_from', 'From')}:{' '}
-              </span>
-              {user?.name}
-            </div>
-            <div>
-              <span className="text-muted">
-                {t('support_identity_reply', 'Reply to')}:{' '}
-              </span>
-              {user?.email}
-            </div>
-            {!!organizationName && (
+            <div className="bg-panel rounded-[8px] p-[16px] flex flex-col gap-[4px] text-[14px]">
               <div>
                 <span className="text-muted">
-                  {t('support_identity_workspace', 'Workspace')}:{' '}
+                  {t('support_identity_from', 'From')}:{' '}
                 </span>
-                {organizationName}
+                {user?.name}
               </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-[6px]">
-            <div className="text-[14px]">
-              {t('support_category_label', 'What is this about?')}
-            </div>
-            <div
-              role="radiogroup"
-              aria-label={t('support_category_label', 'What is this about?')}
-              className="flex flex-wrap gap-[8px]"
-            >
-              {CATEGORIES.map((value, index) => (
-                <button
-                  key={value}
-                  ref={(element) => {
-                    chipRefs.current[index] = element;
-                  }}
-                  type="button"
-                  role="radio"
-                  aria-checked={category === value}
-                  tabIndex={
-                    category ? (category === value ? 0 : -1) : index === 0 ? 0 : -1
-                  }
-                  onClick={chooseCategory(value)}
-                  onKeyDown={onChipKeyDown(index)}
-                  className={clsx(
-                    'h-[42px] px-[16px] rounded-[8px] border text-[14px]',
-                    FOCUS_RING,
-                    category === value
-                      ? 'bg-brandSoft border-brand text-ink'
-                      : 'bg-transparent border-line text-ink'
-                  )}
-                >
-                  {categoryLabels[value]}
-                </button>
-              ))}
-            </div>
-            {/* Paired with an icon so colour is never the only signal. */}
-            <div className="text-error text-[12px] flex items-center gap-[6px]">
-              {categoryError ? (
-                <>
-                  <span aria-hidden="true">⚠</span>
-                  <span>{String(categoryError)}</span>
-                </>
-              ) : (
-                <>&nbsp;</>
+              <div>
+                <span className="text-muted">
+                  {t('support_identity_reply', 'Reply to')}:{' '}
+                </span>
+                {user?.email}
+              </div>
+              {!!organizationName && (
+                <div>
+                  <span className="text-muted">
+                    {t('support_identity_workspace', 'Workspace')}:{' '}
+                  </span>
+                  {organizationName}
+                </div>
               )}
             </div>
-          </div>
 
-          <Input
-            name="subject"
-            label={t('support_subject_label', 'Subject')}
-            placeholder={t(
-              'support_subject_placeholder',
-              'A short summary of the problem'
-            )}
-            maxLength={200}
-            className={clsx(
-              'focus-within:outline-none focus-within:ring-2 focus-within:ring-brand'
-            )}
-          />
+            <div className="flex flex-col gap-[6px]">
+              <div className="text-[14px]">
+                {t('support_category_label', 'What is this about?')}
+              </div>
+              <div
+                role="radiogroup"
+                aria-label={t('support_category_label', 'What is this about?')}
+                className="flex flex-wrap gap-[8px]"
+              >
+                {CATEGORIES.map((value, index) => (
+                  <button
+                    key={value}
+                    ref={(element) => {
+                      chipRefs.current[index] = element;
+                    }}
+                    type="button"
+                    role="radio"
+                    aria-checked={category === value}
+                    tabIndex={
+                      category
+                        ? category === value
+                          ? 0
+                          : -1
+                        : index === 0
+                        ? 0
+                        : -1
+                    }
+                    onClick={chooseCategory(value)}
+                    onKeyDown={onChipKeyDown(index)}
+                    className={clsx(
+                      'h-[42px] px-[16px] rounded-[8px] border text-[14px]',
+                      FOCUS_RING,
+                      category === value
+                        ? 'bg-brandSoft border-brand text-ink'
+                        : 'bg-transparent border-line text-ink'
+                    )}
+                  >
+                    {categoryLabels[value]}
+                  </button>
+                ))}
+              </div>
+              {/* Paired with an icon so colour is never the only signal. */}
+              <div className="text-error text-[12px] flex items-center gap-[6px]">
+                {categoryError ? (
+                  <>
+                    <span aria-hidden="true">⚠</span>
+                    <span>{String(categoryError)}</span>
+                  </>
+                ) : (
+                  <>&nbsp;</>
+                )}
+              </div>
+            </div>
 
-          <Textarea
-            name="message"
-            label={t('support_message_label', 'What happened?')}
-            placeholder={t(
-              'support_message_placeholder',
-              'Include what you expected, what happened instead, and when it started.'
-            )}
-            maxLength={MESSAGE_LIMIT}
-            className={FOCUS_RING}
-            counter={
-              <span className="text-muted">
-                {message.length}/{MESSAGE_LIMIT}
-              </span>
-            }
-          />
+            <Input
+              name="subject"
+              label={t('support_subject_label', 'Subject')}
+              placeholder={t(
+                'support_subject_placeholder',
+                'A short summary of the problem'
+              )}
+              maxLength={200}
+              className={clsx(
+                'focus-within:outline-none focus-within:ring-2 focus-within:ring-brand'
+              )}
+            />
 
-          {/* The enquiry carries things the sender never typed. Saying so is the
+            <Textarea
+              name="message"
+              label={t('support_message_label', 'What happened?')}
+              placeholder={t(
+                'support_message_placeholder',
+                'Include what you expected, what happened instead, and when it started.'
+              )}
+              maxLength={MESSAGE_LIMIT}
+              className={FOCUS_RING}
+              counter={
+                <span className="text-muted">
+                  {message.length}/{MESSAGE_LIMIT}
+                </span>
+              }
+            />
+
+            {/* The enquiry carries things the sender never typed. Saying so is the
               difference between helpful and surprising; collapsed so it informs
               without crowding the form. */}
-          <details className="bg-panel rounded-[8px] p-[16px] text-[14px]">
-            <summary
-              className={clsx('cursor-pointer text-muted', FOCUS_RING)}
-            >
-              {t(
-                'support_disclosure_summary',
-                'What we attach automatically'
-              )}
-            </summary>
-            <ul className="mt-[12px] flex flex-col gap-[6px] text-muted list-disc ps-[20px]">
-              <li>{t('support_disclosure_plan', 'Your plan and role')}</li>
-              <li>
+            <details className="bg-panel rounded-[8px] p-[16px] text-[14px]">
+              <summary
+                className={clsx('cursor-pointer text-muted', FOCUS_RING)}
+              >
                 {t(
-                  'support_disclosure_channels',
-                  'Your connected channels and whether any need reconnecting'
+                  'support_disclosure_summary',
+                  'What we attach automatically'
                 )}
-              </li>
-              <li>
+              </summary>
+              <ul className="mt-[12px] flex flex-col gap-[6px] text-muted list-disc ps-[20px]">
+                <li>{t('support_disclosure_plan', 'Your plan and role')}</li>
+                <li>
+                  {t(
+                    'support_disclosure_channels',
+                    'Your connected channels and whether any need reconnecting'
+                  )}
+                </li>
+                <li>
+                  {t(
+                    'support_disclosure_account',
+                    'Your workspace name and how long the account has existed'
+                  )}
+                </li>
+                <li>
+                  {t(
+                    'support_disclosure_browser',
+                    'Your browser, screen size, timezone and app version'
+                  )}
+                </li>
+              </ul>
+              <div className="mt-[12px]">
                 {t(
-                  'support_disclosure_account',
-                  'Your workspace name and how long the account has existed'
+                  'support_disclosure_never',
+                  'We never send your password, your channel credentials, or the content of your posts.'
                 )}
-              </li>
-              <li>
-                {t(
-                  'support_disclosure_browser',
-                  'Your browser, screen size, timezone and app version'
-                )}
-              </li>
-            </ul>
-            <div className="mt-[12px]">
-              {t(
-                'support_disclosure_never',
-                'We never send your password, your channel credentials, or the content of your posts.'
-              )}
-            </div>
-          </details>
+              </div>
+            </details>
 
-          <div>
-            <Button
-              type="submit"
-              className={FOCUS_RING}
-              loading={form.formState.isSubmitting}
-            >
-              {t('support_submit', 'Send enquiry')}
-            </Button>
+            <div>
+              <Button
+                type="submit"
+                className={FOCUS_RING}
+                loading={form.formState.isSubmitting}
+              >
+                {t('support_submit', 'Send enquiry')}
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
-    </FormProvider>
+        </form>
+      </FormProvider>
+    </Page>
   );
 };
