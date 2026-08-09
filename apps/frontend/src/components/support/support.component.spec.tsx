@@ -33,6 +33,7 @@ jest.mock('swr', () => ({
 
 import { UserContext } from '@gitroom/frontend/components/layout/user.context';
 import { SupportComponent } from '@gitroom/frontend/components/support/support.component';
+import { SUPPORT_APP_VERSION_MAX } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 
 const user = {
   id: 'user-1',
@@ -486,5 +487,40 @@ describe('keyboard visibility', () => {
 
     expect(box.className).toContain('focus-within:ring-2');
     expect(box.className).toContain('focus-within:ring-brand');
+  });
+});
+
+// A real build sets NEXT_PUBLIC_VERSION to the commit SHA — 40 characters,
+// where the DTO bounds the field. Sent unbounded it fails validation and the
+// whole submission is refused, and nothing catches it here, because the
+// variable is unset locally and the key never reaches the payload at all.
+describe('the build identifier it attaches', () => {
+  const version = process.env.NEXT_PUBLIC_VERSION;
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_VERSION = version;
+  });
+
+  const bodyOf = async (value: string) => {
+    process.env.NEXT_PUBLIC_VERSION = value;
+    request.mockResolvedValue(answer(201, { ticketNumber: '113' }));
+
+    const host = await render();
+    await fillCompletely(host);
+    await submit(host);
+
+    return JSON.parse(request.mock.calls[0][1].body);
+  };
+
+  it('stays inside the length the server accepts', async () => {
+    const body = await bodyOf('a'.repeat(40));
+
+    expect(body.appVersion.length).toBeLessThanOrEqual(SUPPORT_APP_VERSION_MAX);
+  });
+
+  it('carries a full commit SHA rather than a truncated one', async () => {
+    const sha = 'e'.repeat(40);
+
+    expect((await bodyOf(sha)).appVersion).toBe(sha);
   });
 });

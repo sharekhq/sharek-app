@@ -17,6 +17,13 @@ export const SUPPORT_CATEGORIES = [
 
 export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number];
 
+// A real build stamps NEXT_PUBLIC_VERSION with the commit SHA — 40 characters —
+// so a bound below that rejects every submission from the deployed image while
+// passing locally, where the variable is unset and the field never appears.
+// Exported so the sender bounds itself to the same number rather than to a
+// second copy of it.
+export const SUPPORT_APP_VERSION_MAX = 64;
+
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
@@ -53,7 +60,7 @@ export class CreateSupportTicketDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(32)
+  @MaxLength(SUPPORT_APP_VERSION_MAX)
   appVersion?: string;
 
   @IsOptional()

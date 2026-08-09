@@ -7,7 +7,6 @@ jest.mock('@gitroom/nestjs-libraries/services/support.service', () => ({
 
 import { HttpException } from '@nestjs/common';
 import { SupportController } from './support.controller';
-import { SupportThrottlerGuard } from '@gitroom/nestjs-libraries/throttler/support.throttler.guard';
 
 const ZOHO_VARIABLES = [
   'ZOHO_DESK_DC',
@@ -206,21 +205,18 @@ describe('when the integration is unconfigured', () => {
 // The global ThrottlerBehindProxyGuard short-circuits to `true` for every route
 // except POST /public/v1/posts, so the @Throttle decorator alone would be inert
 // here and FR-015 would silently not hold. The route carries its own guard.
+// FR-015's limit is the service's, not a guard's. A guard counts attempts —
+// before the handler runs and regardless of how it ends — where the requirement
+// bounds enquiries that reached the queue. Asserted here because a `@Throttle`
+// re-added on top would start counting failed sends again without any test
+// noticing; the limit itself is exercised in support.service.spec.
 describe('the rate limit', () => {
   const handler = SupportController.prototype.createTicket;
 
-  // @Throttle stores each named throttler under `<KEY><name>`, so the `default`
-  // throttler lands on `THROTTLER:LIMITdefault`. The constants are declared in
-  // the package's types but not re-exported from its root, so importing them
-  // yields undefined and silently builds the key `"undefineddefault"`.
-  it('allows five enquiries an hour', () => {
-    expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(5);
-    expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(3600000);
-  });
-
-  it('is enforced by a guard that actually runs on this route', () => {
-    expect(Reflect.getMetadata('__guards__', handler) || []).toContain(
-      SupportThrottlerGuard
-    );
+  it('is not a throttler on the route', () => {
+    expect(Reflect.getMetadata('__guards__', handler)).toBeFalsy();
+    expect(
+      Reflect.getMetadata('THROTTLER:LIMITdefault', handler)
+    ).toBeUndefined();
   });
 });

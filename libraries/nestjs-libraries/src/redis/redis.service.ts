@@ -18,6 +18,23 @@ class MockRedis {
     return 1;
   }
 
+  async incr(key: string) {
+    const next = Number(this.data.get(key) || 0) + 1;
+    this.data.set(key, next);
+    return next;
+  }
+
+  // Nothing here expires, so a counter set by one test would still be there for
+  // the next one — `flushall` between tests is what keeps them independent.
+  async expire(_key: string, _seconds: number) {
+    return 1;
+  }
+
+  async flushall() {
+    this.data.clear();
+    return 'OK';
+  }
+
   // Add other Redis methods as needed for your tests
 }
 

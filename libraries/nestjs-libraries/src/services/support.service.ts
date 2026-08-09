@@ -19,6 +19,17 @@ const TOKEN_TTL_SAFETY_MARGIN = 300;
 // front of the form waiting for it. Four short calls, so this is generous.
 const REQUEST_TIMEOUT = 10000;
 
+// FR-015: no more than five enquiries an hour from one organisation, against a
+// frustrated customer or a stuck button flooding the queue. Counted on tickets
+// that were created, because only those reach the queue — spending the
+// allowance on failed sends would cost a customer their hour for an outage that
+// was ours, while they did exactly what the failure banner told them to.
+const ENQUIRY_LIMIT = 5;
+const ENQUIRY_WINDOW = 3600;
+
+const enquiryCountKey = (organizationId: string) =>
+  `support:rate:${organizationId}`;
+
 interface ZohoTokenResponse {
   access_token?: string;
   expires_in?: number;
@@ -28,7 +39,9 @@ interface ZohoTokenResponse {
 // body — these are the fields that would matter if they were forged.
 export interface SupportSender {
   userId: string;
-  name: string;
+  // Nullable because `User.name` is: self-registration never writes one, so the
+  // first enquiry from a fresh account arrives with nothing here.
+  name: string | null;
   email: string;
   organizationId: string;
   organizationName: string;
@@ -148,6 +161,14 @@ export class SupportService {
   }
 
   private async parse<T>(response: Response): Promise<T> {
+    // A search that matched nothing comes back 204 with an empty body, and
+    // `ok` is true for it. Parsing anyway throws a SyntaxError — a plain Error,
+    // which would escape the 503 mapping below as an opaque 500 for every
+    // first-time sender, the one branch that never appears in a happy path.
+    if (response.status === HttpStatus.NO_CONTENT) {
+      return {} as T;
+    }
+
     if (!response.ok) {
       // Both times Zoho rejected a payload during verification the message
       // named the offending parameter exactly — the difference between a silent
@@ -200,8 +221,12 @@ export class SupportService {
 
     // `lastName` is the only field Zoho requires, so a name with no space goes
     // there whole. A name is not always "first last" — this is a storage
-    // requirement of the destination, never shown back to the customer.
-    const [firstName, ...rest] = sender.name.trim().split(' ');
+    // requirement of the destination, never shown back to the customer. With no
+    // name at all the email is the identity we do have, and it beats a blank
+    // `lastName`, which Zoho rejects outright.
+    const [firstName, ...rest] = (sender.name?.trim() || sender.email).split(
+      ' '
+    );
     const created = await this.deskRequest<{ id: string }>('/contacts', {
       method: 'POST',
       body: JSON.stringify({
@@ -232,10 +257,46 @@ export class SupportService {
     });
   }
 
+  // Read before the work and written only after it, so the allowance tracks
+  // tickets in the queue rather than attempts at making one.
+  private async assertAllowance(organizationId: string): Promise<void> {
+    const filed = Number(
+      (await ioRedis.get(enquiryCountKey(organizationId))) || 0
+    );
+
+    if (filed >= ENQUIRY_LIMIT) {
+      throw new HttpException(
+        `No more than ${ENQUIRY_LIMIT} enquiries an hour`,
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+  }
+
+  // Best-effort for the same reason the tag call below is: this runs once the
+  // ticket exists, so a throw here would report a failure for an enquiry that
+  // was filed and send the customer to retry into a duplicate. An uncounted
+  // enquiry is the cheaper of the two.
+  private async recordEnquiry(organizationId: string): Promise<void> {
+    const key = enquiryCountKey(organizationId);
+
+    try {
+      // The window is set once, on the first of the hour, so it runs from that
+      // enquiry rather than sliding forward with each one and never letting the
+      // count fall back.
+      if ((await ioRedis.incr(key)) === 1) {
+        await ioRedis.expire(key, ENQUIRY_WINDOW);
+      }
+    } catch (error) {
+      console.error('[support] could not count the enquiry', key, error);
+    }
+  }
+
   async createTicket(
     sender: SupportSender,
     enquiry: CreateSupportTicketDto
   ): Promise<string> {
+    await this.assertAllowance(sender.organizationId);
+
     const [contactId, channels] = await Promise.all([
       this.resolveContact(sender),
       this.channelHealth(sender.organizationId),
@@ -262,6 +323,7 @@ export class SupportService {
       }),
     });
 
+    await this.recordEnquiry(sender.organizationId);
     await this.attachTags(ticket.id, payload.tags);
 
     // The short sequential reference the customer is shown and the

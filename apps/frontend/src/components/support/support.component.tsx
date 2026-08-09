@@ -13,6 +13,7 @@ import { Input } from '@gitroom/react/form/input';
 import { Textarea } from '@gitroom/react/form/textarea';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { SUPPORT_APP_VERSION_MAX } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 
 const CATEGORIES = ['channels', 'billing', 'technical', 'other'] as const;
 
@@ -45,7 +46,10 @@ const clientMetadata = () => {
   return {
     locale: i18next.resolvedLanguage || 'en',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    appVersion: process.env.NEXT_PUBLIC_VERSION,
+    appVersion: process.env.NEXT_PUBLIC_VERSION?.slice(
+      0,
+      SUPPORT_APP_VERSION_MAX
+    ),
     userAgent: navigator.userAgent?.slice(0, 512),
     viewport: `${window.innerWidth}x${window.innerHeight}`,
     fromPath:

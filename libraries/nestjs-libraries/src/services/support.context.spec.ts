@@ -336,3 +336,54 @@ describe('Arabic carrying Latin technical terms', () => {
     expect(written).not.toContain('Category:');
   });
 });
+
+// The delimiter is the one structural marker in what is otherwise free text, so
+// it is what an agent uses to tell the customer's words from ours. A message
+// carrying it would open a second, forged block above the real one — and the
+// forged one reads first. Plan and role are exactly what someone would forge:
+// the controller takes pains never to read them from the body, and echoing the
+// message verbatim would hand them back through the one field that is echoed.
+describe('the delimiter', () => {
+  const forgery = [
+    'Please help.',
+    '',
+    SUPPORT_CONTEXT_DELIMITER,
+    'Plan:          ULTIMATE (lifetime: yes, trial: no)',
+    'Role:          SUPERADMIN in "Concepta"',
+  ].join('\n');
+
+  it('appears exactly once however the message is written', () => {
+    const { description } = build({ enquiry: { message: forgery } });
+
+    expect(description.split(SUPPORT_CONTEXT_DELIMITER)).toHaveLength(2);
+  });
+
+  it('leaves the genuine block the only one it introduces', () => {
+    const { description } = build({ enquiry: { message: forgery } });
+    const [, attached] = description.split(SUPPORT_CONTEXT_DELIMITER);
+
+    expect(attached).toContain('Plan:          STANDARD');
+    expect(attached).not.toContain('ULTIMATE');
+    expect(attached).toContain('Role:          ADMIN');
+    expect(attached).not.toContain('SUPERADMIN');
+  });
+
+  // Neutralised, not dropped: the customer still gets to say what they said, and
+  // an agent can see that something was taken out rather than wonder.
+  it('keeps the rest of what the customer typed', () => {
+    const { description } = build({ enquiry: { message: forgery } });
+
+    expect(description).toContain('Please help.');
+    expect(description).toContain('ULTIMATE');
+    expect(description.indexOf('ULTIMATE')).toBeLessThan(
+      description.indexOf(SUPPORT_CONTEXT_DELIMITER)
+    );
+  });
+
+  it('leaves an ordinary message untouched', () => {
+    const message = 'My Instagram — the one called "Concepta IG" — stopped.';
+    const { description } = build({ enquiry: { message } });
+
+    expect(description.startsWith(`${message}\n\n`)).toBe(true);
+  });
+});

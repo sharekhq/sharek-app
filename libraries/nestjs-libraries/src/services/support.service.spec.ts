@@ -26,6 +26,17 @@ const jsonResponse = (body: unknown) => ({
   text: async () => JSON.stringify(body),
 });
 
+// What `fetch` really hands back for an empty body: `ok` is true, and `json()`
+// rejects rather than resolving to null.
+const noContentResponse = () => ({
+  ok: true,
+  status: 204,
+  json: async () => {
+    throw new SyntaxError('Unexpected end of JSON input');
+  },
+  text: async () => '',
+});
+
 const errorResponse = (status: number, body = 'rejected') => ({
   ok: false,
   status,
@@ -50,9 +61,10 @@ beforeEach(async () => {
   process.env.ZOHO_DESK_CLIENT_SECRET = 'client-secret';
   process.env.ZOHO_DESK_REFRESH_TOKEN = 'refresh-token';
 
-  // MockRedis is a module-level singleton, so one test's token would otherwise
-  // be a cache hit in the next.
-  await ioRedis.del(TOKEN_CACHE_KEY);
+  // MockRedis is a module-level singleton and nothing in it expires, so one
+  // test's cached token would be a cache hit in the next and one test's filed
+  // enquiries would count against the next one's allowance.
+  await ioRedis.flushall();
 
   service = new SupportService({
     model: { integration: { findMany } },
@@ -299,6 +311,68 @@ describe('SupportService — contact resolution and ticket creation', () => {
     const body = JSON.parse(fetchMock.mock.calls[1][1].body);
     expect(body.lastName).toBe('Moataz');
     expect(body.firstName).toBeFalsy();
+  });
+
+  // `User.name` is nullable and the signup path never writes it, so the very
+  // first enquiry from a fresh account arrives here with nothing to split. The
+  // email is the identity we do have, and Zoho requires `lastName` to be filled.
+  describe('an account with no display name', () => {
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['blank', '   '],
+      ['empty', ''],
+    ])('files the contact under the email when the name is %s', async (
+      _label,
+      name
+    ) => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ data: [] }))
+        .mockResolvedValueOnce(jsonResponse({ id: 'contact-new' }))
+        .mockResolvedValueOnce(jsonResponse({ ticketNumber: '113' }));
+
+      await service.createTicket(
+        { ...sender, name: name as unknown as string },
+        enquiry
+      );
+
+      const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(body.lastName).toBe(sender.email);
+      expect(body.email).toBe(sender.email);
+    });
+
+    it('still returns the reference rather than throwing', async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ data: [] }))
+        .mockResolvedValueOnce(jsonResponse({ id: 'contact-new' }))
+        .mockResolvedValueOnce(jsonResponse({ ticketNumber: '113' }));
+
+      await expect(
+        service.createTicket(
+          { ...sender, name: null as unknown as string },
+          enquiry
+        )
+      ).resolves.toBe('113');
+    });
+  });
+
+  // Zoho answers a search that matched nothing with 204 and an empty body.
+  // `response.ok` is true for it, so parsing unconditionally throws a
+  // SyntaxError — a plain Error, which escapes the 503 mapping as an opaque 500
+  // for every first-time sender. This is the one branch T001 never observed.
+  it('reads a 204 from the contact search as no contact rather than crashing', async () => {
+    fetchMock
+      .mockResolvedValueOnce(noContentResponse())
+      .mockResolvedValueOnce(jsonResponse({ id: 'contact-new' }))
+      .mockResolvedValueOnce(jsonResponse({ ticketNumber: '114' }));
+
+    await expect(service.createTicket(sender, enquiry)).resolves.toBe('114');
+
+    const [, createInit] = fetchMock.mock.calls[1];
+    expect(createInit.method).toBe('POST');
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).contactId).toBe(
+      'contact-new'
+    );
   });
 
   // Omitting `channel` does not leave the field blank — Zoho defaults it to
@@ -614,5 +688,104 @@ describe('SupportService — the failure taxonomy', () => {
     await rejectedStatus(service.deskRequest('/tickets'));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// FR-015 bounds what reaches the support queue: "no more than 5 enquiries per
+// hour", against a customer or a stuck button flooding it. Only a ticket that
+// was created ever reaches the queue, so a send that failed must not spend the
+// allowance — otherwise one outage costs a customer their whole hour while they
+// do exactly what the failure banner told them to and try again.
+describe('SupportService — the enquiry allowance', () => {
+  const sender: SupportSender = {
+    userId: 'user-1',
+    name: 'Moataz Khalifa',
+    email: 'mo@concepta.digital',
+    organizationId: 'org-rate',
+    organizationName: 'Concepta',
+    role: 'ADMIN',
+    tier: 'STANDARD',
+    isLifetime: false,
+    isTrailing: false,
+    accountAgeDays: 142,
+    isImpersonating: false,
+  };
+
+  const enquiry: CreateSupportTicketDto = {
+    category: 'channels',
+    subject: 'Instagram stopped posting',
+    message: 'Since Tuesday my scheduled posts fail.',
+    locale: 'en',
+  };
+
+  const succeeds = () =>
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'contact-9' }] }))
+      .mockResolvedValueOnce(jsonResponse({ ticketNumber: '120', id: 'zzz' }))
+      .mockResolvedValueOnce(jsonResponse({}));
+
+  const fileOne = async () => {
+    succeeds();
+    return service.createTicket(sender, enquiry);
+  };
+
+  beforeEach(async () => {
+    await ioRedis.set(TOKEN_CACHE_KEY, 'atk_cached', 'EX', 3300);
+  });
+
+  it('lets five enquiries through in the same hour', async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await expect(fileOne()).resolves.toBe('120');
+    }
+  });
+
+  it('refuses the sixth with 429 rather than filing it', async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await fileOne();
+    }
+
+    const before = fetchMock.mock.calls.length;
+    await expect(service.createTicket(sender, enquiry)).rejects.toMatchObject({
+      status: 429,
+    });
+
+    // Refused before any outbound call, not after filing a sixth ticket.
+    expect(fetchMock.mock.calls).toHaveLength(before);
+  });
+
+  it('does not spend the allowance on a send that failed', async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      fetchMock.mockResolvedValueOnce(errorResponse(503, 'Zoho is down'));
+      await expect(service.createTicket(sender, enquiry)).rejects.toBeInstanceOf(
+        HttpException
+      );
+    }
+
+    // The help desk comes back; the customer retries the message still sitting
+    // in their form. Five failures must not have cost them the hour.
+    await expect(fileOne()).resolves.toBe('120');
+  });
+
+  // The counter is written once the ticket exists, so a throw here would report
+  // a failure for an enquiry that was filed and send the customer to retry into
+  // a duplicate.
+  it('still returns the reference when the count cannot be written', async () => {
+    jest
+      .spyOn(ioRedis, 'incr')
+      .mockRejectedValueOnce(new Error('redis is unreachable'));
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(fileOne()).resolves.toBe('120');
+  });
+
+  it('counts each organisation separately', async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await fileOne();
+    }
+
+    succeeds();
+    await expect(
+      service.createTicket({ ...sender, organizationId: 'org-other' }, enquiry)
+    ).resolves.toBe('120');
   });
 });

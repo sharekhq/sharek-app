@@ -52,6 +52,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const yesNo = (value: boolean) => (value ? 'yes' : 'no');
 
+// The delimiter is the one structural marker in what is otherwise free text, so
+// it is how an agent tells the customer's words from ours. A message containing
+// it would open a second block above the genuine one — and the forged one reads
+// first, which is enough to claim a plan or a role the account does not have.
+// Neutralised rather than dropped: the customer still gets to say what they
+// said, and the substitution is visible instead of silent.
+const defang = (message: string) =>
+  message.split(SUPPORT_CONTEXT_DELIMITER).join('--- [removed] ---');
+
 // Every state a channel is in, rather than the first one that matched: an agent
 // needs to know a channel was switched off *and* that its token was rejected.
 const stateOf = (channel: ChannelHealth) => {
@@ -112,9 +121,9 @@ export const buildSupportTicket = (
     subject: enquiry.subject,
     // The customer's own words first, always; the block follows a delimiter so
     // an agent reads the human before the machine.
-    description: `${enquiry.message}\n\n${SUPPORT_CONTEXT_DELIMITER}\n${lines.join(
-      '\n'
-    )}`,
+    description: `${defang(
+      enquiry.message
+    )}\n\n${SUPPORT_CONTEXT_DELIMITER}\n${lines.join('\n')}`,
     channel: 'Web',
     // An unmapped locale omits the key rather than guessing: language is a
     // nicety, and losing a ticket over a newly-added locale is not a trade worth

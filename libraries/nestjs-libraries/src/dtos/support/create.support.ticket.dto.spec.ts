@@ -1,6 +1,9 @@
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
-import { CreateSupportTicketDto } from './create.support.ticket.dto';
+import {
+  CreateSupportTicketDto,
+  SUPPORT_APP_VERSION_MAX,
+} from './create.support.ticket.dto';
 
 const valid = {
   category: 'channels',
@@ -134,7 +137,8 @@ describe('CreateSupportTicketDto', () => {
 
     it.each([
       ['timezone', 64],
-      ['appVersion', 32],
+      // Wide enough for the 40-character commit SHA a real build stamps here.
+      ['appVersion', SUPPORT_APP_VERSION_MAX],
       ['userAgent', 512],
       ['viewport', 16],
       ['fromPath', 256],

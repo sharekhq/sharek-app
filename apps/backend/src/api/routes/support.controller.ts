@@ -5,9 +5,7 @@ import {
   HttpStatus,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Organization, User } from '@prisma/client';
@@ -17,18 +15,17 @@ import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.reque
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { CreateSupportTicketDto } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 import { SupportService } from '@gitroom/nestjs-libraries/services/support.service';
-import { SupportThrottlerGuard } from '@gitroom/nestjs-libraries/throttler/support.throttler.guard';
 
 @ApiTags('Support')
 @Controller('/support')
 export class SupportController {
   constructor(private _supportService: SupportService) {}
 
-  // 90/hour is right for the API at large and far too loose for a support form.
-  // The guard is explicit because the global one skips every route but one.
+  // FR-015's limit lives in the service rather than in a guard: a guard counts
+  // attempts, before the handler and whatever its outcome, and the requirement
+  // bounds enquiries that reach the queue. Five failed sends during an outage
+  // must not spend an hour the customer never got anything for.
   @Post('/')
-  @UseGuards(SupportThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   async createTicket(
     @GetUserFromRequest() user: User,
     @GetOrgFromRequest() organization: Organization,
