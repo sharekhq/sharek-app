@@ -10,6 +10,7 @@ import { fontVariables } from '@gitroom/frontend/app/fonts';
 import clsx from 'clsx';
 import { VariableContextComponent } from '@gitroom/react/helpers/variable.context';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
+import { isSupportConfigured } from '@gitroom/helpers/utils/is.support.configured';
 import { cookies } from 'next/headers';
 import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
 
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           billingEnabled={!!process.env.STRIPE_PUBLISHABLE_KEY}
           showUpstreamExtras={!!process.env.SHOW_UPSTREAM_EXTRAS}
           showThirdParty={!!process.env.SHOW_THIRD_PARTY}
+          supportEnabled={isSupportConfigured()}
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}
           isGeneral={!!process.env.IS_GENERAL}

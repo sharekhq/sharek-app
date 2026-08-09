@@ -11,6 +11,8 @@ import { PermissionsService } from '@gitroom/backend/services/auth/permissions/p
 import { IntegrationsController } from '@gitroom/backend/api/routes/integrations.controller';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { SettingsController } from '@gitroom/backend/api/routes/settings.controller';
+import { SupportController } from '@gitroom/backend/api/routes/support.controller';
+import { SupportService } from '@gitroom/nestjs-libraries/services/support.service';
 import { PostsController } from '@gitroom/backend/api/routes/posts.controller';
 import { MediaController } from '@gitroom/backend/api/routes/media.controller';
 import { UploadModule } from '@gitroom/nestjs-libraries/upload/upload.module';
@@ -49,6 +51,7 @@ const authenticatedController = [
   AnalyticsController,
   IntegrationsController,
   SettingsController,
+  SupportController,
   PostsController,
   MediaController,
   BillingController,
@@ -90,6 +93,7 @@ const authenticatedController = [
     IntegrationManager,
     TrackService,
     ShortLinkService,
+    SupportService,
     AuthProviderManager,
     GithubProvider,
     GoogleProvider,
