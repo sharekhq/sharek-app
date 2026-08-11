@@ -32,15 +32,15 @@ const Page = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-// Centred, because a measure pinned to the start edge leaves the rest of a
-// 1400px row reading as a void rather than as margin. The form keeps a measure
-// it reads at; the aside takes the width that is left over, which is what stops
-// the space being empty in the first place. The form track shrinks before the
-// pair stacks, so two columns still fit a 1100px window; below 1025 they stack
-// and the aside leads, because what it holds — where the reply lands, what the
-// enquiry carries — is meant to be read before sending, not under the button.
+// Started at the same edge as the page title, the way every sibling page lays
+// out; what fills the rest of the row is the aside rather than centring. The
+// form keeps a measure it reads at, and the aside takes the width left over.
+// The form track shrinks before the pair stacks, so two columns still fit a
+// 1100px window; below 1025 they stack and the aside leads, because what it
+// holds — where the reply lands, what the enquiry carries — is meant to be read
+// before sending, not under the button.
 const Columns = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full max-w-[1068px] mx-auto grid grid-cols-[minmax(0,680px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
+  <div className="w-full max-w-[1068px] grid grid-cols-[minmax(0,680px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
     {children}
   </div>
 );
@@ -298,14 +298,14 @@ export const SupportComponent = () => {
           </div>
         )}
 
-        <div className={clsx(FULL_WIDTH, 'flex flex-col gap-[4px]')}>
-          <h2 className="text-[20px]">{t('support_title', 'Get help')}</h2>
-          <div className="text-muted">
-            {t(
-              'support_intro',
-              'Tell us what happened and we will get back to you by email.'
-            )}
-          </div>
+        {/* The shell already titles the page — its h1 reads "Support" — so a
+            heading here would name the same thing a second time. This line is
+            the lede instead. */}
+        <div className={clsx(FULL_WIDTH, 'text-muted')}>
+          {t(
+            'support_intro',
+            'Tell us what happened and we will get back to you by email.'
+          )}
         </div>
 
         <FormProvider {...form}>
@@ -448,10 +448,10 @@ export const SupportComponent = () => {
           </div>
 
           <div className="border-t border-line pt-[18px]">
-            <div className="text-[13px] font-[600] mb-[10px]">
+            <div className="font-[600] mb-[10px]">
               {t('support_disclosure_summary', 'What we attach automatically')}
             </div>
-            <ul className="flex flex-col gap-[8px] text-[13px] text-muted list-disc ps-[18px]">
+            <ul className="flex flex-col gap-[8px] text-muted list-disc ps-[18px]">
               <li>{t('support_disclosure_plan', 'Your plan and role')}</li>
               <li>
                 {t(
@@ -472,7 +472,7 @@ export const SupportComponent = () => {
                 )}
               </li>
             </ul>
-            <div className="text-[13px] text-muted mt-[12px]">
+            <div className="text-muted mt-[12px]">
               {t(
                 'support_disclosure_never',
                 'We never send your password, your channel credentials, or the content of your posts.'
