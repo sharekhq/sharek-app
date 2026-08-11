@@ -1285,7 +1285,7 @@
   "support_submit": "Send enquiry",
   "support_sent_title": "Your enquiry is with us",
   "support_sent_body": "We have emailed you a confirmation. Reply to that email to add a screenshot or anything else that helps.",
-  "support_sent_reference": "Your reference",
+  "support_sent_reference": "Ticket ID",
   "support_send_another": "Send another enquiry",
   "support_disclosure_summary": "What we attach automatically",
   "support_disclosure_plan": "Your plan and role",

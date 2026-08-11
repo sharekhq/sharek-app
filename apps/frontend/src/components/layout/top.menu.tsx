@@ -359,7 +359,10 @@ export const TopMenu: FC = () => {
   const { isGeneral, billingEnabled } = useVariables();
   return (
     <>
-      <div className="flex flex-1 flex-col minCustom:gap-[16px] blurMe">
+      {/* Under 800px tall this group had no gap at all while the group below
+          kept 8px, so the top items' hover and active pills butted together and
+          read as one unpadded block. Same gutter in both groups. */}
+      <div className="flex flex-1 flex-col minCustom:gap-[16px] custom:gap-[8px] blurMe">
         {
           // @ts-ignore
           user?.orgId &&

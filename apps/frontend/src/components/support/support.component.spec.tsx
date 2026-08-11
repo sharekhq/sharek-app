@@ -303,7 +303,7 @@ describe('the identity strip', () => {
   it('drops the sender row rather than labelling a blank', async () => {
     const host = await render({ ...user, name: null });
 
-    expect(host.textContent).not.toContain('From:');
+    expect(host.textContent).not.toMatch(/\bFrom\b/);
     // Falling back to the email would print the same address twice, one line
     // above "Reply to", which reads as a rendering fault. The reply address is
     // the part that has to be visible, and it still is.
@@ -313,20 +313,32 @@ describe('the identity strip', () => {
 });
 
 // The enquiry carries plan, role, channel health and browser details the sender
-// never typed. Saying so is the difference between helpful and surprising — and
-// it stays collapsed so it informs without crowding the form.
+// never typed. Saying so is the difference between helpful and surprising, and
+// the aside is the one place it can be said in full without crowding the form —
+// so it is read rather than collapsed behind a toggle nobody opens.
 describe('the disclosure', () => {
-  it('is collapsed by default', async () => {
-    const host = await render();
-    const disclosure = host.querySelector('details');
+  const aside = (host: HTMLElement) => host.querySelector('aside')!;
 
-    expect(disclosure).toBeTruthy();
-    expect(disclosure!.hasAttribute('open')).toBe(false);
+  it('sits beside the form rather than behind a toggle', async () => {
+    const host = await render();
+
+    expect(aside(host)).toBeTruthy();
+    expect(host.querySelector('details')).toBeNull();
+  });
+
+  // Beside the form it is read on the way past. Stacked in source order it
+  // would sit under the send button, which is the one place a disclosure about
+  // what the enquiry carries is no use (FR-011), so the order reverses.
+  it('leads the form once the pair stacks', async () => {
+    const host = await render();
+
+    expect(aside(host).className).toContain('mobile:order-1');
+    expect(host.querySelector('form')!.className).toContain('mobile:order-2');
   });
 
   it('names what travels with the enquiry', async () => {
     const host = await render();
-    const text = host.querySelector('details')!.textContent || '';
+    const text = aside(host).textContent || '';
 
     expect(text).toMatch(/plan/i);
     expect(text).toMatch(/role/i);
@@ -336,7 +348,7 @@ describe('the disclosure', () => {
 
   it('ends on what is not sent', async () => {
     const host = await render();
-    const text = host.querySelector('details')!.textContent || '';
+    const text = aside(host).textContent || '';
 
     expect(text).toMatch(/never send/i);
     expect(text).toMatch(/password|credential/i);
@@ -380,6 +392,18 @@ describe('submitting', () => {
     expect(host.textContent).toContain('1042');
     expect(host.querySelector('form')).toBeNull();
   });
+
+  // The number is what the customer quotes back to us, so it is labelled with
+  // the name the help desk uses for it rather than a phrase of our own.
+  it('calls the number a ticket id', async () => {
+    request.mockResolvedValue(answer(201, { ticketNumber: '1042' }));
+    const host = await render();
+
+    await fillCompletely(host);
+    await submit(host);
+
+    expect(host.textContent).toContain('Ticket ID');
+  });
 });
 
 // A failure names a route out and never costs the customer what they typed.
@@ -412,7 +436,7 @@ describe('when the send fails', () => {
     const host = await failWith(503);
 
     expect(host.querySelector('form')).toBeTruthy();
-    expect(host.textContent).not.toContain('Your reference');
+    expect(host.textContent).not.toContain('Ticket ID');
   });
 
   // Trying again is one route out; the direct address is the other, and it is
@@ -498,16 +522,6 @@ describe('keyboard visibility', () => {
       expect(element.className).toContain('focus-visible:ring-2');
       expect(element.className).toContain('focus-visible:ring-brand');
     });
-  });
-
-  // FR-018 says every interactive element, and the disclosure toggle is a tab
-  // stop as much as any button is.
-  it('rings the disclosure toggle', async () => {
-    const host = await render();
-    const summary = host.querySelector('summary')!;
-
-    expect(summary.className).toContain('focus-visible:ring-2');
-    expect(summary.className).toContain('focus-visible:ring-brand');
   });
 
   it('rings the message field', async () => {
