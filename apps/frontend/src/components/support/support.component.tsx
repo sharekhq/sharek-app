@@ -23,14 +23,31 @@ const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand';
 
 // The shell hands each page a flex row laid over the line colour, so covering
-// that row is the page's own job: without this the card is sized by its content
-// and the grey shows beside it. The inner cap keeps a single-column form at a
-// measure it still reads at once the row is wider than the form needs.
+// that row is the page's own job: without this the page is sized by its own
+// content and the grey shows beside it. That surface is already white, so the
+// form sits straight on it — a white card here would be a card on a card.
 const Page = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-newBgColorInner flex-1 flex flex-col p-[20px]">
-    <div className="w-full max-w-[720px]">{children}</div>
+    {children}
   </div>
 );
+
+// Centred, because a measure pinned to the start edge leaves the rest of a
+// 1400px row reading as a void rather than as margin. The form keeps a measure
+// it reads at; the aside takes the width that is left over, which is what stops
+// the space being empty in the first place. The form track shrinks before the
+// pair stacks, so two columns still fit a 1100px window; below 1025 they stack
+// and the aside leads, because what it holds — where the reply lands, what the
+// enquiry carries — is meant to be read before sending, not under the button.
+const Columns = ({ children }: { children: React.ReactNode }) => (
+  <div className="w-full max-w-[1068px] mx-auto grid grid-cols-[minmax(0,680px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
+    {children}
+  </div>
+);
+
+// Both spans sit above the pair in either arrangement, so a failure is never
+// announced below the aside that stacking put in front of the form.
+const FULL_WIDTH = 'col-span-2 mobile:col-span-1 max-w-[680px]';
 
 const useOrganizations = () => {
   const fetch = useFetch();
@@ -195,51 +212,60 @@ export const SupportComponent = () => {
   if (ticketNumber) {
     return (
       <Page>
-        <div className="flex flex-col gap-[16px] bg-surface border-line border shadow-soft rounded-[8px] p-[24px]">
-          <h2 className="text-[20px]">
-            {t('support_sent_title', 'Your enquiry is with us')}
-          </h2>
-          <div className="text-muted">
-            {t(
-              'support_sent_body',
-              'We have emailed you a confirmation. Reply to that email to add a screenshot or anything else that helps.'
-            )}
-          </div>
-          <div className="bg-panel rounded-[8px] p-[16px]">
-            <div className="text-[12px] text-muted">
-              {t('support_sent_reference', 'Your reference')}
+        {/* Same grid as the form, so the heading lands where "Get help" was
+            rather than jumping across the row on submit. */}
+        <Columns>
+          <div className="flex flex-col gap-[16px] max-w-[560px]">
+            <h2 className="text-[20px]">
+              {t('support_sent_title', 'Your enquiry is with us')}
+            </h2>
+            <div className="text-muted">
+              {t(
+                'support_sent_body',
+                'We have emailed you a confirmation. Reply to that email to add a screenshot or anything else that helps.'
+              )}
             </div>
-            <div className="text-[20px]">#{ticketNumber}</div>
+            {/* Four characters do not need the width of the column, and the
+                number is quoted back to us, so it is set in the tabular face. */}
+            <div className="self-start flex items-center gap-[10px] bg-panel rounded-[8px] py-[9px] px-[14px] text-[14px]">
+              <span className="text-muted">
+                {t('support_sent_reference', 'Ticket ID')}
+              </span>
+              <span dir="ltr" className="font-mono tabular-nums text-[15px]">
+                #{ticketNumber}
+              </span>
+            </div>
+            <div>
+              <Button
+                type="button"
+                variant="quiet"
+                className={FOCUS_RING}
+                onClick={() => {
+                  form.reset();
+                  setTicketNumber(null);
+                }}
+              >
+                {t('support_send_another', 'Send another enquiry')}
+              </Button>
+            </div>
           </div>
-          <div>
-            <Button
-              type="button"
-              variant="quiet"
-              className={FOCUS_RING}
-              onClick={() => {
-                form.reset();
-                setTicketNumber(null);
-              }}
-            >
-              {t('support_send_another', 'Send another enquiry')}
-            </Button>
-          </div>
-        </div>
+        </Columns>
       </Page>
     );
   }
 
   return (
     <Page>
-      <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(submit)}>
-          <div className="flex flex-col gap-[24px] bg-surface border-line border shadow-soft rounded-[8px] p-[24px]">
-            {/* Paired with an icon so colour is never the only signal. */}
-            {failed && (
-              <div
-                role="alert"
-                className="flex items-start gap-[10px] border border-line rounded-[8px] py-[12px] px-[14px] text-[14px] bg-[color-mix(in_srgb,var(--error)_8%,transparent)]"
-              >
+      <Columns>
+        {/* Paired with an icon so colour is never the only signal. */}
+        {failed && (
+          <div
+            role="alert"
+            className={clsx(
+              FULL_WIDTH,
+              'flex items-start gap-[10px] border border-line rounded-[8px] py-[12px] px-[14px] text-[14px] bg-[color-mix(in_srgb,var(--error)_8%,transparent)]'
+            )}
+          >
                 <svg
                   width="18"
                   height="18"
@@ -268,50 +294,25 @@ export const SupportComponent = () => {
                       'Try again in a moment, or email support@sharek.app directly.'
                     )}
                   </span>
-                </div>
-              </div>
+            </div>
+          </div>
+        )}
+
+        <div className={clsx(FULL_WIDTH, 'flex flex-col gap-[4px]')}>
+          <h2 className="text-[20px]">{t('support_title', 'Get help')}</h2>
+          <div className="text-muted">
+            {t(
+              'support_intro',
+              'Tell us what happened and we will get back to you by email.'
             )}
+          </div>
+        </div>
 
-            <div className="flex flex-col gap-[4px]">
-              <h2 className="text-[20px]">{t('support_title', 'Get help')}</h2>
-              <div className="text-muted">
-                {t(
-                  'support_intro',
-                  'Tell us what happened and we will get back to you by email.'
-                )}
-              </div>
-            </div>
-
-            {/* The sender cannot change who this comes from, so it is shown: a
-              reply landing at an unexpected address is the surprise this avoids. */}
-            <div className="bg-panel rounded-[8px] p-[16px] flex flex-col gap-[4px] text-[14px]">
-              {/* Signup never writes a name, so for most accounts there is
-                  nothing to put here, and a label with a blank after it reads
-                  as a fault. The reply address below carries the identity. */}
-              {!!user?.name && (
-                <div>
-                  <span className="text-muted">
-                    {t('support_identity_from', 'From')}:{' '}
-                  </span>
-                  {user.name}
-                </div>
-              )}
-              <div>
-                <span className="text-muted">
-                  {t('support_identity_reply', 'Reply to')}:{' '}
-                </span>
-                {user?.email}
-              </div>
-              {!!organizationName && (
-                <div>
-                  <span className="text-muted">
-                    {t('support_identity_workspace', 'Workspace')}:{' '}
-                  </span>
-                  {organizationName}
-                </div>
-              )}
-            </div>
-
+        <FormProvider {...form}>
+          <form
+            onSubmit={form.handleSubmit(submit)}
+            className="flex flex-col gap-[24px] mobile:order-2"
+          >
             <div className="flex flex-col gap-[6px]">
               <div className="text-[14px]">
                 {t('support_category_label', 'What is this about?')}
@@ -353,7 +354,10 @@ export const SupportComponent = () => {
                   </button>
                 ))}
               </div>
-              {/* Paired with an icon so colour is never the only signal. */}
+              {/* Paired with an icon so colour is never the only signal. The
+                  line is held even when empty, the way the shared Input and
+                  Textarea hold theirs: an error that appears on submit must not
+                  push the button out from under the pointer. */}
               <div className="text-error text-[12px] flex items-center gap-[6px]">
                 {categoryError ? (
                   <>
@@ -395,47 +399,6 @@ export const SupportComponent = () => {
               }
             />
 
-            {/* The enquiry carries things the sender never typed. Saying so is the
-              difference between helpful and surprising; collapsed so it informs
-              without crowding the form. */}
-            <details className="bg-panel rounded-[8px] p-[16px] text-[14px]">
-              <summary
-                className={clsx('cursor-pointer text-muted', FOCUS_RING)}
-              >
-                {t(
-                  'support_disclosure_summary',
-                  'What we attach automatically'
-                )}
-              </summary>
-              <ul className="mt-[12px] flex flex-col gap-[6px] text-muted list-disc ps-[20px]">
-                <li>{t('support_disclosure_plan', 'Your plan and role')}</li>
-                <li>
-                  {t(
-                    'support_disclosure_channels',
-                    'Your connected channels and whether any need reconnecting'
-                  )}
-                </li>
-                <li>
-                  {t(
-                    'support_disclosure_account',
-                    'Your workspace name and how long the account has existed'
-                  )}
-                </li>
-                <li>
-                  {t(
-                    'support_disclosure_browser',
-                    'Your browser, screen size, timezone and app version'
-                  )}
-                </li>
-              </ul>
-              <div className="mt-[12px]">
-                {t(
-                  'support_disclosure_never',
-                  'We never send your password, your channel credentials, or the content of your posts.'
-                )}
-              </div>
-            </details>
-
             <div>
               <Button
                 type="submit"
@@ -445,9 +408,79 @@ export const SupportComponent = () => {
                 {t('support_submit', 'Send enquiry')}
               </Button>
             </div>
+          </form>
+        </FormProvider>
+
+        {/* Neither half of this is something the sender types, and both are
+            things they should see before they send: who the reply reaches, and
+            what the enquiry carries that they never wrote. Beside the form they
+            inform without crowding it, and the width they take is the width
+            that was empty. */}
+        <aside className="bg-panel rounded-[12px] p-[20px] flex flex-col gap-[18px] text-[14px] mobile:order-1">
+          {/* The sender cannot change who this comes from, so it is shown: a
+              reply landing at an unexpected address is the surprise this avoids. */}
+          <div className="flex flex-col gap-[12px]">
+            {/* Signup never writes a name, so for most accounts there is
+                nothing to put here, and a label with a blank under it reads as
+                a fault. The reply address below carries the identity. */}
+            {!!user?.name && (
+              <div>
+                <div className="text-[12px] text-muted">
+                  {t('support_identity_from', 'From')}
+                </div>
+                {user.name}
+              </div>
+            )}
+            <div>
+              <div className="text-[12px] text-muted">
+                {t('support_identity_reply', 'Reply to')}
+              </div>
+              <div className="break-words">{user?.email}</div>
+            </div>
+            {!!organizationName && (
+              <div>
+                <div className="text-[12px] text-muted">
+                  {t('support_identity_workspace', 'Workspace')}
+                </div>
+                <div className="break-words">{organizationName}</div>
+              </div>
+            )}
           </div>
-        </form>
-      </FormProvider>
+
+          <div className="border-t border-line pt-[18px]">
+            <div className="text-[13px] font-[600] mb-[10px]">
+              {t('support_disclosure_summary', 'What we attach automatically')}
+            </div>
+            <ul className="flex flex-col gap-[8px] text-[13px] text-muted list-disc ps-[18px]">
+              <li>{t('support_disclosure_plan', 'Your plan and role')}</li>
+              <li>
+                {t(
+                  'support_disclosure_channels',
+                  'Your connected channels and whether any need reconnecting'
+                )}
+              </li>
+              <li>
+                {t(
+                  'support_disclosure_account',
+                  'Your workspace name and how long the account has existed'
+                )}
+              </li>
+              <li>
+                {t(
+                  'support_disclosure_browser',
+                  'Your browser, screen size, timezone and app version'
+                )}
+              </li>
+            </ul>
+            <div className="text-[13px] text-muted mt-[12px]">
+              {t(
+                'support_disclosure_never',
+                'We never send your password, your channel credentials, or the content of your posts.'
+              )}
+            </div>
+          </div>
+        </aside>
+      </Columns>
     </Page>
   );
 };
