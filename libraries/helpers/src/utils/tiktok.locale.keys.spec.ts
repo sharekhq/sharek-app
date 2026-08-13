@@ -37,6 +37,7 @@ describe('TikTok composer locale keys', () => {
     'tiktok_branded_content_classification',
     'tiktok_label_cannot_be_changed',
     'tiktok_who_can_see_this_post',
+    'tiktok_auto_add_music_description',
     // US2 — settings that match the account
     'tiktok_creator_info_unavailable',
     'tiktok_visibility_needs_a_choice',

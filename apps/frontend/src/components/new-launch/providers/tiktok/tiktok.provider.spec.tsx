@@ -287,6 +287,42 @@ describe('TikTok settings — interactions start off (FR-011, FR-012)', () => {
   );
 });
 
+describe('TikTok settings — auto add music is photo-only', () => {
+  // The mirror of the video-only controls: the provider only puts
+  // auto_add_music in post_info for a photo, because TikTok has no such field
+  // for video, so offering it on a video post is a setting that silently does
+  // nothing.
+  const musicSelect = () =>
+    document.querySelector<HTMLSelectElement>('select[name="autoAddMusic"]');
+
+  it('offers it on a photo post', async () => {
+    await render(photo);
+
+    expect(isHidden(musicSelect())).toBe(false);
+  });
+
+  it('does not offer it on a video post', async () => {
+    await render(video);
+
+    expect(isHidden(musicSelect())).toBe(true);
+  });
+
+  it('keeps it registered, so the settings class still receives a value', async () => {
+    await render(video);
+
+    expect(form.getValues('autoAddMusic')).toBe('no');
+  });
+
+  it('describes what it does instead of apologising for being shown', async () => {
+    await render(photo);
+
+    expect(text()).toContain(
+      'TikTok adds a default track, which you can change later.'
+    );
+    expect(text()).not.toContain('This feature available only for photos');
+  });
+});
+
 describe('TikTok settings — video-only controls on a photo post (FR-013)', () => {
   it.each(['Allow Duet', 'Allow Stitch', 'Video made with AI'])(
     'does not offer %s for a photo post',

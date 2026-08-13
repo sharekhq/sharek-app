@@ -1063,6 +1063,7 @@
   "tiktok_brand_organic_classification": "This content will be classified as Brand Organic.",
   "tiktok_branded_content_classification": "This content will be classified as Branded Content.",
   "tiktok_label_cannot_be_changed": "This cannot be changed once the post is published.",
+  "tiktok_auto_add_music_description": "TikTok adds a default track, which you can change later.",
   "tiktok_creator_info_unavailable": "TikTok settings could not be loaded, so no options can be offered. Close and reopen the post to try again.",
   "tiktok_posting_to_account": "Posting to {{nickname}}",
   "tiktok_refusal_daily_post_limit": "TikTok says your daily post limit reached, please try again tomorrow",

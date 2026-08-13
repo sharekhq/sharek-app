@@ -1114,6 +1114,7 @@
   "tiktok_brand_organic_classification": "سيتم تصنيف هذا المحتوى كمحتوى عضوي للعلامة التجارية.",
   "tiktok_branded_content_classification": "سيتم تصنيف هذا المحتوى كمحتوى يحمل علامة تجارية.",
   "tiktok_label_cannot_be_changed": "لا يمكن تغيير ذلك بعد نشر المنشور.",
+  "tiktok_auto_add_music_description": "يضيف TikTok مقطعًا صوتيًا افتراضيًا، ويمكنك تغييره لاحقًا.",
   "tiktok_creator_info_unavailable": "تعذّر تحميل إعدادات TikTok، لذا لا يمكن عرض أي خيارات. أغلق المنشور وأعد فتحه للمحاولة مرة أخرى.",
   "tiktok_posting_to_account": "النشر إلى {{nickname}}",
   "tiktok_refusal_daily_post_limit": "يفيد TikTok بأنك بلغت حدّ النشر اليومي، يُرجى المحاولة غدًا.",

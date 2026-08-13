@@ -70,6 +70,12 @@ export const TikTokSettings: FC<{
   // because TikTokDto still requires them at save time.
   const videoOnly = clsx(isTitle && 'invisible h-0 overflow-hidden');
 
+  // The mirror of the above: TikTok's photo post_info carries auto_add_music
+  // and its video post_info has no equivalent, so the provider only ever sends
+  // it for a photo. Offering it on a video post is a setting that silently
+  // does nothing. Hidden rather than unmounted, for the same reason.
+  const photoOnly = clsx(!isTitle && 'invisible h-0 overflow-hidden');
+
   // TikTok answers with a refusal code rather than a profile when the account
   // cannot publish right now. The causes are not interchangeable — waiting
   // clears a daily cap and does nothing for a blocked account — so each gets
@@ -452,25 +458,27 @@ export const TikTokSettings: FC<{
       </Select>
       {isUploadMode && <div className="-mt-[23px] mb-[23px] text-muted">After posting you fill find a notification inside your Inbox about your post (not content studio)</div>}
       <div className={clsx('flex flex-col', directPostOnly)}>
-        <Select
-          label={t('label_auto_add_music', 'Auto add music')}
-          disabled={isUploadMode}
-          {...register('autoAddMusic', {
-            value: 'no',
-          })}
-        >
-          <option value="">{t('select', 'Select')}</option>
-          {yesNo.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </Select>
-        <div className="text-[14px] mt-[10px] mb-[24px] text-balance">
-          {t(
-            'this_feature_available_only_for_photos',
-            'This feature available only for photos, it will add a default music that\n        you can change later.'
-          )}
+        <div className={photoOnly}>
+          <Select
+            label={t('label_auto_add_music', 'Auto add music')}
+            disabled={isUploadMode}
+            {...register('autoAddMusic', {
+              value: 'no',
+            })}
+          >
+            <option value="">{t('select', 'Select')}</option>
+            {yesNo.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+          <div className="text-[14px] mt-[10px] mb-[24px] text-balance">
+            {t(
+              'tiktok_auto_add_music_description',
+              'TikTok adds a default track, which you can change later.'
+            )}
+          </div>
         </div>
         <div className={videoOnly}>
           <hr className="mb-[15px] border-tableBorder" />
