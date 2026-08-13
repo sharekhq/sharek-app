@@ -72,6 +72,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     current,
     activateExitButton,
     setHide,
+    publishBlockers,
   } = useLaunchStore(
     useShallow((state) => ({
       hide: state.hide,
@@ -88,8 +89,21 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setSelectedIntegrations: state.setSelectedIntegrations,
       locked: state.locked,
       activateExitButton: state.activateExitButton,
+      publishBlockers: state.publishBlockers,
     }))
   );
+
+  // A channel's settings panel can veto publishing before submission, for
+  // platforms whose guidelines require the publish control itself to be
+  // disabled with the reason on hover rather than a warning on submit. Each
+  // reason arrives already translated and already naming its channel, so one
+  // blocked channel in a mixed post never reads as an unexplained global
+  // freeze, and several blocked channels each state their own cause.
+  const blockedReasons = useMemo(
+    () => Object.values(publishBlockers).filter(Boolean),
+    [publishBlockers]
+  );
+  const publishBlocked = blockedReasons.length > 0;
 
   useEffect(() => {
     if (hide) {
@@ -631,10 +645,25 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               </button>
             )}
             {!addEditSets && (
-              <div className="group cursor-pointer relative">
+              // The tooltip sits on the wrapper, not the buttons: a disabled
+              // button emits no pointer events, so an anchor on it would never
+              // fire.
+              <div
+                className="group cursor-pointer relative"
+                data-tooltip-id={publishBlocked ? 'tooltip' : undefined}
+                data-tooltip-content={
+                  publishBlocked ? blockedReasons.join('\n') : undefined
+                }
+                data-tooltip-class-name={
+                  publishBlocked ? 'whitespace-pre-line' : undefined
+                }
+              >
                 <button
                   disabled={
-                    selectedIntegrations.length === 0 || loading || locked
+                    selectedIntegrations.length === 0 ||
+                    loading ||
+                    locked ||
+                    publishBlocked
                   }
                   onClick={schedule('schedule')}
                   className="text-white relative min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center h-[44px] rounded-[8px] bg-brand ps-[20px] pe-[16px]"
@@ -671,7 +700,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <button
                     onClick={schedule('now')}
                     disabled={
-                      selectedIntegrations.length === 0 || loading || locked
+                      selectedIntegrations.length === 0 ||
+                      loading ||
+                      locked ||
+                      publishBlocked
                     }
                     className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] start-0 pb-[8px] w-full"
                   >
