@@ -132,6 +132,11 @@ interface StoreState {
   setLoaded?: (loaded: boolean) => void;
   setChars: (id: string, chars: number) => void;
   chars: Record<string, number>;
+  // Reasons a channel cannot currently be published, keyed by integration id.
+  // Provider-agnostic: the reason is an opaque string the channel's own
+  // settings panel has already translated and attributed to itself.
+  publishBlockers: Record<string, string>;
+  setPublishBlocker: (integrationId: string, reason?: string) => void;
   setComments: (comments: boolean | 'no-media') => void;
 }
 
@@ -155,6 +160,10 @@ const initialState = {
   global: [] as Values[],
   internal: [] as Internal[],
   chars: {},
+  // Must stay inside initialState: reset() merges it, so a blocker declared
+  // anywhere else outlives the composer and disables publishing for every
+  // provider until a page reload.
+  publishBlockers: {} as Record<string, string>,
 };
 
 export const useLaunchStore = create<StoreState>()((set) => ({
@@ -628,6 +637,14 @@ export const useLaunchStore = create<StoreState>()((set) => ({
         [id]: chars,
       },
     })),
+  setPublishBlocker: (integrationId: string, reason?: string) =>
+    set((state) => {
+      const { [integrationId]: previous, ...rest } = state.publishBlockers;
+
+      return {
+        publishBlockers: reason ? { ...rest, [integrationId]: reason } : rest,
+      };
+    }),
   setComments: (comments: boolean | 'no-media') =>
     set((state) => ({
       comments,
