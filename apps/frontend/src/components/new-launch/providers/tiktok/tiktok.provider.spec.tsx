@@ -337,6 +337,56 @@ describe('TikTok settings — the profile cannot be retrieved', () => {
   });
 });
 
+describe('TikTok settings — the disclosure section is not about video', () => {
+  // TikTok's guidelines word this whole section around "content", and only the
+  // label prompt switches on the attachment. Ours said "video" throughout,
+  // which is both wrong on a photo post and further from TikTok's own copy.
+  it.each([
+    'Content disclosure',
+    'Indicate whether this content promotes yourself, a brand, product or service.',
+    'You are promoting yourself or your own business.',
+    'This content will be classified as Brand Organic.',
+    'You are promoting another brand or a third party.',
+    'This content will be classified as Branded Content.',
+  ])('says "%s" whatever is attached', async (sentence) => {
+    await render(photo);
+
+    expect(text()).toContain(sentence);
+  });
+
+  it.each([
+    'Disclose Video Content',
+    'this video promotes goods or services',
+    'your own brand.',
+    'This video will be classified as Brand Organic.',
+    'This video will be classified as Branded Content.',
+    'once your video is posted',
+  ])('no longer says "%s"', async (stale) => {
+    // Disclosure on with a choice made, so the label notice renders too —
+    // it is the one part of this section that is not merely hidden when off.
+    await render(photo);
+    await set({ disclose: true, brand_organic_toggle: true });
+
+    expect(text()).not.toContain(stale);
+  });
+
+  it('asks who can see this post, not this video', async () => {
+    await render(photo);
+
+    expect(text()).toContain('Who can see this post?');
+    expect(text()).not.toContain('Who can see this video?');
+  });
+
+  it('still switches the label prompt on the attachment, the one place TikTok does', async () => {
+    await render(photo);
+    await set({ disclose: true, brand_organic_toggle: true });
+
+    expect(text()).toContain(
+      "Your photo will be labeled as 'Promotional content'"
+    );
+  });
+});
+
 describe('TikTok settings — what happens after publishing (FR-016)', () => {
   const NOTICE = 'may take a few minutes to process';
 

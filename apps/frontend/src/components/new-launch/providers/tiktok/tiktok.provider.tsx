@@ -404,7 +404,7 @@ export const TikTokSettings: FC<{
       {isTitle && <Input label="Title" {...register('title')} maxLength={89} />}
       <div className={directPostOnly}>
         <Select
-          label={t('label_who_can_see_this_video', 'Who can see this video?')}
+          label={t('tiktok_who_can_see_this_post', 'Who can see this post?')}
           disabled={isUploadMode}
           {...register('privacy_level')}
         >
@@ -511,7 +511,7 @@ export const TikTokSettings: FC<{
             })}
           />
           <Checkbox
-            label={t('label_disclose_video_content', 'Disclose Video Content')}
+            label={t('tiktok_content_disclosure', 'Content disclosure')}
             disabled={isUploadMode}
             {...register('disclose', {
               value: false,
@@ -519,8 +519,8 @@ export const TikTokSettings: FC<{
           />
           <div className="text-[14px] my-[10px] text-balance">
             {t(
-              'turn_on_to_disclose_video_promotes',
-              'Turn on to disclose that this video promotes goods or services in\n          exchange for something of value. You video could promote yourself, a\n          third party, or both.'
+              'tiktok_disclosure_description',
+              'Indicate whether this content promotes yourself, a brand, product or service.'
             )}
           </div>
         </div>
@@ -539,13 +539,13 @@ export const TikTokSettings: FC<{
           />
           <div className="text-balance my-[10px] text-[14px]">
             {t(
-              'you_are_promoting_yourself',
-              'You are promoting yourself or your own brand.'
+              'tiktok_your_brand_description',
+              'You are promoting yourself or your own business.'
             )}
             <br />
             {t(
-              'this_video_will_be_classified_brand_organic',
-              'This video will be classified as Brand Organic.'
+              'tiktok_brand_organic_classification',
+              'This content will be classified as Brand Organic.'
             )}
           </div>
           <Checkbox
@@ -562,8 +562,8 @@ export const TikTokSettings: FC<{
             )}
             <br />
             {t(
-              'this_video_will_be_classified_branded_content',
-              'This video will be classified as Branded Content.'
+              'tiktok_branded_content_classification',
+              'This content will be classified as Branded Content.'
             )}
           </div>
           {commercialLabel && (
@@ -586,8 +586,8 @@ export const TikTokSettings: FC<{
                 {commercialLabel}
                 <br />
                 {t(
-                  'this_cannot_be_changed_once_posted',
-                  'This cannot be changed once your video is posted.'
+                  'tiktok_label_cannot_be_changed',
+                  'This cannot be changed once the post is published.'
                 )}
               </div>
             </div>

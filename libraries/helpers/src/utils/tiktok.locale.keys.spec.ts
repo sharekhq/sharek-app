@@ -29,6 +29,14 @@ describe('TikTok composer locale keys', () => {
     'tiktok_label_paid_partnership_video',
     'tiktok_branded_content_not_private',
     'tiktok_disclosure_needs_a_choice',
+    // US1 — the section's own copy, neutral rather than video-specific
+    'tiktok_content_disclosure',
+    'tiktok_disclosure_description',
+    'tiktok_your_brand_description',
+    'tiktok_brand_organic_classification',
+    'tiktok_branded_content_classification',
+    'tiktok_label_cannot_be_changed',
+    'tiktok_who_can_see_this_post',
     // US2 — settings that match the account
     'tiktok_creator_info_unavailable',
     'tiktok_visibility_needs_a_choice',
