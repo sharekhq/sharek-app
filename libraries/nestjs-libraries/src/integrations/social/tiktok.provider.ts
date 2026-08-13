@@ -27,6 +27,10 @@ import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorato
     'content_posting_method=DIRECT_POST publishes the post to the account. content_posting_method=UPLOAD does NOT publish: it only sends the media to the user inbox of the TikTok app, where the user must manually complete and publish it within 24 hours or it is discarded. Use DIRECT_POST unless the user explicitly asks to review or edit the post inside the TikTok app first.',
     'With content_posting_method=UPLOAD, TikTok ignores every setting except the title / post content. Never tell the user that video_made_with_ai, privacy_level, duet, stitch, comment, autoAddMusic, brand_content_toggle or brand_organic_toggle will be applied in UPLOAD mode - they are silently discarded. If the user asks for any of those settings, tell them it requires DIRECT_POST.',
     'video_made_with_ai, duet and stitch apply to video posts only. TikTok has no equivalent field for photo posts, so those settings are discarded when the attachment is a picture.',
+    'privacy_level is REQUIRED when content_posting_method=DIRECT_POST and has no default - never assume one. It must be one of the options TikTok reports for that specific account, because public and private accounts are allowed different subsets. TikTok forbids pre-selecting a visibility, so ask the user which one they want rather than choosing for them. It is not required for UPLOAD.',
+    'disclose=true turns on the commercial content disclosure. When disclose=true on a DIRECT_POST, at least one of brand_organic_toggle ("Your Brand" - the user promotes their own brand, labeled "Promotional content") or brand_content_toggle ("Branded Content" - the user promotes a third party, labeled "Paid partnership") MUST also be true, or the post is refused with "You need to indicate if your content promotes yourself, a third party, or both." Both may be true together, and TikTok then labels the post "Paid partnership".',
+    'brand_content_toggle=true cannot be combined with privacy_level=SELF_ONLY on a DIRECT_POST: TikTok does not allow branded content to be private, and the post is refused with "Branded content visibility cannot be set to private." Pick a different visibility instead.',
+    'comment, duet and stitch all default to false and must stay false unless the user explicitly asks to enable them - TikTok requires interaction permissions to start unselected. The user may also have disabled any of them in their own TikTok privacy settings, in which case TikTok rejects enabling them at all.',
   ].join(' ')
 )
 export class TiktokProvider extends SocialAbstract implements SocialProvider {
@@ -198,9 +202,14 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     }
 
     if (body.indexOf('reached_active_user_cap') > -1) {
+      // Names whose quota it is. TikTok caps daily publishes per *client*, so
+      // this is Sharek's limit, not the creator's account limit - the previous
+      // "Daily active user quota reached" read as though the creator had done
+      // something wrong and could fix it.
       return {
         type: 'bad-body' as const,
-        value: 'Daily active user quota reached, please try again later',
+        value:
+          'Sharek has reached its daily TikTok publishing quota, please try again later',
       };
     }
 
@@ -394,11 +403,26 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async maxVideoLength(accessToken: string) {
-    const {
-      data: { max_video_post_duration_sec },
-    } = await (
-      await fetch(
+  // The connected account's current posting profile: exactly which visibility
+  // options TikTok allows it, which interactions the creator has switched off
+  // in their own privacy settings, and the longest video it may publish.
+  // TikTok requires the composer to read this when it renders the post page,
+  // because the creator can change those settings at any moment.
+  //
+  // Reached from the composer through the generic /integrations/function
+  // dispatcher, so there is no route to add. Going through this.fetch rather
+  // than global fetch is what makes the contract's token handling real: an
+  // expired token raises RefreshToken, which the dispatcher catches, refreshes
+  // and retries once. A plain fetch would return a 401 body instead and the
+  // panel would render an empty option list as though the account permitted
+  // nothing.
+  //
+  // A refusal ("this account cannot publish right now") arrives as HTTP 200
+  // with an error code rather than an error status, so the code is passed
+  // through untranslated and every other field may be absent.
+  async creatorInfo(accessToken: string) {
+    const { data, error } = await (
+      await this.fetch(
         'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
         {
           method: 'POST',
@@ -411,7 +435,25 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     ).json();
 
     return {
-      maxDurationSeconds: max_video_post_duration_sec,
+      creatorNickname: data?.creator_nickname ?? '',
+      creatorUsername: data?.creator_username ?? '',
+      // Never supplemented locally: public and private accounts receive
+      // different subsets, and inventing an option offers the creator a
+      // visibility TikTok will refuse.
+      privacyLevelOptions: data?.privacy_level_options ?? [],
+      commentDisabled: !!data?.comment_disabled,
+      duetDisabled: !!data?.duet_disabled,
+      stitchDisabled: !!data?.stitch_disabled,
+      maxVideoPostDurationSec: data?.max_video_post_duration_sec ?? 0,
+      errorCode: error?.code && error.code !== 'ok' ? error.code : null,
+    };
+  }
+
+  async maxVideoLength(accessToken: string) {
+    const { maxVideoPostDurationSec } = await this.creatorInfo(accessToken);
+
+    return {
+      maxDurationSeconds: maxVideoPostDurationSec,
     };
   }
 
