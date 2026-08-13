@@ -1055,6 +1055,7 @@
   "tiktok_label_paid_partnership_video": "Your video will be labeled as 'Paid partnership'",
   "tiktok_branded_content_not_private": "Branded content visibility cannot be set to private.",
   "tiktok_disclosure_needs_a_choice": "You need to indicate if your content promotes yourself, a third party, or both.",
+  "tiktok_visibility_needs_a_choice": "Choose who can see this post.",
   "tiktok_creator_info_unavailable": "TikTok settings could not be loaded, so no options can be offered. Close and reopen the post to try again.",
   "tiktok_posting_to_account": "Posting to {{nickname}}",
   "tiktok_refusal_daily_post_limit": "TikTok says your daily post limit reached, please try again tomorrow",

@@ -1106,6 +1106,7 @@
   "tiktok_label_paid_partnership_video": "سيتم تصنيف الفيديو الخاص بك على أنه \"شراكة مدفوعة\"",
   "tiktok_branded_content_not_private": "لا يمكن ضبط ظهور المحتوى الممول على \"لنفسك فقط\".",
   "tiktok_disclosure_needs_a_choice": "يجب أن توضّح ما إذا كان المحتوى يروّج لك، أو لطرف ثالث، أو لكليهما.",
+  "tiktok_visibility_needs_a_choice": "اختر من يمكنه رؤية هذا المنشور.",
   "tiktok_creator_info_unavailable": "تعذّر تحميل إعدادات TikTok، لذا لا يمكن عرض أي خيارات. أغلق المنشور وأعد فتحه للمحاولة مرة أخرى.",
   "tiktok_posting_to_account": "النشر إلى {{nickname}}",
   "tiktok_refusal_daily_post_limit": "يفيد TikTok بأنك بلغت حدّ النشر اليومي، يُرجى المحاولة غدًا.",

@@ -147,8 +147,18 @@ describe('TikTokDto — a visibility must be chosen', () => {
     const { privacy_level, ...rest } = directPost;
     return rest;
   };
+  // Keyed off the failing property, not the message text: the message is
+  // deliberately a sentence that no longer names the field.
+  const visibilityConstraints = (settings: Record<string, unknown>): string[] =>
+    validateSync(
+      plainToInstance(TikTokDto, settings, { enableImplicitConversion: false }),
+      { skipMissingProperties: false }
+    )
+      .filter((error) => error.property === 'privacy_level')
+      .flatMap((error) => Object.values(error.constraints ?? {}));
+
   const refusedVisibility = (settings: Record<string, unknown>) =>
-    messages(settings).some((message) => message.includes('privacy_level'));
+    visibilityConstraints(settings).length > 0;
 
   it('refuses a direct post with no visibility chosen', () => {
     expect(refusedVisibility(withoutVisibility())).toBe(true);
@@ -162,6 +172,29 @@ describe('TikTokDto — a visibility must be chosen', () => {
     expect(
       refusedVisibility({ ...directPost, privacy_level: 'EVERYONE' })
     ).toBe(true);
+  });
+
+  it('asks for the choice in a sentence rather than naming the field', () => {
+    // The composer surfaces this string verbatim as
+    // "TikTok (@account): <message>", so a raw class-validator default leaks
+    // the property name and a bare enum dump to the creator.
+    const refusals = visibilityConstraints(withoutVisibility());
+
+    expect(refusals.length).toBeGreaterThan(0);
+    refusals.forEach((message) => {
+      expect(message).not.toMatch(/^privacy_level must be/);
+      expect(message).toContain('Choose who can see this post');
+    });
+  });
+
+  it('says the same thing whichever constraint reports it first', () => {
+    // firstValidationError takes Object.values(constraints)[0], so with two
+    // constraints on the property the creator would otherwise see whichever
+    // one happened to be enumerated first.
+    const refusals = visibilityConstraints(withoutVisibility());
+
+    expect(refusals.length).toBeGreaterThan(1);
+    expect(new Set(refusals).size).toBe(1);
   });
 
   it('does not require one when the media is sent to the TikTok inbox', () => {

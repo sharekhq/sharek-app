@@ -200,6 +200,58 @@ describe('TikTok settings — visibility comes from the account (FR-010)', () =>
   });
 });
 
+describe('TikTok settings — publishing needs a visibility (FR-010)', () => {
+  const CHOOSE_A_VISIBILITY = 'Choose who can see this post.';
+
+  it('blocks publishing until a visibility is chosen', async () => {
+    // Nothing is pre-selected, so a creator who adds TikTok and never opens
+    // its settings lands here. Without the block they reach submit and get the
+    // settings class's raw "privacy_level must be one of..." instead.
+    await render();
+
+    expect(setPublishBlocker).toHaveBeenLastCalledWith(
+      'int-1',
+      `TikTok (@sharek_test): ${CHOOSE_A_VISIBILITY}`
+    );
+  });
+
+  it('lifts the block once one is chosen', async () => {
+    await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
+
+    expect(setPublishBlocker).toHaveBeenLastCalledWith('int-1', undefined);
+  });
+
+  it('does not ask for one when the media only goes to the inbox', async () => {
+    // TikTok discards the visibility on UPLOAD (FR-017).
+    await render();
+    await set({ content_posting_method: 'UPLOAD' });
+
+    expect(setPublishBlocker).toHaveBeenLastCalledWith('int-1', undefined);
+  });
+
+  it('says the settings could not be loaded rather than asking for a choice', async () => {
+    // Asking someone to choose from a list that failed to load is a dead end.
+    creatorInfo = { data: false, error: undefined, isLoading: false };
+    await render();
+
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toContain(
+      'TikTok settings could not be loaded'
+    );
+  });
+
+  it('still leads with TikTok’s mandated sentence when both are unanswered', async () => {
+    // FR-005's wording is what the reviewer checks on hover, so it outranks
+    // the visibility prompt when neither has been answered.
+    await render();
+    await set({ disclose: true });
+
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toContain(
+      DISCLOSURE_NEEDS_A_CHOICE
+    );
+  });
+});
+
 describe('TikTok settings — interactions start off (FR-011, FR-012)', () => {
   it.each(['Allow Comments', 'Allow Duet', 'Allow Stitch'])(
     'leaves %s unselected on a new post',
@@ -445,15 +497,18 @@ describe('TikTok settings — publishing is blocked without a choice (FR-005)', 
     );
   });
 
+  // These answer the visibility first, so the only thing left that can block
+  // is the disclosure rule under test.
   it('does not block before disclosure is switched on', async () => {
     await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
 
-    expect(setPublishBlocker).not.toHaveBeenCalled();
+    expect(setPublishBlocker).toHaveBeenLastCalledWith('int-1', undefined);
   });
 
   it('lifts the block once an option is chosen', async () => {
     await render();
-    await set({ disclose: true });
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE', disclose: true });
     await set({ brand_organic_toggle: true });
 
     expect(setPublishBlocker).toHaveBeenLastCalledWith('int-1', undefined);
@@ -461,7 +516,7 @@ describe('TikTok settings — publishing is blocked without a choice (FR-005)', 
 
   it('lifts the block when disclosure is switched back off', async () => {
     await render();
-    await set({ disclose: true });
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE', disclose: true });
     await set({ disclose: false });
 
     expect(setPublishBlocker).toHaveBeenLastCalledWith('int-1', undefined);

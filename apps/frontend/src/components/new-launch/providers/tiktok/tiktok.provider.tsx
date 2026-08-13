@@ -203,6 +203,28 @@ export const TikTokSettings: FC<{
       );
     }
 
+    // Ranked last so TikTok's mandated disclosure sentence stays the hover
+    // message whenever both are unanswered - that sentence is what the
+    // reviewer checks. Nothing pre-selects a visibility, so this is the state
+    // a creator lands in simply by adding TikTok and never opening its
+    // settings; without it they reach submit and meet the settings class's
+    // raw refusal instead. Exempt on UPLOAD, where TikTok discards it.
+    if (!isUploadMode && !privacy_level) {
+      return attributedTo(
+        profileUnavailable
+          ? // Asking someone to choose from a list that failed to load is a
+            // dead end; tell them what actually went wrong.
+            t(
+              'tiktok_creator_info_unavailable',
+              'TikTok settings could not be loaded, so no options can be offered. Close and reopen the post to try again.'
+            )
+          : t(
+              'tiktok_visibility_needs_a_choice',
+              'Choose who can see this post.'
+            )
+      );
+    }
+
     return undefined;
   }, [
     refusalMessage,
@@ -212,6 +234,8 @@ export const TikTokSettings: FC<{
     disclose,
     brand_organic_toggle,
     brand_content_toggle,
+    privacy_level,
+    profileUnavailable,
     integration,
     profile?.creatorUsername,
     t,

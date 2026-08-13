@@ -213,8 +213,9 @@ describe('TikTok settings — each refusal gets its own remedy (FR-014)', () => 
 
   it('does not block an account TikTok is happy with', async () => {
     await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
 
-    expect(setPublishBlocker).not.toHaveBeenCalled();
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toBeUndefined();
   });
 });
 
@@ -246,23 +247,26 @@ describe('TikTok settings — a video longer than the account may post (FR-015)'
 
   it('allows a video inside the limit', async () => {
     await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
     await reportVideoDuration(120);
 
-    expect(setPublishBlocker).not.toHaveBeenCalled();
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toBeUndefined();
   });
 
   it('allows a video exactly at the limit', async () => {
     await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
     await reportVideoDuration(600);
 
-    expect(setPublishBlocker).not.toHaveBeenCalled();
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toBeUndefined();
   });
 
   it('does not guess while the profile is still unknown', async () => {
     creatorInfo = { data: undefined, error: undefined, isLoading: true };
     await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
     await reportVideoDuration(900);
 
-    expect(setPublishBlocker).not.toHaveBeenCalled();
+    expect(setPublishBlocker.mock.calls.at(-1)?.[1]).toBeUndefined();
   });
 });

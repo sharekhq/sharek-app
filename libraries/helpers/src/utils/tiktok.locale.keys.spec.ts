@@ -31,6 +31,7 @@ describe('TikTok composer locale keys', () => {
     'tiktok_disclosure_needs_a_choice',
     // US2 — settings that match the account
     'tiktok_creator_info_unavailable',
+    'tiktok_visibility_needs_a_choice',
     // US3 — told before posting when TikTok will refuse
     'tiktok_posting_to_account',
     'tiktok_refusal_daily_post_limit',
