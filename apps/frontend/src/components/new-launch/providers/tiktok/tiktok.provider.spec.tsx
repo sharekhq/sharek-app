@@ -119,6 +119,12 @@ const visibilityOptions = () =>
   Array.from(visibilitySelect()?.querySelectorAll('option') ?? [])
     .map((o) => o.value)
     .filter(Boolean);
+// Select keeps the error row rendered even when empty, so the field below it
+// does not jump; trim() flattens the non-breaking space it reserves.
+const visibilityError = () =>
+  visibilitySelect()
+    ?.parentElement?.parentElement?.querySelector('.text-error')
+    ?.textContent?.trim() ?? '';
 
 // Checkbox renders the box and its label as siblings, with no <input>.
 const checkbox = (label: string) => {
@@ -627,5 +633,144 @@ describe('TikTok settings — publishing is blocked without a choice (FR-005)', 
       'int-1',
       expect.stringContaining(DISCLOSURE_NEEDS_A_CHOICE)
     );
+  });
+});
+
+describe('TikTok settings — the disclosure and the choice arrive apart (FR-002)', () => {
+  // TikTok's payload has no disclosure field: brand_organic_toggle and
+  // brand_content_toggle are all it reads, and the public API takes a choice
+  // with the disclosure unset. So the choice is what a post will be labeled by,
+  // and the switch follows it — while switching the disclosure off is the
+  // creator saying the post is not commercial, and takes the choice with it.
+  const disclosedAsBranded = {
+    disclose: true,
+    brand_organic_toggle: true,
+    brand_content_toggle: true,
+  };
+
+  const switchTheDisclosureOff = async () => {
+    await act(async () => {
+      checkbox('Content disclosure')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+  };
+
+  it('switches the disclosure on for a choice that arrives without one', async () => {
+    await render();
+    await set({ disclose: false, brand_content_toggle: true });
+
+    expect(form.getValues('disclose')).toBe(true);
+    expect(form.getValues('brand_content_toggle')).toBe(true);
+  });
+
+  it('states the label that post will actually carry', async () => {
+    await render();
+    await set({ disclose: false, brand_content_toggle: true });
+
+    expect(text()).toContain("Your video will be labeled as 'Paid partnership'");
+  });
+
+  it('clears both choices when the creator switches the disclosure off', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await switchTheDisclosureOff();
+
+    expect(form.getValues('disclose')).toBe(false);
+    expect(form.getValues('brand_organic_toggle')).toBe(false);
+    expect(form.getValues('brand_content_toggle')).toBe(false);
+  });
+
+  it('makes private visibility selectable again', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await switchTheDisclosureOff();
+
+    expect(option('SELF_ONLY')?.disabled).toBe(false);
+  });
+
+  it('drops the branded-content restriction that no longer applies', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await switchTheDisclosureOff();
+
+    expect(text()).not.toContain(BRANDED_CONTENT_IS_NEVER_PRIVATE);
+  });
+
+  it('drops the Branded Content Policy from the declaration', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await switchTheDisclosureOff();
+
+    expect(links()).not.toContain(BRANDED_CONTENT_POLICY_URL);
+  });
+
+  it('leaves a choice made under a disclosure that is on alone', async () => {
+    await render();
+    await set(disclosedAsBranded);
+
+    expect(form.getValues('brand_content_toggle')).toBe(true);
+    expect(form.getValues('brand_organic_toggle')).toBe(true);
+  });
+});
+
+describe('TikTok settings — the visibility error is written for a creator', () => {
+  // The composer validates through the same settings class as the public API
+  // and prints whatever it reports under the field. That message is the API's:
+  // English, and about wire values rather than about the choice.
+  const SETTINGS_CLASS_MESSAGE =
+    'Choose who can see this post - one of PUBLIC_TO_EVERYONE, ' +
+    'MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR or SELF_ONLY.';
+
+  const refuseTheVisibility = async () => {
+    await act(async () => {
+      form.setError('privacy_level', { message: SETTINGS_CLASS_MESSAGE });
+    });
+  };
+
+  it('asks for the choice in the same words as the blocked publish control', async () => {
+    await render();
+    await refuseTheVisibility();
+
+    expect(visibilityError()).toBe('Choose who can see this post.');
+  });
+
+  it('never shows the creator the values TikTok’s API uses', async () => {
+    await render();
+    await refuseTheVisibility();
+
+    expect(text()).not.toContain('PUBLIC_TO_EVERYONE');
+  });
+
+  it('keeps to the short sentence where the profile is what failed', async () => {
+    // The notice above already explains that failure at length, and the field
+    // is not where the panel says it a second time.
+    creatorInfo = { data: false, error: undefined, isLoading: false };
+    await render();
+    await refuseTheVisibility();
+
+    expect(visibilityError()).toBe('Choose who can see this post.');
+    expect(text().split('TikTok settings could not be loaded').length - 1).toBe(
+      1
+    );
+  });
+
+  it('shows nothing under the field while the choice stands', async () => {
+    await render();
+    await set({ privacy_level: 'PUBLIC_TO_EVERYONE' });
+
+    expect(visibilityError()).toBe('');
+  });
+
+  it('does not pull the branded-content restriction over a visible error', async () => {
+    // The note's negative margin closes the gap the field reserves for its
+    // error row; with an error actually in that row it lands on top of it.
+    await render();
+    await set({ disclose: true, brand_content_toggle: true });
+    await refuseTheVisibility();
+
+    expect(
+      leafContaining(BRANDED_CONTENT_IS_NEVER_PRIVATE)?.className
+    ).not.toContain('-mt-');
   });
 });

@@ -35,7 +35,7 @@ const BRANDED_CONTENT_POLICY_URL =
 export const TikTokSettings: FC<{
   values?: any;
 }> = (props) => {
-  const { watch, register, setValue } = useSettings();
+  const { watch, register, setValue, formState } = useSettings();
   const { value, integration } = useIntegration();
   const t = useT();
   const setPublishBlocker = useLaunchStore((p) => p.setPublishBlocker);
@@ -164,6 +164,42 @@ export const TikTokSettings: FC<{
     }
   }, [brand_content_toggle, privacy_level, setValue]);
 
+  // TikTok's payload has no disclosure field — brand_organic_toggle and
+  // brand_content_toggle are all it reads — so the two can arrive apart: the
+  // public API takes a choice with the disclosure unset, and so did this panel
+  // before the switch cleared what it hides. The choice is what TikTok will
+  // label the post by, so the switch follows it; clearing it here instead would
+  // drop a disclosure someone meant to make, on a post they only opened.
+  useEffect(() => {
+    if (!disclose && (brand_organic_toggle || brand_content_toggle)) {
+      setValue('disclose', true);
+    }
+  }, [disclose, brand_organic_toggle, brand_content_toggle, setValue]);
+
+  const chooseAVisibility = t(
+    'tiktok_visibility_needs_a_choice',
+    'Choose who can see this post.'
+  );
+
+  // What an unanswered visibility is answered with on the blocked publish
+  // control. Asking someone to choose from a list that failed to load is a dead
+  // end, so a profile that could not be retrieved says that instead.
+  const visibilityMessage = profileUnavailable
+    ? t(
+        'tiktok_creator_info_unavailable',
+        'TikTok settings could not be loaded, so no options can be offered. Close and reopen the post to try again.'
+      )
+    : chooseAVisibility;
+
+  // Under the field, the short sentence either way. The settings class answers
+  // a refused visibility in the public API's terms — English, and about the
+  // four values on the wire — and where the profile is what failed, the notice
+  // above already says so at length; twice on one panel is the panel repeating
+  // itself.
+  const visibilityError = formState.errors?.privacy_level
+    ? chooseAVisibility
+    : undefined;
+
   // Why this channel cannot be published right now. TikTok requires the
   // publish control itself to be disabled with the reason on hover, so the
   // reason reaches the composer store already translated and already naming
@@ -216,19 +252,7 @@ export const TikTokSettings: FC<{
     // settings; without it they reach submit and meet the settings class's
     // raw refusal instead. Exempt on UPLOAD, where TikTok discards it.
     if (!isUploadMode && !privacy_level) {
-      return attributedTo(
-        profileUnavailable
-          ? // Asking someone to choose from a list that failed to load is a
-            // dead end; tell them what actually went wrong.
-            t(
-              'tiktok_creator_info_unavailable',
-              'TikTok settings could not be loaded, so no options can be offered. Close and reopen the post to try again.'
-            )
-          : t(
-              'tiktok_visibility_needs_a_choice',
-              'Choose who can see this post.'
-            )
-      );
+      return attributedTo(visibilityMessage);
     }
 
     return undefined;
@@ -241,7 +265,7 @@ export const TikTokSettings: FC<{
     brand_organic_toggle,
     brand_content_toggle,
     privacy_level,
-    profileUnavailable,
+    visibilityMessage,
     integration,
     profile?.creatorUsername,
     t,
@@ -412,6 +436,7 @@ export const TikTokSettings: FC<{
         <Select
           label={t('tiktok_who_can_see_this_post', 'Who can see this post?')}
           disabled={isUploadMode}
+          error={visibilityError}
           {...register('privacy_level')}
         >
           <option value="">{t('select', 'Select')}</option>
@@ -428,7 +453,15 @@ export const TikTokSettings: FC<{
         {brand_content_toggle && (
           // Repeated as visible text, not left to the greyed option alone: an
           // unavailable choice may never be signalled by styling by itself.
-          <div className="text-[14px] -mt-[10px] mb-[10px] text-balance">
+          <div
+            className={clsx(
+              'text-[14px] mb-[10px] text-balance',
+              // The field keeps a row for its error even when there is none,
+              // and the pull-up closes that gap; against a row with text in it
+              // the same pull-up lands this sentence on top of it.
+              !visibilityError && '-mt-[10px]'
+            )}
+          >
             {t(
               'tiktok_branded_content_not_private',
               'Branded content visibility cannot be set to private.'
@@ -524,6 +557,19 @@ export const TikTokSettings: FC<{
             {...register('disclose', {
               value: false,
             })}
+            // Switching it off takes the choice with it, or the post keeps the
+            // label its creator has just said it should not carry. On the
+            // control rather than on the state, which the effect above owns in
+            // the other direction: a choice that arrives without a disclosure
+            // is a disclosure, not a leftover.
+            onChange={({ target }) => {
+              if (target.value) {
+                return;
+              }
+
+              setValue('brand_organic_toggle', false, { shouldValidate: true });
+              setValue('brand_content_toggle', false, { shouldValidate: true });
+            }}
           />
           <div className="text-[14px] my-[10px] text-balance">
             {t(
