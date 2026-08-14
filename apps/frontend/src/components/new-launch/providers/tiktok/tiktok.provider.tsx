@@ -164,6 +164,27 @@ export const TikTokSettings: FC<{
     }
   }, [brand_content_toggle, privacy_level, setValue]);
 
+  // Switching the disclosure off only hides these two, and TikTok's payload has
+  // no disclosure field — it reads them on their own — so a choice left behind
+  // would still label the post, and still bar private visibility here. Written
+  // against the state rather than the switching, because a post saved with the
+  // pair already mismatched opens the same way.
+  useEffect(() => {
+    if (disclose) {
+      return;
+    }
+
+    // shouldValidate, or a refusal raised against the cleared choice outlives
+    // it: nothing else revalidates until the creator touches another field.
+    if (brand_organic_toggle) {
+      setValue('brand_organic_toggle', false, { shouldValidate: true });
+    }
+
+    if (brand_content_toggle) {
+      setValue('brand_content_toggle', false, { shouldValidate: true });
+    }
+  }, [disclose, brand_organic_toggle, brand_content_toggle, setValue]);
+
   // Why this channel cannot be published right now. TikTok requires the
   // publish control itself to be disabled with the reason on hover, so the
   // reason reaches the composer store already translated and already naming

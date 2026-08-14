@@ -629,3 +629,65 @@ describe('TikTok settings — publishing is blocked without a choice (FR-005)', 
     );
   });
 });
+
+describe('TikTok settings — the disclosure switched back off (FR-002)', () => {
+  // Switching it off only hides the two commercial options. TikTok's payload
+  // has no disclosure field — it reads brand_organic_toggle and
+  // brand_content_toggle on their own — so a choice left behind still labels
+  // the post, and still governs the visibility and the declaration here.
+  const disclosedAsBranded = {
+    disclose: true,
+    brand_organic_toggle: true,
+    brand_content_toggle: true,
+  };
+
+  it('clears both commercial choices', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await set({ disclose: false });
+
+    expect(form.getValues('brand_organic_toggle')).toBe(false);
+    expect(form.getValues('brand_content_toggle')).toBe(false);
+  });
+
+  it('clears one restored from a post saved with the pair mismatched', async () => {
+    // The state is what governs, not the switching: a post saved before this
+    // carries the stale choice into a panel that opens with disclosure off.
+    await render();
+    await set({ disclose: false, brand_content_toggle: true });
+
+    expect(form.getValues('brand_content_toggle')).toBe(false);
+  });
+
+  it('makes private visibility selectable again', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await set({ disclose: false });
+
+    expect(option('SELF_ONLY')?.disabled).toBe(false);
+  });
+
+  it('drops the branded-content restriction that no longer applies', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await set({ disclose: false });
+
+    expect(text()).not.toContain(BRANDED_CONTENT_IS_NEVER_PRIVATE);
+  });
+
+  it('drops the Branded Content Policy from the declaration', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await set({ disclose: false });
+
+    expect(links()).not.toContain(BRANDED_CONTENT_POLICY_URL);
+  });
+
+  it('leaves a choice made under a disclosure that is on alone', async () => {
+    await render();
+    await set(disclosedAsBranded);
+
+    expect(form.getValues('brand_content_toggle')).toBe(true);
+    expect(form.getValues('brand_organic_toggle')).toBe(true);
+  });
+});
