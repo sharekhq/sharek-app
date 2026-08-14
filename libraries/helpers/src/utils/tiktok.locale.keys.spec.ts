@@ -12,6 +12,11 @@ const LOCALES_DIR = path.join(
   '../../../react-shared-libraries/src/translation/locales'
 );
 
+const PANEL = path.join(
+  __dirname,
+  '../../../../apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx'
+);
+
 const readLocale = (lng: string) =>
   JSON.parse(
     fs.readFileSync(path.join(LOCALES_DIR, lng, 'translation.json'), 'utf8')
@@ -50,6 +55,8 @@ describe('TikTok composer locale keys', () => {
     'tiktok_video_too_long',
     // US4 — what happens after publishing
     'tiktok_processing_delay_notice',
+    // 013 US4 — where an inbox upload turns up
+    'tiktok_upload_inbox_notice',
   ])('has a non-empty English and Arabic %s', (key) => {
     expect(typeof en[key]).toBe('string');
     expect(en[key].length).toBeGreaterThan(0);
@@ -92,5 +99,67 @@ describe('TikTok composer locale keys', () => {
     // label name, and a side-by-side read against the published guidelines is
     // the only thing that catches a swap to double quotes.
     expect(en[key]).toBe(sentence);
+  });
+
+  it('spells the inbox notice correctly in English', () => {
+    // It read "you fill find" on the panel a TikTok reviewer inspects.
+    expect(en.tiktok_upload_inbox_notice).toContain('you will find');
+    expect(en.tiktok_upload_inbox_notice).not.toContain('fill find');
+  });
+
+  it('keeps the photo-post title label translated', () => {
+    // Nothing in the panel calls t() for this one: `Input` translates its own
+    // label through the key TranslatedLabel derives from it. So the fork's
+    // usual "no t() means English" heuristic misreads it — it renders العنوان
+    // today — and this assertion is the only thing between that label and a
+    // silent English render if the key is ever dropped.
+    expect(typeof en.label_title).toBe('string');
+    expect(en.label_title.length).toBeGreaterThan(0);
+    expect(typeof ar.label_title).toBe('string');
+    expect(ar.label_title.length).toBeGreaterThan(0);
+  });
+});
+
+describe('TikTok composer — every string the panel renders', () => {
+  const en = readLocale('en');
+  const ar = readLocale('ar');
+  const panel = fs.readFileSync(PANEL, 'utf8');
+
+  // Read off the panel rather than listed here on purpose: a hardcoded list
+  // cannot catch the next key that ships as an inline t() default only, which
+  // is how an Arabic reader ends up looking at English.
+  const referenced = Array.from(
+    new Set([
+      ...Array.from(
+        panel.matchAll(/(?<![A-Za-z0-9_$.])t\(\s*'([A-Za-z0-9_]+)'/g),
+        (match) => match[1]
+      ),
+      // A bare label prop is translated by the input itself, through the key
+      // TranslatedLabel derives when none is passed.
+      ...Array.from(
+        panel.matchAll(/\blabel="([^"]+)"/g),
+        (match) =>
+          `label_${match[1]
+            .toLowerCase()
+            .replace(/\s+/g, '_')
+            .replace(/[^\w]/g, '')}`
+      ),
+    ])
+  ).sort();
+
+  it('finds the keys at all — a regex matching nothing would pass everything', () => {
+    expect(referenced.length).toBeGreaterThan(40);
+    expect(referenced).toContain('tiktok_branded_content_not_private');
+    expect(referenced).toContain('label_title');
+  });
+
+  it.each(referenced)('says %s in both languages', (key) => {
+    expect(typeof en[key]).toBe('string');
+    expect(en[key].length).toBeGreaterThan(0);
+    expect(typeof ar[key]).toBe('string');
+    expect(ar[key].length).toBeGreaterThan(0);
+    // Identical bytes in both locales means the English was copied across
+    // rather than translated, which reads as done and is not.
+    expect(ar[key]).not.toBe(en[key]);
   });
 });
