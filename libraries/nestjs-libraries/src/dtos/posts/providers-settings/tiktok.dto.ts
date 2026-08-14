@@ -19,9 +19,7 @@ import { JSONSchema } from 'class-validator-jsonschema';
 const isDirectPost = (settings: any): boolean =>
   settings?.content_posting_method !== 'UPLOAD';
 
-const TIKTOK_VISIBILITY_MESSAGE =
-  'Choose who can see this post - one of PUBLIC_TO_EVERYONE, ' +
-  'MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR or SELF_ONLY.';
+const TIKTOK_VISIBILITY_MESSAGE = 'Choose who can see this post.';
 
 // Both constraints must be total. posts.service.ts validates every selected
 // provider inside a single Promise.all, so a constraint that throws on a
@@ -118,8 +116,9 @@ export class TikTokDto {
   // "TikTok (@account): <message>", so the default "privacy_level must be one
   // of the following values: ..." reached the creator as a field name and a
   // bare enum dump - and which of the two defaults they saw depended on key
-  // order. The values stay in the text because the public API and the AI
-  // assistant reach this same message and do need to know them.
+  // order. The four values are not in the sentence either: the composer also
+  // renders it under the field, and callers who need them read them from the
+  // enum @IsIn puts in the generated schema.
   @ValidateIf((p) => isDirectPost(p))
   @IsIn(
     [

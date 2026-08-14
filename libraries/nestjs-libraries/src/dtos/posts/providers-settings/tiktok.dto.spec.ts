@@ -9,6 +9,7 @@
 // what these tests exist to pin.
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
+import { targetConstructorToSchema } from 'class-validator-jsonschema';
 import { TikTokDto } from './tiktok.dto';
 
 const DISCLOSURE_NEEDS_A_CHOICE =
@@ -185,6 +186,30 @@ describe('TikTokDto — a visibility must be chosen', () => {
       expect(message).not.toMatch(/^privacy_level must be/);
       expect(message).toContain('Choose who can see this post');
     });
+  });
+
+  it('leaves the wire values out of the sentence someone has to read', () => {
+    // The same string is what the composer prints under the field and in the
+    // submit toast, so a list of API values reads there as noise. They stay
+    // machine-readable in the generated schema below.
+    const refusals = visibilityConstraints(withoutVisibility());
+
+    expect(refusals.length).toBeGreaterThan(0);
+    refusals.forEach((message) => {
+      expect(message).not.toContain('PUBLIC_TO_EVERYONE');
+      expect(message).not.toContain('SELF_ONLY');
+    });
+  });
+
+  it('keeps them in the generated schema, where the API and the assistant read them', () => {
+    const schema = targetConstructorToSchema(TikTokDto) as any;
+
+    expect(schema.properties.privacy_level.enum).toEqual([
+      'PUBLIC_TO_EVERYONE',
+      'MUTUAL_FOLLOW_FRIENDS',
+      'FOLLOWER_OF_CREATOR',
+      'SELF_ONLY',
+    ]);
   });
 
   it('says the same thing whichever constraint reports it first', () => {
