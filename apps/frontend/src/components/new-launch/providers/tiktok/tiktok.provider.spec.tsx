@@ -636,39 +636,55 @@ describe('TikTok settings — publishing is blocked without a choice (FR-005)', 
   });
 });
 
-describe('TikTok settings — the disclosure switched back off (FR-002)', () => {
-  // Switching it off only hides the two commercial options. TikTok's payload
-  // has no disclosure field — it reads brand_organic_toggle and
-  // brand_content_toggle on their own — so a choice left behind still labels
-  // the post, and still governs the visibility and the declaration here.
+describe('TikTok settings — the disclosure and the choice arrive apart (FR-002)', () => {
+  // TikTok's payload has no disclosure field: brand_organic_toggle and
+  // brand_content_toggle are all it reads, and the public API takes a choice
+  // with the disclosure unset. So the choice is what a post will be labeled by,
+  // and the switch follows it — while switching the disclosure off is the
+  // creator saying the post is not commercial, and takes the choice with it.
   const disclosedAsBranded = {
     disclose: true,
     brand_organic_toggle: true,
     brand_content_toggle: true,
   };
 
-  it('clears both commercial choices', async () => {
-    await render();
-    await set(disclosedAsBranded);
-    await set({ disclose: false });
+  const switchTheDisclosureOff = async () => {
+    await act(async () => {
+      checkbox('Content disclosure')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+  };
 
-    expect(form.getValues('brand_organic_toggle')).toBe(false);
-    expect(form.getValues('brand_content_toggle')).toBe(false);
-  });
-
-  it('clears one restored from a post saved with the pair mismatched', async () => {
-    // The state is what governs, not the switching: a post saved before this
-    // carries the stale choice into a panel that opens with disclosure off.
+  it('switches the disclosure on for a choice that arrives without one', async () => {
     await render();
     await set({ disclose: false, brand_content_toggle: true });
 
+    expect(form.getValues('disclose')).toBe(true);
+    expect(form.getValues('brand_content_toggle')).toBe(true);
+  });
+
+  it('states the label that post will actually carry', async () => {
+    await render();
+    await set({ disclose: false, brand_content_toggle: true });
+
+    expect(text()).toContain("Your video will be labeled as 'Paid partnership'");
+  });
+
+  it('clears both choices when the creator switches the disclosure off', async () => {
+    await render();
+    await set(disclosedAsBranded);
+    await switchTheDisclosureOff();
+
+    expect(form.getValues('disclose')).toBe(false);
+    expect(form.getValues('brand_organic_toggle')).toBe(false);
     expect(form.getValues('brand_content_toggle')).toBe(false);
   });
 
   it('makes private visibility selectable again', async () => {
     await render();
     await set(disclosedAsBranded);
-    await set({ disclose: false });
+    await switchTheDisclosureOff();
 
     expect(option('SELF_ONLY')?.disabled).toBe(false);
   });
@@ -676,7 +692,7 @@ describe('TikTok settings — the disclosure switched back off (FR-002)', () => 
   it('drops the branded-content restriction that no longer applies', async () => {
     await render();
     await set(disclosedAsBranded);
-    await set({ disclose: false });
+    await switchTheDisclosureOff();
 
     expect(text()).not.toContain(BRANDED_CONTENT_IS_NEVER_PRIVATE);
   });
@@ -684,7 +700,7 @@ describe('TikTok settings — the disclosure switched back off (FR-002)', () => 
   it('drops the Branded Content Policy from the declaration', async () => {
     await render();
     await set(disclosedAsBranded);
-    await set({ disclose: false });
+    await switchTheDisclosureOff();
 
     expect(links()).not.toContain(BRANDED_CONTENT_POLICY_URL);
   });
@@ -726,12 +742,17 @@ describe('TikTok settings — the visibility error is written for a creator', ()
     expect(text()).not.toContain('PUBLIC_TO_EVERYONE');
   });
 
-  it('says the settings could not be loaded when there was no list to choose from', async () => {
+  it('keeps to the short sentence where the profile is what failed', async () => {
+    // The notice above already explains that failure at length, and the field
+    // is not where the panel says it a second time.
     creatorInfo = { data: false, error: undefined, isLoading: false };
     await render();
     await refuseTheVisibility();
 
-    expect(visibilityError()).toContain('TikTok settings could not be loaded');
+    expect(visibilityError()).toBe('Choose who can see this post.');
+    expect(text().split('TikTok settings could not be loaded').length - 1).toBe(
+      1
+    );
   });
 
   it('shows nothing under the field while the choice stands', async () => {
