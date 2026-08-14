@@ -1072,6 +1072,7 @@
   "tiktok_refusal_generic": "TikTok is not accepting posts from this account right now, please try again later",
   "tiktok_video_too_long": "Video is too long. This TikTok account may publish up to {{maximum}}.",
   "tiktok_processing_delay_notice": "Your post may take a few minutes to process before it appears on your TikTok profile.",
+  "tiktok_upload_inbox_notice": "After posting you will find a notification inside your Inbox about your post (not content studio)",
   "total": "Total",
   "trial_reel": "Trial Reel (share only to non-followers first)",
   "try_again": "Try Again",

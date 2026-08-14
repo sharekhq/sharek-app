@@ -1123,6 +1123,7 @@
   "tiktok_refusal_generic": "لا يقبل TikTok منشورات من هذا الحساب في الوقت الحالي، يُرجى المحاولة لاحقًا.",
   "tiktok_video_too_long": "الفيديو أطول من اللازم. يمكن لهذا الحساب على TikTok نشر ما يصل إلى {{maximum}}.",
   "tiktok_processing_delay_notice": "قد تستغرق معالجة منشورك بضع دقائق قبل أن يظهر على ملفك الشخصي على TikTok.",
+  "tiktok_upload_inbox_notice": "بعد النشر ستجد إشعارًا بشأن منشورك داخل صندوق الوارد (Inbox) في TikTok، وليس في content studio",
   "total": "الإجمالي",
   "trial_reel": "ريل تجريبي (المشاركة مع غير المتابعين أولًا فقط)",
   "try_again": "المحاولة مرة أخرى",

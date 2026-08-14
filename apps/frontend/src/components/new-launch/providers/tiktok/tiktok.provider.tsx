@@ -52,6 +52,9 @@ export const TikTokSettings: FC<{
   const brand_content_toggle = watch('brand_content_toggle');
   const content_posting_method = watch('content_posting_method');
   const privacy_level = watch('privacy_level');
+  const comment = watch('comment');
+  const duet = watch('duet');
+  const stitch = watch('stitch');
   const isUploadMode = content_posting_method === 'UPLOAD';
 
   // What this TikTok account currently permits. The bridge answers the literal
@@ -156,13 +159,78 @@ export const TikTokSettings: FC<{
         );
   }, [disclose, brand_organic_toggle, brand_content_toggle, isTitle, t]);
 
-  // TikTok will not accept a private branded-content post, so a visibility
-  // already set to private is cleared rather than left to fail on submit.
+  // What this account may publish as. An empty list is TikTok not answering —
+  // a refusal arrives as HTTP 200 with an error code and no other fields, so a
+  // profile object can carry no options at all — and never an account that
+  // permits nothing. Reconciling against it would discard a good stored
+  // visibility every time TikTok refuses the account.
+  const privacyLevelOptions = profile?.privacyLevelOptions ?? [];
+  const accountOffersVisibilities = privacyLevelOptions.length > 0;
+
+  // A stored visibility the account no longer offers. It is unset below, and
+  // it restricts nothing on its way out: the creator keeps the choices they
+  // made and simply picks a visibility again.
+  const visibilityWithdrawn =
+    accountOffersVisibilities &&
+    !!privacy_level &&
+    !privacyLevelOptions.includes(privacy_level);
+
+  // TikTok will not accept a private branded-content post, and prescribes two
+  // remedies for it. This is the first: the option is refused, and the
+  // creator's visibility is left as they set it — the second widens a post's
+  // audience without them acting. An account permitting nothing but private
+  // reaches the same restriction without a choice having been made, so one
+  // predicate covers both, and it drives the control's unavailability and its
+  // value together: a refused option can never still be switched on. The first
+  // clause is a rule TikTok enforces on every account and needs no profile;
+  // the second reads the account's own permissions and needs one.
+  const brandedContentUnavailable =
+    (privacy_level === 'SELF_ONLY' && !visibilityWithdrawn) ||
+    (accountOffersVisibilities &&
+      !privacyLevelOptions.some((option) => option !== 'SELF_ONLY'));
+
   useEffect(() => {
-    if (brand_content_toggle && privacy_level === 'SELF_ONLY') {
+    if (brandedContentUnavailable && brand_content_toggle) {
+      setValue('brand_content_toggle', false, { shouldValidate: true });
+    }
+  }, [brandedContentUnavailable, brand_content_toggle, setValue]);
+
+  // What TikTok reports the account allows is authoritative over whatever the
+  // post stored: a permission the creator switched off in their own privacy
+  // settings is unavailable here and carries no value, so the payload can
+  // never ask TikTok to allow what it has just told us is disallowed. Only a
+  // profile that actually arrived reconciles — no profile means we do not know
+  // yet, which makes the controls unavailable without touching what they hold.
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    if (profile.commentDisabled && comment) {
+      setValue('comment', false, { shouldValidate: true });
+    }
+
+    if (profile.duetDisabled && duet) {
+      setValue('duet', false, { shouldValidate: true });
+    }
+
+    if (profile.stitchDisabled && stitch) {
+      setValue('stitch', false, { shouldValidate: true });
+    }
+  }, [profile, comment, duet, stitch, setValue]);
+
+  // A visibility the account has withdrawn since the post was saved is no
+  // choice at all, so it is unset and the panel's existing block asks for one
+  // in the same words a creator gets who never picked — rather than the post
+  // failing at TikTok hours later. Unsetting is the only change permitted: a
+  // chosen visibility is never swapped for a different one. The same flag the
+  // branded-content rule reads drives this, so the two cannot disagree about
+  // a visibility one of them is in the middle of clearing.
+  useEffect(() => {
+    if (visibilityWithdrawn) {
       setValue('privacy_level', '');
     }
-  }, [brand_content_toggle, privacy_level, setValue]);
+  }, [visibilityWithdrawn, setValue]);
 
   // TikTok's payload has no disclosure field — brand_organic_toggle and
   // brand_content_toggle are all it reads — so the two can arrive apart: the
@@ -489,7 +557,14 @@ export const TikTokSettings: FC<{
           </option>
         ))}
       </Select>
-      {isUploadMode && <div className="-mt-[23px] mb-[23px] text-muted">After posting you fill find a notification inside your Inbox about your post (not content studio)</div>}
+      {isUploadMode && (
+        <div className="-mt-[23px] mb-[23px] text-muted">
+          {t(
+            'tiktok_upload_inbox_notice',
+            'After posting you will find a notification inside your Inbox about your post (not content studio)'
+          )}
+        </div>
+      )}
       <div className={clsx('flex flex-col', directPostOnly)}>
         <div className={photoOnly}>
           <Select
@@ -521,14 +596,14 @@ export const TikTokSettings: FC<{
           <div className="flex gap-[40px]">
             <Checkbox
               label={t('label_duet', 'Allow Duet')}
-              disabled={isUploadMode || !!profile?.duetDisabled}
+              disabled={isUploadMode || !profile || !!profile.duetDisabled}
               {...register('duet', {
                 value: false,
               })}
             />
             <Checkbox
               label={t('label_stitch', 'Allow Stitch')}
-              disabled={isUploadMode || !!profile?.stitchDisabled}
+              disabled={isUploadMode || !profile || !!profile.stitchDisabled}
               {...register('stitch', {
                 value: false,
               })}
@@ -546,7 +621,7 @@ export const TikTokSettings: FC<{
         <div className="flex flex-col gap-[20px]">
           <Checkbox
             label={t('label_comments', 'Allow Comments')}
-            disabled={isUploadMode || !!profile?.commentDisabled}
+            disabled={isUploadMode || !profile || !!profile.commentDisabled}
             {...register('comment', {
               value: false,
             })}
@@ -604,7 +679,7 @@ export const TikTokSettings: FC<{
           </div>
           <Checkbox
             label={t('label_branded_content', 'Branded content')}
-            disabled={isUploadMode}
+            disabled={isUploadMode || brandedContentUnavailable}
             {...register('brand_content_toggle', {
               value: false,
             })}
@@ -619,6 +694,20 @@ export const TikTokSettings: FC<{
               'tiktok_branded_content_classification',
               'This content will be classified as Branded Content.'
             )}
+            {brandedContentUnavailable && (
+              // Why it cannot be chosen, in words beside the control it
+              // applies to: an unavailable choice is never signalled by
+              // styling alone. The mirror of this sits under the visibility
+              // field, and the two are mutually exclusive — a refused option
+              // is also off, so the private visibility is not restricted back.
+              <>
+                <br />
+                {t(
+                  'tiktok_branded_content_not_private',
+                  'Branded content visibility cannot be set to private.'
+                )}
+              </>
+            )}
           </div>
           {commercialLabel && (
             <div className="bg-tableBorder p-[10px] mt-[10px] rounded-[10px] flex gap-[20px] items-center">
@@ -632,7 +721,7 @@ export const TikTokSettings: FC<{
                 >
                   <path
                     d="M22.201 17.6335L14.0026 3.39569C13.7977 3.04687 13.5052 2.75764 13.1541 2.55668C12.803 2.35572 12.4055 2.25 12.001 2.25C11.5965 2.25 11.199 2.35572 10.8479 2.55668C10.4968 2.75764 10.2043 3.04687 9.99944 3.39569L1.80101 17.6335C1.60388 17.9709 1.5 18.3546 1.5 18.7454C1.5 19.1361 1.60388 19.5199 1.80101 19.8572C2.00325 20.2082 2.29523 20.499 2.64697 20.6998C2.99871 20.9006 3.39755 21.0043 3.80257 21.0001H20.1994C20.6041 21.0039 21.0026 20.9001 21.354 20.6993C21.7054 20.4985 21.997 20.2079 22.1991 19.8572C22.3965 19.52 22.5007 19.1364 22.5011 18.7456C22.5014 18.3549 22.3978 17.9711 22.201 17.6335ZM11.251 9.75006C11.251 9.55115 11.33 9.36038 11.4707 9.21973C11.6113 9.07908 11.8021 9.00006 12.001 9.00006C12.1999 9.00006 12.3907 9.07908 12.5313 9.21973C12.672 9.36038 12.751 9.55115 12.751 9.75006V13.5001C12.751 13.699 12.672 13.8897 12.5313 14.0304C12.3907 14.171 12.1999 14.2501 12.001 14.2501C11.8021 14.2501 11.6113 14.171 11.4707 14.0304C11.33 13.8897 11.251 13.699 11.251 13.5001V9.75006ZM12.001 18.0001C11.7785 18.0001 11.561 17.9341 11.376 17.8105C11.191 17.6868 11.0468 17.5111 10.9616 17.3056C10.8765 17.1 10.8542 16.8738 10.8976 16.6556C10.941 16.4374 11.0482 16.2369 11.2055 16.0796C11.3628 15.9222 11.5633 15.8151 11.7815 15.7717C11.9998 15.7283 12.226 15.7505 12.4315 15.8357C12.6371 15.9208 12.8128 16.065 12.9364 16.25C13.06 16.4351 13.126 16.6526 13.126 16.8751C13.126 17.1734 13.0075 17.4596 12.7965 17.6706C12.5855 17.8815 12.2994 18.0001 12.001 18.0001Z"
-                    fill="white"
+                    fill="currentColor"
                   />
                 </svg>
               </div>
