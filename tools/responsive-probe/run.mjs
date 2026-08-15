@@ -19,6 +19,23 @@
 //
 // Requires agent-browser: npm i -g agent-browser && agent-browser install
 //
+// THE ACCOUNT MUST SPAN MORE THAN ONE CUSTOMER GROUPING, or this probe reports
+// false green. Layout failures land on whichever element loses the fight for
+// width, and that depends on account contents. Concretely: `Select Customer`
+// renders only when integrations span 2+ customer values — an unassigned
+// channel counts as one (select.customer.tsx:49-57). That single control is
+// ~157px, and it is what pushes the calendar column's minimum past the point
+// where the channels rail collapses and takes Create Post with it.
+//
+// Measured 2026-08-15 at 1024px, same account before and after adding a
+// customer:
+//
+//   1 channel,  0 customers  →  rail 221px, Create Post clickable   FALSE GREEN
+//   2 channels, 1 customer   →  rail  64px, Create Post COVERED     correct
+//
+// So do not "tidy up" the probe account. If someone unassigns its customer,
+// this tool goes quiet while the app stays broken.
+//
 // Report-only: it always exits 0. Once phases 3 and 4 land and the numbers are
 // worth defending, add a baseline and flip it to exit 1 on regression.
 
