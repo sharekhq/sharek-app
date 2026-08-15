@@ -26,6 +26,17 @@
     [/^\/media/, /upload|رفع/i],
   ];
 
+  // The account precondition, observed rather than assumed — run.mjs gates a
+  // run on it. `Select Customer` renders only when the account's integrations
+  // span more than one customer grouping, and that one control is what decides
+  // whether the tablet failure reproduces at all.
+  //
+  // Match the tooltip attribute, not the visible text: the text becomes the
+  // customer's own name once one is selected (select.customer.tsx:81), while
+  // the tooltip is set unconditionally from a translation key (:64) and never
+  // carries account data. Localised, like the patterns above.
+  const CUSTOMER_CONTROL = /select customer|اختر العميل/i;
+
   // A closed off-canvas drawer is meant to sit outside the viewport, so it is
   // not a bug. Detect that by geometry (the box is wholly outside) rather than
   // by "has a transform", which also catches centring, RTL arrow rotation and
@@ -80,6 +91,25 @@
     }
   }
 
+  const customerControlPresent = [...document.querySelectorAll('[data-tooltip-content]')].some(
+    (el) => CUSTOMER_CONTROL.test(el.getAttribute('data-tooltip-content') || '') && !hidden(el)
+  );
+
+  // Which build was measured. The channels rail prints NEXT_PUBLIC_VERSION into
+  // a div of its own (launches.component.tsx:582-586), and a real build stamps
+  // that with the commit SHA. Only leaves are scanned, so the token is read
+  // once from the element that holds nothing else rather than from every
+  // ancestor that contains it. Absent — a local build, or a page without the
+  // rail — is reported as absent, never guessed.
+  const build = (() => {
+    for (const el of document.querySelectorAll('div')) {
+      if (el.children.length) continue;
+      const match = (el.textContent || '').match(/\b[0-9a-f]{40}\b/);
+      if (match) return match[0];
+    }
+    return null;
+  })();
+
   // ---- 2. clipped content ----
   const clipped = [];
   const seen = new Set();
@@ -118,6 +148,13 @@
     url: location.pathname,
     vw,
     cta,
+    // The two halves of the account precondition. `pageRendered` anchors it:
+    // a missing customer control means nothing if the page never loaded, so a
+    // route with no ROUTE_CTA entry cannot answer the question and says so by
+    // reporting false — only a route with an anchor pattern is worth a
+    // pre-flight, and run.mjs runs it on /launches.
+    precondition: { customerControlPresent, pageRendered: !!cta && cta.verdict !== 'NOT FOUND' },
+    build,
     sidewaysScrollPx: Math.max(0, document.documentElement.scrollWidth - vw),
     clippedCount: clipped.length,
     worstCutPx: clipped.length ? Math.max(...clipped.map((c) => c.lostPx)) : 0,
