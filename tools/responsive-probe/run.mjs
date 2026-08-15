@@ -2,11 +2,20 @@
 // Drives probe.js over every route × viewport and prints one report.
 //
 // The probe is tooling, not app code: it never ships in the image and never
-// runs on the server. It drives a browser (yours, or a CI runner's) against a
-// deployed URL.
+// runs on the server. It drives a browser against a deployed URL.
+//
+// Run it locally — the GitHub workflow is inert, see the header of
+// .github/workflows/responsive-probe.yml for why:
 //
 //   PROBE_EMAIL=... PROBE_PASSWORD=... node tools/responsive-probe/run.mjs
-//   PROBE_BASE_URL=https://dash.sharek.app node tools/responsive-probe/run.mjs
+//
+// Export those two in your shell profile and it is a bare `node run.mjs`.
+// Already signed in from an earlier run? Skip the login entirely:
+//
+//   PROBE_SKIP_LOGIN=1 PROBE_SESSION=sharek node tools/responsive-probe/run.mjs
+//
+// Narrow a run while iterating with PROBE_ROUTES and PROBE_VIEWPORTS; point it
+// somewhere else with PROBE_BASE_URL.
 //
 // Requires agent-browser: npm i -g agent-browser && agent-browser install
 //
