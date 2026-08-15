@@ -105,6 +105,11 @@ const results = [];
 
 login();
 
+console.log(
+  `measuring ${BASE} as ${process.env.PROBE_SKIP_LOGIN ? `session:${SESSION}` : EMAIL}\n` +
+    'layout depends on account contents — compare only against runs on this same account\n'
+);
+
 for (const viewport of VIEWPORTS) {
   console.log(`=== ${viewport.w}×${viewport.h} — ${viewport.label} ===`);
   console.log(pad('route', 14) + pad('clipped', 9) + pad('worst', 8) + pad('touch <44', 11) + 'primary action');
@@ -138,5 +143,14 @@ console.log(`primary action covered  ${covered.length}   ${covered.map((r) => `$
 console.log(`routes with clipping    ${clipped.length}`);
 console.log(`routes under the touch floor  ${touch.length}`);
 
-writeFileSync(join(HERE, 'probe-results.json'), JSON.stringify(results, null, 2));
-console.log('\nwrote tools/responsive-probe/probe-results.json');
+// Stamp the account. Layout depends on what the account contains — an account
+// with one channel does not reproduce failures an account with six does, and
+// the 2026-08-15 tablet P0 is invisible on a clean account. Readings are a
+// series per account; never diff one account's numbers against another's.
+const account = process.env.PROBE_SKIP_LOGIN ? `session:${SESSION}` : EMAIL;
+writeFileSync(
+  join(HERE, 'probe-results.json'),
+  JSON.stringify({ account, baseUrl: BASE, readings: results }, null, 2)
+);
+console.log(`\nwrote tools/responsive-probe/probe-results.json  (account: ${account})`);
+console.log('readings are comparable only against earlier runs on the SAME account');
