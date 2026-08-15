@@ -65,9 +65,11 @@ const VIEWPORTS = (
       ]
 );
 
-// The eight routes the 2026-08-15 audit measured. Nineteen of the app's
-// twenty-seven routes are still unmeasured — /p/[id] (the public share page,
-// the only majority-mobile surface) and the signup funnel matter most.
+// Seven of the eight routes the 2026-08-15 audit measured. /auth/login is not
+// here: login happens first, so the signed-out page is unreachable in a run.
+// Nineteen of the app's twenty-seven routes are still unmeasured — /p/[id]
+// (the public share page, the only majority-mobile surface) and the signup
+// funnel matter most.
 // PROBE_ROUTES=/launches,/media narrows a run while iterating.
 const ROUTES = process.env.PROBE_ROUTES
   ? process.env.PROBE_ROUTES.split(',').map((r) => r.trim())
