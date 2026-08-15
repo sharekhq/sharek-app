@@ -1,0 +1,98 @@
+---
+name: Responsive probe
+
+# ============================================================================
+# THIS WORKFLOW CANNOT RUN TODAY. Run the probe locally instead:
+#
+#     PROBE_EMAIL=... PROBE_PASSWORD=... node tools/responsive-probe/run.mjs
+#
+# GitHub resolves BOTH `schedule` and `workflow_dispatch` against the workflow
+# file on the repository's DEFAULT branch. This repo's default is `main` — the
+# frozen pre-fork branch, which carries none of the fork's workflows. So
+# dispatching this file returns:
+#
+#     HTTP 404: workflow responsive-probe.yml not found on the default branch
+#
+# Verified 2026-08-15. The same applies to build-sharek.yml, whose entire run
+# history is `push` events and contains no dispatch.
+#
+# It is kept here, inert, because the fix is one command and then it works as
+# written — `gh repo edit --default-branch sharek-ar`. Until someone runs that,
+# treat this file as documentation, not as coverage.
+#
+# Do not "fix" it with a `push` trigger. A push builds the image but the
+# rollout is a manual Coolify click, so the probe would fire early and measure
+# the previous deployment — a reading that looks current and is not.
+# ============================================================================
+#
+# Measures how the deployed app behaves at phone and tablet widths, so a mobile
+# regression surfaces on its own instead of waiting for the next audit. The
+# probe is tooling: it never ships in the image and never runs on the server.
+# This job drives a headless browser against a deployed URL.
+#
+# Report-only. It never fails the build — the app fails it on most routes today,
+# so the job's purpose is to record the reading. Flip `continue-on-error` off
+# once phases 3 and 4 have landed and the numbers are worth defending.
+#
+# Needs repository secrets PROBE_EMAIL / PROBE_PASSWORD for a dedicated
+# low-privilege account. Do not use a personal or admin login.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL to measure'
+        required: false
+        default: 'https://dash.sharek.app'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agent-browser
+        run: |
+          npm i -g agent-browser
+          agent-browser install
+
+      - name: Run the probe
+        id: probe
+        continue-on-error: true
+        env:
+          PROBE_BASE_URL: ${{ inputs.base_url || 'https://dash.sharek.app' }}
+          PROBE_EMAIL: ${{ secrets.PROBE_EMAIL }}
+          PROBE_PASSWORD: ${{ secrets.PROBE_PASSWORD }}
+        run: |
+          node tools/responsive-probe/run.mjs | tee probe-report.txt
+
+      - name: Publish the reading
+        if: always()
+        run: |
+          {
+            echo '## Responsive probe'
+            echo ''
+            echo "Measured \`${{ inputs.base_url || 'https://dash.sharek.app' }}\`"
+            echo ''
+            echo '```'
+            cat probe-report.txt 2>/dev/null || echo 'the probe produced no output'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the raw reading
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-results
+          path: |
+            probe-report.txt
+            tools/responsive-probe/probe-results.json
+          if-no-files-found: warn
+          retention-days: 90
