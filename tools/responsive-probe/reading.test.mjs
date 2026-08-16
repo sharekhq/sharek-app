@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import {
   CANONICAL_ROUTES,
   CANONICAL_VIEWPORTS,
+  VARIANCE,
   baseline,
   baselineEligibility,
   comparability,
@@ -24,6 +25,7 @@ import {
   difference,
   preconditionVerdict,
   provenance,
+  reportableCollisions,
   viewportKey,
 } from './reading.mjs';
 
@@ -56,6 +58,10 @@ function makeRun(overrides = {}) {
       routes,
       viewports,
       precondition: overrides.precondition || QUALIFIED,
+      // `null` is meaningful and distinct from absent: it is how a reading from
+      // before the closing check existed comes back.
+      postcondition:
+        overrides.postcondition === undefined ? QUALIFIED : overrides.postcondition,
     }),
     readings: viewports.flatMap((v) => routes.map((r) => readingFor(r, v))),
     errors: [],
@@ -227,6 +233,60 @@ test('a redirect deeper into the same route is still that route', () => {
   assert.equal(completeness(run).complete, true);
 });
 
+// Found by running it, twice over. A session can stop rendering the app partway
+// through a run: the shell draws at the right URL and the route's own content
+// never arrives, so `/launches` comes back with no primary action and nothing
+// clipped. Four runs on 2026-08-16 passed every check here — 28 readings, no
+// errors, canonical sets, a qualified pre-flight — while 14, 8, 0 and 11 of each
+// 28 were of a page with no content in it. The url check above cannot see this,
+// because the url is right; it is the same false green one level further in.
+//
+// The degradation was monotonic in all three bad runs: once it started, every
+// later reading was affected. So the run is bracketed — the pre-flight is run
+// again at the end, and a run that finished on a session no longer rendering is
+// not a run. This is a bracket and not a per-reading guarantee: a session that
+// broke and recovered would pass, and that is stated rather than papered over.
+const BROKEN = preconditionVerdict({ pageRendered: false, customerControlPresent: false });
+
+test('a run still rendering the app at the end is complete', () => {
+  const { complete, reason } = completeness(makeRun({ postcondition: QUALIFIED }));
+  assert.equal(complete, true);
+  assert.equal(reason, null);
+});
+
+test('a run that finished on a session no longer rendering is incomplete', () => {
+  const { complete, reason } = completeness(makeRun({ postcondition: BROKEN }));
+  assert.equal(complete, false);
+  assert.match(reason, /render/i);
+});
+
+test('an account that stopped qualifying mid-run is incomplete too', () => {
+  const unqualified = preconditionVerdict({ pageRendered: true, customerControlPresent: false });
+  assert.equal(completeness(makeRun({ postcondition: unqualified })).complete, false);
+});
+
+test('a waived run is not failed by its closing check', () => {
+  // The waiver says "measure anyway", and it says so about both ends.
+  const waived = preconditionVerdict({
+    pageRendered: false,
+    customerControlPresent: false,
+    waived: true,
+  });
+  assert.equal(completeness(makeRun({ postcondition: waived })).complete, true);
+});
+
+test('a reading taken before the closing check existed is not failed for lacking one', () => {
+  // Absent is not the same as failed: what was never observed cannot be judged,
+  // the same way an absent build is recorded rather than guessed at.
+  assert.equal(completeness(makeRun({ postcondition: null })).complete, true);
+});
+
+test('a run that died mid-run is not eligible as a baseline', () => {
+  const { eligible, reason } = baselineEligibility(makeRun({ postcondition: BROKEN }));
+  assert.equal(eligible, false);
+  assert.match(reason, /render/i);
+});
+
 test('each way of being incomplete gives its own reason', () => {
   const errored = makeRun();
   errored.errors = [{ route: '/billing', viewport: '820x1180', message: 'timed out' }];
@@ -241,6 +301,7 @@ test('each way of being incomplete gives its own reason', () => {
     completeness(errored).reason,
     completeness(missing).reason,
     completeness(elsewhere).reason,
+    completeness(makeRun({ postcondition: BROKEN })).reason,
   ];
   assert.equal(new Set(reasons).size, reasons.length, 'reasons must be distinguishable');
 });
@@ -475,4 +536,152 @@ test('a reading the fresh run never produced is reported, not silently skipped',
   assert.equal(changes.length, 1);
   assert.equal(changes[0].route, '/billing');
   assert.match(changes[0].to, /missing|not measured/i);
+});
+
+// ---------------------------------------------------------------------------
+// A field the baseline predates — FR-015
+// ---------------------------------------------------------------------------
+
+test('a field measured here that the baseline predates is introduced, not changed', () => {
+  // The comparison this is written for: a fresh run carries the collision
+  // fields, the 2026-08-15 baseline's profile has never heard of them.
+  const run = withReading(makeRun(), '/launches', '1024x768', {
+    collisionCount: 7,
+    worstOverlapPx: 31,
+  });
+  const { changes, advisory, introduced } = difference(makeBaseline(), run);
+
+  assert.ok(introduced.includes('collisionCount'), 'the new field must be named');
+  assert.ok(introduced.includes('worstOverlapPx'));
+  // Neither a regression nor a movement — a new instrument is neither.
+  assert.deepEqual(changes, []);
+  assert.deepEqual(advisory, []);
+});
+
+test('a baseline whose profile already carries every measured field introduces nothing', () => {
+  // baseline() stamps the running code's own profile, so there is nothing the
+  // code measures that this baseline does not know about.
+  assert.deepEqual(difference(baseline(makeRun()), makeRun()).introduced, []);
+});
+
+test('introduced names fields, not per-route rows — a new instrument is a property of the run', () => {
+  const { introduced } = difference(makeBaseline(), makeRun());
+  assert.ok(introduced.length > 0, 'the fixture baseline predates most of the profile');
+  for (const field of introduced) assert.equal(typeof field, 'string');
+  assert.equal(new Set(introduced).size, introduced.length, 'no field named twice');
+});
+
+test('a field the baseline knows and the code has dropped is not introduced', () => {
+  // makeBaseline's profile carries touch.total; so does VARIANCE. The bucket is
+  // the code's vocabulary minus the baseline's, never the other way round.
+  assert.equal(difference(makeBaseline(), makeRun()).introduced.includes('touch.total'), false);
+});
+
+// ---------------------------------------------------------------------------
+// Reportable collisions — FR-011, FR-012
+// ---------------------------------------------------------------------------
+
+// The candidate shape probe.js emits. Containment is already excluded upstream,
+// in collection, so nothing here has to test for it. Whether a participant is
+// in normal flow is observed in the browser — position, transform, margins —
+// and arrives as a boolean: that is the boundary data-model.md draws, and the
+// CSS-to-boolean mapping is validated by a real run rather than pretended at.
+const participant = (cls) => ({ tag: 'div', cls, w: 88, h: 18 });
+
+const candidate = (overlapPx, over = {}) => ({
+  a: participant('text-[14px] font-[600] text-brandText'),
+  b: participant('text-[14px] font-[600] flex items-center'),
+  overlapPx,
+  aFlow: true,
+  bFlow: true,
+  ...over,
+});
+
+test('two in-flow participants overlapping above the floor are reported', () => {
+  const { collisions, collisionCount, worstOverlapPx } = reportableCollisions([candidate(31)]);
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 31);
+  // The flow flags are the filter's input, not part of the finding.
+  assert.deepEqual(collisions[0], {
+    overlapPx: 31,
+    a: participant('text-[14px] font-[600] text-brandText'),
+    b: participant('text-[14px] font-[600] flex items-center'),
+  });
+});
+
+// FR-012's exclusions — a badge on an avatar, a floating action over a list, a
+// portalled overlay — are all out of flow, so they are excluded by construction
+// rather than by four special cases.
+test('a pair with either participant out of flow is not reported', () => {
+  assert.equal(reportableCollisions([candidate(31, { aFlow: false })]).collisionCount, 0);
+  assert.equal(reportableCollisions([candidate(31, { bFlow: false })]).collisionCount, 0);
+  assert.equal(
+    reportableCollisions([candidate(31, { aFlow: false, bFlow: false })]).collisionCount,
+    0
+  );
+});
+
+test('an overlap at or below 8px is not a finding', () => {
+  // The same floor probe.js already applies to clipping, so sub-pixel rounding
+  // is never reported as a squeeze.
+  assert.equal(reportableCollisions([candidate(8)]).collisionCount, 0);
+  assert.equal(reportableCollisions([candidate(9)]).collisionCount, 1);
+});
+
+test('two pairs with the same tag+class signature are reported once', () => {
+  const { collisions, collisionCount } = reportableCollisions([candidate(24), candidate(31)]);
+  assert.equal(collisionCount, 1);
+  // The worst instance survives, not whichever arrived first: reporting 24px
+  // while a 31px overlap was measured would under-report the finding.
+  assert.equal(collisions[0].overlapPx, 31);
+});
+
+test('a pair is unordered — the same two participants the other way round is one finding', () => {
+  const { collisionCount } = reportableCollisions([
+    candidate(31),
+    candidate(24, {
+      a: participant('text-[14px] font-[600] flex items-center'),
+      b: participant('text-[14px] font-[600] text-brandText'),
+    }),
+  ]);
+  assert.equal(collisionCount, 1);
+});
+
+test('two pairs with different signatures are both reported', () => {
+  const { collisionCount } = reportableCollisions([
+    candidate(31),
+    candidate(24, { b: participant('text-[12px] text-newTableText') }),
+  ]);
+  assert.equal(collisionCount, 2);
+});
+
+test('an empty candidate list reports zero, not absent', () => {
+  assert.deepEqual(reportableCollisions([]), {
+    collisions: [],
+    collisionCount: 0,
+    worstOverlapPx: 0,
+  });
+});
+
+test('a page whose every candidate is filtered out reads the same as one with none', () => {
+  const filtered = reportableCollisions([candidate(31, { aFlow: false }), candidate(4)]);
+  assert.deepEqual(filtered, { collisions: [], collisionCount: 0, worstOverlapPx: 0 });
+});
+
+test('collisions are sorted worst first and capped at six, like clipped', () => {
+  const many = [12, 40, 9, 33, 21, 55, 17, 28].map((px, i) =>
+    candidate(px, { a: participant(`a-${i}`), b: participant(`b-${i}`) })
+  );
+  const { collisions, collisionCount, worstOverlapPx } = reportableCollisions(many);
+
+  assert.deepEqual(
+    collisions.map((c) => c.overlapPx),
+    [55, 40, 33, 28, 21, 17]
+  );
+  assert.equal(worstOverlapPx, 55);
+  // The count is what survived the rules, not what fitted in the report — the
+  // same split clippedCount and clipped[] already keep. A count that quietly
+  // capped at six would flatten the fourfold rise R3 predicts into nothing.
+  assert.equal(collisionCount, 8);
 });

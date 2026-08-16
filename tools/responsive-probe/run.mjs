@@ -77,6 +77,7 @@ import {
   difference,
   preconditionVerdict,
   provenance,
+  reportableCollisions,
   viewportKey,
 } from './reading.mjs';
 
@@ -141,7 +142,17 @@ function login() {
   ab(['fill', 'input[type=password]', PASSWORD]);
   ab(['click', 'button[type=submit]']);
   ab(['wait', '--load', 'networkidle']);
-  const url = ab(['get', 'url']).trim();
+
+  // networkidle can settle against the page being left behind, so the URL read
+  // straight after a click is the sign-in page whether or not signing in
+  // worked. A warm session redirects fast enough to hide that; a cold one does
+  // not, and reported a successful login as a failure. Re-read for up to five
+  // seconds before believing it, so the error below only ever means what it says.
+  let url = ab(['get', 'url']).trim();
+  for (let i = 0; i < 10 && /\/auth(\/|$)/.test(url); i++) {
+    ab(['wait', '500']);
+    url = ab(['get', 'url']).trim();
+  }
   if (/\/auth(\/|$)/.test(url)) {
     throw new Error(`login failed — still at ${url}`);
   }
@@ -153,7 +164,13 @@ function measure(route, viewport) {
   ab(['open', `${BASE}${route}`]);
   ab(['wait', '--load', 'networkidle']);
   ab(['wait', '1800']); // charts and lazy panels settle after networkidle
-  return JSON.parse(ab(['eval', '--stdin'], { input: probeSource }));
+  const { collisionCandidates, ...reading } = JSON.parse(
+    ab(['eval', '--stdin'], { input: probeSource })
+  );
+  // The page reports every pair of text boxes that intersect; which of them is
+  // a squeeze and which is the design is a rule, and rules live in reading.mjs.
+  // Only the verdict is kept — the candidates never reach a stored reading.
+  return { ...reading, ...reportableCollisions(collisionCandidates) };
 }
 
 // One navigation, before anything is recorded, to establish that this account
@@ -179,6 +196,28 @@ function preflight() {
   };
 }
 
+// The same check once everything has been measured, because a session can stop
+// rendering the app partway through a run and every later reading is then of a
+// shell with no content — filed under the route it was asked for, at the right
+// url, invisible to every other check. Measured 2026-08-16 over four runs.
+//
+// Unlike the pre-flight this never exits: the readings are already taken, and
+// throwing them away is completeness()'s decision to make, not this function's.
+// A navigation that fails outright is the strongest possible answer to the
+// question being asked, so it is recorded as one rather than propagated.
+function postflight() {
+  try {
+    const reading = measure('/launches', { w: 1440, h: 900 });
+    return preconditionVerdict({ ...reading.precondition, waived: WAIVED });
+  } catch {
+    return preconditionVerdict({
+      pageRendered: false,
+      customerControlPresent: false,
+      waived: WAIVED,
+    });
+  }
+}
+
 const pad = (s, n) => String(s).padEnd(n);
 const results = [];
 const errors = [];
@@ -201,7 +240,17 @@ console.log(
 
 for (const viewport of VIEWPORTS) {
   console.log(`=== ${viewport.w}×${viewport.h} — ${viewport.label} ===`);
-  console.log(pad('route', 14) + pad('clipped', 9) + pad('worst', 8) + pad('touch <44', 11) + 'primary action');
+  // Two failure modes, two column pairs: content cut off by an ancestor, and
+  // content printed over other content. "cut" and "overlap" are their worsts.
+  console.log(
+    pad('route', 14) +
+      pad('clipped', 9) +
+      pad('cut', 8) +
+      pad('collided', 10) +
+      pad('overlap', 9) +
+      pad('touch <44', 11) +
+      'primary action'
+  );
   for (const route of ROUTES) {
     let r;
     try {
@@ -219,6 +268,8 @@ for (const viewport of VIEWPORTS) {
       pad(route, 14) +
         pad(r.clippedCount, 9) +
         pad(r.worstCutPx ? `${r.worstCutPx}px` : '—', 8) +
+        pad(r.collisionCount, 10) +
+        pad(r.worstOverlapPx ? `${r.worstOverlapPx}px` : '—', 9) +
         pad(`${r.touch.under44}/${r.touch.total}`, 11) +
         (r.cta ? r.cta.verdict : '—')
     );
@@ -226,14 +277,30 @@ for (const viewport of VIEWPORTS) {
   console.log('');
 }
 
+const postcondition = postflight();
+if (postcondition.verdict !== 'qualified' && postcondition.verdict !== 'waived') {
+  console.log(`closing check: ${postcondition.verdict} — ${postcondition.reason}`);
+  console.log(
+    'the app stopped rendering for this account during the run, so an unknown number of the\n' +
+      'readings below hold a shell with no content. They are written out and reported, and the\n' +
+      'run is not complete and cannot become a baseline.\n'
+  );
+} else {
+  console.log(`closing check: ${postcondition.verdict}\n`);
+}
+
 const covered = results.filter((r) => r.cta?.verdict === 'COVERED');
 const clipped = results.filter((r) => r.clippedCount > 0);
+const collided = results.filter((r) => r.collisionCount > 0);
 const touch = results.filter((r) => r.touch.under44 > 0);
 
 console.log('--- summary ---');
 console.log(`readings          ${results.length}`);
 console.log(`primary action covered  ${covered.length}   ${covered.map((r) => `${r.route}@${r.viewport}`).join(', ') || '—'}`);
 console.log(`routes with clipping    ${clipped.length}`);
+// Listed, not just counted: this reading is new, so which route and width
+// collides is the finding rather than a detail of it.
+console.log(`routes with colliding text  ${collided.length}   ${collided.map((r) => `${r.route}@${r.viewport}`).join(', ') || '—'}`);
 console.log(`routes under the touch floor  ${touch.length}`);
 
 // Everything needed to judge whether another reading is comparable to this one.
@@ -249,6 +316,7 @@ const run = {
     routes: ROUTES,
     viewports: VIEWPORTS.map(viewportKey),
     precondition,
+    postcondition,
   }),
   readings: results,
   errors,
@@ -262,6 +330,7 @@ console.log(`captured    ${run.provenance.capturedAt}`);
 console.log(`routes      ${run.provenance.routes.join(' ')}`);
 console.log(`widths      ${run.provenance.viewports.join(' ')}`);
 console.log(`precondition ${run.provenance.precondition.verdict}`);
+console.log(`closing check ${run.provenance.postcondition.verdict}`);
 
 writeFileSync(join(HERE, 'probe-results.json'), JSON.stringify(run, null, 2));
 console.log(`\nwrote tools/responsive-probe/probe-results.json  (account: ${ACCOUNT})`);
@@ -306,7 +375,16 @@ if (COMPARE) {
     // Shown instead of a diff, never as a difference (FR-011).
     console.log(`not comparable: ${reason}`);
   } else {
-    const { changes, advisory } = difference(stored, run);
+    const { changes, advisory, introduced } = difference(stored, run);
+    // Above the changes, because it is the frame they are read in: a field the
+    // baseline predates has no "from", so its absence from the diff below is
+    // the tool having nothing to compare, not the app having nothing to move.
+    if (introduced.length) {
+      console.log(
+        `\n${introduced.length} field(s) measured here that the baseline predates — reported as new, not as change:`
+      );
+      console.log(`  ${introduced.join(', ')}\n`);
+    }
     console.log(
       changes.length ? `${changes.length} change(s) in fields the baseline calls stable:` : 'no change in any field the baseline calls stable'
     );

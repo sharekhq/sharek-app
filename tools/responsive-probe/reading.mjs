@@ -116,6 +116,65 @@ export function preconditionVerdict({
 }
 
 // ---------------------------------------------------------------------------
+// Collisions — which overlaps are a squeeze, and which are the design
+// ---------------------------------------------------------------------------
+
+// probe.js hands over every pair of in-viewport text-bearing elements whose
+// boxes intersect and where neither contains the other. Containment is settled
+// there, in collection: an element overlapping its own ancestor is not a
+// finding in any layout. What crosses the boundary is geometry, and the
+// judgement lives here where it can be tested.
+//
+// Note what the pairing is not. The audit describes this as sibling-rect
+// intersection, and a sibling test reports zero on the calendar it exists to
+// catch — the colliding day labels are children of two different grid cells,
+// so their nearest common ancestor is three levels up. Cousins are the point.
+//
+// FR-012's operative test is "a reported pair stops overlapping when the
+// viewport is widened", and a reading evaluates one viewport at a time. Both
+// participants being in normal flow is the proxy, and it lines up with the
+// exclusion list exactly: a badge on an avatar, a floating action over a list
+// and a portalled overlay are all out of flow, so they are excluded by
+// construction rather than by four special cases.
+//
+// The floor, the class excerpt and the cap of six are the ones `clipped`
+// already uses. A second vocabulary for the same kind of finding would be one
+// more thing to learn for nothing.
+const COLLISION_FLOOR_PX = 8;
+const COLLISION_CAP = 6;
+
+// A pair is unordered, so its signature is too — the same two participants the
+// other way round is the same finding, not a second one.
+const pairSignature = (c) => [c.a.tag + c.a.cls, c.b.tag + c.b.cls].sort().join(' | ');
+
+export function reportableCollisions(candidates) {
+  const seen = new Set();
+  const collisions = [];
+
+  // Sorted before it is deduped, so the worst instance of a repeated signature
+  // survives. The seven day-header pairs on the calendar share one signature;
+  // keeping whichever came first in document order would report a smaller
+  // overlap than the one that was measured.
+  for (const c of [...candidates].sort((x, y) => y.overlapPx - x.overlapPx)) {
+    if (!c.aFlow || !c.bFlow) continue;
+    if (c.overlapPx <= COLLISION_FLOOR_PX) continue;
+    const key = pairSignature(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // The flow flags decided the finding; they are not part of it.
+    collisions.push({ overlapPx: c.overlapPx, a: c.a, b: c.b });
+  }
+
+  return {
+    // The count is what survived the rules, not what fitted in the report —
+    // the same split `clippedCount` and `clipped[]` already keep.
+    collisionCount: collisions.length,
+    worstOverlapPx: collisions.length ? collisions[0].overlapPx : 0,
+    collisions: collisions.slice(0, COLLISION_CAP),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Provenance — what a reading has to carry to be worth comparing
 // ---------------------------------------------------------------------------
 
@@ -131,6 +190,7 @@ export function provenance({
   routes,
   viewports,
   precondition,
+  postcondition,
 }) {
   return {
     account,
@@ -140,6 +200,10 @@ export function provenance({
     routes,
     viewports,
     precondition,
+    // The same check, run again once everything has been measured. Null where
+    // it was not performed — a reading from before this existed is not judged
+    // on evidence nobody gathered.
+    postcondition: postcondition ?? null,
   };
 }
 
@@ -197,6 +261,32 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
   }
   if (absent.length) {
     return { complete: false, reason: `no reading recorded for ${absent.join(', ')}` };
+  }
+
+  // The run bracketed at both ends. A session can stop rendering the app
+  // partway through: the shell draws at the right url and the route's own
+  // content never arrives, so a reading comes back with no primary action and
+  // nothing clipped and is filed under the route it was asked for. The url
+  // check below cannot see that, because the url is right — it is the same
+  // false green as the expired session, one level further in.
+  //
+  // Measured 2026-08-16: four full runs passed every other check here while 14,
+  // 8, 0 and 11 of each 28 readings held no content, and in all three bad runs
+  // the failure was monotonic — once it started it never recovered. So the
+  // closing check is the pre-flight run again after the last reading.
+  //
+  // This brackets the run; it does not certify each reading. A session that
+  // broke and recovered would pass. That is the honest limit of one navigation,
+  // and it is cheaper than re-checking on every reading.
+  const closing = prov.postcondition;
+  if (closing && closing.verdict !== 'qualified' && closing.verdict !== 'waived') {
+    return {
+      complete: false,
+      reason:
+        `the app was no longer rendering for this account when the run finished — ` +
+        `${closing.reason}. Readings taken after it stopped are of a page with no content in ` +
+        `them, and there is no way to tell from here which ones those are`,
+    };
   }
 
   // A reading of the wrong page is not a reading of the route it is filed
@@ -272,6 +362,26 @@ export function baselineEligibility(run) {
 // one that did was not predicted at all, and was found by running `--compare`
 // against the freshly captured baseline. Add to `advisory` when a field is
 // shown to move; do not explain a movement away.
+//
+// `collisionCount` and `worstOverlapPx` arrived with the collision detector and
+// were advisory until measured, for the plainest reason there is: nothing had
+// measured them. Settled 2026-08-16 over four more full runs against the same
+// unchanged build 75f40e48 — 28 readings each, no errors, every run qualified at
+// both ends — and both fields came back identical in all 112 readings. Stable.
+//
+// The first attempt at that measurement is the reason the closing check exists,
+// and is worth keeping. It produced four runs that agreed with each other and
+// meant nothing: 14, 8, 0 and 11 of each 28 readings held a page that had drawn
+// its shell and no content, and nothing in the harness could see it. These four
+// were each checked reading by reading against the baseline's own figure for
+// that route and width before being believed — 0 of 28 suspect in all four.
+//
+// Read the result for what it is. Every one of those 112 readings was zero, so
+// four runs establish that the detector does not fire at random, not that some
+// particular non-zero figure reproduces. That is the assurance a gate needs —
+// the field exists to catch a rise, and from a floor of zero any rise is real —
+// but it is a weaker demonstration than `touch.under44`'s and should not be
+// quoted as a stronger one.
 export const VARIANCE = {
   method:
     'four full runs against an unchanged deployment, diffed field by field — two back to back, ' +
@@ -293,6 +403,9 @@ export const VARIANCE = {
     'touch.under44',
     'sidewaysScrollPx',
     'precondition.customerControlPresent',
+    // Promoted 2026-08-16 on the four-run measurement described above.
+    'collisionCount',
+    'worstOverlapPx',
   ],
   advisory: ['touch.total'],
   // Deliberately outside both lists, so a comparison never mentions them:
@@ -302,9 +415,10 @@ export const VARIANCE = {
   //   touch.pct      — derived from total and under44, so it cannot move on its
   //                    own. Including it would report one fact three times.
   //   clipped[],
-  //   smallest[]     — detail carried in the baseline for reading by hand, too
+  //   smallest[],
+  //   collisions[]   — detail carried in the baseline for reading by hand, too
   //                    noisy to diff element by element.
-  notCompared: ['build', 'touch.pct', 'clipped', 'smallest'],
+  notCompared: ['build', 'touch.pct', 'clipped', 'smallest', 'collisions'],
 };
 
 export const baseline = (run) => ({ ...run, variance: VARIANCE });
@@ -359,6 +473,15 @@ export function difference(baselineRun, run) {
   const changes = [];
   const advisory = [];
 
+  // Fields this code measures that the baseline's profile has never heard of.
+  // The loop below reads the profile stored *in the baseline*, so without this
+  // a newly added field is simply absent from every comparison against an older
+  // one: not an error, not a change, and not mentioned. Silence is the one
+  // thing this harness exists not to produce. A flat list of names, because a
+  // new instrument is a property of the run rather than of any reading.
+  const known = new Set([...baselineRun.variance.stable, ...baselineRun.variance.advisory]);
+  const introduced = [...VARIANCE.stable, ...VARIANCE.advisory].filter((f) => !known.has(f));
+
   for (const before of baselineRun.readings) {
     const after = run.readings.find(
       (r) => r.route === before.route && r.viewport === before.viewport
@@ -391,5 +514,5 @@ export function difference(baselineRun, run) {
     }
   }
 
-  return { changes, advisory };
+  return { changes, advisory, introduced };
 }
