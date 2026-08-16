@@ -14,7 +14,10 @@ import {
 import dayjs from 'dayjs';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 import { Post, Integration, Tags } from '@prisma/client';
 import { useSearchParams } from 'next/navigation';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -177,7 +180,7 @@ export const CalendarWeekProvider: FC<{
   // Phone can't fit the 7-column week/month grids: show the agenda (list) view
   // there instead. Derived per-render (never stored), so the user's saved grid
   // preference is untouched and returns automatically on desktop.
-  const isPhone = useMediaQuery('(max-width: 768px)');
+  const isPhone = useMediaQuery(PHONE_QUERY);
   const effectiveDisplay =
     isPhone && (filters.display === 'week' || filters.display === 'month')
       ? 'list'

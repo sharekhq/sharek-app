@@ -16,7 +16,10 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { CheckPayment } from '@gitroom/frontend/components/layout/check.payment';
 import { ToolTip } from '@gitroom/frontend/components/layout/top.tip';
@@ -70,7 +73,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   // phone-scoped styles, so it's visually inert on desktop and needs no reset
   // on resize — only the scroll lock below must be released.
   const t = useT();
-  const isPhone = useMediaQuery('(max-width: 768px)');
+  const isPhone = useMediaQuery(PHONE_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Lock background scroll and close on Escape while the drawer is open on

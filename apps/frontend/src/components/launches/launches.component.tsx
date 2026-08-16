@@ -22,7 +22,10 @@ import { useDrag, useDrop } from 'react-dnd';
 import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
 import { GeneratorComponent } from './generator/generator';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
-import { useMediaQuery } from '@gitroom/react/helpers/use.media.query';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
@@ -323,7 +326,7 @@ export const LaunchesComponent = () => {
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   // Phone: the channels panel becomes an off-canvas sheet behind a toggle, and
   // is always fully expanded there (never the desktop icon-collapsed rail).
-  const isPhone = useMediaQuery('(max-width: 768px)');
+  const isPhone = useMediaQuery(PHONE_QUERY);
   const [channelsOpen, setChannelsOpen] = useState(false);
   const railCollapsed = collapseMenu === '1' && !isPhone;
   const { isLoading, data: integrations, mutate } = useIntegrationList();

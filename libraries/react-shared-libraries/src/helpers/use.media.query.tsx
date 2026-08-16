@@ -3,6 +3,15 @@
 import { useEffect, useState } from 'react';
 
 /**
+ * The phone width query — the JavaScript mirror of Tailwind's `phone` screen
+ * (`max-width: 768px`). Every render-time phone swap resolves from here; the
+ * value is stated once in `apps/frontend/DESIGN.md` and appears once per layer,
+ * because `tailwind.config.cjs` is CommonJS consumed by PostCSS and cannot
+ * import from `libraries/`. Change one, change the other.
+ */
+export const PHONE_QUERY = '(max-width: 768px)';
+
+/**
  * SSR-safe media-query hook. Returns false on the server and on the first
  * client render (so it matches the desktop-first SSR markup), then syncs to the
  * real match after mount — avoiding hydration mismatches. Use for render-time
