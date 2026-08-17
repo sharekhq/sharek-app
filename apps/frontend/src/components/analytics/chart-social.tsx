@@ -15,7 +15,7 @@ export const CHART_CARD_HUES = [
   'fayrouz',
   'palm',
   'lapis',
-  'clay',
+  'mulberry',
 ] as const;
 export const CHART_CARD_DOTS = [
   'bg-catPomegranate',
@@ -23,7 +23,7 @@ export const CHART_CARD_DOTS = [
   'bg-catFayrouz',
   'bg-catPalm',
   'bg-catLapis',
-  'bg-catClay',
+  'bg-catMulberry',
 ];
 
 function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
@@ -47,7 +47,7 @@ export const ChartSocial: FC<{
     | 'fayrouz'
     | 'palm'
     | 'lapis'
-    | 'clay';
+    | 'mulberry';
 }> = (props) => {
   const { data, color = 'purple' } = props;
   const [mode] = useCookie('mode', 'dark');
@@ -94,29 +94,29 @@ export const ChartSocial: FC<{
       border: mode === 'dark' ? 'rgb(224, 99, 120)' : 'rgb(185, 45, 67)',
     },
     saffron: {
-      start: mode === 'dark' ? 'rgba(196, 133, 25, 0.8)' : 'rgba(201, 133, 0, 0.8)',
-      end: mode === 'dark' ? 'rgba(196, 133, 25, 0.1)' : 'rgba(201, 133, 0, 0.1)',
-      border: mode === 'dark' ? 'rgb(196, 133, 25)' : 'rgb(201, 133, 0)',
+      start: mode === 'dark' ? 'rgba(198, 132, 0, 0.8)' : 'rgba(201, 133, 0, 0.8)',
+      end: mode === 'dark' ? 'rgba(198, 132, 0, 0.1)' : 'rgba(201, 133, 0, 0.1)',
+      border: mode === 'dark' ? 'rgb(198, 132, 0)' : 'rgb(201, 133, 0)',
     },
     fayrouz: {
-      start: mode === 'dark' ? 'rgba(47, 163, 184, 0.8)' : 'rgba(10, 128, 166, 0.8)',
-      end: mode === 'dark' ? 'rgba(47, 163, 184, 0.1)' : 'rgba(10, 128, 166, 0.1)',
-      border: mode === 'dark' ? 'rgb(47, 163, 184)' : 'rgb(10, 128, 166)',
+      start: mode === 'dark' ? 'rgba(0, 165, 188, 0.8)' : 'rgba(0, 128, 167, 0.8)',
+      end: mode === 'dark' ? 'rgba(0, 165, 188, 0.1)' : 'rgba(0, 128, 167, 0.1)',
+      border: mode === 'dark' ? 'rgb(0, 165, 188)' : 'rgb(0, 128, 167)',
     },
     palm: {
-      start: mode === 'dark' ? 'rgba(85, 160, 63, 0.8)' : 'rgba(78, 148, 50, 0.8)',
-      end: mode === 'dark' ? 'rgba(85, 160, 63, 0.1)' : 'rgba(78, 148, 50, 0.1)',
-      border: mode === 'dark' ? 'rgb(85, 160, 63)' : 'rgb(78, 148, 50)',
+      start: mode === 'dark' ? 'rgba(60, 165, 12, 0.8)' : 'rgba(61, 152, 0, 0.8)',
+      end: mode === 'dark' ? 'rgba(60, 165, 12, 0.1)' : 'rgba(61, 152, 0, 0.1)',
+      border: mode === 'dark' ? 'rgb(60, 165, 12)' : 'rgb(61, 152, 0)',
     },
     lapis: {
-      start: mode === 'dark' ? 'rgba(110, 147, 220, 0.8)' : 'rgba(62, 99, 168, 0.8)',
-      end: mode === 'dark' ? 'rgba(110, 147, 220, 0.1)' : 'rgba(62, 99, 168, 0.1)',
-      border: mode === 'dark' ? 'rgb(110, 147, 220)' : 'rgb(62, 99, 168)',
+      start: mode === 'dark' ? 'rgba(124, 137, 240, 0.8)' : 'rgba(80, 88, 187, 0.8)',
+      end: mode === 'dark' ? 'rgba(124, 137, 240, 0.1)' : 'rgba(80, 88, 187, 0.1)',
+      border: mode === 'dark' ? 'rgb(124, 137, 240)' : 'rgb(80, 88, 187)',
     },
-    clay: {
-      start: mode === 'dark' ? 'rgba(207, 107, 54, 0.8)' : 'rgba(192, 98, 44, 0.8)',
-      end: mode === 'dark' ? 'rgba(207, 107, 54, 0.1)' : 'rgba(192, 98, 44, 0.1)',
-      border: mode === 'dark' ? 'rgb(207, 107, 54)' : 'rgb(192, 98, 44)',
+    mulberry: {
+      start: mode === 'dark' ? 'rgba(184, 95, 210, 0.8)' : 'rgba(171, 86, 196, 0.8)',
+      end: mode === 'dark' ? 'rgba(184, 95, 210, 0.1)' : 'rgba(171, 86, 196, 0.1)',
+      border: mode === 'dark' ? 'rgb(184, 95, 210)' : 'rgb(171, 86, 196)',
     },
   };
 
