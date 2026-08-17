@@ -478,7 +478,10 @@ export const LaunchesComponent = () => {
       <CalendarWeekProvider integrations={sortedIntegrations}>
         <div
           className={clsx(
-            'flex relative flex-col',
+            // shrink-0: the rail's only child is absolutely positioned, so its
+            // min-content is 0 and a greedy sibling can shrink it to nothing —
+            // which is what put Create Post under the calendar on a tablet.
+            'flex relative flex-col shrink-0',
             railCollapsed ? 'group sidebar w-[100px]' : 'w-[260px]',
             // Phone: off-canvas channels sheet revealed by the toggle below.
             'phone:fixed phone:inset-y-0 phone:start-0 phone:z-[50] phone:!w-[300px] phone:max-w-[85vw]',
@@ -597,7 +600,10 @@ export const LaunchesComponent = () => {
             aria-hidden="true"
           />
         )}
-        <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+        {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
+            pinned to the filter bar's min-content (847px), which starves the
+            channels rail at every width below ~1220. */}
+        <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
           <button
             type="button"
             onClick={() => setChannelsOpen(true)}
