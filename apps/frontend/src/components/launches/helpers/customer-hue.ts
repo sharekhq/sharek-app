@@ -1,14 +1,13 @@
 /* v3 categorical slots, fixed order — same hash everywhere a customer wears
    a color, so a customer keeps one hue across the app. With more than six
-   customers the slots cycle (standard categorical-palette behavior; the six
-   hues are the CVD-validated set). */
+   customers the slots cycle (standard categorical-palette behavior). */
 export const CUSTOMER_HUES = [
   'bg-catPomegranate',
   'bg-catSaffron',
   'bg-catFayrouz',
   'bg-catPalm',
   'bg-catLapis',
-  'bg-catClay',
+  'bg-catMulberry',
 ];
 
 export const customerHue = (name: string) =>

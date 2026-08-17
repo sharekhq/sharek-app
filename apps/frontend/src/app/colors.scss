@@ -27,14 +27,17 @@
     /* v3 AI accent (saffron) — soft fill + text tone, always paired with the ✦ glyph */
     --ai-accent: #E8B54A;
     --ai-soft: #322718;
-    /* v3 categorical slots — fixed order, CVD-validated on --surface (dark) */
+    /* v3 categorical slots — fixed order. Chroma raised 1.3x at unchanged
+       lightness and hue so the hues stay separable when the marketing site
+       flattens them to 22% tints; pomegranate is --brand and never moves.
+       Worst pair: 18.5 dE2000 at full strength, 8.8 at 22% over --bg. */
     --cat-pomegranate: #E06378;
-    --cat-saffron: #C48519;
-    --cat-fayrouz: #2FA3B8;
-    --cat-palm: #55A03F;
-    --cat-lapis: #6E93DC;
-    --cat-clay: #CF6B36;
-    --cat-clay-text: #CF6B36;
+    --cat-saffron: #C68400;
+    --cat-fayrouz: #00A5BC;
+    --cat-palm: #3CA50C;
+    --cat-lapis: #7C89F0;
+    --cat-mulberry: #B85FD2;
+    --cat-mulberry-text: #B85FD2;
   }
   .light {
     --brand: #B92D43;
@@ -63,14 +66,16 @@
     /* v3 AI accent (saffron) — soft fill + text tone, always paired with the ✦ glyph */
     --ai-accent: #8A5B00;
     --ai-soft: #F8EFDC;
-    /* v3 categorical slots — fixed order, CVD-validated on --surface (light) */
+    /* v3 categorical slots — fixed order. See the dark block for why the
+       chroma is raised. --info above still holds #3E63A8, which used to be
+       --cat-lapis; they were never aliased, so it stays as it is. */
     --cat-pomegranate: #B92D43;
     --cat-saffron: #C98500;
-    --cat-fayrouz: #0A80A6;
-    --cat-palm: #4E9432;
-    --cat-lapis: #3E63A8;
-    --cat-clay: #C0622C;
-    --cat-clay-text: #A9551D; /* deep step: small chip labels in light need 4.5:1 (#C0622C is 4.2) */
+    --cat-fayrouz: #0080A7;
+    --cat-palm: #3D9800;
+    --cat-lapis: #5058BB;
+    --cat-mulberry: #AB56C4;
+    --cat-mulberry-text: #A550BE; /* deep step: small chip labels in light need 4.5:1 (#AB56C4 is 4.1) */
   }
 }
 
