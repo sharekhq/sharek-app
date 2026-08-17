@@ -353,9 +353,9 @@ export function baselineEligibility(run) {
 // So `touch.total` is advisory. One interactive element on the calendar comes
 // and goes between runs with nothing changing in the app, which is enough to
 // disqualify it as a regression signal even though the movement is small.
-// `touch.under44` held across all four runs and stays stable — and it is the
-// number that matters, since the 44px floor is about how many controls are too
-// small, not how many exist.
+// `touch.under44` held across all four runs and was stable on that evidence
+// until 2026-08-17 — see the demotion at the end of this note, which is the same
+// field failing a test four runs minutes apart could not perform.
 //
 // Neither instability research R5 anticipated is what showed up: the 1800ms
 // settle never caught a panel mid-render and `clippedCount` never moved. The
@@ -380,8 +380,26 @@ export function baselineEligibility(run) {
 // four runs establish that the detector does not fire at random, not that some
 // particular non-zero figure reproduces. That is the assurance a gate needs —
 // the field exists to catch a rise, and from a floor of zero any rise is real —
-// but it is a weaker demonstration than `touch.under44`'s and should not be
-// quoted as a stronger one.
+// but it is a weaker demonstration than a field with a moving figure would give,
+// and should not be quoted as a stronger one.
+//
+// `touch.under44` is advisory as of 2026-08-17, and how it got there matters more
+// than the demotion. Comparing a Monday run against the Saturday baseline,
+// `/launches@820` read 15 → 172 with nothing in the app changed. `calendar.tsx`
+// renders an hour cell's drop target only while that hour is still ahead, so the
+// count of interactive elements on the route follows where *now* falls in the
+// displayed week: a week that has just started offers roughly 150 of them, a
+// week nearly over a couple of dozen. Runs taken minutes apart share a week
+// position and agree exactly — which is how a field that is reproducible within
+// a sitting and not across one passed for stable, and why four runs is a floor
+// for that claim rather than a proof of it.
+//
+// Getting it back means fixing the instrument, not the classification: count
+// undersized targets by `tag + class` signature, the way `clipped` and
+// `collisions` already dedupe, so one undersized control counts once however
+// often the calendar repeats it. That belongs to 016-responsive-primitives — the
+// 44px floor is its subject and it needs a figure it can gate on — so it is
+// recorded here rather than guessed at now.
 export const VARIANCE = {
   method:
     'four full runs against an unchanged deployment, diffed field by field — two back to back, ' +
@@ -400,14 +418,15 @@ export const VARIANCE = {
     'cta.coveredBy',
     'clippedCount',
     'worstCutPx',
-    'touch.under44',
     'sidewaysScrollPx',
     'precondition.customerControlPresent',
     // Promoted 2026-08-16 on the four-run measurement described above.
     'collisionCount',
     'worstOverlapPx',
   ],
-  advisory: ['touch.total'],
+  // Demoted 2026-08-17: `touch.under44` is reproducible within a sitting and not
+  // across one. See the note above.
+  advisory: ['touch.total', 'touch.under44'],
   // Deliberately outside both lists, so a comparison never mentions them:
   //   build          — provenance, printed above the diff. Comparing it per
   //                    reading would report four rows after every deploy, which
