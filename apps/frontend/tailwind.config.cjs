@@ -242,15 +242,6 @@ module.exports = {
         phone: {
           raw: '(max-width: 768px)',
         },
-        tablet: {
-          raw: '(max-width: 1300px)',
-        },
-        iconBreak: {
-          raw: '(max-width: 1560px)',
-        },
-        maxMedia: {
-          raw: '(max-width: 1400px)',
-        },
         minCustom: {
           raw: '(min-height: 800px)',
         },
@@ -269,6 +260,7 @@ module.exports = {
     function ({ addVariant }) {
       addVariant('child', '& > *');
       addVariant('child-hover', '& > *:hover');
+      addVariant('coarse', '@media (pointer: coarse)');
     },
   ],
 };

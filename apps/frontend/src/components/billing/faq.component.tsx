@@ -132,10 +132,10 @@ export const FAQComponent: FC = () => {
   const list = useFaqList();
   return (
     <div>
-      {/*<h3 className="text-[24px] mt-[48px] mb-[40px] tablet:mt-[80px]">*/}
+      {/*<h3 className="text-[24px] mt-[48px] mb-[40px] mobile:mt-[80px]">*/}
       {/*  {t('frequently_asked_questions', 'Frequently Asked Questions')}*/}
       {/*</h3>*/}
-      <div className="gap-[24px] flex-col flex select-none  mt-[48px] mb-[40px] tablet:mt-[80px]">
+      <div className="gap-[24px] flex-col flex select-none  mt-[48px] mb-[40px] mobile:mt-[80px]">
         {list.map((item, index) => (
           <FAQSection key={index} {...item} />
         ))}

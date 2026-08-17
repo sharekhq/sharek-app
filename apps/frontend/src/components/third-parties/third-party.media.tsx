@@ -227,7 +227,7 @@ const ThirdPartyMediaLoad: FC<ThirdPartyMediaProps> = (props) => {
                 />
               </svg>
             </div>
-            <div className="text-[12px] font-[600] iconBreak:hidden block">
+            <div className="text-[12px] font-[600] mobile:hidden block">
               {t('integrations', 'Integrations')}
             </div>
           </div>

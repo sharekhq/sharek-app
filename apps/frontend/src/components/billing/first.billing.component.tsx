@@ -120,7 +120,7 @@ export const FirstBillingComponent = () => {
   const JoinOver = () => {
     return (
       <>
-        <div className="text-[46px] font-[600] leading-[110%] tablet:text-[36px] mobile:!text-[30px] whitespace-pre-line text-balance">
+        <div className="text-[46px] font-[600] leading-[110%] mobile:text-[36px] mobile:!text-[30px] whitespace-pre-line text-balance">
           {t('billing_join_over', 'Join Over')}{' '}
           <span className="text-brand">
             {t('billing_entrepreneurs_count', '20,000+ Entrepreneurs')}
@@ -133,7 +133,7 @@ export const FirstBillingComponent = () => {
         </div>
 
         <div className="flex" onClick={showYouTube}>
-          <div className="tablet:mb-[32px] cursor-pointer mt-[32px] flex gap-[10px] items-center underline hover:font-[700]">
+          <div className="mobile:mb-[32px] cursor-pointer mt-[32px] flex gap-[10px] items-center underline hover:font-[700]">
             <div>
               <SafeImage
                 className="text-[12px]"
@@ -148,7 +148,7 @@ export const FirstBillingComponent = () => {
         </div>
 
         {!!user?.allowTrial && (
-          <div className="flex mt-[32px] mb-[10px] gap-[15px] tablet:mt-[32px] tablet:mb-[32px] text-[16px] font-[500] mobile:flex-col">
+          <div className="flex mt-[32px] mb-[10px] gap-[15px] mobile:mt-[32px] mobile:mb-[32px] text-[16px] font-[500] mobile:flex-col">
             <div className="flex gap-[8px]">
               <div>
                 <CheckIconComponent />
@@ -182,7 +182,7 @@ export const FirstBillingComponent = () => {
 
   return (
     <div className="blurMe flex flex-1 flex-col bg-newBgColorInner pb-[60px] mobile:pb-[100px]">
-      <div className="h-[92px] px-[80px] tablet:px-[32px] mobile:!px-[16px] py-[20px] flex border-b border-newColColor">
+      <div className="h-[92px] px-[80px] mobile:px-[32px] mobile:!px-[16px] py-[20px] flex border-b border-newColColor">
         <div className="flex-1 flex items-center text-textColor">
           <LogoTextComponent />
         </div>
@@ -206,9 +206,9 @@ export const FirstBillingComponent = () => {
           </div>
         </div>
       </div>
-      <div className="flex px-[80px] tablet:px-[32px] mobile:!px-[16px] flex-1 flex-row tablet:flex-none tablet:flex-col-reverse">
-        <div className="flex-1 py-[40px] tablet:pt-[80px] flex flex-col pe-[40px] tablet:pe-0">
-          <div className="block tablet:hidden">
+      <div className="flex px-[80px] mobile:px-[32px] mobile:!px-[16px] flex-1 flex-row mobile:flex-none mobile:flex-col-reverse">
+        <div className="flex-1 py-[40px] mobile:pt-[80px] flex flex-col pe-[40px] mobile:pe-0">
+          <div className="block mobile:hidden">
             <JoinOver />
           </div>
           {data?.blocked ? (
@@ -229,9 +229,9 @@ export const FirstBillingComponent = () => {
             <LoadingComponent />
           )}
         </div>
-        <div className="flex flex-col ps-[40px] tablet:!ps-[0] border-l border-newColColor py-[40px] mobile:!pt-[24px] tablet:border-none tablet:pb-0">
+        <div className="flex flex-col ps-[40px] mobile:!ps-[0] border-l border-newColColor py-[40px] mobile:!pt-[24px] mobile:border-none mobile:pb-0">
           <div className="top-[20px] sticky">
-            <div className="hidden tablet:block">
+            <div className="hidden mobile:block">
               <JoinOver />
             </div>
             <div className="flex mb-[24px] mobile:flex-col">
@@ -266,14 +266,14 @@ export const FirstBillingComponent = () => {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-[8px] mobile:!grid-cols-2 tablet:grid-cols-4">
+            <div className="grid grid-cols-2 gap-[8px] mobile:!grid-cols-2 mobile:grid-cols-4">
               {price.map(
                 ([key, value]) => (
                   <div
                     onClick={() => setTier(key)}
                     key={key}
                     className={clsx(
-                      'cursor-pointer select-none w-[266px] h-[138px] tablet:w-full tablet:h-[124px] p-[24px] tablet:p-[15px] rounded-[20px] flex flex-col',
+                      'cursor-pointer select-none w-[266px] h-[138px] mobile:w-full mobile:h-[124px] p-[24px] mobile:p-[15px] rounded-[20px] flex flex-col',
                       key === tier
                         ? 'border-[1.5px] border-brand bg-brandSoft'
                         : 'border-[1.5px] border-newColColor'
@@ -300,13 +300,13 @@ export const FirstBillingComponent = () => {
                 []
               )}
             </div>
-            <div className="flex flex-col mt-[54px] gap-[24px] tablet:mt-[40px]">
+            <div className="flex flex-col mt-[54px] gap-[24px] mobile:mt-[40px]">
               <div className="text-[24px] font-[700]">
                 {t('billing_features', 'Features')}
               </div>
               <BillingFeatures tier={tier} />
             </div>
-            <div className="flex flex-col mobile:hidden tablet:hidden">
+            <div className="flex flex-col mobile:hidden">
               {/*<div>asd</div>*/}
               <FAQComponent />
             </div>

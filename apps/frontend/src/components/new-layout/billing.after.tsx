@@ -19,8 +19,8 @@ export const BillingAfter = () => {
       <div className="flex justify-center mb-[10px]">
         <Logo />
       </div>
-      <div className="text-center mb-[20px] text-xl [@media(max-width:1024px)]:text-xl">
-        <h1 className="text-3xl [@media(max-width:1024px)]:text-xl">
+      <div className="text-center mb-[20px] text-xl mobile:text-xl">
+        <h1 className="text-3xl mobile:text-xl">
           {t(
             'join_10000_entrepreneurs_who_use_postiz',
             'Join 10,000+ Entrepreneurs Who Use Sharek'

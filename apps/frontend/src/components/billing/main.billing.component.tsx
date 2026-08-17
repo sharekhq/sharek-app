@@ -435,14 +435,14 @@ export const MainBillingComponent: FC<{
       </div>
 
       {finishTrial && <FinishTrial close={() => setFinishTrial(false)} />}
-      <div className="flex gap-[16px] [@media(max-width:1024px)]:flex-col [@media(max-width:1024px)]:text-center">
+      <div className="flex gap-[16px] mobile:flex-col mobile:text-center">
         {Object.entries(pricing)
           .filter((f) => !isGeneral || f[0] !== 'FREE')
           .map(([name, values]) => (
             <div
               key={name}
               className={clsx(
-                'flex-1 border rounded-[14px] p-[24px] gap-[16px] flex flex-col bg-sixth [@media(max-width:1024px)]:items-center',
+                'flex-1 border rounded-[14px] p-[24px] gap-[16px] flex flex-col bg-sixth mobile:items-center',
                 currentPackage === name.toUpperCase()
                   ? 'border-success shadow-[0_0_0_1px_var(--success)]'
                   : 'border-line shadow-soft'

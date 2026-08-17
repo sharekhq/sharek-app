@@ -190,130 +190,132 @@ export const PlatformAnalytics = () => {
     );
   }
   return (
-    <>
-      <div
-        className={clsx(
-          'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all',
-          collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-        )}
-      >
-        <div className="flex gap-[12px] flex-col">
-          <div className="flex items-center">
-            <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-              {t('channels')}
-            </h2>
-            <div
-              onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="7"
-                height="13"
-                viewBox="0 0 7 13"
-                fill="none"
-              >
-                <path
-                  d="M6 11.5L1 6.5L6 1.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-          {sortedIntegrations.map((integration, index) => (
-            <div
-              key={integration.id}
-              onClick={() => {
-                if (integration.refreshNeeded) {
-                  toaster.show(
-                    'Please refresh the integration from the calendar',
-                    'warning'
-                  );
-                  return;
-                }
-                setRefresh(true);
-                setTimeout(() => {
-                  setRefresh(false);
-                }, 10);
-                setCurrent(index);
-              }}
-              className={clsx(
-                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px]',
-                currentIntegration.id !== integration.id &&
-                  'opacity-20 hover:opacity-100 cursor-pointer'
-              )}
-            >
+    <div className="flex flex-1 gap-[1px] phone:flex-col">
+        <div
+          className={clsx(
+            'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all',
+            collapseMenu === '1'
+              ? 'group sidebar w-[100px]'
+              : 'w-[260px] phone:w-full'
+          )}
+        >
+          <div className="flex gap-[12px] flex-col">
+            <div className="flex items-center">
+              <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
+                {t('channels')}
+              </h2>
               <div
+                onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
+                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="7"
+                  height="13"
+                  viewBox="0 0 7 13"
+                  fill="none"
+                >
+                  <path
+                    d="M6 11.5L1 6.5L6 1.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            {sortedIntegrations.map((integration, index) => (
+              <div
+                key={integration.id}
+                onClick={() => {
+                  if (integration.refreshNeeded) {
+                    toaster.show(
+                      'Please refresh the integration from the calendar',
+                      'warning'
+                    );
+                    return;
+                  }
+                  setRefresh(true);
+                  setTimeout(() => {
+                    setRefresh(false);
+                  }, 10);
+                  setCurrent(index);
+                }}
                 className={clsx(
-                  'relative rounded-full flex justify-center items-center gap-[6px]',
-                  integration.disabled && 'opacity-50'
+                  'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px]',
+                  currentIntegration.id !== integration.id &&
+                    'opacity-20 hover:opacity-100 cursor-pointer'
                 )}
               >
-                {(integration.inBetweenSteps || integration.refreshNeeded) && (
-                  <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                    <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                      !
+                <div
+                  className={clsx(
+                    'relative rounded-full flex justify-center items-center gap-[6px]',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {(integration.inBetweenSteps || integration.refreshNeeded) && (
+                    <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
+                      <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
+                        !
+                      </div>
+                      <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
                     </div>
-                    <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
-                  </div>
-                )}
-                <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
-                  src={integration.picture}
-                  className="rounded-[8px]"
-                  alt={integration.identifier}
-                  width={36}
-                  height={36}
-                />
-                <SafeImage
-                  src={`/icons/platforms/${integration.identifier}.png`}
-                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                  alt={integration.identifier}
-                  width={18.41}
-                  height={18.41}
-                />
+                  )}
+                  <ImageWithFallback
+                    fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                    src={integration.picture}
+                    className="rounded-[8px]"
+                    alt={integration.identifier}
+                    width={36}
+                    height={36}
+                  />
+                  <SafeImage
+                    src={`/icons/platforms/${integration.identifier}.png`}
+                    className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
+                    alt={integration.identifier}
+                    width={18.41}
+                    height={18.41}
+                  />
+                </div>
+                <div
+                  className={clsx(
+                    'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {integration.name}
+                </div>
               </div>
-              <div
-                className={clsx(
-                  'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {integration.name}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
-        {!!options.length && (
-          <div className="flex-1 flex flex-col gap-[14px]">
-            <div className="max-w-[200px]">
-              <Select
-                label=""
-                name="date"
-                disableForm={true}
-                hideErrors={true}
-                onChange={(e) => setKey(+e.target.value)}
-              >
-                {options.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.value}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex-1">
-              {!!keys && !!currentIntegration && !refresh && (
-                <RenderAnalytics integration={currentIntegration} date={keys} />
-              )}
-            </div>
+            ))}
           </div>
-        )}
-      </div>
-    </>
+        </div>
+        <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+          {!!options.length && (
+            <div className="flex-1 flex flex-col gap-[14px]">
+              <div className="max-w-[200px]">
+                <Select
+                  label=""
+                  name="date"
+                  disableForm={true}
+                  hideErrors={true}
+                  onChange={(e) => setKey(+e.target.value)}
+                >
+                  {options.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.value}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="flex-1">
+                {!!keys && !!currentIntegration && !refresh && (
+                  <RenderAnalytics integration={currentIntegration} date={keys} />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+    </div>
   );
 };
