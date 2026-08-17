@@ -354,6 +354,11 @@ export const WeekView = () => {
       days.push({
         name: day.format('dddd'),
         day: day.format('L'),
+        // Short forms for the narrow columns below 1025px: a day column is 64px
+        // at 1024 and 35px at 820, where the full name and date print over their
+        // neighbours. dayjs localizes both forms.
+        shortName: day.format('ddd'),
+        shortDay: day.format('D'),
         date: day,
       });
     }
@@ -375,7 +380,8 @@ export const WeekView = () => {
               )}
             >
               <div className="text-[14px] font-[600] text-brandText">
-                {day.name}
+                <span className="mobile:hidden">{day.name}</span>
+                <span className="hidden mobile:inline">{day.shortName}</span>
               </div>
               <div
                 className={clsx(
@@ -387,7 +393,8 @@ export const WeekView = () => {
                 {day.day === newDayjs().format('L') && (
                   <div className="w-[6px] h-[6px] bg-newTableTextFocused rounded-full" />
                 )}
-                {day.day}
+                <span className="mobile:hidden">{day.day}</span>
+                <span className="hidden mobile:inline">{day.shortDay}</span>
               </div>
             </div>
           ))}
@@ -426,7 +433,9 @@ export const MonthView = () => {
     const days = [];
     // Starting from Monday (1) to Sunday (7)
     for (let i = 1; i <= 7; i++) {
-      days.push(newDayjs().day(i).format('dddd'));
+      const day = newDayjs().day(i);
+      // Same short form as the week view: a month column is 55px at 820.
+      days.push({ name: day.format('dddd'), shortName: day.format('ddd') });
     }
     return days;
   }, [i18next.resolvedLanguage]);
@@ -469,10 +478,13 @@ export const MonthView = () => {
         <div className="grid grid-cols-7 grid-rows-[62px_auto] gap-[4px] rounded-[10px] absolute start-0 top-0 overflow-auto w-full h-full scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary">
           {localizedDays.map((day) => (
             <div
-              key={day}
+              key={day.name}
               className="z-[20] p-2 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"
             >
-              <div className="text-[14px] font-[600] text-brandText">{day}</div>
+              <div className="text-[14px] font-[600] text-brandText">
+                <span className="mobile:hidden">{day.name}</span>
+                <span className="hidden mobile:inline">{day.shortName}</span>
+              </div>
             </div>
           ))}
           {calendarDays.map((date, index) => (
