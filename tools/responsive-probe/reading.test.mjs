@@ -571,6 +571,24 @@ test('introduced names fields, not per-route rows — a new instrument is a prop
   assert.equal(new Set(introduced).size, introduced.length, 'no field named twice');
 });
 
+test('the touch fields are advisory — their count depends on the day, not on the build', () => {
+  // Found 2026-08-17 comparing a Monday run against a Saturday baseline:
+  // touch.under44 on /launches@820 read 15 -> 172 with nothing in the app
+  // changed. calendar.tsx renders an hour cell's drop target only when the hour
+  // is still ahead, so the count follows where now falls in the displayed week.
+  // Four runs minutes apart cannot see that; they share a week position.
+  // Do not promote either back without making the measurement day-independent.
+  for (const field of ['touch.total', 'touch.under44']) {
+    assert.ok(VARIANCE.advisory.includes(field), `${field} must be advisory`);
+    assert.equal(VARIANCE.stable.includes(field), false, `${field} must not be stable`);
+  }
+});
+
+test('no field is both stable and advisory', () => {
+  const both = VARIANCE.stable.filter((f) => VARIANCE.advisory.includes(f));
+  assert.deepEqual(both, [], 'a field counted and not counted at once has no meaning');
+});
+
 test('a field the baseline knows and the code has dropped is not introduced', () => {
   // makeBaseline's profile carries touch.total; so does VARIANCE. The bucket is
   // the code's vocabulary minus the baseline's, never the other way round.
