@@ -243,12 +243,24 @@
   let small = 0;
   let total = 0;
   const smallest = [];
+  // Geometry, unjudged. Which of these fall under the floor, and how many
+  // findings one control repeated across the calendar is worth, are decided in
+  // reading.mjs where they can be tested — the boundary collisionCandidates
+  // already draws. The `44` a few lines down still computes the advisory
+  // instance count, unchanged; reading.mjs holds the definition of record.
+  const undersizedCandidates = [];
   for (const el of document.querySelectorAll(
     'button, a[href], input, select, textarea, [role="button"], .cursor-pointer'
   )) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0 || outsideViewport(r) || hidden(el)) continue;
     total++;
+    undersizedCandidates.push({
+      tag: el.tagName.toLowerCase(),
+      cls: cls(el, 90),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    });
     if (r.height < 44 || r.width < 44) {
       small++;
       smallest.push({ h: Math.round(r.height), w: Math.round(r.width), text: (el.textContent || '').trim().slice(0, 24) });
@@ -273,6 +285,8 @@
     // Raw — run.mjs decides these into collisionCount / worstOverlapPx /
     // collisions and drops the candidates. They never reach a stored reading.
     collisionCandidates,
+    // Likewise: run.mjs decides these into touch.distinctUnder44 / undersized.
+    undersizedCandidates,
     touch: { total, under44: small, pct: total ? Math.round((small / total) * 100) : 0 },
     smallest: smallest.sort((a, b) => a.h * a.w - b.h * b.w).slice(0, 4),
   };

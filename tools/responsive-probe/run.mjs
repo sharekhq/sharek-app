@@ -78,6 +78,7 @@ import {
   preconditionVerdict,
   provenance,
   reportableCollisions,
+  reportableUndersized,
   viewportKey,
 } from './reading.mjs';
 
@@ -164,13 +165,25 @@ function measure(route, viewport) {
   ab(['open', `${BASE}${route}`]);
   ab(['wait', '--load', 'networkidle']);
   ab(['wait', '1800']); // charts and lazy panels settle after networkidle
-  const { collisionCandidates, ...reading } = JSON.parse(
+  const { collisionCandidates, undersizedCandidates, ...reading } = JSON.parse(
     ab(['eval', '--stdin'], { input: probeSource })
   );
   // The page reports every pair of text boxes that intersect; which of them is
   // a squeeze and which is the design is a rule, and rules live in reading.mjs.
   // Only the verdict is kept — the candidates never reach a stored reading.
-  return { ...reading, ...reportableCollisions(collisionCandidates) };
+  //
+  // Touch targets are the same shape: the page measures every interactive
+  // element, and the floor and the dedupe are decided there too. The deduped
+  // count sits beside the instance count it corrects rather than replacing it,
+  // so a reader sees both — /launches@820 on 2b50f37c reads 162 instances and
+  // 15 controls, and neither half of that is the whole finding.
+  const { distinctUnder44, undersized } = reportableUndersized(undersizedCandidates);
+  return {
+    ...reading,
+    ...reportableCollisions(collisionCandidates),
+    touch: { ...reading.touch, distinctUnder44 },
+    undersized,
+  };
 }
 
 // One navigation, before anything is recorded, to establish that this account
@@ -242,12 +255,15 @@ for (const viewport of VIEWPORTS) {
   console.log(`=== ${viewport.w}×${viewport.h} — ${viewport.label} ===`);
   // Two failure modes, two column pairs: content cut off by an ancestor, and
   // content printed over other content. "cut" and "overlap" are their worsts.
+  // "controls" is the deduped touch count and "touch <44" the instances behind
+  // it, in that order because the first is the one to read.
   console.log(
     pad('route', 14) +
       pad('clipped', 9) +
       pad('cut', 8) +
       pad('collided', 10) +
       pad('overlap', 9) +
+      pad('controls', 10) +
       pad('touch <44', 11) +
       'primary action'
   );
@@ -270,6 +286,7 @@ for (const viewport of VIEWPORTS) {
         pad(r.worstCutPx ? `${r.worstCutPx}px` : '—', 8) +
         pad(r.collisionCount, 10) +
         pad(r.worstOverlapPx ? `${r.worstOverlapPx}px` : '—', 9) +
+        pad(r.touch.distinctUnder44, 10) +
         pad(`${r.touch.under44}/${r.touch.total}`, 11) +
         (r.cta ? r.cta.verdict : '—')
     );
@@ -292,7 +309,7 @@ if (postcondition.verdict !== 'qualified' && postcondition.verdict !== 'waived')
 const covered = results.filter((r) => r.cta?.verdict === 'COVERED');
 const clipped = results.filter((r) => r.clippedCount > 0);
 const collided = results.filter((r) => r.collisionCount > 0);
-const touch = results.filter((r) => r.touch.under44 > 0);
+const touch = results.filter((r) => r.touch.distinctUnder44 > 0);
 
 console.log('--- summary ---');
 console.log(`readings          ${results.length}`);
@@ -301,7 +318,10 @@ console.log(`routes with clipping    ${clipped.length}`);
 // Listed, not just counted: this reading is new, so which route and width
 // collides is the finding rather than a detail of it.
 console.log(`routes with colliding text  ${collided.length}   ${collided.map((r) => `${r.route}@${r.viewport}`).join(', ') || '—'}`);
-console.log(`routes under the touch floor  ${touch.length}`);
+// Counted by distinct control, not by instance: one hour cell repeated 150
+// times across the calendar is one control to fix, and counting the repeats
+// made this figure follow the day rather than the build.
+console.log(`routes under the touch floor  ${touch.length}   worst ${Math.max(0, ...results.map((r) => r.touch.distinctUnder44))} controls on one reading`);
 
 // Everything needed to judge whether another reading is comparable to this one.
 // Without it two runs on different accounts, or against different builds, look

@@ -175,6 +175,81 @@ export function reportableCollisions(candidates) {
 }
 
 // ---------------------------------------------------------------------------
+// Undersized touch targets — WCAG 2.5.5, counted by signature
+// ---------------------------------------------------------------------------
+
+// `probe.js` measures every visible, in-viewport interactive element and sends
+// the geometry here. Which of them are findings, and how many findings a
+// repeated control is worth, are decided in this file because that is where
+// they can be tested — the same boundary `reportableCollisions` draws.
+//
+// Counting instances is what broke `touch.under44`. `calendar.tsx:936` renders
+// an hour cell's drop target only while that hour is still ahead, so /launches
+// carries up to ~150 of one class or a couple of dozen depending on where *now*
+// falls in the displayed week. The field read 15 against a Saturday baseline
+// and 172 on the Monday after with nothing in the app changed, which is what
+// demoted it to advisory on 2026-08-17.
+//
+// By signature that swing disappears: the cell's class comes from a `clsx` with
+// three static branches (`calendar.tsx:939-947`) — no day index, no per-cell
+// state — so all of them collapse to one finding, which is also the honest
+// answer. One control is undersized once, however often the calendar repeats
+// it. What survives is a ±1: a week displayed entirely in the past renders no
+// hour cell at all, so the signature is absent rather than smaller. That is
+// recorded in the VARIANCE note below as known, not measured away.
+//
+// The floor is 44 because WCAG 2.5.5 asks for at least 44, so 44 passes.
+// `probe.js` applies the same number to the advisory `touch.under44` it still
+// reports; this is the definition of record.
+const TOUCH_FLOOR_PX = 44;
+const UNDERSIZED_CAP = 6;
+
+// Tag plus class excerpt, the signature `clipped` already dedupes on. Two
+// controls that render from the same element and the same classes are the same
+// control as far as a layout fix is concerned.
+const targetSignature = (c) => c.tag + c.cls;
+
+export function reportableUndersized(candidates) {
+  const seen = new Map();
+
+  // Ranked on the dimension that misses the floor, not on area: the calendar's
+  // hour cell is 21×68 at 820, so it fails on width while being nearly three
+  // times the area of a 22×22 icon that misses by less. Area ranking pushed it
+  // out of the report entirely on the first real run. Area breaks the ties, so
+  // the order is total and two runs cannot disagree about it.
+  //
+  // Sorted before it is deduped, so the smallest instance of a repeated
+  // signature survives — reporting a 40px cell while a 21px one was measured
+  // would under-report the finding, exactly as keeping the smaller overlap
+  // would above. Insertion order then carries the sort into the report.
+  const severity = (c) => Math.min(c.w, c.h);
+  for (const c of [...candidates].sort(
+    (x, y) => severity(x) - severity(y) || x.w * x.h - y.w * y.h
+  )) {
+    if (c.w >= TOUCH_FLOOR_PX && c.h >= TOUCH_FLOOR_PX) continue;
+    const key = targetSignature(c);
+    const kept = seen.get(key);
+    // Every instance is counted even though only the first is kept: "one
+    // finding, 150 of them" is a different remediation from "one finding,
+    // once", and the count is the only place that fact survives the dedupe.
+    if (kept) {
+      kept.instances++;
+      continue;
+    }
+    seen.set(key, { tag: c.tag, cls: c.cls, w: c.w, h: c.h, instances: 1 });
+  }
+
+  const undersized = [...seen.values()];
+  return {
+    // Survivors, not what fitted in the report — same split as the two counts
+    // above. A count that quietly capped at six would read identically on a
+    // page with seven undersized controls and one with seventy.
+    distinctUnder44: undersized.length,
+    undersized: undersized.slice(0, UNDERSIZED_CAP),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Provenance — what a reading has to carry to be worth comparing
 // ---------------------------------------------------------------------------
 
@@ -397,9 +472,12 @@ export function baselineEligibility(run) {
 // Getting it back means fixing the instrument, not the classification: count
 // undersized targets by `tag + class` signature, the way `clipped` and
 // `collisions` already dedupe, so one undersized control counts once however
-// often the calendar repeats it. That belongs to 016-responsive-primitives — the
-// 44px floor is its subject and it needs a figure it can gate on — so it is
-// recorded here rather than guessed at now.
+// often the calendar repeats it. Built 2026-08-17 as `reportableUndersized`
+// above, ahead of 016-responsive-primitives rather than inside it — the 44px
+// floor is that feature's subject, and it cannot gate on a field that follows
+// the day. `touch.under44` is left exactly as it was: it is the only place the
+// instance count survives, and "184 of them, 3 controls" is one finding read
+// two ways, not one figure superseding another.
 export const VARIANCE = {
   method:
     'four full runs against an unchanged deployment, diffed field by field — two back to back, ' +
@@ -426,7 +504,16 @@ export const VARIANCE = {
   ],
   // Demoted 2026-08-17: `touch.under44` is reproducible within a sitting and not
   // across one. See the note above.
-  advisory: ['touch.total', 'touch.under44'],
+  //
+  // `touch.distinctUnder44` is the instrument fix that note called for, and it
+  // arrives advisory for the reason the two collision fields did: nothing has
+  // measured it. The construction argument is strong — the hour cell's class is
+  // static across all ~150 of its instances, so the swing that demoted
+  // `touch.under44` cannot reach a count of signatures — and an argument is not
+  // four runs. Promote it after the measurement, and expect a known ±1 when the
+  // displayed week is entirely in the past and the signature is absent rather
+  // than smaller.
+  advisory: ['touch.total', 'touch.under44', 'touch.distinctUnder44'],
   // Deliberately outside both lists, so a comparison never mentions them:
   //   build          — provenance, printed above the diff. Comparing it per
   //                    reading would report four rows after every deploy, which
@@ -435,9 +522,12 @@ export const VARIANCE = {
   //                    own. Including it would report one fact three times.
   //   clipped[],
   //   smallest[],
-  //   collisions[]   — detail carried in the baseline for reading by hand, too
-  //                    noisy to diff element by element.
-  notCompared: ['build', 'touch.pct', 'clipped', 'smallest', 'collisions'],
+  //   collisions[],
+  //   undersized[]   — detail carried in the baseline for reading by hand, too
+  //                    noisy to diff element by element. `undersized[]` carries
+  //                    the instance count the dedupe would otherwise discard,
+  //                    which is where "one control, 150 of it" is legible.
+  notCompared: ['build', 'touch.pct', 'clipped', 'smallest', 'collisions', 'undersized'],
 };
 
 export const baseline = (run) => ({ ...run, variance: VARIANCE });
