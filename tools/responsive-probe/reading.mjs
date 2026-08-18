@@ -264,6 +264,7 @@ export function provenance({
   capturedAt,
   routes,
   viewports,
+  pointer,
   precondition,
   postcondition,
 }) {
@@ -274,6 +275,10 @@ export function provenance({
     capturedAt,
     routes,
     viewports,
+    // Which pointer the browser reported while this was measured. Unlike the
+    // build it is never unknown: the probe configures it, so an unstated one
+    // is the mode it actually ran under rather than a fact nobody gathered.
+    pointer: pointer ?? 'fine',
     precondition,
     // The same check, run again once everything has been measured. Null where
     // it was not performed — a reading from before this existed is not judged
@@ -540,6 +545,11 @@ export const baseline = (run) => ({ ...run, variance: VARIANCE });
 // condition: a different build is the whole reason anyone compares two runs.
 // The rest are not differences to report, they are reasons the two readings
 // were never measuring the same thing.
+// A reading retained before the coarse mode existed carries no pointer at all.
+// Reading those as fine is a fact about when they were taken — the probe had no
+// other mode — not a default applied to make a comparison go through.
+const pointerOf = (prov) => prov.pointer ?? 'fine';
+
 export function comparability(baselineRun, run) {
   const was = baselineRun.provenance;
   const now = run.provenance;
@@ -568,6 +578,15 @@ export function comparability(baselineRun, run) {
       reason: `different width set — the baseline covered ${was.viewports.join(' ')}, this run covered ${now.viewports.join(' ')}`,
     };
   }
+  // Not a difference to report: every touch figure moves under a coarse
+  // pointer by design, so a cross-mode diff would show the instrument moving
+  // and read as though the app had.
+  if (pointerOf(was) !== pointerOf(now)) {
+    return {
+      comparable: false,
+      reason: `different pointer mode — the baseline was taken under a ${pointerOf(was)} pointer, this run under a ${pointerOf(now)} one`,
+    };
+  }
   return { comparable: true, reason: null };
 }
 
@@ -579,6 +598,18 @@ const at = (obj, path) => path.split('.').reduce((v, k) => (v == null ? v : v[k]
 // reported at all — the variance profile is the whole vocabulary of a
 // comparison, which is why a baseline without one is not worth keeping.
 export function difference(baselineRun, run) {
+  // The backstop under comparability(), which is the graceful path run.mjs
+  // takes. This one is for a caller that skipped it: there is no honest diff
+  // between two pointer modes, and returning no changes would assert the one
+  // thing that is certainly false.
+  if (pointerOf(baselineRun.provenance) !== pointerOf(run.provenance)) {
+    throw new Error(
+      `refusing to diff across pointer modes — the baseline was taken under a ` +
+        `${pointerOf(baselineRun.provenance)} pointer, this run under a ` +
+        `${pointerOf(run.provenance)} one`
+    );
+  }
+
   const changes = [];
   const advisory = [];
 

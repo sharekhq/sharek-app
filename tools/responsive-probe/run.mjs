@@ -88,6 +88,14 @@ const EMAIL = process.env.PROBE_EMAIL;
 const PASSWORD = process.env.PROBE_PASSWORD;
 const SESSION = process.env.PROBE_SESSION || 'probe';
 const WAIVED = !!process.env.PROBE_WAIVE_PRECONDITION;
+
+// Whether a control clears 44px is a property of the pointer, not of the
+// viewport — five of the seven routes report the same undersized count at every
+// width — so half of what this instrument is for is invisible to a run that
+// only varies width. PROBE_POINTER=coarse makes the browser report what a phone
+// reports. Anything else, including nothing, leaves every existing invocation
+// measuring exactly what it measured before.
+const POINTER = process.env.PROBE_POINTER === 'coarse' ? 'coarse' : 'fine';
 const CAPTURE_BASELINE = process.argv.includes('--capture-baseline');
 const COMPARE = process.argv.includes('--compare');
 
@@ -122,6 +130,70 @@ const ab = (args, opts = {}) =>
     stdio: ['pipe', 'pipe', 'inherit'],
     ...opts,
   });
+
+// Three ways to ask for a coarse pointer, measured 2026-08-18 against
+// agent-browser 0.27.0 rather than assumed, because two of them look right and
+// do nothing:
+//
+//   set device "iPhone 12"               UA and DPR only — pointer stays fine
+//   Emulation.setEmulatedMedia           has no pointer or hover among its
+//                                        features; returns {} either way
+//   Emulation.setTouchEmulationEnabled   pointer: coarse, hover: none, and the
+//                                        viewport left alone            ← this
+//
+// setDeviceMetricsOverride({mobile:true}) also works and was rejected: it
+// shortens the frame by the mobile browser chrome, which moves the width axis
+// this run is supposed to hold still.
+//
+// The override is scoped to the CDP session, so the socket has to stay open for
+// the whole run — Chrome drops it the moment the connection closes, leaving a
+// run that says coarse in its provenance and measured a mouse. measure() checks
+// every reading against what the page reports rather than trusting this.
+async function emulateCoarsePointer() {
+  const endpoint = ab(['get', 'cdp-url']).trim().split('\n').pop();
+  const ws = new WebSocket(endpoint);
+
+  let id = 0;
+  const pending = new Map();
+  const send = (method, params = {}, sessionId) =>
+    new Promise((resolve, reject) => {
+      const message = { id: ++id, method, params, ...(sessionId ? { sessionId } : {}) };
+      pending.set(message.id, { resolve, reject });
+      ws.send(JSON.stringify(message));
+    });
+
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    const waiting = message.id && pending.get(message.id);
+    if (!waiting) return;
+    pending.delete(message.id);
+    if (message.error) waiting.reject(new Error(JSON.stringify(message.error)));
+    else waiting.resolve(message.result);
+  };
+
+  await new Promise((resolve, reject) => {
+    ws.onopen = resolve;
+    ws.onerror = () => reject(new Error(`could not reach the browser over CDP at ${endpoint}`));
+  });
+
+  // Every page target, not just the one that looks like the app: agent-browser
+  // decides which tab it drives, and an override on a tab nothing visits costs
+  // nothing. It survives navigation, so this runs once.
+  const { targetInfos } = await send('Target.getTargets');
+  const pages = targetInfos.filter((t) => t.type === 'page');
+  if (!pages.length) {
+    throw new Error('no page open to emulate a pointer on — open one before asking for coarse');
+  }
+  for (const page of pages) {
+    const { sessionId } = await send('Target.attachToTarget', {
+      targetId: page.targetId,
+      flatten: true,
+    });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }, sessionId);
+  }
+
+  return ws;
+}
 
 function login() {
   // Locally you are usually already signed in from an earlier run:
@@ -165,9 +237,18 @@ function measure(route, viewport) {
   ab(['open', `${BASE}${route}`]);
   ab(['wait', '--load', 'networkidle']);
   ab(['wait', '1800']); // charts and lazy panels settle after networkidle
-  const { collisionCandidates, undersizedCandidates, ...reading } = JSON.parse(
+  const { collisionCandidates, undersizedCandidates, pointerCoarse, ...reading } = JSON.parse(
     ab(['eval', '--stdin'], { input: probeSource })
   );
+  // The emulation lives on a socket that has to survive the whole run. If it
+  // ever drops, every later reading quietly becomes a fine one filed under a
+  // coarse provenance — precisely the mislabelling the pointer field was added
+  // to prevent, so it is caught here rather than recorded.
+  if (pointerCoarse !== (POINTER === 'coarse')) {
+    throw new Error(
+      `measured under a ${pointerCoarse ? 'coarse' : 'fine'} pointer, but this run is ${POINTER}`
+    );
+  }
   // The page reports every pair of text boxes that intersect; which of them is
   // a squeeze and which is the design is a rule, and rules live in reading.mjs.
   // Only the verdict is kept — the candidates never reach a stored reading.
@@ -236,6 +317,9 @@ const results = [];
 const errors = [];
 
 login();
+
+// Held, not fired and forgotten: closing this reverts the browser to a mouse.
+const pointerSocket = POINTER === 'coarse' ? await emulateCoarsePointer() : null;
 
 const { precondition, build } = preflight();
 console.log(`pre-flight: ${precondition.verdict} — ${precondition.reason}`);
@@ -335,6 +419,7 @@ const run = {
     capturedAt: new Date().toISOString(),
     routes: ROUTES,
     viewports: VIEWPORTS.map(viewportKey),
+    pointer: POINTER,
     precondition,
     postcondition,
   }),
@@ -349,6 +434,7 @@ console.log(`build       ${run.provenance.build || 'unknown — the rail printed
 console.log(`captured    ${run.provenance.capturedAt}`);
 console.log(`routes      ${run.provenance.routes.join(' ')}`);
 console.log(`widths      ${run.provenance.viewports.join(' ')}`);
+console.log(`pointer     ${run.provenance.pointer}`);
 console.log(`precondition ${run.provenance.precondition.verdict}`);
 console.log(`closing check ${run.provenance.postcondition.verdict}`);
 

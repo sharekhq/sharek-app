@@ -270,6 +270,11 @@
   return {
     url: location.pathname,
     vw,
+    // What the page itself reports about the pointer driving it, so run.mjs can
+    // hold its own emulation to account instead of trusting the flag it was
+    // given. Never stored: the mode is a property of the run, and provenance
+    // records it there once rather than on all 28 readings.
+    pointerCoarse: matchMedia('(pointer: coarse)').matches,
     cta,
     // The two halves of the account precondition. `pageRendered` anchors it:
     // a missing customer control means nothing if the page never loaded, so a
