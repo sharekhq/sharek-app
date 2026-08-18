@@ -195,7 +195,7 @@ const ThirdPartyMediaLoad: FC<ThirdPartyMediaProps> = (props) => {
       <div className="relative group">
         <div
           className={clsx(
-            'cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]'
+            'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]'
           )}
           onClick={() => {
             modals.openModal({

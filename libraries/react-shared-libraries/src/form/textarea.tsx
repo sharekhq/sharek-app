@@ -72,7 +72,9 @@ export const Textarea: FC<
       <textarea
         {...(disableForm ? {} : form.register(props.name))}
         className={clsx(
-          'bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newTableBorder border rounded-[8px] text-textColor',
+          // Height is never the problem on a textarea; the type size is —
+          // below 16px iOS Safari zooms the page the moment it is focused.
+          'bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newTableBorder border rounded-[8px] text-textColor coarse:text-[16px] focus-visible:ring-2 focus-visible:ring-brand',
           className
         )}
         {...rest}

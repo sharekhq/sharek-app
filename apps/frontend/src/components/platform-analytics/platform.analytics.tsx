@@ -206,7 +206,7 @@ export const PlatformAnalytics = () => {
               </h2>
               <div
                 onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
+                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -243,7 +243,7 @@ export const PlatformAnalytics = () => {
                   setCurrent(index);
                 }}
                 className={clsx(
-                  'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px]',
+                  'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px]',
                   currentIntegration.id !== integration.id &&
                     'opacity-20 hover:opacity-100 cursor-pointer'
                 )}

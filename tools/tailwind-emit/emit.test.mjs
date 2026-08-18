@@ -69,6 +69,23 @@ const FORMS = [
     prop: 'min-width',
     value: 'min(600px,100%)',
   },
+  {
+    // The touch floor on a control whose height is already declared: a
+    // `min-height` would lose to it, so the coarse rule has to set `height`.
+    className: 'coarse:h-[44px]',
+    atRule: '(pointer: coarse)',
+    prop: 'height',
+    value: '44px',
+  },
+  {
+    // TT2 — 16px is the size below which iOS Safari zooms a focused field.
+    // Arbitrary font sizes emit no paired line-height, which is why this is
+    // asserted as exactly one declaration.
+    className: 'coarse:text-[16px]',
+    atRule: '(pointer: coarse)',
+    prop: 'font-size',
+    value: '16px',
+  },
 ];
 
 const collapse = (s) => s.replace(/\s+/g, ' ').trim();
@@ -140,4 +157,25 @@ test('a variant that does not exist emits nothing, so the assertions above can f
   const css = await emit(['pointer-coarse:min-h-[44px]']);
 
   assert.deepEqual(emitted(css, 'pointer-coarse:min-h-[44px]'), []);
+});
+
+test('a screen variant outranks the pointer variant, which is why the touch floor sometimes has to stack', async () => {
+  // Both variants are media queries, so neither wins on specificity — the one
+  // emitted later does. Tailwind puts the hand-registered `coarse` variant
+  // *before* the screens, so `phone:min-w-0` beats `coarse:min-w-[44px]` at
+  // exactly the width where a control is most likely to be too small to hit.
+  // Anywhere that matters, the rule is written `phone:coarse:`, and this test
+  // is what says that is still necessary.
+  const css = await emit(['coarse:min-w-[44px]', 'phone:min-w-0', 'phone:coarse:min-w-[44px]']);
+  const order = [];
+  postcss.parse(css).walkRules((rule) => {
+    const cls = rule.selector.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) => (hex ? String.fromCodePoint(parseInt(hex, 16)) : ch)).slice(1);
+    order.push(cls);
+  });
+
+  assert.deepEqual(order, [
+    'coarse:min-w-[44px]',
+    'phone:min-w-0',
+    'phone:coarse:min-w-[44px]',
+  ]);
 });

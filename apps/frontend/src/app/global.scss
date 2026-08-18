@@ -831,6 +831,18 @@ html[dir='rtl'] .lbox {
   color: var(--new-btn-text) !important;
 }
 
+/* The copy/retry controls under an assistant message ship at 20x20, which no
+   finger can land on. The ancestor is doing real work here: CopilotKit's
+   stylesheet loads after global.scss, so `.copilotKitMessageControlButton`
+   alone would tie on specificity and lose the cascade. The glyph inside stays
+   1rem — only the box a thumb has to find grows. */
+@media (pointer: coarse) {
+  .copilotKitMessageControls .copilotKitMessageControlButton {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 @keyframes marquee-up {
   0% {
     transform: translateY(0);

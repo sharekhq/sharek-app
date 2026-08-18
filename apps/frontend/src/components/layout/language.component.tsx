@@ -122,22 +122,27 @@ export const LanguageComponent = () => {
   return (
     <div
       onClick={openModal}
-      className="rounded-full overflow-hidden h-[22px] w-[22px] relative cursor-pointer"
+      className="cursor-pointer flex items-center justify-center coarse:min-w-[44px] coarse:min-h-[44px]"
     >
-      <ReactCountryFlag
-        countryCode={getCountryCodeForFlag(currentLanguage)}
-        svg
-        style={{
-          width: '22px',
-          height: '22px',
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          objectFit: 'cover',
-        }}
-        title={currentLanguage}
-      />
+      {/* The circle is its own box: `overflow-hidden` on a 22px round div is
+          what crops the flag into a disc, so growing the target has to happen
+          around it — grown here, the flag would go back to being a rectangle. */}
+      <div className="rounded-full overflow-hidden h-[22px] w-[22px] relative">
+        <ReactCountryFlag
+          countryCode={getCountryCodeForFlag(currentLanguage)}
+          svg
+          style={{
+            width: '22px',
+            height: '22px',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            objectFit: 'cover',
+          }}
+          title={currentLanguage}
+        />
+      </div>
     </div>
   );
 };

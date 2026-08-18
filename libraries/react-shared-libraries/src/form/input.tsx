@@ -62,14 +62,21 @@ export const Input: FC<
       )}
       <div
         className={clsx(
-          'bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center',
+          // The ring sits on the frame because the frame is what reads as the
+          // field; `has-[:focus-visible]` keeps it to keyboard focus, so a
+          // mouse user sees exactly what they saw before.
+          'bg-newBgColorInner h-[42px] coarse:h-[44px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
           className
         )}
       >
         {icon && <div className="ps-[16px]">{icon}</div>}
         <input
+          // 16px under a coarse pointer is not a type choice: below it, iOS
+          // Safari zooms the page on focus and leaves the user panning a
+          // layout that was fitting a moment earlier. The 14px desktop tier
+          // is untouched.
           className={clsx(
-            'h-full bg-transparent outline-none flex-1 text-[14px] text-textColor',
+            'h-full bg-transparent outline-none flex-1 text-[14px] coarse:text-[16px] text-textColor',
             icon ? 'pl-[8px] pe-[16px]' : 'px-[16px]'
           )}
           {...(disableForm ? {} : form.register(props.name))}

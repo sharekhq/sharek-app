@@ -33,7 +33,13 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
   }, []);
   return (
     <>
-      <div className="cursor-pointer" onClick={logout}>
+      {/* Height only: the row is already as wide as the text or the icon
+          needs, and widening it would drag the hit area across whatever sits
+          beside it. */}
+      <div
+        className="cursor-pointer coarse:min-h-[44px] coarse:flex coarse:items-center"
+        onClick={logout}
+      >
         {isIcon ? (
           <svg
             width="24"
