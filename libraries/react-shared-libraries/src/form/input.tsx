@@ -65,7 +65,7 @@ export const Input: FC<
           // The ring sits on the frame because the frame is what reads as the
           // field; `has-[:focus-visible]` keeps it to keyboard focus, so a
           // mouse user sees exactly what they saw before.
-          'bg-newBgColorInner h-[42px] coarse:h-[44px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
+          'bg-newBgColorInner h-[42px] coarse:h-[46px] border-newTableBorder border rounded-[8px] text-textColor flex items-center justify-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
           className
         )}
       >

@@ -144,7 +144,7 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
               onClick={setIntegration(integration)}
               key={integration.id}
               className={clsx(
-                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] hover:opacity-100 cursor-pointer',
+                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px] hover:opacity-100 cursor-pointer',
                 !selected.some((p) => p.id === integration.id) && 'opacity-20'
               )}
             >
@@ -259,7 +259,7 @@ const Threads: FC = () => {
           {data?.threads?.map((p: any) => (
             <Link
               className={clsx(
-                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] rounded-[10px] cursor-pointer',
+                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer',
                 p.id === id && 'bg-newBgColor'
               )}
               href={`/agents/${p.id}`}

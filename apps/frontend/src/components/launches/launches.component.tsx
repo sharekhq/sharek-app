@@ -134,7 +134,7 @@ export const MenuGroupComponent: FC<
       )}
       {!!group.name && (
         <div
-          className="flex items-center gap-[5px] cursor-pointer"
+          className="flex items-center gap-[5px] cursor-pointer coarse:min-h-[44px]"
           onClick={changeOpenClose}
         >
           <div>
@@ -607,7 +607,7 @@ export const LaunchesComponent = () => {
           <button
             type="button"
             onClick={() => setChannelsOpen(true)}
-            className="hidden phone:flex items-center gap-[8px] self-start rounded-[8px] border border-line px-[12px] py-[8px] text-[14px] font-[500] text-textColor hover:bg-boxHover transition-colors"
+            className="hidden phone:flex items-center gap-[8px] self-start rounded-[8px] border border-line px-[12px] py-[8px] coarse:min-h-[44px] text-[14px] font-[500] text-textColor hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand"
           >
             <svg
               width="18"

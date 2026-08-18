@@ -960,7 +960,7 @@ export const MultiMediaComponent: FC<{
           )}
         >
           {!mediaNotAvailable && (
-            <div className="flex py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
                 className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
@@ -1008,7 +1008,7 @@ export const MultiMediaComponent: FC<{
             </div>
           )}
           {!!toolBar && (
-            <div className="flex py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
               {toolBar}
             </div>
           )}

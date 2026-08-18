@@ -72,7 +72,7 @@ export const FAQSection: FC<{
       className="bg-sixth p-[24px] border border-tableBorder rounded-[8px] flex flex-col"
       onClick={changeShow}
     >
-      <div className={`text-[20px] cursor-pointer flex justify-center`}>
+      <div className={`text-[20px] cursor-pointer flex justify-center coarse:items-center coarse:min-h-[44px]`}>
         <div className="flex-1">{title}</div>
         <div className="flex items-center justify-center w-[32px]">
           {!show ? (

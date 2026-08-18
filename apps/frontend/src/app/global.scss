@@ -841,6 +841,15 @@ html[dir='rtl'] .lbox {
     width: 44px;
     height: 44px;
   }
+
+  /* The composer's own controls, including the send button the fork already
+     resizes above — that rule carries `!important`, so this one has to as
+     well or the last child stays at 32px while its siblings grow. */
+  .copilotKitInputControls .copilotKitInputControlButton,
+  .copilotKitInputControls .copilotKitInputControlButton:last-child {
+    width: 44px !important;
+    height: 44px !important;
+  }
 }
 
 @keyframes marquee-up {
