@@ -9,6 +9,10 @@ import { CalendarWeekProvider } from '@gitroom/frontend/components/launches/cale
 import { Filters } from '@gitroom/frontend/components/launches/filters';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+import {
+  SplitPanel,
+  SplitPanelToggle,
+} from '@gitroom/frontend/components/ui/split.panel';
 import clsx from 'clsx';
 import { useUser } from '../layout/user.context';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
@@ -331,17 +335,6 @@ export const LaunchesComponent = () => {
   const railCollapsed = collapseMenu === '1' && !isPhone;
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
-  // The channels sheet's open state only drives phone-scoped styles (and a
-  // phone-only scrim), so it's inert on desktop and needs no reset on resize.
-  useEffect(() => {
-    if (!channelsOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setChannelsOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [channelsOpen]);
-
   const totalNonDisabledChannels = useMemo(() => {
     return (
       integrations?.filter((integration: any) => !integration.disabled)
@@ -476,159 +469,70 @@ export const LaunchesComponent = () => {
     <DNDProvider>
       <Onboarding />
       <CalendarWeekProvider integrations={sortedIntegrations}>
-        <div
-          className={clsx(
-            // shrink-0: the rail's only child is absolutely positioned, so its
-            // min-content is 0 and a greedy sibling can shrink it to nothing —
-            // which is what put Create Post under the calendar on a tablet.
-            'flex relative flex-col shrink-0',
-            railCollapsed ? 'group sidebar w-[100px]' : 'w-[260px]',
-            // Phone: off-canvas channels sheet revealed by the toggle below.
-            'phone:fixed phone:inset-y-0 phone:start-0 phone:z-[50] phone:!w-[300px] phone:max-w-[85vw]',
-            'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
-            channelsOpen
-              ? 'phone:translate-x-0'
-              : 'phone:-translate-x-full phone:rtl:translate-x-full'
-          )}
+        <SplitPanel
+          open={channelsOpen}
+          onClose={() => setChannelsOpen(false)}
+          collapsed={railCollapsed}
+          onToggleCollapse={() =>
+            setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+          }
+          title={t('channels')}
         >
-          <div
-            className={clsx(
-              'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor'
-            )}
-          >
-            <div className="flex items-center">
-              <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-                {t('channels')}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setChannelsOpen(false)}
-                aria-label={t('close', 'Close')}
-                className="hidden phone:flex text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] items-center justify-center cursor-pointer select-none"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M9 3L3 9M3 3l6 6"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-              <div
-                onClick={() =>
-                  setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-                }
-                className="phone:hidden group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="7"
-                  height="13"
-                  viewBox="0 0 7 13"
-                  fill="none"
-                >
-                  <path
-                    d="M6 11.5L1 6.5L6 1.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
-              <AddProviderButton update={() => update(true)} />
-              <div className="flex gap-[8px] group-[.sidebar]:flex-col">
-                {sortedIntegrations?.length > 0 && <NewPost />}
-                {sortedIntegrations?.length > 0 &&
-                  user?.tier?.ai &&
-                  billingEnabled && <GeneratorComponent />}
-              </div>
-            </div>
-            <div className="gap-[32px] flex flex-col select-none flex-1">
-              {sortedIntegrations.length === 0 && !railCollapsed && (
-                <div className="flex-1 max-h-[500px] justify-center items-center flex">
-                  <div className="flex flex-col gap-[12px] text-center">
-                    <NoChannelsIllustration className="mx-auto w-full h-auto" />
-                    <div className="font-[600] text-[20px]">
-                      {t('no_channels', 'No channels yet')}
-                    </div>
-                    <div className="text-[14px]">
-                      {t('connect_your_accounts')}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {menuIntegrations.map((menu) => (
-                <MenuGroupComponent
-                  collapsed={railCollapsed}
-                  changeItemGroup={changeItemGroup}
-                  key={menu.name}
-                  group={menu}
-                  mutate={mutate}
-                  continueIntegration={continueIntegration}
-                  update={update}
-                  refreshChannel={refreshChannel}
-                  totalNonDisabledChannels={totalNonDisabledChannels}
-                />
-              ))}
-            </div>
-            <div className="mt-[5px] text-center flex flex-col">
-              {billingEnabled && user?.isLifetime && (
-                <div>{capitalize(user?.tier?.current || '')} tier</div>
-              )}
-              <div>
-                {process.env.NEXT_PUBLIC_VERSION
-                  ? process.env.NEXT_PUBLIC_VERSION
-                  : ''}
-              </div>
+          <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
+            <AddProviderButton update={() => update(true)} />
+            <div className="flex gap-[8px] group-[.sidebar]:flex-col">
+              {sortedIntegrations?.length > 0 && <NewPost />}
+              {sortedIntegrations?.length > 0 &&
+                user?.tier?.ai &&
+                billingEnabled && <GeneratorComponent />}
             </div>
           </div>
-        </div>
-        {channelsOpen && (
-          <div
-            className="hidden phone:block fixed inset-0 z-[40] bg-black/50"
-            onClick={() => setChannelsOpen(false)}
-            aria-hidden="true"
-          />
-        )}
+          <div className="gap-[32px] flex flex-col select-none flex-1">
+            {sortedIntegrations.length === 0 && !railCollapsed && (
+              <div className="flex-1 max-h-[500px] justify-center items-center flex">
+                <div className="flex flex-col gap-[12px] text-center">
+                  <NoChannelsIllustration className="mx-auto w-full h-auto" />
+                  <div className="font-[600] text-[20px]">
+                    {t('no_channels', 'No channels yet')}
+                  </div>
+                  <div className="text-[14px]">
+                    {t('connect_your_accounts')}
+                  </div>
+                </div>
+              </div>
+            )}
+            {menuIntegrations.map((menu) => (
+              <MenuGroupComponent
+                collapsed={railCollapsed}
+                changeItemGroup={changeItemGroup}
+                key={menu.name}
+                group={menu}
+                mutate={mutate}
+                continueIntegration={continueIntegration}
+                update={update}
+                refreshChannel={refreshChannel}
+                totalNonDisabledChannels={totalNonDisabledChannels}
+              />
+            ))}
+          </div>
+          <div className="mt-[5px] text-center flex flex-col">
+            {billingEnabled && user?.isLifetime && (
+              <div>{capitalize(user?.tier?.current || '')} tier</div>
+            )}
+            <div>
+              {process.env.NEXT_PUBLIC_VERSION
+                ? process.env.NEXT_PUBLIC_VERSION
+                : ''}
+            </div>
+          </div>
+        </SplitPanel>
         {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
             pinned to the filter bar's min-content (847px), which starves the
             channels rail at every width below ~1220. */}
         <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
-          <button
-            type="button"
-            onClick={() => setChannelsOpen(true)}
-            className="hidden phone:flex items-center gap-[8px] self-start rounded-[8px] border border-line px-[12px] py-[8px] coarse:min-h-[44px] text-[14px] font-[500] text-textColor hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              aria-hidden="true"
-            >
-              <rect
-                x="2.25"
-                y="3"
-                width="13.5"
-                height="12"
-                rx="2"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <path d="M6.75 3v12" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
+          <SplitPanelToggle onClick={() => setChannelsOpen(true)}>
             {t('channels', 'Channels')}
-          </button>
+          </SplitPanelToggle>
           <Filters />
           <div className="flex-1 flex">
             <Calendar />

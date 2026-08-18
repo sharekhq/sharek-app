@@ -21,6 +21,14 @@ import { Integration } from '@prisma/client';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  SplitPanel,
+  SplitPanelToggle,
+} from '@gitroom/frontend/components/ui/split.panel';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 
 export const MediaPortal: FC<{
   media: { path: string; id: string }[];
@@ -59,9 +67,11 @@ export const MediaPortal: FC<{
   );
 };
 
-export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
-  onChange,
-}) => {
+export const AgentList: FC<{
+  onChange: (arr: any[]) => void;
+  open: boolean;
+  onClose: () => void;
+}> = ({ onChange, open, onClose }) => {
   const fetch = useFetch();
   const t = useT();
   const [selected, setSelected] = useState([]);
@@ -71,6 +81,10 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
   }, []);
 
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  // The cookie is shared with the calendar's rail, and a collapsed rail hides
+  // its own labels — which inside a phone drawer would leave a sheet of
+  // nameless icons. Collapsing is a desktop idea, as it is on the calendar.
+  const isPhone = useMediaQuery(PHONE_QUERY);
 
   const { data } = useSWR('integrations', load, {
     revalidateOnFocus: false,
@@ -104,110 +118,105 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
   }, [data]);
 
   return (
-    <div
-      className={clsx(
-        'trz bg-newBgColorInner flex flex-col gap-[15px] transition-all relative',
-        collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]',
-        // Phone: hide the channel rail so the chat gets the full width.
-        'phone:hidden'
-      )}
+    <SplitPanel
+      open={open}
+      onClose={onClose}
+      collapsed={collapseMenu === '1' && !isPhone}
+      onToggleCollapse={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
+      title={t('select_channels', 'Select Channels')}
     >
-      <div className="absolute top-0 start-0 w-full h-full p-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-        <div className="flex items-center">
-          <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500] mb-[15px]">
-            {t('select_channels', 'Select Channels')}
-          </h2>
+      <div className={clsx('flex flex-col gap-[15px]')}>
+        {sortedIntegrations.map((integration, index) => (
           <div
-            onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-            className="-mt-3 group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
+            onClick={setIntegration(integration)}
+            key={integration.id}
+            className={clsx(
+              'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px] hover:opacity-100 cursor-pointer',
+              !selected.some((p) => p.id === integration.id) && 'opacity-20'
+            )}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="7"
-              height="13"
-              viewBox="0 0 7 13"
-              fill="none"
-            >
-              <path
-                d="M6 11.5L1 6.5L6 1.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </div>
-        <div className={clsx('flex flex-col gap-[15px]')}>
-          {sortedIntegrations.map((integration, index) => (
             <div
-              onClick={setIntegration(integration)}
-              key={integration.id}
               className={clsx(
-                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px] hover:opacity-100 cursor-pointer',
-                !selected.some((p) => p.id === integration.id) && 'opacity-20'
+                'relative rounded-full flex justify-center items-center gap-[6px]',
+                integration.disabled && 'opacity-50'
               )}
             >
-              <div
-                className={clsx(
-                  'relative rounded-full flex justify-center items-center gap-[6px]',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {(integration.inBetweenSteps || integration.refreshNeeded) && (
-                  <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                    <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                      !
-                    </div>
-                    <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
+              {(integration.inBetweenSteps || integration.refreshNeeded) && (
+                <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
+                  <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
+                    !
                   </div>
-                )}
-                <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
-                  src={integration.picture}
-                  className="rounded-[8px]"
-                  alt={integration.identifier}
-                  width={36}
-                  height={36}
-                />
-                <SafeImage
-                  src={`/icons/platforms/${integration.identifier}.png`}
-                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                  alt={integration.identifier}
-                  width={18.41}
-                  height={18.41}
-                />
-              </div>
-              <div
-                className={clsx(
-                  'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {integration.name}
-              </div>
+                  <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
+                </div>
+              )}
+              <ImageWithFallback
+                fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                src={integration.picture}
+                className="rounded-[8px]"
+                alt={integration.identifier}
+                width={36}
+                height={36}
+              />
+              <SafeImage
+                src={`/icons/platforms/${integration.identifier}.png`}
+                className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
+                alt={integration.identifier}
+                width={18.41}
+                height={18.41}
+              />
             </div>
-          ))}
-        </div>
+            <div
+              className={clsx(
+                'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
+                integration.disabled && 'opacity-50'
+              )}
+            >
+              {integration.name}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+    </SplitPanel>
   );
 };
 
 export const PropertiesContext = createContext({ properties: [] });
 export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
+  const t = useT();
   const [properties, setProperties] = useState([]);
+  // Both rails were `phone:hidden`, which left a phone user no way to pick a
+  // channel or open an earlier chat. They are drawers now, and their toggles
+  // live here — in the column that stays on screen when a drawer is closed.
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const [threadsOpen, setThreadsOpen] = useState(false);
 
   return (
     <PropertiesContext.Provider value={{ properties }}>
-      <AgentList onChange={setProperties} />
-      <div className="bg-newBgColorInner flex flex-1">{children}</div>
-      <Threads />
+      <AgentList
+        onChange={setProperties}
+        open={channelsOpen}
+        onClose={() => setChannelsOpen(false)}
+      />
+      <div className="bg-newBgColorInner flex flex-1 min-w-0 flex-col">
+        <div className="hidden phone:flex gap-[8px] px-[12px] pt-[12px]">
+          <SplitPanelToggle onClick={() => setChannelsOpen(true)}>
+            {t('channels', 'Channels')}
+          </SplitPanelToggle>
+          <SplitPanelToggle onClick={() => setThreadsOpen(true)}>
+            {t('chats', 'Chats')}
+          </SplitPanelToggle>
+        </div>
+        <div className="flex flex-1 min-w-0">{children}</div>
+      </div>
+      <Threads open={threadsOpen} onClose={() => setThreadsOpen(false)} />
     </PropertiesContext.Provider>
   );
 };
 
-const Threads: FC = () => {
+const Threads: FC<{ open: boolean; onClose: () => void }> = ({
+  open,
+  onClose,
+}) => {
   const fetch = useFetch();
   const router = useRouter();
   const pathname = usePathname();
@@ -220,56 +229,47 @@ const Threads: FC = () => {
   const { data } = useSWR('threads', threads);
 
   return (
-    <div
-      className={clsx(
-        'trz bg-newBgColorInner flex flex-col gap-[15px] transition-all relative',
-        'w-[260px]',
-        // Phone: hide the threads rail so the chat gets the full width.
-        'phone:hidden'
-      )}
-    >
-      <div className="absolute top-0 start-0 w-full h-full p-[20px] overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-        <div className="mb-[15px] justify-center flex group-[.sidebar]:pb-[15px]">
-          <Link
-            href={`/agents`}
-            className="text-white whitespace-nowrap flex-1 pt-[12px] pb-[14px] ps-[16px] pe-[20px] group-[.sidebar]:p-0 min-h-[44px] max-h-[44px] rounded-md bg-brand flex justify-center items-center gap-[5px] outline-none"
+    <SplitPanel open={open} onClose={onClose} side="end">
+      <div className="justify-center flex group-[.sidebar]:pb-[15px]">
+        <Link
+          href={`/agents`}
+          className="text-white whitespace-nowrap flex-1 pt-[12px] pb-[14px] ps-[16px] pe-[20px] group-[.sidebar]:p-0 min-h-[44px] max-h-[44px] rounded-md bg-brand flex justify-center items-center gap-[5px] outline-none"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="21"
+            height="20"
+            viewBox="0 0 21 20"
+            fill="none"
+            className="min-w-[21px] min-h-[20px]"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="21"
-              height="20"
-              viewBox="0 0 21 20"
-              fill="none"
-              className="min-w-[21px] min-h-[20px]"
-            >
-              <path
-                d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div className="flex-1 text-start text-[16px] group-[.sidebar]:hidden">
-              {t('start_a_new_chat', 'Start a new chat')}
-            </div>
-          </Link>
-        </div>
-        <div className="flex flex-col gap-[1px]">
-          {data?.threads?.map((p: any) => (
-            <Link
-              className={clsx(
-                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer',
-                p.id === id && 'bg-newBgColor'
-              )}
-              href={`/agents/${p.id}`}
-              key={p.id}
-            >
-              {p.title}
-            </Link>
-          ))}
-        </div>
+            <path
+              d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div className="flex-1 text-start text-[16px] group-[.sidebar]:hidden">
+            {t('start_a_new_chat', 'Start a new chat')}
+          </div>
+        </Link>
       </div>
-    </div>
+      <div className="flex flex-col gap-[1px]">
+        {data?.threads?.map((p: any) => (
+          <Link
+            className={clsx(
+              'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer',
+              p.id === id && 'bg-newBgColor'
+            )}
+            href={`/agents/${p.id}`}
+            key={p.id}
+          >
+            {p.title}
+          </Link>
+        ))}
+      </div>
+    </SplitPanel>
   );
 };
