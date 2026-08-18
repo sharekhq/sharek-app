@@ -173,10 +173,16 @@ export const InformationComponent: FC<{
   return (
     <div
       className={clsx(
-        'group rounded-[6px] gap-[4px] h-[30px] px-[6px] flex justify-center items-center relative',
+        'group rounded-[6px] gap-[4px] h-[30px] px-[6px] flex justify-center items-center relative focus-visible:ring-2 focus-visible:ring-brand',
         isValid || isEmpty ? 'border border-newColColor' : 'bg-error text-white',
         isEmpty && 'text-muted'
       )}
+      // A tab stop only when there is a panel to open — a tap focuses this and
+      // reveals what a hover reveals, and the count on its own is not something
+      // a keyboard should have to stop on.
+      tabIndex={
+        (isGlobal && selectedIntegrations.length) || !isValid ? 0 : undefined
+      }
     >
       {isValid ? <Valid /> : <Invalid />}
 
@@ -208,7 +214,7 @@ export const InformationComponent: FC<{
       {((isGlobal && selectedIntegrations.length) || !isValid) && (
         <div
           className={clsx(
-            'z-[300] hidden rounded-[12px] bg-newBgColorInner text-textColor group-hover:flex absolute end-0 bottom-[100%] mb-[5px] p-[12px] flex-col',
+            'z-[300] hidden rounded-[12px] bg-newBgColorInner text-textColor group-hover:flex group-focus-within:flex absolute end-0 bottom-[100%] mb-[5px] p-[12px] flex-col',
             isValid || isEmpty
               ? 'border border-newColColor'
               : 'border border-error'

@@ -13,7 +13,12 @@ export const HeadingComponent: FC<{
   };
 
   return (
-    <div className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-surface border border-line flex justify-center items-center group relative">
+    // Focusable so the levels have a way open that is not hovering — a tap
+    // focuses it, a tap elsewhere blurs it.
+    <div
+      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-surface border border-line flex justify-center items-center group relative focus-visible:ring-2 focus-visible:ring-brand"
+      tabIndex={0}
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="16"
@@ -32,7 +37,7 @@ export const HeadingComponent: FC<{
       <div
         data-tooltip-id="tooltip"
         data-tooltip-content="Title"
-        className="flex p-[10px] gap-[5px] -left-[50%] rounded-[6px] bottom-[100%] opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 bg-surface border border-line shadow-soft z-[100] absolute transition-all"
+        className="flex p-[10px] gap-[5px] -left-[50%] rounded-[6px] bottom-[100%] opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 bg-surface border border-line shadow-soft z-[100] absolute transition-all"
       >
         <div onClick={setHeading(1)}>
           <svg
