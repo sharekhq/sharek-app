@@ -26,6 +26,7 @@ import {
   preconditionVerdict,
   provenance,
   reportableCollisions,
+  reportableUndersized,
   viewportKey,
 } from './reading.mjs';
 
@@ -584,6 +585,22 @@ test('the touch fields are advisory — their count depends on the day, not on t
   }
 });
 
+test('the deduped touch count is advisory until it has been measured', () => {
+  // It arrives with the dedupe and nothing has measured it yet — exactly the
+  // position collisionCount and worstOverlapPx were in when the collision
+  // detector landed. Promote it on four full runs against an unchanged
+  // deployment, not on the argument that deduping ought to make it stable.
+  // The argument is good and it is still not a measurement.
+  assert.ok(VARIANCE.advisory.includes('touch.distinctUnder44'));
+  assert.equal(VARIANCE.stable.includes('touch.distinctUnder44'), false);
+});
+
+test('the deduped touch detail is carried for reading, not diffed', () => {
+  // Same treatment as clipped[], smallest[] and collisions[]: element-by-element
+  // diffing of a detail list is noise, and the count beside it is the signal.
+  assert.ok(VARIANCE.notCompared.includes('undersized'));
+});
+
 test('no field is both stable and advisory', () => {
   const both = VARIANCE.stable.filter((f) => VARIANCE.advisory.includes(f));
   assert.deepEqual(both, [], 'a field counted and not counted at once has no meaning');
@@ -702,4 +719,135 @@ test('collisions are sorted worst first and capped at six, like clipped', () => 
   // same split clippedCount and clipped[] already keep. A count that quietly
   // capped at six would flatten the fourfold rise R3 predicts into nothing.
   assert.equal(collisionCount, 8);
+});
+
+// ---------------------------------------------------------------------------
+// Undersized touch targets — the 44px floor, counted by signature
+// ---------------------------------------------------------------------------
+
+// probe.js emits every visible, in-viewport interactive element it measured, as
+// geometry. Which of them are findings — the floor — and how many findings a
+// repeated control is worth — the dedupe — are decided here, where they can be
+// tested. That is the same boundary reportableCollisions draws.
+//
+// The reason the dedupe exists at all: touch.under44 counted instances, and
+// /launches renders one hour-cell class up to ~150 times depending on how much
+// of the displayed week is still ahead. The field read 15 on a Saturday and 172
+// on a Monday with nothing in the app changed, which is what demoted it to
+// advisory on 2026-08-17. One undersized control is one finding however often
+// the calendar repeats it.
+const target = (over = {}) => ({ tag: 'div', cls: 'flex items-center cursor-pointer', w: 92, h: 68, ...over });
+
+// The calendar hour cell at 820px, which is what 016 exists to fix. Its class is
+// built by a clsx with three static branches (calendar.tsx:939-947) — no day
+// index, no per-cell state — so every instance shares one signature.
+const hourCell = (over = {}) =>
+  target({ cls: 'min-h-full w-full p-[5px] flex items-center justify-center cursor-pointer pb-[2.5px]', w: 21, h: 68, ...over });
+
+test('an element under the floor in either dimension is a finding', () => {
+  assert.equal(reportableUndersized([target({ w: 21, h: 68 })]).distinctUnder44, 1);
+  assert.equal(reportableUndersized([target({ w: 92, h: 31 })]).distinctUnder44, 1);
+});
+
+test('an element at exactly the floor in both dimensions is not a finding', () => {
+  // WCAG 2.5.5 asks for at least 44, so 44 passes and 43 does not. An
+  // off-by-one here would report every compliant control on the app.
+  assert.equal(reportableUndersized([target({ w: 44, h: 44 })]).distinctUnder44, 0);
+  assert.equal(reportableUndersized([target({ w: 43, h: 44 })]).distinctUnder44, 1);
+  assert.equal(reportableUndersized([target({ w: 44, h: 43 })]).distinctUnder44, 1);
+});
+
+test('an undersized target reports its measurements and how many of it there were', () => {
+  const { undersized } = reportableUndersized([hourCell(), hourCell(), hourCell()]);
+
+  assert.deepEqual(undersized, [
+    {
+      tag: 'div',
+      cls: 'min-h-full w-full p-[5px] flex items-center justify-center cursor-pointer pb-[2.5px]',
+      w: 21,
+      h: 68,
+      instances: 3,
+    },
+  ]);
+});
+
+test('repeated instances of one signature are one finding', () => {
+  // The whole point. 150 hour cells are one undersized control, not 150.
+  const week = Array.from({ length: 150 }, () => hourCell());
+  const { distinctUnder44, undersized } = reportableUndersized(week);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(undersized[0].instances, 150);
+});
+
+// This is the movement that demoted the field, reproduced as data. A week
+// displayed entirely in the past renders no hour cell at all — calendar.tsx
+// gates the drop target on !isBeforeNow — so the signature is absent rather
+// than smaller. Under the old instance count that swing was 150; here it is 1,
+// and it is the residual the VARIANCE note records as known.
+test('a week fully ahead and the same week fully past differ by exactly one finding', () => {
+  const chrome = [target({ w: 24, h: 24, cls: 'w-[24px] h-[24px] cursor-pointer' })];
+  const ahead = reportableUndersized([...chrome, ...Array.from({ length: 150 }, () => hourCell())]);
+  const past = reportableUndersized(chrome);
+
+  assert.equal(ahead.distinctUnder44 - past.distinctUnder44, 1);
+});
+
+test('the smallest instance of a repeated signature survives the dedupe', () => {
+  // Same reasoning as the worst overlap surviving in reportableCollisions:
+  // reporting 40px while a 21px target was measured under-reports the finding.
+  const { undersized } = reportableUndersized([hourCell({ w: 40 }), hourCell({ w: 21 })]);
+
+  assert.equal(undersized[0].w, 21);
+  assert.equal(undersized[0].instances, 2);
+});
+
+test('severity is the dimension that misses the floor, not the area', () => {
+  // The calendar hour cell at 820 is 21x68 — it fails on width alone, and by
+  // area it is nearly three times a 22x22 icon that misses by less. Ranking on
+  // area buries the finding this whole feature exists to fix beneath six pieces
+  // of chrome that appear once each, which is exactly what the first real run
+  // reported. 21 is a worse miss than 22 in the axis that decides the verdict.
+  const { undersized } = reportableUndersized([
+    target({ w: 22, h: 22, cls: 'select-none cursor-pointer' }),
+    hourCell(),
+  ]);
+
+  assert.equal(undersized[0].w, 21);
+});
+
+test('two different signatures are two findings', () => {
+  const { distinctUnder44 } = reportableUndersized([
+    hourCell(),
+    target({ w: 24, h: 24, cls: 'w-[24px] h-[24px] cursor-pointer' }),
+  ]);
+
+  assert.equal(distinctUnder44, 2);
+});
+
+test('an empty candidate list reports zero, not absent', () => {
+  assert.deepEqual(reportableUndersized([]), { distinctUnder44: 0, undersized: [] });
+});
+
+test('a page whose every target clears the floor reads the same as one with none', () => {
+  assert.deepEqual(reportableUndersized([target(), target({ w: 120, h: 48 })]), {
+    distinctUnder44: 0,
+    undersized: [],
+  });
+});
+
+test('undersized targets are sorted smallest first and capped at six, like clipped', () => {
+  const many = [40, 8, 33, 21, 12, 36, 17, 28].map((w, i) =>
+    target({ w, h: 20, cls: `sig-${i} cursor-pointer` })
+  );
+  const { undersized, distinctUnder44 } = reportableUndersized(many);
+
+  // Smallest area first: every h is 20, so this is the widths in order.
+  assert.deepEqual(
+    undersized.map((u) => u.w),
+    [8, 12, 17, 21, 28, 33]
+  );
+  // The count is what survived the rules, not what fitted in the report — the
+  // same split clippedCount and collisionCount already keep.
+  assert.equal(distinctUnder44, 8);
 });
