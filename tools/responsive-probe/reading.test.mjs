@@ -63,6 +63,9 @@ function makeRun(overrides = {}) {
       // before the closing check existed comes back.
       postcondition:
         overrides.postcondition === undefined ? QUALIFIED : overrides.postcondition,
+      // Left absent unless a test names one, so the default is what most of
+      // these exercise — the shape every invocation predating coarse mode has.
+      pointer: overrides.pointer,
     }),
     readings: viewports.flatMap((v) => routes.map((r) => readingFor(r, v))),
     errors: [],
@@ -352,6 +355,7 @@ test('provenance carries every field needed to judge comparability', () => {
     'routes',
     'viewports',
     'precondition',
+    'pointer',
   ]) {
     assert.ok(field in p, `provenance is missing ${field}`);
     assert.notEqual(p[field], undefined, `provenance.${field} is undefined`);
@@ -372,6 +376,20 @@ test('an absent build is recorded as absent, never guessed', () => {
   assert.equal(p.build, null);
   // Survives the round trip to disk — undefined would have vanished silently.
   assert.equal(JSON.parse(JSON.stringify(p)).build, null);
+});
+
+test('provenance records the pointer mode the reading was taken under', () => {
+  const p = makeRun({ pointer: 'coarse' }).provenance;
+  assert.equal(p.pointer, 'coarse');
+});
+
+test('a run that does not name a pointer mode is fine, because that is the only mode there was', () => {
+  // Unlike the build, this is never unknown: the probe configures the pointer
+  // itself, so an unstated one is the default it used rather than a fact
+  // nobody gathered. Every retained reading predates the coarse mode.
+  const p = makeRun().provenance;
+  assert.equal(p.pointer, 'fine');
+  assert.equal(JSON.parse(JSON.stringify(p)).pointer, 'fine');
 });
 
 test('provenance records the sets that were actually covered, not the canonical ones', () => {
@@ -446,6 +464,40 @@ test('a different build is still comparable — that is the point of comparing',
   assert.equal(comparability(makeBaseline(), run).comparable, true);
 });
 
+test('a coarse reading is not comparable against a fine one', () => {
+  // The whole reason this field exists. Every touch figure moves under a
+  // coarse pointer by design, so diffing across modes would report the
+  // instrument as though it were the app.
+  const coarse = makeRun({ pointer: 'coarse' });
+  const { comparable, reason } = comparability(makeBaseline(), coarse);
+  assert.equal(comparable, false);
+  assert.match(reason, /pointer/i);
+});
+
+test('the refusal holds in the other direction too', () => {
+  const { comparable } = comparability(makeBaseline({ pointer: 'coarse' }), makeRun());
+  assert.equal(comparable, false);
+});
+
+test('two coarse readings are comparable', () => {
+  const { comparable, reason } = comparability(
+    makeBaseline({ pointer: 'coarse' }),
+    makeRun({ pointer: 'coarse' })
+  );
+  assert.equal(comparable, true);
+  assert.equal(reason, null);
+});
+
+test('a retained reading with no pointer mode compares as fine', () => {
+  // touch-gate-1.json and every baseline on disk were written before the
+  // field existed. Reading them as fine is a fact about when they were taken,
+  // not a default applied for convenience.
+  const stored = makeBaseline();
+  delete stored.provenance.pointer;
+  assert.equal(comparability(stored, makeRun()).comparable, true);
+  assert.equal(comparability(stored, makeRun({ pointer: 'coarse' })).comparable, false);
+});
+
 test('each way of being incomparable gives its own reason', () => {
   const account = makeRun();
   account.provenance.account = 'someone-else@example.com';
@@ -457,6 +509,7 @@ test('each way of being incomparable gives its own reason', () => {
     comparability(makeBaseline(), target).reason,
     comparability(makeBaseline(), makeRun({ routes: ['/launches'] })).reason,
     comparability(makeBaseline(), makeRun({ viewports: ['1440x900'] })).reason,
+    comparability(makeBaseline(), makeRun({ pointer: 'coarse' })).reason,
   ];
   assert.equal(new Set(reasons).size, reasons.length, 'reasons must be distinguishable');
 });
@@ -478,6 +531,29 @@ test('an unchanged run differs in nothing', () => {
   const { changes, advisory } = difference(makeBaseline(), makeRun());
   assert.deepEqual(changes, []);
   assert.deepEqual(advisory, []);
+});
+
+test('difference refuses to diff across pointer modes', () => {
+  // comparability() is the graceful path and run.mjs takes it, printing a
+  // reason instead of a diff. This is the backstop underneath it: a caller
+  // that skips the guard must not get a plausible-looking diff, because the
+  // honest answer to "what moved between a fine and a coarse reading" is that
+  // the question is malformed — and returning zero changes would say the
+  // opposite.
+  assert.throws(
+    () => difference(makeBaseline(), makeRun({ pointer: 'coarse' })),
+    /pointer/i
+  );
+  assert.throws(
+    () => difference(makeBaseline({ pointer: 'coarse' }), makeRun()),
+    /pointer/i
+  );
+});
+
+test('difference still diffs two readings taken the same way', () => {
+  assert.doesNotThrow(() =>
+    difference(makeBaseline({ pointer: 'coarse' }), makeRun({ pointer: 'coarse' }))
+  );
 });
 
 test('a primary action that became reachable is reported', () => {
