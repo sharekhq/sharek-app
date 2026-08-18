@@ -331,7 +331,7 @@ export const Menu: FC<{
 
   return (
     <div
-      className="cursor-pointer relative select-none flex"
+      className="cursor-pointer relative select-none flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center"
       onClick={changeShow}
       ref={ref}
     >

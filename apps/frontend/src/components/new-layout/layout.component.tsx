@@ -177,7 +177,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                           aria-label={t('open_menu', 'Open menu')}
                           aria-expanded={drawerOpen}
                           aria-controls="left-menu"
-                          className="hidden phone:flex me-[12px] -ms-[6px] h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors"
+                          className="hidden phone:flex me-[12px] -ms-[6px] h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand"
                         >
                           <svg
                             width="22"

@@ -74,7 +74,10 @@ export const Select: FC<
           ref={ref}
           {...(disableForm ? {} : form.register(props.name, extraForm))}
           className={clsx(
-            'h-[42px] w-full appearance-none bg-newBgColorInner ps-[16px] pe-[40px] outline-none border-newTableBorder border rounded-[8px] text-[14px]',
+            // 44px and 16px under a coarse pointer — the same two numbers as
+            // input.tsx, and for the same two reasons: a finger, and iOS
+            // Safari's zoom-on-focus below 16px.
+            'h-[42px] coarse:h-[44px] w-full appearance-none bg-newBgColorInner ps-[16px] pe-[40px] outline-none border-newTableBorder border rounded-[8px] text-[14px] coarse:text-[16px] focus-visible:ring-2 focus-visible:ring-brand',
             className
           )}
           {...rest}

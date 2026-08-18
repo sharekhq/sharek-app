@@ -290,10 +290,10 @@ export const Filters = () => {
     <div className="text-textColor flex flex-row flex-wrap phone:flex-col gap-[8px] items-center select-none">
       {!isListView && (
         <div className="flex flex-grow flex-row items-center gap-[10px]">
-          <div className="border h-[42px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
+          <div className="border h-[42px] coarse:h-[44px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
             <div
               onClick={previous}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -318,7 +318,7 @@ export const Filters = () => {
             </div>
             <div
               onClick={next}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -338,7 +338,7 @@ export const Filters = () => {
             </div>
           </div>
           <div className="flex-1 text-[14px] font-[500]">
-            <div className="text-center flex h-[42px]">
+            <div className="text-center flex h-[42px] coarse:h-[44px]">
               <div
                 onClick={setToday}
                 className="hover:text-textItemFocused hover:bg-boxFocused py-[3px] px-[9px] flex justify-center items-center rounded-[8px] transition-all cursor-pointer text-[14px] bg-newBgColorInner border border-newTableBorder"
@@ -351,11 +351,11 @@ export const Filters = () => {
       )}
       {isListView && (
         <div className="flex flex-grow flex-row flex-wrap items-center gap-[10px] phone:w-full phone:justify-center">
-          <div className="border h-[42px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
+          <div className="border h-[42px] coarse:h-[44px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
             <div
               onClick={previousPage}
               className={clsx(
-                'text-textColor rtl:rotate-180 px-[9px] bg-newBgColorInner h-full flex items-center justify-center',
+                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
                 calendar.listPage > 0
                   ? 'cursor-pointer hover:text-textItemFocused hover:bg-boxFocused'
                   : 'opacity-50 cursor-not-allowed'
@@ -385,7 +385,7 @@ export const Filters = () => {
             <div
               onClick={nextPage}
               className={clsx(
-                'text-textColor rtl:rotate-180 px-[9px] bg-newBgColorInner h-full flex items-center justify-center',
+                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
                 calendar.listPage < calendar.listTotalPages - 1
                   ? 'cursor-pointer hover:text-textItemFocused hover:bg-boxFocused'
                   : 'opacity-50 cursor-not-allowed'
@@ -408,13 +408,17 @@ export const Filters = () => {
               </svg>
             </div>
           </div>
-          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500]">
+          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[52px]">
             {listStateOptions.map((option) => (
               <div
                 key={option.value}
                 onClick={setListStateFilter(option.value)}
                 className={clsx(
-                  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] phone:min-w-0 px-[12px] phone:px-[8px] text-center rounded-[6px]',
+                  // `phone:coarse:`, not `coarse:` — Tailwind emits the
+                  // pointer variant *before* the screen ones, so a plain
+                  // `coarse:min-w` would lose to `phone:min-w-0` on the one
+                  // width where the segment is too narrow to hit.
+                  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] phone:min-w-0 phone:coarse:min-w-[44px] px-[12px] phone:px-[8px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
                   calendar.listState === option.value &&
                     'text-brandText bg-brandSoft font-[600]'
                 )}
@@ -432,10 +436,10 @@ export const Filters = () => {
         integrations={calendar.integrations}
       />
       {!isListView && (
-        <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500]">
+        <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[52px]">
           <div
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
+              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
               calendar.display === 'day' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setDay}
@@ -444,7 +448,7 @@ export const Filters = () => {
           </div>
           <div
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
+              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
               calendar.display === 'week' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setWeek}
@@ -453,7 +457,7 @@ export const Filters = () => {
           </div>
           <div
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px]',
+              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
               calendar.display === 'month' && 'text-brandText bg-brandSoft font-[600]'
             )}
             onClick={setMonth}
@@ -462,11 +466,11 @@ export const Filters = () => {
           </div>
         </div>
       )}
-      <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500]">
+      <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[52px]">
         <div
           onClick={setCalendarView}
           className={clsx(
-            'pt-[6px] pb-[5px] cursor-pointer flex justify-center items-center w-[34px] text-center rounded-[6px]',
+            'pt-[6px] pb-[5px] cursor-pointer flex justify-center items-center w-[34px] coarse:w-[44px] text-center rounded-[6px]',
             !isListView && 'text-brandText bg-brandSoft font-[600]'
           )}
         >
@@ -490,7 +494,7 @@ export const Filters = () => {
         <div
           onClick={setList}
           className={clsx(
-            'pt-[6px] pb-[5px] flex justify-center items-center cursor-pointer w-[34px] text-center rounded-[6px]',
+            'pt-[6px] pb-[5px] flex justify-center items-center cursor-pointer w-[34px] coarse:w-[44px] text-center rounded-[6px]',
             isListView && 'text-brandText bg-brandSoft font-[600]'
           )}
         >

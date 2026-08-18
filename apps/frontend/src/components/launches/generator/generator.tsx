@@ -369,7 +369,6 @@ export const GeneratorComponent = () => {
       classNames: {
         modal: 'bg-transparent text-textColor',
       },
-      size: 'xl',
       children: (
         <CalendarWeekProvider {...all}>
           <GeneratorPopup />

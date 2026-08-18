@@ -52,6 +52,34 @@ interface ModalManagerStoreInterface {
   closeAll(): void;
 }
 
+/**
+ * A width the browser can actually use, or `undefined`.
+ *
+ * One call site passed Mantine's `xl`, a token from before the migration: the
+ * browser drops it as an inline `width`, and being truthy it also suppressed
+ * the minimum below — so that modal rendered with no width rule at all.
+ * Normalising here sends an unusable value down the same branch as no value,
+ * and keeps the clamp from wrapping it into a valid-looking `min(xl, 100%)`.
+ */
+const cssWidth = (size?: string | number) => {
+  if (size === undefined || size === null || size === '') {
+    return undefined;
+  }
+  const value = typeof size === 'number' ? `${size}px` : size;
+  if (typeof CSS === 'undefined' || !CSS.supports('width', value)) {
+    return undefined;
+  }
+  return value;
+};
+
+/**
+ * What a call site asked for, capped at the width it was opened on. The clamp
+ * has to be applied *to* the value: an inline width outranks every class, so
+ * there is no outer rule that could hold it back.
+ */
+const clampToViewport = (value?: string) =>
+  value ? `min(${value}, 100%)` : undefined;
+
 interface State extends ModalManagerStoreInterface {
   modalManager: Array<{ id: string } & OpenModalInterface>;
 }
@@ -141,6 +169,8 @@ export const Component: FC<{
 }> = memo(({ isLast, modal, closeModal, zIndex }) => {
   const decision = useDecisionModal();
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const width = cssWidth(modal.size);
+  const maxWidth = cssWidth(modal.maxSize);
   const closeModalFunction = useCallback(async () => {
     if (modal.askClose) {
       const open = await decision.open();
@@ -192,7 +222,7 @@ export const Component: FC<{
               className={clsx(
                 modal.fullScreen ? 'w-full h-full flex-1' : 'mx-auto py-[48px]'
               )}
-              {...(modal.size && { style: { width: modal.size } })}
+              {...(width && { style: { width: clampToViewport(width) } })}
             >
               {typeof modal.children === 'function'
                 ? modal.children(closeModalFunction)
@@ -224,7 +254,11 @@ export const Component: FC<{
                 : {}
             }
             className={clsx(
-              'absolute min-w-full',
+              // max-w-full pins this to the viewport so the card's own `100%`
+              // has something fixed to resolve against: left to shrink-to-fit,
+              // it grows with whatever the card holds, and a clamp against a
+              // box that is already too wide clamps to nothing.
+              'absolute min-w-full max-w-full',
               !modal.fullScreen
                 ? modal.top
                   ? ''
@@ -238,16 +272,20 @@ export const Component: FC<{
             <div
               className={clsx(
                 !modal.removeLayout && 'gap-[24px] p-[32px]',
-                'bg-newBgColorInner mx-auto flex flex-col w-fit rounded-[24px] relative shadow-card',
-                modal.size ? '' : 'min-w-[600px]',
+                'bg-newBgColorInner mx-auto flex flex-col w-fit max-w-full rounded-[24px] relative shadow-card',
+                // 600px is the measure this modal reads best at, not a floor it
+                // must keep: a minimum is the last clamp CSS applies, so a plain
+                // `min-w-[600px]` cannot yield to a 390px phone and 52 call
+                // sites overflowed it by 210px. Yielding happens in the value.
+                width ? '' : 'min-w-[min(600px,100%)]',
                 modal.fullScreen && 'h-full',
                 modal.cardClassName
               )}
-              {...((!!modal.size || !!modal.height || !!modal.maxSize) && {
+              {...((!!width || !!modal.height || !!maxWidth) && {
                 style: {
-                  ...(modal.size ? { width: modal.size } : {}),
+                  ...(width ? { width: clampToViewport(width) } : {}),
                   ...(modal.height ? { height: modal.height } : {}),
-                  ...(modal.maxSize ? { maxWidth: modal.maxSize } : {}),
+                  ...(maxWidth ? { maxWidth: clampToViewport(maxWidth) } : {}),
                 },
               })}
               onClick={(e) => e.stopPropagation()}
@@ -260,7 +298,18 @@ export const Component: FC<{
                 modal.withCloseButton ? (
                   <div className="cursor-pointer">
                     <button
-                      className="outline-none absolute end-[20px] top-[20px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa"
+                      className={clsx(
+                        'outline-none absolute end-[20px] top-[20px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa',
+                        // The ring is not decoration: global.scss drops every
+                        // outline, so this is the only thing a keyboard user
+                        // sees on the control that closes the dialog.
+                        'focus-visible:ring-2 focus-visible:ring-brand',
+                        // A finger gets 44px around the same 16px glyph — the
+                        // inset shrinks by exactly what the box grew, so the
+                        // cross stays where a mouse user last saw it.
+                        'coarse:min-w-[44px] coarse:min-h-[44px] coarse:end-[6px] coarse:top-[6px]',
+                        'coarse:flex coarse:items-center coarse:justify-center'
+                      )}
                       type="button"
                       onClick={closeModalFunction}
                     >

@@ -124,7 +124,10 @@ const NotificationComponent = () => {
   }, [show, data]);
   const ref = useClickAway<HTMLDivElement>(() => setShow(false));
   return (
-    <div className="relative cursor-pointer select-none" ref={ref}>
+    <div
+      className="relative cursor-pointer select-none coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
+      ref={ref}
+    >
       <div onClick={changeShow}>
         <svg
           xmlns="http://www.w3.org/2000/svg"

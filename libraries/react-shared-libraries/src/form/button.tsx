@@ -59,7 +59,7 @@ export const Button: FC<
           // legacy `secondary` used to paint bg-third = the modal's own
           // background (invisible button); it now means the ghost style
           secondary ? 'bg-transparent text-ink border border-line' : variantClass
-        } px-[24px] h-[40px] rounded-[8px] cursor-pointer items-center justify-center flex relative`,
+        } px-[24px] h-[40px] coarse:h-[44px] rounded-[8px] cursor-pointer items-center justify-center flex relative focus-visible:ring-2 focus-visible:ring-brand`,
         props?.className
       )}
     >

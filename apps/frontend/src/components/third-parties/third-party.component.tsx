@@ -126,7 +126,7 @@ export const ThirdPartyComponent = () => {
             </h2>
             <div
               onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
+              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

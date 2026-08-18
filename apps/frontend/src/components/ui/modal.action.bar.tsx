@@ -24,7 +24,11 @@ export const ModalActionBar: FC<{ children: ReactNode }> = ({ children }) => (
         backgroundImage: 'linear-gradient(to top, var(--surface), transparent)',
       }}
     />
-    <div className="-mx-[32px] -mb-[32px] px-[32px] py-[16px] border-t border-line rounded-b-[24px] bg-surface flex items-center gap-[10px]">
+    {/* flex-wrap, because the alternative is worse than a second row: with
+        three actions and a spacer this bar is wider than a phone, and an
+        unwrapped row pushes the submit button off the screen it was opened
+        on. `gap` already carries the row gap. */}
+    <div className="-mx-[32px] -mb-[32px] px-[32px] py-[16px] border-t border-line rounded-b-[24px] bg-surface flex flex-wrap items-center gap-[10px]">
       {children}
     </div>
   </div>
