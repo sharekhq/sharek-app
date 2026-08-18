@@ -59,6 +59,16 @@ const FORMS = [
     prop: 'min-width',
     value: '44px',
   },
+  {
+    // The modal's floor, which has to yield to a narrower viewport. A minimum
+    // is the one clamp CSS applies last, so it cannot be capped from outside
+    // by a max-width — the yielding has to happen inside the value, and an
+    // arbitrary value carrying a comma is the form most likely to be dropped.
+    className: 'min-w-[min(600px,100%)]',
+    atRule: null,
+    prop: 'min-width',
+    value: 'min(600px,100%)',
+  },
 ];
 
 const collapse = (s) => s.replace(/\s+/g, ' ').trim();
