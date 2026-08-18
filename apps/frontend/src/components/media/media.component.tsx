@@ -646,14 +646,21 @@ export const MediaBox: FC<{
                          no hover on touch, so it stays `pointer-events-none`
                          until it is actually revealed — otherwise a tap on this
                          corner would open the delete prompt instead of selecting
-                         the item. */
+                         the item. Under a coarse pointer that reasoning holds in
+                         the picker and inverts in the library: there the tile
+                         selects nothing, and hover-only would mean media can
+                         never be deleted on touch at all. */
                       <button
                         type="button"
                         onClick={deleteImage(media)}
                         aria-label={t('delete_media_named', 'Delete {{name}}', {
                           name: displayName,
                         })}
-                        className="cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                        className={clsx(
+                          'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
+                          standalone &&
+                            'coarse:opacity-100 coarse:pointer-events-auto'
+                        )}
                       >
                         <DeleteCircleIcon size={28} />
                       </button>
@@ -674,7 +681,15 @@ export const MediaBox: FC<{
                         type="button"
                         onClick={maximize(media, index)}
                         aria-label={t('open_preview', 'Open preview')}
-                        className="cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand"
+                        className={clsx(
+                          'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
+                          // Only in the library, where the tile itself does
+                          // nothing on tap. In the picker the tile selects, and
+                          // a live 36px control in its centre would swallow the
+                          // tap that selects the item — the primary action here.
+                          standalone &&
+                            'coarse:opacity-100 coarse:pointer-events-auto'
+                        )}
                       >
                         <svg
                           width="18"
@@ -704,7 +719,7 @@ export const MediaBox: FC<{
                           with a neighbouring tile structurally impossible. */}
                       <div
                         dir="ltr"
-                        className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                        className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none"
                       >
                         {displayName}
                       </div>
@@ -930,7 +945,7 @@ export const MultiMediaComponent: FC<{
                             ),
                           });
                         }}
-                        className="absolute top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] bg-black/80 rounded-[10px] opacity-0 group-hover:opacity-100 transition-opacity z-[9]"
+                        className="absolute top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] bg-black/80 rounded-[10px] opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity z-[9]"
                       >
                         <MediaSettingsIcon className="cursor-pointer relative z-[200]" />
                       </div>

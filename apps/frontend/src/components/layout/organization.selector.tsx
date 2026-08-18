@@ -44,7 +44,13 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
   return (
     <>
       <div className="hover:text-newTextColor">
-        <div className="group text-[12px] relative">
+        {/* Focusable so the list has a way open that is not hovering: a tap
+            focuses it, a tap anywhere else blurs it, and the same stop lets a
+            keyboard reach a switcher it could not reach before. */}
+        <div
+          className="group text-[12px] relative rounded-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+          tabIndex={0}
+        >
           {asOpenSelect && (
             <div className="bg-btnPrimary !flex !relative max-w-[500px] mx-auto py-[12px] px-[12px]">Select Organization</div>
           )}
@@ -71,7 +77,7 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
           {data?.length > 1 && (
             <div
               className={clsx(
-                'hidden py-[12px] px-[12px] group-hover:flex absolute top-[100%] end-0 w-max max-w-[400px] bg-third border-tableBorder border gap-[12px] cursor-pointer flex-col',
+                'hidden py-[12px] px-[12px] group-hover:flex group-focus-within:flex absolute top-[100%] end-0 w-max max-w-[400px] bg-third border-tableBorder border gap-[12px] cursor-pointer flex-col',
                 asOpenSelect ? '!flex !relative max-w-[500px] mx-auto mb-[10px]' : '',
               )}
             >

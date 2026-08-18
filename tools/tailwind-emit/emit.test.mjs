@@ -86,6 +86,39 @@ const FORMS = [
     prop: 'font-size',
     value: '16px',
   },
+  {
+    // TT8's reveal. A control kept `hidden` until hover has to be shown
+    // outright where there is no hover — which works only because the coarse
+    // rule is emitted after the `hidden` it has to beat, asserted separately
+    // below. Two classes at the same specificity are decided by order alone.
+    className: 'coarse:block',
+    atRule: '(pointer: coarse)',
+    prop: 'display',
+    value: 'block',
+  },
+  {
+    // Its counterpart: where a reveal takes a row's space, whatever the row
+    // showed instead has to give it up under the same pointer.
+    className: 'coarse:hidden',
+    atRule: '(pointer: coarse)',
+    prop: 'display',
+    value: 'none',
+  },
+  {
+    className: 'coarse:opacity-100',
+    atRule: '(pointer: coarse)',
+    prop: 'opacity',
+    value: '1',
+  },
+  {
+    // Revealing an `opacity-0` control is only half of it. The ones hanging
+    // over a media tile are `pointer-events-none` as well, and a control that
+    // is visible but cannot be tapped is worse than one that is hidden.
+    className: 'coarse:pointer-events-auto',
+    atRule: '(pointer: coarse)',
+    prop: 'pointer-events',
+    value: 'auto',
+  },
 ];
 
 const collapse = (s) => s.replace(/\s+/g, ' ').trim();
@@ -157,6 +190,71 @@ test('a variant that does not exist emits nothing, so the assertions above can f
   const css = await emit(['pointer-coarse:min-h-[44px]']);
 
   assert.deepEqual(emitted(css, 'pointer-coarse:min-h-[44px]'), []);
+});
+
+test('the tap-to-open variant emits, and hangs off the group rather than the panel', async () => {
+  // The four hover-revealed *panels* cannot simply be shown under `coarse:` —
+  // pinned open, an org list and a heading picker sit over the page for good.
+  // They open on focus instead, which a tap gives them, and `focus-within` is
+  // what carries a tap on the trigger down to the panel it reveals.
+  //
+  // The claim worth asserting is where the rule lands: on `.group:focus-within
+  // .panel`, not on the panel alone. A rule that emitted on the panel itself
+  // would open only while the panel already had focus — which it cannot get
+  // while it is closed.
+  const css = await emit([
+    'group-focus-within:flex',
+    'group-focus-within:opacity-100',
+    'group-focus-within:pointer-events-auto',
+  ]);
+
+  const underGroup = (className) => emitted(css, className, { qualifier: '.group:focus-within' });
+
+  assert.deepEqual(underGroup('group-focus-within:flex'), [
+    { atRule: null, prop: 'display', value: 'flex' },
+  ]);
+  assert.deepEqual(underGroup('group-focus-within:opacity-100'), [
+    { atRule: null, prop: 'opacity', value: '1' },
+  ]);
+  assert.deepEqual(underGroup('group-focus-within:pointer-events-auto'), [
+    { atRule: null, prop: 'pointer-events', value: 'auto' },
+  ]);
+
+  // Nothing on the bare class: the whole rule is the descendant one above.
+  assert.deepEqual(emitted(css, 'group-focus-within:flex'), []);
+});
+
+test('a coarse reveal is emitted after the base utility it has to beat', async () => {
+  // `hidden coarse:block` on one element is two rules of equal specificity, so
+  // the later one wins and order is the entire mechanism. It happens to hold
+  // for every pair phase 6 relies on — but it holds because Tailwind emits
+  // variants after plain utilities, not because anyone chose it, and a change
+  // in that order would un-reveal every one of these controls silently.
+  const pairs = [
+    ['hidden', 'coarse:block'],
+    ['block', 'coarse:hidden'],
+    ['opacity-0', 'coarse:opacity-100'],
+    ['pointer-events-none', 'coarse:pointer-events-auto'],
+    ['group-hover:block', 'coarse:block'],
+  ];
+
+  const css = await emit([...new Set(pairs.flat())]);
+  const order = [];
+  postcss.parse(css).walkRules((rule) => {
+    order.push(
+      rule.selector
+        .replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) => (hex ? String.fromCodePoint(parseInt(hex, 16)) : ch))
+        .replace(/^\.group:hover /, '')
+        .slice(1)
+    );
+  });
+
+  for (const [base, override] of pairs) {
+    assert.ok(
+      order.indexOf(base) < order.indexOf(override),
+      `${override} is emitted before ${base}, so the base utility wins and the control stays hidden under a coarse pointer`
+    );
+  }
 });
 
 test('a screen variant outranks the pointer variant, which is why the touch floor sometimes has to stack', async () => {

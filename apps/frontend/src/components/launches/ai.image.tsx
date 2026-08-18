@@ -617,7 +617,7 @@ const AiImageModal: FC<{
               />
               <span
                 aria-hidden="true"
-                className="absolute bottom-[8px] end-[8px] w-[28px] h-[28px] rounded-[8px] bg-black/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"
+                className="absolute bottom-[8px] end-[8px] w-[28px] h-[28px] rounded-[8px] bg-black/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 coarse:opacity-100 group-focus-visible:opacity-100 transition-opacity"
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                   <path
