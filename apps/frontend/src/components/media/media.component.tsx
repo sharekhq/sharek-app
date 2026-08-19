@@ -657,7 +657,7 @@ export const MediaBox: FC<{
                           name: displayName,
                         })}
                         className={clsx(
-                          'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
+                          'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
                           standalone &&
                             'coarse:opacity-100 coarse:pointer-events-auto'
                         )}
@@ -682,7 +682,7 @@ export const MediaBox: FC<{
                         onClick={maximize(media, index)}
                         aria-label={t('open_preview', 'Open preview')}
                         className={clsx(
-                          'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
+                          'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
                           // Only in the library, where the tile itself does
                           // nothing on tap. In the picker the tile selects, and
                           // a live 36px control in its centre would swallow the
