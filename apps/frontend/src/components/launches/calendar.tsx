@@ -941,10 +941,10 @@ export const CalendarColumn: FC<{
             <div
               className={clsx(
                 display === ('month' as any)
-                  ? 'flex-1 min-h-[40px] w-full'
+                  ? 'flex-1 min-h-[40px] coarse:min-h-[44px] w-full'
                   : !postList.length
                   ? 'min-h-full w-full p-[5px]'
-                  : 'min-h-[40px] w-full',
+                  : 'min-h-[40px] coarse:min-h-[44px] w-full',
                 'flex items-center justify-center cursor-pointer pb-[2.5px]'
               )}
             >
@@ -1100,7 +1100,7 @@ const CalendarItem: FC<{
       <div
         className={clsx(
           post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'text-[11px] max-h-[24px] h-[24px] min-h-[24px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
+          'text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
         )}
         style={{
           backgroundColor: post?.tags?.[0]?.tag?.color,
@@ -1133,7 +1133,7 @@ const CalendarItem: FC<{
         {copyDebugJson && (
           <div
             className={clsx(
-              'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={copyDebugJson}
@@ -1143,7 +1143,7 @@ const CalendarItem: FC<{
         )}
         <div
           className={clsx(
-            'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={duplicatePost}
@@ -1152,7 +1152,7 @@ const CalendarItem: FC<{
         </div>
         <div
           className={clsx(
-            'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={preview}
@@ -1164,7 +1164,7 @@ const CalendarItem: FC<{
         ) : post.releaseId === 'missing' && missingRelease ? (
           <div
             className={clsx(
-              'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={missingRelease}
@@ -1174,7 +1174,7 @@ const CalendarItem: FC<{
         ) : post.releaseId !== 'missing' ? (
           <div
             className={clsx(
-              'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={statistics}
@@ -1186,7 +1186,7 @@ const CalendarItem: FC<{
         )}{' '}
         <div
           className={clsx(
-            'hidden group-hover:block coarse:block hover:underline cursor-pointer',
+            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={deletePost}

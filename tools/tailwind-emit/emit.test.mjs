@@ -111,6 +111,26 @@ const FORMS = [
     value: '1',
   },
   {
+    // The calendar's post actions are revealed into a strip that is a hard
+    // 24px tall, so the reveal alone left them at 15x15. The box has to become
+    // a flex centre to hold a 44px target without resizing the glyph — and
+    // `coarse:flex` replaces `coarse:block` rather than joining it, because two
+    // display utilities under the same at-rule are decided by emission order
+    // and not by which one the author wrote last.
+    className: 'coarse:flex',
+    atRule: '(pointer: coarse)',
+    prop: 'display',
+    value: 'flex',
+  },
+  {
+    // The strip that contains them is pinned by three declarations, not one:
+    // a `min-height` alone loses to the `max-height` sitting beside it.
+    className: 'coarse:max-h-[44px]',
+    atRule: '(pointer: coarse)',
+    prop: 'max-height',
+    value: '44px',
+  },
+  {
     // Revealing an `opacity-0` control is only half of it. The ones hanging
     // over a media tile are `pointer-events-none` as well, and a control that
     // is visible but cannot be tapped is worse than one that is hidden.
@@ -236,6 +256,8 @@ test('a coarse reveal is emitted after the base utility it has to beat', async (
     ['opacity-0', 'coarse:opacity-100'],
     ['pointer-events-none', 'coarse:pointer-events-auto'],
     ['group-hover:block', 'coarse:block'],
+    ['hidden', 'coarse:flex'],
+    ['group-hover:block', 'coarse:flex'],
   ];
 
   const css = await emit([...new Set(pairs.flat())]);
