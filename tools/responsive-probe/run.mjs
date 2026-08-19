@@ -69,12 +69,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  CANONICAL_MODALS,
   CANONICAL_ROUTES,
   CANONICAL_VIEWPORTS,
   baseline,
   baselineEligibility,
   comparability,
   difference,
+  modalKey,
   preconditionVerdict,
   provenance,
   reportableCollisions,
@@ -121,6 +123,22 @@ const VIEWPORTS = process.env.PROBE_VIEWPORTS
 const ROUTES = process.env.PROBE_ROUTES
   ? process.env.PROBE_ROUTES.split(',').map((r) => r.trim())
   : CANONICAL_ROUTES;
+
+// PROBE_MODALS=compose, or PROBE_MODALS=none to leave every surface closed.
+// Narrowing works the way the two above do and means the same thing: a
+// narrowed run is for iteration and can never be a baseline.
+const MODALS =
+  process.env.PROBE_MODALS === 'none'
+    ? []
+    : process.env.PROBE_MODALS
+    ? process.env.PROBE_MODALS.split(',')
+        .map((id) => id.trim())
+        .map((id) => {
+          const target = CANONICAL_MODALS.find((m) => m.id === id);
+          if (!target) throw new Error(`no modal target called ${id}`);
+          return target;
+        })
+    : CANONICAL_MODALS;
 
 const probeSource = readFileSync(join(HERE, 'probe.js'), 'utf8');
 
@@ -232,11 +250,9 @@ function login() {
   console.log(`signed in, landed at ${url}\n`);
 }
 
-function measure(route, viewport) {
-  ab(['set', 'viewport', String(viewport.w), String(viewport.h)]);
-  ab(['open', `${BASE}${route}`]);
-  ab(['wait', '--load', 'networkidle']);
-  ab(['wait', '1800']); // charts and lazy panels settle after networkidle
+// Everything that happens once the surface is on screen, shared by both axes so
+// that a modal reading is decided by exactly the same rules a route reading is.
+function readPage() {
   const { collisionCandidates, undersizedCandidates, pointerCoarse, ...reading } = JSON.parse(
     ab(['eval', '--stdin'], { input: probeSource })
   );
@@ -265,6 +281,67 @@ function measure(route, viewport) {
     touch: { ...reading.touch, distinctUnder44 },
     undersized,
   };
+}
+
+function measure(route, viewport) {
+  ab(['set', 'viewport', String(viewport.w), String(viewport.h)]);
+  ab(['open', `${BASE}${route}`]);
+  ab(['wait', '--load', 'networkidle']);
+  ab(['wait', '1800']); // charts and lazy panels settle after networkidle
+  return readPage();
+}
+
+// Is this selector laid out here? Asked before each click rather than clicking
+// and forgiving what fails, because the two cases are not the same thing: the
+// channels drawer toggle is `hidden phone:flex`, so at 1024 there is correctly
+// nothing to click, while a Create Post button that has gone missing is the
+// finding. Only a step declared optional is allowed to be absent.
+const laidOut = (selector) =>
+  ab(['eval', `!!document.querySelector(${JSON.stringify(selector)})?.getClientRects().length`])
+    .trim()
+    .split('\n')
+    .pop()
+    .replace(/"/g, '')
+    .trim() === 'true';
+
+// A modal target's reading: navigate, open the surface, let it settle, then
+// measure it with readPage() exactly as a route is measured.
+function measureModal(target, viewport) {
+  ab(['set', 'viewport', String(viewport.w), String(viewport.h)]);
+  ab(['open', `${BASE}${target.route}`]);
+  ab(['wait', '--load', 'networkidle']);
+  ab(['wait', '1800']);
+
+  for (const step of target.open) {
+    if (!laidOut(step.click)) {
+      if (step.optional) continue;
+      throw new Error(`${step.click} is not on the page at ${viewport.w}px`);
+    }
+    // The calendar scrolls: its post sits at y=1428 in a 1180-tall frame, so a
+    // click dispatched at the element's coordinates lands on nothing at all —
+    // `elementFromPoint` at its centre returns null. Scrolling first is part of
+    // reaching the control, not a workaround for the click.
+    if (step.scrollIntoView) {
+      ab(['eval', `document.querySelector(${JSON.stringify(step.click)}).scrollIntoView({block:'center'})`]);
+      ab(['wait', '600']);
+    }
+    ab(['click', step.click]);
+    ab(['wait', '400']);
+  }
+  ab(['wait', String(target.settle)]);
+
+  const reading = readPage();
+  // Whether the surface opened is decided by measuring for it, never inferred
+  // from the clicks having been dispatched. A target that did not open is an
+  // error and is recorded as one; it is never a reading whose width is zero,
+  // which would read as "it fits" — the strongest false green this instrument
+  // could emit (PR8).
+  if (!reading.wrapper) {
+    throw new Error(`no modal is open — ${target.id} did not reach the screen`);
+  }
+  // Where the browser was standing. A modal reading is taken on a route without
+  // being a reading of it, and completeness() has to know which.
+  return { ...reading, openedAt: target.route };
 }
 
 // One navigation, before anything is recorded, to establish that this account
@@ -375,6 +452,40 @@ for (const viewport of VIEWPORTS) {
         (r.cta ? r.cta.verdict : '—')
     );
   }
+
+  // The modal axis, at the same width, straight after the routes. A target that
+  // does not open lands in `errors` exactly as an unreachable route does — the
+  // one thing it must never do is land in `results` carrying a zero.
+  for (const target of MODALS) {
+    // Not every surface is reachable at every width, and a target says so. See
+    // `compose-existing` in reading.mjs for the measurement behind its list.
+    if (target.widths && !target.widths.includes(viewport.w)) continue;
+    const key = modalKey(target.id);
+    let r;
+    try {
+      r = measureModal(target, viewport);
+    } catch (err) {
+      const message = err.message.split('\n')[0];
+      errors.push({ route: key, viewport: viewportKey(viewport), message });
+      console.log(pad(key, 14) + `error: ${message}`);
+      continue;
+    }
+    results.push({ route: key, viewport: viewportKey(viewport), ...r });
+    console.log(
+      pad(key, 14) +
+        pad(r.clippedCount, 9) +
+        pad(r.worstCutPx ? `${r.worstCutPx}px` : '—', 8) +
+        pad(r.collisionCount, 10) +
+        pad(r.worstOverlapPx ? `${r.worstOverlapPx}px` : '—', 9) +
+        pad(r.touch.distinctUnder44, 10) +
+        pad(`${r.touch.under44}/${r.touch.total}`, 11) +
+        // The whole reason this axis exists, so it is printed rather than left
+        // for the results file: how wide the surface is, against the frame it
+        // opened in.
+        `${r.wrapper.w}px in ${viewport.w}` +
+        (r.wrapper.w > viewport.w ? `  OVER BY ${r.wrapper.w - viewport.w}` : '')
+    );
+  }
   console.log('');
 }
 
@@ -406,6 +517,11 @@ console.log(`routes with colliding text  ${collided.length}   ${collided.map((r)
 // times across the calendar is one control to fix, and counting the repeats
 // made this figure follow the day rather than the build.
 console.log(`routes under the touch floor  ${touch.length}   worst ${Math.max(0, ...results.map((r) => r.touch.distinctUnder44))} controls on one reading`);
+const over = results.filter((r) => r.wrapper && r.wrapper.w > Number(r.viewport.split('x')[0]));
+console.log(
+  `modals wider than the screen  ${over.length}   ` +
+    (over.map((r) => `${r.route}@${r.viewport} ${r.wrapper.w}px`).join(', ') || '—')
+);
 
 // Everything needed to judge whether another reading is comparable to this one.
 // Without it two runs on different accounts, or against different builds, look
@@ -419,6 +535,7 @@ const run = {
     capturedAt: new Date().toISOString(),
     routes: ROUTES,
     viewports: VIEWPORTS.map(viewportKey),
+    modals: MODALS.length ? MODALS.map((m) => m.id) : null,
     pointer: POINTER,
     precondition,
     postcondition,
@@ -434,6 +551,7 @@ console.log(`build       ${run.provenance.build || 'unknown — the rail printed
 console.log(`captured    ${run.provenance.capturedAt}`);
 console.log(`routes      ${run.provenance.routes.join(' ')}`);
 console.log(`widths      ${run.provenance.viewports.join(' ')}`);
+console.log(`modals      ${run.provenance.modals?.join(' ') || 'none opened'}`);
 console.log(`pointer     ${run.provenance.pointer}`);
 console.log(`precondition ${run.provenance.precondition.verdict}`);
 console.log(`closing check ${run.provenance.postcondition.verdict}`);
@@ -481,7 +599,7 @@ if (COMPARE) {
     // Shown instead of a diff, never as a difference (FR-011).
     console.log(`not comparable: ${reason}`);
   } else {
-    const { changes, advisory, introduced } = difference(stored, run);
+    const { changes, advisory, introduced, unpaired } = difference(stored, run);
     // Above the changes, because it is the frame they are read in: a field the
     // baseline predates has no "from", so its absence from the diff below is
     // the tool having nothing to compare, not the app having nothing to move.
@@ -490,6 +608,12 @@ if (COMPARE) {
         `\n${introduced.length} field(s) measured here that the baseline predates — reported as new, not as change:`
       );
       console.log(`  ${introduced.join(', ')}\n`);
+    }
+    if (unpaired.length) {
+      console.log(
+        `\n${unpaired.length} reading(s) taken here that the baseline never held — nothing to compare them against:`
+      );
+      console.log(`  ${unpaired.map((u) => `${u.route}@${u.viewport}`).join(', ')}\n`);
     }
     console.log(
       changes.length ? `${changes.length} change(s) in fields the baseline calls stable:` : 'no change in any field the baseline calls stable'

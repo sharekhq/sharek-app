@@ -15,6 +15,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  CANONICAL_MODALS,
   CANONICAL_ROUTES,
   CANONICAL_VIEWPORTS,
   VARIANCE,
@@ -23,6 +24,7 @@ import {
   comparability,
   completeness,
   difference,
+  modalKey,
   preconditionVerdict,
   provenance,
   reportableCollisions,
@@ -926,4 +928,265 @@ test('undersized targets are sorted smallest first and capped at six, like clipp
   // The count is what survived the rules, not what fitted in the report — the
   // same split clippedCount and collisionCount already keep.
   assert.equal(distinctUnder44, 8);
+});
+
+// ---------------------------------------------------------------------------
+// Modal targets — FR-011 to FR-015, contract PR1..PR8
+// ---------------------------------------------------------------------------
+
+// The harness has measured seven routes at four widths since spec 014 and has
+// never opened a modal, which is why compose's 809px is hand-produced and has
+// not moved through four rollouts. These tests fix what a modal reading is
+// before one is taken, and — more of the work than it looks — what it must not
+// disturb: `completeness()` requires a run's routes to be exactly the canonical
+// seven, and `difference()` pairs readings on route + viewport. A modal that
+// arrives as an eighth route invalidates every retained reading (PR3, R4).
+
+const modalReadingFor = (id, viewport, over = {}) => ({
+  route: modalKey(id),
+  viewport,
+  // Where the browser was when the modal was measured. A modal reading is taken
+  // on a route without being a reading OF it, so the url check in completeness()
+  // has to compare against this rather than against `route`.
+  openedAt: '/launches',
+  url: '/launches',
+  vw: Number(viewport.split('x')[0]),
+  cta: null,
+  clippedCount: 0,
+  worstCutPx: 0,
+  clipped: [],
+  touch: { total: 12, under44: 2, pct: 17 },
+  smallest: [],
+  sidewaysScrollPx: 0,
+  wrapper: { w: 809, h: 829 },
+  ...over,
+});
+
+// A run that also opened every canonical modal — the shape a full run takes
+// once the axis exists.
+function makeModalRun(overrides = {}) {
+  const run = makeRun(overrides);
+  const ids = overrides.modals || CANONICAL_MODALS.map((m) => m.id);
+  run.provenance.modals = ids;
+  run.readings = [
+    ...run.readings,
+    ...ids.flatMap((id) => reachableWidths(id, run.provenance.viewports).map((v) => modalReadingFor(id, v))),
+  ];
+  return run;
+}
+
+// The widths a target can actually be reached at, which is not always every
+// width the run covered — see `compose-existing` in reading.mjs.
+function reachableWidths(id, viewports) {
+  const widths = CANONICAL_MODALS.find((m) => m.id === id)?.widths;
+  return viewports.filter((v) => !widths || widths.includes(Number(v.split('x')[0])));
+}
+
+test('modal targets are a separate axis, not an eighth route', () => {
+  // The whole reason the axis exists rather than a `CANONICAL_ROUTES` entry:
+  // widening that list makes every retained reading report as narrowed.
+  const ids = CANONICAL_MODALS.map((m) => m.id);
+  for (const id of ids) {
+    assert.ok(
+      !CANONICAL_ROUTES.includes(id) && !CANONICAL_ROUTES.includes(modalKey(id)),
+      `${id} must not be reachable as a route`
+    );
+  }
+  assert.ok(CANONICAL_MODALS.length > 0, 'the axis is not worth having empty');
+  for (const target of CANONICAL_MODALS) {
+    // The contract's shape: where to go, what to click, how long to wait.
+    assert.equal(typeof target.id, 'string');
+    assert.ok(CANONICAL_ROUTES.includes(target.route), `${target.id} opens from a canonical route`);
+    assert.ok(target.open, `${target.id} says what to click`);
+  }
+});
+
+test('a run that never opened a modal is still complete — every retained reading predates the axis', () => {
+  // PR3, stated as the thing it protects: baseline.json, touch-gate-1.json and
+  // both phase-4 finals carry no `modals` at all. If the modal clause reads
+  // absence as a shortfall, the instrument arrives by invalidating the history
+  // it exists to extend.
+  const run = makeRun();
+  assert.equal(run.provenance.modals ?? null, null);
+  assert.deepEqual(completeness(run), { complete: true, reason: null });
+});
+
+test('a run that declares modals is complete only once every one of them is measured', () => {
+  assert.equal(completeness(makeModalRun()).complete, true);
+});
+
+test('a modal reading key cannot collide with a route path', () => {
+  // PR5. Route paths all begin with a slash and modal keys never do, so this
+  // holds by construction rather than by the current contents of two lists.
+  for (const route of CANONICAL_ROUTES) {
+    assert.notEqual(modalKey('compose'), route);
+  }
+  assert.ok(!modalKey('compose').startsWith('/'), 'a modal key is not a path');
+  // And it cannot be talked into becoming one.
+  assert.throws(() => modalKey('/launches'), /path/i);
+});
+
+test('difference pairs a modal reading with the same modal, never with a route', () => {
+  // PR5's real consequence: `difference()` pairs on route + viewport, so a key
+  // that collided would diff compose against /launches and report a page of
+  // changes that never happened.
+  const before = { ...baseline(makeModalRun()), variance: { stable: ['wrapper.w'], advisory: [] } };
+  const after = makeModalRun();
+  const target = after.readings.find((r) => r.route === modalKey('compose') && r.viewport === '390x844');
+  target.wrapper = { ...target.wrapper, w: 390 };
+
+  const { changes } = difference(before, after);
+
+  assert.equal(changes.length, 1, 'exactly the reading that moved');
+  assert.equal(changes[0].route, modalKey('compose'));
+  assert.equal(changes[0].viewport, '390x844');
+  assert.equal(changes[0].from, 809);
+  assert.equal(changes[0].to, 390);
+});
+
+test('a modal target that failed to open is an error, never a reading of zero', () => {
+  // PR8, and the failure mode phase 4 actually hit: /analytics@820 came back
+  // as a page that had not rendered. A modal whose opener is missing must not
+  // produce `wrapper.w: 0`, which reads as "it fits" — the strongest possible
+  // false green this instrument could emit.
+  const run = makeModalRun();
+  run.readings = run.readings.filter(
+    (r) => !(r.route === modalKey('compose') && r.viewport === '390x844')
+  );
+  run.errors = [{ route: modalKey('compose'), viewport: '390x844', message: 'opener not found' }];
+
+  const { complete, reason } = completeness(run);
+  assert.equal(complete, false);
+  assert.match(reason, /modal:compose@390x844/);
+});
+
+test('a declared modal with no reading and no error is still incomplete', () => {
+  // The other half of PR8: a loop that skipped a target leaves neither an
+  // error nor a reading, and "no reading" must never read as "no finding".
+  const run = makeModalRun();
+  run.readings = run.readings.filter(
+    (r) => !(r.route === modalKey('compose') && r.viewport === '820x1180')
+  );
+
+  const { complete, reason } = completeness(run);
+  assert.equal(complete, false);
+  assert.match(reason, /modal:compose@820x1180/);
+});
+
+test('a modal reading is not judged to be a reading of the route it was opened from', () => {
+  // completeness() rejects a reading whose url is not the route it is filed
+  // under — the check that catches a session expiring mid-run. A modal reading
+  // is filed under `modal:compose` and taken at /launches, so without a clause
+  // of its own every modal reading trips it and no run is ever complete again.
+  const run = makeModalRun();
+  assert.equal(completeness(run).complete, true);
+
+  // It still has to catch the thing it exists for: a modal measured after the
+  // session expired was measured on the sign-in page.
+  const expired = makeModalRun();
+  expired.readings.find((r) => r.route === modalKey('compose')).url = '/auth/login';
+  assert.equal(completeness(expired).complete, false);
+});
+
+test('a width field this code measures but an older baseline predates is introduced, not ignored', () => {
+  // The variance profile is the whole vocabulary of a comparison: a field in
+  // neither `stable` nor `advisory` is not reported at all. `introduced` reads
+  // the profile stored in the baseline, so a newly declared width has to
+  // surface there or it is measured on every run and mentioned on none.
+  const { introduced } = difference(makeBaseline(), makeRun());
+
+  assert.ok(
+    introduced.includes('wrapper.w'),
+    'the wrapper width must be named as new against a baseline taken before it existed'
+  );
+});
+
+test('the wrapper width is declared in VARIANCE, so a comparison can see it move', () => {
+  const declared = [...VARIANCE.stable, ...VARIANCE.advisory];
+  assert.ok(declared.includes('wrapper.w'));
+  assert.ok(
+    !VARIANCE.notCompared.includes('wrapper.w'),
+    'a field measured and then excluded from every comparison is the silence this harness exists to prevent'
+  );
+});
+
+test('modal readings a baseline predates are announced, not silently unpaired', () => {
+  // `difference()` walks the baseline's readings, so a reading the baseline has
+  // never held is not compared — which is right, and before this axis existed it
+  // could not happen. Now it happens on the very next `--compare` against
+  // baseline.json, which predates modals entirely. `introduced` already says
+  // this for fields; unpaired readings need saying too, or four measurements
+  // taken every run are mentioned on none of them.
+  const before = { ...baseline(makeRun()), variance: { stable: [], advisory: [] } };
+  const after = makeModalRun();
+
+  const { unpaired } = difference(before, after);
+
+  // Every modal reading the run took, at every width that target is reachable
+  // at — computed rather than hardcoded, so adding a target does not silently
+  // weaken this into checking a subset.
+  const viewports = CANONICAL_VIEWPORTS.map(viewportKey);
+  const expected = CANONICAL_MODALS.flatMap((m) =>
+    reachableWidths(m.id, viewports).map((v) => `${modalKey(m.id)}@${v}`)
+  );
+  assert.deepEqual(
+    unpaired.map((u) => `${u.route}@${u.viewport}`).sort(),
+    expected.sort()
+  );
+});
+
+test('two runs that both opened the modal leave nothing unpaired', () => {
+  const { unpaired } = difference(baseline(makeModalRun()), makeModalRun());
+  assert.deepEqual(unpaired, []);
+});
+
+test('a target reachable only at some widths is complete when measured at those widths', () => {
+  // Compose over an existing post is reached by clicking a post on the calendar,
+  // and at ≤768 the calendar is not a grid — it is `ListView`, which on this
+  // account renders no posts at all. So the target cannot open at 390, and a
+  // target that cannot open records an error (PR8), which would make every full
+  // run incomplete forever. The honest model is that a target says which widths
+  // it can be reached at, and is held to exactly those.
+  const restricted = CANONICAL_MODALS.find((m) => m.widths);
+  assert.ok(restricted, 'at least one target declares a width restriction');
+
+  const run = makeRun();
+  run.provenance.modals = [restricted.id];
+  run.readings = [
+    ...run.readings,
+    ...restricted.widths.map((w) =>
+      modalReadingFor(restricted.id, CANONICAL_VIEWPORTS.map(viewportKey).find((v) => v.startsWith(`${w}x`)))
+    ),
+  ];
+
+  assert.equal(completeness(run).complete, true);
+});
+
+test('a width a restricted target does declare still owes a reading', () => {
+  const restricted = CANONICAL_MODALS.find((m) => m.widths);
+  const run = makeRun();
+  run.provenance.modals = [restricted.id];
+  // Every declared width but the first.
+  run.readings = [
+    ...run.readings,
+    ...restricted.widths
+      .slice(1)
+      .map((w) =>
+        modalReadingFor(restricted.id, CANONICAL_VIEWPORTS.map(viewportKey).find((v) => v.startsWith(`${w}x`)))
+      ),
+  ];
+
+  const { complete, reason } = completeness(run);
+  assert.equal(complete, false);
+  assert.match(reason, new RegExp(`${restricted.id}@${restricted.widths[0]}x`));
+});
+
+test('an unrestricted target owes a reading at every width the run covered', () => {
+  const open = CANONICAL_MODALS.find((m) => !m.widths);
+  assert.ok(open, 'compose itself is reachable everywhere');
+  const run = makeRun();
+  run.provenance.modals = [open.id];
+  run.readings = [...run.readings, modalReadingFor(open.id, '390x844')];
+
+  assert.equal(completeness(run).complete, false);
 });

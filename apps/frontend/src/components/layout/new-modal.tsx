@@ -210,19 +210,37 @@ export const Component: FC<{
           !isLast && '!overflow-hidden'
         )}
       >
-        <div className={clsx(modal.fullScreen && 'flex', 'relative flex-1')}>
+        {/* min-w-0 on all three: each is a flex item, so each defaults to
+            `min-width: auto` and is floored at its content's min-content width.
+            The floor propagates outward — the card cannot shrink, so neither
+            can its parents, so the overlay overflows the viewport it is fixed
+            to. Fixing only the card leaves two floors above it. */}
+        <div
+          className={clsx(
+            modal.fullScreen && 'flex',
+            'relative flex-1 min-w-0'
+          )}
+        >
           <div
             className={clsx(
               modal.fullScreen
-                ? 'flex flex-1'
+                ? 'flex flex-1 min-w-0'
                 : 'absolute top-0 left-0 min-w-full min-h-full'
             )}
           >
             <div
               className={clsx(
-                modal.fullScreen ? 'w-full h-full flex-1' : 'mx-auto py-[48px]'
+                modal.fullScreen
+                  ? 'w-full h-full flex-1 min-w-0'
+                  : 'mx-auto py-[48px]'
               )}
-              {...(width && { style: { width: clampToViewport(width) } })}
+              // Full screen, the card is `flex: 1 1 0%`, and flex-basis
+              // supersedes `width` for the main size — an inline width is
+              // written, looks correct, and never participates. It does
+              // participate on the block path, so that is the only path that
+              // writes it.
+              {...(!modal.fullScreen &&
+                width && { style: { width: clampToViewport(width) } })}
             >
               {typeof modal.children === 'function'
                 ? modal.children(closeModalFunction)
