@@ -39,6 +39,105 @@ export const CANONICAL_VIEWPORTS = [
 export const viewportKey = (v) => `${v.w}x${v.h}`;
 
 // ---------------------------------------------------------------------------
+// Modal targets — a second axis, deliberately not an eighth route
+// ---------------------------------------------------------------------------
+
+// The harness has measured routes since spec 014 and has never opened a modal,
+// which is why compose's 809px is hand-produced and has not moved through four
+// rollouts. The click itself was never the cost: `ab(['click', …])` has signed
+// the probe in since the beginning. The cost is that everything downstream is
+// keyed by route — `completeness()` requires a run's routes to be exactly
+// CANONICAL_ROUTES, and `difference()` pairs readings on route + viewport — so
+// adding `compose` to that list would make baseline.json, touch-gate-1.json and
+// both phase-4 finals report as narrowed. The instrument would arrive by
+// invalidating the history it exists to extend (R4, PR3).
+//
+// So targets are their own axis. A target says where to navigate, what to click
+// to get the surface on screen, and how long to let it settle.
+//
+// `open` is a list of clicks rather than one selector because the control is
+// not always on screen: below the tablet width the channels rail collapses into
+// a drawer and takes Create Post with it, which is why /launches@390 reads
+// `behind-drawer`. A step marked optional is one that has nothing to click at
+// some widths and everything to click at others — it is not a step that may
+// fail. Whether the surface actually opened is never inferred from these
+// clicks; it is decided by measuring for the modal afterwards, which is the
+// only answer that holds however the steps behaved (PR8).
+
+// Both selectors are Tailwind classes the project writes literally — there is
+// no CSS-module hashing here — and both were checked against the deployed page
+// rather than read off the JSX.
+//
+//   .phone:flex   the channels drawer toggle (ui/split.panel.tsx:185). It is
+//                 `hidden phone:flex`, so it exists at every width and is only
+//                 laid out at or below 768 — which is exactly the width where
+//                 Create Post is off screen and /launches reads `behind-drawer`.
+//   .bg-btnPrimary  Create Post (launches/new.post.tsx:80). The calendar's hour
+//                 cell carries `group-hover:bg-btnPrimary`, a different class
+//                 token on a div, so the button selector does not reach it.
+const CHANNELS_DRAWER_TOGGLE = 'button.phone\\:flex.self-start';
+const CREATE_POST = 'button.bg-btnPrimary';
+
+//   .rounded-br-[10px].bg-surface  a post's body on the calendar grid
+//                 (launches/calendar.tsx:1198, the div carrying onClick={editPost}).
+//                 The delete and preview controls above it are separate elements,
+//                 so this reaches the editor rather than a confirmation.
+const CALENDAR_POST = 'div.rounded-br-\\[10px\\].bg-surface';
+
+export const CANONICAL_MODALS = [
+  {
+    id: 'compose',
+    route: '/launches',
+    open: [
+      { click: CHANNELS_DRAWER_TOGGLE, optional: true },
+      { click: CREATE_POST },
+    ],
+    settle: 1800,
+  },
+  {
+    // The same component with a post already in it — R7's 891px against the
+    // empty 809, and the state that overturned FR-007's threshold. It is here
+    // rather than hand-measured because it is the more important of compose's
+    // two states and the one that had never been measured twice.
+    id: 'compose-existing',
+    route: '/launches',
+    open: [{ click: CALENDAR_POST, scrollIntoView: true }],
+    settle: 1800,
+    // Measured 2026-08-19: at ≤768 the calendar is not a grid, it is `ListView`
+    // (calendar.tsx:506), and on this account it renders "No posts" under All and
+    // "No draft posts" under Draft while the same post shows on the week grid at
+    // 769 and above. So there is nothing to click at 390, and a target that
+    // cannot open records an error — which would make every full run incomplete
+    // for a reason that is about the account's data, not about the layout.
+    //
+    // A target says which widths it can be reached at, and is held to exactly
+    // those. Widening this list is a claim about the app that has to be measured
+    // first, the same way CANONICAL_ROUTES works.
+    widths: [820, 1024, 1440],
+  },
+];
+
+// A reading's key, and the guarantee that it can never be paired with a route.
+// Route paths all begin with a slash and this prefix does not, so the two
+// namespaces cannot meet — and an id that tried to look like a path is refused
+// rather than quietly namespaced, because `difference()` pairing compose
+// against /launches would report a page of changes that never happened (PR5).
+const MODAL_PREFIX = 'modal:';
+
+export const modalKey = (id) => {
+  if (String(id).startsWith('/')) {
+    throw new Error(`a modal id must not look like a path — got ${id}`);
+  }
+  return `${MODAL_PREFIX}${id}`;
+};
+
+// Whether a reading is of a modal rather than of a route. Read off the key
+// rather than off a flag, so a reading that came back from an older run cannot
+// disagree with itself — and off the same constant modalKey writes, so the two
+// cannot drift apart.
+export const isModalReading = (reading) => String(reading.route).startsWith(MODAL_PREFIX);
+
+// ---------------------------------------------------------------------------
 // Precondition — can this account reproduce the failure we are measuring?
 // ---------------------------------------------------------------------------
 
@@ -264,6 +363,7 @@ export function provenance({
   capturedAt,
   routes,
   viewports,
+  modals,
   pointer,
   precondition,
   postcondition,
@@ -275,6 +375,11 @@ export function provenance({
     capturedAt,
     routes,
     viewports,
+    // Which modal targets this run opened, by id. Null where none were asked
+    // for — and every reading retained before this axis existed comes back
+    // that way, which is what keeps them complete. Absence here is "this run
+    // did not cover modals", never "this run covered none of them and failed".
+    modals: modals ?? null,
     // Which pointer the browser reported while this was measured. Unlike the
     // build it is never unknown: the probe configures it, so an unstated one
     // is the mode it actually ran under rather than a fact nobody gathered.
@@ -328,6 +433,37 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
     };
   }
 
+  // The modal axis, checked only where a run declared one. A run that never
+  // opened a modal is complete on its routes alone: that is not a concession,
+  // it is the whole reason the axis is separate. baseline.json, touch-gate-1.json
+  // and both phase-4 finals predate modals entirely, and an instrument that
+  // marked four retained readings incomplete on arrival would be destroying the
+  // history it was built to extend (PR3, R4).
+  //
+  // Where a run does declare targets, every one of them owes a reading at every
+  // width the run covered — the same bar the routes are held to.
+  const declaredModals = prov.modals || [];
+  if (declaredModals.length) {
+    const absentModals = [];
+    for (const id of declaredModals) {
+      // A target that declares `widths` is held to those and no others. Absent,
+      // it owes a reading at every width the run covered.
+      const reachable = CANONICAL_MODALS.find((m) => m.id === id)?.widths;
+      for (const viewport of prov.viewports) {
+        if (reachable && !reachable.includes(Number(viewport.split('x')[0]))) continue;
+        if (!readings.some((r) => r.route === modalKey(id) && r.viewport === viewport)) {
+          absentModals.push(`${modalKey(id)}@${viewport}`);
+        }
+      }
+    }
+    if (absentModals.length) {
+      return {
+        complete: false,
+        reason: `no reading recorded for ${absentModals.join(', ')}`,
+      };
+    }
+  }
+
   // A route can go missing without erroring — an interrupted loop, a reading
   // that failed to parse. Checked separately so the two are not reported as
   // the same thing.
@@ -375,8 +511,16 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
   // sign-in page — the exact false green this harness exists to prevent, one
   // level up from the account precondition. A redirect deeper into the same
   // route (/agents to /agents/new) is still that route.
+  //
+  // A modal reading is filed under `modal:compose` and taken at /launches, so
+  // it is compared against the route it was opened from rather than against its
+  // own key. Without this every modal reading trips a check meant for expired
+  // sessions and no run is ever complete again — and with it the check still
+  // catches what it exists for, because a modal measured after the session
+  // expired was measured on the sign-in page.
+  const expectedPath = (r) => (isModalReading(r) ? r.openedAt : r.route);
   const elsewhere = readings.filter(
-    (r) => r.url !== r.route && !String(r.url).startsWith(`${r.route}/`)
+    (r) => r.url !== expectedPath(r) && !String(r.url).startsWith(`${expectedPath(r)}/`)
   );
   if (elsewhere.length) {
     const landed = [...new Set(elsewhere.map((r) => r.url))];
@@ -518,7 +662,23 @@ export const VARIANCE = {
   // four runs. Promote it after the measurement, and expect a known ±1 when the
   // displayed week is entirely in the past and the signature is absent rather
   // than smaller.
-  advisory: ['touch.total', 'touch.under44', 'touch.distinctUnder44'],
+  //
+  // `wrapper.w` and `wrapper.h` arrive with the modal axis and arrive advisory,
+  // for the plainest reason there is and the same one `collisionCount` and
+  // `touch.distinctUnder44` arrived with: nothing has measured them. The
+  // construction argument is good — a modal's width is min-content of its own
+  // subtree, and compose's 809 is 580px of fixed-width preview pane plus 80px of
+  // padding, none of which follows the clock the way the calendar's hour cells
+  // do — and a construction argument is not a run. Promote after two runs on one
+  // build agree (PR6), and say in this note that the promotion rests on two runs
+  // rather than the four the fields above were held to.
+  //
+  // One caveat the promotion has to survive rather than skip: a target that
+  // opens compose over an existing post measures that post's content. Its width
+  // is stable while the account is, and it is not stable across a change to the
+  // draft the account holds — which is a reason to keep the axis's targets few
+  // and to keep the account still, not a reason to leave the field out.
+  advisory: ['touch.total', 'touch.under44', 'touch.distinctUnder44', 'wrapper.w', 'wrapper.h'],
   // Deliberately outside both lists, so a comparison never mentions them:
   //   build          — provenance, printed above the diff. Comparing it per
   //                    reading would report four rows after every deploy, which
@@ -654,5 +814,16 @@ export function difference(baselineRun, run) {
     }
   }
 
-  return { changes, advisory, introduced };
+  // Readings this run took that the baseline never held. `introduced` says the
+  // same thing one level down — a field the baseline predates — and this is its
+  // reading-level twin. The loop above walks the *baseline's* readings, so a
+  // compose reading held against baseline.json, which predates the modal axis
+  // entirely, is not compared and without this would not be mentioned either:
+  // four measurements taken on every run and reported on none.
+  const held = new Set(baselineRun.readings.map((r) => `${r.route}@${r.viewport}`));
+  const unpaired = run.readings
+    .filter((r) => !held.has(`${r.route}@${r.viewport}`))
+    .map((r) => ({ route: r.route, viewport: r.viewport }));
+
+  return { changes, advisory, introduced, unpaired };
 }

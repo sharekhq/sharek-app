@@ -1,18 +1,24 @@
 // Responsive probe — runs inside the page, returns one reading for the current
 // route and viewport. Driven by run.mjs; see that file for usage.
 //
-// Reports five things, in the order they cost a user:
+// Reports six things, in the order they cost a user:
 //   1. the page's primary action is covered (nothing else matters if you can't act)
 //   2. content CLIPPED away by an overflow:hidden ancestor — unreachable, because
 //      there is no scrollbar to get to it
 //   3. text printed over other text — every pixel on screen, and still unreadable
 //   4. touch targets under the 44px WCAG 2.5.5 floor
 //   5. the page scrolling sideways
+//   6. how wide an open modal's content is, against the frame it opened in
 //
 // Note on (5): inside the app shell this can never fail — layout.component.tsx
 // wraps page content in overflow-hidden, so no document scrollbar can appear.
-// It is recorded because it does fire for portalled surfaces (the compose modal
-// renders through createPortal, outside that frame). Do not gate a build on it.
+// It never fires for a modal either, and the sentence here used to say the
+// opposite: the modal manager renders inline and pins `body, html` to
+// overflow:hidden while any modal is open (new-modal.tsx:377), so an oversized
+// modal pans inside its own root and the document stays put. Measured
+// 2026-08-19 with compose at 390: content 809px wide, document scroll 0. That
+// is precisely why (6) exists — this field cannot see a modal at all. Do not
+// gate a build on it.
 (() => {
   const vw = window.innerWidth;
 
@@ -66,8 +72,35 @@
   const cls = (el, n) =>
     (typeof el.className === 'string' ? el.className : '').replace(/\s+/g, ' ').trim().slice(0, n);
 
+  // ---- 0. is a modal open? ----
+  //
+  // Found by the signature the modal manager writes rather than by any one
+  // modal's classes: every modal is rendered as a fixed element at z-index
+  // 200 + its depth in the stack (new-modal.tsx:384). The last one is the one on
+  // top, which is the one a person is looking at — an askClose confirmation over
+  // compose is the modal being measured, not compose behind it.
+  //
+  // First, because (1) depends on it.
+  const modalRoot = [...document.querySelectorAll('body *')]
+    .filter((el) => {
+      const cs = getComputedStyle(el);
+      return cs.position === 'fixed' && (parseInt(cs.zIndex, 10) || 0) >= 200;
+    })
+    .pop();
+
   // ---- 1. primary action reachable? ----
-  const pattern = (ROUTE_CTA.find(([route]) => route.test(location.pathname)) || [])[1];
+  //
+  // Not asked while a modal is open. The hit-test asks whether the route's
+  // primary action can be clicked, and an open modal covers the page by design —
+  // so the answer would be COVERED on every modal reading ever taken, reported
+  // in the summary as the most serious finding this probe has. A question whose
+  // answer is fixed by the act of asking is not a measurement, and the file
+  // already takes this position: a route with no ROUTE_CTA entry is simply not
+  // hit-tested, "which is the honest reading for a page that has no one thing
+  // you came to do". A modal reading is that page.
+  const pattern = modalRoot
+    ? undefined
+    : (ROUTE_CTA.find(([route]) => route.test(location.pathname)) || [])[1];
   let cta = null;
   if (pattern) {
     const matches = [...document.querySelectorAll('button, a[href], [role="button"], .cursor-pointer')]
@@ -280,7 +313,10 @@
     // a missing customer control means nothing if the page never loaded, so a
     // route with no ROUTE_CTA entry cannot answer the question and says so by
     // reporting false — only a route with an anchor pattern is worth a
-    // pre-flight, and run.mjs runs it on /launches.
+    // pre-flight, and run.mjs runs it on /launches. A modal reading lands in
+    // that same bucket for the same reason: (1) is not asked under a modal, so
+    // there is no cta, so this reports false. It is the pre-flight's question,
+    // and the pre-flight is a route navigation.
     precondition: { customerControlPresent, pageRendered: !!cta && cta.verdict !== 'NOT FOUND' },
     build,
     sidewaysScrollPx: Math.max(0, document.documentElement.scrollWidth - vw),
@@ -294,5 +330,27 @@
     undersizedCandidates,
     touch: { total, under44: small, pct: total ? Math.round((small / total) * 100) : 0 },
     smallest: smallest.sort((a, b) => a.h * a.w - b.h * b.w).slice(0, 4),
+    // ---- 6. the modal's own width ----
+    //
+    // Present only when a modal is open, and absent — not null — otherwise, so
+    // that a route reading is byte-identical to what this file produced before
+    // the modal axis existed (PR4). Every other field above answers a question
+    // about the page; none of them expresses the measured element's own width,
+    // which is the whole of what a modal reading is for.
+    //
+    // `w` is the horizontal extent the modal's content occupies, not the box
+    // the modal is drawn in. Those are different numbers and only one of them
+    // is the finding: the outermost modal element is `fixed w-full`, so its own
+    // box is the viewport at every width and carries no information at all,
+    // while its content sits at 809px inside a 390px frame and pans. scrollWidth
+    // is that content extent, and it is what has to come down to the viewport.
+    ...(modalRoot
+      ? {
+          wrapper: {
+            w: modalRoot.scrollWidth,
+            h: modalRoot.scrollHeight,
+          },
+        }
+      : {}),
   };
 })();
