@@ -1374,5 +1374,6 @@
   "support_disclosure_browser": "متصفحك ومقاس الشاشة والمنطقة الزمنية وإصدار التطبيق",
   "support_disclosure_never": "لا نرسل إطلاقًا كلمة مرورك ولا بيانات اعتماد قنواتك ولا محتوى منشوراتك.",
   "support_failed_title": "تعذّر إرسال طلبك.",
-  "support_failed_body": "حاول مرة أخرى بعد قليل، أو راسلنا مباشرة على support@sharek.app."
+  "support_failed_body": "حاول مرة أخرى بعد قليل، أو راسلنا مباشرة على support@sharek.app.",
+  "compose_view": "طريقة العرض"
 }

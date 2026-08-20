@@ -971,6 +971,19 @@ export const MultiMediaComponent: FC<{
         <div
           className={clsx(
             'flex gap-[8px] w-full b1 text-textColor',
+            // Below `mobile` this row's controls are wider than the pane that
+            // holds them — measured at 390 inside compose, where the editor's
+            // own scroll container is overflow-x: hidden, so they were cut off
+            // rather than reachable (specs/017-compose-viewport R11).
+            //
+            // A scroller, not a wrap: this row is a compressed flex item —
+            // 105px of box holding 159px of content — so a second line does not
+            // make it taller, it spills through overflow: visible onto the
+            // control below. Scrolling keeps the height exactly as it is, and
+            // it is what the sizing contract asks for anyway: content that
+            // cannot reflow is owned by a scroll container rather than clipped.
+            'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
+            'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
             !flush && 'px-[12px] border-t border-newColColor'
           )}
         >
