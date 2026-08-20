@@ -37,6 +37,7 @@ interface StoreState {
   activateExitButton: boolean;
   tags: { label: string; value: string }[];
   tab: 0 | 1;
+  narrowView: NarrowView;
   current: string;
   comments: boolean | 'no-media';
   locked: boolean;
@@ -110,6 +111,7 @@ interface StoreState {
     params: { selectedIntegrations: Integrations; settings: any }[]
   ) => void;
   setTab: (tab: 0 | 1) => void;
+  setNarrowView: (narrowView: NarrowView) => void;
   setHide: (hide: boolean) => void;
   setDate: (date: dayjs.Dayjs) => void;
   setRepeater: (repeater: number) => void;
@@ -140,6 +142,14 @@ interface StoreState {
   setComments: (comments: boolean | 'no-media') => void;
 }
 
+/**
+ * Which pane compose shows below `mobile`, where the two-pane layout does not
+ * fit (`specs/017-compose-viewport`, shape A). A third value in the idea
+ * `showSettings` already expresses, not a replacement for it: `showSettings`
+ * stays local to manage.modal.tsx and still swaps the editor pane's two views.
+ */
+export type NarrowView = 'editor' | 'settings' | 'preview';
+
 const initialState = {
   editor: undefined as undefined,
   loaded: true,
@@ -151,6 +161,10 @@ const initialState = {
   tags: [] as { label: string; value: string }[],
   totalChars: 0,
   tab: 0 as 0,
+  // Inside initialState for the same reason as publishBlockers below: reset()
+  // merges it, so a view declared elsewhere would outlive the composer and
+  // reopen it on whichever pane the last post was left on.
+  narrowView: 'editor' as const,
   isCreateSet: false,
   current: 'global',
   locked: false,
@@ -529,6 +543,12 @@ export const useLaunchStore = create<StoreState>()((set) => ({
   setTab: (tab: 0 | 1) =>
     set((state) => ({
       tab: tab,
+    })),
+  setNarrowView: (narrowView: NarrowView) =>
+    // Same shape as setTab above, without its unused `state` binding — the
+    // idiom is the callback, not the parameter nothing reads.
+    set(() => ({
+      narrowView: narrowView,
     })),
   setLocked: (locked: boolean) =>
     set((state) => ({
