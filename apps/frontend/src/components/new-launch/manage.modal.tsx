@@ -585,7 +585,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   </div>
                   <div className="flex flex-1 gap-[6px] flex-col">
                     <div>{!existingData.integration && <SelectCurrent />}</div>
-                    <div className="flex-1 flex">
+                    {/* min-w-0: the outermost item of the editor's flex chain.
+                        The rest are in editor.tsx — see the note at its :363. */}
+                    <div className="flex-1 flex min-w-0">
                       {!hide && <EditorWrapper totalPosts={1} value="" />}
                     </div>
                     <div
