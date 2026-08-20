@@ -16,7 +16,7 @@ export const HeadingComponent: FC<{
     // Focusable so the levels have a way open that is not hovering — a tap
     // focuses it, a tap elsewhere blurs it.
     <div
-      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-surface border border-line flex justify-center items-center group relative focus-visible:ring-2 focus-visible:ring-brand"
+      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-surface border border-line flex justify-center items-center group relative focus-visible:ring-2 focus-visible:ring-brand"
       tabIndex={0}
     >
       <svg

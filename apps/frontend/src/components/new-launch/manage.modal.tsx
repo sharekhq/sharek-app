@@ -657,8 +657,15 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           >
             <div className="mobile:hidden bg-newBgColor h-[65px] rounded-e-[20px] !rounded-b-[0] flex items-center px-[20px] text-[20px] font-[600]">
               <div className="flex-1">{t('post_preview', 'Post Preview')}</div>
-              <div className="cursor-pointer">
-                <CloseIcon onClick={askClose} className="text-muted" />
+              {/* The handler was on the icon while cursor-pointer was on this
+                  wrapper, so the measured box and the tap target were two
+                  different elements. Both belong on the wrapper — the icon
+                  click still reaches askClose by bubbling. */}
+              <div
+                onClick={askClose}
+                className="cursor-pointer coarse:w-[44px] coarse:h-[44px] coarse:flex coarse:items-center coarse:justify-center"
+              >
+                <CloseIcon className="text-muted" />
               </div>
             </div>
             <div className="flex-1 relative bg-panel">
@@ -700,7 +707,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex text-error gap-[8px] items-center text-[15px] font-[600]"
+                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
               >
                 <div>
                   <TrashIcon />

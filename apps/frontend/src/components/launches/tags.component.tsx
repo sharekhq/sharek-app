@@ -165,14 +165,19 @@ export const TagsComponentInner: FC<{
         isOpen ? 'border-brand' : 'border-newTextColor/10'
       )}
     >
+      {/* cursor-pointer belongs on the row, not the three children: the row is
+          what carries the onClick, and `cursor` is inherited, so the children
+          still show a pointer without each counting as its own 17×19 target.
+          coarse:min-h-[44px] takes the row from the 42px its h-full gives it
+          inside a 44px bordered box out to the full 44, without moving the box. */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="px-[16px] justify-center flex gap-[8px] items-center h-full select-none flex-1"
+        className="px-[16px] justify-center flex gap-[8px] items-center h-full coarse:min-h-[44px] cursor-pointer select-none flex-1"
       >
-        <div className="cursor-pointer">
+        <div>
           <TagIcon />
         </div>
-        <div className="cursor-pointer flex gap-[4px]">
+        <div className="flex gap-[4px]">
           {tagValue.length === 0 ? (
             t('add_new_tag', 'Add New Tag')
           ) : (
@@ -189,7 +194,7 @@ export const TagsComponentInner: FC<{
             </>
           )}
         </div>
-        <div className="cursor-pointer">
+        <div>
           <DropdownArrowIcon rotated={isOpen} />
         </div>
       </div>

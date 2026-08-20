@@ -80,19 +80,21 @@ export const RepeatComponent: FC<{
         isOpen ? 'border-brand' : 'border-newTextColor/10',
       )}
     >
+      {/* Same shape as tags.component.tsx: the row owns the click, so it owns
+          the cursor and the 44px floor; the children inherit both. */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="px-[16px] justify-center flex gap-[8px] items-center h-full select-none flex-1"
+        className="px-[16px] justify-center flex gap-[8px] items-center h-full coarse:min-h-[44px] cursor-pointer select-none flex-1"
       >
-        <div className="cursor-pointer">
+        <div>
           <RepeatIcon />
         </div>
-        <div className="cursor-pointer">
+        <div>
           {repeat
             ? `${t('repeat_post_every_label', 'Repeat Post Every')} ${everyLabel}`
             : t('repeat_post_every', 'Repeat Post Every...')}
         </div>
-        <div className="cursor-pointer">
+        <div>
           <DropdownArrowIcon rotated={isOpen} />
         </div>
       </div>

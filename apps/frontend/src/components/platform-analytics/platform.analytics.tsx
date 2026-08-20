@@ -190,7 +190,7 @@ export const PlatformAnalytics = () => {
     );
   }
   return (
-    <div className="flex flex-1 gap-[1px] phone:flex-col">
+    <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
         <div
           className={clsx(
             'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all',

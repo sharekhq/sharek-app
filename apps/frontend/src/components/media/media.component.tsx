@@ -913,7 +913,12 @@ export const MultiMediaComponent: FC<{
               handle=".dragging"
             >
               {currentMedia.map((media, index) => (
-                  <div key={media.id} className="cursor-pointer rounded-[5px] w-[40px] h-[40px] border-2 border-tableBorder relative flex transition-all">
+                  // Grown rather than de-classed: this thumbnail carries no
+                  // handler of its own, but it is the interactive unit holding
+                  // three that do, and its cursor-pointer is what gives the
+                  // drag, settings and close controls inside it their cursor.
+                  // Dropping it would take the pointer off the close badge.
+                  <div key={media.id} className="cursor-pointer rounded-[5px] w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] border-2 border-tableBorder relative flex transition-all">
                     <DragHandleIcon className="z-[20] dragging absolute pe-[1px] pb-[3px] -start-[4px] -top-[4px] cursor-move" />
 
                     <div className="w-full h-full relative group">
@@ -945,9 +950,14 @@ export const MultiMediaComponent: FC<{
                             ),
                           });
                         }}
-                        className="absolute top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] bg-black/80 rounded-[10px] opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity z-[9]"
+                        // cursor-pointer moves up from the icon to here, where
+                        // the handler is, so the measured box and the tap
+                        // target are the same element. Absolutely positioned,
+                        // so reaching the floor under coarse costs no layout
+                        // width — it grows over the thumbnail, not beside it.
+                        className="absolute top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%] bg-black/80 rounded-[10px] opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity z-[9] cursor-pointer coarse:w-[44px] coarse:h-[44px] coarse:flex coarse:items-center coarse:justify-center"
                       >
-                        <MediaSettingsIcon className="cursor-pointer relative z-[200]" />
+                        <MediaSettingsIcon className="relative z-[200]" />
                       </div>
                       {hasExtension(media?.path, 'mp4') ? (
                         <VideoFrame url={mediaDirectory.set(media?.path)} />

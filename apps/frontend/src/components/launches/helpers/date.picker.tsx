@@ -36,14 +36,18 @@ export const DatePicker: FC<{
   );
   return (
     <div
-      className="px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] font-[600] ml-[7px] select-none flex-1"
+      // Same move as tags and repeat, minus the sizing: this row *is* the
+      // control one level shallower (manage.modal.tsx:712 records the
+      // asymmetry) and its h-[44px] already clears the floor, so it only needs
+      // the cursor its two children were carrying for it.
+      className="px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] font-[600] ml-[7px] cursor-pointer select-none flex-1"
       onClick={changeShow}
       ref={ref}
     >
-      <div className="cursor-pointer">
+      <div>
         <CalendarIcon />
       </div>
-      <div className="cursor-pointer">
+      <div>
         {date.format(isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm')}
       </div>
       {open && (

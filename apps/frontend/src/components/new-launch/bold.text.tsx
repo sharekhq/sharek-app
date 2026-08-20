@@ -84,7 +84,7 @@ export const BoldText: FC<{
       data-tooltip-id="tooltip"
       data-tooltip-content="Bold Text"
       onClick={mark}
-      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-surface border border-line flex justify-center items-center"
+      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-surface border border-line flex justify-center items-center"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
