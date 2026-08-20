@@ -702,10 +702,18 @@ export const Editor: FC<{
   }
 
   return (
-    <div className="flex flex-col gap-[20px] flex-1">
+    /* min-w-0: the only flex item in this chain without it — :370 and :429
+       both carry it. Without it this column keeps min-width:auto and is pinned
+       to its min-content, which the toolbar's 44px coarse targets push to 366
+       against a 346px clipper: 20px of the editor off the right edge at 390
+       under a coarse pointer. Measured in the live DOM — reverting the 44px
+       buttons took it 366 -> 310, reverting anything else moved nothing. The
+       toolbar already scrolls (media.component.tsx:985), so what it gives up
+       here it takes back as scroll rather than as clipping. */
+    <div className="flex flex-col gap-[20px] flex-1 min-w-0">
       <div
         className={clsx(
-          'relative flex-1 px-[12px] pt-[12px] pb-[12px] flex flex-col',
+          'relative flex-1 px-[12px] pt-[12px] pb-[12px] flex flex-col min-w-0',
           num > 0 && '!rounded-bs-[0]'
         )}
         id={id}
