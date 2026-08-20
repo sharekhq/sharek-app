@@ -31,7 +31,7 @@ export const UpDownArrow: FC<{
       <button
         onClick={changePosition('up')}
         className={clsx(
-          'outline-none w-[20px] h-[20px] flex justify-center items-center',
+          'outline-none w-[20px] h-[20px] coarse:w-[44px] coarse:h-[44px] flex justify-center items-center',
           isUp
             ? 'cursor-pointer'
             : 'pointer-events-none text-textColor opacity-50'
@@ -42,7 +42,7 @@ export const UpDownArrow: FC<{
       <button
         onClick={changePosition('down')}
         className={clsx(
-          'outline-none rounded-bl-[20px] w-[20px] h-[20px] flex justify-center items-center',
+          'outline-none rounded-bl-[20px] w-[20px] h-[20px] coarse:w-[44px] coarse:h-[44px] flex justify-center items-center',
           isDown
             ? 'cursor-pointer'
             : 'pointer-events-none text-textColor opacity-50'
