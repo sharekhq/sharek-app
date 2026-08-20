@@ -79,6 +79,7 @@ import {
   modalKey,
   preconditionVerdict,
   provenance,
+  reportableClipped,
   reportableCollisions,
   reportableUndersized,
   viewportKey,
@@ -253,9 +254,8 @@ function login() {
 // Everything that happens once the surface is on screen, shared by both axes so
 // that a modal reading is decided by exactly the same rules a route reading is.
 function readPage() {
-  const { collisionCandidates, undersizedCandidates, pointerCoarse, ...reading } = JSON.parse(
-    ab(['eval', '--stdin'], { input: probeSource })
-  );
+  const { clippedCandidates, collisionCandidates, undersizedCandidates, pointerCoarse, ...reading } =
+    JSON.parse(ab(['eval', '--stdin'], { input: probeSource }));
   // The emulation lives on a socket that has to survive the whole run. If it
   // ever drops, every later reading quietly becomes a fine one filed under a
   // coarse provenance — precisely the mislabelling the pointer field was added
@@ -274,10 +274,21 @@ function readPage() {
   // count sits beside the instance count it corrects rather than replacing it,
   // so a reader sees both — /launches@820 on 2b50f37c reads 162 instances and
   // 15 controls, and neither half of that is the whole finding.
+  //
+  // Clipping is the third and last of them. Both rules that judge it need to
+  // know whether a modal was open, and that is answered here rather than
+  // inferred downstream: `reading.wrapper` is present only when the page found
+  // a modal root, which is the same signal the modal axis already throws on a
+  // few lines below when a target did not reach the screen. Inferring it from
+  // the candidates instead would read a modal that clips nothing and covers
+  // nothing as no modal at all, and silently reverse the collision rule on
+  // exactly the readings that look cleanest.
+  const modalOpen = !!reading.wrapper;
   const { distinctUnder44, undersized } = reportableUndersized(undersizedCandidates);
   return {
     ...reading,
-    ...reportableCollisions(collisionCandidates),
+    ...reportableClipped(clippedCandidates, { modalOpen }),
+    ...reportableCollisions(collisionCandidates, { modalOpen }),
     touch: { ...reading.touch, distinctUnder44 },
     undersized,
   };
@@ -521,6 +532,17 @@ const over = results.filter((r) => r.wrapper && r.wrapper.w > Number(r.viewport.
 console.log(
   `modals wider than the screen  ${over.length}   ` +
     (over.map((r) => `${r.route}@${r.viewport} ${r.wrapper.w}px`).join(', ') || '—')
+);
+// Listed by route and width for the reason the collision line is: a modal
+// cutting off its own content is the finding, and a figure that lives only in
+// the stored reading is a figure nobody acts on. The document-wide count above
+// cannot show this — it mixes the modal with the page it covers, which is how
+// seven clipped controls inside compose's editor pane survived five phases of
+// measurement while every number on the page read clean.
+const clippingSelf = results.filter((r) => r.clippedInside > 0);
+console.log(
+  `modals clipping their own content  ${clippingSelf.length}   ` +
+    (clippingSelf.map((r) => `${r.route}@${r.viewport} ${r.clippedInside}`).join(', ') || '—')
 );
 
 // Everything needed to judge whether another reading is comparable to this one.

@@ -215,6 +215,117 @@ export function preconditionVerdict({
 }
 
 // ---------------------------------------------------------------------------
+// Clipping — content cut off by an ancestor that hides its overflow
+// ---------------------------------------------------------------------------
+
+// probe.js hands over every in-viewport box that crosses the edge of a clipping
+// ancestor. Which of them are findings is decided here, for the reason the two
+// rules below already are: a figure computed in the page eval cannot be tested,
+// and probe.js named this scan as the last one that had not moved.
+//
+// What stays in the page is what cannot leave it. The 8×8 minimum box,
+// outsideViewport, hidden, and having a clipper() ancestor at all each need
+// getComputedStyle or an ancestor walk, so they are DOM facts rather than
+// rules. One more thing stays there and is not a rule either: only boxes with
+// `lostPx > 0` are emitted, the payload bound the collision sweep already
+// applies as `overlap <= 0`. /launches carries ~2,000 elements and every
+// candidate crosses a stdout channel on every reading, so a box sitting
+// comfortably inside its clipper is left behind rather than serialised — it
+// carries nothing a rule would ask about.
+//
+// The floor is the one number a reader would want to change, so it lives here
+// beside its tested twin rather than in the page.
+const CLIP_FLOOR_PX = 8;
+const CLIP_CAP = 6;
+
+// Tag plus class excerpt — the signature the two rules below already dedupe on.
+// Two boxes rendering from the same element and the same classes are one thing
+// to fix, however often the page repeats them.
+const clipSignature = (c) => c.tag + c.cls;
+
+// Sorted before it is deduped, so the deepest instance of a repeated signature
+// survives. Keeping whichever came first in document order reported 10px on a
+// page where the same signature was cut by 300 — the mistake `reportableCollisions`
+// and `reportableUndersized` both document avoiding, and the one this scan never
+// got while it lived in the page.
+//
+// Whether the floor runs before or after the dedupe is immaterial under
+// worst-wins: if any instance of a signature clears the floor, the deepest one
+// does. Under first-wins it was load-bearing, because a 6px instance arriving
+// early would claim the key and suppress a 40px one behind it.
+//
+// Its own function because the modal figure is deduped independently of the
+// document-wide one: a signature appearing both inside a modal and on the page
+// behind it would otherwise be swallowed by whichever instance won the
+// document-wide dedupe, which is a fact about the page behind the overlay
+// rather than about the modal being measured.
+const decideClipped = (candidates) => {
+  const seen = new Set();
+  const clipped = [];
+  for (const c of [...candidates].sort((x, y) => y.lostPx - x.lostPx)) {
+    if (c.lostPx <= CLIP_FLOOR_PX) continue;
+    const key = clipSignature(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // Which side of the modal boundary the box fell on decided which figure it
+    // counts toward; it is not part of the finding.
+    clipped.push({ lostPx: c.lostPx, w: c.w, tag: c.tag, cls: c.cls });
+  }
+  return clipped;
+};
+
+export function reportableClipped(candidates, { modalOpen } = { modalOpen: false }) {
+  const clipped = decideClipped(candidates);
+
+  return {
+    // The count is what survived the rules, not what fitted in the report — the
+    // same split `collisionCount` and `collisions[]` keep. A count that quietly
+    // capped at six would read identically on a page with seven clipped
+    // controls and one with seventy.
+    clippedCount: clipped.length,
+    worstCutPx: clipped.length ? clipped[0].lostPx : 0,
+    clipped: clipped.slice(0, CLIP_CAP),
+    // How much of the clipping is the modal's own. Present only on a modal
+    // reading, and absent — not zero — otherwise, so a route reading keeps the
+    // exact field set it had before this axis existed and a comparison against
+    // a pre-modal baseline names the field as introduced rather than reporting
+    // a reading that changed. `wrapper.w` and `wrapper.h` already work this way.
+    //
+    // A modal that clips nothing reports 0, present: "measured none" and "not
+    // measured" are different answers and both of this file's other rules keep
+    // them apart.
+    //
+    // Deduped over the inside candidates on their own rather than read off the
+    // survivors above. When one signature is clipped both inside the modal and
+    // on the page behind it, the document-wide dedupe keeps whichever instance
+    // cut deeper — so a subset reading would report the modal's own clipped
+    // control as absent whenever the page behind it happened to cut deeper,
+    // which is a fact about the page rather than about the modal being
+    // measured. One control clipped inside the modal is one finding however the
+    // page behind it renders.
+    //
+    // Two limits, written here rather than left to be rediscovered:
+    //
+    // The boundary is a containment test, so this cannot claim content the
+    // modal owns but does not contain — a portalled dropdown, a tooltip, a date
+    // picker. If such an element renders fixed above z-index 200 it becomes the
+    // topmost element and therefore *becomes* the boundary; otherwise it reads
+    // as page. Either way it is not inside the modal by containment. 017 T088
+    // found the Arabic date picker opening off-screen, which is exactly this
+    // class of element.
+    //
+    // And this figure is always ≤ `clippedCount`. research.md R4 claims the
+    // opposite — that the subset relation "does not hold" because the two
+    // counts are taken over two dedupes — and that claim is wrong: both apply
+    // the same floor and the same signature, and the inside candidates are a
+    // subset of all candidates, so the inside signature set is a subset of the
+    // document-wide one. The independent dedupe is still the right rule, for
+    // the reason above; it just does not buy what R4 says it buys.
+    ...(modalOpen ? { clippedInside: decideClipped(candidates.filter((c) => c.inModal)).length } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Collisions — which overlaps are a squeeze, and which are the design
 // ---------------------------------------------------------------------------
 
@@ -246,15 +357,35 @@ const COLLISION_CAP = 6;
 // other way round is the same finding, not a second one.
 const pairSignature = (c) => [c.a.tag + c.a.cls, c.b.tag + c.b.cls].sort().join(' | ');
 
-export function reportableCollisions(candidates) {
+export function reportableCollisions(candidates, { modalOpen } = { modalOpen: false }) {
   const seen = new Set();
   const collisions = [];
+
+  // A modal reading measures the modal, so on one the boundary decides first.
+  //
+  // A pair straddling it is an overlay lying on the page, which is the modal
+  // working correctly — the same position (1) takes when it declines to
+  // hit-test the primary action under a modal, and for the same reason: an
+  // answer fixed by the act of asking is not a measurement. Compose carried
+  // 6-10 of these at every width through the whole audit, 1440 included, where
+  // it has never had a layout problem. A pair with neither participant inside
+  // is a finding about the page behind the surface under test, and a route
+  // reading of that page still reports it.
+  //
+  // Ahead of the sort rather than inside the loop below, because dedupe is by
+  // pair signature: a cross-boundary pair allowed to claim a signature and only
+  // then be dropped would take a genuine in-modal pair down with it.
+  //
+  // When no modal is open this does not run, so a route reading is judged by
+  // exactly the three rules it always was and a candidate carrying no
+  // aInModal/bInModal is never dropped for lacking them.
+  const judged = modalOpen ? candidates.filter((c) => c.aInModal && c.bInModal) : candidates;
 
   // Sorted before it is deduped, so the worst instance of a repeated signature
   // survives. The seven day-header pairs on the calendar share one signature;
   // keeping whichever came first in document order would report a smaller
   // overlap than the one that was measured.
-  for (const c of [...candidates].sort((x, y) => y.overlapPx - x.overlapPx)) {
+  for (const c of [...judged].sort((x, y) => y.overlapPx - x.overlapPx)) {
     if (!c.aFlow || !c.bFlow) continue;
     if (c.overlapPx <= COLLISION_FLOOR_PX) continue;
     const key = pairSignature(c);
@@ -644,10 +775,45 @@ export const VARIANCE = {
     'cta.h',
     'cta.coveredBy',
     'clippedCount',
+    // Corrected 2026-08-20, when the clip decision moved into this file: the
+    // scan deduped by tag + class and kept whichever instance came first in
+    // document order, so a page whose earlier `div.foo` lost 10px and whose
+    // later one lost 300 reported 10. It now keeps the deepest instance, which
+    // is what the two rules below had always done. Readings taken before that
+    // date may therefore under-report this field where one signature clipped at
+    // more than one depth.
+    //
+    // It stays stable, and the distinction matters: it is not less reproducible
+    // than it was, it is more accurate. `clippedCount` is untouched either way —
+    // how many signatures clear the floor does not depend on which instance
+    // represents one — and the corrected figure can only be greater than or
+    // equal to the old one, never smaller.
+    //
+    // On 5713eb2f the correction moved nothing. Exactly one of the 70 retained
+    // readings has any clipping at all (`/settings@390x844`, three signatures,
+    // all cutting 28), and the fine run of 2026-08-20 read 28 there before and
+    // after. The claim rests on the fixtures and on a property check over
+    // 20,000 randomised candidate lists, because the instrument had no
+    // opportunity to show it.
     'worstCutPx',
     'sidewaysScrollPx',
     'precondition.customerControlPresent',
     // Promoted 2026-08-16 on the four-run measurement described above.
+    //
+    // Narrowed 2026-08-20 on the modal axis, and only there: on a reading taken
+    // with a modal open, a pair counts only when both participants are inside
+    // it. **Modal readings taken before that date are not comparable on this
+    // field** — the seven in `post-017-fine-final.json` carry 38 counted pairs
+    // between them, none of which the current definition would count unless it
+    // is genuinely inside the modal.
+    //
+    // It stays stable. The four-run evidence was gathered on route readings,
+    // where no modal is open and the boundary filter does not run at all, so
+    // nothing in that measurement is disturbed. On the modal axis the field was
+    // never measured for reproducibility in the first place — which is the
+    // reason the drop is reported and explained rather than hidden behind a
+    // demotion. The same date and the same reasoning apply to `worstOverlapPx`,
+    // which is the maximum over that same restricted set.
     'collisionCount',
     'worstOverlapPx',
   ],
@@ -678,7 +844,28 @@ export const VARIANCE = {
   // is stable while the account is, and it is not stable across a change to the
   // draft the account holds — which is a reason to keep the axis's targets few
   // and to keep the account still, not a reason to leave the field out.
-  advisory: ['touch.total', 'touch.under44', 'touch.distinctUnder44', 'wrapper.w', 'wrapper.h'],
+  //
+  // `clippedInside` arrives with the modal boundary and arrives advisory, for
+  // the reason every field before it did: nothing has measured it. There is a
+  // construction argument — it is a count of signatures, the shape that made
+  // `touch.distinctUnder44` immune to the swing that demoted `touch.under44`,
+  // and it is scoped to a modal whose subtree does not follow the clock — and a
+  // construction argument is not a run. What makes the promotion harder here
+  // than it was for the wrapper widths is that on this build the field has
+  // nothing to be reproducible about: all seven modal readings carry
+  // `clippedCount: 0` document-wide, so the figure is 0 everywhere and four
+  // agreeing runs would establish only that the detector does not fire at
+  // random. That is the same weaker demonstration the collision fields got from
+  // a floor of zero, and it should not be quoted as a stronger one. Promote it
+  // on a build where a modal actually clips something.
+  advisory: [
+    'touch.total',
+    'touch.under44',
+    'touch.distinctUnder44',
+    'wrapper.w',
+    'wrapper.h',
+    'clippedInside',
+  ],
   // Deliberately outside both lists, so a comparison never mentions them:
   //   build          — provenance, printed above the diff. Comparing it per
   //                    reading would report four rows after every deploy, which

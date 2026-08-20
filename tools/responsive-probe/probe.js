@@ -88,6 +88,18 @@
     })
     .pop();
 
+  // Which side of the boundary an element falls on. Containment, so the root
+  // counts as inside itself — a box clipped by the modal root is clipped inside
+  // the modal. False for everything when no modal is open, which is what makes
+  // both rules downstream no-ops on a route reading.
+  //
+  // The limit is worth naming where it is defined: content the modal owns but
+  // does not contain — a portalled dropdown, a tooltip, the date picker — is
+  // not inside it by this test. If it renders fixed above z-index 200 it
+  // becomes the topmost element and therefore becomes the boundary; otherwise
+  // it reads as page.
+  const insideModal = (el) => !!modalRoot && modalRoot.contains(el);
+
   // ---- 1. primary action reachable? ----
   //
   // Not asked while a modal is open. The hit-test asks whether the route's
@@ -145,8 +157,17 @@
   })();
 
   // ---- 2. clipped content ----
-  const clipped = [];
-  const seen = new Set();
+  // Geometry, unjudged — the floor, the dedupe and which instance of a repeated
+  // signature represents it are decided in reading.mjs where they can be
+  // tested. This is the last of the three scans to cross that boundary; the
+  // other two already had.
+  //
+  // `lostPx > 0` is a payload bound rather than a rule, the same one the
+  // collision sweep applies as `overlap <= 0` below. Every candidate crosses a
+  // stdout channel on every one of ~35 readings and /launches carries ~2,000
+  // elements, nearly all of them sitting comfortably inside their clipper and
+  // carrying nothing a rule would ask about.
+  const clippedCandidates = [];
   for (const el of document.querySelectorAll('body *')) {
     const r = el.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) continue;
@@ -155,11 +176,14 @@
     if (!c) continue;
     const cr = c.getBoundingClientRect();
     const lost = Math.round(Math.max(r.right - cr.right, cr.left - r.left));
-    if (lost <= 8) continue;
-    const key = el.tagName + cls(el, 90);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    clipped.push({ lostPx: lost, w: Math.round(r.width), tag: el.tagName.toLowerCase(), cls: cls(el, 90) });
+    if (lost <= 0) continue;
+    clippedCandidates.push({
+      lostPx: lost,
+      w: Math.round(r.width),
+      tag: el.tagName.toLowerCase(),
+      cls: cls(el, 90),
+      inModal: insideModal(el),
+    });
   }
 
   // ---- 3. colliding content ----
@@ -241,7 +265,7 @@
     const r = visibleRect(el);
     if (r.width < 8 || r.height < 8) continue;
     if (outsideViewport(r) || hidden(el)) continue;
-    texts.push({ el, r, flow: inFlow(el) });
+    texts.push({ el, r, flow: inFlow(el), inModal: insideModal(el) });
   }
   texts.sort((a, b) => a.r.top - b.r.top);
 
@@ -268,6 +292,10 @@
         b: box(b),
         aFlow: a.flow,
         bFlow: b.flow,
+        // Read off the participants rather than tested here: one element takes
+        // part in many pairs, and the boundary is a property of the element.
+        aInModal: a.inModal,
+        bInModal: b.inModal,
       });
     }
   }
@@ -320,9 +348,10 @@
     precondition: { customerControlPresent, pageRendered: !!cta && cta.verdict !== 'NOT FOUND' },
     build,
     sidewaysScrollPx: Math.max(0, document.documentElement.scrollWidth - vw),
-    clippedCount: clipped.length,
-    worstCutPx: clipped.length ? Math.max(...clipped.map((c) => c.lostPx)) : 0,
-    clipped: clipped.sort((a, b) => b.lostPx - a.lostPx).slice(0, 6),
+    // Raw, like the two below — run.mjs decides these into clippedCount /
+    // worstCutPx / clipped and drops the candidates. They never reach a stored
+    // reading.
+    clippedCandidates,
     // Raw — run.mjs decides these into collisionCount / worstOverlapPx /
     // collisions and drops the candidates. They never reach a stored reading.
     collisionCandidates,

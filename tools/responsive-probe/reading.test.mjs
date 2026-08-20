@@ -27,6 +27,7 @@ import {
   modalKey,
   preconditionVerdict,
   provenance,
+  reportableClipped,
   reportableCollisions,
   reportableUndersized,
   viewportKey,
@@ -799,6 +800,312 @@ test('collisions are sorted worst first and capped at six, like clipped', () => 
   assert.equal(collisionCount, 8);
 });
 
+// The modal boundary — FR-006 to FR-009
+//
+// A route reading measures the document, and the document is the surface. A
+// modal reading measures the modal, and the page behind it is scenery.
+
+test('a pair straddling the modal boundary is not a collision', () => {
+  // The reason collisionCount was noise on the modal axis for the entire audit:
+  // a label inside the modal and a label on the dashboard behind it "intersect"
+  // only because an overlay is drawn on top of a page, which is the modal
+  // working correctly. Compose carried 6-10 of these at every width including
+  // 1440, where it has never had a layout problem.
+  const cross = reportableCollisions([candidate(96, { aInModal: true, bInModal: false })], {
+    modalOpen: true,
+  });
+
+  assert.equal(cross.collisionCount, 0);
+  // And it contributes to neither of the other two figures — a dropped pair
+  // that still set the worst overlap would report a finding with nothing behind it.
+  assert.equal(cross.worstOverlapPx, 0);
+  assert.deepEqual(cross.collisions, []);
+
+  // Either way round: the pair is unordered, so the rule has to be too.
+  assert.equal(
+    reportableCollisions([candidate(96, { aInModal: false, bInModal: true })], { modalOpen: true })
+      .collisionCount,
+    0
+  );
+});
+
+test('a pair genuinely inside the modal is still judged by the existing rules', () => {
+  const inside = (over = {}) => candidate(31, { aInModal: true, bInModal: true, ...over });
+
+  const kept = reportableCollisions([inside()], { modalOpen: true });
+  assert.equal(kept.collisionCount, 1);
+  assert.equal(kept.worstOverlapPx, 31);
+  assert.deepEqual(kept.collisions[0], {
+    overlapPx: 31,
+    a: participant('text-[14px] font-[600] text-brandText'),
+    b: participant('text-[14px] font-[600] flex items-center'),
+  });
+
+  // The boundary is one more rule ahead of the three that were already there,
+  // not a replacement for them.
+  assert.equal(reportableCollisions([inside({ aFlow: false })], { modalOpen: true }).collisionCount, 0);
+  assert.equal(reportableCollisions([inside({ overlapPx: 8 })], { modalOpen: true }).collisionCount, 0);
+});
+
+test('a pair with neither participant inside the modal is not counted', () => {
+  // A modal reading measures the modal. Two runs of text overlapping on the
+  // page behind it are a finding about a surface nobody is looking at, and on
+  // a route reading of that same page they are still reported.
+  assert.equal(
+    reportableCollisions([candidate(96, { aInModal: false, bInModal: false })], { modalOpen: true })
+      .collisionCount,
+    0
+  );
+});
+
+test('with no modal open the boundary rule does not run at all', () => {
+  // Every route reading, and every existing caller and test, reaches this
+  // function without the flags. They must be untouched: the filter runs only
+  // when a modal is open, so a candidate carrying no aInModal/bInModal is never
+  // dropped for lacking them.
+  const bare = [candidate(31), candidate(24, { b: participant('text-[12px] text-newTableText') })];
+
+  const explicit = reportableCollisions(bare, { modalOpen: false });
+  assert.equal(explicit.collisionCount, 2);
+  assert.equal(explicit.worstOverlapPx, 31);
+
+  // Omitting the options object entirely is the same reading.
+  assert.deepEqual(reportableCollisions(bare), explicit);
+
+  // And a pair flagged as straddling is still counted when no modal is open,
+  // because there is no boundary for it to straddle.
+  assert.equal(
+    reportableCollisions([candidate(31, { aInModal: true, bInModal: false })], { modalOpen: false })
+      .collisionCount,
+    1
+  );
+});
+
+test('a dropped cross-boundary pair cannot suppress a real one sharing its signature', () => {
+  // Dedupe is by unordered pair signature. If the boundary filter ran after the
+  // sort, the 96px cross-boundary pair would claim the signature first — being
+  // the worse overlap — and only then be dropped, taking the genuine 31px
+  // in-modal pair with it. The filter therefore runs before the sort.
+  const { collisionCount, worstOverlapPx, collisions } = reportableCollisions(
+    [
+      candidate(96, { aInModal: true, bInModal: false }),
+      candidate(31, { aInModal: true, bInModal: true }),
+    ],
+    { modalOpen: true }
+  );
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 31);
+  assert.equal(collisions[0].overlapPx, 31);
+});
+
+// ---------------------------------------------------------------------------
+// Reportable clipping — FR-002, FR-003, FR-010, FR-011
+// ---------------------------------------------------------------------------
+
+// The candidate shape probe.js emits for a box crossing the edge of a clipping
+// ancestor. The page-side filters — the 8×8 minimum box, outsideViewport,
+// hidden, and having a clipper() ancestor at all — are DOM facts and stay in
+// the page; what arrives here is the geometry plus which side of the modal
+// boundary the box fell on. The floor is a rule and lives below, where it can
+// be tested, exactly as the collision floor does.
+const clipCandidate = (lostPx, over = {}) => ({
+  lostPx,
+  w: 88,
+  tag: 'div',
+  cls: 'flex flex-1 gap-[1px] phone:flex-col',
+  inModal: false,
+  ...over,
+});
+
+test('an empty candidate list reports zero clipping, not absent', () => {
+  assert.deepEqual(reportableClipped([], { modalOpen: false }), {
+    clippedCount: 0,
+    worstCutPx: 0,
+    clipped: [],
+  });
+});
+
+test('a page whose every clip candidate is filtered out reads the same as one with none', () => {
+  const filtered = reportableClipped([clipCandidate(3), clipCandidate(8)], { modalOpen: false });
+  assert.deepEqual(filtered, { clippedCount: 0, worstCutPx: 0, clipped: [] });
+});
+
+test('a cut at or below 8px is not a finding', () => {
+  // The floor probe.js used to apply in the page, now where a test can reach
+  // it — the same 8 the collision sweep already answers to.
+  assert.equal(reportableClipped([clipCandidate(8)], { modalOpen: false }).clippedCount, 0);
+  assert.equal(reportableClipped([clipCandidate(9)], { modalOpen: false }).clippedCount, 1);
+});
+
+test('clipped entries carry the geometry and not the boundary flag', () => {
+  const { clipped } = reportableClipped([clipCandidate(31, { inModal: true })], {
+    modalOpen: true,
+  });
+  // inModal decided which figure the box counts toward; it is not part of the
+  // finding, the same way the flow flags are not part of a collision.
+  assert.deepEqual(clipped[0], {
+    lostPx: 31,
+    w: 88,
+    tag: 'div',
+    cls: 'flex flex-1 gap-[1px] phone:flex-col',
+  });
+});
+
+test('clips are sorted worst first and capped at six, and the count is uncapped', () => {
+  const many = [12, 40, 9, 33, 21, 55, 17, 28].map((px, i) =>
+    clipCandidate(px, { cls: `clipped-signature-${i}` })
+  );
+  const { clipped, clippedCount, worstCutPx } = reportableClipped(many, { modalOpen: false });
+
+  assert.deepEqual(
+    clipped.map((c) => c.lostPx),
+    [55, 40, 33, 28, 21, 17]
+  );
+  assert.equal(worstCutPx, 55);
+  // Survivors, not what fitted in the report — the split every other count in
+  // this file keeps. Eight findings read 8 and list six.
+  assert.equal(clippedCount, 8);
+});
+
+test('two clips with the same tag+class signature are reported once', () => {
+  const { clippedCount } = reportableClipped([clipCandidate(24), clipCandidate(31)], {
+    modalOpen: false,
+  });
+  assert.equal(clippedCount, 1);
+});
+
+test('a signature clipping at more than one depth reports the deepest cut', () => {
+  // Sorted before it is deduped, so the worst instance of a repeated signature
+  // survives. Keeping whichever came first in document order reported 10 while
+  // a 300px cut was measured — the defect research R1 found in this function
+  // and the test that fails if anyone reverts to first-wins.
+  const deepLast = reportableClipped(
+    [clipCandidate(10, { w: 120 }), clipCandidate(300, { w: 420 })],
+    { modalOpen: false }
+  );
+  assert.equal(deepLast.worstCutPx, 300);
+  assert.equal(deepLast.clipped[0].lostPx, 300);
+
+  // And the same answer whichever order the page happened to emit them in.
+  const deepFirst = reportableClipped(
+    [clipCandidate(300, { w: 420 }), clipCandidate(10, { w: 120 })],
+    { modalOpen: false }
+  );
+  assert.equal(deepFirst.worstCutPx, 300);
+
+  // The count is invariant under the correction: how many signatures clear the
+  // floor does not depend on which instance is kept to represent one.
+  assert.equal(deepLast.clippedCount, 1);
+  assert.equal(deepFirst.clippedCount, 1);
+});
+
+// The two recorded incidents, reproduced. Both figures — seven and ninety-nine —
+// were produced by a hand count during 017, before this rule existed, so a
+// passing test means the detector agrees with a person who counted rather than
+// with the code that produced it.
+
+test('seven boxes clipped inside a modal report seven inside — 017 T084 reproduced', () => {
+  // Compose's editor pane is overflow-x:hidden and its toolbar ran past it, so
+  // seven controls were cut off without moving the modal wrapper a single pixel
+  // — and every measurement in the audit read the wrapper.
+  const seven = Array.from({ length: 7 }, (_, i) =>
+    clipCandidate(40 + i, { cls: `editor-toolbar-control-${i}`, inModal: true })
+  );
+  const { clippedInside, clippedCount } = reportableClipped(seven, { modalOpen: true });
+
+  assert.equal(clippedInside, 7);
+  // Reported separately from the document-wide count, not instead of it.
+  assert.equal(clippedCount, 7);
+});
+
+test('ninety-nine boxes clipped behind a modal report zero inside — 017 T034 reproduced', () => {
+  // The phone nav rail parked off-canvas in RTL behind the onboarding overlay.
+  // Sixty-one of them were still there with the modal closed; nothing was wrong,
+  // and the reading looked exactly like a 99-box Arabic regression.
+  const ninetyNine = Array.from({ length: 99 }, (_, i) =>
+    clipCandidate(30 + i, { cls: `phone-nav-rail-item-${i}`, inModal: false })
+  );
+  const { clippedInside, clippedCount } = reportableClipped(ninetyNine, { modalOpen: true });
+
+  assert.equal(clippedInside, 0);
+  // The page under an overlay is a real page and its cuts are real cuts — just
+  // not what a modal reading asked about. The document-wide figure keeps them.
+  assert.equal(clippedCount, 99);
+});
+
+test('a route reading carries no inside figure at all — absent, not zero', () => {
+  const decided = reportableClipped([clipCandidate(40)], { modalOpen: false });
+
+  // Asserted on key presence rather than on value, so undefined, null and 0
+  // cannot pass it. A route reading keeps the exact field set it had before
+  // this axis existed, which is what lets a comparison against a pre-modal
+  // baseline report the field as introduced rather than as a reading that moved.
+  assert.equal('clippedInside' in decided, false);
+  assert.deepEqual(Object.keys(decided), ['clippedCount', 'worstCutPx', 'clipped']);
+
+  // And the same with no options at all, which is how every existing caller and
+  // every test above still reaches this function.
+  assert.equal('clippedInside' in reportableClipped([clipCandidate(40)]), false);
+});
+
+test('a modal that clips nothing reports zero inside, present', () => {
+  const decided = reportableClipped([clipCandidate(40, { inModal: false })], { modalOpen: true });
+
+  // The distinction reportableCollisions and reportableUndersized already keep
+  // between "measured none" and "not measured".
+  assert.equal('clippedInside' in decided, true);
+  assert.equal(decided.clippedInside, 0);
+});
+
+test('a signature clipped on both sides of the boundary is counted inside either way', () => {
+  // The test that separates an independent dedupe from a subset reading. Under
+  // "count the document-wide survivors flagged inside", the deeper instance
+  // claims the signature — so when the deeper one is behind the modal, the
+  // modal's own clipped control disappears from the inside figure entirely, and
+  // the false negative this feature exists to remove comes back in a new place.
+  const deeperBehind = [
+    clipCandidate(20, { cls: 'editor-toolbar', inModal: true }),
+    clipCandidate(300, { cls: 'editor-toolbar', inModal: false }),
+  ];
+  const behind = reportableClipped(deeperBehind, { modalOpen: true });
+  assert.equal(behind.clippedCount, 1);
+  assert.equal(behind.clipped[0].lostPx, 300, 'the document-wide survivor is the deeper instance');
+  assert.equal(behind.clippedInside, 1, 'and the modal still reports its own');
+
+  // Which side happens to cut deeper is a fact about the page behind the
+  // overlay. The inside figure must not turn on it.
+  const deeperInside = [
+    clipCandidate(300, { cls: 'editor-toolbar', inModal: true }),
+    clipCandidate(20, { cls: 'editor-toolbar', inModal: false }),
+  ];
+  assert.equal(reportableClipped(deeperInside, { modalOpen: true }).clippedInside, 1);
+});
+
+test('the inside count never exceeds the document-wide count', () => {
+  // research.md R4 states the opposite — that the subset relation "does not
+  // hold" — and that is the one claim in it that is wrong. Both figures apply
+  // the same floor and the same tag+cls signature, and the inside candidates
+  // are a subset of all candidates, so the inside signature set is a subset of
+  // the document-wide one and the count cannot be larger. Verified by brute
+  // force over 300,000 randomised candidate lists before being pinned here.
+  //
+  // The independent dedupe is still the right rule — the test above is what it
+  // buys, and it is not this. Pinned so the false version is not restored from
+  // the prose.
+  const mixed = [
+    clipCandidate(300, { cls: 'a', inModal: true }),
+    clipCandidate(20, { cls: 'a', inModal: false }),
+    clipCandidate(90, { cls: 'b', inModal: true }),
+    clipCandidate(90, { cls: 'c', inModal: false }),
+    clipCandidate(4, { cls: 'd', inModal: true }),
+  ];
+  const { clippedInside, clippedCount } = reportableClipped(mixed, { modalOpen: true });
+  assert.equal(clippedCount, 3);
+  assert.equal(clippedInside, 2);
+  assert.ok(clippedInside <= clippedCount);
+});
+
 // ---------------------------------------------------------------------------
 // Undersized touch targets — the 44px floor, counted by signature
 // ---------------------------------------------------------------------------
@@ -1107,6 +1414,37 @@ test('the wrapper width is declared in VARIANCE, so a comparison can see it move
   assert.ok(
     !VARIANCE.notCompared.includes('wrapper.w'),
     'a field measured and then excluded from every comparison is the silence this harness exists to prevent'
+  );
+});
+
+test('the inside-clip count is declared in VARIANCE, so a comparison can see it move', () => {
+  // The variance profile is the whole vocabulary of a comparison: a field in
+  // neither `stable` nor `advisory` is measured on every run and mentioned on
+  // none. The wrapper widths are the precedent this follows.
+  const declared = [...VARIANCE.stable, ...VARIANCE.advisory];
+  assert.ok(declared.includes('clippedInside'));
+  assert.ok(
+    !VARIANCE.notCompared.includes('clippedInside'),
+    'a field measured and then excluded from every comparison is the silence this harness exists to prevent'
+  );
+  // It arrives advisory, as every field added to this harness has, because
+  // nothing has measured it.
+  assert.ok(VARIANCE.advisory.includes('clippedInside'));
+  assert.ok(!VARIANCE.stable.includes('clippedInside'));
+});
+
+test('an inside-clip count an older baseline predates is introduced, not ignored', () => {
+  // `introduced` is the code's vocabulary minus the baseline's, so a baseline
+  // stored before this axis existed has to have the field named against it —
+  // the alternative is a figure taken on every modal reading and reported on
+  // none of them.
+  const before = { ...baseline(makeRun()), variance: { stable: [], advisory: [] } };
+
+  const { introduced } = difference(before, makeRun());
+
+  assert.ok(
+    introduced.includes('clippedInside'),
+    'the inside-clip count must be named as new against a baseline taken before it existed'
   );
 });
 
