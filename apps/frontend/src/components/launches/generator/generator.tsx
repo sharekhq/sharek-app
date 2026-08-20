@@ -200,9 +200,6 @@ const FirstStep: FC = (props) => {
           withCloseButton: false,
           askClose: true,
           fullScreen: true,
-          classNames: {
-            modal: 'w-[100%] max-w-[1400px] text-textColor',
-          },
           children: (
             <AddEditModal
               allIntegrations={integrations.map((p) => ({
@@ -366,9 +363,6 @@ export const GeneratorComponent = () => {
     modal.openModal({
       title: t('generate_posts', 'Generate Posts'),
       withCloseButton: false,
-      classNames: {
-        modal: 'bg-transparent text-textColor',
-      },
       children: (
         <CalendarWeekProvider {...all}>
           <GeneratorPopup />

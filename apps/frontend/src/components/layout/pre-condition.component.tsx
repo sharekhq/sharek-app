@@ -35,9 +35,6 @@ export const PreConditionComponent: FC = () => {
       modal.openModal({
         title: 'Suspicious activity detected',
         withCloseButton: true,
-        classNames: {
-          modal: 'text-textColor',
-        },
         children: <PreConditionComponentModal />,
       });
     }

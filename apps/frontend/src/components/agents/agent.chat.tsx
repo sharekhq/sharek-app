@@ -337,9 +337,6 @@ export const OpenModal: FC<{
           askClose: true,
           fullScreen: true,
           title: ``,
-          classNames: {
-            modal: 'w-[100%] max-w-[1400px] text-textColor',
-          },
           // Deliberately no ExistingDataContextProvider: these are new posts,
           // and that context puts AddEditModal into edit-an-existing-post mode.
           // It takes a single integration, which is what forced one editor per

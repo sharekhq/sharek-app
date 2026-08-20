@@ -29,15 +29,12 @@ interface OpenModalInterface {
   askClose?: boolean;
   onClose?: () => void;
   children: ReactNode | ((close: () => void) => ReactNode);
-  classNames?: {
-    modal?: string;
-  };
   /**
-   * Extra classes for the modal card itself. Deliberately not `classNames.modal`
-   * — that option predates this component and is ignored here, and the ~29
-   * call sites still passing it carry Mantine-era values (`bg-transparent`,
-   * `w-[100%] max-w-[1400px]`) that would change those modals if it were ever
-   * honoured.
+   * Extra classes for the modal card itself. It replaces `classNames.modal`,
+   * which this component declared but never read: the 26 call sites passing it
+   * carried Mantine-era values (`bg-transparent`, `w-[100%] max-w-[1400px]`,
+   * and a bare `md`) that would have changed those modals had it ever been
+   * honoured, so they were deleted rather than migrated.
    */
   cardClassName?: string;
   size?: string | number;

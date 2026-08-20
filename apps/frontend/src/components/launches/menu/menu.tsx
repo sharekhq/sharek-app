@@ -222,9 +222,6 @@ export const Menu: FC<{
         withCloseButton: false,
         askClose: true,
         fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
         children: (
           <AddEditModal
             allIntegrations={integrations.map((p) => ({
@@ -250,9 +247,6 @@ export const Menu: FC<{
       (integration) => integration.id === id
     );
     modal.openModal({
-      classNames: {
-        modal: 'w-[100%] max-w-[600px] bg-transparent text-textColor',
-      },
       size: '100%',
       withCloseButton: false,
       closeOnEscape: true,
@@ -292,9 +286,6 @@ export const Menu: FC<{
       (integration) => integration.id === id
     );
     modal.openModal({
-      classNames: {
-        modal: 'md',
-      },
       title: t('move_add_to_group', 'Move / Add to group'),
       withCloseButton: false,
       closeOnEscape: true,
@@ -316,9 +307,6 @@ export const Menu: FC<{
     modal.openModal({
       title: t('custom_url', 'Custom URL'),
       withCloseButton: false,
-      classNames: {
-        modal: 'md',
-      },
       children: (
         <CustomVariables
           identifier={findIntegration.identifier}

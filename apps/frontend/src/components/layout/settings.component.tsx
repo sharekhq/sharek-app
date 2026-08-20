@@ -222,9 +222,6 @@ export const SettingsComponent = () => {
           <SettingsPopup />
         </div>
       ),
-      classNames: {
-        modal: 'bg-transparent text-textColor',
-      },
       withCloseButton: false,
       size: '100%',
     });

@@ -448,9 +448,6 @@ export const AddProviderComponent: FC<{
             }),
             withCloseButton: true,
             ...(isMobile ? { removeLayout: true, fullScreen: true } : {}),
-            classNames: {
-              modal: 'bg-transparent text-textColor',
-            },
             children: (
               <div
                 {...(isMobile ? { className: 'h-full bg-black p-[20px]' } : {})}
@@ -636,9 +633,6 @@ export const AddProviderComponent: FC<{
             title: 'URL',
             withCloseButton: true,
             ...(isMobile ? { removeLayout: true, fullScreen: true } : {}),
-            classNames: {
-              modal: 'bg-transparent text-textColor',
-            },
             children: <UrlModal gotoUrl={gotoIntegration} />,
           });
           return;
@@ -650,9 +644,6 @@ export const AddProviderComponent: FC<{
             }),
             withCloseButton: true,
             ...(isMobile ? { removeLayout: true, fullScreen: true } : {}),
-            classNames: {
-              modal: 'bg-transparent text-textColor',
-            },
             children: (
               <div
                 {...(isMobile ? { className: 'h-full bg-black p-[20px]' } : {})}

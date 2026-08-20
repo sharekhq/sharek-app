@@ -133,9 +133,6 @@ const usePostActions = (onMutate?: () => void) => {
         withCloseButton: false,
         askClose: true,
         fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
         children: (
           <ExistingData value={data}>
             <AddEditModal
@@ -182,9 +179,6 @@ const usePostActions = (onMutate?: () => void) => {
         closeOnClickOutside: true,
         closeOnEscape: true,
         withCloseButton: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[500px]',
-        },
         children: <DebugJsonModal post={post} />,
       });
     },
@@ -225,9 +219,6 @@ const usePostActions = (onMutate?: () => void) => {
         closeOnClickOutside: true,
         closeOnEscape: true,
         withCloseButton: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px]',
-        },
         children: <StatisticsModal postId={id} />,
         size: '80%',
       });
@@ -242,9 +233,6 @@ const usePostActions = (onMutate?: () => void) => {
         closeOnClickOutside: true,
         closeOnEscape: true,
         withCloseButton: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[800px]',
-        },
         children: (
           <MissingReleaseModal postId={id} onSuccess={mutate} />
         ),
@@ -813,9 +801,6 @@ export const CalendarColumn: FC<{
       withCloseButton: false,
       askClose: true,
       fullScreen: true,
-      classNames: {
-        modal: 'w-[100%] max-w-[1400px] text-textColor',
-      },
       children: (
         <AddEditModal
           allIntegrations={integrations.map((p) => ({

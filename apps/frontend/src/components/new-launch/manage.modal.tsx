@@ -440,9 +440,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         modal.openModal({
           title: '',
           children: <DummyCodeComponent code={data} />,
-          classNames: {
-            modal: 'w-[100%] bg-transparent text-textColor',
-          },
           size: '100%',
           withCloseButton: false,
           closeOnEscape: true,

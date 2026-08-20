@@ -45,9 +45,6 @@ export const MissingReleaseModal: FC<{
         closeOnClickOutside: true,
         closeOnEscape: true,
         withCloseButton: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px]',
-        },
         children: <StatisticsModal postId={postId} />,
         size: '80%',
       });
