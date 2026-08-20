@@ -115,7 +115,11 @@ export const SettingsPopup: FC<{
   }, []);
 
   return (
-    <div className="flex flex-1 gap-[1px] phone:flex-col">
+    /* min-w-0: this root is a flex item of layout.component.tsx:223, a row
+       container, so min-width:auto floors it at its 382.61px min-content
+       against a 355px overflow-hidden clipper — 28px of the panel off the
+       right edge at 390. Measured on the live app. */
+    <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
       <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] phone:w-full">
         <div className="flex flex-1 flex-col gap-[15px]">
           {list.map(({ tab: tabKey, label }) => (

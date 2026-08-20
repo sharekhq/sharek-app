@@ -112,7 +112,7 @@ export const ThirdPartyComponent = () => {
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
 
   return (
-    <div className="flex flex-1 gap-[1px] phone:flex-col">
+    <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
       <div
         className={clsx(
           'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all phone:w-full',
