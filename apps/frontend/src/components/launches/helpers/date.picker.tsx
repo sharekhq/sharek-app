@@ -49,7 +49,13 @@ export const DatePicker: FC<{
       {open && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="animate-fadeIn absolute bottom-[100%] mb-[16px] start-[50%] -translate-x-[50%] bg-sixth border border-tableBorder text-textColor rounded-[16px] z-[300] p-[16px] flex flex-col"
+          // `start-[50%]` is logical and `-translate-x-[50%]` is physical, so
+          // the pair only centres in LTR: under RTL `start` resolves to
+          // `right: 50%` and the negative shift moves the popover a further
+          // full width the same way, off the screen. Measured in Arabic at 390
+          // — the calendar spanned -255..45 in a 390 viewport, so a date could
+          // not be picked at all. Flipping the shift puts it back at 45..345.
+          className="animate-fadeIn absolute bottom-[100%] mb-[16px] start-[50%] -translate-x-[50%] rtl:translate-x-[50%] bg-sixth border border-tableBorder text-textColor rounded-[16px] z-[300] p-[16px] flex flex-col"
         >
           <Calendar
             onChange={changeDate('date')}

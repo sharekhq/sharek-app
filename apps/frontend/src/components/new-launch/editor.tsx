@@ -360,7 +360,14 @@ export const EditorWrapper: FC<{
   return (
     <div
       className={clsx(
-        'relative flex-col gap-[20px] flex-1',
+        // min-w-0 here and on the three below: each is a flex item, so each
+        // defaults to `min-width: auto` and is floored at its content's
+        // min-content width. With a channel selected the row at :429 gains a
+        // 20px control column, its min-content becomes 375 inside a 338px
+        // pane, and the column is cut off by `#social-content`'s
+        // `overflow-x: hidden`. Unflooring one level does nothing — the floor
+        // propagates, so every item in the chain has to give it up.
+        'relative flex-col gap-[20px] flex-1 min-w-0',
         (items.length === 1 || !canEdit || !comments) && 'flex',
         ((!canEdit && !isCreateSet) || !comments) &&
           'bg-newSettings rounded-[12px]'
@@ -419,15 +426,15 @@ export const EditorWrapper: FC<{
         <div
           key={g.id}
           className={clsx(
-            'relative flex flex-col gap-[20px] flex-1 bg-newSettings',
+            'relative flex flex-col gap-[20px] flex-1 min-w-0 bg-newSettings',
             index === 0 && 'rounded-t-[12px]',
             (index === items.length - 1 || !comments) && 'rounded-b-[12px]',
             !canEdit && !isCreateSet && 'blur-s',
             ((!canEdit && index > 0) || (!comments && index > 0)) && 'hidden'
           )}
         >
-          <div className="flex gap-[5px] flex-1 w-full">
-            <div className="flex-1 flex w-full">
+          <div className="flex gap-[5px] flex-1 w-full min-w-0">
+            <div className="flex-1 flex w-full min-w-0">
               {index > 0 && (
                 <div className="flex justify-center pl-[12px] text-newSep">
                   <ConnectionLineIcon />

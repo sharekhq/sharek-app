@@ -208,9 +208,6 @@ export const AdminErrorsComponent: FC = () => {
       modal.openModal({
         closeOnClickOutside: true,
         withCloseButton: false,
-        classNames: {
-          modal: 'w-[100%] max-w-[1100px] text-textColor',
-        },
         children: <ErrorDetailsModal row={row} />,
       });
     },

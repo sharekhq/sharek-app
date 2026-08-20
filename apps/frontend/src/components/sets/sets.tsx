@@ -100,9 +100,6 @@ export const Sets: FC = () => {
         withCloseButton: false,
         askClose: true,
         fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
         children: (
           <AddEditModal
             allIntegrations={integrations.map((p: any) => ({

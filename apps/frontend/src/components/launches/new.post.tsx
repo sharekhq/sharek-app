@@ -26,9 +26,6 @@ export const NewPost = () => {
             closeOnEscape: true,
             withCloseButton: false,
             onClose: () => resolve('exit'),
-            classNames: {
-              modal: 'text-textColor',
-            },
             children: (
               <SetSelectionModal
                 sets={sets}
@@ -55,9 +52,6 @@ export const NewPost = () => {
       withCloseButton: false,
       askClose: true,
       fullScreen: true,
-      classNames: {
-        modal: 'w-[100%] max-w-[1400px] text-textColor',
-      },
       children: (
         <AddEditModal
           allIntegrations={integrations.map((p) => ({

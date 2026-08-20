@@ -294,9 +294,6 @@ export const MainBillingComponent: FC<{
                 modal.openModal({
                   title: 'Before you cancel',
                   withCloseButton: true,
-                  classNames: {
-                    modal: 'bg-transparent text-textColor',
-                  },
                   children: <Accept resolve={res} />,
                 });
               });
@@ -315,9 +312,6 @@ export const MainBillingComponent: FC<{
                   'We are sorry to see you go :('
                 ),
                 withCloseButton: true,
-                classNames: {
-                  modal: 'bg-transparent text-textColor',
-                },
                 children: <Info proceed={(e) => res(e)} />,
               });
             });

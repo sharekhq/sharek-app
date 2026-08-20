@@ -128,9 +128,6 @@ export const TeamsComponent = () => {
   }, []);
   const addMember = useCallback(() => {
     modals.openModal({
-      classNames: {
-        modal: 'bg-transparent text-textColor',
-      },
       title: t('top_title_add_member', 'Add Member'),
       withCloseButton: true,
       children: <AddMember />,
