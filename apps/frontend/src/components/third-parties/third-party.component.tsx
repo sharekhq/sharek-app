@@ -10,6 +10,14 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import useCookie from 'react-use-cookie';
+import {
+  SplitPanel,
+  SplitPanelToggle,
+} from '@gitroom/frontend/components/ui/split.panel';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 
 export const ThirdPartyMenuComponent: FC<{
   reload: () => void;
@@ -110,42 +118,26 @@ export const ThirdPartyComponent = () => {
     refreshWhenOffline: false,
   });
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  // Phone: the integrations rail becomes an off-canvas sheet behind a toggle,
+  // and is always fully expanded there (never the desktop icon-collapsed rail).
+  // It stacked under `phone:` before; the drawer replaces that stacking, which
+  // is why the row no longer needs `phone:flex-col`.
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
+  const railCollapsed = collapseMenu === '1' && !isPhone;
 
   return (
-    <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
-      <div
-        className={clsx(
-          'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all phone:w-full',
-          collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-        )}
+    <div className="flex flex-1 min-w-0 gap-[1px]">
+      <SplitPanel
+        open={integrationsOpen}
+        onClose={() => setIntegrationsOpen(false)}
+        collapsed={railCollapsed}
+        onToggleCollapse={() =>
+          setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+        }
+        title={t('integrations')}
       >
-        <div className="flex gap-[12px] flex-col">
-          <div className="flex items-center">
-            <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-              {t('integrations')}
-            </h2>
-            <div
-              onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="7"
-                height="13"
-                viewBox="0 0 7 13"
-                fill="none"
-              >
-                <path
-                  d="M6 11.5L1 6.5L6 1.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="flex flex-col gap-[10px]">
+        <div className="flex flex-col gap-[10px]">
             <div className="flex-1 flex flex-col gap-[14px]">
               <div
                 className={clsx(
@@ -194,9 +186,13 @@ export const ThirdPartyComponent = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+      </SplitPanel>
+      {/* min-w-0: the rail is `shrink-0` now that it is a SplitPanel, so this
+          column is what has to shrink. Same reason as `launches.component.tsx:532`. */}
+      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
+        <SplitPanelToggle onClick={() => setIntegrationsOpen(true)}>
+          {t('integrations', 'Integrations')}
+        </SplitPanelToggle>
         <ThirdPartyListComponent reload={mutate} />
       </div>
     </div>

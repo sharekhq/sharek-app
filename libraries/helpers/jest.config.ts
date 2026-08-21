@@ -9,6 +9,12 @@ const config: Config = {
   rootDir: 'src',
   testEnvironment: 'node',
   testMatch: ['**/*.spec.ts'],
+  // Jest does not read tsconfig `paths`, so a helper that imports a shared constant
+  // through its alias resolves at build time and not under test. Only `@gitroom/react`
+  // is mapped, and only the shared i18n config is imported through it today.
+  moduleNameMapper: {
+    '^@gitroom/react/(.*)$': '<rootDir>/../../react-shared-libraries/src/$1',
+  },
   transform: {
     '^.+\\.ts$': [
       'ts-jest',

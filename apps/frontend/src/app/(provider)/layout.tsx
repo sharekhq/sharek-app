@@ -1,6 +1,7 @@
 import { MantineWrapper } from '@gitroom/react/helpers/mantine.wrapper';
 
 export const dynamic = 'force-dynamic';
+export { viewport } from '@gitroom/frontend/app/viewport';
 import '../global.scss';
 import 'react-tooltip/dist/react-tooltip.css';
 import '@copilotkit/react-ui/styles.css';
@@ -12,13 +13,17 @@ import { VariableContextComponent } from '@gitroom/react/helpers/variable.contex
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
 import { isSupportConfigured } from '@gitroom/helpers/utils/is.support.configured';
 import { cookies } from 'next/headers';
-import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
+import { resolveDocumentFrame } from '@gitroom/helpers/utils/resolve.document.frame';
+import { cookieName } from '@gitroom/react/translation/i18n.config';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
-  const theme = resolveThemeClass(cookieStore.get('mode')?.value);
+  const { language, direction, theme } = resolveDocumentFrame(
+    cookieStore.get(cookieName)?.value,
+    cookieStore.get('mode')?.value
+  );
   return (
-    <html>
+    <html lang={language} dir={direction}>
       <head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/favicon.png" />
@@ -28,7 +33,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         className={clsx(fontVariables, 'font-sans text-primary !bg-primary', theme)}
       >
         <VariableContextComponent
-          language="en"
+          language={language}
           storageProvider={
             process.env.STORAGE_PROVIDER! as 'local' | 'cloudflare'
           }

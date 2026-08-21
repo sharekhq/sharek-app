@@ -16,6 +16,14 @@ import { Plug } from '@gitroom/frontend/components/plugs/plug';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useCookie from 'react-use-cookie';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+import {
+  SplitPanel,
+  SplitPanelToggle,
+} from '@gitroom/frontend/components/ui/split.panel';
+import {
+  useMediaQuery,
+  PHONE_QUERY,
+} from '@gitroom/react/helpers/use.media.query';
 const PlugsEmptyIllustration = () => (
   <svg
     width="132"
@@ -71,6 +79,11 @@ export const Plugs = () => {
   });
 
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  // Phone: the channels rail becomes an off-canvas sheet behind a toggle, and is
+  // always fully expanded there (never the desktop icon-collapsed rail).
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const railCollapsed = collapseMenu === '1' && !isPhone;
 
   const t = useT();
 
@@ -128,38 +141,16 @@ export const Plugs = () => {
   }
   return (
     <>
-      <div
-        className={clsx(
-          'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all',
-          collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-        )}
+      <SplitPanel
+        open={channelsOpen}
+        onClose={() => setChannelsOpen(false)}
+        collapsed={railCollapsed}
+        onToggleCollapse={() =>
+          setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+        }
+        title={t('channels')}
       >
         <div className="flex gap-[12px] flex-col">
-          <div className="flex items-center">
-            <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-              {t('channels')}
-            </h2>
-            <div
-              onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="7"
-                height="13"
-                viewBox="0 0 7 13"
-                fill="none"
-              >
-                <path
-                  d="M6 11.5L1 6.5L6 1.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
           {sortedIntegrations.map((integration, index) => (
             <div
               key={integration.id}
@@ -224,8 +215,15 @@ export const Plugs = () => {
             </div>
           ))}
         </div>
-      </div>
-      <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+      </SplitPanel>
+      {/* min-w-0: the rail is `shrink-0` now that it is a SplitPanel, so this
+          column is what has to shrink. Without it, min-width:auto pins it to the
+          plug form's min-content and the row overflows instead. Same reason as
+          `launches.component.tsx:532`. */}
+      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
+        <SplitPanelToggle onClick={() => setChannelsOpen(true)}>
+          {t('channels', 'Channels')}
+        </SplitPanelToggle>
         <PlugsContext.Provider value={currentIntegrationPlug}>
           <Plug />
         </PlugsContext.Provider>

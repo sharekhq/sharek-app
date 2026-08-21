@@ -121,7 +121,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen min-w-screen text-newTextColor py-[12px] pe-[12px] ps-[8px]',
+                'flex flex-col min-h-screen text-newTextColor py-[12px] pe-[12px] ps-[8px]',
                 fontVariables,
                 'font-sans'
               )}
