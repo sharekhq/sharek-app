@@ -76,6 +76,7 @@ import {
   baseline,
   baselineEligibility,
   comparability,
+  completeness,
   difference,
   preconditionVerdict,
   provenance,
@@ -665,6 +666,21 @@ if (run.provenance.survey) {
 console.log(`pointer     ${run.provenance.pointer}`);
 console.log(`precondition ${run.provenance.precondition.verdict}`);
 console.log(`closing check ${run.provenance.postcondition.verdict}`);
+
+// Every run is judged, not just one being captured or compared. Until 020 this
+// was only evaluated on the --capture-baseline and --compare paths, so an
+// ordinary run could finish looking clean while `completeness()` would have
+// refused it — and the first survey run hit exactly that: /billing/lifetime
+// answered with a reading of /billing (lifetime.deal.tsx:74 does
+// `router.replace('/billing')` for a paid account), twelve readings said
+// `clipped 0` and nothing said the route had never been reached.
+//
+// A finding still never fails the run. This prints a verdict; it does not
+// change the exit code, because whether a run is complete is a property of the
+// record and not a reason to throw away what was measured.
+const verdict = completeness(run);
+console.log(`\ncompleteness  ${verdict.complete ? 'complete' : 'INCOMPLETE'}`);
+if (!verdict.complete) console.log(`              ${verdict.reason}`);
 
 writeFileSync(join(HERE, 'probe-results.json'), JSON.stringify(run, null, 2));
 console.log(`\nwrote tools/responsive-probe/probe-results.json  (account: ${ACCOUNT})`);
