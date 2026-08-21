@@ -14,29 +14,27 @@ import { Fragment } from 'react';
 import { PHProvider } from '@gitroom/react/helpers/posthog';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
 import { isSupportConfigured } from '@gitroom/helpers/utils/is.support.configured';
-import { resolveThemeClass } from '@gitroom/helpers/utils/resolve.theme.mode';
+import { resolveDocumentFrame } from '@gitroom/helpers/utils/resolve.document.frame';
 import { DubAnalytics } from '@gitroom/frontend/components/layout/dubAnalytics';
 import { FacebookComponent } from '@gitroom/frontend/components/layout/facebook.component';
 import { GoogleTagManagerComponent } from '@gitroom/frontend/components/layout/gtm.component';
 import { cookies } from 'next/headers';
-import {
-  cookieName,
-  fallbackLng,
-  rtlLanguages,
-} from '@gitroom/react/translation/i18n.config';
+import { cookieName } from '@gitroom/react/translation/i18n.config';
 import { HtmlComponent } from '@gitroom/frontend/components/layout/html.component';
 import Script from 'next/script';
 import { ChangeDirClient } from '@gitroom/frontend/components/new-layout/change.dir.client';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
-  const language = cookieStore.get(cookieName)?.value || fallbackLng;
-  const theme = resolveThemeClass(cookieStore.get('mode')?.value);
+  const { language, direction, theme } = resolveDocumentFrame(
+    cookieStore.get(cookieName)?.value,
+    cookieStore.get('mode')?.value
+  );
   const Plausible = !!process.env.STRIPE_PUBLISHABLE_KEY
     ? PlausibleProvider
     : Fragment;
   return (
-    <html lang={language} dir={rtlLanguages.includes(language) ? 'rtl' : 'ltr'}>
+    <html lang={language} dir={direction}>
       <head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/favicon.png" />

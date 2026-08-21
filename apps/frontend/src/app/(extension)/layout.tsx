@@ -9,20 +9,28 @@ import clsx from 'clsx';
 import { VariableContextComponent } from '@gitroom/react/helpers/variable.context';
 import UtmSaver from '@gitroom/helpers/utils/utm.saver';
 import { isSupportConfigured } from '@gitroom/helpers/utils/is.support.configured';
+import { resolveDocumentFrame } from '@gitroom/helpers/utils/resolve.document.frame';
+import { cookies } from 'next/headers';
+import { cookieName } from '@gitroom/react/translation/i18n.config';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const { language, direction, theme } = resolveDocumentFrame(
+    cookieStore.get(cookieName)?.value,
+    cookieStore.get('mode')?.value
+  );
   return (
-    <html>
+    <html lang={language} dir={direction}>
       <head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body
-        className={clsx(fontVariables, 'font-sans dark text-primary !bg-primary')}
+        className={clsx(fontVariables, 'font-sans text-primary !bg-primary', theme)}
       >
         <VariableContextComponent
-          language="en"
+          language={language}
           storageProvider={
             process.env.STORAGE_PROVIDER! as 'local' | 'cloudflare'
           }
