@@ -123,19 +123,98 @@ export const CANONICAL_MODALS = [
 // rather than quietly namespaced, because `difference()` pairing compose
 // against /launches would report a page of changes that never happened (PR5).
 const MODAL_PREFIX = 'modal:';
+// A second prefix rather than a second namespace: route paths all begin with a
+// slash and neither prefix does, so all three sets stay disjoint. A panel
+// reading filed as `modal:` would be a reading that lies about what it measured
+// in the one field every comparison pairs on.
+const PANEL_PREFIX = 'panel:';
 
-export const modalKey = (id) => {
+export const targetKey = (target) => {
+  const id = typeof target === 'string' ? target : target.id;
+  const kind = (typeof target === 'string' ? 'modal' : target.kind) || 'modal';
   if (String(id).startsWith('/')) {
-    throw new Error(`a modal id must not look like a path — got ${id}`);
+    throw new Error(`a target id must not look like a path — got ${id}`);
   }
-  return `${MODAL_PREFIX}${id}`;
+  if (kind !== 'modal' && kind !== 'panel') {
+    throw new Error(`unknown target kind "${kind}" on ${id}`);
+  }
+  return `${kind === 'panel' ? PANEL_PREFIX : MODAL_PREFIX}${id}`;
 };
+
+export const modalKey = (id) => targetKey({ id, kind: 'modal' });
 
 // Whether a reading is of a modal rather than of a route. Read off the key
 // rather than off a flag, so a reading that came back from an older run cannot
 // disagree with itself — and off the same constant modalKey writes, so the two
 // cannot drift apart.
 export const isModalReading = (reading) => String(reading.route).startsWith(MODAL_PREFIX);
+
+// A reading of any target, of either kind. `isModalReading` keeps its narrower
+// meaning because callers that ask specifically about modals still exist; this
+// is what the checks that care only about "was this taken somewhere other than
+// its own key" use.
+export const isTargetReading = (reading) =>
+  isModalReading(reading) || String(reading.route).startsWith(PANEL_PREFIX);
+
+// ---------------------------------------------------------------------------
+// Measurement targets — one driver, two kinds
+// ---------------------------------------------------------------------------
+
+// A target is route + click steps + settle + reachable widths + an arrival
+// assertion, and the assertion is the only thing that differs between a modal
+// and a tab panel. The navigate → click → settle → measure sequence is
+// identical, so there is one driver; a second near-identical one would drift
+// the moment either gained a fix.
+//
+// The assertion is never optional and is never inferred from the clicks having
+// been dispatched. run.mjs's own standing rule is the reason: a target that did
+// not open must be an error, never "a reading whose width is zero, which would
+// read as 'it fits' — the strongest false green this instrument could emit".
+//
+// The facts come from the driver, which is the only thing that can see a page;
+// the verdict is decided here, which is the only place a test can reach.
+export function arrival(target, { modalOpen = false, selectorLaidOut = null } = {}) {
+  const kind = target.kind || 'modal';
+
+  if (kind === 'modal') {
+    return modalOpen
+      ? { arrived: true, reason: null }
+      : { arrived: false, reason: `no modal is open — ${target.id} did not reach the screen` };
+  }
+
+  if (kind === 'panel') {
+    if (!target.arrived) {
+      // Refused rather than defaulted. A panel with no assertion would measure
+      // whatever the page happened to be showing and file it under the panel's
+      // name, which is the same false green in a different costume.
+      throw new Error(`panel target ${target.id} declares no arrival assertion`);
+    }
+    if (selectorLaidOut === null) {
+      throw new Error(`panel target ${target.id} was judged without asking whether it arrived`);
+    }
+    return selectorLaidOut
+      ? { arrived: true, reason: null }
+      : {
+          arrived: false,
+          reason: `${target.arrived} is not laid out — ${target.id} did not reach the screen`,
+        };
+  }
+
+  throw new Error(`unknown target kind "${kind}" on ${target.id}`);
+}
+
+// Which of a run's widths a target owes a reading at. A target that declares
+// `widths` is held to exactly those and no others — `compose-existing` has
+// depended on that since 018, because at 390 the calendar is a ListView with
+// nothing to click and a target that cannot open records an error, which would
+// make every full run incomplete for a reason about the account's data rather
+// than about the layout. Absent, it owes a reading at every width the run
+// covered.
+//
+// Shared by the driver and by completeness() so the two cannot disagree about
+// what a run owes.
+export const reachableWidths = (target, viewports) =>
+  viewports.filter((v) => !target.widths || target.widths.includes(Number(String(v).split('x')[0])));
 
 // ---------------------------------------------------------------------------
 // Precondition — can this account reproduce the failure we are measuring?
@@ -439,8 +518,37 @@ const UNDERSIZED_CAP = 6;
 // control as far as a layout fix is concerned.
 const targetSignature = (c) => c.tag + c.cls;
 
-export function reportableUndersized(candidates) {
+// A candidate that is in the control set only because of its cursor, and that
+// something tappable already covers. Both clauses carry their own weight:
+//
+//   `semantic === false` protects a real nested action. A 30x30 <button> inside
+//   a clickable 300x60 card is semantic, so it keeps being reported — tapping
+//   it does something different from tapping the card, and suppressing it is
+//   the one error this rule must never make. Strict `=== false`, so a candidate
+//   from before probe.js sent these facts carries `undefined` and stays
+//   reported: the safe direction, and it keeps every retained reading's meaning.
+//
+//   the enclosure clearing the floor is what makes the suppression true. A bare
+//   cursor-pointer div inside a *small* parent is not covered by anything
+//   tappable, so it stays reported.
+//
+// This is a judgement and it lives here rather than in probe.js because probe.js
+// is injected as source text: a verdict computed in the page is a verdict no
+// test can reach.
+const decorative = (c) =>
+  c.semantic === false &&
+  !!c.enclosing &&
+  c.enclosing.w >= TOUCH_FLOOR_PX &&
+  c.enclosing.h >= TOUCH_FLOOR_PX;
+
+export function reportableUndersized(candidates, { modalOpen } = { modalOpen: false }) {
   const seen = new Map();
+  // Reclassified, never dropped. `019` declined to fix the wrapper defect
+  // mid-flight on the grounds that an instrument change which silences a
+  // finding is the wrong order of operations — a change that relocates one into
+  // a named, inspectable bucket cannot silence it, and that is what makes the
+  // control-for-control comparison this feature owes possible at all.
+  const wrapperSeen = new Map();
 
   // Ranked on the dimension that misses the floor, not on area: the calendar's
   // hour cell is 21×68 at 820, so it fails on width while being nearly three
@@ -456,9 +564,23 @@ export function reportableUndersized(candidates) {
   for (const c of [...candidates].sort(
     (x, y) => severity(x) - severity(y) || x.w * x.h - y.w * y.h
   )) {
+    // A modal reading measures the modal, so on one the boundary decides first
+    // — the same rule reportableClipped and reportableCollisions have applied
+    // since 018, and the half 018 did not reach. Without it a modal's touch
+    // figure is the whole document, the page behind included: under a fine
+    // pointer modal:compose@1024 read 113 against /launches@1024's 87, and the
+    // difference was the page. It is attributable to the modal only while the
+    // route behind it happens to read zero, which is a coincidence of a build
+    // and not a property of the instrument.
+    //
+    // When no modal is open this does not run, so a route reading is judged by
+    // exactly the rules it always was and a candidate carrying no `inModal` is
+    // never dropped for lacking it.
+    if (modalOpen && !c.inModal) continue;
     if (c.w >= TOUCH_FLOOR_PX && c.h >= TOUCH_FLOOR_PX) continue;
     const key = targetSignature(c);
-    const kept = seen.get(key);
+    const bucket = decorative(c) ? wrapperSeen : seen;
+    const kept = bucket.get(key);
     // Every instance is counted even though only the first is kept: "one
     // finding, 150 of them" is a different remediation from "one finding,
     // once", and the count is the only place that fact survives the dedupe.
@@ -466,16 +588,23 @@ export function reportableUndersized(candidates) {
       kept.instances++;
       continue;
     }
-    seen.set(key, { tag: c.tag, cls: c.cls, w: c.w, h: c.h, instances: 1 });
+    bucket.set(key, { tag: c.tag, cls: c.cls, w: c.w, h: c.h, instances: 1 });
   }
 
   const undersized = [...seen.values()];
+  const wrapperSignatures = [...wrapperSeen.values()];
   return {
     // Survivors, not what fitted in the report — same split as the two counts
     // above. A count that quietly capped at six would read identically on a
     // page with seven undersized controls and one with seventy.
     distinctUnder44: undersized.length,
     undersized: undersized.slice(0, UNDERSIZED_CAP),
+    // The reclassified ones, kept to the same split for the same reason. The
+    // field keeps `distinctUnder44` honest: a candidate that left it must be
+    // findable here, and one that vanished from both is a defect in this rule
+    // rather than a fix.
+    wrappers: wrapperSignatures.length,
+    wrapperSignatures: wrapperSignatures.slice(0, UNDERSIZED_CAP),
   };
 }
 
@@ -498,6 +627,7 @@ export function provenance({
   pointer,
   precondition,
   postcondition,
+  survey,
 }) {
   return {
     account,
@@ -506,6 +636,12 @@ export function provenance({
     capturedAt,
     routes,
     viewports,
+    // What this run set out to cover, when that is not the canonical seven.
+    // Null means "this is a canonical run", the way `modals: null` means "this
+    // run did not cover modals" — never "it declared nothing and failed". Every
+    // reading retained before surveys existed comes back null and keeps its
+    // meaning, which is the only reason this could be added at all.
+    survey: survey ?? null,
     // Which modal targets this run opened, by id. Null where none were asked
     // for — and every reading retained before this axis existed comes back
     // that way, which is what keeps them complete. Absence here is "this run
@@ -534,18 +670,72 @@ const sameSet = (a, b) =>
 // own tells you nothing about what to do next.
 export function completeness({ provenance: prov, readings, errors = [] }) {
   const canonicalViewports = CANONICAL_VIEWPORTS.map(viewportKey);
+  // A run is either canonical or a survey. A canonical run is judged against
+  // CANONICAL_ROUTES and is the only kind that can be a baseline; a survey
+  // declares its own coverage and is judged against that. Everything below this
+  // point — errors, targets, missing readings, the bracket, the url check — is
+  // shared, because none of it depends on which set was declared.
+  const survey = prov.survey || null;
 
-  if (!sameSet(prov.routes, CANONICAL_ROUTES)) {
-    const absent = CANONICAL_ROUTES.filter((r) => !prov.routes.includes(r));
+  // A declared gap excuses one surface, or one surface at one width. It is not
+  // a free pass: it carries a reason, and a gap without one fails the run. The
+  // difference between "/oauth/authorize needs a handshake in flight" and
+  // silence is the whole value of a survey — a surface that was never reached
+  // must never be able to look like one that was measured and found clean.
+  const gaps = survey?.gaps || [];
+  const unexplained = gaps.filter((g) => !g.reason || !String(g.reason).trim());
+  if (unexplained.length) {
     return {
       complete: false,
       reason:
-        `narrowed route set — covered ${prov.routes.length} of the ${CANONICAL_ROUTES.length} ` +
-        `canonical routes, leaving out ${absent.join(', ') || 'none'}`,
+        `a declared gap carries no reason — ${unexplained.map((g) => g.surface).join(', ')}. ` +
+        `A gap without a reason is indistinguishable from a surface nobody looked at`,
+    };
+  }
+  const gapped = new Set(gaps.map((g) => g.surface));
+  // Two forms, because a target can be unreachable at one width and fine at the
+  // others: the surface alone, or the surface at a width.
+  const isGap = (key, viewport) => gapped.has(key) || gapped.has(`${key}@${viewport}`);
+
+  if (survey) {
+    const owed = survey.routes.filter((r) => !gapped.has(r));
+    if (!sameSet(prov.routes, owed)) {
+      const absent = owed.filter((r) => !prov.routes.includes(r));
+      const extra = prov.routes.filter((r) => !owed.includes(r));
+      return {
+        complete: false,
+        reason:
+          `the survey covered a different route set than it declared — ` +
+          `${absent.length ? `missing ${absent.join(', ')}` : ''}` +
+          `${absent.length && extra.length ? '; ' : ''}` +
+          `${extra.length ? `undeclared ${extra.join(', ')}` : ''}`,
+      };
+    }
+  } else if (!sameSet(prov.routes, CANONICAL_ROUTES)) {
+    // Equal length AND equal contents, so a *widened* set fails exactly as a
+    // narrowed one does. That is deliberate and is why surveys exist: a run
+    // covering more routes is not a better canonical run, it is a different
+    // kind of run, and letting it pass here would make the canonical series
+    // stop meaning one thing.
+    const absent = CANONICAL_ROUTES.filter((r) => !prov.routes.includes(r));
+    const extra = prov.routes.filter((r) => !CANONICAL_ROUTES.includes(r));
+    return {
+      complete: false,
+      reason: extra.length
+        ? `widened route set — covered ${prov.routes.length} routes including ` +
+          `${extra.join(', ')}, which are not canonical. A run beyond the canonical seven is a ` +
+          `survey and has to declare itself one`
+        : `narrowed route set — covered ${prov.routes.length} of the ${CANONICAL_ROUTES.length} ` +
+          `canonical routes, leaving out ${absent.join(', ') || 'none'}`,
     };
   }
 
-  if (!sameSet(prov.viewports, canonicalViewports)) {
+  // A survey's widths are its own declaration — `prov.viewports` is that
+  // declaration, so there is nothing to hold it against but itself, and the
+  // real check is the per-reading one further down. Stated rather than left
+  // implicit: a second copy of the width list inside `survey` would be a second
+  // place for the two to disagree.
+  if (!survey && !sameSet(prov.viewports, canonicalViewports)) {
     const absent = canonicalViewports.filter((v) => !prov.viewports.includes(v));
     return {
       complete: false,
@@ -573,17 +763,26 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
   //
   // Where a run does declare targets, every one of them owes a reading at every
   // width the run covered — the same bar the routes are held to.
-  const declaredModals = prov.modals || [];
-  if (declaredModals.length) {
+  //
+  // A survey declares its targets in its own record, because a panel or a modal
+  // outside CANONICAL_MODALS has nowhere else to say which widths it can be
+  // reached at. Each entry is `{ id, widths? }` — the same shape a canonical
+  // target already uses for `widths`, so this is the existing idea applied to a
+  // declared target rather than a second one.
+  const declaredTargets = survey
+    ? survey.targets || []
+    : (prov.modals || []).map((id) => CANONICAL_MODALS.find((m) => m.id === id) || { id });
+  if (declaredTargets.length) {
     const absentModals = [];
-    for (const id of declaredModals) {
+    for (const target of declaredTargets) {
       // A target that declares `widths` is held to those and no others. Absent,
-      // it owes a reading at every width the run covered.
-      const reachable = CANONICAL_MODALS.find((m) => m.id === id)?.widths;
-      for (const viewport of prov.viewports) {
-        if (reachable && !reachable.includes(Number(viewport.split('x')[0]))) continue;
-        if (!readings.some((r) => r.route === modalKey(id) && r.viewport === viewport)) {
-          absentModals.push(`${modalKey(id)}@${viewport}`);
+      // it owes a reading at every width the run covered. One rule, shared with
+      // the driver, so the two cannot disagree about what a run owes.
+      const key = targetKey(target);
+      for (const viewport of reachableWidths(target, prov.viewports)) {
+        if (isGap(key, viewport)) continue;
+        if (!readings.some((r) => r.route === key && r.viewport === viewport)) {
+          absentModals.push(`${key}@${viewport}`);
         }
       }
     }
@@ -601,6 +800,7 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
   const absent = [];
   for (const viewport of prov.viewports) {
     for (const route of prov.routes) {
+      if (isGap(route, viewport)) continue;
       if (!readings.some((r) => r.route === route && r.viewport === viewport)) {
         absent.push(`${route}@${viewport}`);
       }
@@ -649,7 +849,7 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
   // sessions and no run is ever complete again — and with it the check still
   // catches what it exists for, because a modal measured after the session
   // expired was measured on the sign-in page.
-  const expectedPath = (r) => (isModalReading(r) ? r.openedAt : r.route);
+  const expectedPath = (r) => (isTargetReading(r) ? r.openedAt : r.route);
   const elsewhere = readings.filter(
     (r) => r.url !== expectedPath(r) && !String(r.url).startsWith(`${expectedPath(r)}/`)
   );
@@ -671,6 +871,19 @@ export function completeness({ provenance: prov, readings, errors = [] }) {
 // a run nobody can trust is not made trustworthy by covering more routes.
 export function baselineEligibility(run) {
   const { verdict } = run.provenance.precondition;
+
+  // Tested before the precondition, because it is not a shortfall to be fixed:
+  // a survey covers a different set of surfaces and cannot be diffed against
+  // the canonical series at all. Not by promotion, not by renaming, not by
+  // being the only reading a surface has ever had.
+  if (run.provenance.survey) {
+    return {
+      eligible: false,
+      reason:
+        'this is a survey run — it declares its own coverage and is judged against that, so it ' +
+        'has nothing in common with the canonical series a baseline has to be comparable to',
+    };
+  }
 
   if (verdict === 'waived') {
     return {
@@ -862,6 +1075,13 @@ export const VARIANCE = {
     'touch.total',
     'touch.under44',
     'touch.distinctUnder44',
+    // Added 2026-08-21 with the wrapper rule. Advisory rather than stable for
+    // the reason `clippedInside` is: it has no four-run demonstration behind it,
+    // and a field promoted on nothing but its own novelty is the kind of claim
+    // this record exists to refuse. It is listed rather than omitted so that
+    // `introduced` reports it against every baseline that predates it —
+    // silence is the one thing this harness must not produce.
+    'touch.wrappers',
     'wrapper.w',
     'wrapper.h',
     'clippedInside',
@@ -879,7 +1099,19 @@ export const VARIANCE = {
   //                    noisy to diff element by element. `undersized[]` carries
   //                    the instance count the dedupe would otherwise discard,
   //                    which is where "one control, 150 of it" is legible.
-  notCompared: ['build', 'touch.pct', 'clipped', 'smallest', 'collisions', 'undersized'],
+  //   wrapperSignatures[]
+  //                  — the same, for the same reason. It is what makes a
+  //                    reclassification auditable by hand; `touch.wrappers`
+  //                    above is the figure a comparison reports on.
+  notCompared: [
+    'build',
+    'touch.pct',
+    'clipped',
+    'smallest',
+    'collisions',
+    'undersized',
+    'wrapperSignatures',
+  ],
 };
 
 export const baseline = (run) => ({ ...run, variance: VARIANCE });

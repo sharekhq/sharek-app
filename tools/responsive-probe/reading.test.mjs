@@ -19,6 +19,7 @@ import {
   CANONICAL_ROUTES,
   CANONICAL_VIEWPORTS,
   VARIANCE,
+  arrival,
   baseline,
   baselineEligibility,
   comparability,
@@ -26,10 +27,14 @@ import {
   difference,
   modalKey,
   preconditionVerdict,
+  isModalReading,
+  isTargetReading,
   provenance,
+  reachableWidths,
   reportableClipped,
   reportableCollisions,
   reportableUndersized,
+  targetKey,
   viewportKey,
 } from './reading.mjs';
 
@@ -311,6 +316,251 @@ test('each way of being incomplete gives its own reason', () => {
     completeness(makeRun({ postcondition: BROKEN })).reason,
   ];
   assert.equal(new Set(reasons).size, reasons.length, 'reasons must be distinguishable');
+});
+
+// ---------------------------------------------------------------------------
+// The generalised target — 020 FR-015 to FR-017
+// ---------------------------------------------------------------------------
+
+const panelTarget = (over = {}) => ({
+  id: 'settings-teams',
+  kind: 'panel',
+  route: '/settings',
+  open: [{ click: 'div.w-\\[260px\\] > div > div:nth-child(2)' }],
+  settle: 1200,
+  arrived: 'table.teams',
+  ...over,
+});
+
+test('a modal target arrives when a modal root is on the page', () => {
+  const target = { id: 'compose', kind: 'modal', route: '/launches' };
+  assert.equal(arrival(target, { modalOpen: true }).arrived, true);
+  assert.equal(arrival(target, { modalOpen: false }).arrived, false);
+});
+
+test('a target with no kind is a modal, so every existing target keeps working', () => {
+  assert.equal(arrival({ id: 'compose', route: '/launches' }, { modalOpen: true }).arrived, true);
+});
+
+test('a panel target arrives when its declared selector is laid out', () => {
+  assert.equal(arrival(panelTarget(), { selectorLaidOut: true }).arrived, true);
+  assert.equal(arrival(panelTarget(), { selectorLaidOut: false }).arrived, false);
+});
+
+test('a target that did not arrive says so with the selector that failed', () => {
+  // The reason has to name what was looked for. "did not open" on its own sends
+  // whoever reads it back to the source to find out what was asserted.
+  const { arrived, reason } = arrival(panelTarget(), { selectorLaidOut: false });
+  assert.equal(arrived, false);
+  assert.match(reason, /table\.teams/);
+  assert.match(reason, /settings-teams/);
+});
+
+test('a panel target with no arrival assertion is refused, not defaulted', () => {
+  // The strongest false green this instrument could emit is a reading of
+  // whatever the page happened to show, filed under the panel's name.
+  assert.throws(() => arrival(panelTarget({ arrived: undefined }), { selectorLaidOut: true }), /assertion/i);
+});
+
+test('a panel target judged without asking whether it arrived is refused', () => {
+  assert.throws(() => arrival(panelTarget()), /without asking/i);
+});
+
+test('an unknown target kind is refused rather than guessed', () => {
+  assert.throws(() => arrival(panelTarget({ kind: 'drawer' })), /drawer/);
+});
+
+test('a target declaring widths owes a reading at exactly those', () => {
+  const viewports = CANONICAL_VIEWPORTS.map(viewportKey);
+  assert.deepEqual(reachableWidths({ id: 'compose-existing', widths: [820, 1024, 1440] }, viewports), [
+    '820x1180',
+    '1024x768',
+    '1440x900',
+  ]);
+});
+
+test('a target declaring no widths owes a reading at every width the run covered', () => {
+  const viewports = CANONICAL_VIEWPORTS.map(viewportKey);
+  assert.deepEqual(reachableWidths({ id: 'compose' }, viewports), viewports);
+});
+
+test('a panel reading is keyed as a panel, not filed under modal:', () => {
+  // Every comparison pairs on `route`. A panel filed as `modal:` would be a
+  // reading that lies about what it measured in the one field that decides
+  // which two readings are the same measurement.
+  assert.equal(targetKey({ id: 'settings-teams', kind: 'panel' }), 'panel:settings-teams');
+  assert.equal(targetKey({ id: 'compose', kind: 'modal' }), 'modal:compose');
+  assert.equal(targetKey({ id: 'compose' }), 'modal:compose');
+  assert.equal(targetKey('compose'), 'modal:compose');
+});
+
+test('routes, modal keys and panel keys can never collide', () => {
+  const keys = [
+    ...CANONICAL_ROUTES,
+    targetKey({ id: 'compose', kind: 'modal' }),
+    targetKey({ id: 'compose', kind: 'panel' }),
+  ];
+  assert.equal(new Set(keys).size, keys.length);
+  for (const r of CANONICAL_ROUTES) assert.ok(r.startsWith('/'));
+  assert.ok(!targetKey({ id: 'x', kind: 'panel' }).startsWith('/'));
+});
+
+test('a target id that looks like a path is refused for either kind', () => {
+  assert.throws(() => targetKey({ id: '/settings', kind: 'panel' }), /path/);
+  assert.throws(() => targetKey({ id: '/launches', kind: 'modal' }), /path/);
+});
+
+test('a panel reading counts as a target reading, so it is judged at where it opened', () => {
+  assert.equal(isTargetReading({ route: 'panel:settings-teams' }), true);
+  assert.equal(isTargetReading({ route: 'modal:compose' }), true);
+  assert.equal(isTargetReading({ route: '/settings' }), false);
+  // The narrower question still answers narrowly.
+  assert.equal(isModalReading({ route: 'panel:settings-teams' }), false);
+});
+
+// ---------------------------------------------------------------------------
+// Survey runs — 020 FR-014 to FR-018, contract survey-run.md
+// ---------------------------------------------------------------------------
+
+// `completeness()` fails any run whose route set is not *identical* to
+// CANONICAL_ROUTES — `sameSet` is equal-length plus equal contents, so a run
+// covering MORE routes is judged incomplete exactly as a narrowed one is. The
+// sweep covers 19 more routes, so without this it cannot produce a complete
+// reading at all; and widening CANONICAL_ROUTES would make every retained
+// reading back to baseline.json report as narrowed, destroying the
+// comparability the whole record is built on.
+//
+// So a run is either canonical or a survey. A survey declares its own coverage
+// and is judged against that declaration, and it is never baseline-eligible.
+// This is not a new idea — it is the modal axis's rule extended from targets to
+// routes, and the file already says it: "A run that never opened a modal is
+// complete on its routes alone: that is not a concession, it is the whole
+// reason the axis is separate."
+
+const SURVEY_ROUTES = ['/support', '/err', '/billing/lifetime'];
+const SURVEY_VIEWPORTS = ['390x844', '1440x900'];
+
+function makeSurvey(overrides = {}) {
+  const declared = overrides.declaredRoutes || SURVEY_ROUTES;
+  const gaps = overrides.gaps === undefined ? [] : overrides.gaps;
+  const gapSurfaces = new Set(gaps.map((g) => g.surface));
+  const covered = overrides.routes || declared.filter((r) => !gapSurfaces.has(r));
+  const viewports = overrides.viewports || SURVEY_VIEWPORTS;
+  return {
+    provenance: provenance({
+      account: 'probe@example.com',
+      baseUrl: 'https://dash.sharek.app',
+      build: 'a'.repeat(40),
+      capturedAt: '2026-08-21T12:00:00.000Z',
+      routes: covered,
+      viewports,
+      precondition: overrides.precondition || QUALIFIED,
+      postcondition: overrides.postcondition === undefined ? QUALIFIED : overrides.postcondition,
+      survey: overrides.survey === undefined ? { routes: declared, targets: [], gaps } : overrides.survey,
+    }),
+    readings: viewports.flatMap((v) => covered.map((r) => readingFor(r, v))),
+    errors: [],
+    ...(overrides.run || {}),
+  };
+}
+
+test('a survey is judged complete against its own declaration, not the canonical seven', () => {
+  const { complete, reason } = completeness(makeSurvey());
+  assert.equal(complete, true);
+  assert.equal(reason, null);
+});
+
+test('a canonical run still fails when its route set differs in either direction', () => {
+  // The guard that matters most: the survey path must not become a hole in the
+  // check that keeps every retained reading comparable. Narrowed has always
+  // failed; widened must fail too, and for the same reason.
+  const narrowed = completeness(makeRun({ routes: ['/launches'] }));
+  assert.equal(narrowed.complete, false);
+  assert.match(narrowed.reason, /route/i);
+
+  const widened = makeRun({ routes: [...CANONICAL_ROUTES, '/support'] });
+  assert.equal(completeness(widened).complete, false);
+  assert.match(completeness(widened).reason, /route/i);
+});
+
+test('a survey that missed a route it declared, without calling it a gap, is incomplete', () => {
+  const { complete, reason } = completeness(
+    makeSurvey({ routes: ['/support', '/err'] })
+  );
+  assert.equal(complete, false);
+  assert.match(reason, /route/i);
+});
+
+test('a declared gap with a reason makes the run complete without the reading', () => {
+  const { complete, reason } = completeness(
+    makeSurvey({ gaps: [{ surface: '/billing/lifetime', reason: 'needs a lifetime deal on the account' }] })
+  );
+  assert.equal(complete, true);
+  assert.equal(reason, null);
+});
+
+test('a declared gap without a reason fails the run', () => {
+  // The difference between "/oauth/authorize needs a handshake in flight" and
+  // silence is this feature's entire value. A surface that was never reached
+  // must never be able to look like one that was measured and found clean.
+  const { complete, reason } = completeness(
+    makeSurvey({ gaps: [{ surface: '/billing/lifetime' }] })
+  );
+  assert.equal(complete, false);
+  assert.match(reason, /reason/i);
+});
+
+test('a gap may name one width of a surface rather than the whole surface', () => {
+  // A target that cannot be opened at a width it declared is a gap with its
+  // reason, not a silent absence — and neither is it a reason to drop the
+  // surface at the widths where it does open.
+  const run = makeSurvey({
+    gaps: [{ surface: '/billing/lifetime@390x844', reason: 'the card does not render below 768' }],
+  });
+  run.provenance.routes = SURVEY_ROUTES;
+  run.readings = run.readings.filter(
+    (r) => !(r.route === '/billing/lifetime' && r.viewport === '390x844')
+  );
+  run.readings.push(readingFor('/billing/lifetime', '1440x900'));
+
+  const { complete, reason } = completeness(run);
+  assert.equal(complete, true);
+  assert.equal(reason, null);
+});
+
+test('a survey is never baseline-eligible, however clean it is', () => {
+  // Not by promotion, not by renaming, not by being the only reading of a
+  // surface. The canonical seven-route series stays the only comparable one.
+  const { eligible, reason } = baselineEligibility(makeSurvey());
+  assert.equal(eligible, false);
+  assert.match(reason, /survey/i);
+});
+
+test('a survey still has to bracket, error-free, like any other run', () => {
+  const errored = makeSurvey();
+  errored.errors = [{ route: '/support', viewport: '390x844', message: 'timed out' }];
+  assert.equal(completeness(errored).complete, false);
+
+  assert.equal(completeness(makeSurvey({ postcondition: BROKEN })).complete, false);
+});
+
+test('a survey owes a reading for every target it declared, at every reachable width', () => {
+  const declaredTarget = { id: 'settings-teams', widths: [1440] };
+  const run = makeSurvey({ survey: { routes: SURVEY_ROUTES, targets: [declaredTarget], gaps: [] } });
+  assert.equal(completeness(run).complete, false);
+  assert.match(completeness(run).reason, /settings-teams/);
+
+  run.readings.push({ ...readingFor('/settings', '1440x900'), route: 'modal:settings-teams', openedAt: '/settings' });
+  assert.equal(completeness(run).complete, true);
+});
+
+test('a run with no survey declaration is judged exactly as it always was', () => {
+  // Absence means "this is a canonical run", the way `modals: null` means "this
+  // run did not cover modals". Every reading retained before this existed comes
+  // back that way and must keep its meaning.
+  assert.equal(makeRun().provenance.survey, null);
+  assert.equal(completeness(makeRun()).complete, true);
+  assert.equal(baselineEligibility(makeRun()).eligible, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -1210,14 +1460,26 @@ test('two different signatures are two findings', () => {
   assert.equal(distinctUnder44, 2);
 });
 
+// The two shape assertions below name `wrappers` and `wrapperSignatures`
+// because 020 added them to this function's contract (FR-007). They are the
+// only two of the 114 that moved rather than grew, and neither weakened: both
+// still assert the whole returned object, and both still say the same thing —
+// zero is reported as zero, never as absent.
 test('an empty candidate list reports zero, not absent', () => {
-  assert.deepEqual(reportableUndersized([]), { distinctUnder44: 0, undersized: [] });
+  assert.deepEqual(reportableUndersized([]), {
+    distinctUnder44: 0,
+    undersized: [],
+    wrappers: 0,
+    wrapperSignatures: [],
+  });
 });
 
 test('a page whose every target clears the floor reads the same as one with none', () => {
   assert.deepEqual(reportableUndersized([target(), target({ w: 120, h: 48 })]), {
     distinctUnder44: 0,
     undersized: [],
+    wrappers: 0,
+    wrapperSignatures: [],
   });
 });
 
@@ -1235,6 +1497,224 @@ test('undersized targets are sorted smallest first and capped at six, like clipp
   // The count is what survived the rules, not what fitted in the report — the
   // same split clippedCount and collisionCount already keep.
   assert.equal(distinctUnder44, 8);
+});
+
+// ---------------------------------------------------------------------------
+// The touch scan tells the truth — 020 FR-001 to FR-008, contract touch-scan.md
+// ---------------------------------------------------------------------------
+
+// Three defects, one function. The report has been claiming three things that
+// are not true: a decorative wrapper is a target, a modal's touch figure
+// belongs to the modal, and every icon control is one anonymous `svg`. The
+// first and third are the same defect wearing different faces — the report
+// describing the DOM less precisely than the scan measured it.
+//
+// The cases below are contract touch-scan.md's worked table, in its order. The
+// first three are the defects; the rest are the guards, and case 6 is the one
+// that matters most: it is what stops this change suppressing a real nested
+// action, which is the only dangerous error it can make.
+
+// An svg control. `probe.js`'s cls() read `el.className`, which on an SVG
+// element is an SVGAnimatedString and never a string — so every cursor-pointer
+// svg on a page arrived here as a classless `svg` and they all deduped into
+// one. The fix is at the source; what this file can pin is that a candidate
+// carrying its classes signs by them.
+const svgTarget = (over = {}) => ({
+  tag: 'svg',
+  cls: 'w-5 h-5 cursor-pointer',
+  w: 20,
+  h: 20,
+  semantic: false,
+  enclosing: null,
+  ...over,
+});
+
+// A decorative wrapper: in the control set only because of `cursor-pointer`,
+// sitting inside a row that carries the actual handler and clears the floor.
+// The 17x19 chevron inside a compose row, measured on the live app — the audit
+// records the rows as 340x42 and 342x44, one on each side of the floor, and
+// this is the one that clears.
+//
+// The contract's worked case 5 writes this enclosure as 340x42 and expects the
+// candidate reclassified, which contradicts its own rule and its own case 9:
+// the rule is `enclosing.w >= 44 && enclosing.h >= 44`, and case 9 reports a
+// candidate inside 340x43 precisely to pin the boundary. 42 is smaller than 43,
+// so the two cannot both hold. The rule is stated three times (contract Rule 2,
+// plan, T022) against one worked case, and it is also the safer reading — a
+// wrapper inside a row that is *itself* under the floor must stay reported,
+// because the row being undersized is the finding.
+const wrapper = (over = {}) => ({
+  tag: 'div',
+  cls: 'cursor-pointer',
+  w: 17,
+  h: 19,
+  semantic: false,
+  enclosing: { w: 342, h: 44 },
+  ...over,
+});
+
+test('an svg candidate signs by its classes rather than collapsing to a bare svg', () => {
+  const { undersized } = reportableUndersized([svgTarget()]);
+
+  assert.equal(undersized.length, 1);
+  assert.equal(undersized[0].cls, 'w-5 h-5 cursor-pointer');
+});
+
+test('two svgs with different classes are two findings, not one', () => {
+  // Case 2. Today they both arrive as `svg` + '' and dedupe into a single row,
+  // so a page with six distinct icon controls reports one.
+  const { distinctUnder44 } = reportableUndersized([
+    svgTarget({ cls: 'w-5 h-5 cursor-pointer' }),
+    svgTarget({ cls: 'w-4 h-4 cursor-pointer text-error' }),
+  ]);
+
+  assert.equal(distinctUnder44, 2);
+});
+
+test('with a modal open a candidate outside it is not counted', () => {
+  // Case 3. The boundary reportableClipped and reportableCollisions have drawn
+  // since 018. Without it a modal reading's touch figure is the whole document,
+  // the page behind it included — attributable to the modal only while the
+  // route behind happens to read zero, which is a coincidence of the build.
+  const { distinctUnder44 } = reportableUndersized(
+    [wrapper({ cls: 'cursor-pointer behind', enclosing: null, inModal: false })],
+    { modalOpen: true }
+  );
+
+  assert.equal(distinctUnder44, 0);
+});
+
+test('with a modal open a candidate inside it is counted', () => {
+  // Case 4, the other half — the rule must scope, not silence.
+  const { distinctUnder44 } = reportableUndersized(
+    [wrapper({ cls: 'cursor-pointer inside', enclosing: null, inModal: true })],
+    { modalOpen: true }
+  );
+
+  assert.equal(distinctUnder44, 1);
+});
+
+test('a decorative wrapper inside a clearing target is reclassified, not dropped', () => {
+  // Case 5. It leaves distinctUnder44 and appears in wrappers. Reclassified
+  // rather than dropped is the whole of FR-008: an instrument change that
+  // silences a finding is the wrong order of operations, and a change that
+  // relocates one into a named, inspectable field cannot silence it.
+  const { distinctUnder44, undersized, wrappers, wrapperSignatures } = reportableUndersized([
+    wrapper(),
+  ]);
+
+  assert.equal(distinctUnder44, 0);
+  assert.deepEqual(undersized, []);
+  assert.equal(wrappers, 1);
+  assert.deepEqual(wrapperSignatures, [
+    { tag: 'div', cls: 'cursor-pointer', w: 17, h: 19, instances: 1 },
+  ]);
+});
+
+test('a semantic control in the same position is still reported', () => {
+  // Case 6, and the clause that prevents the only dangerous error this change
+  // can make. A 30x30 button inside a clickable 300x60 card does something
+  // different from the card, so suppressing it would hide a real target.
+  const { distinctUnder44, wrappers } = reportableUndersized([
+    { tag: 'button', cls: 'p-[4px]', w: 30, h: 30, semantic: true, enclosing: { w: 300, h: 60 } },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(wrappers, 0);
+});
+
+test('a decorative candidate whose enclosing target misses the floor is still reported', () => {
+  // Case 7. Nothing tappable covers it, so the suppression would not be true.
+  const { distinctUnder44, wrappers } = reportableUndersized([
+    wrapper({ enclosing: { w: 30, h: 30 } }),
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(wrappers, 0);
+});
+
+test('a decorative candidate with no enclosing target at all is still reported', () => {
+  // Case 8. Both clauses are required; this is the one that fails.
+  const { distinctUnder44, wrappers } = reportableUndersized([wrapper({ enclosing: null })]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(wrappers, 0);
+});
+
+test('an enclosing target of 43 does not clear the floor', () => {
+  // Case 9, and it exists because the compose rows that started this measured
+  // 340x42 and 342x44 — one on each side. A rule tested only at those two
+  // values would not catch an off-by-one, and 44 passes because WCAG 2.5.5
+  // asks for at least 44.
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 340, h: 43 } })]).distinctUnder44, 1);
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 43, h: 340 } })]).distinctUnder44, 1);
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 340, h: 44 } })]).distinctUnder44, 0);
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 44, h: 44 } })]).distinctUnder44, 0);
+});
+
+test('the row the audit measured at 340x42 does not suppress what is inside it', () => {
+  // The real pair, both sides. The compose rows the wrapper defect was found on
+  // measured 340x42 and 342x44; only the second covers what it holds. The first
+  // is itself under the floor — 42 — and a rule that suppressed inside it would
+  // hide the row's own finding behind the chevron's, which is the double
+  // silence FR-008 exists to prevent.
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 340, h: 42 } })]).distinctUnder44, 1);
+  assert.equal(reportableUndersized([wrapper({ enclosing: { w: 342, h: 44 } })]).distinctUnder44, 0);
+});
+
+test('a repeated decorative signature counts once and keeps its instance count', () => {
+  // Case 10. The same rule `undersized` already applies to repetition — one
+  // control is one finding however often the page repeats it, and the instance
+  // count is the only place the repetition survives the dedupe.
+  const { wrappers, wrapperSignatures } = reportableUndersized(
+    Array.from({ length: 150 }, () => wrapper())
+  );
+
+  assert.equal(wrappers, 1);
+  assert.equal(wrapperSignatures[0].instances, 150);
+});
+
+test('wrapper signatures are capped at six while the count is not', () => {
+  // The split `undersized` and `distinctUnder44` already keep, for the same
+  // reason: a count that quietly capped would read identically on a page with
+  // seven reclassified wrappers and one with seventy.
+  const many = [40, 8, 33, 21, 12, 36, 17, 28].map((w, i) =>
+    wrapper({ w, h: 20, cls: `wrap-${i} cursor-pointer` })
+  );
+  const { wrappers, wrapperSignatures } = reportableUndersized(many);
+
+  assert.equal(wrappers, 8);
+  assert.equal(wrapperSignatures.length, 6);
+  assert.deepEqual(
+    wrapperSignatures.map((u) => u.w),
+    [8, 12, 17, 21, 28, 33]
+  );
+});
+
+test('with no modal open every candidate is judged, whatever it carries', () => {
+  // Case 11. Unchanged behaviour is the point: every retained reading taken
+  // without a modal keeps its meaning, and a candidate from before this feature
+  // carries no inModal at all.
+  const { distinctUnder44 } = reportableUndersized([
+    { tag: 'div', cls: 'a cursor-pointer', w: 20, h: 20, inModal: false },
+    { tag: 'div', cls: 'b cursor-pointer', w: 20, h: 20, inModal: true },
+    { tag: 'div', cls: 'c cursor-pointer', w: 20, h: 20 },
+  ]);
+
+  assert.equal(distinctUnder44, 3);
+});
+
+test('a candidate from before this feature is never reclassified for lacking the facts', () => {
+  // `semantic === false` is strict on purpose. A reading taken before probe.js
+  // sent these facts has `semantic: undefined`, which is not false — so it
+  // stays reported, which is the safe direction and keeps every retained
+  // reading meaning what it meant.
+  const { distinctUnder44, wrappers } = reportableUndersized([
+    { tag: 'div', cls: 'legacy cursor-pointer', w: 17, h: 19 },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(wrappers, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -1277,16 +1757,16 @@ function makeModalRun(overrides = {}) {
   run.provenance.modals = ids;
   run.readings = [
     ...run.readings,
-    ...ids.flatMap((id) => reachableWidths(id, run.provenance.viewports).map((v) => modalReadingFor(id, v))),
+    ...ids.flatMap((id) => canonicalTargetWidths(id, run.provenance.viewports).map((v) => modalReadingFor(id, v))),
   ];
   return run;
 }
 
-// The widths a target can actually be reached at, which is not always every
-// width the run covered — see `compose-existing` in reading.mjs.
-function reachableWidths(id, viewports) {
-  const widths = CANONICAL_MODALS.find((m) => m.id === id)?.widths;
-  return viewports.filter((v) => !widths || widths.includes(Number(v.split('x')[0])));
+// The widths a canonical target can actually be reached at, by id — a thin
+// lookup over the shared rule, so these tests and the harness cannot disagree
+// about what a target owes.
+function canonicalTargetWidths(id, viewports) {
+  return reachableWidths(CANONICAL_MODALS.find((m) => m.id === id) || { id }, viewports);
 }
 
 test('modal targets are a separate axis, not an eighth route', () => {
@@ -1465,7 +1945,7 @@ test('modal readings a baseline predates are announced, not silently unpaired', 
   // weaken this into checking a subset.
   const viewports = CANONICAL_VIEWPORTS.map(viewportKey);
   const expected = CANONICAL_MODALS.flatMap((m) =>
-    reachableWidths(m.id, viewports).map((v) => `${modalKey(m.id)}@${v}`)
+    canonicalTargetWidths(m.id, viewports).map((v) => `${modalKey(m.id)}@${v}`)
   );
   assert.deepEqual(
     unpaired.map((u) => `${u.route}@${u.viewport}`).sort(),
