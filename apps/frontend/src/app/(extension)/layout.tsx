@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export { viewport } from '@gitroom/frontend/app/viewport';
 import '../global.scss';
 import 'react-tooltip/dist/react-tooltip.css';
 import '@copilotkit/react-ui/styles.css';
