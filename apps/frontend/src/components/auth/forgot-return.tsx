@@ -81,7 +81,10 @@ export function ForgotReturn({ token }: { token: string }) {
                 </Button>
               </div>
               <p className="mt-4 text-sm">
-                <Link href="/auth/login" className="underline cursor-pointer">
+                <Link
+                  href="/auth/login"
+                  className="underline cursor-pointer coarse:inline-flex coarse:items-center coarse:min-h-[44px]"
+                >
                   {t('go_back_to_login', 'Go back to login')}
                 </Link>
               </p>
@@ -96,7 +99,10 @@ export function ForgotReturn({ token }: { token: string }) {
               )}
             </div>
             <p className="mt-4 text-sm">
-              <Link href="/auth/login" className="underline cursor-pointer">
+              <Link
+                  href="/auth/login"
+                  className="underline cursor-pointer coarse:inline-flex coarse:items-center coarse:min-h-[44px]"
+                >
                 {t('go_back_to_login', 'Go back to login')}
               </Link>
             </p>

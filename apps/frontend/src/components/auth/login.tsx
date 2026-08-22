@@ -140,7 +140,7 @@ export function Login() {
                 <p className="mt-4 text-sm">
                   <Link
                     href="/auth/forgot"
-                    className="underline hover:font-bold cursor-pointer"
+                    className="underline hover:font-bold cursor-pointer coarse:inline-flex coarse:items-center coarse:min-h-[44px]"
                   >
                     {t('forgot_password', 'Forgot password')}
                   </Link>
