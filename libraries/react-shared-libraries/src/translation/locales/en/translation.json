@@ -1319,5 +1319,6 @@
   "support_disclosure_never": "We never send your password, your channel credentials, or the content of your posts.",
   "support_failed_title": "We couldn't send your enquiry.",
   "support_failed_body": "Try again in a moment, or email support@sharek.app directly.",
-  "compose_view": "Compose view"
+  "compose_view": "Compose view",
+  "login_to_use_the_wizard_to_generate_api_code": "Login to use the wizard to generate API code"
 }

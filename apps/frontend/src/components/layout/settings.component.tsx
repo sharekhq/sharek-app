@@ -145,7 +145,10 @@ export const SettingsPopup: FC<{
           )}
         </div>
       </div>
-      <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+      {/* min-w-0: the same min-width:auto floor one level in — this pane is the
+          flex item that holds the panels, and a panel wider than the frame
+          floors it here too, bleeding past the right edge at 820. */}
+      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(submit)}>
             {!!getRef && (

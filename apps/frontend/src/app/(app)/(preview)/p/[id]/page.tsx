@@ -53,7 +53,7 @@ export default async function Auth(
             <div className="min-w-[55px]">
               <Link
                 href="/"
-                className="text-2xl flex items-center justify-center gap-[10px] text-textColor order-1"
+                className="text-2xl flex items-center justify-center gap-[10px] coarse:min-h-[44px] text-textColor order-1"
               >
                 <LogoTextComponent />
               </Link>

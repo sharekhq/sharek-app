@@ -69,7 +69,7 @@ export function Activate() {
   return (
     <div className="flex flex-col flex-1">
       <div>
-        <h1 className="text-3xl font-bold text-start mb-4 cursor-pointer">
+        <h1 className="text-3xl font-bold text-start mb-4">
           {t('activate_your_account', 'Activate your account')}
         </h1>
       </div>

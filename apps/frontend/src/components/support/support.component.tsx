@@ -343,7 +343,7 @@ export const SupportComponent = () => {
                     onClick={chooseCategory(value)}
                     onKeyDown={onChipKeyDown(index)}
                     className={clsx(
-                      'h-[42px] px-[16px] rounded-[8px] border text-[14px]',
+                      'h-[42px] coarse:h-[54px] px-[16px] rounded-[8px] border text-[14px]',
                       FOCUS_RING,
                       category === value
                         ? 'bg-brandSoft border-brand text-ink'
