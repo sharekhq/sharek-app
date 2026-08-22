@@ -69,8 +69,14 @@
     return null;
   };
 
-  const cls = (el, n) =>
-    (typeof el.className === 'string' ? el.className : '').replace(/\s+/g, ' ').trim().slice(0, n);
+  // The attribute, not the property. `el.className` is a string on HTML
+  // elements and an `SVGAnimatedString` on SVG ones, so the old `typeof` guard
+  // returned '' for every svg on the page — and since the signature is
+  // tag + cls, every cursor-pointer svg collapsed into a single classless `svg`
+  // row and its class never reached the report. `getAttribute` answers the same
+  // question for both, and returns null rather than '' when the attribute is
+  // absent, which is what the fallback is for.
+  const cls = (el, n) => (el.getAttribute('class') || '').replace(/\s+/g, ' ').trim().slice(0, n);
 
   // ---- 0. is a modal open? ----
   //
@@ -301,6 +307,34 @@
   }
 
   // ---- 4. touch targets ----
+  //
+  // The set this scan reports on, named once so the enclosing-ancestor walk
+  // below asks exactly the question the scan asks.
+  const CONTROLS = 'button, a[href], input, select, textarea, [role="button"], .cursor-pointer';
+
+  // Why an element is a control, other than its cursor. `[tabindex]` is here
+  // and not in CONTROLS because focusability makes an element a real target
+  // without making it one this scan goes looking for — and this is the fact
+  // that protects a genuine nested action from being read as decoration.
+  const SEMANTIC = 'button, a[href], input, select, textarea, [role="button"], [tabindex]';
+
+  // The box of the nearest ancestor that is itself in the control set, or null.
+  // Nearest and only nearest: a candidate wrapped in a sub-44 target which is
+  // itself inside a clearing one stays reported, even though a person can only
+  // tap the outer thing. That is a deliberate false positive — it errs toward
+  // reporting, and the alternative (any ancestor that clears) would suppress a
+  // small target nested two levels inside a large clickable region, which is
+  // the error the rule exists to avoid.
+  const enclosingControl = (el) => {
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      if (n.matches(CONTROLS)) {
+        const r = n.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height) };
+      }
+    }
+    return null;
+  };
+
   let small = 0;
   let total = 0;
   const smallest = [];
@@ -310,9 +344,7 @@
   // already draws. The `44` a few lines down still computes the advisory
   // instance count, unchanged; reading.mjs holds the definition of record.
   const undersizedCandidates = [];
-  for (const el of document.querySelectorAll(
-    'button, a[href], input, select, textarea, [role="button"], .cursor-pointer'
-  )) {
+  for (const el of document.querySelectorAll(CONTROLS)) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0 || outsideViewport(r) || hidden(el)) continue;
     total++;
@@ -321,6 +353,13 @@
       cls: cls(el, 90),
       w: Math.round(r.width),
       h: Math.round(r.height),
+      // Three facts, no verdict. Whether their combination means "decorative
+      // wrapper" is a judgement and it lives in reading.mjs, where a test can
+      // reach it — this file is injected as source text and anything it decides
+      // leaves the suite.
+      inModal: insideModal(el),
+      semantic: el.matches(SEMANTIC),
+      enclosing: enclosingControl(el),
     });
     if (r.height < 44 || r.width < 44) {
       small++;

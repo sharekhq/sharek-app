@@ -72,16 +72,19 @@ import {
   CANONICAL_MODALS,
   CANONICAL_ROUTES,
   CANONICAL_VIEWPORTS,
+  arrival,
   baseline,
   baselineEligibility,
   comparability,
+  completeness,
   difference,
-  modalKey,
   preconditionVerdict,
   provenance,
+  reachableWidths,
   reportableClipped,
   reportableCollisions,
   reportableUndersized,
+  targetKey,
   viewportKey,
 } from './reading.mjs';
 
@@ -108,6 +111,29 @@ const COMPARE = process.argv.includes('--compare');
 // never diff one account's numbers against another's.
 const ACCOUNT = process.env.PROBE_SKIP_LOGIN ? `session:${SESSION}` : EMAIL;
 
+// A run covering surfaces outside the canonical seven declares what it set out
+// to cover, and is judged against that declaration instead. It is never
+// baseline-eligible and never competes with the canonical series — which is the
+// whole point, because CANONICAL_ROUTES stays at seven and every retained
+// reading back to baseline.json keeps its meaning.
+//
+//   PROBE_SURVEY=documentation/responsive-probe/surveys/batch-1.json
+//
+// The file is the declaration:
+//
+//   { "routes": [...],
+//     "targets": [ { id, kind, route, open[], settle, arrived?, widths? } ],
+//     "gaps":    [ { "surface": "/oauth/authorize", "reason": "…" } ] }
+//
+// It is a file rather than a handful of environment variables because a gap
+// carries a sentence, a target carries its click steps, and both belong beside
+// the reading they explain rather than in shell history.
+const SURVEY = process.env.PROBE_SURVEY
+  ? JSON.parse(readFileSync(process.env.PROBE_SURVEY, 'utf8'))
+  : null;
+const SURVEY_GAPS = SURVEY?.gaps || [];
+const gapped = new Set(SURVEY_GAPS.map((g) => g.surface));
+
 // What a full run covers lives in reading.mjs, because that is where a run is
 // judged complete against it. These two only narrow it for iteration, and a
 // narrowed run can never be a baseline.
@@ -121,25 +147,31 @@ const VIEWPORTS = process.env.PROBE_VIEWPORTS
   : CANONICAL_VIEWPORTS;
 
 // PROBE_ROUTES=/launches,/media
-const ROUTES = process.env.PROBE_ROUTES
+// A survey's routes come from its declaration, minus the surfaces it declared
+// unreachable — those are gaps with reasons, not omissions, and attempting them
+// would fill `errors` with things that were never going to work.
+const ROUTES = SURVEY
+  ? SURVEY.routes.filter((r) => !gapped.has(r))
+  : process.env.PROBE_ROUTES
   ? process.env.PROBE_ROUTES.split(',').map((r) => r.trim())
   : CANONICAL_ROUTES;
 
 // PROBE_MODALS=compose, or PROBE_MODALS=none to leave every surface closed.
 // Narrowing works the way the two above do and means the same thing: a
 // narrowed run is for iteration and can never be a baseline.
-const MODALS =
-  process.env.PROBE_MODALS === 'none'
-    ? []
-    : process.env.PROBE_MODALS
-    ? process.env.PROBE_MODALS.split(',')
-        .map((id) => id.trim())
-        .map((id) => {
-          const target = CANONICAL_MODALS.find((m) => m.id === id);
-          if (!target) throw new Error(`no modal target called ${id}`);
-          return target;
-        })
-    : CANONICAL_MODALS;
+const TARGETS = SURVEY
+  ? SURVEY.targets || []
+  : process.env.PROBE_MODALS === 'none'
+  ? []
+  : process.env.PROBE_MODALS
+  ? process.env.PROBE_MODALS.split(',')
+      .map((id) => id.trim())
+      .map((id) => {
+        const target = CANONICAL_MODALS.find((m) => m.id === id);
+        if (!target) throw new Error(`no modal target called ${id}`);
+        return target;
+      })
+  : CANONICAL_MODALS;
 
 const probeSource = readFileSync(join(HERE, 'probe.js'), 'utf8');
 
@@ -284,13 +316,22 @@ function readPage() {
   // nothing as no modal at all, and silently reverse the collision rule on
   // exactly the readings that look cleanest.
   const modalOpen = !!reading.wrapper;
-  const { distinctUnder44, undersized } = reportableUndersized(undersizedCandidates);
+  const { distinctUnder44, undersized, wrappers, wrapperSignatures } = reportableUndersized(
+    undersizedCandidates,
+    { modalOpen }
+  );
   return {
     ...reading,
     ...reportableClipped(clippedCandidates, { modalOpen }),
     ...reportableCollisions(collisionCandidates, { modalOpen }),
-    touch: { ...reading.touch, distinctUnder44 },
+    // `wrappers` sits beside `distinctUnder44` because it is the other half of
+    // the same count — how many candidates the wrapper rule moved out of it —
+    // and `wrapperSignatures` beside `undersized` for the same reason the
+    // detail lists already sit there: a count nobody can inspect is a count
+    // nobody can check.
+    touch: { ...reading.touch, distinctUnder44, wrappers },
     undersized,
+    wrapperSignatures,
   };
 }
 
@@ -315,9 +356,16 @@ const laidOut = (selector) =>
     .replace(/"/g, '')
     .trim() === 'true';
 
-// A modal target's reading: navigate, open the surface, let it settle, then
-// measure it with readPage() exactly as a route is measured.
-function measureModal(target, viewport) {
+// A target's reading: navigate, open the surface, let it settle, then measure it
+// with readPage() exactly as a route is measured.
+//
+// One driver over both kinds. The navigate → click → settle → measure sequence
+// is identical for a modal and for a tab panel; the only thing that differs is
+// how the driver knows it got there, and that decision lives in reading.mjs
+// where a test can reach it. A second near-identical `measurePanel` would be
+// the divergent pattern the constitution's Principle I forbids, and it would
+// drift the moment either of them gained a fix.
+function measureTarget(target, viewport) {
   ab(['set', 'viewport', String(viewport.w), String(viewport.h)]);
   ab(['open', `${BASE}${target.route}`]);
   ab(['wait', '--load', 'networkidle']);
@@ -347,10 +395,17 @@ function measureModal(target, viewport) {
   // error and is recorded as one; it is never a reading whose width is zero,
   // which would read as "it fits" — the strongest false green this instrument
   // could emit (PR8).
-  if (!reading.wrapper) {
-    throw new Error(`no modal is open — ${target.id} did not reach the screen`);
-  }
-  // Where the browser was standing. A modal reading is taken on a route without
+  //
+  // The facts are gathered here because only the driver can see a page; the
+  // verdict is `arrival`'s because only reading.mjs can be tested. A panel's
+  // selector is asked for only when a panel is what is being measured — a modal
+  // has no selector to ask about.
+  const { arrived, reason } = arrival(target, {
+    modalOpen: !!reading.wrapper,
+    selectorLaidOut: (target.kind || 'modal') === 'panel' ? laidOut(target.arrived) : null,
+  });
+  if (!arrived) throw new Error(reason);
+  // Where the browser was standing. A target reading is taken on a route without
   // being a reading of it, and completeness() has to know which.
   return { ...reading, openedAt: target.route };
 }
@@ -440,6 +495,7 @@ for (const viewport of VIEWPORTS) {
       'primary action'
   );
   for (const route of ROUTES) {
+    if (gapped.has(`${route}@${viewportKey(viewport)}`)) continue;
     let r;
     try {
       r = measure(route, viewport);
@@ -464,17 +520,22 @@ for (const viewport of VIEWPORTS) {
     );
   }
 
-  // The modal axis, at the same width, straight after the routes. A target that
+  // The target axis, at the same width, straight after the routes. A target that
   // does not open lands in `errors` exactly as an unreachable route does — the
   // one thing it must never do is land in `results` carrying a zero.
-  for (const target of MODALS) {
+  for (const target of TARGETS) {
     // Not every surface is reachable at every width, and a target says so. See
     // `compose-existing` in reading.mjs for the measurement behind its list.
-    if (target.widths && !target.widths.includes(viewport.w)) continue;
-    const key = modalKey(target.id);
+    // One rule, shared with completeness(), so the two cannot disagree.
+    if (!reachableWidths(target, [viewportKey(viewport)]).length) continue;
+    const key = targetKey(target);
+    // A surface the survey already declared unreachable here is not attempted:
+    // it is a gap with a reason, and attempting it would fill `errors` with
+    // something that was never going to work.
+    if (gapped.has(key) || gapped.has(`${key}@${viewportKey(viewport)}`)) continue;
     let r;
     try {
-      r = measureModal(target, viewport);
+      r = measureTarget(target, viewport);
     } catch (err) {
       const message = err.message.split('\n')[0];
       errors.push({ route: key, viewport: viewportKey(viewport), message });
@@ -492,9 +553,13 @@ for (const viewport of VIEWPORTS) {
         pad(`${r.touch.under44}/${r.touch.total}`, 11) +
         // The whole reason this axis exists, so it is printed rather than left
         // for the results file: how wide the surface is, against the frame it
-        // opened in.
-        `${r.wrapper.w}px in ${viewport.w}` +
-        (r.wrapper.w > viewport.w ? `  OVER BY ${r.wrapper.w - viewport.w}` : '')
+        // opened in. A panel has no wrapper of its own — it is laid out inside
+        // the page, not over it — so the column reads as the page's, which is
+        // the honest answer rather than a zero that would read as "it fits".
+        (r.wrapper
+          ? `${r.wrapper.w}px in ${viewport.w}` +
+            (r.wrapper.w > viewport.w ? `  OVER BY ${r.wrapper.w - viewport.w}` : '')
+          : `in page at ${viewport.w}`)
     );
   }
   console.log('');
@@ -557,10 +622,26 @@ const run = {
     capturedAt: new Date().toISOString(),
     routes: ROUTES,
     viewports: VIEWPORTS.map(viewportKey),
-    modals: MODALS.length ? MODALS.map((m) => m.id) : null,
+    // Modal ids only, because that is what this field has always meant. A
+    // survey's targets — panels included — are carried by the declaration
+    // below, which is where a survey is judged from.
+    modals: (() => {
+      const ids = TARGETS.filter((t) => (t.kind || 'modal') === 'modal').map((t) => t.id);
+      return ids.length ? ids : null;
+    })(),
     pointer: POINTER,
     precondition,
     postcondition,
+    // What this run set out to cover, when that is not the canonical seven. The
+    // targets are reduced to what completeness() judges against — an id and the
+    // widths it owes — rather than carrying the click steps into the record.
+    survey: SURVEY
+      ? {
+          routes: SURVEY.routes,
+          targets: TARGETS.map(({ id, kind, widths }) => ({ id, kind: kind || 'modal', widths })),
+          gaps: SURVEY_GAPS,
+        }
+      : null,
   }),
   readings: results,
   errors,
@@ -574,9 +655,32 @@ console.log(`captured    ${run.provenance.capturedAt}`);
 console.log(`routes      ${run.provenance.routes.join(' ')}`);
 console.log(`widths      ${run.provenance.viewports.join(' ')}`);
 console.log(`modals      ${run.provenance.modals?.join(' ') || 'none opened'}`);
+if (run.provenance.survey) {
+  const { routes, targets, gaps } = run.provenance.survey;
+  console.log(`survey      ${routes.length} routes declared, ${targets.length} targets, ${gaps.length} gaps`);
+  console.log(`            never baseline-eligible — judged against its own declaration`);
+  // Printed rather than left in the file, because a gap nobody reads is the
+  // silence this whole axis exists to replace.
+  for (const g of gaps) console.log(`  gap       ${g.surface} — ${g.reason || 'NO REASON GIVEN'}`);
+}
 console.log(`pointer     ${run.provenance.pointer}`);
 console.log(`precondition ${run.provenance.precondition.verdict}`);
 console.log(`closing check ${run.provenance.postcondition.verdict}`);
+
+// Every run is judged, not just one being captured or compared. Until 020 this
+// was only evaluated on the --capture-baseline and --compare paths, so an
+// ordinary run could finish looking clean while `completeness()` would have
+// refused it — and the first survey run hit exactly that: /billing/lifetime
+// answered with a reading of /billing (lifetime.deal.tsx:74 does
+// `router.replace('/billing')` for a paid account), twelve readings said
+// `clipped 0` and nothing said the route had never been reached.
+//
+// A finding still never fails the run. This prints a verdict; it does not
+// change the exit code, because whether a run is complete is a property of the
+// record and not a reason to throw away what was measured.
+const verdict = completeness(run);
+console.log(`\ncompleteness  ${verdict.complete ? 'complete' : 'INCOMPLETE'}`);
+if (!verdict.complete) console.log(`              ${verdict.reason}`);
 
 writeFileSync(join(HERE, 'probe-results.json'), JSON.stringify(run, null, 2));
 console.log(`\nwrote tools/responsive-probe/probe-results.json  (account: ${ACCOUNT})`);
