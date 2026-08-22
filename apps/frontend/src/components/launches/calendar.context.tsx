@@ -8,16 +8,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
 import dayjs from 'dayjs';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import {
-  useMediaQuery,
-  PHONE_QUERY,
-} from '@gitroom/react/helpers/use.media.query';
+import { PHONE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { Post, Integration, Tags } from '@prisma/client';
 import { useSearchParams } from 'next/navigation';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -29,6 +27,11 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { expandPostsList, expandPosts } from '@gitroom/helpers/utils/posts.list.minify';
 extend(isoWeek);
 extend(weekOfYear);
+
+// useLayoutEffect warns when it runs during a server render, and on the server
+// there is no paint to be early for, so fall back to useEffect there.
+const useBeforePaintEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export type ListStateFilter = 'all' | 'scheduled' | 'draft' | 'published';
 
@@ -58,7 +61,7 @@ export const CalendarContext = createContext({
   reloadCalendarView: () => {
     /** empty **/
   },
-  display: 'week',
+  display: 'week' as string | undefined,
   setFilters: (filters: {
     startDate: string;
     endDate: string;
@@ -180,9 +183,31 @@ export const CalendarWeekProvider: FC<{
   // Phone can't fit the 7-column week/month grids: show the agenda (list) view
   // there instead. Derived per-render (never stored), so the user's saved grid
   // preference is untouched and returns automatically on desktop.
-  const isPhone = useMediaQuery(PHONE_QUERY);
+  //
+  // `undefined` is a third state: the width has not been answered yet. It is
+  // here because this site picks the SWR key as well as the component, so a
+  // first render that guessed "not a phone" both painted the grid and spent the
+  // request a phone never uses. While the answer is undefined neither
+  // arrangement renders and neither key is fetched.
+  //
+  // Read before paint rather than through useMediaQuery, which reads in a
+  // passive effect: passive effects run *after* the browser paints, so the
+  // guess would still be the frame a person sees. This is the one call site
+  // that needs the answer earlier than that — the other five read it after a
+  // paint that does not depend on it, and the hook is right for them.
+  // PHONE_QUERY stays the single source of the width.
+  const [isPhone, setIsPhone] = useState<boolean | undefined>(undefined);
+  useBeforePaintEffect(() => {
+    const mql = window.matchMedia(PHONE_QUERY);
+    const onChange = () => setIsPhone(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const effectiveDisplay =
-    isPhone && (filters.display === 'week' || filters.display === 'month')
+    isPhone === undefined
+      ? undefined
+      : isPhone && (filters.display === 'week' || filters.display === 'month')
       ? 'list'
       : filters.display;
 
@@ -229,7 +254,7 @@ export const CalendarWeekProvider: FC<{
     isLoading: calendarIsLoading,
     mutate: mutateCalendar,
   } = useSWR(
-    effectiveDisplay !== 'list' ? `/posts-${params}` : null,
+    effectiveDisplay && effectiveDisplay !== 'list' ? `/posts-${params}` : null,
     loadData,
     {
       refreshInterval: 3600000,
@@ -346,7 +371,8 @@ export const CalendarWeekProvider: FC<{
 
   // Determine loading state based on current view
   const loading =
-    effectiveDisplay === 'list' ? listIsLoading : calendarIsLoading;
+    !effectiveDisplay ||
+    (effectiveDisplay === 'list' ? listIsLoading : calendarIsLoading);
 
   return (
     <CalendarContext.Provider

@@ -573,6 +573,13 @@ export const ListView = () => {
 
 export const Calendar = () => {
   const { display } = useCalendar();
+  // Until the width has been answered the arrangement is not known, and drawing
+  // a guess is the defect this gate exists for. The answer lands in a layout
+  // effect, before the browser paints, so this state is never a frame anyone
+  // sees — see the note at calendar.context.tsx's effectiveDisplay.
+  if (!display) {
+    return null;
+  }
   return (
     <>
       {display === 'list' ? (

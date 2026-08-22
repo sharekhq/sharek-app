@@ -316,10 +316,8 @@ function readPage() {
   // nothing as no modal at all, and silently reverse the collision rule on
   // exactly the readings that look cleanest.
   const modalOpen = !!reading.wrapper;
-  const { distinctUnder44, undersized, wrappers, wrapperSignatures } = reportableUndersized(
-    undersizedCandidates,
-    { modalOpen }
-  );
+  const { distinctUnder44, undersized, wrappers, wrapperSignatures, inlineExempt, inlineSignatures } =
+    reportableUndersized(undersizedCandidates, { modalOpen });
   return {
     ...reading,
     ...reportableClipped(clippedCandidates, { modalOpen }),
@@ -328,10 +326,13 @@ function readPage() {
     // the same count — how many candidates the wrapper rule moved out of it —
     // and `wrapperSignatures` beside `undersized` for the same reason the
     // detail lists already sit there: a count nobody can inspect is a count
-    // nobody can check.
-    touch: { ...reading.touch, distinctUnder44, wrappers },
+    // nobody can check. `inlineExempt` and `inlineSignatures` are the second
+    // such pair, on the same terms: a link inside a sentence leaves the floor
+    // count and has to stay findable, or the exemption is a silencing.
+    touch: { ...reading.touch, distinctUnder44, wrappers, inlineExempt },
     undersized,
     wrapperSignatures,
+    inlineSignatures,
   };
 }
 

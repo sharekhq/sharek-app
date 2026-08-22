@@ -150,7 +150,9 @@ export const ThirdPartyComponent = () => {
                   data?.map((p: any) => (
                     <div
                       key={p.id}
-                      className={clsx('flex gap-[8px] items-center hover:bg-boxHover')}
+                      className={clsx(
+                        'flex gap-[8px] items-center hover:bg-boxHover coarse:min-h-[44px]'
+                      )}
                     >
                       <div
                         className={clsx(

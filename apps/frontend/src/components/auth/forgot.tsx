@@ -40,7 +40,7 @@ export function Forgot() {
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <div>
-            <h1 className="text-3xl font-bold text-start mb-4 cursor-pointer">
+            <h1 className="text-3xl font-bold text-start mb-4">
               {t('forgot_password_1', 'Forgot Password')}
             </h1>
           </div>
