@@ -55,7 +55,14 @@ export const ThirdPartyMenuComponent: FC<{
   };
 
   return (
-    <div className="cursor-pointer relative select-none" onClick={changeShow}>
+    // The row this sits in is a plain div — no handler, no role, not a target —
+    // so the coarse floor belongs here, on the 24x24 trigger that is one. Same
+    // shape as calendar.tsx:1121: grow and centre under coarse: only, so the
+    // mouse target stays 24.
+    <div
+      className="cursor-pointer relative select-none coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center"
+      onClick={changeShow}
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="24"
@@ -150,9 +157,7 @@ export const ThirdPartyComponent = () => {
                   data?.map((p: any) => (
                     <div
                       key={p.id}
-                      className={clsx(
-                        'flex gap-[8px] items-center hover:bg-boxHover coarse:min-h-[44px]'
-                      )}
+                      className={clsx('flex gap-[8px] items-center hover:bg-boxHover')}
                     >
                       <div
                         className={clsx(
