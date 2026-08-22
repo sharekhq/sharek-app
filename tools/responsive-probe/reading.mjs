@@ -322,6 +322,31 @@ const CLIP_CAP = 6;
 // to fix, however often the page repeats them.
 const clipSignature = (c) => c.tag + c.cls;
 
+// Two ways a box can cross the edge of its clipper without anything being lost.
+// Both follow `wrapperSignatures`' precedent — relocated into a named bucket,
+// never dropped — and both treat a candidate that predates them as *not*
+// exempt, so every retained reading keeps meaning what it meant.
+//
+// The value is truncated inside a field whose whole job is to truncate. The
+// question is about the clipper and never about the candidate's own styles: a
+// `truncate`d element cut off by a layout row is losing content, and reading
+// its classes instead would excuse the squeeze. `panel:settings-developers@390`
+// reported `span.blur-sm.select-none` losing 257px of the API key, and that
+// figure — "two thirds of the screen" — is what rated finding 63 P1, while
+// `sidewaysScrollPx: 0` in the same reading says nothing left the document.
+const truncatedByField = (c) => c.clipperIsField === true;
+
+// The overhang is paid for by a negative margin between the box and its
+// clipper. `/modal/dark/all` reports two boxes at every width losing exactly
+// the compensation in force there — 12 under `mobile:`, 40 above it — for a
+// frame that is deliberately larger than its parent so that compose's own
+// padding is cancelled.
+//
+// Narrow on purpose, and the comparison is what makes it narrow: a control with
+// `-ms-[6px]` losing 300px has lost 300px and still reports all of it. Only an
+// overhang wholly inside the compensation is excused.
+const paidForByMargin = (c) => c.compensatedPx > 0 && c.lostPx <= c.compensatedPx;
+
 // Sorted before it is deduped, so the deepest instance of a repeated signature
 // survives. Keeping whichever came first in document order reported 10px on a
 // page where the same signature was cut by 300 — the mistake `reportableCollisions`
@@ -341,6 +366,8 @@ const clipSignature = (c) => c.tag + c.cls;
 const decideClipped = (candidates) => {
   const seen = new Set();
   const clipped = [];
+  const fieldTruncated = [];
+  const compensated = [];
   for (const c of [...candidates].sort((x, y) => y.lostPx - x.lostPx)) {
     if (c.lostPx <= CLIP_FLOOR_PX) continue;
     const key = clipSignature(c);
@@ -348,13 +375,20 @@ const decideClipped = (candidates) => {
     seen.add(key);
     // Which side of the modal boundary the box fell on decided which figure it
     // counts toward; it is not part of the finding.
-    clipped.push({ lostPx: c.lostPx, w: c.w, tag: c.tag, cls: c.cls });
+    const entry = { lostPx: c.lostPx, w: c.w, tag: c.tag, cls: c.cls };
+    // One `seen` across all three buckets, so a signature is classified once
+    // and by its deepest instance — the same worst-wins rule the sort above
+    // already exists for. A relocated finding keeps the figure it was measured
+    // at rather than the shallowest one that happened to share its signature.
+    if (truncatedByField(c)) fieldTruncated.push(entry);
+    else if (paidForByMargin(c)) compensated.push(entry);
+    else clipped.push(entry);
   }
-  return clipped;
+  return { clipped, fieldTruncated, compensated };
 };
 
 export function reportableClipped(candidates, { modalOpen } = { modalOpen: false }) {
-  const clipped = decideClipped(candidates);
+  const { clipped, fieldTruncated, compensated } = decideClipped(candidates);
 
   return {
     // The count is what survived the rules, not what fitted in the report — the
@@ -364,6 +398,16 @@ export function reportableClipped(candidates, { modalOpen } = { modalOpen: false
     clippedCount: clipped.length,
     worstCutPx: clipped.length ? clipped[0].lostPx : 0,
     clipped: clipped.slice(0, CLIP_CAP),
+    // The two relocated buckets, kept to the same count/detail split as the
+    // reported one and present even when empty — "measured none" and "not
+    // measured" are different answers, and every other field here keeps them
+    // apart. FR-008: a candidate that left `clippedCount` must be findable in
+    // one of these, and one that vanished from all three is a defect in the
+    // rule rather than a fix.
+    fieldTruncated: fieldTruncated.length,
+    fieldTruncatedSignatures: fieldTruncated.slice(0, CLIP_CAP),
+    marginCompensated: compensated.length,
+    marginCompensatedSignatures: compensated.slice(0, CLIP_CAP),
     // How much of the clipping is the modal's own. Present only on a modal
     // reading, and absent — not zero — otherwise, so a route reading keeps the
     // exact field set it had before this axis existed and a comparison against
@@ -400,7 +444,9 @@ export function reportableClipped(candidates, { modalOpen } = { modalOpen: false
     // subset of all candidates, so the inside signature set is a subset of the
     // document-wide one. The independent dedupe is still the right rule, for
     // the reason above; it just does not buy what R4 says it buys.
-    ...(modalOpen ? { clippedInside: decideClipped(candidates.filter((c) => c.inModal)).length } : {}),
+    ...(modalOpen
+      ? { clippedInside: decideClipped(candidates.filter((c) => c.inModal)).clipped.length }
+      : {}),
   };
 }
 
@@ -432,9 +478,63 @@ export function reportableClipped(candidates, { modalOpen } = { modalOpen: false
 const COLLISION_FLOOR_PX = 8;
 const COLLISION_CAP = 6;
 
+// Tag plus class, and — only where there is no class — the participant's own
+// text. Two boxes rendering from the same element and the same classes are one
+// thing to fix; two unclassed boxes are two different things, and without the
+// text there is nothing at all to tell them apart.
+//
+// `modal:compose-existing@1440` is the case: the date control overlaps a `121`
+// preview counter by 25px and a `32` counter by 17px, both participants
+// classless, so both pairs sign as `div | div` and the smaller is dropped as a
+// repeat of the larger. Every retained reading back to `post-018-fine-final`
+// carries the same understatement.
+//
+// The scoping to unclassed participants is the whole rule rather than a
+// shortcut. A signature that always included the text would report the
+// calendar's day headers seven times — they carry a class and their text is a
+// different weekday in every cell — and one finding repeated across a repeating
+// layout is one finding. Falling back to '' keeps a candidate from before this
+// rule signing exactly as it used to.
+const participantSignature = (p) => p.tag + (p.cls || p.text || '');
+
 // A pair is unordered, so its signature is too — the same two participants the
 // other way round is the same finding, not a second one.
-const pairSignature = (c) => [c.a.tag + c.a.cls, c.b.tag + c.b.cls].sort().join(' | ');
+const pairSignature = (c) => [participantSignature(c.a), participantSignature(c.b)].sort().join(' | ');
+
+// Rule 1 — what the two participants share on screen, rather than what their
+// union boxes share.
+//
+// `overlapPx` is measured in the page from `getBoundingClientRect()`, which for
+// an element that wraps is the union of its line boxes: a rectangle it does not
+// occupy, spanning every inline sibling on both lines. `/auth@390` reported an
+// 89px overlap between Terms of Service and Privacy Policy on that arithmetic —
+// two links in one sentence with the second wrapped — and that reading is what
+// rated finding 64 P1. They do not overlap on screen at any width.
+//
+// A union-box intersection is a strict superset of a line-box intersection, so
+// the page's sweep still finds every true pair; this only asks which of the
+// lines actually meet, on both axes rather than on x alone. An element with one
+// line box gives one rectangle equal to its own box, so a single-line pair is
+// arithmetically unchanged — which is what leaves `modal:compose-existing@1024`
+// reporting its 84px and every non-inline finding this instrument has made
+// exactly where it was.
+//
+// Both sides or neither. A candidate carrying fragments for only one
+// participant — or for none, which is every retained reading — keeps the figure
+// it was measured with: the other side's position is not in the payload, so
+// there is nothing to intersect against, and the safe direction is the one that
+// does not silently drop a finding.
+const observedOverlap = (c) => {
+  if (!Array.isArray(c.aRects) || !Array.isArray(c.bRects)) return c.overlapPx;
+  let worst = 0;
+  for (const a of c.aRects) {
+    for (const b of c.bRects) {
+      if (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) <= 0) continue;
+      worst = Math.max(worst, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+    }
+  }
+  return Math.round(worst);
+};
 
 export function reportableCollisions(candidates, { modalOpen } = { modalOpen: false }) {
   const seen = new Set();
@@ -460,18 +560,25 @@ export function reportableCollisions(candidates, { modalOpen } = { modalOpen: fa
   // aInModal/bInModal is never dropped for lacking them.
   const judged = modalOpen ? candidates.filter((c) => c.aInModal && c.bInModal) : candidates;
 
+  // Computed once per candidate and then used for the sort, the floor and the
+  // reported figure alike — three places that must agree about how big an
+  // overlap is, and would not if two of them read the union box.
+  const observed = new Map(judged.map((c) => [c, observedOverlap(c)]));
+
   // Sorted before it is deduped, so the worst instance of a repeated signature
   // survives. The seven day-header pairs on the calendar share one signature;
   // keeping whichever came first in document order would report a smaller
   // overlap than the one that was measured.
-  for (const c of [...judged].sort((x, y) => y.overlapPx - x.overlapPx)) {
+  for (const c of [...judged].sort((x, y) => observed.get(y) - observed.get(x))) {
     if (!c.aFlow || !c.bFlow) continue;
-    if (c.overlapPx <= COLLISION_FLOOR_PX) continue;
+    const overlapPx = observed.get(c);
+    if (overlapPx <= COLLISION_FLOOR_PX) continue;
     const key = pairSignature(c);
     if (seen.has(key)) continue;
     seen.add(key);
-    // The flow flags decided the finding; they are not part of it.
-    collisions.push({ overlapPx: c.overlapPx, a: c.a, b: c.b });
+    // The flow flags and the line boxes decided the finding; they are not part
+    // of it.
+    collisions.push({ overlapPx, a: c.a, b: c.b });
   }
 
   return {
@@ -541,6 +648,30 @@ const decorative = (c) =>
   c.enclosing.w >= TOUCH_FLOOR_PX &&
   c.enclosing.h >= TOUCH_FLOOR_PX;
 
+// A link inside a sentence. WCAG 2.5.5 — the criterion this scan cites — states
+// the exception by name: a target "in a sentence or block of text" is exempt,
+// because a link in running prose cannot be padded to 44px without breaking the
+// line it sits in. Counting it produces a finding with no remedy, and five of
+// the six items that rated finding 64 P1 are exactly that.
+//
+// Both clauses carry their own weight:
+//
+//   being a link is what the exception is for. `/support`'s 124x42 category
+//   chip is a <button> and is a finding; the `h1 326x36` with a cursor and no
+//   handler is finding 64's real defect. Neither is exempt however its parent
+//   renders, and a rule that read "inline" off the geometry would take both.
+//
+//   `inlineInText === true` is strict, so a candidate from before probe.js sent
+//   the fact carries `undefined` and stays reported — the safe direction, and
+//   the same strictness `decorative` keeps for `semantic === false`.
+//
+// The fact itself is structural and observed in the page: the element is
+// inline-level and its parent renders text of its own around it. `/p/[id]`'s
+// logo link is a link and fails both halves — `page.tsx:54` gives it
+// `flex items-center justify-center` and nothing renders text beside it — so it
+// is still counted, which is finding 62.
+const inlineInText = (c) => c.tag === 'a' && c.inlineInText === true;
+
 export function reportableUndersized(candidates, { modalOpen } = { modalOpen: false }) {
   const seen = new Map();
   // Reclassified, never dropped. `019` declined to fix the wrapper defect
@@ -549,6 +680,9 @@ export function reportableUndersized(candidates, { modalOpen } = { modalOpen: fa
   // a named, inspectable bucket cannot silence it, and that is what makes the
   // control-for-control comparison this feature owes possible at all.
   const wrapperSeen = new Map();
+  // The second bucket, on the same terms as the first. A link exempted here is
+  // findable here; a candidate that vanished from both is a defect in the rule.
+  const inlineSeen = new Map();
 
   // Ranked on the dimension that misses the floor, not on area: the calendar's
   // hour cell is 21×68 at 820, so it fails on width while being nearly three
@@ -579,7 +713,10 @@ export function reportableUndersized(candidates, { modalOpen } = { modalOpen: fa
     if (modalOpen && !c.inModal) continue;
     if (c.w >= TOUCH_FLOOR_PX && c.h >= TOUCH_FLOOR_PX) continue;
     const key = targetSignature(c);
-    const bucket = decorative(c) ? wrapperSeen : seen;
+    // Exclusive by construction — `decorative` requires `semantic === false`
+    // and a link is semantic — but written as one choice so a candidate can
+    // never be counted twice, which is the arithmetic FR-008 rests on.
+    const bucket = inlineInText(c) ? inlineSeen : decorative(c) ? wrapperSeen : seen;
     const kept = bucket.get(key);
     // Every instance is counted even though only the first is kept: "one
     // finding, 150 of them" is a different remediation from "one finding,
@@ -593,6 +730,7 @@ export function reportableUndersized(candidates, { modalOpen } = { modalOpen: fa
 
   const undersized = [...seen.values()];
   const wrapperSignatures = [...wrapperSeen.values()];
+  const inlineSignatures = [...inlineSeen.values()];
   return {
     // Survivors, not what fitted in the report — same split as the two counts
     // above. A count that quietly capped at six would read identically on a
@@ -605,6 +743,11 @@ export function reportableUndersized(candidates, { modalOpen } = { modalOpen: fa
     // rather than a fix.
     wrappers: wrapperSignatures.length,
     wrapperSignatures: wrapperSignatures.slice(0, UNDERSIZED_CAP),
+    // The links in running text, to the same split and for the same reason.
+    // Present even when empty: "measured none" and "not measured" are different
+    // answers, and this whole report keeps them apart.
+    inlineExempt: inlineSignatures.length,
+    inlineSignatures: inlineSignatures.slice(0, UNDERSIZED_CAP),
   };
 }
 

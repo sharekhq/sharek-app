@@ -1149,6 +1149,244 @@ test('a dropped cross-boundary pair cannot suppress a real one sharing its signa
   assert.equal(collisions[0].overlapPx, 31);
 });
 
+
+// ---------------------------------------------------------------------------
+// Rule 1 — pair by line fragment, not by union box (021 FR-001)
+// ---------------------------------------------------------------------------
+
+// `getBoundingClientRect()` on an inline element that wraps returns the union
+// of its line fragments — a rectangle the element does not occupy. An <a> whose
+// text starts mid-line and finishes on the next measures the full content width
+// by two line-heights, and that phantom box covers every inline sibling on both
+// lines.
+//
+// Measured at `/auth@390` in both pointer modes: `a.underline.hover:font-bold`
+// 89x15 against the same class at 320x33, `overlapPx: 89`. They are
+// `register.tsx:207` and `:216` — Terms of Service and Privacy Policy, two
+// links in one sentence with the second wrapped — and they do not overlap on
+// screen at any width. **That reading is what rated finding 64 P1.**
+//
+// The squeeze/design test cannot catch it: the pair does stop overlapping when
+// the viewport widens, because the wrap stops.
+//
+// probe.js keeps the sweep it has — a union-box intersection is a strict
+// superset of a fragment intersection, so no true pair is lost by finding
+// candidates that way — and now sends each participant's visible line fragments
+// alongside. Which fragments actually meet is arithmetic over that geometry,
+// and it is decided here where a test can reach it. The fragments are candidate
+// data like `aFlow` and `bFlow`: they decide the finding without being part of
+// it, so no reading grows a rect array.
+const rect = (left, top, right, bottom) => ({ left, top, right, bottom });
+
+test('two fragments of a wrapped link do not collide with a sibling on one line', () => {
+  // /auth@390. The wrapped link occupies the tail of line one and the head of
+  // line two; the sibling sits at the head of line one. The union box spans
+  // both, so it covers the sibling — but neither fragment does.
+  const { collisionCount, worstOverlapPx, collisions } = reportableCollisions([
+    candidate(89, {
+      a: { tag: 'a', cls: 'underline hover:font-bold', w: 89, h: 15, text: 'Terms of Service' },
+      b: { tag: 'a', cls: 'underline hover:font-bold', w: 320, h: 33, text: 'Privacy Policy' },
+      aRects: [rect(20, 100, 109, 115)],
+      bRects: [rect(150, 100, 320, 115), rect(0, 118, 60, 133)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 0);
+  assert.equal(worstOverlapPx, 0);
+  assert.deepEqual(collisions, []);
+});
+
+test('a fragment that only meets the other on a line it is not on is not a collision', () => {
+  // The `Must not` the contract states outright: report a pair whose only
+  // intersection is with a fragment the participant does not occupy. Here the
+  // horizontal spans do overlap — 40px of them — but on different lines.
+  const { collisionCount } = reportableCollisions([
+    candidate(40, {
+      aRects: [rect(20, 100, 109, 115)],
+      bRects: [rect(0, 118, 60, 133)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 0);
+});
+
+test('a single-line participant is measured exactly as it is today', () => {
+  // The contract's second `Must`: one fragment is the bounding rect, so the
+  // arithmetic is unchanged. This is `modal:compose-existing@1024` fine —
+  // `div 84x20` and `div 119x21`, both single-line, `overlapPx: 84` — and it is
+  // Rule 1's counter-case as well as its no-op case.
+  const { collisionCount, worstOverlapPx } = reportableCollisions([
+    candidate(84, {
+      a: { tag: 'div', cls: '', w: 84, h: 20, text: 'Preview' },
+      b: { tag: 'div', cls: '', w: 119, h: 21, text: '08/19/2026 02:10 PM' },
+      aRects: [rect(300, 200, 384, 220)],
+      bRects: [rect(300, 200, 419, 221)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 84);
+});
+
+test('the worst fragment pair is the overlap reported, not the first', () => {
+  // Two fragments of one participant can both meet the other. The finding is
+  // the worst of them, the same rule the dedupe applies one level up.
+  const { worstOverlapPx } = reportableCollisions([
+    candidate(200, {
+      aRects: [rect(0, 100, 200, 115), rect(0, 118, 200, 133)],
+      bRects: [rect(180, 100, 400, 115), rect(150, 118, 400, 133)],
+    }),
+  ]);
+
+  assert.equal(worstOverlapPx, 50);
+});
+
+test('a repeated day-label overlap still reports, and still once', () => {
+  // The calendar's day headers, children of two different grid cells — the
+  // finding this whole scan was built to catch, and the reason the pairing is
+  // cousins rather than siblings. Every fragment is single-line, so Rule 1 is
+  // silent on it, and the dedupe still collapses the week into one entry.
+  const week = Array.from({ length: 7 }, (_, i) =>
+    candidate(30 + i, {
+      a: { tag: 'div', cls: 'text-[12px] font-[600] truncate', w: 44, h: 16, text: `Day ${i}` },
+      b: { tag: 'div', cls: 'text-[12px] font-[600] truncate', w: 44, h: 16, text: `Day ${i + 1}` },
+      // Each cell overlaps its neighbour a little harder than the last, so the
+      // worst-instance rule has something to pick.
+      aRects: [rect(i * 40, 60, i * 40 + 44, 76)],
+      bRects: [rect(i * 40 + 14 - i, 60, i * 40 + 58, 76)],
+    })
+  );
+  const { collisionCount, worstOverlapPx } = reportableCollisions(week);
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 36, 'the worst of the seven, measured on the lines they occupy');
+});
+
+test('a pair from before this rule is judged on its union overlap, unchanged', () => {
+  // The safe direction. A candidate carrying no fragments — every retained
+  // reading, and any run against an older probe — keeps the figure it was
+  // measured with rather than silently reading as no collision at all.
+  assert.equal(reportableCollisions([candidate(89)]).collisionCount, 1);
+  assert.equal(reportableCollisions([candidate(89)]).worstOverlapPx, 89);
+});
+
+test('fragments on one side only still judge on the other side union box', () => {
+  // A wrapped participant beside one the scan sent no fragments for. The
+  // missing side is its own box, which is what a single-fragment element's
+  // rects would have said anyway.
+  const { collisionCount } = reportableCollisions([
+    candidate(89, { aRects: [rect(150, 100, 320, 115), rect(0, 118, 60, 133)] }),
+  ]);
+
+  assert.equal(collisionCount, 1, 'not silently dropped for a half-filled fact');
+});
+
+// ---------------------------------------------------------------------------
+// Rule 4 — two different pairs are two entries (021 FR-004)
+// ---------------------------------------------------------------------------
+
+// `pairSignature` is `[a.tag + a.cls, b.tag + b.cls]`. When both participants
+// carry no class attribute every such pair signs as `div | div`, and all but
+// the worst are dropped as repeats.
+//
+// Measured at `modal:compose-existing@1440`: the report says
+// `collisionCount: 1, worstOverlapPx: 25`. A hand-walk of probe.js's rules
+// finds two — the date control over a `121` preview counter at 25px, and the
+// same control over a `32` counter at 17px. Every retained reading back to
+// `post-018-fine-final` carries the same understatement.
+//
+// The separator is the own-text excerpt, and it is used **only where the class
+// is empty**. That scoping is the whole rule: it is what the finding asked for
+// — "give the signature something to separate unclassed participants by" — and
+// it is what keeps the calendar collapsing. Seven day-header pairs carry a
+// class and differing text; a signature that always included text would report
+// them seven times, which the contract forbids by name.
+const counter = (text, w) => ({ tag: 'div', cls: '', w, h: 21, text });
+const dateControl = { tag: 'div', cls: '', w: 155, h: 23, text: '08/19/2026 02:10 PM' };
+
+test('one control over two different counters is two findings', () => {
+  const { collisionCount, worstOverlapPx, collisions } = reportableCollisions([
+    candidate(25, { a: dateControl, b: counter('121', 25) }),
+    candidate(17, { a: dateControl, b: counter('32', 17) }),
+  ]);
+
+  assert.equal(collisionCount, 2);
+  // The count moves and the worst figure does not: the second pair is the
+  // smaller one, so `worstOverlapPx` is unchanged at 25. A movement in both
+  // would mean the rule had done something else as well.
+  assert.equal(worstOverlapPx, 25);
+  assert.deepEqual(
+    collisions.map((c) => c.overlapPx),
+    [25, 17]
+  );
+});
+
+test('the text excerpt separates only where the class is empty', () => {
+  // The scoping, stated as a test. Two classed pairs differing only in text are
+  // one finding — that is a repeating layout — while two unclassed pairs
+  // differing in text are two.
+  const classed = reportableCollisions([
+    candidate(30, { a: participant('day-label'), b: { ...participant('day-label'), text: 'Mon' } }),
+    candidate(24, { a: participant('day-label'), b: { ...participant('day-label'), text: 'Tue' } }),
+  ]);
+  assert.equal(classed.collisionCount, 1);
+
+  const unclassed = reportableCollisions([
+    candidate(30, { a: counter('121', 25), b: counter('date', 155) }),
+    candidate(24, { a: counter('32', 17), b: counter('date', 155) }),
+  ]);
+  assert.equal(unclassed.collisionCount, 2);
+});
+
+test('two pairs identical in tag, class and text are still one finding', () => {
+  const { collisionCount, worstOverlapPx } = reportableCollisions([
+    candidate(25, { a: dateControl, b: counter('121', 25) }),
+    candidate(17, { a: dateControl, b: counter('121', 25) }),
+  ]);
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 25, 'and the worst instance is the one kept');
+});
+
+test('a pair is still unordered once text is in the signature', () => {
+  // The property the signature has always had — the same two participants the
+  // other way round is the same finding — must survive the new separator.
+  const { collisionCount } = reportableCollisions([
+    candidate(25, { a: dateControl, b: counter('121', 25) }),
+    candidate(17, { a: counter('121', 25), b: dateControl }),
+  ]);
+
+  assert.equal(collisionCount, 1);
+});
+
+test('a pair from before this rule signs as it always did', () => {
+  // No `text` on either participant is every retained reading. Unclassed
+  // participants collapse exactly as they used to, which is the understatement
+  // this rule fixes going forward without rewriting what was measured.
+  const { collisionCount } = reportableCollisions([
+    candidate(25, { a: { tag: 'div', cls: '', w: 155, h: 23 }, b: { tag: 'div', cls: '', w: 25, h: 21 } }),
+    candidate(17, { a: { tag: 'div', cls: '', w: 155, h: 23 }, b: { tag: 'div', cls: '', w: 17, h: 21 } }),
+  ]);
+
+  assert.equal(collisionCount, 1);
+});
+
+test('the ordering and the cap are unchanged by the new signature', () => {
+  // Smallest-last, capped at six, with the count reporting survivors rather
+  // than what fitted — three properties this rule must not disturb while it
+  // stops the collapse that was hiding entries behind the cap.
+  const many = [12, 40, 9, 33, 21, 55, 17, 28].map((px, i) =>
+    candidate(px, { a: counter(`a-${i}`, 40), b: counter(`b-${i}`, 40) })
+  );
+  const { collisions, collisionCount, worstOverlapPx } = reportableCollisions(many);
+
+  assert.deepEqual(
+    collisions.map((c) => c.overlapPx),
+    [55, 40, 33, 28, 21, 17]
+  );
+  assert.equal(worstOverlapPx, 55);
+  assert.equal(collisionCount, 8);
+});
 // ---------------------------------------------------------------------------
 // Reportable clipping — FR-002, FR-003, FR-010, FR-011
 // ---------------------------------------------------------------------------
@@ -1168,17 +1406,27 @@ const clipCandidate = (lostPx, over = {}) => ({
   ...over,
 });
 
+// The two relocation buckets `021` added are part of this shape and are
+// asserted with it: a report that dropped them on an empty page would be
+// answering "not measured" where it means "measured none", which is the
+// distinction every other field here keeps.
+const NOTHING_CLIPPED = {
+  clippedCount: 0,
+  worstCutPx: 0,
+  clipped: [],
+  fieldTruncated: 0,
+  fieldTruncatedSignatures: [],
+  marginCompensated: 0,
+  marginCompensatedSignatures: [],
+};
+
 test('an empty candidate list reports zero clipping, not absent', () => {
-  assert.deepEqual(reportableClipped([], { modalOpen: false }), {
-    clippedCount: 0,
-    worstCutPx: 0,
-    clipped: [],
-  });
+  assert.deepEqual(reportableClipped([], { modalOpen: false }), NOTHING_CLIPPED);
 });
 
 test('a page whose every clip candidate is filtered out reads the same as one with none', () => {
   const filtered = reportableClipped([clipCandidate(3), clipCandidate(8)], { modalOpen: false });
-  assert.deepEqual(filtered, { clippedCount: 0, worstCutPx: 0, clipped: [] });
+  assert.deepEqual(filtered, NOTHING_CLIPPED);
 });
 
 test('a cut at or below 8px is not a finding', () => {
@@ -1292,7 +1540,15 @@ test('a route reading carries no inside figure at all — absent, not zero', () 
   // this axis existed, which is what lets a comparison against a pre-modal
   // baseline report the field as introduced rather than as a reading that moved.
   assert.equal('clippedInside' in decided, false);
-  assert.deepEqual(Object.keys(decided), ['clippedCount', 'worstCutPx', 'clipped']);
+  assert.deepEqual(Object.keys(decided), [
+    'clippedCount',
+    'worstCutPx',
+    'clipped',
+    'fieldTruncated',
+    'fieldTruncatedSignatures',
+    'marginCompensated',
+    'marginCompensatedSignatures',
+  ]);
 
   // And the same with no options at all, which is how every existing caller and
   // every test above still reaches this function.
@@ -1356,6 +1612,258 @@ test('the inside count never exceeds the document-wide count', () => {
   assert.ok(clippedInside <= clippedCount);
 });
 
+
+// ---------------------------------------------------------------------------
+// Rule 3 — clipped by a truncating field is not clipped content (021 FR-003)
+// ---------------------------------------------------------------------------
+
+// `clipper()` returns the nearest ancestor that hides overflow, which is the
+// right frame to measure loss against — until that ancestor is a field whose
+// whole job is to truncate. Then `lostPx` measures how long the string is, not
+// how much of it a person cannot reach.
+//
+// The case that made this a P1: `panel:settings-developers@390` reported
+// `span.blur-sm.select-none` 496px wide losing 257, and that figure — "two
+// thirds of the screen" — is what rated finding 63. The clipper is the API
+// key's own field, `public.component.tsx:598`'s `h-[44px] overflow-hidden`
+// around `:599`'s `code.truncate`, and `sidewaysScrollPx: 0` in the same
+// reading: nothing leaves the document.
+//
+// probe.js observes whether the clipper suppresses wrapping on a box one line
+// tall — a fact about the *clipper*, never about the candidate's own styles.
+const truncated = (over = {}) =>
+  clipCandidate(257, { w: 496, tag: 'span', cls: 'blur-sm select-none', clipperIsField: true, ...over });
+
+test('a value truncated inside its own single-line field is not clipped content', () => {
+  const { clippedCount, worstCutPx, clipped, fieldTruncated, fieldTruncatedSignatures } =
+    reportableClipped([truncated()], { modalOpen: false });
+
+  assert.equal(clippedCount, 0);
+  assert.equal(worstCutPx, 0);
+  assert.deepEqual(clipped, []);
+  // Relocated, never dropped — `wrapperSignatures`' precedent, and FR-008.
+  assert.equal(fieldTruncated, 1);
+  assert.deepEqual(fieldTruncatedSignatures, [
+    { lostPx: 257, w: 496, tag: 'span', cls: 'blur-sm select-none' },
+  ]);
+});
+
+test('the field exclusion is deduped by signature like every other bucket', () => {
+  const { fieldTruncated, fieldTruncatedSignatures } = reportableClipped(
+    [truncated({ lostPx: 120 }), truncated(), truncated({ lostPx: 40 })],
+    { modalOpen: false }
+  );
+
+  assert.equal(fieldTruncated, 1);
+  // The deepest instance represents the signature, exactly as it does in the
+  // reported bucket — a relocated finding keeps the figure it was measured at.
+  assert.equal(fieldTruncatedSignatures[0].lostPx, 257);
+});
+
+// The counter-cases. All three are real, all three are `panel:settings-*`
+// findings that this feature's own US3 exists to fix, and a rule that took any
+// of them would be hiding the work rather than measuring it.
+
+test('a pane squeezed by its layout row still reports', () => {
+  // panel:settings-developers@820 — the 117px content pane, and the finding US3
+  // actually closes. Its clipper is the layout row, not a field.
+  const { clippedCount, worstCutPx, fieldTruncated } = reportableClipped(
+    [
+      clipCandidate(117, {
+        w: 654,
+        tag: 'div',
+        cls: 'bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]',
+        clipperIsField: false,
+      }),
+    ],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 1);
+  assert.equal(worstCutPx, 117);
+  assert.equal(fieldTruncated, 0);
+});
+
+test('a button pushed off the panel still reports', () => {
+  // panel:settings-developers@390 — 91 of the button's 95 pixels gone. This is
+  // the finding the 257px reading buried, and the one US3's `flex-wrap` closes.
+  const { clippedCount, worstCutPx } = reportableClipped(
+    [
+      clipCandidate(91, {
+        w: 95,
+        tag: 'button',
+        cls: 'cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-co',
+        clipperIsField: false,
+      }),
+    ],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 1);
+  assert.equal(worstCutPx, 91);
+});
+
+test('019 settings bleed still reports', () => {
+  // The 28px bleed `019` fixed with `min-w-0`. Its clipper is a layout
+  // container, so the rule never reaches it.
+  assert.equal(
+    reportableClipped([clipCandidate(28, { clipperIsField: false })], { modalOpen: false })
+      .clippedCount,
+    1
+  );
+});
+
+test('the question is about the clipper, never the candidate own styles', () => {
+  // A `truncate`d element clipped by a *layout* container is losing content:
+  // the truncation is its own, the loss is the row's. Reading the candidate's
+  // classes instead of the clipper's box would exempt it and hide a real
+  // squeeze — which is why the fact probe.js sends is about the ancestor.
+  const { clippedCount } = reportableClipped(
+    [clipCandidate(117, { cls: 'truncate flex-1', clipperIsField: false })],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 1);
+});
+
+test('a clip candidate from before this rule is never exempted for lacking the fact', () => {
+  // `clipperIsField: undefined` is not true. The safe direction is to keep
+  // reporting, so every retained reading keeps meaning what it meant.
+  const { clippedCount, fieldTruncated } = reportableClipped([clipCandidate(257)], {
+    modalOpen: false,
+  });
+
+  assert.equal(clippedCount, 1);
+  assert.equal(fieldTruncated, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Rule 5 — an overhang its own negative margin pays for is not a clip
+// ---------------------------------------------------------------------------
+
+// Finding 65 defect 2, and the one defect `contracts/report-rules.md` does not
+// carry a rule for. It is in the spec all the same — acceptance scenario 2 and
+// the quickstart movement table both require `/modal/dark/all` to report
+// `clippedCount: 0` at all four widths — and the four contracted rules cannot
+// reach it: its clipper is `w-screen h-screen overflow-hidden`, which is a
+// layout container and not a field, so Rule 3 is silent on it. Written here as
+// the fifth rule, held to FR-005 and FR-006 like the other four.
+//
+// The compensation is deliberate and it is documented in the page it lives on:
+// `app/(extension)/modal/[style]/[platform]/page.tsx:13` is
+// `w-[calc(100vw+80px)] -m-[40px]`, dropping to `+24px` / `-12px` under
+// `mobile:`, so compose's own padding is cancelled and the modal fills the
+// frame. The box overhangs by exactly what its margin pulls back, at every
+// width — 40 where the margin is 40, 12 where it is 12.
+//
+// probe.js observes how much negative margin lies between the box and its
+// clipper; whether that pays for the overhang is decided here.
+const compensated = (over = {}) =>
+  clipCandidate(40, {
+    w: 1520,
+    cls: 'text-textColor h-[calc(100vh+80px)] w-[calc(100vw+80px)] -m-[40px] mobile:h-[calc(100vh+24',
+    compensatedPx: 40,
+    ...over,
+  });
+
+test('a box overhanging by exactly its own negative margin is not clipped content', () => {
+  const { clippedCount, worstCutPx, marginCompensated, marginCompensatedSignatures } =
+    reportableClipped([compensated()], { modalOpen: false });
+
+  assert.equal(clippedCount, 0);
+  assert.equal(worstCutPx, 0);
+  assert.equal(marginCompensated, 1);
+  assert.equal(marginCompensatedSignatures[0].lostPx, 40);
+});
+
+test('a child inheriting the overhang is compensated by the ancestor that pays for it', () => {
+  // The second of the two boxes `/modal/dark/all` reports. It carries no margin
+  // of its own — it is `w-full` inside the compensating parent — so a rule that
+  // asked only about the candidate's own margin would leave the surface at
+  // `clippedCount: 1` and the movement table's `2 → 0` unmet. The compensation
+  // is measured between the box and its clipper, which is where it acts.
+  const { clippedCount, marginCompensated } = reportableClipped(
+    [
+      compensated(),
+      compensated({ cls: 'w-full h-full flex-1 p-[40px] mobile:p-[12px] flex relative' }),
+    ],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 0);
+  assert.equal(marginCompensated, 2);
+});
+
+test('the same surface at phone width, where the compensation is 12 and not 40', () => {
+  // `mobile:` is `(max-width: 1025px)`, so 390, 820 and 1024 all read 12 and
+  // only 1440 reads 40. The rule is a comparison and not a constant, so both
+  // ends of that have to hold.
+  const { clippedCount } = reportableClipped(
+    [compensated({ lostPx: 12, compensatedPx: 12, w: 414 })],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 0);
+});
+
+test('an overhang larger than the margin that pays for it still reports, in full', () => {
+  // The narrowness of the rule, and the only thing standing between it and a
+  // silenced finding. A control with `-ms-[6px]` losing 300px has lost 300px.
+  const { clippedCount, worstCutPx, marginCompensated } = reportableClipped(
+    [clipCandidate(300, { compensatedPx: 6 })],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 1);
+  assert.equal(worstCutPx, 300, 'the whole overhang is reported, not the uncompensated part');
+  assert.equal(marginCompensated, 0);
+});
+
+test('the three real clips carry no compensation and are untouched by this rule', () => {
+  const { clippedCount, marginCompensated } = reportableClipped(
+    [
+      clipCandidate(117, { cls: 'bg-newBgColorInner flex-1', compensatedPx: 0 }),
+      clipCandidate(91, { tag: 'button', cls: 'cursor-pointer px-[16px]', compensatedPx: 0 }),
+      clipCandidate(28, { cls: 'settings bleed', compensatedPx: 0 }),
+    ],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 3);
+  assert.equal(marginCompensated, 0);
+});
+
+test('a clip candidate from before this rule is never exempted for lacking the fact', () => {
+  const { clippedCount, marginCompensated } = reportableClipped([clipCandidate(40)], {
+    modalOpen: false,
+  });
+
+  assert.equal(clippedCount, 1);
+  assert.equal(marginCompensated, 0);
+});
+
+test('an empty candidate list reports both clip exemption buckets as zero, not absent', () => {
+  const { fieldTruncated, fieldTruncatedSignatures, marginCompensated, marginCompensatedSignatures } =
+    reportableClipped([], { modalOpen: false });
+
+  assert.equal(fieldTruncated, 0);
+  assert.deepEqual(fieldTruncatedSignatures, []);
+  assert.equal(marginCompensated, 0);
+  assert.deepEqual(marginCompensatedSignatures, []);
+});
+
+test('an exempted box never reaches the inside-the-modal count either', () => {
+  // `clippedInside` is deduped over the inside candidates on their own, so it
+  // has to apply the same exclusions — otherwise a modal reading reports a
+  // truncated field the document-wide figure has already excused.
+  const { clippedCount, clippedInside } = reportableClipped(
+    [truncated({ inModal: true }), clipCandidate(90, { inModal: true, cls: 'real' })],
+    { modalOpen: true }
+  );
+
+  assert.equal(clippedCount, 1);
+  assert.equal(clippedInside, 1);
+});
 // ---------------------------------------------------------------------------
 // Undersized touch targets — the 44px floor, counted by signature
 // ---------------------------------------------------------------------------
@@ -1465,22 +1973,21 @@ test('two different signatures are two findings', () => {
 // only two of the 114 that moved rather than grew, and neither weakened: both
 // still assert the whole returned object, and both still say the same thing —
 // zero is reported as zero, never as absent.
+const NOTHING_UNDERSIZED = {
+  distinctUnder44: 0,
+  undersized: [],
+  wrappers: 0,
+  wrapperSignatures: [],
+  inlineExempt: 0,
+  inlineSignatures: [],
+};
+
 test('an empty candidate list reports zero, not absent', () => {
-  assert.deepEqual(reportableUndersized([]), {
-    distinctUnder44: 0,
-    undersized: [],
-    wrappers: 0,
-    wrapperSignatures: [],
-  });
+  assert.deepEqual(reportableUndersized([]), NOTHING_UNDERSIZED);
 });
 
 test('a page whose every target clears the floor reads the same as one with none', () => {
-  assert.deepEqual(reportableUndersized([target(), target({ w: 120, h: 48 })]), {
-    distinctUnder44: 0,
-    undersized: [],
-    wrappers: 0,
-    wrapperSignatures: [],
-  });
+  assert.deepEqual(reportableUndersized([target(), target({ w: 120, h: 48 })]), NOTHING_UNDERSIZED);
 });
 
 test('undersized targets are sorted smallest first and capped at six, like clipped', () => {
@@ -1717,6 +2224,145 @@ test('a candidate from before this feature is never reclassified for lacking the
   assert.equal(wrappers, 0);
 });
 
+
+// ---------------------------------------------------------------------------
+// Rule 2 — a target inside a sentence is exempt from the floor (021 FR-002)
+// ---------------------------------------------------------------------------
+
+// WCAG 2.5.5, the criterion this whole scan cites, exempts a target that is "in
+// a sentence or block of text". A link in running prose cannot be padded to 44px
+// without breaking the line it sits in, so counting it produces a finding with
+// no remedy — and five of the six items that rated finding 64 P1 are exactly
+// that (020-findings.md, finding 65 defect 3, second half).
+//
+// The exemption is structural or it is nothing: the element is inline-level and
+// its parent renders text of its own around it. probe.js observes that pair of
+// facts as `inlineInText`; whether it exempts anything is decided here, and the
+// "is it a link" half is decided here too — the tag is already in the candidate
+// and the observation stays a plain structural one.
+const inlineLink = (over = {}) =>
+  ({ tag: 'a', cls: 'underline hover:font-bold', w: 89, h: 15, inlineInText: true, ...over });
+
+test('a link inside a sentence leaves the floor count and lands in its own bucket', () => {
+  // The real ones: `register.tsx:207` and `:216` — Terms of Service and Privacy
+  // Policy inside "By registering you agree to our … and …" — and
+  // `login.tsx:136`'s Sign Up after "Don't Have An Account?".
+  //
+  // Not `/auth/forgot`'s "Go back to login", which the contract first listed
+  // here and the baseline refuted: `forgot.tsx:67` is `<p><Link/></p>` with no
+  // text beside it, so it is a link alone in its container and is counted. It
+  // has its own counter-case below.
+  const { distinctUnder44, undersized, inlineExempt, inlineSignatures } = reportableUndersized([
+    inlineLink({ w: 89, h: 15 }),
+    inlineLink({ cls: 'underline cursor-pointer', w: 48, h: 18 }),
+    inlineLink({ cls: 'underline hover:font-bold text-[12px]', w: 101, h: 18 }),
+  ]);
+
+  assert.equal(distinctUnder44, 0);
+  assert.deepEqual(undersized, []);
+  assert.equal(inlineExempt, 3);
+  // Relocated, never dropped — the treatment wrapperSignatures already gets,
+  // and the whole of FR-008. A candidate that vanished from both counts would
+  // be a defect in this rule rather than a fix.
+  // Smallest-first on the dimension that misses the floor, area breaking the
+  // tie — the order the reported bucket is already in, and a relocated finding
+  // is ordered like a reported one.
+  assert.deepEqual(
+    inlineSignatures.map((s) => [s.tag, s.w, s.h]),
+    [
+      ['a', 89, 15],
+      ['a', 48, 18],
+      ['a', 101, 18],
+    ]
+  );
+});
+
+test('an exempted link is counted by signature, like every other bucket', () => {
+  const { inlineExempt, inlineSignatures } = reportableUndersized([
+    inlineLink(),
+    inlineLink(),
+    inlineLink(),
+  ]);
+
+  assert.equal(inlineExempt, 1);
+  assert.equal(inlineSignatures[0].instances, 3);
+});
+
+// The counter-cases. Each one names a real finding from this audit's record
+// that must keep reporting (FR-006) — a rule that took any of these with it
+// would be silencing findings, not repairing an instrument.
+
+test('a chip in a row of chips is still counted, however inline it looks', () => {
+  // /support's category chip, `button 124x42` — finding 67. It is not a link,
+  // and the exemption is for links in prose. A rule that read "inline" off the
+  // geometry rather than off the tag would take this with it.
+  const { distinctUnder44, inlineExempt } = reportableUndersized([
+    { tag: 'button', cls: 'h-[42px] px-[16px]', w: 124, h: 42, inlineInText: true },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(inlineExempt, 0);
+});
+
+test('a lone link in its own container is still counted', () => {
+  // /p/[id]'s logo link, `a 137x40` — finding 62, and the only majority-mobile
+  // surface in the product. It is a link, but nothing renders text around it:
+  // page.tsx:54 gives it `flex items-center justify-center`, so it is not
+  // inline-level and its parent has no text of its own. Both halves fail.
+  const { distinctUnder44, inlineExempt } = reportableUndersized([
+    { tag: 'a', cls: 'text-2xl flex items-center justify-center gap-[10px]', w: 137, h: 40, inlineInText: false },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(inlineExempt, 0);
+});
+
+test('a heading that only looks like a control is still counted', () => {
+  // `h1 326x36` with cursor-pointer and no handler — finding 64's real defect,
+  // and the one item of the six that must survive the exemption. It is not a
+  // link, so it is not exempt however its parent renders.
+  const { distinctUnder44, inlineExempt } = reportableUndersized([
+    { tag: 'h1', cls: 'text-[24px] cursor-pointer', w: 326, h: 36, inlineInText: true },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(inlineExempt, 0);
+});
+
+test('a candidate from before this rule is never exempted for lacking the fact', () => {
+  // The safe direction, and the same strictness `semantic === false` already
+  // keeps. A retained reading carries `inlineInText: undefined`, which is not
+  // true — so it stays reported and the reading keeps meaning what it meant.
+  const { distinctUnder44, inlineExempt } = reportableUndersized([
+    { tag: 'a', cls: 'underline hover:font-bold', w: 89, h: 15 },
+  ]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(inlineExempt, 0);
+});
+
+test('an exempted link never also lands in the wrapper bucket', () => {
+  // The two reclassifications are exclusive by construction — `decorative`
+  // requires `semantic === false` and a link is semantic — but a candidate
+  // counted twice would break the arithmetic FR-008 rests on, so it is pinned
+  // rather than left to follow from a definition somewhere else.
+  const { distinctUnder44, inlineExempt, wrappers } = reportableUndersized([
+    inlineLink({ semantic: true, enclosing: { w: 340, h: 60 } }),
+  ]);
+
+  assert.equal(distinctUnder44, 0);
+  assert.equal(inlineExempt, 1);
+  assert.equal(wrappers, 0);
+});
+
+test('an empty candidate list reports both exemption buckets as zero, not absent', () => {
+  // "measured none" and "not measured" are different answers, and every other
+  // field in this report keeps them apart.
+  const { inlineExempt, inlineSignatures } = reportableUndersized([]);
+
+  assert.equal(inlineExempt, 0);
+  assert.deepEqual(inlineSignatures, []);
+});
 // ---------------------------------------------------------------------------
 // Modal targets — FR-011 to FR-015, contract PR1..PR8
 // ---------------------------------------------------------------------------
@@ -2007,4 +2653,202 @@ test('an unrestricted target owes a reading at every width the run covered', () 
   run.readings = [...run.readings, modalReadingFor(open.id, '390x844')];
 
   assert.equal(completeness(run).complete, false);
+});
+
+// ---------------------------------------------------------------------------
+// The predicted movement — 021 FR-007, SC-002
+// ---------------------------------------------------------------------------
+
+// Every row of the quickstart movement table, pinned as a regression.
+//
+// FR-007 asks that the repaired instrument be shown to change only what it
+// claims to change, and it was written expecting the `020` candidates to be
+// re-judged. **They do not exist.** No reading under
+// `documentation/responsive-probe/readings/` carries a `*Candidates` key: every
+// retained file holds `{provenance, readings, errors}` and each reading holds
+// only the *reported* entries, because candidates are dropped once the report
+// is built. So the fixtures below are reconstructed from what was retained —
+// `tag`, `cls`, `w`, `h`, `lostPx` and `overlapPx`, all of which survive — plus
+// the facts the repaired scan now sends, read off the source of the surface
+// each row names.
+//
+// That discharges half of FR-007. The other half — "and no other figure moves"
+// — cannot be reached from fixtures at all, and is carried by US2's re-take on
+// the repaired instrument against an unchanged app, where every difference from
+// `020` must be attributed to a named defect (FR-012). A row here is a claim
+// about one surface; the baseline is the claim about the rest.
+
+test('movement — modal:compose-existing@1440 reports two collisions, worst still 25', () => {
+  // post-020-rebase-{fine,coarse}.json. One entry reported, `div 155x23` over
+  // `div 25x21` at 25px; the hand-walk in 020-findings.md finds a second, the
+  // same control over a 17x21 counter at 17px, dropped because both pairs sign
+  // as `div | div`.
+  const control = { tag: 'div', cls: '', w: 155, h: 23, text: '08/19/2026 02:10 PM' };
+  const { collisionCount, worstOverlapPx } = reportableCollisions([
+    candidate(25, {
+      a: control,
+      b: { tag: 'div', cls: '', w: 25, h: 21, text: '121' },
+      aRects: [rect(600, 300, 755, 323)],
+      bRects: [rect(730, 300, 755, 321)],
+    }),
+    candidate(17, {
+      a: control,
+      b: { tag: 'div', cls: '', w: 17, h: 21, text: '32' },
+      aRects: [rect(600, 300, 755, 323)],
+      bRects: [rect(738, 300, 755, 321)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 2);
+  assert.equal(worstOverlapPx, 25, 'the count moves and the worst figure does not');
+});
+
+test('movement — modal:compose-existing@1024 fine is unchanged at 84', () => {
+  // The counter-case in the same modal: two single-line unclassed boxes. Rule 1
+  // is arithmetically silent on single lines and Rule 4 separates rather than
+  // merges, so a surface with one pair keeps one pair.
+  const { collisionCount, worstOverlapPx } = reportableCollisions([
+    candidate(84, {
+      a: { tag: 'div', cls: '', w: 84, h: 20, text: 'Preview' },
+      b: { tag: 'div', cls: '', w: 119, h: 21, text: '08/19/2026 02:10 PM' },
+      aRects: [rect(300, 200, 384, 220)],
+      bRects: [rect(300, 200, 419, 221)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 1);
+  assert.equal(worstOverlapPx, 84);
+});
+
+test('movement — /auth@390 reports no collision in either pointer mode', () => {
+  // post-020-batch1b-{fine,coarse}.json, `overlapPx: 89` between two
+  // `a.underline.hover:font-bold`. register.tsx:207 and :216 — Terms of Service
+  // and Privacy Policy in one sentence, the second wrapped over two lines at
+  // 390. The 320x33 box is the union of those lines and is on no line at all.
+  const { collisionCount, worstOverlapPx } = reportableCollisions([
+    candidate(89, {
+      a: { tag: 'a', cls: 'underline hover:font-bold', w: 89, h: 15, text: 'Terms of Service' },
+      b: { tag: 'a', cls: 'underline hover:font-bold', w: 320, h: 33, text: 'Privacy Policy' },
+      aRects: [rect(35, 604, 124, 619)],
+      bRects: [rect(196, 604, 355, 619), rect(35, 622, 137, 637)],
+    }),
+  ]);
+
+  assert.equal(collisionCount, 0);
+  assert.equal(worstOverlapPx, 0);
+});
+
+test('movement — /modal/dark/all reports nothing clipped, at all four widths', () => {
+  // post-020-batch2-{fine,coarse}.json: two boxes at every width, losing 12
+  // below 1025 and 40 above it — exactly the compensation
+  // `(extension)/modal/[style]/[platform]/page.tsx:13` applies at that width.
+  // The first carries the negative margin; the second is `w-full` inside it and
+  // inherits the overhang without carrying a margin of its own.
+  const surface = (px) => [
+    clipCandidate(px, {
+      w: px === 40 ? 1520 : 414,
+      cls: 'text-textColor h-[calc(100vh+80px)] w-[calc(100vw+80px)] -m-[40px] mobile:h-[calc(100vh+24',
+      compensatedPx: px,
+    }),
+    clipCandidate(px, {
+      w: px === 40 ? 1520 : 414,
+      cls: 'w-full h-full flex-1 p-[40px] mobile:p-[12px] flex relative',
+      compensatedPx: px,
+    }),
+  ];
+
+  for (const px of [12, 12, 12, 40]) {
+    const { clippedCount, worstCutPx, marginCompensated } = reportableClipped(surface(px), {
+      modalOpen: false,
+    });
+    assert.equal(clippedCount, 0);
+    assert.equal(worstCutPx, 0);
+    assert.equal(marginCompensated, 2, 'both boxes are findable in the bucket they moved to');
+  }
+});
+
+test('movement — panel:settings-developers@390 reports two clipped, worst 91', () => {
+  // post-020-batch3-panels-{fine,coarse}.json reports three, worst 257. The
+  // 257 is the API key overhanging its own truncating field — the figure that
+  // rated finding 63 P1 — and it leaves. The button losing 91 of its 95 pixels
+  // and the 21px svg are the real ones, and they stay.
+  const { clippedCount, worstCutPx, clipped, fieldTruncated } = reportableClipped(
+    [
+      clipCandidate(257, { w: 496, tag: 'span', cls: 'blur-sm select-none', clipperIsField: true }),
+      clipCandidate(91, {
+        w: 95,
+        tag: 'button',
+        cls: 'cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors round',
+        clipperIsField: false,
+      }),
+      clipCandidate(21, { w: 9, tag: 'svg', cls: '', clipperIsField: false }),
+    ],
+    { modalOpen: false }
+  );
+
+  assert.equal(clippedCount, 2);
+  assert.equal(worstCutPx, 91);
+  assert.deepEqual(
+    clipped.map((c) => c.tag),
+    ['button', 'svg']
+  );
+  assert.equal(fieldTruncated, 1, 'the 257 is relocated, not dropped');
+});
+
+test('movement — panel:settings-developers@820 is unchanged at ten clipped, worst 117', () => {
+  // The counter-case that keeps Rule 3 narrow. Every one of these is clipped by
+  // a layout container, and this is the finding US3 actually closes — a rule
+  // that emptied /modal/dark/all by being broad would empty this too.
+  const pane = [
+    clipCandidate(117, { w: 654, cls: 'bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]' }),
+    clipCandidate(97, { w: 614, tag: 'form', cls: '' }),
+    clipCandidate(97, { w: 614, cls: 'w-full mx-auto gap-[24px] flex flex-col relative rounded-[4px]' }),
+    clipCandidate(97, { w: 614, cls: '' }),
+    clipCandidate(97, { w: 614, cls: 'flex flex-col gap-[20px]' }),
+    clipCandidate(97, { w: 614, tag: 'h3', cls: 'text-[20px]' }),
+    ...Array.from({ length: 4 }, (_, i) => clipCandidate(60 + i, { w: 600, cls: `row-${i}` })),
+  ].map((c) => ({ ...c, clipperIsField: false, compensatedPx: 0 }));
+
+  const { clippedCount, worstCutPx, fieldTruncated, marginCompensated } = reportableClipped(pane, {
+    modalOpen: false,
+  });
+
+  assert.equal(clippedCount, 10);
+  assert.equal(worstCutPx, 117);
+  assert.equal(fieldTruncated, 0);
+  assert.equal(marginCompensated, 0);
+});
+
+test('movement — the /auth* funnel keeps one floor finding per route, not two', () => {
+  // post-020-batch1b-coarse.json reads `distinctUnder44: 2` on /auth,
+  // /auth/activate and /auth/forgot alike. One of the two is a link inside a
+  // sentence and leaves; the other is the h1 with a cursor and no handler,
+  // which is finding 64's real defect and must stay. /auth carries two inline
+  // links and so goes to 0 — both of its items are in prose.
+  const heading = { tag: 'h1', cls: 'text-[24px] cursor-pointer', w: 326, h: 36, inlineInText: false };
+  const link = (w, h, cls) => ({ tag: 'a', cls, w, h, inlineInText: true });
+
+  const forgot = reportableUndersized([heading, link(101, 18, 'underline')]);
+  assert.equal(forgot.distinctUnder44, 1);
+  assert.equal(forgot.undersized[0].tag, 'h1');
+  assert.equal(forgot.inlineExempt, 1);
+
+  const register = reportableUndersized([
+    link(89, 15, 'underline hover:font-bold'),
+    link(74, 15, 'underline hover:font-bold text-[12px]'),
+  ]);
+  assert.equal(register.distinctUnder44, 0);
+  assert.equal(register.inlineExempt, 2);
+});
+
+test('movement — /support coarse is unchanged at one finding over four instances', () => {
+  // post-020-batch1-coarse.json: `distinctUnder44: 1`, the category chip, and
+  // the report already says `instances: 4` — finding 67 is the chip row and not
+  // a chip. It is a <button>, so no exemption reaches it.
+  const chip = { tag: 'button', cls: 'h-[42px] px-[16px] rounded-[8px]', w: 124, h: 42, inlineInText: true };
+  const { distinctUnder44, undersized, inlineExempt } = reportableUndersized([chip, chip, chip, chip]);
+
+  assert.equal(distinctUnder44, 1);
+  assert.equal(undersized[0].instances, 4);
+  assert.equal(inlineExempt, 0);
 });

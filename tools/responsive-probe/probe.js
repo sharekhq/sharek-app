@@ -69,6 +69,46 @@
     return null;
   };
 
+  // Is a box a single-line text field — one that suppresses wrapping and is one
+  // line tall? Asked of a clipper, never of the thing it clips: an element
+  // clipped by such a field is a value being truncated, and `lostPx` there
+  // measures how long the string is rather than how much of it is unreachable.
+  //
+  // A fact and not a verdict. Whether it exempts anything is decided in
+  // reading.mjs, where a test can reach it.
+  //
+  // `line-height: normal` computes to the keyword rather than to a number, so
+  // the fallback is the font size by 1.5 — comfortably above every normal
+  // line-height a browser produces, which keeps a genuine one-line box inside
+  // the test and a two-line one out of it.
+  const isField = (n) => {
+    const cs = getComputedStyle(n);
+    if (cs.whiteSpace !== 'nowrap' && cs.whiteSpace !== 'pre') return false;
+    const declared = parseFloat(cs.lineHeight);
+    const line = Number.isFinite(declared) ? declared : (parseFloat(cs.fontSize) || 16) * 1.5;
+    return n.clientHeight <= Math.ceil(line) + 1;
+  };
+
+  // How much of an overhang the layout deliberately pays for: the negative
+  // margins between a box and its clipper, on the side the overhang is on.
+  //
+  // A box pulled back by exactly as much as it sticks out is a compensation,
+  // not lost content — `(extension)/modal/[style]/[platform]/page.tsx:13` is
+  // `w-[calc(100vw+80px)] -m-[40px]` so that compose's own padding is cancelled
+  // and the modal fills the frame. Summed rather than maximised, and walked up
+  // to the clipper rather than read off the element alone: the second box that
+  // surface reports carries no margin of its own and inherits the overhang from
+  // the ancestor that does.
+  const compensation = (el, stop, side) => {
+    const prop = side === 'left' ? 'marginLeft' : 'marginRight';
+    let px = 0;
+    for (let n = el; n && n !== stop && n !== document.body; n = n.parentElement) {
+      const m = parseFloat(getComputedStyle(n)[prop]) || 0;
+      if (m < 0) px -= m;
+    }
+    return Math.round(px);
+  };
+
   // The attribute, not the property. `el.className` is a string on HTML
   // elements and an `SVGAnimatedString` on SVG ones, so the old `typeof` guard
   // returned '' for every svg on the page — and since the signature is
@@ -181,7 +221,9 @@
     const c = clipper(el);
     if (!c) continue;
     const cr = c.getBoundingClientRect();
-    const lost = Math.round(Math.max(r.right - cr.right, cr.left - r.left));
+    const overRight = r.right - cr.right;
+    const overLeft = cr.left - r.left;
+    const lost = Math.round(Math.max(overRight, overLeft));
     if (lost <= 0) continue;
     clippedCandidates.push({
       lostPx: lost,
@@ -189,6 +231,12 @@
       tag: el.tagName.toLowerCase(),
       cls: cls(el, 90),
       inModal: insideModal(el),
+      // Two more observations, no verdict — the pair reading.mjs needs to tell
+      // a squeeze from a truncation and from a compensation. Both are computed
+      // after the `lost <= 0` gate, so they cost an ancestor walk only for the
+      // handful of boxes that actually cross an edge.
+      clipperIsField: isField(c),
+      compensatedPx: compensation(el, c, overRight >= overLeft ? 'right' : 'left'),
     });
   }
 
@@ -214,8 +262,20 @@
   //
   // Geometry only. Which of these pairs is a squeeze and which is the design is
   // FR-012, and it is decided — and tested — in reading.mjs.
+  // The element's own text — its direct child text nodes, not its
+  // descendants'. Returns the run rather than whether there is one: the sweep
+  // below only needs the boolean, and an empty string is falsy, but an
+  // unclassed participant needs the string itself to be told apart from another
+  // unclassed participant. Every pair on `modal:compose-existing@1440` signs as
+  // `div | div` without it, and the smaller of two real overlaps is dropped as
+  // a repeat of the larger.
   const ownText = (el) =>
-    [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    [...el.childNodes]
+      .filter((n) => n.nodeType === 3)
+      .map((n) => n.textContent)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   // Tested on the participants, never on their ancestors: the calendar's day
   // labels are static inside cells that are `sticky top-0 z-[20]`, so a rule
@@ -242,9 +302,12 @@
   // clipping. An `overflow-auto` ancestor is not one: its content is reachable
   // by scrolling and is drawn, which is exactly the calendar grid the day-label
   // collision lives inside.
-  const visibleRect = (el) => {
-    const r = el.getBoundingClientRect();
-    const box = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  // The walk is per element and the trim is per rectangle, so they are two
+  // functions: an element that renders across five lines has one ancestor chain
+  // and five boxes, and walking it once per line would repeat the whole chain
+  // for every line of a paragraph.
+  const clipBox = (el) => {
+    const box = { left: -Infinity, right: Infinity, top: -Infinity, bottom: Infinity };
     for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
       const cs = getComputedStyle(n);
       const clipsX = cs.overflowX === 'hidden' || cs.overflowX === 'clip';
@@ -260,18 +323,67 @@
         box.bottom = Math.min(box.bottom, nr.bottom);
       }
     }
+    return box;
+  };
+
+  const trim = (r, c) => {
+    const box = {
+      left: Math.max(r.left, c.left),
+      right: Math.min(r.right, c.right),
+      top: Math.max(r.top, c.top),
+      bottom: Math.min(r.bottom, c.bottom),
+    };
     box.width = box.right - box.left;
     box.height = box.bottom - box.top;
     return box;
   };
 
+  // The element's whole visible box, and each line it actually occupies — both
+  // cut down by every ancestor that clips overflow away.
+  //
+  // `getBoundingClientRect()` on an element that wraps returns the *union* of
+  // its line boxes — a rectangle it does not occupy. An <a> whose text starts
+  // mid-line and finishes on the next measures the full content width by two
+  // line-heights, and that phantom box covers every inline sibling on both
+  // lines. `/auth@390` reported an 89px overlap between two links in one
+  // sentence on exactly that arithmetic, and the reading rated a P1.
+  //
+  // A box with one line box yields one rectangle equal to its trimmed bounding
+  // rect, which is what leaves every non-inline finding this instrument has
+  // ever made untouched. Rounded because a fragment is a payload, and the
+  // floor these feed is 8px.
+  //
+  // Returned together with the whole box because they share the ancestor walk,
+  // which is the expensive half: /launches carries ~2,000 elements and asking
+  // for the clip box twice per element would walk every chain twice for a
+  // figure that cannot have changed in between.
+  const visibleBoxes = (el) => {
+    const c = clipBox(el);
+    return {
+      rect: trim(el.getBoundingClientRect(), c),
+      rects: [...el.getClientRects()]
+        .map((r) => trim(r, c))
+        .filter((r) => r.width > 0 && r.height > 0)
+        .map((r) => ({
+          left: Math.round(r.left),
+          top: Math.round(r.top),
+          right: Math.round(r.right),
+          bottom: Math.round(r.bottom),
+        })),
+    };
+  };
+
   const texts = [];
   for (const el of document.querySelectorAll('body *')) {
-    if (!ownText(el)) continue;
-    const r = visibleRect(el);
+    const text = ownText(el);
+    if (!text) continue;
+    const { rect: r, rects } = visibleBoxes(el);
     if (r.width < 8 || r.height < 8) continue;
     if (outsideViewport(r) || hidden(el)) continue;
-    texts.push({ el, r, flow: inFlow(el), inModal: insideModal(el) });
+    // Read once here rather than again in `box()`: one element takes part in
+    // many pairs, and both the text and the fragments are properties of the
+    // element rather than of the pair.
+    texts.push({ el, r, text, rects, flow: inFlow(el), inModal: insideModal(el) });
   }
   texts.sort((a, b) => a.r.top - b.r.top);
 
@@ -280,6 +392,10 @@
     cls: cls(t.el, 90),
     w: Math.round(t.r.width),
     h: Math.round(t.r.height),
+    // What an unclassed participant is told apart by. Capped like `cls` is, and
+    // long enough to separate a date control from a two-digit counter, which is
+    // the pair the collapse was hiding.
+    text: t.text.slice(0, 40),
   });
 
   const collisionCandidates = [];
@@ -298,6 +414,14 @@
         b: box(b),
         aFlow: a.flow,
         bFlow: b.flow,
+        // The lines each participant occupies. `overlapPx` above is the union
+        // boxes' intersection, which is a strict superset of what the lines
+        // share — so the sweep still finds every true pair, and which of the
+        // lines actually meet is arithmetic reading.mjs does where a test can
+        // reach it. Candidate data like the flow flags: they decide the finding
+        // without being part of it, so no stored reading grows a rect array.
+        aRects: a.rects,
+        bRects: b.rects,
         // Read off the participants rather than tested here: one element takes
         // part in many pairs, and the boundary is a property of the element.
         aInModal: a.inModal,
@@ -335,6 +459,22 @@
     return null;
   };
 
+  // Whether an element sits inside a run of text: it is inline-level, and its
+  // parent renders text of its own around it. WCAG 2.5.5 — the criterion this
+  // scan cites — exempts a target that is "in a sentence or block of text",
+  // because a link in running prose cannot be padded to 44px without breaking
+  // the line it sits in.
+  //
+  // Two structural observations and no threshold. The exemption is structural
+  // or it is nothing: a rule that read "inline" off the geometry would exempt
+  // /support's 124x42 chip, which is a finding. Whether being a link as well is
+  // required — it is — is decided in reading.mjs alongside every other verdict.
+  const inlineInText = (el) => {
+    if (getComputedStyle(el).display !== 'inline') return false;
+    const p = el.parentElement;
+    return !!p && !!ownText(p);
+  };
+
   let small = 0;
   let total = 0;
   const smallest = [];
@@ -353,13 +493,14 @@
       cls: cls(el, 90),
       w: Math.round(r.width),
       h: Math.round(r.height),
-      // Three facts, no verdict. Whether their combination means "decorative
-      // wrapper" is a judgement and it lives in reading.mjs, where a test can
-      // reach it — this file is injected as source text and anything it decides
-      // leaves the suite.
+      // Four facts, no verdict. Whether their combination means "decorative
+      // wrapper", or "a link inside a sentence", is a judgement and it lives in
+      // reading.mjs, where a test can reach it — this file is injected as
+      // source text and anything it decides leaves the suite.
       inModal: insideModal(el),
       semantic: el.matches(SEMANTIC),
       enclosing: enclosingControl(el),
+      inlineInText: inlineInText(el),
     });
     if (r.height < 44 || r.width < 44) {
       small++;
