@@ -83,6 +83,7 @@ import {
   reachableWidths,
   reportableClipped,
   reportableCollisions,
+  reportableEscaped,
   reportableUndersized,
   targetKey,
   viewportKey,
@@ -286,7 +287,14 @@ function login() {
 // Everything that happens once the surface is on screen, shared by both axes so
 // that a modal reading is decided by exactly the same rules a route reading is.
 function readPage() {
-  const { clippedCandidates, collisionCandidates, undersizedCandidates, pointerCoarse, ...reading } =
+  const {
+    clippedCandidates,
+    collisionCandidates,
+    undersizedCandidates,
+    escapedCandidates,
+    pointerCoarse,
+    ...reading
+  } =
     JSON.parse(ab(['eval', '--stdin'], { input: probeSource }));
   // The emulation lives on a socket that has to survive the whole run. If it
   // ever drops, every later reading quietly becomes a fine one filed under a
@@ -322,6 +330,10 @@ function readPage() {
     ...reading,
     ...reportableClipped(clippedCandidates, { modalOpen }),
     ...reportableCollisions(collisionCandidates, { modalOpen }),
+    // The fourth rule, and the one that answers a question the other three
+    // cannot: content that is neither cut off nor overlapping text, painted
+    // outside a container that does not clip it.
+    ...reportableEscaped(escapedCandidates, { modalOpen }),
     // `wrappers` sits beside `distinctUnder44` because it is the other half of
     // the same count — how many candidates the wrapper rule moved out of it —
     // and `wrapperSignatures` beside `undersized` for the same reason the
@@ -582,11 +594,18 @@ const covered = results.filter((r) => r.cta?.verdict === 'COVERED');
 const clipped = results.filter((r) => r.clippedCount > 0);
 const collided = results.filter((r) => r.collisionCount > 0);
 const touch = results.filter((r) => r.touch.distinctUnder44 > 0);
+const escaped = results.filter((r) => r.escapedCount > 0);
 
 console.log('--- summary ---');
 console.log(`readings          ${results.length}`);
 console.log(`primary action covered  ${covered.length}   ${covered.map((r) => `${r.route}@${r.viewport}`).join(', ') || '—'}`);
 console.log(`routes with clipping    ${clipped.length}`);
+// Listed rather than counted, for the reason the collision line is: this
+// reading is new, and which container spills where is the finding itself.
+console.log(
+  `routes with content escaping its container  ${escaped.length}   ` +
+    (escaped.map((r) => `${r.route}@${r.viewport} ${r.worstEscapePx}px`).join(', ') || '—')
+);
 // Listed, not just counted: this reading is new, so which route and width
 // collides is the finding rather than a detail of it.
 console.log(`routes with colliding text  ${collided.length}   ${collided.map((r) => `${r.route}@${r.viewport}`).join(', ') || '—'}`);
