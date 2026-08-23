@@ -1038,6 +1038,21 @@ const CalendarItem: FC<{
   } = props;
   const { disableXAnalytics } = useVariables();
   const user = useUser();
+  // A week or month cell is a 58px grid column (`minmax(58px, 1fr)` at :358),
+  // and under a coarse pointer each of these actions is a 44px target that
+  // cannot shrink — the state chip beside them is `whitespace-nowrap` too. That
+  // is ~290px of unshrinkable content in 58px, and because the strip centres
+  // its contents it paints out of *both* sides of the card and over the
+  // neighbouring days. Finding 69.
+  //
+  // Day view and the list view are full width and have the room, so they keep
+  // the actions: `ListView` renders this component with `display="day"` (:550),
+  // which is why a phone is unaffected — a narrow viewport gets the list. In a
+  // grid cell a touch user opens the post instead, which is the same path a
+  // mouse user has without hovering.
+  //
+  // `coarse:` only, so nothing about the mouse reveal changes.
+  const actionsEscapeTheCell = display !== 'day';
   const showCreationMethodBadge =
     user?.impersonate &&
     post.creationMethod &&
@@ -1126,6 +1141,7 @@ const CalendarItem: FC<{
           <div
             className={clsx(
               'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+              actionsEscapeTheCell && 'coarse:hidden',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={copyDebugJson}
@@ -1136,6 +1152,7 @@ const CalendarItem: FC<{
         <div
           className={clsx(
             'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+            actionsEscapeTheCell && 'coarse:hidden',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={duplicatePost}
@@ -1145,6 +1162,7 @@ const CalendarItem: FC<{
         <div
           className={clsx(
             'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+            actionsEscapeTheCell && 'coarse:hidden',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={preview}
@@ -1157,6 +1175,7 @@ const CalendarItem: FC<{
           <div
             className={clsx(
               'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+              actionsEscapeTheCell && 'coarse:hidden',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={missingRelease}
@@ -1167,6 +1186,7 @@ const CalendarItem: FC<{
           <div
             className={clsx(
               'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+              actionsEscapeTheCell && 'coarse:hidden',
               post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
             )}
             onClick={statistics}
@@ -1179,6 +1199,7 @@ const CalendarItem: FC<{
         <div
           className={clsx(
             'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
+            actionsEscapeTheCell && 'coarse:hidden',
             post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
           )}
           onClick={deletePost}

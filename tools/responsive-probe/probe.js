@@ -240,6 +240,76 @@
     });
   }
 
+  // ---- 2b. content escaping a container that does not clip it ----
+  // The inverse question to (2), and the blind spot finding 69 fell through.
+  // (2) walks up from an element asking which ancestor cuts it off; `clipper()`
+  // returns null both when an ancestor scrolls — content reachable — and when
+  // nothing clips at all. The second is not containment. It is content painted
+  // over whatever sits beside it, and no scan here could see it.
+  //
+  // So this one is asked of the *container*: do my own in-flow children paint
+  // outside my box, when I neither clip them nor offer a scrollbar? Geometry
+  // only. What counts as a finding among these — the floor, the dedupe, the
+  // margin exemption — is decided in reading.mjs where a test can reach it.
+  //
+  // Two collection decisions, both measurement rather than verdict:
+  //
+  // A container that clips or scrolls is skipped, because its content has not
+  // escaped: the first case belongs to (2), and the second means a person can
+  // still reach it. And an out-of-flow child is skipped, because a badge pinned
+  // outside its parent, a portalled dropdown and a tooltip are placements. The
+  // collision sweep draws the same line for the same reason.
+  //
+  // `escaped <= 0` is a payload bound, not a rule — the same one (2) applies as
+  // `lost <= 0`. Nearly every container on a page holds its children exactly.
+  const escapedCandidates = [];
+  for (const el of document.querySelectorAll('body *')) {
+    if (!el.children.length) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (outsideViewport(r) || hidden(el)) continue;
+    if (getComputedStyle(el).overflowX !== 'visible') continue;
+    // Which child escapes furthest, and on which side. Both are needed: the
+    // side because a negative margin only pays for the overhang it is on, and
+    // the child because the margin that produced the overhang is the escaping
+    // child's, not the container's.
+    let over = 0;
+    let side = 'right';
+    let worst = null;
+    for (const ch of el.children) {
+      const cp = getComputedStyle(ch).position;
+      if (cp === 'absolute' || cp === 'fixed') continue;
+      const cr = ch.getBoundingClientRect();
+      if (cr.width < 1 || cr.height < 1) continue;
+      const right = cr.right - r.right;
+      const left = r.left - cr.left;
+      if (right > over) {
+        over = right;
+        side = 'right';
+        worst = ch;
+      }
+      if (left > over) {
+        over = left;
+        side = 'left';
+        worst = ch;
+      }
+    }
+    const escaped = Math.round(over);
+    if (escaped <= 0) continue;
+    escapedCandidates.push({
+      escapedPx: escaped,
+      w: Math.round(r.width),
+      tag: el.tagName.toLowerCase(),
+      cls: cls(el, 90),
+      inModal: insideModal(el),
+      // Walked from the escaping child up to the container, so a child pulled
+      // back by exactly as much as it sticks out reads as the compensation it
+      // is. Computed after the gate, so it costs an ancestor walk only for the
+      // handful of containers that actually spill.
+      compensatedPx: compensation(worst, el, side),
+    });
+  }
+
   // ---- 3. colliding content ----
   // Clipping catches content cut off by an ancestor. This catches the other way
   // a squeezed layout fails: everything is on screen, reachable, and two runs of
@@ -537,6 +607,8 @@
     collisionCandidates,
     // Likewise: run.mjs decides these into touch.distinctUnder44 / undersized.
     undersizedCandidates,
+    // Raw — run.mjs decides these into escapedCount / worstEscapePx / escaped.
+    escapedCandidates,
     touch: { total, under44: small, pct: total ? Math.round((small / total) * 100) : 0 },
     smallest: smallest.sort((a, b) => a.h * a.w - b.h * b.w).slice(0, 4),
     // ---- 6. the modal's own width ----

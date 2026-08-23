@@ -33,6 +33,7 @@ import {
   reachableWidths,
   reportableClipped,
   reportableCollisions,
+  reportableEscaped,
   reportableUndersized,
   targetKey,
   viewportKey,
@@ -2851,4 +2852,202 @@ test('movement — /support coarse is unchanged at one finding over four instanc
   assert.equal(distinctUnder44, 1);
   assert.equal(undersized[0].instances, 4);
   assert.equal(inlineExempt, 0);
+});
+
+// ---- Rule 6 — content that escapes a container which does not clip it ----
+//
+// The blind spot finding 69 fell through. The clip sweep asks an element
+// whether an *ancestor* cuts it off, and `clipper()` answers null twice over:
+// once when an ancestor scrolls, and once when nothing clips at all. The second
+// answer is not "contained" — it is content painting over whatever sits beside
+// it, and no rule in this file could see it.
+//
+// `/launches` under a coarse pointer is the case. The calendar's post card
+// carries a `flex items-center justify-center` strip holding a state chip and
+// four 44px action targets — roughly 290px of content that cannot shrink,
+// because `.cal-chip` is `whitespace-nowrap` and each icon carries
+// `coarse:min-w-[44px]`. The week grid gives that strip a 58px column
+// (`minmax(58px, 1fr)`), so it paints ~116px past each edge of its own card and
+// over the neighbouring days. `post-020-rebase-coarse.json` measured that exact
+// surface on a build that already had the defect and reported `clippedCount: 0`,
+// `collisionCount: 0`, `sidewaysScrollPx: 0` — three zeroes and nothing wrong.
+//
+// Nothing clips it, so it is not clipped. Neither participant renders text, so
+// the collision sweep never pairs it. The scroll is on an inner container, so
+// the document never widens. The rule has to be asked of the *container*.
+const escapeCandidate = (escapedPx, over = {}) => ({
+  escapedPx,
+  w: 58,
+  tag: 'div',
+  cls: 'text-[11px] h-[24px] coarse:h-[44px] w-full flex items-center justify-center gap-[10px]',
+  inModal: false,
+  compensatedPx: 0,
+  ...over,
+});
+
+// The relocation bucket is part of the shape, asserted with it for the same
+// reason the clip report's two are: "measured none" and "not measured" are
+// different answers, and FR-008 requires a candidate that left the count to be
+// findable rather than gone.
+const NOTHING_ESCAPED = {
+  escapedCount: 0,
+  worstEscapePx: 0,
+  escaped: [],
+  escapeCompensated: 0,
+  escapeCompensatedSignatures: [],
+};
+
+test('an empty candidate list reports zero escaping, not absent', () => {
+  assert.deepEqual(reportableEscaped([], { modalOpen: false }), NOTHING_ESCAPED);
+});
+
+test('a page whose every escape candidate is filtered out reads the same as one with none', () => {
+  const filtered = reportableEscaped([escapeCandidate(3), escapeCandidate(8)], { modalOpen: false });
+  assert.deepEqual(filtered, NOTHING_ESCAPED);
+});
+
+test('an escape at or below 8px is not a finding', () => {
+  // The same floor the clip and collision sweeps answer to. A child a few
+  // pixels proud of its parent is a rounding artefact, not a layout failure.
+  assert.equal(reportableEscaped([escapeCandidate(8)], { modalOpen: false }).escapedCount, 0);
+  assert.equal(reportableEscaped([escapeCandidate(9)], { modalOpen: false }).escapedCount, 1);
+});
+
+test('the calendar post strip escaping its column is reported with its geometry', () => {
+  // Finding 69. The figure that matters is how far it paints outside, not how
+  // wide the content is: a person sees icons on top of Thursday.
+  const { escapedCount, worstEscapePx, escaped } = reportableEscaped([escapeCandidate(116)], {
+    modalOpen: false,
+  });
+
+  assert.equal(escapedCount, 1);
+  assert.equal(worstEscapePx, 116);
+  assert.deepEqual(escaped, [
+    {
+      escapedPx: 116,
+      w: 58,
+      tag: 'div',
+      cls: 'text-[11px] h-[24px] coarse:h-[44px] w-full flex items-center justify-center gap-[10px]',
+    },
+  ]);
+});
+
+test('the boundary flag is not part of the escape finding', () => {
+  // `inModal` decides which figure a candidate counts toward and is not part of
+  // what is reported, exactly as it is not for a clipped box.
+  const { escaped } = reportableEscaped([escapeCandidate(116, { inModal: true })], {
+    modalOpen: true,
+  });
+  assert.equal(Object.hasOwn(escaped[0], 'inModal'), false);
+});
+
+test('one strip repeated across a week is one entry, at its deepest instance', () => {
+  // Seven day columns render the same strip from the same classes. That is one
+  // thing to fix however many times the grid repeats it — the dedupe every
+  // other rule in this file already applies, worst-wins so the figure reported
+  // is the one actually measured at its worst.
+  const { escapedCount, worstEscapePx, escaped } = reportableEscaped(
+    [escapeCandidate(40), escapeCandidate(116), escapeCandidate(72)],
+    { modalOpen: false }
+  );
+
+  assert.equal(escapedCount, 1);
+  assert.equal(worstEscapePx, 116);
+  assert.equal(escaped.length, 1);
+});
+
+test('two different containers escaping are two entries', () => {
+  const { escapedCount, worstEscapePx } = reportableEscaped(
+    [escapeCandidate(116), escapeCandidate(31, { cls: 'flex gap-[8px] px-[5px]', w: 318 })],
+    { modalOpen: false }
+  );
+
+  assert.equal(escapedCount, 2);
+  assert.equal(worstEscapePx, 116);
+});
+
+test('the count is what survived the rules, not what fitted in the report', () => {
+  // The same split `clippedCount` and `collisionCount` keep: a count that
+  // quietly capped at six would read identically on a page with seven escaping
+  // containers and one with seventy.
+  const many = Array.from({ length: 9 }, (_, i) =>
+    escapeCandidate(20 + i, { cls: `flex justify-center w-[${i}px]` })
+  );
+  const { escapedCount, escaped } = reportableEscaped(many, { modalOpen: false });
+
+  assert.equal(escapedCount, 9);
+  assert.equal(escaped.length, 6);
+});
+
+// The counter-cases. A rule that took either of these would be hiding a
+// deliberate layout, which is the half of finding 65 that invented findings
+// rather than the half that dropped them.
+
+test('an overhang the layout pays for in negative margin is not an escape', () => {
+  // `/modal/dark/all` again — `w-[calc(100vw+80px)] -m-[40px]` so that
+  // compose's own padding is cancelled and the modal fills its frame. The child
+  // is pulled back by exactly as much as it sticks out. Same shape, same
+  // precedent and the same `paidForByMargin` test the clip rule already uses.
+  const { escapedCount, escapeCompensated, escapeCompensatedSignatures } = reportableEscaped(
+    // `inModal`, because that is where this box is: the reading is of the modal
+    // and the filter above would otherwise drop it as page furniture.
+    [
+      escapeCandidate(40, {
+        compensatedPx: 40,
+        w: 1024,
+        cls: 'w-[calc(100vw+80px)] -m-[40px]',
+        inModal: true,
+      }),
+    ],
+    { modalOpen: true }
+  );
+
+  assert.equal(escapedCount, 0);
+  // Relocated, never dropped.
+  assert.equal(escapeCompensated, 1);
+  assert.equal(escapeCompensatedSignatures[0].escapedPx, 40);
+});
+
+test('an overhang wider than its compensation still reports all of it', () => {
+  // Narrow on purpose, and the comparison is what makes it narrow: a container
+  // with `-ms-[6px]` whose child escapes by 300 has escaped by 300.
+  const { escapedCount, worstEscapePx, escapeCompensated } = reportableEscaped(
+    [escapeCandidate(300, { compensatedPx: 6 })],
+    { modalOpen: false }
+  );
+
+  assert.equal(escapedCount, 1);
+  assert.equal(worstEscapePx, 300);
+  assert.equal(escapeCompensated, 0);
+});
+
+test('a candidate carrying no compensation figure is treated as not compensated', () => {
+  // Every retained reading predates this rule and carries no `compensatedPx`.
+  // A missing fact must never read as an exemption — the same way
+  // `clipperIsField: undefined` and `inlineInText: undefined` do not.
+  const { escapedCount, escapeCompensated } = reportableEscaped(
+    [{ escapedPx: 116, w: 58, tag: 'div', cls: 'flex justify-center', inModal: false }],
+    { modalOpen: false }
+  );
+
+  assert.equal(escapedCount, 1);
+  assert.equal(escapeCompensated, 0);
+});
+
+test('a modal reading judges the modal, not the page behind it', () => {
+  // The rule `reportableCollisions` and `reportableUndersized` both apply: what
+  // is being measured is the modal, and a container escaping out on the page
+  // underneath is a fact about the page. `clipped` keeps a separate inside
+  // figure instead — that asymmetry is deliberate and documented at the call.
+  const behind = escapeCandidate(240, { cls: 'flex justify-center behind', inModal: false });
+  const inside = escapeCandidate(31, { cls: 'flex justify-center inside', inModal: true });
+
+  const closed = reportableEscaped([behind, inside], { modalOpen: false });
+  assert.equal(closed.escapedCount, 2);
+  assert.equal(closed.worstEscapePx, 240);
+
+  const open = reportableEscaped([behind, inside], { modalOpen: true });
+  assert.equal(open.escapedCount, 1);
+  assert.equal(open.worstEscapePx, 31);
+  assert.equal(Object.hasOwn(open, 'escapedInside'), false);
 });

@@ -345,7 +345,12 @@ const truncatedByField = (c) => c.clipperIsField === true;
 // Narrow on purpose, and the comparison is what makes it narrow: a control with
 // `-ms-[6px]` losing 300px has lost 300px and still reports all of it. Only an
 // overhang wholly inside the compensation is excused.
-const paidForByMargin = (c) => c.compensatedPx > 0 && c.lostPx <= c.compensatedPx;
+// Shared with the escape rule below, which asks the same question of a
+// different overhang: the two differ in what sticks out, never in what excuses
+// it. Taking the two figures rather than the candidate is what lets one
+// predicate serve both.
+const paidForByMargin = (overhangPx, compensatedPx) =>
+  compensatedPx > 0 && overhangPx <= compensatedPx;
 
 // Sorted before it is deduped, so the deepest instance of a repeated signature
 // survives. Keeping whichever came first in document order reported 10px on a
@@ -381,7 +386,7 @@ const decideClipped = (candidates) => {
     // already exists for. A relocated finding keeps the figure it was measured
     // at rather than the shallowest one that happened to share its signature.
     if (truncatedByField(c)) fieldTruncated.push(entry);
-    else if (paidForByMargin(c)) compensated.push(entry);
+    else if (paidForByMargin(c.lostPx, c.compensatedPx)) compensated.push(entry);
     else clipped.push(entry);
   }
   return { clipped, fieldTruncated, compensated };
@@ -447,6 +452,88 @@ export function reportableClipped(candidates, { modalOpen } = { modalOpen: false
     ...(modalOpen
       ? { clippedInside: decideClipped(candidates.filter((c) => c.inModal)).clipped.length }
       : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Escapes — content painting outside a container that does not clip it
+// ---------------------------------------------------------------------------
+
+// The blind spot finding 69 fell through, and it is the inverse of the rule
+// above. `clipper()` walks up from an element asking which ancestor cuts it
+// off, and it returns null for two different reasons: an ancestor scrolls, so
+// the content is reachable — or nothing clips at all. The second is not
+// containment. It is content painted over whatever sits beside it, and no rule
+// in this file could see it.
+//
+// `/launches` under a coarse pointer is the case that named it. The calendar's
+// post card carries a `flex items-center justify-center` strip holding a state
+// chip and four 44px action targets, none of which can shrink: `.cal-chip` is
+// `whitespace-nowrap` and each icon carries `coarse:min-w-[44px]`. The week
+// grid gives that strip a 58px column, so ~290px of content paints out of both
+// sides of the card and over the neighbouring days.
+// `post-020-rebase-coarse.json` measured that surface on a build that already
+// had the defect and reported three zeroes: nothing clipped, nothing colliding,
+// no sideways scroll. Nothing clips it, neither participant renders text, and
+// the scroll is on an inner container, so all three were true and all three
+// were beside the point.
+//
+// So the question has to be asked of the container rather than of the element,
+// which is what makes this a rule of its own rather than a widening of the clip
+// rule. probe.js hands over containers whose in-flow children paint outside
+// them and which neither clip nor scroll; what is a finding among those is
+// decided here.
+//
+// The floor, the signature and the cap of six are the clip rule's. A second
+// vocabulary for the same kind of finding would be one more thing to learn for
+// nothing.
+const ESCAPE_FLOOR_PX = 8;
+const ESCAPE_CAP = 6;
+
+const escapeSignature = (c) => c.tag + c.cls;
+
+// Sorted before it is deduped so the deepest instance of a repeated signature
+// survives — the same worst-wins rule `decideClipped` documents. Seven day
+// columns render one strip from one class list: that is one thing to fix, and
+// the figure reported should be the one actually measured at its worst.
+const decideEscaped = (candidates) => {
+  const seen = new Set();
+  const escaped = [];
+  const compensated = [];
+  for (const c of [...candidates].sort((x, y) => y.escapedPx - x.escapedPx)) {
+    if (c.escapedPx <= ESCAPE_FLOOR_PX) continue;
+    const key = escapeSignature(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const entry = { escapedPx: c.escapedPx, w: c.w, tag: c.tag, cls: c.cls };
+    // One `seen` across both buckets, so a signature is classified once and by
+    // its deepest instance. A candidate that predates this rule carries no
+    // `compensatedPx`, and a missing fact reads as *not* exempt — the rule
+    // `clipperIsField` and `inlineInText` both already follow.
+    if (paidForByMargin(c.escapedPx, c.compensatedPx)) compensated.push(entry);
+    else escaped.push(entry);
+  }
+  return { escaped, compensated };
+};
+
+export function reportableEscaped(candidates, { modalOpen } = { modalOpen: false }) {
+  // While a modal is open the reading is *of the modal*, so the page behind it
+  // is not what is being measured — the rule `reportableCollisions` and
+  // `reportableUndersized` both apply, and the one this follows. `clipped` adds
+  // a separate inside figure instead, because a modal clipping its own content
+  // was a question someone asked; nobody has yet asked it of an escape, and
+  // inventing the field would be answering it in advance.
+  const judged = modalOpen ? candidates.filter((c) => c.inModal) : candidates;
+  const { escaped, compensated } = decideEscaped(judged);
+
+  return {
+    // Count uncapped, detail capped — the split every other rule here keeps.
+    escapedCount: escaped.length,
+    worstEscapePx: escaped.length ? escaped[0].escapedPx : 0,
+    escaped: escaped.slice(0, ESCAPE_CAP),
+    // Relocated, never dropped, and present even when empty: FR-008.
+    escapeCompensated: compensated.length,
+    escapeCompensatedSignatures: compensated.slice(0, ESCAPE_CAP),
   };
 }
 
@@ -1228,6 +1315,17 @@ export const VARIANCE = {
     'wrapper.w',
     'wrapper.h',
     'clippedInside',
+    // Added with the escape rule. Advisory on the same terms as everything
+    // above it: nothing has measured them. The construction argument is the one
+    // `touch.distinctUnder44` has — a count of signatures rather than of
+    // instances, so a layout that repeats a spilling container seven times
+    // across a week cannot make the figure follow the day — and a construction
+    // argument is not four runs. `worstEscapePx` is a geometry maximum over
+    // that same set, which is the shape `worstCutPx` was promoted on, so expect
+    // it to promote with `escapedCount` rather than separately.
+    'escapedCount',
+    'worstEscapePx',
+    'escapeCompensated',
   ],
   // Deliberately outside both lists, so a comparison never mentions them:
   //   build          — provenance, printed above the diff. Comparing it per
@@ -1254,6 +1352,11 @@ export const VARIANCE = {
     'collisions',
     'undersized',
     'wrapperSignatures',
+    // Detail, on the same terms as `clipped[]` and `wrapperSignatures[]`: it is
+    // what makes an escape auditable by hand, while `escapedCount` above is the
+    // figure a comparison reports on.
+    'escaped',
+    'escapeCompensatedSignatures',
   ],
 };
 
