@@ -58,6 +58,10 @@ import copy from 'copy-to-clipboard';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { Button } from '@gitroom/react/form/button';
+import {
+  PostAction,
+  PostActionsMenu,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -1038,21 +1042,6 @@ const CalendarItem: FC<{
   } = props;
   const { disableXAnalytics } = useVariables();
   const user = useUser();
-  // A week or month cell is a 58px grid column (`minmax(58px, 1fr)` at :358),
-  // and under a coarse pointer each of these actions is a 44px target that
-  // cannot shrink — the state chip beside them is `whitespace-nowrap` too. That
-  // is ~290px of unshrinkable content in 58px, and because the strip centres
-  // its contents it paints out of *both* sides of the card and over the
-  // neighbouring days. Finding 69.
-  //
-  // Day view and the list view are full width and have the room, so they keep
-  // the actions: `ListView` renders this component with `display="day"` (:550),
-  // which is why a phone is unaffected — a narrow viewport gets the list. In a
-  // grid cell a touch user opens the post instead, which is the same path a
-  // mouse user has without hovering.
-  //
-  // `coarse:` only, so nothing about the mouse reveal changes.
-  const actionsEscapeTheCell = display !== 'day';
   const showCreationMethodBadge =
     user?.impersonate &&
     post.creationMethod &&
@@ -1060,6 +1049,80 @@ const CalendarItem: FC<{
   const preview = useCallback(() => {
     window.open(`/p/` + post.id + '?share=true', '_blank');
   }, [post]);
+
+  // A week or month cell is a 58px grid column (`minmax(58px, 1fr)` at :358),
+  // and these actions have never fitted it — laid out in the strip they painted
+  // over the days on either side, which is finding 69 of the 2026-08 responsive
+  // audit. They are data rather than markup because the strip hands them to a
+  // panel that opens against the viewport instead of inside the column.
+  const statisticsAction = useMemo(() => {
+    if (
+      (post.integration.providerIdentifier === 'x' && disableXAnalytics) ||
+      !post.releaseId
+    ) {
+      return undefined;
+    }
+    return post.releaseId === 'missing' ? missingRelease : statistics;
+  }, [
+    post.integration.providerIdentifier,
+    post.releaseId,
+    disableXAnalytics,
+    missingRelease,
+    statistics,
+  ]);
+
+  const actions = useMemo(
+    () =>
+      [
+        {
+          key: 'duplicate',
+          icon: <Duplicate />,
+          label: t('duplicate_post', 'Duplicate Post'),
+          onClick: duplicatePost,
+        },
+        {
+          key: 'preview',
+          icon: <Preview />,
+          label: t('preview_post', 'Preview Post'),
+          onClick: preview,
+        },
+        ...(statisticsAction
+          ? [
+              {
+                key: 'statistics',
+                icon: <Statistics />,
+                label: t('post_statistics', 'Post Statistics'),
+                onClick: statisticsAction,
+              },
+            ]
+          : []),
+        ...(copyDebugJson
+          ? [
+              {
+                key: 'debug',
+                icon: <CopyDebug />,
+                label: t('copy_debug_json', 'Copy Debug JSON'),
+                onClick: copyDebugJson,
+              },
+            ]
+          : []),
+        {
+          key: 'delete',
+          icon: <DeletePost />,
+          label: t('delete_post', 'Delete Post'),
+          onClick: deletePost,
+          danger: true,
+        },
+      ] as PostAction[],
+    [
+      t,
+      duplicatePost,
+      preview,
+      statisticsAction,
+      copyDebugJson,
+      deletePost,
+    ]
+  );
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
@@ -1107,7 +1170,7 @@ const CalendarItem: FC<{
       <div
         className={clsx(
           post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
+          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
         )}
         style={{
           backgroundColor: post?.tags?.[0]?.tag?.color,
@@ -1137,75 +1200,10 @@ const CalendarItem: FC<{
         >
           {post.tags.map((p) => p.tag.name).join(', ')}
         </div>
-        {copyDebugJson && (
-          <div
-            className={clsx(
-              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-              actionsEscapeTheCell && 'coarse:hidden',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-            )}
-            onClick={copyDebugJson}
-          >
-            <CopyDebug />
-          </div>
-        )}
-        <div
-          className={clsx(
-            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-            actionsEscapeTheCell && 'coarse:hidden',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={duplicatePost}
-        >
-          <Duplicate />
-        </div>
-        <div
-          className={clsx(
-            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-            actionsEscapeTheCell && 'coarse:hidden',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={preview}
-        >
-          <Preview />
-        </div>{' '}
-        {((post.integration.providerIdentifier === 'x' && disableXAnalytics) || !post.releaseId) ? (
-          <></>
-        ) : post.releaseId === 'missing' && missingRelease ? (
-          <div
-            className={clsx(
-              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-              actionsEscapeTheCell && 'coarse:hidden',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-            )}
-            onClick={missingRelease}
-          >
-            <Statistics />
-          </div>
-        ) : post.releaseId !== 'missing' ? (
-          <div
-            className={clsx(
-              'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-              actionsEscapeTheCell && 'coarse:hidden',
-              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-            )}
-            onClick={statistics}
-          >
-            <Statistics />
-          </div>
-        ) : (
-          <></>
-        )}{' '}
-        <div
-          className={clsx(
-            'hidden group-hover:block coarse:flex coarse:min-w-[44px] coarse:min-h-[44px] coarse:items-center coarse:justify-center hover:underline cursor-pointer',
-            actionsEscapeTheCell && 'coarse:hidden',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={deletePost}
-        >
-          <DeletePost />
-        </div>
+        <PostActionsMenu
+          actions={actions}
+          label={t('post_actions', 'Post actions')}
+        />
       </div>
       <div
         onClick={editPost}
