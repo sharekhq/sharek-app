@@ -52,14 +52,17 @@ import {
 
 type Media = { id: string; path: string };
 
-type VideoType = { identifier: string; title: string };
+export type VideoType = { identifier: string; title: string };
 
 /**
  * The provider's own name for itself, from the registry — or the API's title
  * when it declares no card. The modal never keeps a table of identifiers
  * (FR-004).
  */
-const videoTypeLabel = (t: ReturnType<typeof useT>, type: VideoType) => {
+export const videoTypeLabel = (
+  t: ReturnType<typeof useT>,
+  type: VideoType
+) => {
   const card = videoTypeCard(type.identifier);
   return card ? t(card.name.key, card.name.fallback) : type.title;
 };
