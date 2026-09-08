@@ -1392,5 +1392,7 @@
   "studio_upsell_title": "افتح توليد الصور والفيديو",
   "studio_upsell_body": "قم بترقية خطتك لتوليد الصور والفيديوهات بالذكاء الاصطناعي.",
   "studio_saved_to_media": "حُفظ في مكتبة الوسائط",
-  "studio_create_post": "أنشئ منشوراً"
+  "studio_create_post": "أنشئ منشوراً",
+  "studio_empty_title": "لا توجد أدوات إبداعية بعد",
+  "studio_empty_body": "تظهر الأدوات هنا عند توفّرها على المنصة."
 }

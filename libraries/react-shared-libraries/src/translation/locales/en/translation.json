@@ -1336,5 +1336,7 @@
   "studio_upsell_title": "Unlock AI images and video",
   "studio_upsell_body": "Upgrade your plan to generate images and videos with AI.",
   "studio_saved_to_media": "Saved to your Media library",
-  "studio_create_post": "Create a post"
+  "studio_create_post": "Create a post",
+  "studio_empty_title": "No creative tools yet",
+  "studio_empty_body": "Tools appear here as they become available on the platform."
 }

@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, FC, ReactNode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const toast = jest.fn();
@@ -75,8 +75,20 @@ const buttonStarting = (label: string) =>
     node.textContent?.trim().startsWith(label)
   );
 
-/** Opens the AI image modal, types a prompt, and presses Generate. */
-const generate = async () => {
+// The modal manager keeps its open modals in a module-level store, so a modal
+// one test leaves open is still there for the next one. This hands afterEach
+// a way to empty it.
+let closeEveryModal: (() => void) | undefined;
+const CaptureModals: FC = () => {
+  const { closeAll } = useModals();
+  useEffect(() => {
+    closeEveryModal = closeAll;
+  }, [closeAll]);
+  return null;
+};
+
+/** Mounts a trigger next to the modal manager it opens into. */
+const mount = async (trigger: ReactNode) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -85,11 +97,17 @@ const generate = async () => {
   await act(async () => {
     root.render(
       <>
+        <CaptureModals />
         <ModalManagerInner />
-        <AiImage value="" onChange={jest.fn()} />
+        {trigger}
       </>
     );
   });
+};
+
+/** Opens the AI image modal, types a prompt, and presses Generate. */
+const generate = async () => {
+  await mount(<AiImage value="" onChange={jest.fn()} />);
 
   await click(document.querySelector('.bg-ai'));
   await type(
@@ -101,6 +119,7 @@ const generate = async () => {
 
 afterEach(() => {
   act(() => {
+    closeEveryModal?.();
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
@@ -209,5 +228,44 @@ describe('when a Regenerate is refused', () => {
     expect(
       document.querySelector('img[src="https://media/first.png"]')
     ).toBeTruthy();
+  });
+});
+
+// The composer keeps the ✦ button it has today (FR-010): nothing about the
+// trigger changes for a caller that asks for nothing new.
+describe('as the composer button', () => {
+  it('renders the ✦ button and opens the generator from it, as before', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+
+    const trigger = document.querySelector('.bg-ai');
+    expect(trigger?.textContent?.trim()).toBe('AI Image');
+
+    await click(trigger);
+
+    expect(document.querySelector('textarea')).toBeTruthy();
+  });
+});
+
+// Studio renders a card of its own as the trigger; the wiring behind it stays
+// here rather than being copied.
+describe('with a trigger of its own', () => {
+  it('renders that trigger alone and opens the generator from it', async () => {
+    await mount(
+      <AiImage
+        value=""
+        onChange={jest.fn()}
+        renderTrigger={(open) => (
+          <button data-testid="card" onClick={open}>
+            Card
+          </button>
+        )}
+      />
+    );
+
+    expect(document.querySelector('.bg-ai')).toBeNull();
+
+    await click(document.querySelector('[data-testid="card"]'));
+
+    expect(document.querySelector('textarea')).toBeTruthy();
   });
 });

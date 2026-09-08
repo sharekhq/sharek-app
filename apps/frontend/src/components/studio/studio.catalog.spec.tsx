@@ -28,8 +28,12 @@ import {
   buildStudioCatalog,
   STUDIO_TOOLS,
   StudioCatalog,
+  StudioCategory,
   StudioCategoryId,
 } from '@gitroom/frontend/components/studio/studio.tools';
+
+type CatalogInput = Parameters<typeof buildStudioCatalog>[0];
+type Translate = Parameters<StudioCategory['label']>[0];
 
 // What /media/video-options answers: the agent-facing description rides along
 // and must never reach a card.
@@ -45,12 +49,10 @@ const unknown = {
   description: 'Generates a video. Use this when…',
 };
 
-const withAi = { tier: { ai: true } } as any;
-const withoutAi = { tier: { ai: false } } as any;
+const withAi = { tier: { ai: true } } as unknown as CatalogInput['user'];
+const withoutAi = { tier: { ai: false } } as unknown as CatalogInput['user'];
 
-const catalog = (
-  overrides: Partial<Parameters<typeof buildStudioCatalog>[0]> = {}
-) =>
+const catalog = (overrides: Partial<CatalogInput> = {}) =>
   buildStudioCatalog({
     tools: STUDIO_TOOLS,
     videoOptions: [veo3, slides],
@@ -62,7 +64,8 @@ const catalog = (
 // Resolves the way the components do — t(key, fallback) — against a locale
 // stub, so a resolved key and a fallback can be told apart.
 const translate = (locale: Record<string, string>) =>
-  ((key: string, fallback: string) => locale[key] ?? fallback) as any;
+  ((key: string, fallback: string) =>
+    locale[key] ?? fallback) as unknown as Translate;
 
 const ids = (built: StudioCatalog) => built.categories.map((c) => c.id);
 const toolsIn = (built: StudioCatalog, category: StudioCategoryId) =>

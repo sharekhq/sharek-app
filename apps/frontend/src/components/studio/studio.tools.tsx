@@ -1,18 +1,62 @@
 'use client';
 
-import { ReactNode } from 'react';
+import dynamic from 'next/dynamic';
+import { FC, ReactNode, useCallback } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import {
+  AiVideo,
+  Media,
   VideoType,
   videoTypeLabel,
 } from '@gitroom/frontend/components/launches/ai.video';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
 
+const Polonto = dynamic(
+  () => import('@gitroom/frontend/components/launches/polonto')
+);
+
 type Translate = ReturnType<typeof useT>;
 type StudioUser = ReturnType<typeof useUser>;
 
 export type StudioCategoryId = 'design' | 'ai_images' | 'ai_video';
+
+export interface StudioTriggerProps {
+  onSaved: (media: Media) => void;
+  /** The card, rendered as the tool's own trigger. */
+  renderTrigger: (open: () => void, loading: boolean) => ReactNode;
+}
+
+/**
+ * Opens the Polotno editor the way the composer's Design Media button does
+ * (media.component.tsx); the editor's own save is what lands the design in
+ * the Media library.
+ */
+const ImageEditorTrigger: FC<StudioTriggerProps> = ({
+  onSaved,
+  renderTrigger,
+}) => {
+  const t = useT();
+  const { openModal } = useModals();
+
+  const open = useCallback(() => {
+    openModal({
+      askClose: false,
+      title: t('design_media', 'Design Media'),
+      size: '80%',
+      children: (close) => (
+        <Polonto
+          setMedia={(media) => media.forEach(onSaved)}
+          closeModal={close}
+        />
+      ),
+    });
+  }, [openModal, onSaved, t]);
+
+  return <>{renderTrigger(open, false)}</>;
+};
 
 /**
  * One launchable creation tool. Text is resolved with `t(key, fallback)` at
@@ -28,6 +72,8 @@ export interface StudioToolEntry {
   description: (t: Translate) => string;
   icon: ReactNode;
   entitled: (user: StudioUser) => boolean;
+  /** Renders the tool's trigger around the card; opening is the tool's own. */
+  trigger: (props: StudioTriggerProps) => ReactNode;
 }
 
 export interface StudioTool {
@@ -64,20 +110,19 @@ const CATEGORIES: Array<Pick<StudioCategory, 'id' | 'label'>> = [
 // the catalog.
 const needsAi = (user: StudioUser) => !!user?.tier?.ai;
 
-const glyph = {
-  width: 30,
-  height: 30,
-  viewBox: '0 0 22 22',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.5,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': true,
-} as const;
-
 const ImageEditorGlyph = () => (
-  <svg {...glyph}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="30"
+    height="30"
+    viewBox="0 0 22 22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <rect x="2.5" y="2.5" width="17" height="17" rx="2.5" />
     <circle cx="8" cy="8" r="1.8" />
     <path d="M2.5 15.5 7 11l4 4 3.5-3.5 5 5" />
@@ -85,7 +130,18 @@ const ImageEditorGlyph = () => (
 );
 
 const AiImageGlyph = () => (
-  <svg {...glyph}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="30"
+    height="30"
+    viewBox="0 0 22 22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <rect x="2.5" y="4.5" width="17" height="14" rx="2.5" />
     <circle cx="8" cy="9.5" r="1.6" />
     <path d="M2.5 15.5 7 11.5l3.5 3.5 2.5-2.5 6.5 6" />
@@ -93,7 +149,18 @@ const AiImageGlyph = () => (
 );
 
 const AiVideoGlyph = () => (
-  <svg {...glyph}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="30"
+    height="30"
+    viewBox="0 0 22 22"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <rect x="1.5" y="6.5" width="12.5" height="11" rx="2.5" />
     <path d="m14 10.8 6.5-3v8.4l-6.5-3" />
   </svg>
@@ -108,10 +175,11 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
     description: (t) =>
       t(
         'studio_tool_image_editor_desc',
-        'Design and edit images — text, your brand colours, layers.'
+        'Design and edit images — text, your brand colors, layers.'
       ),
     icon: <ImageEditorGlyph />,
     entitled: needsAi,
+    trigger: (props) => <ImageEditorTrigger {...props} />,
   },
   {
     id: 'ai-image',
@@ -125,6 +193,9 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
       ),
     icon: <AiImageGlyph />,
     entitled: needsAi,
+    trigger: ({ onSaved, renderTrigger }) => (
+      <AiImage value="" onChange={onSaved} renderTrigger={renderTrigger} />
+    ),
   },
 ];
 
@@ -148,6 +219,14 @@ export const videoTool = (type: VideoType): StudioToolEntry => {
         : t('studio_video_desc_generic', 'Generate a video with AI.'),
     icon: <AiVideoGlyph />,
     entitled: needsAi,
+    trigger: ({ onSaved, renderTrigger }) => (
+      <AiVideo
+        value=""
+        only={type.identifier}
+        onChange={onSaved}
+        renderTrigger={renderTrigger}
+      />
+    ),
   };
 };
 
