@@ -35,6 +35,7 @@ import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
 import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   ModalHeaderSlotTarget,
   useModals,
@@ -767,6 +768,12 @@ export const MultiMediaComponent: FC<{
   designNotAvailable?: boolean;
   aiVideoNotAvailable?: boolean;
   /**
+   * Where this row's media ends up, for the generators that open from it to
+   * promise. The composer's post by default; a row that collects something
+   * else — a provider's reference images — says so.
+   */
+  destination?: MediaDestination;
+  /**
    * Drops the chrome this component wears inside the composer — the divider
    * above it and the 12px inset that lines its row up with the editor's own
    * padding. Set it when the component sits directly in a modal, where both
@@ -819,6 +826,7 @@ export const MultiMediaComponent: FC<{
     mediaNotAvailable,
     designNotAvailable,
     aiVideoNotAvailable,
+    destination,
     flush,
   } = props;
   const user = useUser();
@@ -1032,9 +1040,17 @@ export const MultiMediaComponent: FC<{
 
               {!!user?.tier?.ai && (
                 <>
-                  <AiImage value={text} onChange={changeMedia} />
+                  <AiImage
+                    value={text}
+                    onChange={changeMedia}
+                    destination={destination}
+                  />
                   {!aiVideoNotAvailable && (
-                    <AiVideo value={text} onChange={changeMedia} />
+                    <AiVideo
+                      value={text}
+                      onChange={changeMedia}
+                      destination={destination}
+                    />
                   )}
                 </>
               )}

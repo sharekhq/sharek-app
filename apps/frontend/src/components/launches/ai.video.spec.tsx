@@ -51,6 +51,7 @@ import {
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 
 const answer = (status: number, body: any) => ({
@@ -71,7 +72,31 @@ const mounted: Array<{ unmount: () => void }> = [];
 const posted = (url: string) =>
   request.mock.calls.filter(([called]) => called === url);
 
-const generate = async () => {
+/** The NDJSON body the render route answers with, as `ndjsonFrames` reads it. */
+const stream = (...frames: object[]) => {
+  const chunks = frames.map((frame) =>
+    new TextEncoder().encode(JSON.stringify(frame) + '\n')
+  );
+  let next = 0;
+  return {
+    getReader: () => ({
+      read: async () =>
+        next < chunks.length
+          ? { done: false, value: chunks[next++] }
+          : { done: true, value: undefined },
+      cancel: async () => undefined,
+    }),
+  } as unknown as ReadableStream<Uint8Array>;
+};
+
+/** Flushes the microtask the awaited fetch resolves on. */
+const settle = async () => {
+  await act(async () => {
+    await new Promise((res) => setTimeout(res, 0));
+  });
+};
+
+const generate = async (destination?: MediaDestination) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -84,6 +109,7 @@ const generate = async () => {
         close={jest.fn()}
         setLoading={jest.fn()}
         onChange={jest.fn()}
+        destination={destination}
       />
     );
   });
@@ -300,5 +326,76 @@ describe('with a trigger of its own', () => {
     );
 
     expect(document.querySelector('[data-testid="card"]')).toBeNull();
+  });
+});
+
+// A render runs for minutes, so the waiting screen exists to say the window is
+// not a leash. Where the video lands afterwards is the caller's, and Studio's
+// copy of the generator has no post to land it in.
+describe('the note under the waiting screen', () => {
+  beforeEach(() => {
+    // Never resolves, so the rendering phase stays on screen to be read.
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+  });
+
+  it('promises the post by default', async () => {
+    await generate();
+
+    expect(document.body.textContent).toContain(
+      "the video will be added to your post when it's ready"
+    );
+  });
+
+  it('promises the Media library when nothing is being composed', async () => {
+    await generate('media');
+
+    expect(document.body.textContent).toContain(
+      "the video will be saved to your Media library when it's ready"
+    );
+  });
+});
+
+// The video is a Media row before this screen exists — the route saves it as
+// it finishes — so outside a composer the action is not "use" at all: there is
+// nothing left to attach it to, and it only confirms and closes.
+describe('the action that accepts the result', () => {
+  const finished = { id: 'media-1', path: 'https://media/first.mp4' };
+
+  beforeEach(() => {
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/allowed')
+          ? answer(200, true)
+          : {
+              ...answer(200, {}),
+              body: stream({ name: 'done', media: finished }),
+            }
+      )
+    );
+  });
+
+  it('offers to use the video in the post by default', async () => {
+    await generate();
+    await settle();
+
+    const labels = Array.from(document.querySelectorAll('button')).map((node) =>
+      node.textContent?.trim()
+    );
+    expect(labels).toContain('Use video');
+  });
+
+  it('only confirms when the video is not going anywhere else', async () => {
+    await generate('media');
+    await settle();
+
+    const labels = Array.from(document.querySelectorAll('button')).map((node) =>
+      node.textContent?.trim()
+    );
+    expect(labels).not.toContain('Use video');
+    expect(labels).toContain('Done');
   });
 });

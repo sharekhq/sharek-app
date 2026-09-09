@@ -38,6 +38,7 @@ import {
 } from '@gitroom/frontend/components/ui/aspect.tile';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -114,8 +115,9 @@ const AiImageModal: FC<{
   close: () => void;
   setLoading: (loading: boolean) => void;
   onChange: (params: { id: string; path: string }) => void;
+  destination: MediaDestination;
 }> = (props) => {
-  const { close, setLoading, onChange } = props;
+  const { close, setLoading, onChange, destination } = props;
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
@@ -289,6 +291,30 @@ const AiImageModal: FC<{
     setImage(null);
     setPhase('compose');
   };
+
+  // The image is already in the Media library by the time any of this renders
+  // — the route saves it before it answers — so the destination names what
+  // happens next rather than whether the image is kept.
+  const closeNote =
+    destination === 'media'
+      ? t(
+          'close_window_note_media',
+          "You can close this window — the image will be saved to your Media library when it's ready."
+        )
+      : destination === 'reference'
+      ? t(
+          'close_window_note_reference',
+          "You can close this window — the image will be added to your reference images when it's ready."
+        )
+      : t(
+          'close_window_note',
+          "You can close this window — the image will be added to your post when it's ready."
+        );
+
+  // Nothing to attach it to, so there is nothing to "use": the action only
+  // confirms the image and closes.
+  const acceptLabel =
+    destination === 'media' ? t('done', 'Done') : t('use_image', 'Use image');
 
   const styleLabel = (entry: ImageStyle) =>
     t(`image_style_${entry.id}`, entry.label);
@@ -588,10 +614,7 @@ const AiImageModal: FC<{
                 strokeLinecap="round"
               />
             </svg>
-            {t(
-              'close_window_note',
-              "You can close this window — the image will be added to your post when it's ready."
-            )}
+            {closeNote}
           </div>
         </>
       )}
@@ -671,7 +694,7 @@ const AiImageModal: FC<{
                   · {t('one_credit', '1 credit')}
                 </span>
               </Button>
-              <Button onClick={useImage}>{t('use_image', 'Use image')}</Button>
+              <Button onClick={useImage}>{acceptLabel}</Button>
             </>
           ) : (
             <>
@@ -698,9 +721,14 @@ export const AiImage: FC<{
    * the modal wiring stays here rather than being copied.
    */
   renderTrigger?: (open: () => void, loading: boolean) => ReactNode;
+  /**
+   * Where the finished image goes — what the waiting note promises and what
+   * the action that accepts it is called. The composer's post by default.
+   */
+  destination?: MediaDestination;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger } = props;
+  const { onChange, renderTrigger, destination = 'post' } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -721,10 +749,11 @@ export const AiImage: FC<{
           close={close}
           setLoading={setLoading}
           onChange={onChange}
+          destination={destination}
         />
       ),
     });
-  }, [loading, onChange]);
+  }, [loading, onChange, destination]);
 
   if (renderTrigger) {
     return <>{renderTrigger(openImageModal, loading)}</>;
