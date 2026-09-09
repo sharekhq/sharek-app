@@ -1377,5 +1377,22 @@
   "support_failed_title": "تعذّر إرسال طلبك.",
   "support_failed_body": "حاول مرة أخرى بعد قليل، أو راسلنا مباشرة على support@sharek.app.",
   "compose_view": "طريقة العرض",
-  "login_to_use_the_wizard_to_generate_api_code": "سجّل الدخول لاستخدام معالج توليد كود API"
+  "login_to_use_the_wizard_to_generate_api_code": "سجّل الدخول لاستخدام معالج توليد كود API",
+  "studio": "الاستوديو",
+  "studio_intro": "أنشئ تصاميم وصوراً وفيديوهات لمنشوراتك. كل ما تنشئه يُحفظ في مكتبة الوسائط.",
+  "studio_category_design": "التصميم",
+  "studio_category_ai_images": "صور بالذكاء الاصطناعي",
+  "studio_category_ai_video": "فيديو بالذكاء الاصطناعي",
+  "studio_tool_image_editor": "محرر الصور",
+  "studio_tool_image_editor_desc": "صمّم وعدّل الصور — نصوص وألوان علامتك وطبقات.",
+  "studio_tool_ai_image": "مولّد الصور",
+  "studio_tool_ai_image_desc": "حوّل وصفاً مكتوباً إلى صورة جاهزة للنشر.",
+  "studio_video_desc_generic": "أنشئ فيديو بالذكاء الاصطناعي.",
+  "studio_upgrade": "ترقية",
+  "studio_upsell_title": "افتح توليد الصور والفيديو",
+  "studio_upsell_body": "قم بترقية خطتك لتوليد الصور والفيديوهات بالذكاء الاصطناعي.",
+  "studio_saved_to_media": "حُفظ في مكتبة الوسائط",
+  "studio_create_post": "أنشئ منشوراً",
+  "studio_empty_title": "لا توجد أدوات إبداعية بعد",
+  "studio_empty_body": "تظهر الأدوات هنا عند توفّرها على المنصة."
 }

@@ -2,8 +2,10 @@ import { Button } from '@gitroom/react/form/button';
 import React, {
   FC,
   Fragment,
+  ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -50,16 +52,19 @@ import {
   MEDIA_PREVIEW_MAX_WIDTH,
 } from '@gitroom/frontend/components/ui/aspect.tile';
 
-type Media = { id: string; path: string };
+export type Media = { id: string; path: string };
 
-type VideoType = { identifier: string; title: string };
+export type VideoType = { identifier: string; title: string };
 
 /**
  * The provider's own name for itself, from the registry — or the API's title
  * when it declares no card. The modal never keeps a table of identifiers
  * (FR-004).
  */
-const videoTypeLabel = (t: ReturnType<typeof useT>, type: VideoType) => {
+export const videoTypeLabel = (
+  t: ReturnType<typeof useT>,
+  type: VideoType
+) => {
   const card = videoTypeCard(type.identifier);
   return card ? t(card.name.key, card.name.fallback) : type.title;
 };
@@ -905,15 +910,12 @@ const AiVideoModal: FC<{
   );
 };
 
-export const AiVideo: FC<{
-  value: string;
-  onChange: (params: { id: string; path: string }) => void;
-}> = (props) => {
-  const t = useT();
-  const { onChange } = props;
-  const [loading, setLoading] = useState(false);
+/**
+ * The providers the platform offers for text-to-video. The composer trigger
+ * and the Studio page share it under one SWR key, so both read one request.
+ */
+export const useAiVideoTypes = () => {
   const fetch = useFetch();
-  const modals = useModals();
 
   const loadVideoList = useCallback(async () => {
     return (await (await fetch('/media/video-options')).json()).filter(
@@ -921,7 +923,7 @@ export const AiVideo: FC<{
     );
   }, []);
 
-  const { isLoading, data } = useSWR('load-videos-ai', loadVideoList, {
+  return useSWR<VideoType[]>('load-videos-ai', loadVideoList, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     refreshWhenHidden: false,
@@ -929,32 +931,66 @@ export const AiVideo: FC<{
     refreshWhenOffline: false,
     keepPreviousData: true,
   });
+};
+
+export const AiVideo: FC<{
+  value: string;
+  onChange: (params: { id: string; path: string }) => void;
+  /**
+   * Renders in place of the composer's ✦ button — Studio's card, say — while
+   * the modal wiring stays here rather than being copied.
+   */
+  renderTrigger?: (open: () => void, loading: boolean) => ReactNode;
+  /**
+   * Opens this one provider directly, under its own name: a single-item list
+   * already auto-selects and hides the chooser. Matching nothing — the
+   * capability went away since the page loaded — renders nothing, as an
+   * empty list always has.
+   */
+  only?: string;
+}> = (props) => {
+  const t = useT();
+  const { onChange, renderTrigger, only } = props;
+  const [loading, setLoading] = useState(false);
+  const modals = useModals();
+
+  const { isLoading, data } = useAiVideoTypes();
+  const list = useMemo(
+    () => (only ? data?.filter((type) => type.identifier === only) : data),
+    [data, only]
+  );
 
   const openVideoModal = useCallback(() => {
-    if (loading || !data?.length) {
+    if (loading || !list?.length) {
       return;
     }
     modals.openModal({
       title: (
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
-          {t('generate_ai_video', 'Generate AI Video')}
+          {only
+            ? videoTypeLabel(t, list[0])
+            : t('generate_ai_video', 'Generate AI Video')}
           <ModalHeaderSlotTarget className="flex-1 flex justify-end" />
         </div>
       ),
       children: (close) => (
         <AiVideoModal
-          list={data}
+          list={list}
           onChange={onChange}
           setLoading={setLoading}
           close={close}
         />
       ),
     });
-  }, [loading, data, onChange]);
+  }, [loading, list, onChange, only]);
 
-  if (isLoading || data?.length === 0) {
+  if (isLoading || list?.length === 0) {
     return null;
+  }
+
+  if (renderTrigger) {
+    return <>{renderTrigger(openVideoModal, loading)}</>;
   }
 
   return (

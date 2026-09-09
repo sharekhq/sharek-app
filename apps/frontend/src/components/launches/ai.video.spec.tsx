@@ -1,9 +1,10 @@
-import { act } from 'react';
+import { act, FC, ReactNode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const toast = jest.fn();
 const setLocked = jest.fn();
 const request = jest.fn();
+let providers: Array<{ identifier: string; title: string }> = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => fallback,
@@ -21,9 +22,14 @@ jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { current: 'STANDARD' }, role: 'ADMIN' }),
 }));
+// The trigger reads the provider list through SWR and the credits pill reads
+// the credit count; the list is what the trigger specs steer.
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({ data: { credits: 0 }, mutate: jest.fn() }),
+  default: (key: string) =>
+    key === 'load-videos-ai'
+      ? { data: providers, isLoading: false }
+      : { data: { credits: 0 }, mutate: jest.fn() },
 }));
 // The provider registry drags in every video provider; this spec only needs a
 // type that leaves the action bar — and therefore the Generate button — to the
@@ -37,7 +43,14 @@ jest.mock(
   })
 );
 
-import { Modal } from '@gitroom/frontend/components/launches/ai.video';
+import {
+  AiVideo,
+  Modal,
+} from '@gitroom/frontend/components/launches/ai.video';
+import {
+  ModalManagerInner,
+  useModals,
+} from '@gitroom/frontend/components/layout/new-modal';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 
 const answer = (status: number, body: any) => ({
@@ -88,8 +101,58 @@ const generate = async () => {
   });
 };
 
+// The modal manager keeps its open modals in a module-level store, so a modal
+// one test leaves open is still there for the next one. This hands afterEach
+// a way to empty it.
+let closeEveryModal: (() => void) | undefined;
+const CaptureModals: FC = () => {
+  const { closeAll } = useModals();
+  useEffect(() => {
+    closeEveryModal = closeAll;
+  }, [closeAll]);
+  return null;
+};
+
+/** Mounts a trigger next to the modal manager it opens into. */
+const mount = async (trigger: ReactNode) => {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
+
+  await act(async () => {
+    root.render(
+      <>
+        <CaptureModals />
+        <ModalManagerInner />
+        {trigger}
+      </>
+    );
+  });
+};
+
+const click = async (element: Element | null | undefined) => {
+  await act(async () => {
+    element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+};
+
+const cardTrigger = (open: () => void) => (
+  <button data-testid="card" onClick={open}>
+    Card
+  </button>
+);
+
+beforeEach(() => {
+  providers = [
+    { identifier: 'veo3', title: 'Veo 3' },
+    { identifier: 'image-text-slides', title: 'Image Text Slides' },
+  ];
+});
+
 afterEach(() => {
   act(() => {
+    closeEveryModal?.();
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
@@ -168,5 +231,74 @@ describe('when the render fails for anything else', () => {
     await generate();
 
     expect(toast).toHaveBeenCalledWith('the renderer fell over', 'warning');
+  });
+});
+
+// The composer keeps the ✦ button and its chooser (FR-010): nothing about the
+// trigger changes for a caller that asks for nothing new.
+describe('as the composer button', () => {
+  it('renders the ✦ button and opens the chooser from it, as before', async () => {
+    await mount(<AiVideo value="" onChange={jest.fn()} />);
+
+    const trigger = document.querySelector('.bg-ai');
+    expect(trigger?.textContent?.trim()).toBe('AI Video');
+
+    await click(trigger);
+
+    expect(document.body.textContent).toContain('Choose a video type');
+  });
+});
+
+// Studio renders a card of its own as the trigger, one per provider.
+describe('with a trigger of its own', () => {
+  it('renders that trigger alone and opens the chooser from it', async () => {
+    await mount(
+      <AiVideo value="" onChange={jest.fn()} renderTrigger={cardTrigger} />
+    );
+
+    expect(document.querySelector('.bg-ai')).toBeNull();
+
+    await click(document.querySelector('[data-testid="card"]'));
+
+    expect(document.body.textContent).toContain('Choose a video type');
+  });
+
+  // A single-item list already auto-selects, so one card per provider needs
+  // no chooser — and the title names the provider instead of the generic one.
+  it('opens one provider directly, under its own name, when told which', async () => {
+    await mount(
+      <AiVideo
+        value=""
+        onChange={jest.fn()}
+        only="veo3"
+        renderTrigger={cardTrigger}
+      />
+    );
+
+    await click(document.querySelector('[data-testid="card"]'));
+
+    const text = document.body.textContent ?? '';
+    expect(text).not.toContain('Choose a video type');
+    expect(text).not.toContain('Generate AI Video');
+    expect(text).toContain('Veo 3');
+    expect(
+      Array.from(document.querySelectorAll('button')).some((node) =>
+        node.textContent?.trim().startsWith('Generate')
+      )
+    ).toBe(true);
+  });
+
+  // The capability can disappear between the page loading and the click.
+  it('renders nothing for a provider the platform no longer offers', async () => {
+    await mount(
+      <AiVideo
+        value=""
+        onChange={jest.fn()}
+        only="sora"
+        renderTrigger={cardTrigger}
+      />
+    );
+
+    expect(document.querySelector('[data-testid="card"]')).toBeNull();
   });
 });

@@ -1,5 +1,12 @@
 import { Button } from '@gitroom/react/form/button';
-import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import clsx from 'clsx';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -686,9 +693,14 @@ const AiImageModal: FC<{
 export const AiImage: FC<{
   value: string;
   onChange: (params: { id: string; path: string }) => void;
+  /**
+   * Renders in place of the composer's ✦ button — Studio's card, say — while
+   * the modal wiring stays here rather than being copied.
+   */
+  renderTrigger?: (open: () => void, loading: boolean) => ReactNode;
 }> = (props) => {
   const t = useT();
-  const { onChange } = props;
+  const { onChange, renderTrigger } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -713,6 +725,10 @@ export const AiImage: FC<{
       ),
     });
   }, [loading, onChange]);
+
+  if (renderTrigger) {
+    return <>{renderTrigger(openImageModal, loading)}</>;
+  }
 
   return (
     <div className="relative">

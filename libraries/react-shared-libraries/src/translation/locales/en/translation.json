@@ -1321,5 +1321,22 @@
   "support_failed_title": "We couldn't send your enquiry.",
   "support_failed_body": "Try again in a moment, or email support@sharek.app directly.",
   "compose_view": "Compose view",
-  "login_to_use_the_wizard_to_generate_api_code": "Login to use the wizard to generate API code"
+  "login_to_use_the_wizard_to_generate_api_code": "Login to use the wizard to generate API code",
+  "studio": "Studio",
+  "studio_intro": "Create designs, images and videos for your posts. Everything you make is saved to your Media library.",
+  "studio_category_design": "Design",
+  "studio_category_ai_images": "AI images",
+  "studio_category_ai_video": "AI video",
+  "studio_tool_image_editor": "Image editor",
+  "studio_tool_image_editor_desc": "Design and edit images — text, your brand colors, layers.",
+  "studio_tool_ai_image": "AI image generator",
+  "studio_tool_ai_image_desc": "Turn a written prompt into a post-ready image.",
+  "studio_video_desc_generic": "Generate a video with AI.",
+  "studio_upgrade": "Upgrade",
+  "studio_upsell_title": "Unlock AI images and video",
+  "studio_upsell_body": "Upgrade your plan to generate images and videos with AI.",
+  "studio_saved_to_media": "Saved to your Media library",
+  "studio_create_post": "Create a post",
+  "studio_empty_title": "No creative tools yet",
+  "studio_empty_body": "Tools appear here as they become available on the platform."
 }

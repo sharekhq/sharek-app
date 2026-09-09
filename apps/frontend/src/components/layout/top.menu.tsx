@@ -116,6 +116,32 @@ export const useMenuItem = () => {
       path: '/media',
     },
     {
+      name: t('studio', 'Studio'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="21"
+          height="21"
+          viewBox="0 0 22 22"
+          fill="none"
+        >
+          <rect
+            x="2.5"
+            y="8.5"
+            width="11"
+            height="11"
+            rx="2.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="14.5" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      ),
+      path: '/studio',
+    },
+    {
       name: t('plugs', 'Plugs'),
       icon: (
         <svg
