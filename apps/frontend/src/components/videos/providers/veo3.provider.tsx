@@ -100,6 +100,7 @@ const VEO3Settings: FC = () => {
           dummy={true}
           designNotAvailable={true}
           aiVideoNotAvailable={true}
+          destination="reference"
           flush={true}
           text="Images"
           description="Images"

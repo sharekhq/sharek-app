@@ -7,6 +7,7 @@ type Trigger = {
   onChange: (media: Media) => void;
   renderTrigger: (open: () => void, loading: boolean) => ReactNode;
   only?: string;
+  destination?: string;
 };
 
 const toast = jest.fn();
@@ -20,6 +21,7 @@ let user: { tier: { ai: boolean } };
 let billingEnabled = true;
 let emptyCatalog = false;
 const videoTriggers: Trigger[] = [];
+const imageTriggers: Trigger[] = [];
 const push = jest.fn();
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -74,11 +76,13 @@ const registryCard = (identifier: string) =>
   identifier === 'veo3' ? veo3Card : undefined;
 
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: ({ onChange, renderTrigger }: Trigger) =>
-    renderTrigger(
-      () => onChange({ id: 'img-1', path: 'https://media/img-1.png' }),
+  AiImage: (props: Trigger) => {
+    imageTriggers.push(props);
+    return props.renderTrigger(
+      () => props.onChange({ id: 'img-1', path: 'https://media/img-1.png' }),
       false
-    ),
+    );
+  },
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
   AiVideo: (props: Trigger) => {
@@ -180,6 +184,7 @@ beforeEach(() => {
   providersLoading = false;
   emptyCatalog = false;
   videoTriggers.length = 0;
+  imageTriggers.length = 0;
 });
 
 afterEach(() => {
@@ -212,6 +217,18 @@ describe('the catalog', () => {
     expect(videoTriggers.map((props) => props.only)).toEqual([
       'veo3',
       'image-text-slides',
+    ]);
+  });
+
+  // Nothing is being composed on this page, so the generators must not promise
+  // a post they cannot deliver — their waiting screens name the Media library.
+  it('tells every generator its result is not going into a post', async () => {
+    await mount();
+
+    expect(imageTriggers.map((props) => props.destination)).toEqual(['media']);
+    expect(videoTriggers.map((props) => props.destination)).toEqual([
+      'media',
+      'media',
     ]);
   });
 

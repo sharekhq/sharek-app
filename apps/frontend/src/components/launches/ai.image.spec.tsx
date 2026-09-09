@@ -28,6 +28,7 @@ import {
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 
 const answer = (status: number, body: any) => ({
@@ -105,9 +106,18 @@ const mount = async (trigger: ReactNode) => {
   });
 };
 
+/** Flushes the microtask the awaited fetch resolves on. */
+const settle = async () => {
+  await act(async () => {
+    await new Promise((res) => setTimeout(res, 0));
+  });
+};
+
 /** Opens the AI image modal, types a prompt, and presses Generate. */
-const generate = async () => {
-  await mount(<AiImage value="" onChange={jest.fn()} />);
+const generate = async (destination?: MediaDestination) => {
+  await mount(
+    <AiImage value="" onChange={jest.fn()} destination={destination} />
+  );
 
   await click(document.querySelector('.bg-ai'));
   await type(
@@ -267,5 +277,76 @@ describe('with a trigger of its own', () => {
     await click(document.querySelector('[data-testid="card"]'));
 
     expect(document.querySelector('textarea')).toBeTruthy();
+  });
+});
+
+// The waiting screen tells the user what closing it costs them: nothing,
+// because the image lands by itself. Where it lands is the caller's, and
+// Studio's copy of the generator has no post to land it in.
+describe('the note under the waiting screen', () => {
+  beforeEach(() => {
+    // Never resolves, so the generating phase stays on screen to be read.
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+  });
+
+  it('promises the post by default', async () => {
+    await generate();
+    await settle();
+
+    expect(document.body.textContent).toContain(
+      "the image will be added to your post when it's ready"
+    );
+  });
+
+  it('promises the Media library when nothing is being composed', async () => {
+    await generate('media');
+    await settle();
+
+    expect(document.body.textContent).toContain(
+      "the image will be saved to your Media library when it's ready"
+    );
+  });
+
+  it('promises the reference images when it fills a reference row', async () => {
+    await generate('reference');
+    await settle();
+
+    expect(document.body.textContent).toContain(
+      "the image will be added to your reference images when it's ready"
+    );
+  });
+});
+
+// The image is a Media row before this screen exists — the route uploads and
+// saves it — so outside a composer the action is not "use" at all: there is
+// nothing left to attach it to, and it only confirms and closes.
+describe('the action that accepts the result', () => {
+  beforeEach(() => {
+    request.mockResolvedValue(
+      answer(200, { id: 'media-1', path: 'https://media/first.png' })
+    );
+  });
+
+  it('offers to use the image in the post by default', async () => {
+    await generate();
+
+    expect(button('Use image')).toBeTruthy();
+  });
+
+  it('only confirms when the image is not going anywhere else', async () => {
+    await generate('media');
+
+    expect(button('Use image')).toBeFalsy();
+    expect(button('Done')).toBeTruthy();
+  });
+
+  it('offers to use the image when it fills a reference row', async () => {
+    await generate('reference');
+
+    expect(button('Use image')).toBeTruthy();
   });
 });

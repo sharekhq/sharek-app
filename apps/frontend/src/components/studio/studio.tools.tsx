@@ -194,7 +194,12 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
     icon: <AiImageGlyph />,
     entitled: needsAi,
     trigger: ({ onSaved, renderTrigger }) => (
-      <AiImage value="" onChange={onSaved} renderTrigger={renderTrigger} />
+      <AiImage
+        value=""
+        onChange={onSaved}
+        renderTrigger={renderTrigger}
+        destination="media"
+      />
     ),
   },
 ];
@@ -225,6 +230,7 @@ export const videoTool = (type: VideoType): StudioToolEntry => {
         only={type.identifier}
         onChange={onSaved}
         renderTrigger={renderTrigger}
+        destination="media"
       />
     ),
   };

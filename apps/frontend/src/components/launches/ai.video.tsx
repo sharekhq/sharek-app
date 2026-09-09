@@ -46,6 +46,7 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/videos/video.orientation.catalog';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   AspectTile,
   MEDIA_PREVIEW_MAX_HEIGHT,
@@ -173,8 +174,16 @@ export const Modal: FC<{
   onChange: (params: { id: string; path: string }) => void;
   /** Returns to the chooser. Undefined when there is only one type to choose. */
   onChangeType?: () => void;
+  destination?: MediaDestination;
 }> = (props) => {
-  const { type, onChange, close, setLoading, onChangeType } = props;
+  const {
+    type,
+    onChange,
+    close,
+    setLoading,
+    onChangeType,
+    destination = 'post',
+  } = props;
   const t = useT();
   const fetch = useFetch();
   const setLocked = useLaunchStore((state) => state.setLocked);
@@ -451,6 +460,26 @@ export const Modal: FC<{
     setPhase('setup');
     handshake?.onBack();
   };
+
+  // The video is already in the Media library by the time any of this renders
+  // — the route saves it as it finishes — so the destination names what happens
+  // next rather than whether the video is kept. A reference row has no video
+  // button to reach this at all, so it reads as the composer does.
+  const closeNote =
+    destination === 'media'
+      ? t(
+          'close_window_video_note_media',
+          "You can close this window — the video will be saved to your Media library when it's ready."
+        )
+      : t(
+          'close_window_video_note',
+          "You can close this window — the video will be added to your post when it's ready."
+        );
+
+  // Nothing to attach it to, so there is nothing to "use": the action only
+  // confirms the video and closes.
+  const acceptLabel =
+    destination === 'media' ? t('done', 'Done') : t('use_video', 'Use video');
 
   const orientation = VIDEO_ORIENTATIONS[position];
   const [ratioWidth, ratioHeight] = orientation.ratio.split(':').map(Number);
@@ -787,10 +816,7 @@ export const Modal: FC<{
                     strokeLinecap="round"
                   />
                 </svg>
-                {t(
-                  'close_window_video_note',
-                  "You can close this window — the video will be added to your post when it's ready."
-                )}
+                {closeNote}
               </div>
             </>
           )}
@@ -837,9 +863,7 @@ export const Modal: FC<{
                         · {t('one_credit', '1 credit')}
                       </span>
                     </Button>
-                    <Button onClick={useVideoInPost}>
-                      {t('use_video', 'Use video')}
-                    </Button>
+                    <Button onClick={useVideoInPost}>{acceptLabel}</Button>
                   </>
                 ) : videoOwnsActions(type.identifier) ? (
                   // The provider owns the whole row: it is the only side that
@@ -871,8 +895,9 @@ const AiVideoModal: FC<{
   close: () => void;
   setLoading: (loading: boolean) => void;
   onChange: (params: { id: string; path: string }) => void;
+  destination: MediaDestination;
 }> = (props) => {
-  const { list, close, setLoading, onChange } = props;
+  const { list, close, setLoading, onChange, destination } = props;
   const t = useT();
   const [type, setType] = useState<VideoType | null>(
     list.length === 1 ? list[0] : null
@@ -906,6 +931,7 @@ const AiVideoModal: FC<{
       // A chosen type is no longer a dead end: with more than one to choose
       // from, the subhead offers the way back to the chooser (FR-017).
       onChangeType={list.length > 1 ? () => setType(null) : undefined}
+      destination={destination}
     />
   );
 };
@@ -948,9 +974,14 @@ export const AiVideo: FC<{
    * empty list always has.
    */
   only?: string;
+  /**
+   * Where the finished video goes — what the waiting note promises and what
+   * the action that accepts it is called. The composer's post by default.
+   */
+  destination?: MediaDestination;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, only } = props;
+  const { onChange, renderTrigger, only, destination = 'post' } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -980,10 +1011,11 @@ export const AiVideo: FC<{
           onChange={onChange}
           setLoading={setLoading}
           close={close}
+          destination={destination}
         />
       ),
     });
-  }, [loading, list, onChange, only]);
+  }, [loading, list, onChange, only, destination]);
 
   if (isLoading || list?.length === 0) {
     return null;
