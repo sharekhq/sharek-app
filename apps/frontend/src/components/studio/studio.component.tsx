@@ -1,6 +1,7 @@
 'use client';
 
 import { FC, useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -21,6 +22,7 @@ import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import {
   CheckmarkIcon,
   CloseIcon,
+  LockIcon,
   PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import {
@@ -78,6 +80,11 @@ const StudioEmptyIllustration = () => (
   </svg>
 );
 
+const useGoToBilling = () => {
+  const router = useRouter();
+  return useCallback(() => router.push('/billing'), [router]);
+};
+
 /**
  * The Tile card from the approved mockup: a 56px tile above the name and a
  * one-line description. AI tools get the saffron tile with ✦, so the
@@ -88,21 +95,29 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
   onSaved,
 }) => {
   const t = useT();
+  const goToBilling = useGoToBilling();
   const { entry } = tool;
+  const locked = tool.state === 'locked';
 
-  return entry.trigger({
-    onSaved,
-    renderTrigger: (open, loading) => (
-      <button
-        type="button"
-        onClick={open}
-        aria-busy={loading || undefined}
-        className="flex flex-col items-start gap-[12px] p-[14px] text-start bg-surface border border-line rounded-[14px] transition-all hover:-translate-y-[1px] hover:shadow-soft focus-visible:ring-2 focus-visible:ring-brand"
-      >
+  const card = (open: () => void, loading: boolean) => (
+    <button
+      type="button"
+      onClick={open}
+      aria-busy={loading || undefined}
+      className={clsx(
+        'flex flex-col items-start gap-[12px] p-[14px] text-start bg-surface border border-line rounded-[14px] transition-all focus-visible:ring-2 focus-visible:ring-brand',
+        !locked && 'hover:-translate-y-[1px] hover:shadow-soft'
+      )}
+    >
+      <span className="w-full flex items-start justify-between gap-[8px]">
         <span
           className={clsx(
             'relative w-[56px] h-[56px] rounded-[14px] flex items-center justify-center shrink-0',
-            entry.ai ? 'bg-aiSoft text-aiAccent' : 'bg-surface2 text-inkSoft'
+            // Out of reach, the tile drops the accent tint; the spark stays, so
+            // the AI mark never rested on colour.
+            entry.ai && !locked
+              ? 'bg-aiSoft text-aiAccent'
+              : 'bg-surface2 text-inkSoft'
           )}
         >
           {loading ? (
@@ -119,20 +134,35 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
             </span>
           )}
         </span>
-        <span className="flex flex-col gap-[4px] min-w-0">
-          <span className="text-[14px] font-[600] text-ink">{entry.name(t)}</span>
-          <span className="text-[12px] leading-[1.5] text-muted">
-            {entry.description(t)}
+        {locked && (
+          <span className="flex items-center gap-[4px] shrink-0 h-[22px] px-[8px] rounded-full bg-brandSoft text-brandText text-[11px] font-[600]">
+            <LockIcon size={12} />
+            {t('studio_upgrade', 'Upgrade')}
           </span>
+        )}
+      </span>
+      <span className="flex flex-col gap-[4px] min-w-0">
+        <span className="text-[14px] font-[600] text-ink">{entry.name(t)}</span>
+        <span className="text-[12px] leading-[1.5] text-muted">
+          {entry.description(t)}
         </span>
-      </button>
-    ),
-  });
+      </span>
+    </button>
+  );
+
+  // A locked tool is never mounted behind its card: the card leads to billing
+  // instead, so there is nothing here that could open (FR-005).
+  return locked ? (
+    card(goToBilling, false)
+  ) : (
+    <>{entry.trigger({ onSaved, renderTrigger: card })}</>
+  );
 };
 
 export const StudioComponent: FC = () => {
   const t = useT();
   const user = useUser();
+  const goToBilling = useGoToBilling();
   const { billingEnabled } = useVariables();
   const modals = useModals();
   const toaster = useToaster();
@@ -213,6 +243,30 @@ export const StudioComponent: FC = () => {
           'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
         )}
       </p>
+
+      {/* One banner for the whole page, and the only solid-brand action on it. */}
+      {catalog.hasLockedTools && (
+        <div className="flex items-center gap-[14px] flex-wrap bg-panel border border-line rounded-[12px] p-[16px]">
+          <span
+            aria-hidden="true"
+            className="w-[36px] h-[36px] rounded-[10px] bg-aiSoft text-aiAccent flex items-center justify-center shrink-0 text-[15px]"
+          >
+            ✦
+          </span>
+          <span className="flex-1 min-w-[220px] flex flex-col gap-[2px]">
+            <span className="text-[14px] font-[600] text-ink">
+              {t('studio_upsell_title', 'Unlock AI images and video')}
+            </span>
+            <span className="text-[13px] leading-[1.5] text-muted">
+              {t(
+                'studio_upsell_body',
+                'Upgrade your plan to generate images and videos with AI.'
+              )}
+            </span>
+          </span>
+          <Button onClick={goToBilling}>{t('studio_upgrade', 'Upgrade')}</Button>
+        </div>
+      )}
 
       {lastSaved && (
         <div
