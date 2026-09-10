@@ -96,7 +96,8 @@ const settle = async () => {
   });
 };
 
-const generate = async (destination?: MediaDestination) => {
+/** Renders one provider's modal, as the chooser does once a type is picked. */
+const open = async (destination?: MediaDestination) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -113,6 +114,10 @@ const generate = async (destination?: MediaDestination) => {
       />
     );
   });
+};
+
+const generate = async (destination?: MediaDestination) => {
+  await open(destination);
 
   const submit = Array.from(document.querySelectorAll('button')).find(
     (node) => node.textContent?.trim() === 'Generate'
@@ -326,6 +331,21 @@ describe('with a trigger of its own', () => {
     );
 
     expect(document.querySelector('[data-testid="card"]')).toBeNull();
+  });
+});
+
+describe('the scroller around the provider form', () => {
+  it('leaves room for the focus ring on every side', async () => {
+    await open();
+    const classes = document
+      .querySelector('.overflow-y-auto')!
+      .className.split(' ');
+    // The ring is a 2px box-shadow outside the field and overflow clips at the
+    // padding edge, so a scroller padded on the end side only showed the ring
+    // there and cut it off at the start. The matching negative margin keeps
+    // the form exactly where an unpadded scroller had it.
+    expect(classes).toContain('p-[4px]');
+    expect(classes).toContain('-m-[4px]');
   });
 });
 

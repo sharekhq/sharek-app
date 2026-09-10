@@ -677,7 +677,7 @@ export const Modal: FC<{
           </div>
           <div
             className={clsx(
-              'max-h-[min(430px,60vh)] overflow-x-hidden overflow-y-auto flex flex-col gap-[16px] pe-[4px]',
+              'max-h-[min(430px,60vh)] overflow-x-hidden overflow-y-auto flex flex-col gap-[16px] p-[4px] -m-[4px]',
               phase !== 'setup' && 'hidden'
             )}
           >
