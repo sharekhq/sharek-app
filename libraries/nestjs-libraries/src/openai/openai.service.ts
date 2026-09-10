@@ -48,11 +48,14 @@ export class OpenaiService {
     const generate = (
       await openai.images.generate({
         prompt,
-        model: 'gpt-image-2',
+        model: 'gpt-image-2.5-sunburst',
         size: isVertical ? '1024x1536' : '1024x1024',
-        // unset quality defaults to auto → high, ~4x the cost of medium;
-        // social platforms recompress uploads, so medium is indistinguishable in-feed
-        quality: 'medium',
+        // 2.5 re-based its quality labels: `high` is the tier whose render
+        // budget and price match what gpt-image-2 `medium` was, so it is the
+        // like-for-like pin the pricing ladder assumes. `medium` is a quarter
+        // of that budget and `auto` is whatever OpenAI picks — either moves
+        // the unit cost.
+        quality: 'high',
       })
     ).data[0];
 
@@ -60,19 +63,21 @@ export class OpenaiService {
   }
 
   /**
-   * Frame-native renders for video slides: gpt-image-2 accepts arbitrary
-   * WIDTHxHEIGHT (both edges divisible by 16), so the video frame is requested
-   * directly. moderation 'low' keeps benign scenes from tripping the default
-   * filter, and jpeg keeps a ~2MP payload small for the storage hop.
+   * Frame-native renders for video slides and the AI image modal: the 2.5
+   * models accept arbitrary WIDTHxHEIGHT (both edges divisible by 16, aspect
+   * between 1:3 and 3:1), so the exact frame is requested. `high` for the same
+   * reason generateImage pins it — it is gpt-image-2 `medium`'s budget under
+   * 2.5's re-based labels. moderation 'low' keeps benign scenes from tripping
+   * the default filter, and jpeg keeps a ~2MP payload small for the storage hop.
    */
   async generateImageAtSize(prompt: string, size: string): Promise<Buffer> {
     const response = await openai.images.generate({
       prompt,
-      model: 'gpt-image-2',
-      // openai@6.27 types predate gpt-image-2's arbitrary sizes; the API
-      // accepts any WIDTHxHEIGHT with both edges divisible by 16.
+      model: 'gpt-image-2.5-sunburst',
+      // openai@6.27 types predate arbitrary sizes; the API accepts any
+      // WIDTHxHEIGHT with both edges divisible by 16.
       size: size as ImageGenerateParams['size'],
-      quality: 'medium',
+      quality: 'high',
       moderation: 'low',
       output_format: 'jpeg',
     });
@@ -80,7 +85,7 @@ export class OpenaiService {
 
     if (!generate?.b64_json) {
       throw new Error(
-        `gpt-image-2 returned no image: ${JSON.stringify(response).slice(0, 300)}`
+        `gpt-image-2.5-sunburst returned no image: ${JSON.stringify(response).slice(0, 300)}`
       );
     }
 
