@@ -198,18 +198,20 @@ describe('OpenaiService.generatePromptForPicture', () => {
   });
 });
 
-// gpt-image-2 is current and deliberately pinned to medium quality: social
-// platforms recompress uploads, so `high` costs roughly 4x for no in-feed gain.
-// The model migration must not touch this.
+// gpt-image-2.5-sunburst is current and deliberately pinned to `high`: 2.5
+// re-based its quality labels, so `high` is the render budget — and the price
+// — that gpt-image-2 `medium` was, `medium` is a quarter of it, and `auto` is
+// whatever OpenAI picks. The pricing ladder is built on this number; the model
+// migration must not touch it.
 describe('OpenaiService.generateImage', () => {
   beforeEach(() => mockImagesGenerate.mockClear());
 
-  it('stays on gpt-image-2 at medium quality', async () => {
+  it('stays on gpt-image-2.5-sunburst at high quality', async () => {
     expect(await service.generateImage('a pomegranate')).toBe('B64');
     expect(mockImagesGenerate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gpt-image-2',
-        quality: 'medium',
+        model: 'gpt-image-2.5-sunburst',
+        quality: 'high',
         size: '1024x1024',
       })
     );
@@ -223,20 +225,21 @@ describe('OpenaiService.generateImage', () => {
   });
 });
 
-// Slide renders ask for the exact video frame: gpt-image-2 takes arbitrary
-// WIDTHxHEIGHT (both divisible by 16), unlike the fixed portrait sizes the
-// post-image path uses. moderation stays 'low' — the default filter's false
-// positives on benign festival scenes are what killed the ideogram renderer.
+// Slide and modal renders ask for the exact frame: the 2.5 models take
+// arbitrary WIDTHxHEIGHT (both divisible by 16, between 1:3 and 3:1), unlike
+// the fixed sizes the legacy post-image path uses. moderation stays 'low' —
+// the default filter's false positives on benign festival scenes are what
+// killed the ideogram renderer.
 describe('OpenaiService.generateImageAtSize', () => {
   beforeEach(() => mockImagesGenerate.mockClear());
 
-  it('renders gpt-image-2 at the requested size in medium quality', async () => {
+  it('renders gpt-image-2.5-sunburst at the requested size in high quality', async () => {
     await service.generateImageAtSize('a scene', '1088x1920');
     expect(mockImagesGenerate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gpt-image-2',
+        model: 'gpt-image-2.5-sunburst',
         size: '1088x1920',
-        quality: 'medium',
+        quality: 'high',
         moderation: 'low',
         output_format: 'jpeg',
       })
