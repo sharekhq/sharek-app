@@ -350,3 +350,17 @@ describe('the action that accepts the result', () => {
     expect(button('Use image')).toBeTruthy();
   });
 });
+
+// The Cairo Cafe banner: "a banner for a 30% weekend" came back with
+// «30% weekend» printed on it, verbatim. The rewrite can only guess which
+// words are copy, so the composer says how to make it a certainty.
+describe('the hint under the prompt', () => {
+  it('tells the user to put the exact words in quotes', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+
+    expect(document.body.textContent).toContain(
+      'Put the words you want on the image in quotes.'
+    );
+  });
+});

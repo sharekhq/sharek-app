@@ -390,7 +390,7 @@ const AiImageModal: FC<{
             <span className="text-muted">
               {t(
                 'image_prompt_hint',
-                'Describe the subject, the setting and the light.'
+                'Describe the subject, the setting and the light. Put the words you want on the image in quotes.'
               )}
             </span>
             {/* Fixed direction: a counter that reverses under RTL reads as a

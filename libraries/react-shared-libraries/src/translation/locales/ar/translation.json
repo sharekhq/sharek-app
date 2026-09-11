@@ -933,7 +933,7 @@
   "delete_tag": "حذف الوسم",
   "describe_the_image_you_want_to_generate": "صِف الصورة التي تريد توليدها",
   "description_article_cover": "صورة غلاف للمقال (اختياري)",
-  "image_prompt_hint": "صِف الموضوع والمكان والإضاءة.",
+  "image_prompt_hint": "صِف الموضوع والمكان والإضاءة. ضع الكلمات التي تريدها على الصورة بين علامتي اقتباس.",
   "description": "الوصف",
   "description_optional": "الوصف (اختياري)",
   "developer": "مطوّر",
