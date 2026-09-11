@@ -139,7 +139,11 @@ export const PostActionsMenu: FC<{
           role="menu"
           onClick={(e) => e.stopPropagation()}
           style={{ left: show.x, top: show.y }}
-          className="fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default"
+          // The panel is a child of the card's strip, which calendar.tsx:1172
+          // paints `text-white` for a tag colour — and `fixed` moves it on
+          // screen, not in the tree, so that colour still inherits. It names its
+          // own foreground so the list reads as app chrome wherever it opens.
+          className="fixed p-[12px] bg-newBgColorInner text-textColor shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default"
         >
           {actions.map((action) => (
             <div
