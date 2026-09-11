@@ -884,7 +884,7 @@
   "delete_tag": "Delete Tag",
   "describe_the_image_you_want_to_generate": "Describe the image you want to generate",
   "description_article_cover": "Cover picture for the article (optional)",
-  "image_prompt_hint": "Describe the subject, the setting and the light.",
+  "image_prompt_hint": "Describe the subject, the setting and the light. Put the words you want on the image in quotes.",
   "description": "Description",
   "description_optional": "Description (optional)",
   "developer": "Developer",

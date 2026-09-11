@@ -134,6 +134,15 @@ export class OpenaiService {
    * than pulling the words out afterwards. The decision is an extraction, not
    * a composition: sampled again, 1 run in 20 wrote «خصم 50%» for a request
    * that said «تخفيضات 50%», so the rule names the user's words as written.
+   *
+   * That also prints «30% weekend» for "design me a banner for a 30% weekend
+   * for my cafe": the user named the offer rather than writing its words.
+   * Letting the model finish the copy was sampled and rejected — a rule with
+   * two branches kept «30% weekend» 10 times in 10 and composed «خصم 50%»
+   * once in 20; an additive rule wrote "30% off this weekend" 2 times in 10
+   * and reordered «تخفيضات 50%» 3 times in 20 — so the words stay an
+   * extraction, and the modal's hint tells users that quotes are the
+   * guarantee.
    */
   async generatePromptForPicture(prompt: string, style?: string) {
     return (
