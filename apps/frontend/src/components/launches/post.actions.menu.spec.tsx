@@ -157,6 +157,35 @@ describe('post actions menu', () => {
     expect(panel()).toBeTruthy();
   });
 
+  // calendar.tsx:1172 paints the card's strip `text-white` when the post's first
+  // tag carries a colour, and the panel is a DOM child of that strip however far
+  // from it `fixed` puts it on screen. So a tagged post opened a white list on a
+  // white surface: every label and every icon inherited the strip's colour, and
+  // only the `text-error` delete icon was left visible. The panel names its own
+  // foreground so nothing the card does to its text can reach inside it.
+  it('keeps its own foreground colour inside a tag-coloured strip', async () => {
+    await mount();
+    // The two declarations Tailwind emits for this config, so the cascade under
+    // test is the app's: `text-white` from calendar.tsx:1172 on the strip, and
+    // the panel's own colour resolving through the body token (colors.scss).
+    const style = document.createElement('style');
+    style.textContent = `
+      :root { --ink: #1A1413; --new-btn-text: var(--ink); }
+      .text-white { color: rgb(255 255 255); }
+      .text-textColor { color: var(--new-btn-text); }
+    `;
+    document.body.appendChild(style);
+    host.className = 'text-white';
+
+    await click(trigger());
+
+    // Labels and non-danger icons both take this colour; `currentColor` carries
+    // it into the SVGs.
+    const item = document.querySelector('[role="menuitem"]') as HTMLElement;
+    expect(getComputedStyle(item).color).not.toBe('rgb(255 255 255)');
+    expect(getComputedStyle(item).color).toBe('#1A1413');
+  });
+
   it('drops an action the post does not have', async () => {
     await mount(actions().filter((a) => a.key !== 'preview'));
     await click(trigger());
