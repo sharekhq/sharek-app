@@ -136,6 +136,8 @@ describe('OpenaiService.generatePromptForPicture', () => {
       await service.generatePromptForPicture('a banner');
       return (mockParse.mock.calls[0][0] as any).messages[0].content as string;
     };
+    const schemaOf = () =>
+      (mockParse.mock.calls[0][0] as any).response_format.json_schema.schema;
 
     it('requires requested in-image text to survive verbatim, in its own script', async () => {
       const system = await systemPrompt();
@@ -166,7 +168,7 @@ describe('OpenaiService.generatePromptForPicture', () => {
 
     // Paired with the same remedy generateSlidesFromText and
     // generateVideoPrompt needed: at zero reasoning luna drops constraints it
-    // could satisfy implicitly, and this prompt now carries seven of them —
+    // could satisfy implicitly, and this prompt now carries eight of them —
     // two of which pull against each other, since the prompt is written in
     // English while the quoted in-image text must stay in its own script.
     it('runs gpt-5.6-luna with low reasoning', async () => {
@@ -179,21 +181,64 @@ describe('OpenaiService.generatePromptForPicture', () => {
       expect(params).not.toHaveProperty('temperature');
     });
 
+    // The 2-in-10 failure: with nothing quoted, luna at low reasoning took the
+    // whole prompt («بانر تخفيضات 50% لمتجر ملابس في الرياض») as the banner
+    // copy, and the never-shorten rule then forbade trimming it to
+    // «تخفيضات 50%». The words have to be a decision the prompt is written
+    // against, not an afterthought pulled out of it.
+    it('separates the words to print from the description of the scene', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/only what would be printed/i);
+      expect(system).toMatch(/never appears in the image/i);
+      expect(system).toMatch(/shortest span/i);
+    });
+
+    // Same remedy as generateSlidesFromText's language field and
+    // generateVideoPrompt's spokenLanguage: structured outputs write fields
+    // in schema order, so the words are resolved into a stated value before
+    // any prompt is written against them.
+    it('resolves the in-image words as the first field of the schema', async () => {
+      await service.generatePromptForPicture('a banner');
+      const { properties } = schemaOf();
+      expect(Object.keys(properties)[0]).toBe('inImageText');
+      expect(properties.inImageText.description).toMatch(/printed on/i);
+      expect(properties.inImageText.description).toMatch(/empty/i);
+    });
+
+    // The other half of the remedy, the one generateVideoPrompt's
+    // spokenLanguage taught: the schema descriptions are what the model
+    // actually reads, so the prompt field has to say it carries the words the
+    // inImageText field names, and the instruction has to name that field.
+    it('ties the prompt to the words named in the inImageText field', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/inImageText field/);
+      expect(schemaOf().properties.prompt.description).toMatch(/inImageText/);
+    });
+
+    // On the re-sample, 1 run in 20 wrote «خصم 50%» for a request that said
+    // «تخفيضات 50%»: "the shortest phrase that reads as the copy" read as
+    // "write one", and the verbatim rule only governs carrying words already
+    // chosen. The choosing has to be an extraction from the user's text too.
+    it('takes the words as the user wrote them, never a synonym', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/user's own words/i);
+      expect(system).toMatch(/exactly as written/i);
+      expect(schemaOf().properties.inImageText.description).toMatch(
+        /never a synonym/i
+      );
+    });
+
     it('still returns a single prompt through a strict schema', async () => {
       await service.generatePromptForPicture('a banner');
       const [params] = mockParse.mock.calls[0] as unknown as [
-        {
-          response_format: {
-            type: string;
-            json_schema: { strict: boolean; schema: any };
-          };
-        }
+        { response_format: { type: string; json_schema: { strict: boolean } } }
       ];
       expect(params.response_format.type).toBe('json_schema');
       expect(params.response_format.json_schema.strict).toBe(true);
-      expect(
-        Object.keys(params.response_format.json_schema.schema.properties)
-      ).toEqual(['prompt']);
+      expect(Object.keys(schemaOf().properties)).toEqual([
+        'inImageText',
+        'prompt',
+      ]);
     });
   });
 });

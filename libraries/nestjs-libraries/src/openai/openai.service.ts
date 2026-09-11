@@ -10,7 +10,21 @@ const openai = new OpenAI({
 });
 
 const PicturePrompt = z.object({
-  prompt: z.string(),
+  // Emitted first — structured outputs write fields in schema order, so the
+  // words are resolved into a stated value before the prompt is written
+  // against them (generateSlidesFromText's language field,
+  // generateVideoPrompt's spokenLanguage). An anchor only: the prompt still
+  // carries the words.
+  inImageText: z
+    .string()
+    .describe(
+      "The exact words that must appear inside the image, taken from the user's description as written, in their original script, never a synonym or a translation: only what would be printed on the sign, banner, label or product, never the description of what it is, where it is or who it is for. Empty when the user asked for no words."
+    ),
+  prompt: z
+    .string()
+    .describe(
+      'The rewritten image prompt, written in English, carrying the words in the inImageText field verbatim inside quotation marks.'
+    ),
 });
 
 const VoicePrompt = z.object({
@@ -109,6 +123,17 @@ export class OpenaiService {
    * generateVideoPrompt buy it back: luna at zero reasoning drops constraints
    * it can satisfy implicitly, and two of these pull against each other — the
    * prompt is written in English while quoted text keeps its own script.
+   *
+   * With nothing quoted, luna at low reasoning took a whole prompt
+   * («بانر تخفيضات 50% لمتجر ملابس في الرياض») as the banner copy in 2 of 10
+   * runs, and the never-shorten rule then forbade trimming it to
+   * «تخفيضات 50%» — the storefront shipped with the request written on it. So
+   * the copy is a decision made before the prompt: the rule says what counts
+   * as copy, `inImageText` is written first, and the prompt field is described
+   * as carrying it, so the prompt is composed against a stated value rather
+   * than pulling the words out afterwards. The decision is an extraction, not
+   * a composition: sampled again, 1 run in 20 wrote «خصم 50%» for a request
+   * that said «تخفيضات 50%», so the rule names the user's words as written.
    */
   async generatePromptForPicture(prompt: string, style?: string) {
     return (
@@ -123,7 +148,8 @@ export class OpenaiService {
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
-When the user asks for words to appear in the image, carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
