@@ -11,6 +11,7 @@ import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto
 import { GithubProvider } from '@gitroom/frontend/components/auth/providers/github.provider';
 import { OauthProvider } from '@gitroom/frontend/components/auth/providers/oauth.provider';
 import { GoogleProvider } from '@gitroom/frontend/components/auth/providers/google.provider';
+import { AppleProvider } from '@gitroom/frontend/components/auth/providers/apple.provider';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 type Inputs = {
@@ -23,7 +24,7 @@ export function Login() {
   const t = useT();
   const [loading, setLoading] = useState(false);
   const [notActivated, setNotActivated] = useState(false);
-  const { isGeneral, genericOauth } = useVariables();
+  const { isGeneral, appleClientId, genericOauth } = useVariables();
   const resolver = useMemo(() => {
     return classValidatorResolver(LoginUserDto);
   }, []);
@@ -77,6 +78,7 @@ export function Login() {
             ) : (
               <div className="gap-[8px] flex">
                 <GoogleProvider />
+                {!!appleClientId && <AppleProvider />}
               </div>
             )}
             <div className="h-[20px] mb-[24px] mt-[24px] relative">

@@ -1398,5 +1398,22 @@
   "studio_saved_to_media": "حُفظ في مكتبة الوسائط",
   "studio_create_post": "أنشئ منشوراً",
   "studio_empty_title": "لا توجد أدوات إبداعية بعد",
-  "studio_empty_body": "تظهر الأدوات هنا عند توفّرها على المنصة."
+  "studio_empty_body": "تظهر الأدوات هنا عند توفّرها على المنصة.",
+  "apple": "Apple",
+  "faq_how_can_i_delete_my_account": "كيف يمكنني حذف حسابي؟",
+  "faq_delete_account_description": "إذا لم ترغب في متابعة استخدام Sharek، يمكنك حذف حسابك بما في ذلك جميع منظماتك وقنواتك ومنشوراتك. لا يمكن التراجع عن هذا الإجراء.",
+  "subscription_managed_by": "يُدار اشتراكك عبر",
+  "subscription_manage_on_platform": "يرجى الانتقال إلى {{platform}} لإدارته",
+  "delete_account_confirm": "سيتم حذف حسابك ومنظماتك وقنواتك ومنشوراتك. لا يمكن التراجع عن هذا الإجراء، هل أنت متأكد؟",
+  "yes_delete_my_account": "نعم، احذف حسابي",
+  "could_not_delete_account": "تعذّر حذف حسابك",
+  "deleting_your_account": "جارٍ حذف حسابك...",
+  "deleting_your_account_description": "نقوم بإزالة قنواتك ومنشوراتك، وقد يستغرق ذلك بعض الوقت. يرجى عدم إغلاق هذه النافذة.",
+  "delete_account": "حذف الحساب",
+  "delete_your_account": "حذف حسابك",
+  "delete_account_description": "سيتم حذف حسابك ومنظماتك وقنواتك نهائياً",
+  "label_add_random_music": "إضافة موسيقى عشوائية",
+  "tiktok_music_label": "الموسيقى",
+  "tiktok_location_label": "الموقع",
+  "tiktok_random_music_only_for_photos": "تتوفّر هذه الميزة للصور فقط، وتضيف مقطعًا رائجًا عشوائيًا من مكتبة الموسيقى التجارية في TikTok."
 }

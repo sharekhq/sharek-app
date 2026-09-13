@@ -12,6 +12,13 @@ const config: Config = {
   // config cannot set — see jest.integration.config.ts.
   testPathIgnorePatterns: ['\\.integration\\.spec\\.ts$'],
   setupFiles: ['reflect-metadata'],
+  // music-metadata 11 and file-type 22 publish no "require" condition in their
+  // exports map — Node 22.12+ resolves them from require() through
+  // "module-sync", and Jest's resolver has to be told the same or the packages
+  // look missing. 'node'/'node-addons' are jest-environment-node's defaults.
+  testEnvironmentOptions: {
+    customExportConditions: ['node', 'node-addons', 'module-sync'],
+  },
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
     '^@gitroom/helpers/(.*)$': '<rootDir>/../../helpers/src/$1',
@@ -40,7 +47,13 @@ const config: Config = {
   // @mastra/core's CJS build requires tokenx, which ships ESM only. node_modules
   // is untransformed by default, so importing anything from @mastra/core throws
   // "Unexpected token 'export'" until tokenx goes through the transform too.
-  transformIgnorePatterns: ['/node_modules/(?!tokenx/)'],
+  // file-type 22 and music-metadata 11 are ESM-only for the same reason: Node
+  // 22.12+ loads them from require() natively, but Jest's own CommonJS runtime
+  // does not, so custom.upload.validation's require('file-type') needs them —
+  // and their ESM dependencies — transformed as well.
+  transformIgnorePatterns: [
+    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/)',
+  ],
 };
 
 export default config;

@@ -9,6 +9,7 @@ import {
 import dayjs from 'dayjs';
 import {
   BadBody,
+  Disconnect,
   RefreshToken,
   SocialAbstract,
   ValidityMedia,
@@ -76,7 +77,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
 
   override handleErrors(body: string):
     | {
-        type: 'refresh-token' | 'bad-body';
+        type: 'refresh-token' | 'bad-body' | 'disconnect';
         value: string;
       }
     | undefined {
@@ -487,7 +488,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         )
       ).json();
     } catch (err) {
-      if (err instanceof RefreshToken) {
+      if (err instanceof RefreshToken || err instanceof Disconnect) {
         throw err;
       }
 

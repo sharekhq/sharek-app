@@ -442,3 +442,47 @@ describe('LoadToolsService video guidance', () => {
     expect(instructions).toContain('name any other options it returned');
   });
 });
+
+describe('LoadToolsService post management guidance', () => {
+  it('advertises the list and update tools as capabilities', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain(
+      '- List the posts scheduled between two dates (postsListTool)'
+    );
+    expect(instructions).toContain(
+      '- Update the settings of a scheduled post or draft that was not published yet (postSettingsTool)'
+    );
+  });
+
+  it('describes the find-then-update flow', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain(
+      'use postsListTool with a UTC start and end date'
+    );
+    expect(instructions).toContain(
+      "then use postSettingsTool with the post's id"
+    );
+  });
+
+  // The create modal only ever creates, so editing through it duplicates the
+  // post; deletion has no tool at all.
+  it('forbids editing through the create modal and offering deletion', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain(
+      'Never open the "modal with populated content" to edit an existing post'
+    );
+    expect(instructions).toContain(
+      'delete it themselves in the Sharek app (the calendar)'
+    );
+  });
+
+  it('names Sharek, never the upstream product, and keeps the agent identity', async () => {
+    const service = new LoadToolsService(moduleRef);
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).not.toMatch(/postiz/i);
+
+    const agent = await service.agent();
+    expect(agent.id).toBe('sharek');
+    expect(agent.name).toBe('Sharek');
+  });
+});
