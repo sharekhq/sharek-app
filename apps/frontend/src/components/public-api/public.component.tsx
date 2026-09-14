@@ -29,7 +29,10 @@ export const remoteMcpClients = {
 } as const;
 
 // Clients with no MCP or CLI settings: you paste instructions into the chat,
-// the agent installs the CLI itself and asks you for the API key
+// the agent installs the CLI itself and asks you for the API key.
+// Deliberately not translated: this is a prompt the agent executes, not prose the
+// user reads, and agents follow it more reliably in English. The hint above it,
+// which is the part addressed to the user, is translated.
 export const chatOnlyMcpClients = {
   'Grok Bot':
     'Install the Sharek CLI with `npm install -g sharek-cli`, then install the Sharek skill with `npx skills add sharekhq/sharek-agent`. Ask me for my Sharek API key and set it as the SHAREK_API_KEY environment variable before using the CLI.',
