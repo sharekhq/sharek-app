@@ -119,6 +119,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     }
   }, [hide]);
 
+  // t is a dependency because the labels are translated: a language switch
+  // re-creates it, and never changes the pick this is otherwise keyed on.
   const currentIntegrationText = useMemo(() => {
     if (current === 'global') {
       return (
@@ -145,7 +147,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         </div>
       </div>
     );
-  }, [current]);
+  }, [current, t]);
 
   const changeCustomer = useCallback(
     (customer: string) => {
