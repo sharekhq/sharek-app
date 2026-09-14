@@ -80,7 +80,7 @@ export const SplitPanel: FC<{
           // migration a no-op the probe can confirm rather than interpret.
           'phone:fixed phone:inset-y-0',
           side === 'end' ? 'phone:end-0' : 'phone:start-0',
-          'phone:z-[50] phone:!w-[300px] phone:max-w-[85vw]',
+          'phone:z-[190] phone:!w-[300px] phone:max-w-[85vw]',
           'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
           open
             ? 'phone:translate-x-0'
@@ -161,7 +161,7 @@ export const SplitPanel: FC<{
       </div>
       {open && (
         <div
-          className="hidden phone:block fixed inset-0 z-[40] bg-black/50"
+          className="hidden phone:block fixed inset-0 z-[180] bg-black/50"
           onClick={onClose}
           aria-hidden="true"
         />

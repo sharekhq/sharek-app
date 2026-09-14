@@ -58,7 +58,7 @@ export const SelectCustomer: FC<{
   }
 
   return (
-    <div className="relative select-none z-[500]" ref={ref}>
+    <div className="relative select-none" ref={ref}>
       <div
         data-tooltip-id="tooltip"
         data-tooltip-content={t('select_customer_tooltip', 'Select Customer')}
@@ -86,7 +86,7 @@ export const SelectCustomer: FC<{
       {open && (
         <div
           style={pos}
-          className="flex flex-col fixed pt-[12px] bg-newBgColorInner menu-shadow rounded-[12px] overflow-hidden min-w-[250px]"
+          className="flex flex-col fixed z-[500] pt-[12px] bg-newBgColorInner menu-shadow rounded-[12px] overflow-hidden min-w-[250px]"
         >
           <div className="text-[11px] font-[600] uppercase tracking-[0.08em] text-muted px-[12px] mb-[5px]">
             {t('customers', 'Customers')}
