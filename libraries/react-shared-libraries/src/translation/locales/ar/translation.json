@@ -1452,5 +1452,16 @@
   "mcp_hint_remote_claude": "في Claude انتقل إلى الإعدادات > Connectors > Add custom connector والصق هذا الرابط.",
   "mcp_hint_remote_chatgpt": "في ChatGPT انتقل إلى الإعدادات > Connectors > Create والصق هذا الرابط.",
   "mcp_hint_chat_only": "الصق هذا في الدردشة، وسيطلب منك الوكيل مفتاح API الخاص بك.",
-  "copied_to_clipboard": "تم نسخ {{label}} إلى الحافظة"
+  "copied_to_clipboard": "تم نسخ {{label}} إلى الحافظة",
+  "tiktok_add_music": "إضافة موسيقى",
+  "tiktok_search_music": "تصفية المقاطع الرائجة حسب الاسم أو الفنان",
+  "tiktok_no_music_found": "لم يتم العثور على موسيقى",
+  "tiktok_music_volume": "مستوى صوت الموسيقى",
+  "tiktok_video_volume": "مستوى صوت الفيديو الأصلي",
+  "tiktok_add_location": "إضافة موقع",
+  "tiktok_search_location": "البحث عن موقع",
+  "tiktok_no_location_found": "لم يتم العثور على موقع",
+  "use_sharek_api_to_integrate_with_your_tools": "استخدم واجهة برمجة تطبيقات Sharek للدمج مع أدواتك.",
+  "connect_your_mcp_client_to_sharek_to_schedule_your_posts_faster": "قم بتوصيل خادم Sharek MCP بعميلك (بث HTTP) لجدولة منشوراتك بشكل أسرع.",
+  "are_you_sure_revoke_access": "هل أنت متأكد أنك تريد إلغاء وصول {{name}}؟"
 }

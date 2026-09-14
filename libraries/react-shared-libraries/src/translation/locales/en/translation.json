@@ -1396,5 +1396,16 @@
   "mcp_hint_remote_claude": "In Claude go to Settings > Connectors > Add custom connector and paste this URL.",
   "mcp_hint_remote_chatgpt": "In ChatGPT go to Settings > Connectors > Create and paste this URL.",
   "mcp_hint_chat_only": "Paste this into the chat. The agent will ask you for your API key.",
-  "copied_to_clipboard": "{{label}} copied to clipboard"
+  "copied_to_clipboard": "{{label}} copied to clipboard",
+  "tiktok_add_music": "Add music",
+  "tiktok_search_music": "Filter trending tracks by name or artist",
+  "tiktok_no_music_found": "No music found",
+  "tiktok_music_volume": "Music volume",
+  "tiktok_video_volume": "Original video volume",
+  "tiktok_add_location": "Add location",
+  "tiktok_search_location": "Search location",
+  "tiktok_no_location_found": "No location found",
+  "use_sharek_api_to_integrate_with_your_tools": "Use Sharek API to integrate with your tools.",
+  "connect_your_mcp_client_to_sharek_to_schedule_your_posts_faster": "Connect Sharek MCP server to your client (Http streaming) to schedule your posts faster.",
+  "are_you_sure_revoke_access": "Are you sure you want to revoke access for {{name}}?"
 }
