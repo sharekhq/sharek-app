@@ -31,7 +31,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     cookieStore.get(cookieName)?.value,
     cookieStore.get('mode')?.value
   );
-  const Plausible = !!process.env.STRIPE_PUBLISHABLE_KEY
+  // Upstream hardcoded their own property here and gated it on Stripe being
+  // configured, so a paid fork reported every pageview to plausible.io tagged as
+  // postiz.com. Gated on our own domain instead: unset means no script at all,
+  // the same end the GTM and Pixel tags below reach by returning null. Read off
+  // process.env like IS_GENERAL, and unprefixed because only this server layout
+  // needs it -- NEXT_PUBLIC_ would work too, but would carry the value into the
+  // client bundle for no reason.
+  const Plausible = !!process.env.PLAUSIBLE_DOMAIN
     ? PlausibleProvider
     : Fragment;
   return (
@@ -104,9 +111,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <DubAnalytics />
             <FacebookComponent />
             <GoogleTagManagerComponent gtmId={process.env.NEXT_PUBLIC_GTM_ID} />
-            <Plausible
-              domain={!!process.env.IS_GENERAL ? 'postiz.com' : 'gitroom.com'}
-            >
+            <Plausible domain={process.env.PLAUSIBLE_DOMAIN!}>
               <PHProvider
                 phkey={process.env.NEXT_PUBLIC_POSTHOG_KEY}
                 host={process.env.NEXT_PUBLIC_POSTHOG_HOST}
