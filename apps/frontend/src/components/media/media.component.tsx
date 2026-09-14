@@ -165,16 +165,17 @@ export const Pagination: FC<{
   }, [current, totalPages]);
 
   return (
-    <ul className="flex flex-row items-center gap-1 justify-center mt-[15px]">
+    <ul className="flex flex-row flex-wrap items-center gap-1 justify-center mt-[15px]">
       <li className={clsx(current === 0 && 'opacity-20 pointer-events-none')}>
-        <div
-          className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 ps-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
+        <button
+          type="button"
+          className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 ps-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
           aria-label="Go to previous page"
           onClick={() => setPage(current - 1)}
         >
           <ChevronLeftIcon className="lucide lucide-chevron-left h-4 w-4" />
           <span>{t('previous', 'Previous')}</span>
-        </div>
+        </button>
       </li>
       {paginationItems.map((item, index) => (
         <li key={index}>
@@ -183,18 +184,19 @@ export const Pagination: FC<{
               ...
             </span>
           ) : (
-            <div
-              aria-current="page"
+            <button
+              type="button"
+              aria-current={current === item - 1 ? 'page' : undefined}
               onClick={() => setPage(item - 1)}
               className={clsx(
-                'cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border h-10 w-10 border-newBorder',
+                'cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 gap-2 border h-10 w-10 border-newBorder',
                 current === item - 1
                   ? 'bg-brand !text-white'
                   : 'text-textColor hover:bg-boxHover'
               )}
             >
               {item}
-            </div>
+            </button>
           )}
         </li>
       ))}
@@ -203,14 +205,15 @@ export const Pagination: FC<{
           current + 1 === totalPages && 'opacity-20 pointer-events-none'
         )}
       >
-        <a
-          className="group cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 pe-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
+        <button
+          type="button"
+          className="group cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 pe-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
           aria-label="Go to next page"
           onClick={() => setPage(current + 1)}
         >
           <span>{t('next', 'Next')}</span>
           <ChevronRightIcon className="lucide lucide-chevron-right h-4 w-4" />
-        </a>
+        </button>
       </li>
     </ul>
   );

@@ -108,7 +108,7 @@ const chipClasses = (selected: boolean) =>
     CHIP_BASE,
     selected
       ? 'bg-brandSoft border-brand text-brandText'
-      : 'bg-newBgColorInner border-newColColor text-newTextItemBlur hover:border-newTextItemFocused'
+      : 'bg-newBgColorInner border-newColColor text-textItemBlur hover:border-textItemFocused'
   );
 
 const AiImageModal: FC<{
@@ -379,7 +379,7 @@ const AiImageModal: FC<{
               'describe_the_image_you_want_to_generate',
               'Describe the image you want to generate'
             )}
-            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-newTextItemFocused"
+            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused"
           />
           {/* The field simply stops accepting characters at the ceiling, so the
               count has to be on screen for that to read as a limit rather than
