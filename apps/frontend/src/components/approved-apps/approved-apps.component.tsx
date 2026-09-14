@@ -82,9 +82,9 @@ export const ApprovedAppsComponent: FC = () => {
             {apps.map((app: any) => (
               <div
                 key={app.id}
-                className="flex items-center justify-between p-[12px] border border-fifth rounded-[4px]"
+                className="flex items-center justify-between p-[12px] border border-fifth rounded-[4px] phone:flex-col phone:items-start phone:gap-[12px]"
               >
-                <div className="flex items-center gap-[12px]">
+                <div className="flex items-center gap-[12px] min-w-0">
                   {app.oauthApp?.picture?.path ? (
                     <img
                       src={app.oauthApp.picture.path}
@@ -111,7 +111,7 @@ export const ApprovedAppsComponent: FC = () => {
                     </div>
                   </div>
                 </div>
-                <Button onClick={revokeApp(app)}>
+                <Button className="phone:w-full" onClick={revokeApp(app)}>
                   {t('revoke', 'Revoke')}
                 </Button>
               </div>

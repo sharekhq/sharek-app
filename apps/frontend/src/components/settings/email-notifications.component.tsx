@@ -111,8 +111,8 @@ const EmailNotificationsComponent = () => {
       <div className="mt-[4px]">
         {t('email_notifications', 'Email Notifications')}
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
+      <div className="flex items-center justify-between phone:flex-col phone:items-start phone:gap-[12px]">
+        <div className="flex flex-col min-w-0">
           <div className="text-[14px]">
             {t('success_emails', 'Success Emails')}
           </div>
@@ -129,8 +129,8 @@ const EmailNotificationsComponent = () => {
           fill={true}
         />
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
+      <div className="flex items-center justify-between phone:flex-col phone:items-start phone:gap-[12px]">
+        <div className="flex flex-col min-w-0">
           <div className="text-[14px]">
             {t('failure_emails', 'Failure Emails')}
           </div>
@@ -147,8 +147,8 @@ const EmailNotificationsComponent = () => {
           fill={true}
         />
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
+      <div className="flex items-center justify-between phone:flex-col phone:items-start phone:gap-[12px]">
+        <div className="flex flex-col min-w-0">
           <div className="text-[14px]">
             {t('streak_emails', 'Streak Reminder Emails')}
           </div>

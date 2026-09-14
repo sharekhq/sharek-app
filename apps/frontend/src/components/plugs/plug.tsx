@@ -262,8 +262,12 @@ export const Plug = () => {
   if (isLoading) {
     return null;
   }
+  // Four fixed tracks regardless of how many plugs there are, so two of them
+  // take a quarter of the column each and sit at the left with their text one
+  // word per line. The rail beside this became a drawer in 019; the cards never
+  // got the matching change.
   return (
-    <div className="grid grid-cols-4 gap-[16px]">
+    <div className="grid grid-cols-4 mobile:grid-cols-2 phone:grid-cols-1 gap-[16px]">
       {plug.plugs.map((p) => (
         <PlugItem
           key={p.title + '-' + plug.providerId}

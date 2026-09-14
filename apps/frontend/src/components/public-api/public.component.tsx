@@ -400,7 +400,7 @@ const McpSection = ({
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] phone:flex-col phone:gap-[12px]">
         <div>
           <div className="text-[15px] font-[600]">
             {t('mcp_client_configuration', 'MCP Client Configuration')}
@@ -598,7 +598,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] phone:flex-col phone:gap-[12px]">
         <div>
           <div className="text-[15px] font-[600]">
             {t('cli_and_skills', 'CLI & AI Skills')}
@@ -754,7 +754,7 @@ const PublicApiContent = () => {
         )}
       </div>
       <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] phone:flex-col phone:gap-[12px]">
           <div>
             <div className="text-[15px] font-[600]">
               {t('api_key', 'API Key')}

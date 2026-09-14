@@ -1,6 +1,6 @@
 'use client';
 
-import React, { FC, Fragment, useCallback, useState } from 'react';
+import React, { FC, useCallback, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
@@ -72,13 +72,13 @@ export const Webhooks: FC = () => {
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
         <div className="flex flex-col w-full">
           {!!data?.length && (
-            <div className="grid grid-cols-[1fr,1fr,1fr,1fr] w-full gap-y-[10px]">
-              <div>{t('name', 'Name')}</div>
-              <div>{t('url', 'URL')}</div>
-              <div>{t('edit', 'Edit')}</div>
-              <div>{t('delete', 'Delete')}</div>
+            <div className="grid grid-cols-[1fr,1fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
+              <div className="phone:hidden">{t('name', 'Name')}</div>
+              <div className="phone:hidden">{t('url', 'URL')}</div>
+              <div className="phone:hidden">{t('edit', 'Edit')}</div>
+              <div className="phone:hidden">{t('delete', 'Delete')}</div>
               {data?.map((p: any) => (
-                <Fragment key={p.id}>
+                <div key={p.id} className="contents phone:flex phone:flex-col phone:gap-[10px] phone:p-[14px] phone:border phone:border-fifth phone:rounded-[8px]">
                   <div className="flex flex-col justify-center">{p.name}</div>
                   <div className="flex flex-col justify-center">{p.url}</div>
                   <div className="flex flex-col justify-center">
@@ -95,7 +95,7 @@ export const Webhooks: FC = () => {
                       </Button>
                     </div>
                   </div>
-                </Fragment>
+                </div>
               ))}
             </div>
           )}

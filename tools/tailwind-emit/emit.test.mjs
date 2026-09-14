@@ -151,7 +151,7 @@ const collapse = (s) => s.replace(/\s+/g, ' ').trim();
 // deliberately not counted here. They are a different claim and get their own
 // test; folding them in would make every assertion below depend on which
 // plugins happen to be installed.
-function emitted(css, className, { qualifier = null } = {}) {
+function emitted(css, className, { qualifier = null, pseudo = null } = {}) {
   const found = [];
   postcss.parse(css).walkRules((rule) => {
     const classes = rule.selector
@@ -159,7 +159,13 @@ function emitted(css, className, { qualifier = null } = {}) {
       .map((sel) => sel.trim())
       .filter((sel) => (qualifier ? sel.startsWith(`${qualifier} .`) : sel.startsWith('.')))
       .map((sel) => sel.slice(qualifier ? qualifier.length + 2 : 1))
-      .map((sel) => sel.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) => (hex ? String.fromCodePoint(parseInt(hex, 16)) : ch)));
+      .map((sel) => sel.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) => (hex ? String.fromCodePoint(parseInt(hex, 16)) : ch)))
+      // A variant that is a pseudo-class rather than a media query leaves it on
+      // the selector — `hover:border-x` emits `.hover\:border-x:hover` — and the
+      // unescaped class no longer equals the one asked for. Named by the caller
+      // rather than stripped blindly, so a variant that emitted the wrong pseudo
+      // still fails.
+      .map((sel) => (pseudo && sel.endsWith(pseudo) ? sel.slice(0, -pseudo.length) : sel));
     if (!classes.includes(className)) return;
     const atRule = rule.parent?.type === 'atrule' ? collapse(rule.parent.params) : null;
     rule.walkDecls((decl) => found.push({ atRule, prop: decl.prop, value: collapse(decl.value) }));
@@ -298,4 +304,120 @@ test('a screen variant outranks the pointer variant, which is why the touch floo
     'phone:min-w-0',
     'phone:coarse:min-w-[44px]',
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// 026 — phone-width repair. Same contract as FORMS above, for the forms that
+// batch introduces. Only the ones where silence is plausible are here: a plain
+// `phone:hidden` cannot fail in a way this file would catch first.
+// ---------------------------------------------------------------------------
+const PHONE_WIDTH_FORMS = [
+  {
+    // The notification panel, clamped against the viewport it is anchored
+    // inside. A nested function carrying a comma inside an arbitrary value is
+    // the form most likely to be dropped, and `min-w-[min(600px,100%)]` above
+    // is only the single-function case.
+    className: 'phone:w-[min(420px,calc(100vw-24px))]',
+    atRule: '(max-width: 768px)',
+    prop: 'width',
+    value: 'min(420px,calc(100vw - 24px))',
+  },
+  {
+    // D3. The token nine call sites have always named and no config has ever
+    // defined — in this repo or upstream — so those card bodies render with no
+    // fill at all. This assertion is the whole of that fix.
+    className: 'bg-newBgColorInnerInner',
+    atRule: null,
+    prop: 'background-color',
+    value: 'var(--new-bgColorInner-inner)',
+  },
+  {
+    // ai.image.tsx reaches for `newTextItemBlur`; the key is `textItemBlur`.
+    // Asserted because the *first fix proposed* for it was itself a name that
+    // does not exist, and nothing but this check noticed.
+    className: 'text-textItemBlur',
+    atRule: null,
+    prop: 'color',
+    value: 'var(--new-textItemBlur)',
+  },
+  {
+    className: 'hover:border-textItemFocused',
+    pseudo: ':hover',
+    atRule: null,
+    prop: 'border-color',
+    value: 'var(--new-textItemFocused)',
+  },
+  {
+    // The share page's comment box asks for `ring-ring`, which resolves to
+    // nothing, so its ring falls back to Tailwind's default blue rather than
+    // disappearing — a defect that looks like a design choice.
+    className: 'focus-visible:ring-brand',
+    pseudo: ':focus-visible',
+    atRule: null,
+    prop: '--tw-ring-color',
+    value: 'var(--brand)',
+  },
+  {
+    // D2. Four settings tables are one flat grid with no per-record element,
+    // so stacking them rests entirely on a wrapper that is inert on desktop.
+    className: 'contents',
+    atRule: null,
+    prop: 'display',
+    value: 'contents',
+  },
+  {
+    // The tutorial video stops deriving its width from its height.
+    className: 'phone:aspect-video',
+    atRule: '(max-width: 768px)',
+    prop: 'aspect-ratio',
+    value: '16 / 9',
+  },
+  {
+    className: 'phone:min-h-[100px]',
+    atRule: '(max-width: 768px)',
+    prop: 'min-height',
+    value: '100px',
+  },
+];
+
+test('026: every class form the phone-width repair introduces emits CSS', async () => {
+  const css = await emit(PHONE_WIDTH_FORMS.map((f) => f.className));
+
+  for (const form of PHONE_WIDTH_FORMS) {
+    const decls = emitted(css, form.className, { pseudo: form.pseudo ?? null });
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant, the token or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some((d) => d.atRule === form.atRule && d.prop === form.prop && d.value === form.value),
+      `${form.className} did not emit ${form.prop}: ${form.value} inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+});
+
+test('026: the column counts the grids fall back to are real, at both widths', async () => {
+  // A hardcoded grid-cols-N is what the 020 sweep could not see through: the
+  // tracks are minmax(0,1fr), so the boxes fit the frame and only the text
+  // inside overflows. These are the overrides that stop that happening, and a
+  // silent one would restore the defect exactly.
+  const forms = [
+    ['mobile:grid-cols-5', '(max-width: 1025px)', 'repeat(5, minmax(0, 1fr))'],
+    ['mobile:grid-cols-4', '(max-width: 1025px)', 'repeat(4, minmax(0, 1fr))'],
+    ['mobile:grid-cols-2', '(max-width: 1025px)', 'repeat(2, minmax(0, 1fr))'],
+    ['phone:grid-cols-3', '(max-width: 768px)', 'repeat(3, minmax(0, 1fr))'],
+    ['phone:grid-cols-2', '(max-width: 768px)', 'repeat(2, minmax(0, 1fr))'],
+    ['phone:grid-cols-1', '(max-width: 768px)', 'repeat(1, minmax(0, 1fr))'],
+  ];
+  const css = await emit(forms.map(([c]) => c));
+
+  for (const [className, atRule, value] of forms) {
+    assert.deepEqual(
+      emitted(css, className),
+      [{ atRule, prop: 'grid-template-columns', value }],
+      `${className} did not emit its track list`
+    );
+  }
 });

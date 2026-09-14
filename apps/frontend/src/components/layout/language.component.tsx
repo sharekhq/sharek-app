@@ -80,7 +80,9 @@ export const ChangeLanguageComponent = () => {
 
   return (
     <div className="relative">
-      <div className="grid grid-cols-4 gap-2">
+      {/* Four fixed tracks put a language name in ~35px of a 390px modal, so the
+          labels overflow their tiles and run into the gutters. */}
+      <div className="grid grid-cols-4 phone:grid-cols-2 gap-2">
         {availableLanguages.map((language) => (
           <div
             className={clsx(

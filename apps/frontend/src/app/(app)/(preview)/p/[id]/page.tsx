@@ -47,8 +47,8 @@ export default async function Auth(
   }
   return (
     <div>
-      <div className="mx-auto w-full max-w-[1346px] py-3 text-textColor">
-        <div className="flex items-start justify-between">
+      <div className="mx-auto w-full max-w-[1346px] py-3 px-[16px] text-textColor">
+        <div className="flex items-start justify-between gap-[12px] flex-wrap">
           <div className="flex items-center gap-[16px]">
             <div className="min-w-[55px]">
               <Link
@@ -73,7 +73,7 @@ export default async function Auth(
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row text-textColor w-full max-w-[1346px] mx-auto">
+      <div className="flex flex-col lg:flex-row text-textColor w-full max-w-[1346px] mx-auto px-[16px] gap-[20px]">
         <div className="flex-1">
           <div className="gap-[20px] flex flex-col">
             {post.map((p: any, index: number) => (
@@ -83,7 +83,7 @@ export default async function Auth(
               >
                 <div className="flex gap-[12px]">
                   <div>
-                    <div className="flex shrink-0 rounded-full h-30 w-30 relative">
+                    <div className="flex shrink-0 rounded-full relative">
                       <div className="w-[50px] h-[50px] z-[20]">
                         <img
                           className="w-full h-full relative z-[20] bg-black aspect-square rounded-full border-tableBorder"

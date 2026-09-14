@@ -1,4 +1,4 @@
-import React, { FC, Fragment, useCallback } from 'react';
+import React, { FC, useCallback } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { Button } from '@gitroom/react/form/button';
@@ -75,24 +75,24 @@ export const SignaturesComponent: FC<{
                 !!appendSignature
                   ? 'grid-cols-[1fr,1fr,1fr,1fr,1fr]'
                   : 'grid-cols-[1fr,1fr,1fr,1fr]'
-              } w-full gap-y-[10px]`}
+              } phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]`}
             >
-              <div>{t('content', 'Content')}</div>
-              <div className="text-center">{t('auto_add', 'Auto Add?')}</div>
+              <div className="phone:hidden">{t('content', 'Content')}</div>
+              <div className="text-center phone:hidden">{t('auto_add', 'Auto Add?')}</div>
               {!!appendSignature && (
-                <div className="text-center">{t('actions', 'Actions')}</div>
+                <div className="text-center phone:hidden">{t('actions', 'Actions')}</div>
               )}
-              <div className="text-center">{t('edit', 'Edit')}</div>
-              <div className="text-center">{t('delete', 'Delete')}</div>
+              <div className="text-center phone:hidden">{t('edit', 'Edit')}</div>
+              <div className="text-center phone:hidden">{t('delete', 'Delete')}</div>
               {data?.map((p: any) => (
-                <Fragment key={p.id}>
+                <div key={p.id} className="contents phone:flex phone:flex-col phone:gap-[10px] phone:p-[14px] phone:border phone:border-fifth phone:rounded-[8px]">
                   <div className="relative flex-1 me-[20px] overflow-x-hidden">
-                    <div className="absolute start-0 line-clamp-1 top-[50%] -translate-y-[50%] text-ellipsis">
+                    <div className="absolute phone:static start-0 line-clamp-1 top-[50%] -translate-y-[50%] phone:translate-y-0 text-ellipsis">
                       {p.content.slice(0, 15) + '...'}
                     </div>
                   </div>
                   <div className="flex flex-col justify-center relative me-[20px]">
-                    <div className="text-center w-full absolute start-0 line-clamp-1 top-[50%] -translate-y-[50%]">
+                    <div className="text-center phone:text-start w-full absolute phone:static start-0 line-clamp-1 top-[50%] -translate-y-[50%] phone:translate-y-0">
                       {p.autoAdd ? 'Yes' : 'No'}
                     </div>
                   </div>
@@ -117,7 +117,7 @@ export const SignaturesComponent: FC<{
                       </Button>
                     </div>
                   </div>
-                </Fragment>
+                </div>
               ))}
             </div>
           )}

@@ -86,6 +86,13 @@
     --new-border: var(--line);
     --new-bgColor: var(--bg);
     --new-bgColorInner: var(--surface);
+    /* The recessed plane inside a card. Nine call sites across onboarding and
+       the Developers panel have always asked for `newBgColorInnerInner` and no
+       config has ever defined it — not here and not upstream, where the same
+       nine lines sit — so those card bodies have rendered with no fill since
+       they were written. --surface-2 is what DESIGN.md already names for a
+       region inside a card: a recessed well, not a second card. */
+    --new-bgColorInner-inner: var(--surface-2);
     --new-sep: var(--line);
     --new-bgLineColor: var(--line);
     --new-textItemFocused: var(--ink);
@@ -131,6 +138,13 @@
     --new-border: var(--line);
     --new-bgColor: var(--bg);
     --new-bgColorInner: var(--surface);
+    /* The recessed plane inside a card. Nine call sites across onboarding and
+       the Developers panel have always asked for `newBgColorInnerInner` and no
+       config has ever defined it — not here and not upstream, where the same
+       nine lines sit — so those card bodies have rendered with no fill since
+       they were written. --surface-2 is what DESIGN.md already names for a
+       region inside a card: a recessed well, not a second card. */
+    --new-bgColorInner-inner: var(--surface-2);
     --new-bgLineColor: var(--line);
     --new-textItemFocused: var(--ink);
     --new-textItemBlur: var(--muted);
