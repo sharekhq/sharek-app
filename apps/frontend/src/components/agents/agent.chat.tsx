@@ -10,8 +10,13 @@ import React, {
   useState,
 } from 'react';
 import useSWR from 'swr';
-import { CopilotChat, CopilotKitCSSProperties } from '@copilotkit/react-ui';
 import {
+  AssistantMessage,
+  CopilotChat,
+  CopilotKitCSSProperties,
+} from '@copilotkit/react-ui';
+import {
+  AssistantMessageProps,
   InputProps,
   UserMessageProps,
 } from '@copilotkit/react-ui/dist/components/chat/props';
@@ -87,6 +92,7 @@ export const AgentChat: FC = () => {
               ),
             }}
             UserMessage={Message}
+            AssistantMessage={Reply}
             Input={NewInput}
           />
         </div>
@@ -167,11 +173,22 @@ const Message: FC<UserMessageProps> = (props) => {
   }, [props.message?.content]);
   return (
     <div
+      dir="auto"
       className="copilotKitMessage copilotKitUserMessage min-w-[300px]"
       dangerouslySetInnerHTML={{ __html: convertContentToImagesAndVideo }}
     />
   );
 };
+
+// CopilotKit's own reply bubble, wrapped rather than replaced: the markdown, the
+// copy and retry controls and the loading state are all its business and none of
+// them change — only the direction the reply is read in, which the slot cannot
+// set on a bubble it does not render.
+const Reply: FC<AssistantMessageProps> = (props) => (
+  <div dir="auto">
+    <AssistantMessage {...props} />
+  </div>
+);
 const NewInput: FC<InputProps> = (props) => {
   const [media, setMedia] = useState([] as { path: string; id: string }[]);
   const [value, setValue] = useState('');
