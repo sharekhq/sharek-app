@@ -100,6 +100,8 @@ export const PlatformAnalytics = () => {
   const currentIntegration = useMemo(() => {
     return sortedIntegrations[current];
   }, [current, sortedIntegrations]);
+  // t is a dependency because the range labels are translated: a language switch
+  // re-creates it, and never changes the integration this is otherwise keyed on.
   const options = useMemo(() => {
     if (!currentIntegration) {
       return [];
@@ -156,7 +158,7 @@ export const PlatformAnalytics = () => {
       });
     }
     return arr;
-  }, [currentIntegration]);
+  }, [currentIntegration, t]);
   const keys = useMemo(() => {
     if (!currentIntegration) {
       return 7;
