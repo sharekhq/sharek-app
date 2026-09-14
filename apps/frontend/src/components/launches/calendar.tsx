@@ -34,8 +34,8 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { ExistingDataContextProvider } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
-import { useDrag, useDrop } from 'react-dnd';
-import { Integration, Post, State, Tags } from '@prisma/client';
+import { useDrop } from 'react-dnd';
+import { State } from '@prisma/client';
 import { useAddProvider } from '@gitroom/frontend/components/launches/add.provider.component';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
@@ -51,17 +51,20 @@ import { MissingReleaseModal } from '@gitroom/frontend/components/launches/missi
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import i18next from 'i18next';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
-import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import copy from 'copy-to-clipboard';
-import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { Button } from '@gitroom/react/form/button';
 import {
   PostAction,
   PostActionsMenu,
 } from '@gitroom/frontend/components/launches/post.actions.menu';
+import {
+  CalendarPost,
+  CalendarPostCard,
+} from '@gitroom/frontend/components/launches/calendar.post.card';
+import { usePostCardDrag } from '@gitroom/frontend/components/launches/calendar.drag.layer';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -1018,12 +1021,7 @@ const CalendarItem: FC<{
   state: State;
   display: 'day' | 'week' | 'month';
   showTime?: boolean;
-  post: Post & {
-    integration: Integration;
-    tags: {
-      tag: Tags;
-    }[];
-  };
+  post: CalendarPost;
 }> = memo((props) => {
   const t = useT();
   const {
@@ -1041,11 +1039,6 @@ const CalendarItem: FC<{
     missingRelease,
   } = props;
   const { disableXAnalytics } = useVariables();
-  const user = useUser();
-  const showCreationMethodBadge =
-    user?.impersonate &&
-    post.creationMethod &&
-    post.creationMethod !== 'UNKNOWN';
   const preview = useCallback(() => {
     window.open(`/p/` + post.id + '?share=true', '_blank');
   }, [post]);
@@ -1123,122 +1116,34 @@ const CalendarItem: FC<{
       deletePost,
     ]
   );
-  const [{ opacity }, dragRef] = useDrag(
-    () => ({
-      type: 'post',
-      item: {
-        id: post.id,
-        interval: !!post.intervalInDays,
-        date,
-      },
-      collect: (monitor) => ({
-        opacity: monitor.isDragging() ? 0 : 1,
-      }),
-    }),
-    []
-  );
+  // The card hands the drop its three fields and the layer everything it needs
+  // to draw the card itself, since neither backend draws a usable preview on
+  // its own (calendar.drag.layer.tsx).
+  const { attach, opacity } = usePostCardDrag({
+    id: post.id,
+    interval: !!post.intervalInDays,
+    date,
+    post,
+    state,
+    isBeforeNow,
+    showTime,
+  });
   return (
-    <div
-      // @ts-ignore
-      ref={dragRef}
-      className={clsx(
-        'w-full flex h-full flex-1 flex-col group',
-        'relative rounded-[10px] border border-line shadow-soft',
-        state === 'ERROR' && 'ring-2 ring-error'
-      )}
-      style={{
-        opacity,
-      }}
-    >
-      {state === 'ERROR' && (
-        <div
-          className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
-          data-tooltip-id="tooltip"
-          data-tooltip-content={post.error || 'An error occurred while publishing this post'}
-        >
-          !
-        </div>
-      )}
-      {showCreationMethodBadge && (
-        <div className="absolute -bottom-[4px] -right-[4px] z-10">
-          <CreationMethodBadge
-            creationMethod={post.creationMethod}
-            ringColor="var(--new-bgColor)"
-          />
-        </div>
-      )}
-      <div
-        className={clsx(
-          post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
-        )}
-        style={{
-          backgroundColor: post?.tags?.[0]?.tag?.color,
-        }}
-      >
-        {state === 'ERROR' ? (
-          <span className="cal-chip cal-chip-error">
-            ! {t('calendar_state_failed', 'Failed')}
-          </span>
-        ) : state === 'DRAFT' ? (
-          <span className="cal-chip cal-chip-draft">{t('draft', 'Draft')}</span>
-        ) : state === 'PUBLISHED' ||
-          dayjs().isAfter(dayjs.utc(post.publishDate)) ? (
-          <span className="cal-chip cal-chip-success">
-            ✓ {t('calendar_state_published', 'Published')}
-          </span>
-        ) : (
-          <span className="cal-chip cal-chip-info">
-            {t('calendar_state_scheduled', 'Scheduled')}
-          </span>
-        )}
-        <div
-          className={clsx(
-            post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
-            'group-hover:hidden coarse:hidden cursor-pointer'
-          )}
-        >
-          {post.tags.map((p) => p.tag.name).join(', ')}
-        </div>
+    <CalendarPostCard
+      ref={attach}
+      post={post}
+      state={state}
+      isBeforeNow={isBeforeNow}
+      showTime={showTime}
+      onClick={editPost}
+      style={{ opacity }}
+      actions={
         <PostActionsMenu
           actions={actions}
           label={t('post_actions', 'Post actions')}
         />
-      </div>
-      <div
-        onClick={editPost}
-        className={clsx(
-          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
-          'relative',
-          isBeforeNow && '!grayscale'
-        )}
-      >
-        <div className={clsx('relative min-w-[20px]')}>
-          <img
-            className="w-[20px] h-[20px] rounded-[8px]"
-            src={post.integration.picture! || '/no-picture.jpg'}
-          />
-          <img
-            className="w-[12px] h-[12px] rounded-[8px] absolute z-10 top-[10px] end-0 border border-fifth"
-            src={`/icons/platforms/${post.integration?.providerIdentifier}.png`}
-          />
-        </div>
-        <div className="w-full flex-1 flex flex-col min-h-[40px]">
-          <div className="text-start"></div>
-            <div className="w-full relative">
-              <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start">
-                {stripHtmlValidation('none', post.content, false, true, false) ||
-                  t('no_content', 'no content')}
-              </div>
-            </div>
-        </div>
-        {showTime && (
-          <div className="text-muted text-[12px] whitespace-nowrap flex items-center">
-            {newDayjs(post.publishDate).local().format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
-          </div>
-        )}
-      </div>
-    </div>
+      }
+    />
   );
 });
 const DebugJsonModal: FC<{ post: any }> = ({ post }) => {

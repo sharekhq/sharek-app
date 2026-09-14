@@ -186,6 +186,48 @@ describe('post actions menu', () => {
     expect(getComputedStyle(item).color).toBe('#1A1413');
   });
 
+  // The dots were painted only under the pointer (`hidden group-hover:block`),
+  // so on a mouse the strip advertised nothing: the only way to learn a post
+  // had actions was to hover it and notice something appear. Coarse pointers
+  // have always had them outright, because there is no hover to wait for —
+  // this is the same answer for the mouse.
+  it('shows the dots whether or not the pointer is on the card', async () => {
+    await mount();
+
+    const dots = trigger().querySelector('svg')!;
+    expect(dots.getAttribute('class')).not.toContain('hidden');
+  });
+
+  // calendar.tsx:1218 hangs the provider's platform badge off the avatar at
+  // `z-10`, and the card body is a later sibling of the strip. The trigger used
+  // to carry `z-[10]` itself, which made it a stacking context: the panel's
+  // `z-[100]` then resolved *inside* the trigger rather than against the card,
+  // so the whole list travelled at the trigger's 10 and lost the tie to the
+  // badge on tree order. The provider's icon painted through the open menu.
+  // Nothing in the strip needs a z-index — being positioned already puts the
+  // trigger over the tag name — so the panel keeps its own.
+  it('does not trap the panel under the card that opened it', async () => {
+    await mount();
+
+    expect(
+      trigger()
+        .className.split(' ')
+        .filter((name) => name.startsWith('z-'))
+    ).toEqual([]);
+  });
+
+  // Rows that run an action on click and answer nothing on hover read as a
+  // caption list. `boxHover` is `--surface-2` against the panel's `--surface`,
+  // the pairing launches.component.tsx:234 uses for a row on the same plane.
+  it('marks the row the pointer is on', async () => {
+    await mount();
+    await click(trigger());
+
+    [...document.querySelectorAll('[role="menuitem"]')].forEach((item) => {
+      expect(item.className).toContain('hover:bg-boxHover');
+    });
+  });
+
   it('drops an action the post does not have', async () => {
     await mount(actions().filter((a) => a.key !== 'preview'));
     await click(trigger());

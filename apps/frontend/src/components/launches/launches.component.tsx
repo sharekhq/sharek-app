@@ -24,6 +24,7 @@ import { useFireEvents } from '@gitroom/helpers/utils/use.fire.events';
 import { Calendar } from './calendar';
 import { useDrag, useDrop } from 'react-dnd';
 import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
+import { CalendarDragLayer } from '@gitroom/frontend/components/launches/calendar.drag.layer';
 import { GeneratorComponent } from './generator/generator';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import {
@@ -467,6 +468,9 @@ export const LaunchesComponent = () => {
   // @ts-ignore
   return (
     <DNDProvider>
+      {/* One preview for every drag under the provider — the backends draw
+          either a filled rectangle or nothing at all on their own. */}
+      <CalendarDragLayer />
       <Onboarding />
       <CalendarWeekProvider integrations={sortedIntegrations}>
         <SplitPanel
