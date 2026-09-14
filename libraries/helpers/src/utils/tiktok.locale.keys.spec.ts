@@ -12,9 +12,21 @@ const LOCALES_DIR = path.join(
   '../../../react-shared-libraries/src/translation/locales'
 );
 
-const PANEL = path.join(
-  __dirname,
-  '../../../../apps/frontend/src/components/new-launch/providers/tiktok/tiktok.provider.tsx'
+// Every panel the TikTok composer renders. The music and location panels
+// arrived as *added* files in the 2026-09 upstream sync, and a t()-gap scan
+// that only looked at merge-touched files never saw them — eight of their keys
+// reached production as inline defaults only. Listing the panels here keeps
+// the scan below pointed at all of them.
+const PANELS = [
+  'tiktok.provider.tsx',
+  'tiktok.music.tsx',
+  'tiktok.location.tsx',
+].map((file) =>
+  path.join(
+    __dirname,
+    '../../../../apps/frontend/src/components/new-launch/providers/tiktok',
+    file
+  )
 );
 
 const readLocale = (lng: string) =>
@@ -57,6 +69,16 @@ describe('TikTok composer locale keys', () => {
     'tiktok_processing_delay_notice',
     // 013 US4 — where an inbox upload turns up
     'tiktok_upload_inbox_notice',
+    // 025 — the music panel the 2026-09 sync added
+    'tiktok_add_music',
+    'tiktok_search_music',
+    'tiktok_no_music_found',
+    'tiktok_music_volume',
+    'tiktok_video_volume',
+    // 025 — the location panel the same sync added
+    'tiktok_add_location',
+    'tiktok_search_location',
+    'tiktok_no_location_found',
   ])('has a non-empty English and Arabic %s', (key) => {
     expect(typeof en[key]).toBe('string');
     expect(en[key].length).toBeGreaterThan(0);
@@ -120,10 +142,10 @@ describe('TikTok composer locale keys', () => {
   });
 });
 
-describe('TikTok composer — every string the panel renders', () => {
+describe('TikTok composer — every string the panels render', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
-  const panel = fs.readFileSync(PANEL, 'utf8');
+  const panel = PANELS.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
 
   // Read off the panel rather than listed here on purpose: a hardcoded list
   // cannot catch the next key that ships as an inline t() default only, which
@@ -151,6 +173,10 @@ describe('TikTok composer — every string the panel renders', () => {
     expect(referenced.length).toBeGreaterThan(40);
     expect(referenced).toContain('tiktok_branded_content_not_private');
     expect(referenced).toContain('label_title');
+    // One key from each added panel, so a PANELS entry that stops resolving
+    // shows up here rather than as a quietly smaller scan.
+    expect(referenced).toContain('tiktok_add_music');
+    expect(referenced).toContain('tiktok_add_location');
   });
 
   it.each(referenced)('says %s in both languages', (key) => {
