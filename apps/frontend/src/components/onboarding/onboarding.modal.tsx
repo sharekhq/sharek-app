@@ -242,7 +242,7 @@ const OnboardingStep1: FC<{ onNext: () => void; onSkip: () => void }> = ({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="group-hover:translate-x-1 transition-transform"
+            className="rtl:rotate-180 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform"
           >
             <path d="M5 12h14" />
             <path d="m12 5 7 7-7 7" />
@@ -645,7 +645,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="group-hover:-translate-x-1 transition-transform"
+            className="rtl:rotate-180 group-hover:-translate-x-1 rtl:group-hover:translate-x-1 transition-transform"
           >
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
@@ -675,7 +675,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="group-hover:translate-x-1 transition-transform"
+            className="rtl:rotate-180 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform"
           >
             <path d="M5 12h14" />
             <path d="m12 5 7 7-7 7" />
@@ -735,7 +735,7 @@ const OnboardingStep3: FC<{ onBack: () => void; onFinish: () => void }> = ({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="group-hover:-translate-x-1 transition-transform"
+            className="rtl:rotate-180 group-hover:-translate-x-1 rtl:group-hover:translate-x-1 transition-transform"
           >
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
