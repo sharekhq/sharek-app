@@ -63,6 +63,10 @@ const AutoResizingTextarea = forwardRef<HTMLTextAreaElement, AutoResizingTextare
         onCompositionStart={onCompositionStart}
         onCompositionEnd={onCompositionEnd}
         placeholder={placeholder}
+        // Only once there is something to take a direction from: dir="auto" on
+        // an empty field has no strong character to read and resolves to LTR,
+        // which would move the Arabic placeholder to the wrong side.
+        dir={value ? 'auto' : undefined}
         style={{
           overflow: "auto",
           resize: "none",
