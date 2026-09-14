@@ -117,6 +117,10 @@ export default async function Auth(
                     </div>
                     <div className="flex flex-col gap-[20px]">
                       <div
+                        // The client opening a shared post is not necessarily
+                        // on the Arabic interface, so the post's own text has
+                        // to set its direction rather than inherit the page's.
+                        dir="auto"
                         className="text-sm whitespace-pre-wrap"
                         dangerouslySetInnerHTML={{
                           __html: sanitizePostContent(p.content),
