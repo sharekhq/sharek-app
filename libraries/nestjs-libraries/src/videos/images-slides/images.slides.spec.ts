@@ -295,6 +295,88 @@ describe('ImagesSlides.create', () => {
     }
   });
 });
+// ElevenLabs answers a spent quota or a revoked key with a 401 carrying the
+// reason in the body. Without it the user only ever sees the status code, and
+// without a timeout a hung request holds the render open to the poll deadline.
+describe('ImagesSlides ElevenLabs failures', () => {
+  const storyboard = {
+    styleGuide: 'warm cinematic, brass palette',
+    slides: [{ text: 'One.' }],
+  };
+  const params = { prompt: 'p', voice: 'v', slides: 1, voiceover: true };
+
+  const drain = async (gen: AsyncGenerator<any>) => {
+    const events: any[] = [];
+    for await (const e of gen) events.push(e);
+    return events;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    openai.generateImagePromptsForSlides.mockResolvedValue(['a brass tray']);
+    openai.generateImageAtSize.mockResolvedValue(Buffer.from('B64', 'base64'));
+  });
+
+  it('names the ElevenLabs status and reason when narration is refused', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({
+        detail: { status: 'quota_exceeded', message: 'Quota exceeded' },
+      }),
+    })) as any;
+
+    await expect(
+      drain(provider.create('vertical', storyboard, params))
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('ElevenLabs 401: Quota exceeded'),
+    });
+
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      (err) => expect(err.getStatus()).toBe(502)
+    );
+  });
+
+  it('gives the narration request a deadline', async () => {
+    const fetchSpy = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        audio_base64: 'AAAA',
+        alignment: {
+          character_start_times_seconds: [0, 0.1, 0.2, 0.3],
+          character_end_times_seconds: [0.1, 0.2, 0.3, 0.4],
+        },
+      }),
+    }));
+    global.fetch = fetchSpy as any;
+
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      () => undefined
+    );
+
+    const call = fetchSpy.mock.calls.find((c) =>
+      String(c[0]).includes('text-to-speech')
+    );
+    expect((call?.[1] as any)?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  // Reading the body before the status check turned a 401 into an empty voice
+  // list, so the picker looked merely empty instead of broken.
+  it('throws the reason instead of an empty voice list', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ detail: 'Invalid API key' }),
+    })) as any;
+
+    await expect(provider.loadVoices({})).rejects.toThrow(
+      'ElevenLabs 401: Invalid API key'
+    );
+  });
+});
 
 // A provider content flag on one slide's prompt is recoverable: rewrite that
 // prompt once and re-render, instead of failing a deck the user already

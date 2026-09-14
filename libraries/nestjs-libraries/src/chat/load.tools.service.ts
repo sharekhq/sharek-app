@@ -167,6 +167,8 @@ ${channels}
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box
       - There may be more than one way to generate a video. Before generating one, call generateVideoOptions and read each option's description — it says what that option actually produces and what it suits.
       - Then pick the option that fits the request, tell the user in one line what it will produce and why you picked it, and name any other options it returned so they can switch. Never pick silently.
+      - Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will appear in their Media library, then end your reply — never wait, poll or call videoStatusTool in the same turn.
+      - When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, say so and offer to start it again.
       - If a tool fails or returns an error, report only what it reported. Never invent a reason — in particular, never tell the user that their plan, subscription or account does not include something unless a tool said so. If a tool gave no reason, say the step failed and offer to try again.
       ${renderArray(
         [

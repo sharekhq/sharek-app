@@ -283,6 +283,12 @@ export class OrganizationRepository {
     });
   }
 
+  getOrgByIdWithSubscription(id: string) {
+    // getOrgById already loads the subscription (credit checks read a missing
+    // relation as FREE); one selection, upstream's name kept for its callers
+    return this.getOrgById(id);
+  }
+
   getUsersByEmail(email: string) {
     return this._user.model.user.findMany({
       where: {

@@ -39,7 +39,9 @@ export class GenerateVideoTool implements AgentToolInterface {
                     in case the user specified a platform that requires attachment and attachment was not provided,
                     ask if they want to generate a picture of a video.
                     In many cases 'videoFunctionTool' will need to be called first, to get things like voice id
-                    Returns the generated video { url }, or { error } when the video credits are exhausted.
+                    Generating takes minutes, so this only starts the render and returns a jobId (or { error } when the video credits are exhausted).
+                    Tell the user the video is rendering and will appear in their Media library, then end your reply —
+                    never wait, poll or call 'videoStatusTool' in the same turn; call it only when the user asks about the video later.
                     Here are the type of video that can be generated:
                     ${this._videoManager
                       .getAllVideos()
@@ -60,7 +62,7 @@ export class GenerateVideoTool implements AgentToolInterface {
       // allow the graceful { error } shape — optional fields rather than an
       // `output` union, as generateImageTool already does for the same reason.
       outputSchema: z.object({
-        url: z.string().optional(),
+        jobId: z.string().optional(),
         error: z.string().optional(),
       }),
       execute: async (inputData, context) => {
@@ -68,7 +70,7 @@ export class GenerateVideoTool implements AgentToolInterface {
         const org = JSON.parse((context?.requestContext as any)?.get('organization') as string);
 
         try {
-          const value = await this._mediaService.generateVideo(org, {
+          const value = await this._mediaService.startGenerateVideo(org, {
             type: inputData.identifier,
             output: inputData.output,
             customParams: inputData.customParams.reduce(
@@ -81,7 +83,7 @@ export class GenerateVideoTool implements AgentToolInterface {
           });
 
           return {
-            url: value.path,
+            jobId: value.jobId,
           };
         } catch (err) {
           // Handed back as data rather than thrown: a throw reaches the model

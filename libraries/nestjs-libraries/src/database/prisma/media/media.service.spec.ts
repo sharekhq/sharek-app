@@ -50,7 +50,13 @@ const dto = (over: Partial<Record<string, any>> = {}) =>
 const RESETS_AT = '2026-09-12T08:31:04.000Z';
 
 const makeService = (
-  over: { credits?: number; video?: any; openAi?: any; spendCredit?: boolean } = {}
+  over: {
+    credits?: number;
+    video?: any;
+    openAi?: any;
+    spendCredit?: boolean;
+    temporal?: any;
+  } = {}
 ) => {
   // The real useCredit commits the credit only when its callback resolves and
   // refunds when it throws, so `charged` is what "no charge on failure" means.
@@ -73,7 +79,8 @@ const makeService = (
     {} as any,
     over.openAi ?? ({} as any),
     subscription as any,
-    manager as any
+    manager as any,
+    over.temporal as any
   );
   (service as any).storage = {
     uploadSimple: jest.fn().mockResolvedValue('https://media/abc.mp4'),
@@ -293,6 +300,119 @@ describe('generateVideo (public API + chat tool path)', () => {
     await expect(service.generateVideo(org, body())).rejects.toBeInstanceOf(
       SubscriptionException
     );
+  });
+});
+
+// A render takes minutes, which is longer than an assistant turn can stay
+// open, so the agent path starts a Temporal job and answers with its id. The
+// pre-flight still runs first: a refusal has to reach the user as a refusal,
+// not as a job that fails minutes later on a credit it never had.
+describe('startGenerateVideo', () => {
+  const temporal = () => {
+    const start = jest.fn().mockResolvedValue(undefined);
+    const getWorkflowHandle = jest.fn();
+    return {
+      start,
+      getWorkflowHandle,
+      client: {
+        getRawClient: () => ({ workflow: { start } }),
+        getWorkflowHandle,
+      },
+    };
+  };
+
+  it('refuses before a job exists when no credits remain', async () => {
+    const t = temporal();
+    const { service } = makeService({
+      credits: 0,
+      video: oneShotVideo(),
+      temporal: t,
+    });
+
+    const err = await service.startGenerateVideo(org, body()).catch((e) => e);
+    expect(err).toBeInstanceOf(SubscriptionException);
+    expect(err.getStatus()).toBe(402);
+    expect(t.start).not.toHaveBeenCalled();
+  });
+
+  it('starts the workflow under an id owned by the organization', async () => {
+    const t = temporal();
+    const { service } = makeService({ video: oneShotVideo(), temporal: t });
+
+    const result = await service.startGenerateVideo(org, body());
+
+    expect(t.start).toHaveBeenCalledTimes(1);
+    const [name, options] = t.start.mock.calls[0];
+    expect(name).toBe('generateVideoWorkflow');
+    expect(options.workflowId).toMatch(
+      new RegExp(`^video_${org.id}_[A-Za-z0-9]{10}$`)
+    );
+    expect(options.taskQueue).toBe('main');
+    expect(options.args[0]).toEqual({ organizationId: org.id, body: body() });
+    expect(result).toEqual({ jobId: options.workflowId });
+  });
+});
+
+describe('getGenerateVideoStatus', () => {
+  const temporal = (handle?: any) => {
+    const getWorkflowHandle = jest.fn().mockResolvedValue(handle);
+    return { getWorkflowHandle, client: { getWorkflowHandle } };
+  };
+
+  it('will not look up a job belonging to another workspace', async () => {
+    const t = temporal();
+    const { service } = makeService({ temporal: t });
+
+    const err = await service
+      .getGenerateVideoStatus(org, 'video_someone-else_abcdefghij')
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(404);
+    expect(t.getWorkflowHandle).not.toHaveBeenCalled();
+  });
+
+  it('reports running, saved and failed jobs', async () => {
+    const jobId = `video_${org.id}_abcdefghij`;
+
+    const running = {
+      describe: jest.fn().mockResolvedValue({ status: { name: 'RUNNING' } }),
+      result: jest.fn(),
+    };
+    const { service: pending } = makeService({ temporal: temporal(running) });
+    await expect(pending.getGenerateVideoStatus(org, jobId)).resolves.toEqual({
+      status: 'pending',
+    });
+
+    const done = {
+      describe: jest.fn().mockResolvedValue({ status: { name: 'COMPLETED' } }),
+      result: jest.fn().mockResolvedValue({ id: 'm1', path: '/x.mp4' }),
+    };
+    const { service: completed } = makeService({ temporal: temporal(done) });
+    await expect(completed.getGenerateVideoStatus(org, jobId)).resolves.toEqual({
+      status: 'completed',
+      id: 'm1',
+      path: '/x.mp4',
+    });
+
+    // Only the innermost message survives a workflow failure, so that is the
+    // sentence the user is shown.
+    const broken = {
+      describe: jest.fn().mockResolvedValue({ status: { name: 'FAILED' } }),
+      result: jest.fn().mockRejectedValue({
+        message: 'Workflow failed',
+        cause: {
+          message: 'Activity failed',
+          cause: {
+            message: 'No AI video credits are available on this account.',
+          },
+        },
+      }),
+    };
+    const { service: failed } = makeService({ temporal: temporal(broken) });
+    await expect(failed.getGenerateVideoStatus(org, jobId)).resolves.toEqual({
+      status: 'failed',
+      error: 'No AI video credits are available on this account.',
+    });
   });
 });
 

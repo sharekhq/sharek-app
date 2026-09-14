@@ -1,5 +1,5 @@
 // The real MediaService constructs the upload factory at import, which reaches
-// for the R2 SDK and its env; the tool only calls generateVideo (same shell
+// for the R2 SDK and its env; the tool only starts the render job (same shell
 // pattern as generate.image.tool.spec).
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
@@ -15,7 +15,7 @@ import {
 
 const org = { id: 'org-1', name: 'Sharek' };
 
-const savedMedia = { id: 'media-1', path: 'https://media/abc.mp4' };
+const startedJob = { jobId: 'video_org1_abcdefghij' };
 
 // The real VideoManager reads decorator metadata and drags in every provider;
 // the tool only reads titles out of it to build its description.
@@ -23,9 +23,10 @@ const videoManager = {
   getAllVideos: () => [{ title: 'Fake Provider' }],
 } as any;
 
-const makeTool = (over: { generateVideo?: any } = {}) => {
+const makeTool = (over: { startGenerateVideo?: any } = {}) => {
   const media = {
-    generateVideo: over.generateVideo ?? jest.fn().mockResolvedValue(savedMedia),
+    startGenerateVideo:
+      over.startGenerateVideo ?? jest.fn().mockResolvedValue(startedJob),
   };
   const tool = new GenerateVideoTool(media as any, videoManager).run() as any;
   return { tool, media };
@@ -55,24 +56,45 @@ const outOfCredits = () =>
 
 const refusalFor = async () => {
   const { tool } = makeTool({
-    generateVideo: jest.fn().mockRejectedValue(outOfCredits()),
+    startGenerateVideo: jest.fn().mockRejectedValue(outOfCredits()),
   });
   const result = await tool.execute(input, context());
   return result.error as string;
 };
 
 describe('GenerateVideoTool', () => {
-  it('returns the rendered video on success', async () => {
+  it('starts the job and returns its id', async () => {
     const { tool, media } = makeTool();
 
     const result = await tool.execute(input, context());
 
-    expect(media.generateVideo).toHaveBeenCalledWith(org, {
+    expect(media.startGenerateVideo).toHaveBeenCalledWith(org, {
       type: 'fake-provider',
       output: 'vertical',
       customParams: { voice: 'v-1' },
     });
-    expect(result).toEqual({ url: savedMedia.path });
+    expect(result).toEqual({ jobId: startedJob.jobId });
+  });
+
+  // A render outlasts the turn that asked for it, so the description is the
+  // only thing standing between the user and an assistant that sits on the
+  // reply polling for minutes. Upstream's wording told it to do exactly that.
+  describe('the description', () => {
+    const description = () => makeTool().tool.description as string;
+
+    it('names the job id and the tool that reads it', () => {
+      expect(description()).toContain('jobId');
+      expect(description()).toContain('videoStatusTool');
+    });
+
+    it('says where the video turns up', () => {
+      expect(description()).toContain('Media library');
+    });
+
+    it('forbids waiting inside the turn', () => {
+      expect(description()).toMatch(/never wait/i);
+      expect(description()).not.toMatch(/until the status is/i);
+    });
   });
 
   // A thrown error reaches the model as an opaque tool failure, and the model
@@ -83,13 +105,13 @@ describe('GenerateVideoTool', () => {
   describe('when the video credits are exhausted', () => {
     it('resolves with an error the model can relay, without throwing', async () => {
       const { tool } = makeTool({
-        generateVideo: jest.fn().mockRejectedValue(outOfCredits()),
+        startGenerateVideo: jest.fn().mockRejectedValue(outOfCredits()),
       });
 
       const result = await tool.execute(input, context());
 
       expect(result.error).toEqual(expect.any(String));
-      expect(result.url).toBeUndefined();
+      expect(result.jobId).toBeUndefined();
     });
 
     it('names the spent video credits as the cause', async () => {
@@ -129,14 +151,20 @@ describe('GenerateVideoTool', () => {
       const shape = tool.outputSchema.shape;
 
       expect(Object.keys(shape)).toEqual(
-        expect.arrayContaining(['url', 'error'])
+        expect.arrayContaining(['jobId', 'error'])
       );
       expect(tool.outputSchema.safeParse({ error: 'no credits' }).success).toBe(
         true
       );
       expect(
-        tool.outputSchema.safeParse({ url: savedMedia.path }).success
+        tool.outputSchema.safeParse({ jobId: startedJob.jobId }).success
       ).toBe(true);
+      // The synchronous url is gone; a non-strict object would silently strip
+      // it and let the old shape look valid.
+      expect(
+        tool.outputSchema.strict().safeParse({ url: 'https://media/abc.mp4' })
+          .success
+      ).toBe(false);
     });
 
     // The description is where the model is standing when it reads the result,
@@ -151,7 +179,7 @@ describe('GenerateVideoTool', () => {
   // should see it.
   it('still throws failures that are not a credit refusal', async () => {
     const { tool } = makeTool({
-      generateVideo: jest.fn().mockRejectedValue(new Error('socket hang up')),
+      startGenerateVideo: jest.fn().mockRejectedValue(new Error('socket hang up')),
     });
 
     await expect(tool.execute(input, context())).rejects.toThrow(

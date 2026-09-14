@@ -441,6 +441,20 @@ describe('LoadToolsService video guidance', () => {
     expect(instructions).toContain('may be more than one way');
     expect(instructions).toContain('name any other options it returned');
   });
+
+  // The render outlives the turn, so the tool hands back a job id. Without
+  // this the model reads "jobId" and does the obvious thing: polls until the
+  // video is ready, holding the reply open for minutes.
+  it('tells the model to end its turn instead of waiting for the render', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('generateVideoTool only starts the render');
+    expect(instructions).toContain('Media library');
+    expect(instructions).toContain(
+      'never wait, poll or call videoStatusTool in the same turn'
+    );
+    expect(instructions).toContain('offer to start it again');
+    expect(instructions).not.toMatch(/postiz/i);
+  });
 });
 
 describe('LoadToolsService post management guidance', () => {
