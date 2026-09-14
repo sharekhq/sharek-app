@@ -124,3 +124,77 @@ describe('the onboarding arrows drift the way they point', () => {
     expect(icon(container, 'Back')).toContain('rtl:group-hover:translate-x-1');
   });
 });
+
+// The modal opens full-screen with no card of its own to clamp it, so nothing
+// upstream keeps it inside a phone. Every assertion below is a class that has
+// to be on a specific element for that to hold; jsdom has no layout, so what it
+// can prove is exactly that and no more. The geometry those classes produce is
+// asserted in tools/tailwind-emit and read at 390 in the design review.
+const classesOf = (container: HTMLElement, selector: string) =>
+  Array.from(container.querySelectorAll(selector)).map((n) => n.className);
+
+const anyHas = (container: HTMLElement, selector: string, token: string) =>
+  classesOf(container, selector).some((c) => c.split(/\s+/).includes(token));
+
+describe('the onboarding modal gives its width back on a phone', () => {
+  it('halves the two paddings that eat 112px of a 390px screen', () => {
+    const container = mount();
+    // The outer shell and the card's own inset, in that order.
+    expect(anyHas(container, 'div', 'phone:p-[8px]')).toBe(true);
+    expect(anyHas(container, 'div', 'phone:p-[16px]')).toBe(true);
+  });
+
+  it('drops the step labels, which are what make the rail 470px wide', () => {
+    const container = mount();
+    const labels = classesOf(container, 'span').filter((c) => c.includes('text-[14px]'));
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label.split(/\s+/)).toContain('phone:hidden');
+    }
+  });
+
+  it('shortens the rules between the steps rather than leaving them at 40px', () => {
+    expect(anyHas(mount(), 'div', 'phone:w-[20px]')).toBe(true);
+  });
+});
+
+describe('the onboarding action rows fit the width they are given', () => {
+  it('gives the lone continue button the full row on the channels step', () => {
+    // Alone on its row, so it takes the whole of it: the label
+    // "Continue without channels" is a 306px minimum otherwise.
+    expect(button(mount(), CONTINUE).className.split(/\s+/)).toContain('phone:w-full');
+  });
+
+  it('lets the paired buttons share a row, with Back keeping its own width', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(button(container, SKIP).className.split(/\s+/)).toContain('phone:flex-1');
+    expect(button(container, 'Back').className.split(/\s+/)).toContain('shrink-0');
+  });
+
+  it('wraps the agents footer so its hint can take a line of its own', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(anyHas(container, 'div', 'phone:flex-wrap')).toBe(true);
+    expect(anyHas(container, 'div', 'phone:basis-full')).toBe(true);
+  });
+
+  it('stacks the MCP and CLI cards instead of halving a 280px column', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(anyHas(container, 'div', 'phone:grid-cols-1')).toBe(true);
+  });
+});
+
+describe('the tutorial video stops deriving its width from its height', () => {
+  it('gives the wrapper the aspect ratio and lets the frame fill it', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    click(container, SKIP);
+    // h-full aspect-video sizes the iframe from its height, so the taller the
+    // phone the wider the video. On a phone the wrapper carries the ratio.
+    expect(anyHas(container, 'div', 'phone:aspect-video')).toBe(true);
+    expect(anyHas(container, 'div', 'phone:flex-none')).toBe(true);
+    expect(container.querySelector('iframe')!.className.split(/\s+/)).toContain('phone:w-full');
+  });
+});
