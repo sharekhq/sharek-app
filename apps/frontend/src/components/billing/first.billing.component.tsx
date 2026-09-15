@@ -30,6 +30,10 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import useCookie from 'react-use-cookie';
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import { DeveloperIconComponent } from '@gitroom/frontend/components/developer/developer.icon.component';
+import {
+  SHOWN_CHANNELS,
+  useChannelCatalogue,
+} from '@gitroom/frontend/components/billing/use.channel.catalogue';
 
 const ModeComponent = dynamic(
   () => import('@gitroom/frontend/components/layout/mode.component'),
@@ -58,6 +62,7 @@ export const FirstBillingComponent = () => {
   const fetch = useFetch();
   const modals = useModals();
   const t = useT();
+  const { remainder } = useChannelCatalogue();
   const [datafast_visitor_id] = useCookie('datafast_visitor_id', '');
   const [datafast_session_id] = useCookie('datafast_session_id', '');
 
@@ -87,10 +92,10 @@ export const FirstBillingComponent = () => {
 
   const showYouTube = () => {
     modals.openModal({
-      title: 'Grow Fast With Sharek (Play the video)',
+      title: t('billing_video_modal_title', 'Watch Samy work'),
       children: (
         <iframe
-          className="h-full aspect-video min-w-[800px]"
+          className="h-full aspect-video"
           src="https://www.youtube.com/embed/Y1MyEdKy5gE?autoplay=1"
           title="Sharek Tutorial"
           allow="autoplay"
@@ -117,19 +122,14 @@ export const FirstBillingComponent = () => {
     []
   );
 
-  const JoinOver = () => {
+  const Headline = () => {
     return (
       <>
         <div className="text-[46px] font-[600] leading-[110%] mobile:text-[36px] mobile:!text-[30px] whitespace-pre-line text-balance">
-          {t('billing_join_over', 'Join Over')}{' '}
+          {t('billing_headline_lead', 'Plan a week of content in')}{' '}
           <span className="text-brand">
-            {t('billing_entrepreneurs_count', '20,000+ Entrepreneurs')}
-          </span>{' '}
-          {t('billing_who_use', 'who use')}{' '}
-          {t(
-            'billing_postiz_grow_social',
-            'Sharek To Grow Their Social Presence'
-          )}
+            {t('billing_headline_highlight', 'one sitting')}
+          </span>
         </div>
 
         <div className="flex" onClick={showYouTube}>
@@ -143,7 +143,12 @@ export const FirstBillingComponent = () => {
                 alt="YouTube"
               />
             </div>
-            <div>See the power of Sharek (click here)</div>
+            <div>
+              {t(
+                'billing_video_link',
+                'Watch Samy write, create and schedule'
+              )}
+            </div>
           </div>
         </div>
 
@@ -176,6 +181,44 @@ export const FirstBillingComponent = () => {
             </div>
           </div>
         )}
+
+        <div className="flex flex-col gap-[12px] mt-[24px] mobile:mb-[32px]">
+          <div className="text-[16px] font-[500]">
+            {t('billing_channels_label', 'Publish to 30+ channels')}
+          </div>
+          <div className="flex items-center gap-[8px]">
+            {/* Decorative: the label above carries the claim, and eight marks
+                cannot say it in any language. Hidden as a row rather than per
+                image, because SafeImage drops props it does not name. */}
+            <div className="flex items-center gap-[8px]" aria-hidden>
+              {SHOWN_CHANNELS.map((channel) => (
+                <SafeImage
+                  key={channel}
+                  className="w-[24px] h-[24px] rounded-full"
+                  src={`/icons/platforms/${channel}.png`}
+                  alt=""
+                  width={24}
+                  height={24}
+                />
+              ))}
+            </div>
+            {/* After the icons, never before them: arriving late it extends the
+                row rather than moving anything already on the page. */}
+            {!!remainder && (
+              <div className="text-[16px] text-muted">
+                {t('billing_channels_more', '+{{count}} more', {
+                  count: remainder,
+                })}
+              </div>
+            )}
+          </div>
+          <div className="text-[16px] text-muted">
+            {t(
+              'billing_capability_line',
+              'Text, images, video and voice, all made in the app'
+            )}
+          </div>
+        </div>
       </>
     );
   };
@@ -187,14 +230,14 @@ export const FirstBillingComponent = () => {
           <LogoTextComponent />
         </div>
         <div className="flex items-center">
-          <div className="flex gap-[20px] text-textItemBlur">
+          <div className="flex gap-[20px] phone:gap-[8px] text-textItemBlur">
             <OrganizationSelector />
             <div className="hover:text-newTextColor">
               <ModeComponent />
             </div>
-            <div className="w-[1px] h-[20px] bg-blockSeparator" />
+            <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
             <LanguageComponent />
-            <div className="w-[1px] h-[20px] bg-blockSeparator" />
+            <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
             <AttachToFeedbackIcon />
             <DeveloperIconComponent />
             {/*<NotificationComponent />*/}
@@ -209,7 +252,7 @@ export const FirstBillingComponent = () => {
       <div className="flex px-[80px] mobile:px-[32px] mobile:!px-[16px] flex-1 flex-row mobile:flex-none mobile:flex-col-reverse">
         <div className="flex-1 py-[40px] mobile:pt-[80px] flex flex-col pe-[40px] mobile:pe-0">
           <div className="block mobile:hidden">
-            <JoinOver />
+            <Headline />
           </div>
           {data?.blocked ? (
             <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">
@@ -232,9 +275,9 @@ export const FirstBillingComponent = () => {
         <div className="flex flex-col ps-[40px] mobile:!ps-[0] border-l border-newColColor py-[40px] mobile:!pt-[24px] mobile:border-none mobile:pb-0">
           <div className="top-[20px] sticky">
             <div className="hidden mobile:block">
-              <JoinOver />
+              <Headline />
             </div>
-            <div className="flex mb-[24px] mobile:flex-col">
+            <div className="flex mb-[24px] mobile:flex-col mobile:gap-[24px]">
               <div className="flex-1 text-[24px] font-[700]">
                 {t('billing_choose_plan', 'Choose a Plan')}
               </div>
@@ -306,7 +349,7 @@ export const FirstBillingComponent = () => {
               </div>
               <BillingFeatures tier={tier} />
             </div>
-            <div className="flex flex-col mobile:hidden">
+            <div className="flex flex-col">
               {/*<div>asd</div>*/}
               <FAQComponent />
             </div>

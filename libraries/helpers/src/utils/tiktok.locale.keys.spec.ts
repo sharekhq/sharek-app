@@ -94,10 +94,21 @@ describe('TikTok composer locale keys', () => {
     expect(ar[key]).toContain(placeholder);
   });
 
-  it('keeps "Sharek" in Latin script in the Arabic quota message', () => {
-    // The brand name is never transliterated, and this message exists
-    // precisely to say whose quota was exhausted.
-    expect(ar.tiktok_refusal_app_quota).toContain('Sharek');
+  it('names the brand in Arabic script in the Arabic quota message', () => {
+    // The brand reads شارك in Arabic prose (spec 027, FR-007). It was Latin here
+    // under the older rule; Latin now survives only inside an untranslated
+    // technical name or in content the system publishes, and a message saying
+    // whose quota ran out is neither.
+    expect(ar.tiktok_refusal_app_quota).toContain('شارك');
+    expect(ar.tiktok_refusal_app_quota).not.toContain('Sharek');
+  });
+
+  it('leaves the default hashtag alone, because TikTok publishes it', () => {
+    // FR-008's other exception: this string is not describing the product, it is
+    // quoting the caption that actually gets posted. Translating the hashtag
+    // changes what appears on the customer's TikTok.
+    expect(ar.tiktok_restriction_upload_video).toContain('#Sharek');
+    expect(en.tiktok_restriction_upload_video).toContain('#Sharek');
   });
 
   it('quotes TikTok’s mandated sentences verbatim in English', () => {

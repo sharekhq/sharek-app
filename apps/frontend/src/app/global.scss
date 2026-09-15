@@ -947,3 +947,17 @@ html[lang='ar'] .preview {
 html[lang='ar'] [class*='tracking-'] {
   letter-spacing: 0 !important;
 }
+
+/* Brand lockup (DESIGN.md §Logo): LogoTextComponent renders both scripts, each in
+   a wordmark and a badge-only form. Width picks the form, through Tailwind's
+   `phone:` variant on the elements themselves; this rule picks the script, which
+   Tailwind cannot express. CSS rather than a JS branch because two of the three
+   call sites are async server components, where reading the resolved language is
+   a hydration mismatch — and the lang here is the one those components rendered
+   from. It outranks `phone:block`, so a pair is never both shown. */
+html:not([lang='ar']) .logo-lockup-arabic,
+html:not([lang='ar']) .logo-badge-arabic,
+html[lang='ar'] .logo-lockup-latin,
+html[lang='ar'] .logo-badge-latin {
+  display: none;
+}

@@ -75,6 +75,10 @@ export const ChangeLanguageComponent = () => {
     modals.closeCurrent();
     const rtlLanguages = ['he', 'ar'];
     const dir = rtlLanguages.includes(language) ? 'rtl' : 'ltr';
+    // dir on its own leaves the page reading right-to-left in a font picked for
+    // Latin: the Arabic typography in global.scss keys on html[lang='ar'], which
+    // only the server ever set, so it went stale for the rest of the session.
+    document.documentElement.setAttribute('lang', language);
     document.documentElement.setAttribute('dir', dir);
   };
 
