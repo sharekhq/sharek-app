@@ -48,7 +48,12 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
         onClick={logout}
       >
         {isIcon ? (
+          // An arrow leaving through a bar: it points at the edge the reader
+          // exits towards, and under dir="rtl" the control itself moves to the
+          // other end of the header, so the glyph has to follow. A mirror
+          // rather than a rotation, as at limit.reached.modal.tsx.
           <svg
+            className="rtl:-scale-x-100"
             width="24"
             height="24"
             viewBox="0 0 25 24"

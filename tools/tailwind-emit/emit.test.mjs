@@ -209,6 +209,34 @@ test('start-0 also ships the physical pair tailwindcss-rtl adds, and they agree 
   ]);
 });
 
+test('border-s is a logical border, and no physical edge comes with it', async () => {
+  // The paywall's two-column divider was `border-l` on an element whose padding
+  // was already `ps-`. Under dir="rtl" the flex order reverses, the padding
+  // follows and a physical border does not, so the line left the gap it marks
+  // and sat against the outer edge of the screen.
+  //
+  // Asserted as "every declaration is the logical one" rather than as a single
+  // entry, because tailwindcss-rtl emits `.border-s` alongside Tailwind's own
+  // and both say the same thing — the `start-0` test above is the same shape.
+  const css = await emit(['border-s']);
+  const decls = emitted(css, 'border-s');
+
+  assert.ok(decls.length > 0, 'border-s emitted no CSS at all');
+  for (const decl of decls) {
+    assert.deepEqual(decl, {
+      atRule: null,
+      prop: 'border-inline-start-width',
+      value: '1px',
+    });
+  }
+
+  // The claim that distinguishes the fix from the bug: nothing pins a side.
+  assert.ok(
+    !/border-(left|right)-width/.test(css),
+    'border-s emitted a physical edge, which is what the fix exists to avoid'
+  );
+});
+
 test('a variant that does not exist emits nothing, so the assertions above can fail', async () => {
   // The control. `pointer-coarse:` is the plausible misspelling of the
   // hand-registered `coarse:` variant — proof that emitted-CSS assertions
