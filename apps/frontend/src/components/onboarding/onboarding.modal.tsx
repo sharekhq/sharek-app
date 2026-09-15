@@ -7,6 +7,7 @@ import { orderBy } from 'lodash';
 import clsx from 'clsx';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { AddProviderComponent } from '@gitroom/frontend/components/launches/add.provider.component';
+import i18next from 'i18next';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
@@ -23,6 +24,7 @@ import {
   mcpClients,
 } from '@gitroom/frontend/components/public-api/public.component';
 import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
+import { tutorialVideoEmbedUrl } from '@gitroom/frontend/components/ui/tutorial.video';
 
 interface OnboardingModalProps {
   onClose: () => void;
@@ -711,7 +713,7 @@ const OnboardingStep3: FC<{ onBack: () => void; onFinish: () => void }> = ({
         <div className="absolute left-0 top-0 w-full h-full flex justify-center">
           <iframe
             className="h-full aspect-video phone:w-full phone:aspect-auto"
-            src="https://www.youtube.com/embed/Y1MyEdKy5gE?autoplay=1"
+            src={tutorialVideoEmbedUrl(i18next.resolvedLanguage)}
             title="Sharek Tutorial"
             allow="autoplay"
             allowFullScreen
