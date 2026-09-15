@@ -72,3 +72,28 @@ describe('LogoutComponent touch target', () => {
     expect(cls).toContain('coarse:min-h-[44px]');
   });
 });
+
+describe('LogoutComponent direction', () => {
+  const glyph = (host: HTMLElement) => {
+    const svg = host.querySelector('svg');
+    if (!svg) throw new Error('no logout glyph');
+    return svg.getAttribute('class') || '';
+  };
+
+  // The glyph is an arrow leaving through a bar. It points at the edge the
+  // reader exits towards, so under `dir="rtl"` — where the control itself moves
+  // to the other end of the header — it has to point the other way. A mirror,
+  // not a rotation: `rtl:-scale-x-100` is the form already used at
+  // limit.reached.modal.tsx for the same reason.
+  it('mirrors the icon under rtl', () => {
+    expect(glyph(render(true))).toContain('rtl:-scale-x-100');
+  });
+
+  // The text variant has no arrow to mirror, and flipping a span would reverse
+  // the sentence inside it.
+  it('leaves the text variant unmirrored', () => {
+    const host = render(false);
+    expect(host.querySelector('svg')).toBeNull();
+    expect(host.innerHTML).not.toContain('-scale-x-100');
+  });
+});

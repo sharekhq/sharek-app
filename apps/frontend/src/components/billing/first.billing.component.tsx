@@ -293,7 +293,11 @@ export const FirstBillingComponent = () => {
             <LoadingComponent />
           )}
         </div>
-        <div className="flex flex-col ps-[40px] mobile:!ps-[0] border-l border-newColColor py-[40px] mobile:!pt-[24px] mobile:border-none mobile:pb-0">
+        {/* border-s, not border-l: the padding beside it is already logical, so
+            under dir="rtl" the flex order reverses and the padding follows while
+            a physical border does not — the line leaves the gap it marks and
+            sits against the outer edge of the screen. */}
+        <div className="flex flex-col ps-[40px] mobile:!ps-[0] border-s border-newColColor py-[40px] mobile:!pt-[24px] mobile:border-none mobile:pb-0">
           <div className="top-[20px] sticky">
             <div className="hidden mobile:block">
               <Headline />
