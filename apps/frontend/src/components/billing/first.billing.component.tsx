@@ -34,6 +34,7 @@ import {
   SHOWN_CHANNELS,
   useChannelCatalogue,
 } from '@gitroom/frontend/components/billing/use.channel.catalogue';
+import { tutorialVideoEmbedUrl } from '@gitroom/frontend/components/ui/tutorial.video';
 
 const ModeComponent = dynamic(
   () => import('@gitroom/frontend/components/layout/mode.component'),
@@ -93,10 +94,25 @@ export const FirstBillingComponent = () => {
   const showYouTube = () => {
     modals.openModal({
       title: t('billing_video_modal_title', 'Watch Samy work'),
+      // `top` keeps the modal out of the pt/pb-[100px] branch, which is 200px
+      // of the height the frame is competing for; `size` is also what disables
+      // the card's min-w-[600px]. The width is the widest 16:9 frame whose
+      // modal still fits the viewport it opened on — 1120px is the cap the
+      // media preview already uses, and the calc is the height budget written
+      // as a width: 210px of modal chrome below 100vh, then 16/9, then the
+      // card's own 64px of padding back on. Measured at eight viewports from
+      // 1920x1080 down to 390x844, none of which scrolls in either axis.
+      top: 20,
+      size: 'min(1120px, calc((100vh - 210px) * 16 / 9 + 64px))',
       children: (
+        // w-full, because an iframe with neither dimension set falls back to
+        // the UA's 300x150 and played at 300x169 inside a 600px card. That
+        // size was also the quality complaint: YouTube picks the stream from
+        // the rendered player, so a 300px frame is served a 300px video, and
+        // there is no parameter that overrides it.
         <iframe
-          className="h-full aspect-video"
-          src="https://www.youtube.com/embed/Y1MyEdKy5gE?autoplay=1"
+          className="w-full aspect-video rounded-[12px]"
+          src={tutorialVideoEmbedUrl(i18next.resolvedLanguage)}
           title="Sharek Tutorial"
           allow="autoplay"
           allowFullScreen
@@ -303,7 +319,12 @@ export const FirstBillingComponent = () => {
                   onClick={() => setPeriod('YEARLY')}
                 >
                   <div>{t('billing_yearly', 'Yearly')}</div>
-                  <div className="bg-brand text-[white] px-[8px] rounded-[4px] mobile:hidden">
+                  {/* The discount is the reason to pick this half, so it is
+                      shown wherever the half is. It was hidden under mobile:
+                      when the control sat inline with the heading and had a
+                      row to share; it now has the full column, and the label
+                      never wraps, so the pair stays one line. */}
+                  <div className="bg-brand text-[white] px-[8px] rounded-[4px] whitespace-nowrap">
                     {t('billing_20_percent_off', '20% Off')}
                   </div>
                 </div>

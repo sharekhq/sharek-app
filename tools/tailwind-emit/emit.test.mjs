@@ -421,3 +421,101 @@ test('026: the column counts the grids fall back to are real, at both widths', a
     );
   }
 });
+
+// 132. The paywall's FAQ block closes on mobile and tablets, and the yearly
+// discount stops being hidden there. Both rest entirely on `mobile:`-scoped
+// utilities: if one of them emitted nothing the block would simply never
+// close, or would close on desktop too, and neither shows up as an error.
+const PAYWALL_FORMS = [
+  {
+    // The whole contract of the collapse. `display: none` rather than the
+    // questions' max-height transition, because that needs a ceiling and six
+    // open answers overrun any number worth writing down.
+    className: 'mobile:hidden',
+    atRule: '(max-width: 1025px)',
+    prop: 'display',
+    value: 'none',
+  },
+  {
+    // The toggle is hidden at every width and revealed at one, so the reveal
+    // has to outrank the base utility rather than merely exist.
+    className: 'mobile:flex',
+    atRule: '(max-width: 1025px)',
+    prop: 'display',
+    value: 'flex',
+  },
+  {
+    className: 'mobile:cursor-pointer',
+    atRule: '(max-width: 1025px)',
+    prop: 'cursor',
+    value: 'pointer',
+  },
+  {
+    // The heading's 40px of air below it belongs to the open state; collapsed,
+    // it would sit between the heading and the checkout under it.
+    className: 'mobile:mb-0',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-bottom',
+    value: '0px',
+  },
+  {
+    className: 'mobile:pt-[24px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '24px',
+  },
+  {
+    // The discount badge shares a 165px half with its label at 390px; wrapping
+    // is what `mobile:hidden` was originally avoiding.
+    className: 'whitespace-nowrap',
+    atRule: null,
+    prop: 'white-space',
+    value: 'nowrap',
+  },
+  {
+    // The video frame's width now comes from the card and its height from this
+    // — the pair that replaces the iframe's 300x150 UA fallback.
+    className: 'aspect-video',
+    atRule: null,
+    prop: 'aspect-ratio',
+    value: '16 / 9',
+  },
+];
+
+test('132: every class form the paywall video and FAQ changes introduce emits CSS', async () => {
+  const css = await emit(PAYWALL_FORMS.map((f) => f.className));
+
+  for (const form of PAYWALL_FORMS) {
+    const decls = emitted(css, form.className);
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some((d) => d.atRule === form.atRule && d.prop === form.prop && d.value === form.value),
+      `${form.className} did not emit ${form.prop}: ${form.value} inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+});
+
+test('132: the FAQ reveal is emitted after the base utility it has to beat', async () => {
+  // `hidden mobile:flex` on the toggle and `mobile:hidden` on the list are the
+  // same specificity, so which one wins is decided by source order alone. If
+  // Tailwind ever emitted the screen variant before the base display utility,
+  // the toggle would be invisible on the only viewports it is for — and the
+  // page would look exactly as it does today, minus the control.
+  const css = await emit(['hidden', 'mobile:flex']);
+  const order = [];
+  postcss.parse(css).walkRules((rule) => {
+    if (rule.selector.includes('hidden') && rule.parent?.type !== 'atrule') order.push('base');
+    if (rule.selector.includes('flex') && rule.parent?.type === 'atrule') order.push('variant');
+  });
+
+  assert.deepEqual(
+    order,
+    ['base', 'variant'],
+    `the mobile: reveal must follow the base hidden, got ${JSON.stringify(order)}`
+  );
+});

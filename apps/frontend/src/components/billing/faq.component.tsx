@@ -68,6 +68,44 @@ const useFaqList = () => {
       : []),
   ];
 };
+/**
+ * The plus and minus that mark a closed and an open disclosure. Drawn once
+ * because the block heading and every question inside it now carry the same
+ * pair; the two glyphs are the sizes they have always been.
+ */
+const DisclosureGlyph: FC<{ open: boolean }> = ({ open }) =>
+  !open ? (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M18 12.75H6C5.59 12.75 5.25 12.41 5.25 12C5.25 11.59 5.59 11.25 6 11.25H18C18.41 11.25 18.75 11.59 18.75 12C18.75 12.41 18.41 12.75 18 12.75Z"
+        fill="var(--muted)"
+      />
+      <path
+        d="M12 18.75C11.59 18.75 11.25 18.41 11.25 18V6C11.25 5.59 11.59 5.25 12 5.25C12.41 5.25 12.75 5.59 12.75 6V18C12.75 18.41 12.41 18.75 12 18.75Z"
+        fill="var(--muted)"
+      />
+    </svg>
+  ) : (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+    >
+      <path
+        d="M24 17H8C7.45333 17 7 16.5467 7 16C7 15.4533 7.45333 15 8 15H24C24.5467 15 25 15.4533 25 16C25 16.5467 24.5467 17 24 17Z"
+        fill="var(--muted)"
+      />
+    </svg>
+  );
+
 export const FAQSection: FC<{
   title: string;
   description: string;
@@ -86,37 +124,7 @@ export const FAQSection: FC<{
       <div className={`text-[20px] cursor-pointer flex justify-center coarse:items-center coarse:min-h-[44px]`}>
         <div className="flex-1">{title}</div>
         <div className="flex items-center justify-center w-[32px]">
-          {!show ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <path
-                d="M18 12.75H6C5.59 12.75 5.25 12.41 5.25 12C5.25 11.59 5.59 11.25 6 11.25H18C18.41 11.25 18.75 11.59 18.75 12C18.75 12.41 18.41 12.75 18 12.75Z"
-                fill="var(--muted)"
-              />
-              <path
-                d="M12 18.75C11.59 18.75 11.25 18.41 11.25 18V6C11.25 5.59 11.59 5.25 12 5.25C12.41 5.25 12.75 5.59 12.75 6V18C12.75 18.41 12.41 18.75 12 18.75Z"
-                fill="var(--muted)"
-              />
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="32"
-              height="32"
-              viewBox="0 0 32 32"
-              fill="none"
-            >
-              <path
-                d="M24 17H8C7.45333 17 7 16.5467 7 16C7 15.4533 7.45333 15 8 15H24C24.5467 15 25 15.4533 25 16C25 16.5467 24.5467 17 24 17Z"
-                fill="var(--muted)"
-              />
-            </svg>
-          )}
+          <DisclosureGlyph open={show} />
         </div>
       </div>
       <div
@@ -151,12 +159,48 @@ export const FAQSection: FC<{
 export const FAQComponent: FC = () => {
   const t = useT();
   const list = useFaqList();
+  // Six questions are the tail of a page whose job is a checkout form, and on
+  // one column they push it that much further away — so the block itself
+  // closes, not just the questions in it.
+  //
+  // The state is a plain boolean and the breakpoint lives in the class, so
+  // there is no media query to read, nothing to re-measure on resize, and no
+  // state this component can reach that hides the list on a desktop viewport.
+  // `mobile:hidden` rather than the max-height transition the questions use:
+  // that needs a ceiling, and six open questions of Arabic overrun any number
+  // worth writing down — a block that silently clips is worse than one that
+  // does not slide.
+  const [show, setShow] = useState(false);
+  const changeShow = useCallback(() => setShow((current) => !current), []);
   return (
     <div>
-      <h3 className="text-[24px] mt-[48px] mb-[40px] mobile:mt-[80px]">
-        {t('frequently_asked_questions', 'Frequently Asked Questions')}
+      <h3
+        className="text-[24px] font-[700] mt-[48px] mb-[40px] mobile:mt-[80px] mobile:mb-0 flex items-center mobile:cursor-pointer"
+        onClick={changeShow}
+      >
+        <div className="flex-1">
+          {t('frequently_asked_questions', 'Frequently Asked Questions')}
+        </div>
+        {/* Right-aligned so it heads the column the questions' own marks make
+            once the block is open. The finger target sits here rather than on
+            the heading: this element exists only under `mobile:`, so the floor
+            is scoped to the widths that have a control without having to stack
+            `mobile:` and `coarse:` to say so. The whole row stays tappable —
+            the handler is on the heading, which this stretches to 44px. */}
+        <div
+          data-faq-toggle
+          className="hidden mobile:flex items-center justify-center w-[32px] coarse:min-w-[44px] coarse:min-h-[44px]"
+        >
+          <DisclosureGlyph open={show} />
+        </div>
       </h3>
-      <div className="gap-[24px] flex-col flex select-none mb-[40px]">
+      <div
+        data-faq-list
+        className={clsx(
+          'gap-[24px] flex-col flex select-none mb-[40px] mobile:pt-[24px]',
+          !show && 'mobile:hidden'
+        )}
+      >
         {list.map((item, index) => (
           <FAQSection key={index} {...item} />
         ))}
