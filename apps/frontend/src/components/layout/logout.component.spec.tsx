@@ -1,0 +1,74 @@
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+
+// The seam is the className, so everything the component reaches for on the way
+// to rendering is stubbed. What is under test is which variant gets a touch
+// target: the icon one is 24px of SVG and needs a floor, the text one is as wide
+// as its sentence and must not gain one, because widening it would push the
+// rest of a row that is already tight.
+jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
+  deleteDialog: async () => false,
+}));
+jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
+  useFetch: () => async () => ({}),
+}));
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  useVariables: () => ({ isGeneral: true, isSecured: false }),
+}));
+jest.mock('@gitroom/frontend/components/layout/layout.context', () => ({
+  setCookie: () => {},
+}));
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => (_key: string, fallback: string) => fallback,
+}));
+
+import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
+
+const mounted: Array<{ unmount: () => void }> = [];
+
+const render = (isIcon?: boolean) => {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
+  act(() => {
+    root.render(<LogoutComponent isIcon={isIcon} />);
+  });
+  return host;
+};
+
+afterEach(() => {
+  act(() => {
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+});
+
+// The clickable element is the outer div; the SVG or the span sits inside it.
+const target = (host: HTMLElement) => {
+  const el = host.querySelector('div');
+  if (!el) throw new Error('no logout target');
+  return el;
+};
+
+describe('LogoutComponent touch target', () => {
+  // Measured on the deployed paywall header at 390px under a forced coarse
+  // pointer: 24x44, while mode, language, feedback and developer all read
+  // 44x44. min-h was there; min-w was not.
+  it('gives the icon variant a 44px floor on both axes', () => {
+    const cls = target(render(true)).className;
+    expect(cls).toContain('coarse:min-w-[44px]');
+    expect(cls).toContain('coarse:min-h-[44px]');
+    // Without this the 24px glyph sits against the inline-start edge of a 44px
+    // box, so the target grows but the icon does not look centred in it.
+    expect(cls).toContain('coarse:justify-center');
+  });
+
+  // The paywall header is the only isIcon call site; every other one renders the
+  // sentence, which is already wider than 44px and shares a row with nothing.
+  it('leaves the text variant without a width floor', () => {
+    const cls = target(render(false)).className;
+    expect(cls).not.toContain('coarse:min-w-[44px]');
+    expect(cls).toContain('coarse:min-h-[44px]');
+  });
+});

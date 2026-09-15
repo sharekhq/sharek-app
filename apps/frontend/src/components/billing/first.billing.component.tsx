@@ -110,10 +110,15 @@ export const FirstBillingComponent = () => {
         // size was also the quality complaint: YouTube picks the stream from
         // the rendered player, so a 300px frame is served a 300px video, and
         // there is no parameter that overrides it.
+        //
+        // `title` is the frame's accessible name, so it is announced on the
+        // Arabic paywall like every visible string around it. Its own key
+        // rather than the modal title above, which a screen reader already
+        // reads out as the dialog's heading.
         <iframe
           className="w-full aspect-video rounded-[12px]"
           src={tutorialVideoEmbedUrl(i18next.resolvedLanguage)}
-          title="Sharek Tutorial"
+          title={t('billing_video_frame_title', 'Sharek tutorial')}
           allow="autoplay"
           allowFullScreen
         />

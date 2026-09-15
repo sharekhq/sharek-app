@@ -95,3 +95,137 @@ describe('paywall and sign-in headline locale keys', () => {
     expect(locales.ar).not.toHaveProperty(key);
   });
 });
+
+// The two screens 027 rewrote also carried brand text with no t() call at all,
+// which neither the key-reference scan nor the locale sweep could see: the
+// sweep worked from contracts/arabic-brand-split.md, i.e. over locale JSON, and
+// a string with no key has nothing to sweep. Both rendered Latin "Sharek" on the
+// Arabic page — one as visible footer text, one as an iframe's accessible name.
+describe('brand text that reaches the reader without a translation key', () => {
+  const en = readLocale('en');
+  const ar = readLocale('ar');
+
+  const SOURCES = {
+    authLayout: '../../../../apps/frontend/src/app/(app)/auth/layout.tsx',
+    paywall:
+      '../../../../apps/frontend/src/components/billing/first.billing.component.tsx',
+  } as const;
+
+  const read = (key: keyof typeof SOURCES) =>
+    fs.readFileSync(path.join(__dirname, SOURCES[key]), 'utf8');
+
+  it.each(['auth_copyright', 'billing_video_frame_title'])(
+    'says %s in both languages',
+    (key) => {
+      expect(typeof en[key]).toBe('string');
+      expect(en[key].length).toBeGreaterThan(0);
+      expect(typeof ar[key]).toBe('string');
+      expect(ar[key].length).toBeGreaterThan(0);
+      expect(ar[key]).not.toBe(en[key]);
+    }
+  );
+
+  // FR-007/FR-008: neither string is glued to an untranslated technical token
+  // and neither is content the product publishes, so both take the Arabic brand.
+  it.each(['auth_copyright', 'billing_video_frame_title'])(
+    'carries the Arabic brand in %s, never the Latin one',
+    (key) => {
+      expect(ar[key]).toContain('شارك');
+      expect(ar[key]).not.toContain('Sharek');
+      expect(ar[key]).not.toContain('شارِك');
+    }
+  );
+
+  // The footer sat two lines from the headline this feature replaced.
+  it('renders the sign-in footer through t(), not as JSX text', () => {
+    const source = read('authLayout');
+    expect(source).not.toMatch(/^\s*©\s*\d{4}\s+Sharek\s*$/m);
+    expect(source).toContain("t('auth_copyright'");
+  });
+
+  // An iframe's `title` is its accessible name, so a hardcoded one is announced
+  // in English on the Arabic paywall while every visible string around it is
+  // translated. Distinct from billing_video_modal_title, which is the dialog's
+  // own heading — reusing that would have a screen reader say it twice.
+  it('names the tutorial frame through t(), not as a literal attribute', () => {
+    const source = read('paywall');
+    expect(source).not.toContain('title="Sharek Tutorial"');
+    expect(source).toMatch(/title=\{t\(\s*'billing_video_frame_title'/);
+  });
+});
+
+// Two more strings the paywall header renders that the brand sweep could not
+// reach: one built by concatenation in the component, one carrying a diacritic
+// the house style does not use. Both surfaced measuring the deployed header.
+describe('paywall header strings the brand sweep could not reach', () => {
+  const locales = Object.fromEntries(
+    languages.map((lng) => [lng, readLocale(lng)])
+  );
+  const en = locales.en;
+  const ar = locales.ar;
+  const logoutSource = fs.readFileSync(
+    path.join(__dirname, '../../../../apps/frontend/src/components/layout/logout.component.tsx'),
+    'utf8'
+  );
+
+  // The tooltip read "تسجيل الخروج من Sharek": a translated prefix with the
+  // Latin brand glued on by the component, from a ternary whose two branches
+  // were the same string. One key carries the whole sentence instead, so no
+  // language is left assembling it — the glue is what CLAUDE.local.md warns
+  // about for Arabic in the first place.
+  it('says the whole logout sentence in one key', () => {
+    expect(typeof en.logout_from_sharek).toBe('string');
+    expect(en.logout_from_sharek).toContain('Sharek');
+    expect(ar.logout_from_sharek).toContain('شارك');
+    expect(ar.logout_from_sharek).not.toContain('Sharek');
+  });
+
+  // Both replaced a string the six upstream locales already translated, or sat
+  // beside one they did — `logout_from` was translated in all six, so shipping
+  // its replacement in en and ar alone would have dropped six languages back to
+  // the English default, and `billing_video_modal_title` is in all eight, so its
+  // sibling belongs there too. This is the assertion that catches that.
+  it.each(
+    languages.flatMap((lng) =>
+      ['logout_from_sharek', 'billing_video_frame_title'].map((key) => [lng, key])
+    )
+  )('has a non-empty %s translation for %s', (lng, key) => {
+    expect(typeof locales[lng][key]).toBe('string');
+    expect(locales[lng][key].length).toBeGreaterThan(0);
+  });
+
+  // auth_copyright is deliberately NOT in the other six: "© 2026 Sharek" is
+  // the same in every Latin-script locale and in ru, so the inline default is
+  // already right there, and six identical copies would only be merge surface.
+  it('leaves auth_copyright to en and ar, where the script differs', () => {
+    expect(en.auth_copyright).toBeDefined();
+    expect(ar.auth_copyright).toBeDefined();
+    for (const lng of languages.filter((l) => l !== 'en' && l !== 'ar')) {
+      expect(locales[lng]).not.toHaveProperty('auth_copyright');
+    }
+  });
+
+  it('no longer builds the sentence from a ternary with identical branches', () => {
+    expect(logoutSource).not.toMatch(/isGeneral\s*\?\s*' Sharek'\s*:\s*' Sharek'/);
+    expect(logoutSource).toContain('logout_from_sharek');
+  });
+
+  // Left behind by the replacement, and referenced by nothing else.
+  it('has dropped the orphaned logout_from from en and ar', () => {
+    expect(en).not.toHaveProperty('logout_from');
+    expect(ar).not.toHaveProperty('logout_from');
+  });
+
+  // House style is tanween fath (U+064B) and nothing else. The 221-diacritic
+  // backlog was scoped to screens 027 does not touch; T022 kept this tooltip,
+  // so it belongs here.
+  it.each(['developer', 'logout_from_sharek'])(
+    'carries no diacritic but tanween fath in ar.%s',
+    (key) => {
+      const stray = [...ar[key]].filter((c) =>
+        'ٌٍَُِّْـ'.includes(c)
+      );
+      expect(stray).toEqual([]);
+    }
+  );
+});
