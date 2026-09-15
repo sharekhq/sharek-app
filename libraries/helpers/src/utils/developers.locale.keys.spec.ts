@@ -55,13 +55,18 @@ describe('Developers surfaces locale keys', () => {
     expect(ar.are_you_sure_revoke_access).toContain('{{name}}');
   });
 
-  it('keeps "Sharek" in Latin script on the Developers page', () => {
-    // The brand name is never transliterated, and both of these sentences name
-    // the product whose API and MCP server the reader is about to wire up.
-    expect(ar.use_sharek_api_to_integrate_with_your_tools).toContain('Sharek');
+  it('splits the brand by whether it sits inside a technical name', () => {
+    // spec 027, FR-007/FR-008: شارك in prose, Latin only where the brand forms
+    // part of an untranslated product name. Both sentences read alike in English
+    // and split in Arabic — the API one translates "API", so the brand stands on
+    // its own there, while the other names the "Sharek MCP" server itself.
+    expect(ar.use_sharek_api_to_integrate_with_your_tools).toContain('شارك');
+    expect(ar.use_sharek_api_to_integrate_with_your_tools).not.toContain(
+      'Sharek'
+    );
     expect(
       ar.connect_your_mcp_client_to_sharek_to_schedule_your_posts_faster
-    ).toContain('Sharek');
+    ).toContain('Sharek MCP');
   });
 });
 
