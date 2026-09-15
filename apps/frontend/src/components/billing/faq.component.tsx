@@ -2,12 +2,10 @@
 
 import { FC, ReactNode, useCallback, useState } from 'react';
 import clsx from 'clsx';
-import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import DeleteAccountComponent from '@gitroom/frontend/components/settings/delete-account.component';
 const useFaqList = () => {
-  const { isGeneral } = useVariables();
   const user = useUser();
   const t = useT();
   return [
@@ -26,35 +24,31 @@ const useFaqList = () => {
         ]
       : []),
     {
-      title: t(
-        'faq_can_i_trust_postiz_gitroom',
-        `Can I trust ${isGeneral ? 'Sharek' : 'Sharek'}?`
-      ),
+      title: t('faq_who_is_samy', 'Who is Samy?'),
       description: t(
-        'faq_postiz_gitroom_is_proudly_open_source',
-        `${
-          isGeneral ? 'Sharek' : 'Sharek'
-        } is proudly open-source! We believe in an ethical and transparent culture, meaning that ${
-          isGeneral ? 'Sharek' : 'Sharek'
-        } will live forever. You can check out the entire code or use it for personal projects. To view the open-source repository, <a href="https://github.com/sharekhq/sharek-app" target="_blank" style="text-decoration: underline;">click here</a>.`
+        'faq_who_is_samy_answer',
+        'Samy is your built-in AI agent. Chat to brainstorm ideas, write and refine captions, generate images and video, and schedule to every channel, so a week of content comes together in one sitting.'
       ),
     },
     {
-      title: t('faq_what_are_channels', 'What are channels?'),
+      title: t('faq_images_and_video', 'Can Sharek create images and video for me?'),
       description: t(
-        'faq_postiz_gitroom_allows_you_to_schedule_posts',
-        `${
-          isGeneral ? 'Sharek' : 'Sharek'
-        } allows you to schedule your posts between different channels.
-A channel is a publishing platform where you can schedule your posts.
-For example, you can schedule your posts on X, Facebook, Instagram, TikTok, YouTube, Reddit, Linkedin, Dribbble, Threads and Pinterest.`
+        'faq_images_and_video_answer',
+        'Yes. Describe what you want and Sharek creates ready-to-post images, or short videos for Reels, Stories and the feed. A built-in editor lets you refine every visual before it goes out.'
       ),
     },
     {
-      title: t('faq_what_are_team_members', 'What are team members?'),
+      title: t('faq_which_channels', 'Which channels can I publish to?'),
       description: t(
-        'faq_if_you_have_a_team_with_multiple_members',
-        'If you have a team with multiple members, you can invite them to your workspace to collaborate on your posts and add their personal channels'
+        'faq_which_channels_answer',
+        'A channel is one connected account you publish to — your Instagram profile, your X account, your LinkedIn page. Sharek supports 30+ of them, including Instagram, X, Facebook, LinkedIn, TikTok, YouTube, Threads, Pinterest, Reddit, Telegram, Discord and Bluesky. Your plan sets how many you can connect at once.'
+      ),
+    },
+    {
+      title: t('faq_team_and_clients', 'Can my team and clients work together in Sharek?'),
+      description: t(
+        'faq_team_and_clients_answer',
+        'Yes. Invite your team to draft, review and schedule together, group channels by client or brand, and send clients a preview link so they can approve before anything goes live. Your plan sets how many team members you can invite.'
       ),
     },
     ...(user?.tier?.current === 'FREE'
@@ -159,10 +153,10 @@ export const FAQComponent: FC = () => {
   const list = useFaqList();
   return (
     <div>
-      {/*<h3 className="text-[24px] mt-[48px] mb-[40px] mobile:mt-[80px]">*/}
-      {/*  {t('frequently_asked_questions', 'Frequently Asked Questions')}*/}
-      {/*</h3>*/}
-      <div className="gap-[24px] flex-col flex select-none  mt-[48px] mb-[40px] mobile:mt-[80px]">
+      <h3 className="text-[24px] mt-[48px] mb-[40px] mobile:mt-[80px]">
+        {t('frequently_asked_questions', 'Frequently Asked Questions')}
+      </h3>
+      <div className="gap-[24px] flex-col flex select-none mb-[40px]">
         {list.map((item, index) => (
           <FAQSection key={index} {...item} />
         ))}

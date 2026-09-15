@@ -15,7 +15,7 @@ import { cookieName, fallbackLng, headerName, languages } from './i18n.config';
  * `headers()`/`cookies()` throw outside a request scope (a build-time render),
  * so each read falls through to the next rather than taking the page down.
  */
-async function requestLanguage(): Promise<string> {
+export async function requestLanguage(): Promise<string> {
   try {
     const fromHeader = (await headers()).get(headerName);
     if (fromHeader && languages.includes(fromHeader)) {
