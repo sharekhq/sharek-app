@@ -30,7 +30,7 @@ export default async function AuthLayout({
           <div className="flex">{children}</div>
         </div>
         <div className="w-full max-w-[440px] mx-auto text-center text-[11px] text-white/40 pb-[8px]">
-          © 2026 Sharek
+          {t('auth_copyright', '© 2026 Sharek')}
         </div>
       </div>
       <div className="text-[36px] flex-1 pt-[88px] hidden lg:flex flex-col items-center">
