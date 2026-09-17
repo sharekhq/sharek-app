@@ -5,6 +5,7 @@ import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validatio
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { FC } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const Icons = () => {
   return (
@@ -247,6 +248,7 @@ const LinkedinIconSmall = () => {
 export const LinkedinPreview: FC<{
   maximumCharacters?: number;
 }> = (props) => {
+  const t = useT();
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
@@ -344,11 +346,11 @@ export const LinkedinPreview: FC<{
           <div className="">88</div>
         </div>
         <div className="gap-[9px] items-center flex">
-          <div>4 Comments</div>
+          <div>{t('preview_linkedin_comments', '4 Comments')}</div>
           <div>
             <div className="w-[3px] h-[3px] bg-[#565C65] rounded-full" />
           </div>
-          <div>8 Reposts</div>
+          <div>{t('preview_linkedin_reposts', '8 Reposts')}</div>
         </div>
       </div>
       <div className="pt-[8px] flex text-[14px] font-[700] px-[32px] justify-between border-t border-borderLinkedin text-textLinkedin">
@@ -365,7 +367,7 @@ export const LinkedinPreview: FC<{
               fill="currentColor"
             />
           </svg>
-          <div>Like</div>
+          <div>{t('label_like', 'Like')}</div>
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
@@ -381,7 +383,7 @@ export const LinkedinPreview: FC<{
               strokeWidth="2"
             />
           </svg>
-          <div>Comments</div>
+          <div>{t('comments', 'Comments')}</div>
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
@@ -407,7 +409,7 @@ export const LinkedinPreview: FC<{
               </clipPath>
             </defs>
           </svg>
-          <div>Repost</div>
+          <div>{t('label_repost', 'Repost')}</div>
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
@@ -422,7 +424,7 @@ export const LinkedinPreview: FC<{
               fill="currentColor"
             />
           </svg>
-          <div>Send</div>
+          <div>{t('label_send', 'Send')}</div>
         </div>
       </div>
       {renderContent.length > 1 && (
@@ -446,7 +448,7 @@ export const LinkedinPreview: FC<{
                       <div>
                         <LinkedinIconSmall />
                       </div>
-                      <div className="text-[12px] font-[400]">• 1st</div>
+                      <div className="text-[12px] font-[400]">{t('preview_linkedin_degree', '• 1st')}</div>
                     </div>
                     <div className="text-[12px] font-[400] text-textLinkedin">
                       Founder
@@ -460,7 +462,7 @@ export const LinkedinPreview: FC<{
                     }}
                   />
                   <div className="flex gap-[6px] font-[400] text-[12px] text-textLinkedin items-center">
-                    <div className="font-[700]">Like</div>
+                    <div className="font-[700]">{t('label_like', 'Like')}</div>
                     <div>•</div>
                     <div>
                       <svg
@@ -500,9 +502,9 @@ export const LinkedinPreview: FC<{
                     </div>
                     <div>19</div>
                     <div>|</div>
-                    <div className="font-[700]">Reply</div>
+                    <div className="font-[700]">{t('label_reply', 'Reply')}</div>
                     <div>•</div>
-                    <div>1 reply</div>
+                    <div>{t('preview_linkedin_one_reply', '1 reply')}</div>
                   </div>
                 </div>
               </div>

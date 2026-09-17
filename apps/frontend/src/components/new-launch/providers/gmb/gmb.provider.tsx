@@ -10,6 +10,7 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { Input } from '@gitroom/react/form/input';
 import { Select } from '@gitroom/react/form/select';
 import { useWatch } from 'react-hook-form';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const topicTypes = [
   {
@@ -62,6 +63,7 @@ const callToActionTypes = [
 ];
 
 const GmbSettings: FC = () => {
+  const t = useT();
   const { register, control } = useSettings();
   const topicType = useWatch({ control, name: 'topicType' });
   const callToActionType = useWatch({ control, name: 'callToActionType' });
@@ -106,10 +108,10 @@ const GmbSettings: FC = () => {
 
       {topicType === 'EVENT' && (
         <div className="flex flex-col gap-[10px] mt-[10px] p-[15px] border border-input rounded-[8px]">
-          <div className="text-[14px] font-medium mb-[5px]">Event Details</div>
+          <div className="text-[14px] font-medium mb-[5px]">{t('gmb_event_details', 'Event Details')}</div>
           <Input
             label="Event Title"
-            placeholder="Event name"
+            placeholder={t('placeholder_event_name', 'Event name')}
             {...register('eventTitle')}
           />
           <div className="grid grid-cols-2 gap-[10px]">
@@ -137,7 +139,7 @@ const GmbSettings: FC = () => {
 
       {topicType === 'OFFER' && (
         <div className="flex flex-col gap-[10px] mt-[10px] p-[15px] border border-input rounded-[8px]">
-          <div className="text-[14px] font-medium mb-[5px]">Offer Details</div>
+          <div className="text-[14px] font-medium mb-[5px]">{t('gmb_offer_details', 'Offer Details')}</div>
           <Input
             label="Coupon Code (optional)"
             placeholder="SAVE20"
@@ -150,7 +152,7 @@ const GmbSettings: FC = () => {
           />
           <Input
             label="Terms & Conditions (optional)"
-            placeholder="Valid until..."
+            placeholder={t('placeholder_valid_until', 'Valid until...')}
             {...register('offerTerms')}
           />
         </div>

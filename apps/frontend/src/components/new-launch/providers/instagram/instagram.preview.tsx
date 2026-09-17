@@ -6,10 +6,12 @@ import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { FC } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { SliderComponent } from '@gitroom/frontend/components/third-parties/slider.component';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const InstagramPreview: FC<{
   maximumCharacters?: number;
 }> = (props) => {
+  const t = useT();
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
@@ -210,8 +212,8 @@ export const InstagramPreview: FC<{
                   <div className="flex font-[400] text-[12px] text-textLinkedin items-center">
                     <div className="flex gap-[16px] flex-1">
                       <div className="font-[700]">30m</div>
-                      <div className="font-[700]">8 Likes</div>
-                      <div className="font-[700]">Reply</div>
+                      <div className="font-[700]">{t('preview_instagram_likes', '8 Likes')}</div>
+                      <div className="font-[700]">{t('label_reply', 'Reply')}</div>
                     </div>
                   </div>
                 </div>

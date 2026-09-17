@@ -714,7 +714,7 @@ const OnboardingStep3: FC<{ onBack: () => void; onFinish: () => void }> = ({
           <iframe
             className="h-full aspect-video phone:w-full phone:aspect-auto"
             src={tutorialVideoEmbedUrl(i18next.resolvedLanguage)}
-            title="Sharek Tutorial"
+            title={t('billing_video_frame_title', 'Sharek Tutorial')}
             allow="autoplay"
             allowFullScreen
           />

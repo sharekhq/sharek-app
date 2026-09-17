@@ -5,10 +5,12 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const YoutubePreview: FC<{
   maximumCharacters?: number;
 }> = (props) => {
+  const t = useT();
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
@@ -72,7 +74,7 @@ export const YoutubePreview: FC<{
           </div>
           <div className="flex flex-col">
             <div className="text-[14px] font-[500]">{integration?.name}</div>
-            <div className="text-[10px] font-[400]">16.7M subscribers</div>
+            <div className="text-[10px] font-[400]">{t('preview_youtube_subscribers', '16.7M subscribers')}</div>
           </div>
           <div>
             <div className="h-[32px] text-[12px] text-newBgColor font-[500] px-[14px] flex justify-center items-center bg-youtubeButton rounded-[16px]">

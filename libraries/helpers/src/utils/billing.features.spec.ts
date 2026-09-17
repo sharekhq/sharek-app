@@ -70,6 +70,12 @@ const EXPECTED_EN: Record<string, string[]> = {
   ],
 };
 
+// Transcribed from sharek.app/pricing, which is the source of truth this file
+// exists to enforce. محرر الصور carries no shadda there and did not when these
+// expectations were first written — the locale file had drifted to محرّر, and this
+// list had been copied from the locale rather than the page, so the two agreed with
+// each other and neither agreed with the site. Feature 028 stripped the mark; do not
+// put it back to make a diff smaller.
 const EXPECTED_AR: Record<string, string[]> = {
   STANDARD: [
     '10 قنوات',
@@ -78,7 +84,7 @@ const EXPECTED_AR: Record<string, string[]> = {
     '5 فيديوهات بالذكاء الاصطناعي شهريًا',
     'مساعد الذكاء الاصطناعي',
     'سامي، الوكيل الذكي',
-    'محرّر الصور',
+    'محرر الصور',
   ],
   TEAM: [
     '25 قناة',
@@ -87,7 +93,7 @@ const EXPECTED_AR: Record<string, string[]> = {
     '15 فيديو بالذكاء الاصطناعي شهريًا',
     'مساعد الذكاء الاصطناعي',
     'سامي، الوكيل الذكي',
-    'محرّر الصور',
+    'محرر الصور',
     'أعضاء فريق بلا حدود',
   ],
   PRO: [
@@ -97,7 +103,7 @@ const EXPECTED_AR: Record<string, string[]> = {
     '25 فيديو بالذكاء الاصطناعي شهريًا',
     'مساعد الذكاء الاصطناعي',
     'سامي، الوكيل الذكي',
-    'محرّر الصور',
+    'محرر الصور',
     'أعضاء فريق بلا حدود',
   ],
   ULTIMATE: [
@@ -107,7 +113,7 @@ const EXPECTED_AR: Record<string, string[]> = {
     '100 فيديو بالذكاء الاصطناعي شهريًا',
     'مساعد الذكاء الاصطناعي',
     'سامي، الوكيل الذكي',
-    'محرّر الصور',
+    'محرر الصور',
     'أعضاء فريق بلا حدود',
     'دعم بأولوية مع اتفاقية SLA',
     'وصول مبكر إلى الميزات الجديدة',

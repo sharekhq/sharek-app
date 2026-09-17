@@ -105,7 +105,7 @@ const VEO3Settings: FC = () => {
           text="Images"
           description="Images"
           name="images"
-          label="Media"
+          label={t('label_media', 'Media')}
           value={images}
           onChange={(val) =>
             setValue(

@@ -3,8 +3,10 @@ import { useSearchParams } from 'next/navigation';
 import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/modal.wrapper.component';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Button } from '@gitroom/react/form/button';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const PreConditionComponentModal: FC = () => {
+  const t = useT();
   const modal = useModals();
   return (
     <div className="flex flex-col gap-[16px]">
@@ -22,7 +24,7 @@ export const PreConditionComponentModal: FC = () => {
         >
           Fast track - Charge me now
         </Button>
-        <Button onClick={modal.closeCurrent} secondary={true}>Cancel</Button>
+        <Button onClick={modal.closeCurrent} secondary={true}>{t('cancel', 'Cancel')}</Button>
       </div>
     </div>
   );

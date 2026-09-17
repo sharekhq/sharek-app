@@ -10,8 +10,10 @@ import { MeweGroupSelect } from '@gitroom/frontend/components/new-launch/provide
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { Select } from '@gitroom/react/form/select';
 import { useWatch } from 'react-hook-form';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const MeweComponent: FC = () => {
+  const t = useT();
   const form = useSettings();
   const postType = useWatch({ control: form.control, name: 'postType' });
 
@@ -21,8 +23,8 @@ const MeweComponent: FC = () => {
         label="Post To"
         {...form.register('postType')}
       >
-        <option value="timeline">My Timeline</option>
-        <option value="group">Group</option>
+        <option value="timeline">{t('mewe_my_timeline', 'My Timeline')}</option>
+        <option value="group">{t('label_group', 'Group')}</option>
       </Select>
       {postType === 'group' && (
         <MeweGroupSelect {...form.register('group')} />

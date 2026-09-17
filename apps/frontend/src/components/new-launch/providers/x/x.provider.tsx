@@ -109,9 +109,7 @@ const SettingsComponent = () => {
           </Select>
 
           <Input
-            label={
-              'Post to a community, URL (Ex: https://x.com/i/communities/1493446837214187523)'
-            }
+            label={t('label_x_community_url', 'Post to a community, URL (Ex: https://x.com/i/communities/1493446837214187523)')}
             {...register('community')}
           />
 
