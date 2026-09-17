@@ -27,7 +27,9 @@ export const SignaturesComponent: FC<{
   const addSignature = useCallback(
     (data?: any) => () => {
       modal.openModal({
-        title: data ? 'Edit Signature' : 'Add Signature',
+        title: data
+          ? t('top_title_edit_signature', 'Edit Signature')
+          : t('top_title_add_signature', 'Add Signature'),
         withCloseButton: true,
         children: <AddOrRemoveSignature data={data} reload={mutate} />,
       });
@@ -50,7 +52,10 @@ export const SignaturesComponent: FC<{
           method: 'DELETE',
         });
         mutate();
-        toaster.show('Signature deleted successfully', 'success');
+        toaster.show(
+          t('signature_deleted_successfully', 'Signature deleted successfully'),
+          'success'
+        );
       }
     },
     []
@@ -93,7 +98,7 @@ export const SignaturesComponent: FC<{
                   </div>
                   <div className="flex flex-col justify-center relative me-[20px]">
                     <div className="text-center phone:text-start w-full absolute phone:static start-0 line-clamp-1 top-[50%] -translate-y-[50%] phone:translate-y-0">
-                      {p.autoAdd ? 'Yes' : 'No'}
+                      {p.autoAdd ? t('yes', 'Yes') : t('no', 'No')}
                     </div>
                   </div>
                   {!!appendSignature && (
@@ -163,8 +168,8 @@ const AddOrRemoveSignature: FC<{
       });
       toast.show(
         data?.id
-          ? 'Signature updated successfully'
-          : 'Signature added successfully',
+          ? t('signature_updated_successfully', 'Signature updated successfully')
+          : t('signature_added_successfully', 'Signature added successfully'),
         'success'
       );
       modal.closeCurrent();

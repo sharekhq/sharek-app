@@ -803,7 +803,7 @@ export const AiImage: FC<{
             </svg>
           </div>
           <div className="text-[10px] font-[600] mobile:hidden block">
-            {t('ai', 'AI')} Image
+            {t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
           </div>
         </div>
       </div>

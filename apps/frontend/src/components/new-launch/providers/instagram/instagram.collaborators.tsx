@@ -17,10 +17,12 @@ import { InstagramPreview } from '@gitroom/frontend/components/new-launch/provid
 const postType = [
   {
     value: 'post',
+    translationKey: 'post_reel',
     label: 'Post / Reel',
   },
   {
     value: 'story',
+    translationKey: 'image_aspect_story',
     label: 'Story',
   },
 ];
@@ -28,10 +30,12 @@ const postType = [
 const graduationStrategies = [
   {
     value: 'MANUAL',
+    translationKey: 'manual',
     label: 'Manual',
   },
   {
     value: 'SS_PERFORMANCE',
+    translationKey: 'auto_based_on_performance',
     label: 'Auto (based on performance)',
   },
 ];
@@ -56,14 +60,17 @@ const InstagramCollaborators: FC<{
         <option value="">{t('select_post_type', 'Select Post Type...')}</option>
         {postType.map((item) => (
           <option key={item.value} value={item.value}>
-            {item.label}
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>
 
       {postCurrentType !== 'story' && (
         <InstagramCollaboratorsTags
-          label="Collaborators (max 3) - accounts can't be private"
+          label={t(
+            'label_collaborators',
+            "Collaborators (max 3) - accounts can't be private"
+          )}
           {...register('collaborators', {
             value: [],
           })}
@@ -101,7 +108,7 @@ const InstagramCollaborators: FC<{
             >
               {graduationStrategies.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {item.label}
+                  {t(item.translationKey, item.label)}
                 </option>
               ))}
             </Select>

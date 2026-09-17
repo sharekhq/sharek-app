@@ -4,10 +4,12 @@ import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validatio
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const PinterestPreview: FC<{
   maximumCharacters?: number;
 }> = (props) => {
+  const t = useT();
   const { value: topValue, integration } = useIntegration();
   const mediaDir = useMediaDirectory();
 
@@ -135,7 +137,7 @@ export const PinterestPreview: FC<{
           </div>
         </div>
         <div className="h-full flex rounded-[12px] text-[16px] font-[600] w-[100px] bg-[#E70024] text-white justify-center items-center">
-          Save
+          {t('save', 'Save')}
         </div>
       </div>
       <div

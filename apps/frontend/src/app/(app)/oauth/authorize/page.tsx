@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import i18next from 'i18next';
 
 export default function OAuthAuthorizePage() {
   const t = useT();
@@ -22,9 +23,16 @@ export default function OAuthAuthorizePage() {
   const codeChallenge = searchParams.get('code_challenge');
   const codeChallengeMethod = searchParams.get('code_challenge_method');
 
+  // i18next.t, not the hook: this effect runs once, and listing t in its
+  // dependencies would re-run the whole request when the reader switches language.
   useEffect(() => {
     if (!clientId || !responseType) {
-      setError('Missing required parameters (client_id, response_type)');
+      setError(
+        i18next.t(
+          'missing_required_parameters_client_id_response_type',
+          'Missing required parameters (client_id, response_type)'
+        )
+      );
       setLoading(false);
       return;
     }
@@ -49,14 +57,22 @@ export default function OAuthAuthorizePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.statusCode && data.statusCode >= 400) {
-          setError(data.message || 'Invalid OAuth request');
+          setError(
+            data.message ||
+            i18next.t('invalid_oauth_request', 'Invalid OAuth request')
+          );
         } else {
           setAppInfo(data);
         }
         setLoading(false);
       })
       .catch(() => {
-        setError('Failed to validate OAuth request');
+        setError(
+          i18next.t(
+            'failed_to_validate_oauth_request',
+            'Failed to validate OAuth request'
+          )
+        );
         setLoading(false);
       });
   }, [clientId, responseType, state, redirectUri, codeChallenge, codeChallengeMethod]);
@@ -85,11 +101,13 @@ export default function OAuthAuthorizePage() {
           window.location.href = result.redirect;
         }
       } catch {
-        setError('Failed to process authorization');
+        setError(
+          t('failed_to_process_authorization', 'Failed to process authorization')
+        );
         setSubmitting(false);
       }
     },
-    [clientId, state, redirectUri, codeChallenge, codeChallengeMethod]
+    [clientId, state, redirectUri, codeChallenge, codeChallengeMethod, t]
   );
 
   if (loading) {
@@ -100,7 +118,7 @@ export default function OAuthAuthorizePage() {
             <Logo />
           </div>
           <div className="text-[16px] text-muted">
-            Please wait...
+            {t('please_wait_2', 'Please wait...')}
           </div>
           <div className="mt-[32px] flex justify-center">
             <div className="w-[48px] h-[48px] border-[3px] border-brand border-t-transparent rounded-full animate-spin" />
@@ -131,7 +149,7 @@ export default function OAuthAuthorizePage() {
             </svg>
           </div>
           <div className="text-[28px] font-semibold mb-[12px]">
-            Authorization Error
+            {t('authorization_error', 'Authorization Error')}
           </div>
           <div className="text-[16px] text-muted max-w-[400px]">
             {error}
@@ -177,8 +195,10 @@ export default function OAuthAuthorizePage() {
 
           <div className="border-t border-[#2A2929] pt-[16px]">
             <div className="text-[14px] text-muted mb-[12px]">
-              This application is requesting access to your Sharek account. It
-              will be able to:
+              {t(
+                'this_application_is_requesting_access_to_your_sharek',
+                'This application is requesting access to your Sharek account. It will be able to:'
+              )}
             </div>
             <ul className="text-[14px] list-disc list-inside space-y-[4px]">
               <li>{t('oauth_scope_integrations', 'Access your integrations and channels')}</li>
@@ -193,14 +213,14 @@ export default function OAuthAuthorizePage() {
               disabled={submitting}
               className="flex-1 bg-quiet border border-line hover:bg-surface2 disabled:opacity-50 text-ink rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
             >
-              Authorize
+              {t('authorize', 'Authorize')}
             </button>
             <button
               onClick={() => handleAction('deny')}
               disabled={submitting}
               className="flex-1 bg-[#2A2929] hover:bg-[#3A3939] disabled:opacity-50 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
             >
-              Deny
+              {t('deny', 'Deny')}
             </button>
           </div>
         </div>

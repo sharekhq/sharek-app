@@ -13,12 +13,16 @@ const ConnectedComponent: FC<{
   login: string;
   deleteRepository: () => void;
 }> = (props) => {
+  const t = useT();
   const { id, login, deleteRepository } = props;
   const fetch = useFetch();
   const disconnect = useCallback(async () => {
     if (
       !(await deleteDialog(
-        'Are you sure you want to disconnect this repository?'
+        t(
+          'are_you_sure_you_want_to_disconnect_this_repository',
+          'Are you sure you want to disconnect this repository?'
+        )
       ))
     ) {
       return;
@@ -27,9 +31,7 @@ const ConnectedComponent: FC<{
     await fetch(`/settings/repository/${id}`, {
       method: 'DELETE',
     });
-  }, []);
-
-  const t = useT();
+  }, [t]);
 
   return (
     <div className="my-[16px] mt-[16px] h-[90px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
@@ -55,6 +57,7 @@ const ConnectComponent: FC<{
   }>;
   deleteRepository: () => void;
 }> = (props) => {
+  const t = useT();
   const { id, setConnected, deleteRepository } = props;
   const [url, setUrl] = useState('');
   const fetch = useFetch();
@@ -78,13 +81,11 @@ const ConnectComponent: FC<{
       }),
     });
     if (response.status === 404) {
-      toast.show('Repository not found', 'warning');
+      toast.show(t('repository_not_found', 'Repository not found'), 'warning');
       return;
     }
     setConnected(`${select}/${repo}`);
-  }, [url]);
-
-  const t = useT();
+  }, [url, t]);
 
   return (
     <div className="my-[16px] mt-[16px] h-[100px] bg-sixth border-fifth border rounded-[4px] px-[24px] flex">
@@ -139,6 +140,7 @@ export const GithubComponent: FC<{
   if (typeof window !== 'undefined' && window.opener) {
     window.close();
   }
+  const t = useT();
   const { github, organizations } = props;
   const [githubState, setGithubState] = useState(github);
   useEffect(() => {
@@ -175,8 +177,6 @@ export const GithubComponent: FC<{
     },
     [githubState]
   );
-
-  const t = useT();
 
   return (
     <>

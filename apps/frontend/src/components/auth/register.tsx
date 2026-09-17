@@ -130,10 +130,11 @@ export function RegisterAfter({
       })
       .catch((e) => {
         form.setError('email', {
-          message:
-            'General error: ' +
-            e.toString() +
-            '. Please check your browser console.',
+          message: t(
+            'general_error',
+            'General error: {{error}}. Please check your browser console.',
+            { error: e.toString() }
+          ),
         });
       });
   };

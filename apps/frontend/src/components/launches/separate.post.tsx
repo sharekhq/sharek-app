@@ -16,8 +16,11 @@ export const SeparatePost: FC<{
   const notReversible = useCallback(async () => {
     if (
       await deleteDialog(
-        'Are you sure you want to separate all posts? This action is not reversible.',
-        'Yes'
+        t(
+          'are_you_sure_you_want_to_separate_all_posts_this_action_is',
+          'Are you sure you want to separate all posts? This action is not reversible.'
+        ),
+        t('yes', 'Yes')
       )
     ) {
       props.changeLoading(true);
@@ -35,7 +38,7 @@ export const SeparatePost: FC<{
       props.merge(posts);
       props.changeLoading(false);
     }
-  }, [len, posts]);
+  }, [len, posts, t]);
 
   return (
     <Button variant="danger" className="!h-[30px] !text-sm" onClick={notReversible}>

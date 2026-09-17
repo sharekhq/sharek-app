@@ -20,10 +20,12 @@ import { useEffect } from 'react';
 const postType = [
   {
     value: 'post',
+    translationKey: 'label_post_type_post',
     label: 'Post',
   },
   {
     value: 'story',
+    translationKey: 'image_aspect_story',
     label: 'Story',
   },
 ];
@@ -62,7 +64,7 @@ export const FacebookSettings = () => {
           </option>
           {postType.map((item) => (
             <option key={item.value} value={item.value}>
-              {item.label}
+              {t(item.translationKey, item.label)}
             </option>
           ))}
         </Select>

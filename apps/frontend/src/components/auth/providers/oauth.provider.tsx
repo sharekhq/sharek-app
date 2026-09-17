@@ -14,7 +14,11 @@ export const OauthProvider = () => {
       const response = await fetch('/auth/oauth/GENERIC');
       if (!response.ok) {
         throw new Error(
-          `Login link request failed with status ${response.status}`
+          t(
+            'login_link_request_failed_with_status',
+            'Login link request failed with status {{status}}',
+            { status: response.status }
+          )
         );
       }
       const link = await response.text();
@@ -22,7 +26,7 @@ export const OauthProvider = () => {
     } catch (error) {
       console.error('Failed to get generic oauth login link:', error);
     }
-  }, []);
+  }, [t]);
   return (
     <div
       onClick={gotoLogin}

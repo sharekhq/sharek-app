@@ -102,8 +102,8 @@ const VEO3Settings: FC = () => {
           aiVideoNotAvailable={true}
           destination="reference"
           flush={true}
-          text="Images"
-          description="Images"
+          text={t('images', 'Images')}
+          description={t('images', 'Images')}
           name="images"
           label={t('label_media', 'Media')}
           value={images}

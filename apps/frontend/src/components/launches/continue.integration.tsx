@@ -5,6 +5,7 @@ import { HttpStatusCode } from 'axios';
 import { useRouter } from 'next/navigation';
 import { Redirect } from '@gitroom/frontend/components/layout/redirect';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import i18next from 'i18next';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import dayjs from 'dayjs';
 import { continueProviderList } from '@gitroom/frontend/components/new-launch/providers/continue-provider/list';
@@ -133,7 +134,7 @@ export const ContinueIntegration: FC<{
         navigateOrShow(
           `/launches?precondition=true`,
           returnURL,
-          'Precondition failed'
+          i18next.t('precondition_failed', 'Precondition failed')
         );
         return;
       }
@@ -150,7 +151,9 @@ export const ContinueIntegration: FC<{
       ) {
         const errorData = await data.json().catch(() => ({}));
         setErrorMessage(
-          errorData.message || errorData.msg || 'Could not add provider'
+          errorData.message ||
+            errorData.msg ||
+            i18next.t('could_not_add_provider', 'Could not add provider')
         );
         setError(true);
         return;
@@ -206,9 +209,12 @@ export const ContinueIntegration: FC<{
           onboarding ? '&onboarding=true' : ''
         }`,
         returnURL,
-        'Channel Updated'
+        i18next.t('channel_updated', 'Channel Updated')
       );
     })();
+    // The three i18next.t calls in this flow are read at call time rather than
+    // through the hook: this effect runs once and navigates, so naming t in its
+    // dependencies would re-run the navigation on a language switch.
   }, []);
 
   const onSave = useCallback(
@@ -234,7 +240,11 @@ export const ContinueIntegration: FC<{
         ) {
           const errorData = await response.json().catch(() => ({}));
           setErrorMessage(
-            errorData.message || 'Failed to save channel configuration'
+            errorData.message ||
+              t(
+                'failed_to_save_channel_configuration',
+                'Failed to save channel configuration'
+              )
           );
           setError(true);
           return;
@@ -245,13 +255,13 @@ export const ContinueIntegration: FC<{
             twoStepState.onboarding ? '&onboarding=true' : ''
           }`,
           twoStepState.returnURL,
-          'Channel Added'
+          t('channel_added', 'Channel Added')
         );
       } finally {
         setIsSaving(false);
       }
     },
-    [twoStepState, fetch, modifiedParams, provider, navigateOrShow]
+    [twoStepState, fetch, modifiedParams, provider, navigateOrShow, t]
   );
 
   const Provider = useMemo(() => {
@@ -263,16 +273,16 @@ export const ContinueIntegration: FC<{
 
   const providerDisplayName = useMemo(() => {
     const names: Record<string, string> = {
-      facebook: 'Facebook',
-      instagram: 'Instagram',
+      facebook: t('platform_facebook', 'Facebook'),
+      instagram: t('platform_instagram', 'Instagram'),
       'linkedin-page': 'LinkedIn',
       youtube: 'YouTube',
-      gmb: 'Google Business',
-      tumblr: 'Tumblr',
-      'tiktok-business': 'TikTok Business',
+      gmb: t('google_business', 'Google Business'),
+      tumblr: t('tumblr', 'Tumblr'),
+      'tiktok-business': t('tiktok_business', 'TikTok Business'),
     };
     return names[provider] || provider;
-  }, [provider]);
+  }, [provider, t]);
 
   // Success state for non-logged users without returnURL
   if (successState) {

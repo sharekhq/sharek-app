@@ -112,6 +112,7 @@ export const Features: FC<{
 };
 
 const Accept: FC<{ resolve: (res: boolean) => void }> = ({ resolve }) => {
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const fetch = useFetch();
   const toaster = useToaster();
@@ -123,20 +124,28 @@ const Accept: FC<{ resolve: (res: boolean) => void }> = ({ resolve }) => {
     });
 
     resolve(true);
-    toaster.show('50% discount applied successfully');
-  }, []);
+    toaster.show(
+      t('50_discount_applied_successfully', '50% discount applied successfully')
+    );
+  }, [t]);
 
   return (
     <div>
       <div className="mb-[20px]">
-        Would you accept 50% discount for 3 months instead? 🙏🏻
+        {t(
+          'would_you_accept_50_discount_for_3_months_instead',
+          'Would you accept 50% discount for 3 months instead? 🙏🏻'
+        )}
       </div>
       <div className="flex gap-[10px]">
         <Button loading={loading} onClick={apply}>
-          Apply 50% discount for 3 months
+          {t(
+            'apply_50_discount_for_3_months',
+            'Apply 50% discount for 3 months'
+          )}
         </Button>
         <Button variant="danger" onClick={() => resolve(false)}>
-          Cancel my subscription
+          {t('cancel_my_subscription', 'Cancel my subscription')}
         </Button>
       </div>
     </div>
@@ -266,7 +275,12 @@ export const MainBillingComponent: FC<{
             cancelAt: cancel_at,
           }));
 
-          toast.show('Subscription reactivated successfully');
+          toast.show(
+            t(
+              'subscription_reactivated_successfully',
+              'Subscription reactivated successfully'
+            )
+          );
           setLoading(false);
           return;
         }
@@ -277,17 +291,23 @@ export const MainBillingComponent: FC<{
           pricing[subscription?.subscriptionTier!]?.team_members
         ) {
           messages.push(
-            `Your team members will be removed from your organization`
+            t(
+              'your_team_members_will_be_removed_from_your_organization',
+              'Your team members will be removed from your organization'
+            )
           );
         }
         if (billing === 'FREE') {
           if (
             subscription?.cancelAt ||
             (await deleteDialog(
-              `Are you sure you want to cancel your subscription?
-              ${messages.join(', ')}`,
-              'Yes, cancel',
-              'Cancel Subscription'
+              t(
+                'are_you_sure_you_want_to_cancel_your_subscription',
+                'Are you sure you want to cancel your subscription? {{value1}}',
+                { value1: messages.join(', ') }
+              ),
+              t('yes_cancel', 'Yes, cancel'),
+              t('cancel_subscription', 'Cancel Subscription')
             ))
           ) {
             const checkDiscount = await (
@@ -296,7 +316,7 @@ export const MainBillingComponent: FC<{
             if (checkDiscount.offerCoupon) {
               const info = await new Promise((res) => {
                 modal.openModal({
-                  title: 'Before you cancel',
+                  title: t('before_you_cancel', 'Before you cancel'),
                   withCloseButton: true,
                   children: <Accept resolve={res} />,
                 });
@@ -337,14 +357,22 @@ export const MainBillingComponent: FC<{
               cancelAt: cancel_at,
             }));
             if (cancel_at)
-              toast.show('Subscription set to canceled successfully');
+              toast.show(
+                t(
+                  'subscription_set_to_canceled_successfully',
+                  'Subscription set to canceled successfully'
+                )
+              );
             setLoading(false);
           }
           return;
         }
         if (
           messages.length &&
-          !(await deleteDialog(messages.join(', '), 'Yes, continue'))
+          !(await deleteDialog(
+            messages.join(', '),
+            t('yes_continue', 'Yes, continue')
+          ))
         ) {
           return;
         }
@@ -385,9 +413,12 @@ export const MainBillingComponent: FC<{
         if (portal) {
           if (
             await deleteDialog(
-              'We could not charge your credit card, please update your payment method',
-              'Update',
-              'Payment Method Required'
+              t(
+                'we_could_not_charge_your_credit_card_please_update_your',
+                'We could not charge your credit card, please update your payment method'
+              ),
+              t('update', 'Update'),
+              t('payment_method_required', 'Payment Method Required')
             )
           ) {
             window.open(portal);
@@ -409,7 +440,9 @@ export const MainBillingComponent: FC<{
               revalidate: false,
             }
           );
-          toast.show('Subscription updated successfully');
+          toast.show(
+            t('subscription_updated_successfully', 'Subscription updated successfully')
+          );
         }
         setLoading(false);
       },
@@ -479,7 +512,9 @@ export const MainBillingComponent: FC<{
                     : values.month_price}
                 </div>
                 <div className={`text-[14px] text-muted`}>
-                  {monthlyOrYearly === 'on' ? '/year' : '/month'}
+                  {monthlyOrYearly === 'on'
+                    ? t('billing_per_year', '/ year')
+                    : t('billing_per_month', '/ month')}
                 </div>
               </div>
               <div className="text-[14px] flex gap-[10px]">
@@ -520,20 +555,22 @@ export const MainBillingComponent: FC<{
                     )}
                   >
                     {currentPackage === name.toUpperCase()
-                      ? 'Current Plan'
+                      ? t('current_plan', 'Current Plan')
                       : name.toUpperCase() === 'FREE'
                       ? subscription?.cancelAt
-                        ? `Downgrade on ${dayjs
-                            .utc(subscription?.cancelAt)
-                            .local()
-                            .format('D MMM, YYYY')}`
-                        : 'Cancel subscription'
+                        ? t('downgrade_on', 'Downgrade on {{value1}}', {
+                            value1: dayjs
+                              .utc(subscription?.cancelAt)
+                              .local()
+                              .format('D MMM, YYYY'),
+                          })
+                        : t('cancel_subscription_1', 'Cancel subscription')
                       : // @ts-ignore
                       (user?.tier === 'FREE' ||
                           user?.tier?.current === 'FREE') &&
                         user.allowTrial
                       ? t('start_7_days_free_trial', 'Start 7 days free trial')
-                      : 'Purchase'}
+                      : t('purchase', 'Purchase')}
                   </Button>
                 )}
                 {subscription &&

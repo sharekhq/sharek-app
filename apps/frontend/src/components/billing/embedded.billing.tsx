@@ -256,7 +256,9 @@ const PriceBreakdown: FC = () => {
               <span className="font-[500]">
                 {discountDisplay.displayName || discountDisplay.promotionCode}
                 {discountDisplay.percentOff &&
-                  ` (${discountDisplay.percentOff}% off)`}
+                  ` ${t('off', '({{percentOff}}% off)', {
+                    percentOff: discountDisplay.percentOff,
+                  })}`}
               </span>
             </div>
             <span className="font-[500]">

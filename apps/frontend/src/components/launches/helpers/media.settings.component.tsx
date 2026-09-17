@@ -194,10 +194,13 @@ export const CreateThumbnail: FC<{
       console.error('Error capturing frame:', error);
       setIsCapturing(false);
       alert(
-        'Unable to capture frame. This might be due to CORS restrictions on the video source.'
+        t(
+          'unable_to_capture_frame_this_might_be_due_to_cors',
+          'Unable to capture frame. This might be due to CORS restrictions on the video source.'
+        )
       );
     }
-  }, [onSelect, currentTime]);
+  }, [onSelect, currentTime, t]);
 
   if (!media) return null;
 

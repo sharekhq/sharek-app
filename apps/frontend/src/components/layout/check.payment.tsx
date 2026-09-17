@@ -3,6 +3,7 @@ import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
 export const CheckPayment: FC<{
   check: string;
@@ -20,6 +21,7 @@ export const CheckPaymentInner: FC<{
   mutate: () => void;
   children: ReactNode;
 }> = (props) => {
+  const t = useT();
   const [showLoader, setShowLoader] = useState(true);
   const fetch = useFetch();
   const toaster = useToaster();
@@ -49,11 +51,13 @@ export const CheckPaymentInner: FC<{
     }
     if (status === 1) {
       modal.open({
-        title: 'Invalid Payment',
+        title: t('invalid_payment', 'Invalid Payment'),
         onlyApprove: true,
         approveLabel: 'OK',
-        description:
-          'We could not validate your payment method, please try again',
+        description: t(
+          'we_could_not_validate_your_payment_method_please_try_again',
+          'We could not validate your payment method, please try again'
+        ),
       });
       setShowLoader(false);
     }
@@ -61,7 +65,7 @@ export const CheckPaymentInner: FC<{
       setShowLoader(false);
       props.mutate();
     }
-  }, []);
+  }, [t]);
   useEffect(() => {
     checkSubscription();
   }, []);

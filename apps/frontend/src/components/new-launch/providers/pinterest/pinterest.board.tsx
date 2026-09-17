@@ -41,7 +41,10 @@ export const PinterestBoard: FC<{
     return null;
   }
   if (!orgs.length) {
-    return 'No boards found, you have to create a board first';
+    return t(
+      'no_boards_found_you_have_to_create_a_board_first',
+      'No boards found, you have to create a board first'
+    );
   }
   return (
     <Select

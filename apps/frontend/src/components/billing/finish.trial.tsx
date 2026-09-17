@@ -68,7 +68,10 @@ export const FinishTrial: FC<{ close: () => void }> = (props) => {
                 {finished && (
                   <div className="flex flex-col">
                     <div>
-                      You trial has been successfully finished and you have been charged.
+                      {t(
+                        'you_trial_has_been_successfully_finished_and_you_have_been',
+                        'You trial has been successfully finished and you have been charged.'
+                      )}
                     </div>
                     <div className="flex gap-[10px] mt-[20px]">
                       <Button className="flex-1" onClick={() => window.close()}>{t('close_window', 'Close window')}</Button>

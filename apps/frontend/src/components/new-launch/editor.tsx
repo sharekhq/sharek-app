@@ -656,7 +656,10 @@ export const Editor: FC<{
     onDrop: (files) => {
       if (loading) {
         toaster.show(
-          'Upload current in progress, please wait and then try again.',
+          t(
+            'upload_current_in_progress_please_wait_and_then_try_again',
+            'Upload current in progress, please wait and then try again.'
+          ),
           'warning'
         );
         return;

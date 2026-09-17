@@ -482,9 +482,12 @@ export const decisionModalEmitter = new EventEmitter();
 
 export const areYouSure = ({
   title = i18next.t('are_you_sure', 'Are you sure?'),
-  description = 'Are you sure you want to close this modal?' as any,
-  approveLabel = 'Yes',
-  cancelLabel = 'No',
+  description = i18next.t(
+    'are_you_sure_you_want_to_close_this_modal',
+    'Are you sure you want to close this modal?'
+  ) as any,
+  approveLabel = i18next.t('yes', 'Yes'),
+  cancelLabel = i18next.t('no', 'No'),
 } = {}): Promise<boolean> => {
   return new Promise<boolean>((newRes) => {
     decisionModalEmitter.emit('open', {
@@ -510,10 +513,13 @@ export const useDecisionModal = () => {
   const open = useCallback(
     ({
       title = i18next.t('are_you_sure', 'Are you sure?'),
-      description = 'Are you sure you want to close this modal?' as any,
+      description = i18next.t(
+        'are_you_sure_you_want_to_close_this_modal',
+        'Are you sure you want to close this modal?'
+      ) as any,
       onlyApprove = false,
-      approveLabel = 'Yes',
-      cancelLabel = 'No',
+      approveLabel = i18next.t('yes', 'Yes'),
+      cancelLabel = i18next.t('no', 'No'),
       newRes = undefined as any,
     } = {}) => {
       return new Promise<boolean>((res) => {

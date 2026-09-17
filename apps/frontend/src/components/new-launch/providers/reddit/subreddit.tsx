@@ -19,24 +19,25 @@ export const RenderOptions: FC<{
   onClick: (current: 'self' | 'link' | 'media') => void;
   value: 'self' | 'link' | 'media';
 }> = (props) => {
+  const t = useT();
   const { options, onClick, value } = props;
   const mapValues = useMemo(() => {
     return options?.map((p) => ({
       children: (
         <>
           {p === 'self'
-            ? 'Post'
+            ? t('label_post_type_post', 'Post')
             : p === 'link'
-            ? 'Link'
+            ? t('link', 'Link')
             : p === 'media'
-            ? 'Media'
+            ? t('label_media', 'Media')
             : ''}
         </>
       ),
       id: p,
       onClick: () => onClick(p),
     })) || [];
-  }, [options]);
+  }, [options, t]);
   return (
     <div className="flex">
       {mapValues.map((p) => (

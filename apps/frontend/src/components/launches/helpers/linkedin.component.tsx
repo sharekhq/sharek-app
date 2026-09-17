@@ -51,6 +51,7 @@ export const ShowLinkedinCompany = () => {
 export const LinkedinCompanyPop: FC<{
   addText: (value: any) => void;
 }> = (props) => {
+  const t = useT();
   const current = useLaunchStore((state) => state.current);
   return (
     <svg
@@ -63,7 +64,10 @@ export const LinkedinCompanyPop: FC<{
         });
       }}
       data-tooltip-id="tooltip"
-      data-tooltip-content="Add a LinkedIn Company"
+      data-tooltip-content={t(
+        'add_a_linkedin_company',
+        'Add a LinkedIn Company'
+      )}
       className="mx-[10px] cursor-pointer"
       width="20"
       height="20"
@@ -125,7 +129,7 @@ export const LinkedinCompany: FC<{
       onSelect(options.value);
       onClose();
     } catch (e) {
-      toast.show('Failed to load profile', 'warning');
+      toast.show(t('failed_to_load_profile', 'Failed to load profile'), 'warning');
     }
   };
   return (

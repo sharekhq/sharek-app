@@ -2,7 +2,6 @@ import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
 import { sanitizePostContent } from '@gitroom/helpers/utils/sanitize.post.content';
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
-import { isGeneralServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 import { LogoTextComponent } from '@gitroom/frontend/components/ui/logo-text.component';
 import Link from 'next/link';
 import { CommentsComponents } from '@gitroom/frontend/components/preview/comments.components';
@@ -15,10 +14,13 @@ import { RenderPreviewDateClient } from '@gitroom/frontend/components/preview/re
 import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
 
 dayjs.extend(utc);
-export const metadata: Metadata = {
-  title: `${isGeneralServerSide() ? 'Sharek' : 'Sharek'} Preview`,
-  description: '',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('page_title_preview', 'Sharek Preview'),
+    description: '',
+  };
+}
 export default async function Auth(
   props: {
     params: Promise<{

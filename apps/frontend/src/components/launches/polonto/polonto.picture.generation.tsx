@@ -42,7 +42,7 @@ const GenerateTab = observer(({ store }: any) => {
       return;
     }
     if (!inputRef.current.value) {
-      toast.show('Please type your prompt', 'warning');
+      toast.show(t('please_type_your_prompt', 'Please type your prompt'), 'warning');
       return;
     }
     setLoading(true);
@@ -64,7 +64,12 @@ const GenerateTab = observer(({ store }: any) => {
       // Already answered by the limit modal — a second, blocking message on
       // top of it would say less than the card behind it does.
       if (!isAlreadyAnswered(e)) {
-        alert('Something went wrong, please try again later...');
+        alert(
+          t(
+            'something_went_wrong_please_try_again_later',
+            'Something went wrong, please try again later...'
+          )
+        );
       }
     } finally {
       setLoading(false);
@@ -79,7 +84,7 @@ const GenerateTab = observer(({ store }: any) => {
         }}
       >
         {t('generate_image_with_ai', 'Generate image with AI')}
-        {data?.credits ? `(${data?.credits} left)` : ``}
+        {data?.credits ? t('left', '({{credits}} left)', { credits: data?.credits }) : ``}
       </div>
       <InputGroup
         placeholder={t('placeholder_image_generation_prompt', 'Type your image generation prompt here...')}
@@ -101,7 +106,9 @@ const GenerateTab = observer(({ store }: any) => {
           marginBottom: '40px',
         }}
       >
-        {data?.credits <= 0 ? 'Click to purchase more credits' : 'Generate'}
+        {data?.credits <= 0
+          ? t('click_to_purchase_more_credits', 'Click to purchase more credits')
+          : t('generate', 'Generate')}
       </Button>
       {image && (
         <ImagesGrid

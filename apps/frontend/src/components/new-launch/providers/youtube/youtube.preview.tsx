@@ -78,7 +78,7 @@ export const YoutubePreview: FC<{
           </div>
           <div>
             <div className="h-[32px] text-[12px] text-newBgColor font-[500] px-[14px] flex justify-center items-center bg-youtubeButton rounded-[16px]">
-              Subscribe
+              {t('subscribe', 'Subscribe')}
             </div>
           </div>
         </div>

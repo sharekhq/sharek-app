@@ -365,7 +365,10 @@ export const Modal: FC<{
 
     const customParams = form.getValues();
     if (!(await form.trigger())) {
-      toaster.show('Please fill all required fields', 'warning');
+      toaster.show(
+        t('please_fill_all_required_fields', 'Please fill all required fields'),
+        'warning'
+      );
       return;
     }
 
@@ -1066,7 +1069,7 @@ export const AiVideo: FC<{
             </svg>
           </div>
           <div className="text-[10px] font-[600] mobile:hidden block">
-            {t('ai', 'AI')} Video
+            {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
           </div>
         </div>
       </div>

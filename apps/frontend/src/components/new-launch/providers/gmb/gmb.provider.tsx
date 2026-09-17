@@ -14,14 +14,17 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const topicTypes = [
   {
+    translationKey: 'standard_update',
     label: 'Standard Update',
     value: 'STANDARD',
   },
   {
+    translationKey: 'event',
     label: 'Event',
     value: 'EVENT',
   },
   {
+    translationKey: 'offer',
     label: 'Offer',
     value: 'OFFER',
   },
@@ -29,34 +32,42 @@ const topicTypes = [
 
 const callToActionTypes = [
   {
+    translationKey: 'none',
     label: 'None',
     value: 'NONE',
   },
   {
+    translationKey: 'book',
     label: 'Book',
     value: 'BOOK',
   },
   {
+    translationKey: 'order_online',
     label: 'Order Online',
     value: 'ORDER',
   },
   {
+    translationKey: 'shop',
     label: 'Shop',
     value: 'SHOP',
   },
   {
+    translationKey: 'learn_more',
     label: 'Learn More',
     value: 'LEARN_MORE',
   },
   {
+    translationKey: 'sign_up',
     label: 'Sign Up',
     value: 'SIGN_UP',
   },
   {
+    translationKey: 'get_offer',
     label: 'Get Offer',
     value: 'GET_OFFER',
   },
   {
+    translationKey: 'call',
     label: 'Call',
     value: 'CALL',
   },
@@ -76,9 +87,9 @@ const GmbSettings: FC = () => {
           value: 'STANDARD',
         })}
       >
-        {topicTypes.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {topicTypes.map((item) => (
+          <option key={item.value} value={item.value}>
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>
@@ -89,9 +100,9 @@ const GmbSettings: FC = () => {
           value: 'NONE',
         })}
       >
-        {callToActionTypes.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {callToActionTypes.map((item) => (
+          <option key={item.value} value={item.value}>
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>

@@ -2,14 +2,16 @@ import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
 export const dynamic = 'force-dynamic';
 import { Register } from '@gitroom/frontend/components/auth/register';
 import { Metadata } from 'next';
-import { isGeneralServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 import Link from 'next/link';
 import { getT } from '@gitroom/react/translation/get.translation.service.backend';
 import { LoginWithOidc } from '@gitroom/frontend/components/auth/login.with.oidc';
-export const metadata: Metadata = {
-  title: `${isGeneralServerSide() ? 'Sharek' : 'Sharek'} Register`,
-  description: '',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('page_title_register', 'Sharek Register'),
+    description: '',
+  };
+}
 export default async function Auth(params: {searchParams: Promise<{provider: string}>}) {
   const t = await getT();
   if (process.env.DISABLE_REGISTRATION === 'true') {

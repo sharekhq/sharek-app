@@ -298,7 +298,7 @@ export const LinkedinPreview: FC<{
         <div className="flex flex-col leading-[16px]">
           <div className="text-[14px] font-[500]">{integration?.name}</div>
           <div className="text-[12px] font-[400] text-[#A3A3A3]">
-            2,871 followers
+            {t('2_871_followers', '2,871 followers')}
           </div>
           <div className="text-[12px] font-[400] text-[#A3A3A3] flex gap-[4px] items-center">
             <span>30m •</span>
@@ -451,7 +451,7 @@ export const LinkedinPreview: FC<{
                       <div className="text-[12px] font-[400]">{t('preview_linkedin_degree', '• 1st')}</div>
                     </div>
                     <div className="text-[12px] font-[400] text-textLinkedin">
-                      Founder
+                      {t('founder', 'Founder')}
                     </div>
                   </div>
                   <div

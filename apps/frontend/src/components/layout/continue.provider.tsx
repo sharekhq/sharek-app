@@ -8,6 +8,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { continueProviderList } from '@gitroom/frontend/components/new-launch/providers/continue-provider/list';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import i18next from 'i18next';
 export const Null: FC<{
   onSave: (data: any) => Promise<void>;
   existingId: string[];
@@ -123,9 +124,13 @@ const ContinueModal: FC<{
 }> = (props) => {
   const modals = useModals();
 
+  // i18next.t, not the hook: this effect runs once on mount, and naming t in its
+  // dependencies would re-run it — opening a second modal — every time the reader
+  // switches language. Read at call time it answers in the language in force when the
+  // modal opens.
   useEffect(() => {
     modals.openModal({
-      title: 'Configure Channel',
+      title: i18next.t('configure_channel', 'Configure Channel'),
       children: (close) => (
         <ModalContent
           {...props}

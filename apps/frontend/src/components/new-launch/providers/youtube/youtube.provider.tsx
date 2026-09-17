@@ -15,14 +15,17 @@ import { YoutubePreview } from '@gitroom/frontend/components/new-launch/provider
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 const type = [
   {
+    translationKey: 'public',
     label: 'Public',
     value: 'public',
   },
   {
+    translationKey: 'label_status_private',
     label: 'Private',
     value: 'private',
   },
   {
+    translationKey: 'unlisted',
     label: 'Unlisted',
     value: 'unlisted',
   },
@@ -30,10 +33,12 @@ const type = [
 
 const madeForKids = [
   {
+    translationKey: 'no',
     label: 'No',
     value: 'no',
   },
   {
+    translationKey: 'yes',
     label: 'Yes',
     value: 'yes',
   },
@@ -50,9 +55,9 @@ const YoutubeSettings: FC = () => {
           value: 'public',
         })}
       >
-        {type.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {type.map((item) => (
+          <option key={item.value} value={item.value}>
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>
@@ -62,9 +67,9 @@ const YoutubeSettings: FC = () => {
           value: 'no',
         })}
       >
-        {madeForKids.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {madeForKids.map((item) => (
+          <option key={item.value} value={item.value}>
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>
@@ -75,7 +80,10 @@ const YoutubeSettings: FC = () => {
           width={1280}
           height={720}
           label={t('label_thumbnail', 'Thumbnail')}
-          description="Thumbnail picture (optional)"
+          description={t(
+            'thumbnail_picture_optional',
+            'Thumbnail picture (optional)'
+          )}
           {...register('thumbnail')}
         />
       </div>

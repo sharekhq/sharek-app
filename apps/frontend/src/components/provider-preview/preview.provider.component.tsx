@@ -1,6 +1,7 @@
 'use client';
 import 'reflect-metadata';
 import { FC, MutableRefObject, useEffect, useMemo } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { Providers } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
@@ -64,9 +65,8 @@ export type ProviderPreviewProps = {
   controlRef?: MutableRefObject<ProviderPreviewHandle | null>;
 };
 
-const DEFAULT_INTEGRATION: MockIntegration = {
+const DEFAULT_INTEGRATION: Omit<MockIntegration, 'name'> = {
   id: 'preview',
-  name: 'Preview',
   identifier: '',
   picture: '',
   display: '',
@@ -120,6 +120,7 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
   posts,
   controlRef,
 }) => {
+  const t = useT();
   const meta = useMemo(() => {
     const entry = Providers.find((p) => p.identifier === provider);
     if (!entry) return null;
@@ -194,14 +195,15 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
     () => ({
       date: newDayjs(),
       integration: {
-        ...(DEFAULT_INTEGRATION as MockIntegration),
+        ...DEFAULT_INTEGRATION,
+        name: t('label_preview', 'Preview'),
         identifier: provider,
         ...integration,
       } as MockIntegration,
       allIntegrations: [],
       value: [],
     }),
-    [provider, integration],
+    [provider, integration, t],
   );
 
   if (!meta) {
@@ -212,7 +214,10 @@ export const ProviderPreviewComponent: FC<ProviderPreviewProps> = ({
   if (!SettingsComponent) {
     return (
       <div className="p-4 text-sm">
-        This provider has no configurable settings.
+        {t(
+          'this_provider_has_no_configurable_settings',
+          'This provider has no configurable settings.'
+        )}
       </div>
     );
   }
