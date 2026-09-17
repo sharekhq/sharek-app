@@ -1,5 +1,6 @@
 import { FC, ReactNode } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 import clsx from 'clsx';
 import { ExpandIcon, CollapseIcon } from '@gitroom/frontend/components/ui/icons';
 
@@ -19,14 +20,7 @@ export const TopTitle: FC<{
 
   // Translate the title using a key derived from the title itself
   // This creates a consistent key pattern for each title
-  const translatedTitle = t(
-    // Convert to lowercase, replace spaces with underscores
-    `top_title_${title
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^\w]/g, '')}`,
-    title
-  );
+  const translatedTitle = t(deriveTranslationKey('top_title', title), title);
 
   return (
     <div

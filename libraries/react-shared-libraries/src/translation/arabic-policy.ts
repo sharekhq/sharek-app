@@ -33,6 +33,72 @@ export const KEEP_LATIN_TOKENS = [
   '1080p',
 ] as const;
 
+// AI agents and editors the MCP and onboarding screens name. Product names like the
+// twelve above, and Latin for the same reason: nobody writes كلود كود.
+//
+// A separate list rather than more entries in KEEP_LATIN_PRODUCTS, because that array
+// is not a general keep-Latin list — C2 asserts it equals *exactly* the set of
+// platform_* labels whose Arabic is left in Latin, in both directions. Folding
+// fourteen agents into it would fail C2 on fourteen products that have no platform
+// label at all, and the only way to make it pass again would be to weaken the
+// assertion that catches a product silently left untranslated.
+//
+// The set is the union of the three lists the screens actually render:
+// remoteMcpClients and chatOnlyMcpClients keys and mcpClients in
+// public-api/public.component.tsx, and onboardingAgents in onboarding/onboarding.modal.tsx.
+// Research R12 named eleven of these; OpenClaw, NanoClaw and ChatGPT were read off the
+// code on 2026-09-17 and added, so the list matches what is on screen rather than what
+// planning remembered.
+export const KEEP_LATIN_AGENTS = [
+  'Amp',
+  'ChatGPT',
+  'Claude',
+  'Claude Code',
+  'Codex',
+  'Cursor',
+  'Gemini CLI',
+  'Grok Bot',
+  'Hermes',
+  'NanoClaw',
+  'OpenClaw',
+  'VS Code / Copilot',
+  'Warp',
+  'Windsurf',
+] as const;
+
+// The plugs concept, named once.
+//
+// The app called it three things in Arabic — إعلانات ("advertisements"), ملحقات and
+// التوصيل التلقائي — so the navigation entry and the empty state beside it did not
+// look like the same feature. sharek.app calls it الإضافات, and that settles it.
+//
+// Two of the three retire as terms below. إعلان cannot: seven keys use it correctly
+// for Announcement (add_announcement, create_announcement, delete_announcement and
+// friends), and a check that flags correct Arabic teaches the reader to ignore it. So
+// the third is caught by scope instead — C5 applies this rule only to keys whose
+// ENGLISH value names the concept, computed from en rather than listed here, so a
+// future plug_ key whose English says "plug" joins automatically while "Auto Repost
+// Posts" correctly does not.
+//
+// The word is المهام, decided 2026-09-17 after إضافات was drafted and rejected: إضاف is
+// this locale's verb for "add" in 86 values (إضافة قناة، إضافة عضو), so an إضافة cannot
+// be a thing that acts, and "إضافة تلقائية" is already shipped for the unrelated
+// auto_add. أتمتة was considered and reserved for a later feature.
+export const PLUG_CONCEPT = {
+  /** Matches the English value of a key that names the concept. */
+  english: /\bplugs?\b/i,
+  /**
+   * Matches the Arabic every such key must carry. A pattern rather than a stem,
+   * because مهمة and مهام share no contiguous substring — the alef sits where the
+   * second م would be — so `includes('مهم')` would pass the singular and fail every
+   * plural. It is also why a stem test would be wrong here on meaning: مهم on its own
+   * is the adjective "important".
+   */
+  arabic: /مهمة|مهام/,
+  /** Stems that mean this key is still on one of the three old names. */
+  forbidden: ['إعلان', 'ملحق', 'توصيل'],
+} as const;
+
 export interface RetiredTerm {
   /** The word the product stopped using, as it appears in an Arabic string. */
   term: string;
@@ -68,4 +134,17 @@ export const RETIRED_TERMS: readonly RetiredTerm[] = [
   // rather than the one R6 anticipated when it read the pair as a spelling choice.
   { term: 'إحصاءات', replacement: 'تحليلات', concept: 'analytics' },
   { term: 'إحصائيات', replacement: 'تحليلات', concept: 'analytics' },
+  //
+  // Plugs, the sixth concept, found by feature 029 on the deployed build: the
+  // navigation said إعلانات while the empty state under it said ملحقات and the modal
+  // title said التوصيل التلقائي. Two of the three retire here; the third is إعلان,
+  // which is correct Arabic for Announcement on seven other keys and so is handled by
+  // PLUG_CONCEPT's scoped rule above instead of by a global retirement.
+  //
+  // التوصيل التلقائي is two words, so C5 matches it as a phrase. The word-by-word
+  // matcher with its three-letter floor cannot see it: وصل — which R6 already found
+  // has no real uses and must not be retired — is the only single word in it that
+  // would match, and it would match الموصل too.
+  { term: 'ملحقات', replacement: 'مهام', concept: 'plugs' },
+  { term: 'التوصيل التلقائي', replacement: 'مهام', concept: 'plugs' },
 ];
