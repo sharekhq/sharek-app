@@ -70,7 +70,7 @@ export const FacebookSettings = () => {
 
       {postCurrentType !== 'story' && (
         <Input
-          label={'Embedded URL (only for text Post)'}
+          label={t('label_embedded_url', 'Embedded URL (only for text Post)')}
           {...register('url')}
         />
       )}

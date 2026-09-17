@@ -1,6 +1,7 @@
 'use client';
 
 import { withContinueProvider } from '../with-continue-provider';
+import i18next from 'i18next';
 
 interface TumblrBlogItem {
   id: string;
@@ -69,7 +70,7 @@ export const TumblrContinue = withContinueProvider<
           {item.followers.toLocaleString()} followers
         </div>
       )}
-      {item.primary && <div className="text-xs text-muted">Primary</div>}
+      {item.primary && <div className="text-xs text-muted">{i18next.t('label_primary', 'Primary')}</div>}
     </>
   ),
 });

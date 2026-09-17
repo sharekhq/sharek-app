@@ -167,7 +167,7 @@ const Info: FC<{
       <div>
         <Textarea
           className="bg-newBgColorInner"
-          label={'Feedback'}
+          label={t('label_feedback', 'Feedback')}
           name="feedback"
           disableForm={true}
           value={feedback}

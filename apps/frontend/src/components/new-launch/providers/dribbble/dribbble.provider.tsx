@@ -9,11 +9,13 @@ import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.v
 import { Input } from '@gitroom/react/form/input';
 import { DribbbleTeams } from '@gitroom/frontend/components/new-launch/providers/dribbble/dribbble.teams';
 import { DribbbleDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 const DribbbleSettings: FC = () => {
+  const t = useT();
   const { register, control } = useSettings();
   return (
     <div className="flex flex-col">
-      <Input label={'Title'} {...register('title')} />
+      <Input label={t('title', 'Title')} {...register('title')} />
       <DribbbleTeams {...register('team')} />
     </div>
   );

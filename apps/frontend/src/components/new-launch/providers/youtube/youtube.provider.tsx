@@ -12,6 +12,7 @@ import { MediumTags } from '@gitroom/frontend/components/new-launch/providers/me
 import { MediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { Select } from '@gitroom/react/form/select';
 import { YoutubePreview } from '@gitroom/frontend/components/new-launch/providers/youtube/youtube.preview';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 const type = [
   {
     label: 'Public',
@@ -38,6 +39,7 @@ const madeForKids = [
   },
 ];
 const YoutubeSettings: FC = () => {
+  const t = useT();
   const { register, control } = useSettings();
   return (
     <div className="flex flex-col">
@@ -66,13 +68,13 @@ const YoutubeSettings: FC = () => {
           </option>
         ))}
       </Select>
-      <MediumTags label="Tags" {...register('tags')} />
+      <MediumTags label={t('label_tags', 'Tags')} {...register('tags')} />
       <div className="mt-[20px]">
         <MediaComponent
           type="image"
           width={1280}
           height={720}
-          label="Thumbnail"
+          label={t('label_thumbnail', 'Thumbnail')}
           description="Thumbnail picture (optional)"
           {...register('thumbnail')}
         />

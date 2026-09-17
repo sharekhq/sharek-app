@@ -17,6 +17,7 @@ import { Button } from '@gitroom/react/form/button';
 import { useHotkeys } from 'react-hotkeys-hook';
 import clsx from 'clsx';
 import { EventEmitter } from 'events';
+import i18next from 'i18next';
 
 interface OpenModalInterface {
   title?: any;
@@ -480,7 +481,7 @@ export const DecisionModal: FC<{
 export const decisionModalEmitter = new EventEmitter();
 
 export const areYouSure = ({
-  title = 'Are you sure?',
+  title = i18next.t('are_you_sure', 'Are you sure?'),
   description = 'Are you sure you want to close this modal?' as any,
   approveLabel = 'Yes',
   cancelLabel = 'No',
@@ -508,7 +509,7 @@ export const useDecisionModal = () => {
   const modals = useModals();
   const open = useCallback(
     ({
-      title = 'Are you sure?',
+      title = i18next.t('are_you_sure', 'Are you sure?'),
       description = 'Are you sure you want to close this modal?' as any,
       onlyApprove = false,
       approveLabel = 'Yes',
