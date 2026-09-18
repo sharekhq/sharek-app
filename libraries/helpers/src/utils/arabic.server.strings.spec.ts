@@ -297,6 +297,12 @@ const distinct = (strings: ServerString[]) => {
   return byKey;
 };
 
+// Both this check and the other one that walks (arabic.server.strings.spec.ts) read the
+// SAME variable, and each writes the path it is given — so a run that sets it and lets
+// both execute leaves one file, the second one's. That is why every recorded command
+// passes a different filename per check (c3-candidates.json, server-candidates.json),
+// and why the report names the check that wrote it in its own `check` field. Set it for
+// one check at a time.
 const writeReport = (strings: ServerString[]) => {
   const out = process.env.ARABIC_AUDIT_OUT;
   if (!out) return;
@@ -366,5 +372,54 @@ describe('server-declared strings', () => {
       'preference',
       'validation',
     ]);
+  });
+});
+
+// Guards the guard, part two (T057).
+//
+// Every assertion above is a list that must be empty, so the walk finding nothing at
+// all reads exactly like the walk finding nothing wrong. "Finds declarations in every
+// family" covers the silence; these two cover the other way this check can be right
+// about the wrong thing.
+describe('the walk itself', () => {
+  const strings = collect();
+
+  // A family reduced to one declaration would still satisfy the set assertion above
+  // while having quietly stopped seeing the other six providers that declare it.
+  it.each([
+    ['custom-field', 8],
+    ['plug', 8],
+    ['post-settings-plug', 4],
+    ['preference', 2],
+    ['validation', 12],
+  ] as const)('%s: still finds at least %i declarations', (family, atLeast) => {
+    expect(
+      strings.filter((entry) => entry.family === family).length
+    ).toBeGreaterThanOrEqual(atLeast);
+  });
+
+  // Two different English strings deriving one key is the failure the derivation can
+  // produce on its own: `Invalid URL` and `Invalid url!` both become
+  // validation_invalid_url, so one of the two would silently render the other's
+  // Arabic and the missing-key assertion would stay green. The renderer cannot tell
+  // them apart either — it derives the same key from the string it was handed.
+  it('derives one key per distinct English', () => {
+    const collisions = [...distinct(strings).entries()]
+      .map(([key, entries]) => ({
+        key,
+        englishes: [...new Set(entries.map((entry) => entry.english))],
+      }))
+      .filter((row) => row.englishes.length > 1)
+      .map((row) => `${row.key}: ${row.englishes.map((e) => `"${e}"`).join(' vs ')}`);
+    expect(collisions).toEqual([]);
+  });
+
+  // And the collision test must be able to fail: two declarations of the same shape
+  // whose English differs only in punctuation derive one key, which is the whole
+  // reason the assertion above exists.
+  it('would report a collision if the tree held one', () => {
+    const key = (text: string) => deriveTranslationKey('validation', text);
+
+    expect(key('Invalid URL')).toBe(key('Invalid url!'));
   });
 });

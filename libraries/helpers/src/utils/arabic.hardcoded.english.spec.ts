@@ -177,6 +177,12 @@ const EXEMPT: readonly Exemption[] = [
       'Thrown, never rendered. None of the twenty-eight components that call useCustomProviderFunction catches it, so it reaches the root boundary, which renders <NextError statusCode={0} /> and never the message.',
   },
   {
+    file: 'components/launches/add.provider.component.tsx',
+    text: 'Extension not reachable',
+    reason:
+      "Thrown, never rendered — the sibling of 'Failed to fetch' above. The reject is caught by a bare `catch {}` that takes no binding, so the Error is discarded and the toast shows extension_not_installed, which is already translated. Found after the row was approved: the approval settled a wording, not whether a reader reaches it (FR-002), and a key nobody renders is one six locales would inherit for nothing.",
+  },
+  {
     file: 'components/post-url-selector/post.url.selector.tsx',
     text: '(post:{{id}})',
     reason:
@@ -888,6 +894,13 @@ const scan = () => {
 // The red run doubles as the survey: the same walk that fails the build writes the
 // candidate list the confirmation pass reads, so the two cannot disagree about what
 // was found.
+//
+// Both this check and the other one that walks (arabic.server.strings.spec.ts) read the
+// SAME variable, and each writes the path it is given — so a run that sets it and lets
+// both execute leaves one file, the second one's. That is why every recorded command
+// passes a different filename per check (c3-candidates.json, server-candidates.json),
+// and why the report names the check that wrote it in its own `check` field. Set it for
+// one check at a time.
 const writeReport = (result: ReturnType<typeof scan>) => {
   const out = process.env.ARABIC_AUDIT_OUT;
   if (!out) return;
@@ -963,5 +976,119 @@ describe('hard-coded English on Arabic screens', () => {
   // at the moment it stopped checking anything.
   it('actually walks the in-scope tree', () => {
     expect(scan().files.length).toBeGreaterThan(300);
+  });
+});
+
+// Guards the guard, part two: the shapes themselves (T056).
+//
+// The assertion above is a list that is empty, and an empty list is exactly what a
+// detector that stopped detecting produces. Everything else here — the reasons, the
+// stale entries, the file count — checks the bookkeeping around the walk rather than
+// the walk. These check the walk: one fixture per shape that got past the previous
+// regex detector and was found on screen instead, parsed in memory and asserted
+// reported.
+//
+// In memory rather than as files on disk, because a fixture file inside the walked
+// tree would fail the real assertion, and one outside it would not be walked at all.
+const shapesReportedIn = (source: string) =>
+  literalsIn(
+    'apps/frontend/src/components/fixture.tsx',
+    ts.createSourceFile(
+      'fixture.tsx',
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX
+    )
+  );
+
+// [what the shape is called, the source, the text the report must carry]
+const SHAPES: ReadonlyArray<readonly [string, string, string]> = [
+  [
+    'a text node mixing prose with an expression',
+    `export const C = () => <div>{t('ai', 'AI')} Image</div>;`,
+    // The t() call inside the phrase is already-translated text, so it reports as a
+    // placeholder named after its key rather than as its English.
+    '{{ai}} Image',
+  ],
+  [
+    'a string in a conditional arm',
+    `export const C = () => <Button>{data ? 'Edit Plug' : 'Set Plug'}</Button>;`,
+    'Set Plug',
+  ],
+  [
+    'an attribute carrying an apostrophe',
+    `export const C = () => <input placeholder="Who's replying to this post" />;`,
+    "Who's replying to this post",
+  ],
+  [
+    'an apostrophe inside a text node',
+    `export const C = () => <div>We don't have autocomplete for this social media</div>;`,
+    "We don't have autocomplete for this social media",
+  ],
+  [
+    'an option list',
+    `const delayOptions = [{ name: 'Immediately', value: 0 }];`,
+    'Immediately',
+  ],
+  [
+    'a message handed to a toast',
+    `const save = () => { toaster.show('Plug updated', 'success'); };`,
+    'Plug updated',
+  ],
+  [
+    'a title in an object literal',
+    `const open = () => modal.openModal({ title: 'Remove Social Account' });`,
+    'Remove Social Account',
+  ],
+  [
+    'a template literal',
+    `const notice = () => \`Downgrade on \${date}\`;`,
+    'Downgrade on {{date}}',
+  ],
+  [
+    'a browser-tab title',
+    `export const metadata = { title: 'Sharek Billing' };`,
+    'Sharek Billing',
+  ],
+];
+
+describe('the shapes the previous detector could not see', () => {
+  it.each(SHAPES)('reports %s', (_name, source, text) => {
+    expect(shapesReportedIn(source).map((literal) => literal.text)).toContain(
+      text
+    );
+  });
+
+  // The counterpart: the documented fix shape must not be reported, or every fix
+  // this feature applied would read as a new defect.
+  it('reports nothing once the same string goes through t()', () => {
+    expect(
+      shapesReportedIn(
+        `export const C = () => <div>{t('set_plug', 'Set Plug')}</div>;`
+      )
+    ).toEqual([]);
+  });
+
+  // A file the parser gave up on produces no nodes, so it reports no literals and
+  // the walk passes by finding nothing in it. Nothing else here would notice.
+  it('parses every in-scope file without a syntax error', () => {
+    const broken = inScope()
+      .map((file) => {
+        const full = path.join(REPO_ROOT, file);
+        const source = ts.createSourceFile(
+          full,
+          fs.readFileSync(full, 'utf8'),
+          ts.ScriptTarget.Latest,
+          true,
+          file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+        );
+        const diagnostics =
+          (source as unknown as { parseDiagnostics?: ts.Diagnostic[] })
+            .parseDiagnostics ?? [];
+        return diagnostics.length ? `${file}: ${diagnostics.length}` : '';
+      })
+      .filter(Boolean);
+    expect(broken).toEqual([]);
   });
 });

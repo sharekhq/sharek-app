@@ -524,6 +524,31 @@ textarea::placeholder {
   display: none !important;
 }
 
+/* The assistant window sits at z-index 30 in CopilotKit's own stylesheet, under
+   almost everything the compose modal paints — the channel-avatar row above all,
+   which covers it while it is open. 600 clears the editor's floating controls at
+   500 and stays under the toaster at 900, so a warning still reads over the chat.
+
+   Qualified with `body` rather than written flat because the vendor stylesheet is
+   imported after this file and an equal-specificity rule would lose the cascade on
+   load order alone. The ancestor is what wins it, so no !important is needed. */
+body .copilotKitPopup {
+  z-index: 600;
+}
+
+/* "Powered by CopilotKit" under the input. There is no prop for it — the widget
+   shows the tag whenever no CopilotKit Cloud key is configured, which is always
+   here — so the stylesheet is the only place to turn it off.
+
+   !important because the vendor sets display:block twice over: once in its own
+   stylesheet with !important, and again as an inline style on the <p>, which no
+   ordinary rule can outrank. The ancestor beats the vendor's !important on
+   specificity; the !important beats the inline style. Samy's chat renders its own
+   input component and never mounts this tag, so the popup is the whole scope. */
+body .copilotKitPopup .poweredBy {
+  display: none !important;
+}
+
 html[dir='rtl'] .rbox {
   direction: rtl !important;
 }

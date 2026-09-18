@@ -70,7 +70,8 @@ export const KEEP_LATIN_AGENTS = [
 //
 // The app called it three things in Arabic — إعلانات ("advertisements"), ملحقات and
 // التوصيل التلقائي — so the navigation entry and the empty state beside it did not
-// look like the same feature. sharek.app calls it الإضافات, and that settles it.
+// look like the same feature. sharek.app calls it الإضافات, which is where the
+// first draft came from and why the last paragraph here has to say what replaced it.
 //
 // Two of the three retire as terms below. إعلان cannot: seven keys use it correctly
 // for Announcement (add_announcement, create_announcement, delete_announcement and
@@ -97,6 +98,38 @@ export const PLUG_CONCEPT = {
   arabic: /مهمة|مهام/,
   /** Stems that mean this key is still on one of the three old names. */
   forbidden: ['إعلان', 'ملحق', 'توصيل'],
+  /**
+   * Keys whose English says "plug" as a VERB — what a task does to a post — rather
+   * than as the noun naming the feature. The regex above cannot tell the two apart,
+   * and all three render inside the plug modal or on its cards, where the title
+   * beside them already names the feature.
+   *
+   * The verb is إضافة on purpose, not by oversight: an auto-plug appends a message to
+   * a post, which is what إضافة says. It is also the other half of why the concept
+   * itself could not be إضافات — a thing that acts cannot be named after the act — so
+   * the two words divide the work between them: the feature is a مهمة, what it does
+   * is إضافة.
+   *
+   * C5 exempts these from the naming rule and from that rule only; what they must
+   * not say is still checked. An entry without a reason fails, and so does one
+   * naming a key whose English has stopped saying "plug".
+   */
+  verbUses: [
+    {
+      key: 'plug_auto_plug_post',
+      reason:
+        '"Auto plug post" — a card title on the plugs page saying what the task does, under a heading that names the feature',
+    },
+    {
+      key: 'placeholder_post_to_plug',
+      reason:
+        '"Post to plug" — a field placeholder in the plug modal, naming the post the task will append',
+    },
+    {
+      key: 'label_message_content_to_plug',
+      reason: '"Message content to plug" — the field description in the plug modal, naming the message the task will append',
+    },
+  ],
 } as const;
 
 export interface RetiredTerm {

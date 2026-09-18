@@ -167,13 +167,18 @@ describe('the plugs concept', () => {
     problem: string;
   }
 
+  // The keys whose English says "plug" as a verb are exempt from the naming rule and
+  // from that rule only: ملحق or توصيل inside a verb phrase is the same drift by
+  // another route, so what they must not say is still checked below.
+  const verbUse = new Set<string>(PLUG_CONCEPT.verbUses.map((use) => use.key));
+
   const misnamings = (): Misnaming[] =>
     namesTheConcept.flatMap(([key, english]) => {
       const arabic = typeof ar[key] === 'string' ? (ar[key] as string) : '';
       const wrong = PLUG_CONCEPT.forbidden.filter((stem) =>
         arabic.includes(stem)
       );
-      const problem = !PLUG_CONCEPT.arabic.test(arabic)
+      const problem = !verbUse.has(key) && !PLUG_CONCEPT.arabic.test(arabic)
         ? `does not name the concept ${PLUG_CONCEPT.arabic.source}`
         : wrong.length
         ? `still says ${wrong.join(', ')}`
@@ -185,6 +190,22 @@ describe('the plugs concept', () => {
 
   it('is named the same way everywhere it is named', () => {
     expect(misnamings()).toEqual([]);
+  });
+
+  // An exemption without a reason is a hole; one naming a key whose English has
+  // stopped saying "plug" is a hole nobody can see any more. The same two guards the
+  // vocalisation check puts on its style exceptions, for the same reason.
+  it('gives a reason for every verb use it exempts', () => {
+    const unreasoned = PLUG_CONCEPT.verbUses.filter((use) => !use.reason.trim());
+    expect(unreasoned).toEqual([]);
+  });
+
+  it('exempts no key whose English has stopped naming the concept', () => {
+    const named = new Set(namesTheConcept.map(([key]) => key));
+    const stale = PLUG_CONCEPT.verbUses
+      .filter((use) => !named.has(use.key))
+      .map((use) => use.key);
+    expect(stale).toEqual([]);
   });
 
   // Without this the assertion above passes by finding nothing to check — which is
