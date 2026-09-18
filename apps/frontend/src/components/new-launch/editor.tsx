@@ -33,6 +33,7 @@ import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
 import { useDropzone } from 'react-dropzone';
 import { useUppyUploader } from '@gitroom/frontend/components/media/new.uploader';
 import { Dashboard } from '@uppy/react';
+import { uploaderLocale } from '@gitroom/frontend/components/ui/uploader.locale';
 import Link from '@tiptap/extension-link';
 import {
   useEditor,
@@ -767,6 +768,8 @@ export const Editor: FC<{
                   hidePauseResumeButton={true}
                   hideCancelButton={true}
                   hideProgressAfterFinish={true}
+                  proudlyDisplayPoweredByUppy={false}
+                  locale={uploaderLocale(t)}
                 />
               </div>
             </div>

@@ -42,6 +42,7 @@ import {
 } from '@gitroom/frontend/components/layout/new-modal';
 import { ThirdPartyMediaLibrary } from '@gitroom/frontend/components/third-parties/third-party.media-library';
 import { Dashboard } from '@uppy/react';
+import { uploaderLocale } from '@gitroom/frontend/components/ui/uploader.locale';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -540,18 +541,6 @@ export const MediaBox: FC<{
         </div>
         <div className="w-full pointer-events-none relative mt-[5px] mb-[5px]">
           <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
-          {/* Uppy renders this bar's own text, in its own English, and takes
-              replacements on locale.strings — which the Dashboard forwards to the
-              status bar it mounts, so one object covers both (research R5). The set
-              is what this configuration can show: height 46, progress details on,
-              every button hidden.
-
-              The last three are Uppy's plural objects: it picks form 0 at one file
-              and form 1 above it. Arabic reads the same at every count, so both
-              forms ask for the same key; English differs, and i18next answers form 0
-              from <key>_one, which only en carries. A language with neither gets the
-              default passed here, Uppy's own English for that form, so nothing that
-              is English today stops being English. */}
             <Dashboard
               height={46}
               uppy={uppy}
@@ -563,49 +552,7 @@ export const MediaBox: FC<{
               hideCancelButton={true}
               hideProgressAfterFinish={true}
               proudlyDisplayPoweredByUppy={false}
-              locale={{
-                strings: {
-                  dropPasteFiles: t(
-                    'uploader_drop_paste_files',
-                    'Drop files here or %{browseFiles}'
-                  ),
-                  browseFiles: t('uploader_browse_files', 'browse files'),
-                  dropHint: t('uploader_drop_hint', 'Drop your files here'),
-                  uploading: t('uploader_uploading', 'Uploading'),
-                  complete: t('uploader_complete', 'Complete'),
-                  uploadFailed: t('uploader_upload_failed', 'Upload failed'),
-                  xTimeLeft: t('uploader_x_time_left', '%{time} left'),
-                  dataUploadedOfTotal: t(
-                    'uploader_data_uploaded_of_total',
-                    '%{complete} of %{total}'
-                  ),
-                  addMore: t('uploader_add_more', 'Add more'),
-                  uploadingXFiles: {
-                    0: t('uploader_uploading_x_files', 'Uploading %{smart_count} file', {
-                      count: 1,
-                    }),
-                    1: t('uploader_uploading_x_files', 'Uploading %{smart_count} files', {
-                      count: 2,
-                    }),
-                  },
-                  processingXFiles: {
-                    0: t('uploader_processing_x_files', 'Processing %{smart_count} file', {
-                      count: 1,
-                    }),
-                    1: t('uploader_processing_x_files', 'Processing %{smart_count} files', {
-                      count: 2,
-                    }),
-                  },
-                  xFilesSelected: {
-                    0: t('uploader_x_files_selected', '%{smart_count} file selected', {
-                      count: 1,
-                    }),
-                    1: t('uploader_x_files_selected', '%{smart_count} files selected', {
-                      count: 2,
-                    }),
-                  },
-                },
-              }}
+              locale={uploaderLocale(t)}
             />
           </div>
           <div className="w-full h-[46px] uppyChange" />

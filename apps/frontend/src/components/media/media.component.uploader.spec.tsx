@@ -102,6 +102,10 @@ jest.mock('@gitroom/frontend/components/layout/loading', () => ({
 jest.mock('next/dynamic', () => ({ __esModule: true, default: () => () => null }));
 
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import {
+  UPLOADER_STRINGS,
+  UPLOADER_COUNTED,
+} from '@gitroom/frontend/components/ui/uploader.locale';
 
 const locale = (lng: string) =>
   JSON.parse(
@@ -114,29 +118,17 @@ const locale = (lng: string) =>
     )
   );
 
-// Uppy's own names on the left, ours on the right. The set is the one research R5
-// established is reachable in this Dashboard's configuration — height 46, progress
-// details on, every button hidden.
-const PLAIN = {
-  dropPasteFiles: 'uploader_drop_paste_files',
-  browseFiles: 'uploader_browse_files',
-  dropHint: 'uploader_drop_hint',
-  uploading: 'uploader_uploading',
-  complete: 'uploader_complete',
-  uploadFailed: 'uploader_upload_failed',
-  xTimeLeft: 'uploader_x_time_left',
-  dataUploadedOfTotal: 'uploader_data_uploaded_of_total',
-  addMore: 'uploader_add_more',
-};
-
-// Uppy pluralises these three itself and expects a {0, 1} object, picking form 0 at
-// one file. Arabic uses one wording at every count (R5), so both forms resolve the
-// same key; English differs, and gets its singular from `<key>_one` in en.
-const COUNTED = {
-  uploadingXFiles: 'uploader_uploading_x_files',
-  processingXFiles: 'uploader_processing_x_files',
-  xFilesSelected: 'uploader_x_files_selected',
-};
+// The names on the left are Uppy's; the keys are read off the shared table rather
+// than repeated here, so this spec cannot drift from what the Dashboards are handed.
+// uploader.locale.spec.ts guards the other half — that every Dashboard is handed it —
+// which is the half that was missing when the compose modal's drop zone shipped in
+// English.
+const PLAIN = Object.fromEntries(
+  Object.entries(UPLOADER_STRINGS).map(([name, { key }]) => [name, key])
+);
+const COUNTED = Object.fromEntries(
+  Object.entries(UPLOADER_COUNTED).map(([name, form]) => [name, form.one.key])
+);
 
 const render = () => {
   capturedDashboard.length = 0;
