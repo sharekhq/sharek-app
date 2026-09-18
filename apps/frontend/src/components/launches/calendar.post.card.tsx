@@ -65,7 +65,13 @@ export const CalendarPostCard = forwardRef<
         <div
           className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
           data-tooltip-id="tooltip"
-          data-tooltip-content={post.error || 'An error occurred while publishing this post'}
+          data-tooltip-content={
+            post.error ||
+            t(
+              'an_error_occurred_while_publishing_this_post',
+              'An error occurred while publishing this post'
+            )
+          }
         >
           !
         </div>

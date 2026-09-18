@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import clsx from 'clsx';
+import i18next from 'i18next';
 
 type CreationMethod = 'UNKNOWN' | 'WEB' | 'API' | 'MCP' | 'AUTOPOST' | 'CLI';
 
@@ -11,7 +12,9 @@ interface Props {
 }
 
 const tooltipFor = (m: string) =>
-  m === 'AUTOPOST' ? 'Auto-posted by system' : `Created via ${m}`;
+  m === 'AUTOPOST'
+    ? i18next.t('auto_posted_by_system', 'Auto-posted by system')
+    : i18next.t('created_via', 'Created via {{m}}', { m });
 
 export const CreationMethodBadge: FC<Props> = ({
   creationMethod,

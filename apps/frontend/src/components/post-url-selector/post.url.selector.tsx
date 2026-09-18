@@ -133,7 +133,8 @@ export const PostSelector: FC<{
                   <div className="flex-1">
                     <TopTitle
                       title={
-                        'Select Post Before ' +
+                        t('select_post_before', 'Select Post Before') +
+                        ' ' +
                         date.format('DD/MM/YYYY HH:mm:ss')
                       }
                     />

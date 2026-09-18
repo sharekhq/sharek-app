@@ -6,17 +6,27 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Button } from '@gitroom/react/form/button';
 import { Slider } from '@gitroom/react/form/slider';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 
 export const Element: FC<{
-  setting: any;
+  // What a provider declares in additionalSettings, read back off the integration
+  // row as JSON. Typed rather than any because t() reads its second argument as an
+  // options object when it cannot tell it is a string, and then returns one.
+  setting: { title: string; description: string; value: any };
   onChange: (value: any) => void;
 }> = (props) => {
   const { setting, onChange } = props;
+  const t = useT();
   const [value, setValue] = useState(setting.value);
   return (
     <div className="flex flex-col gap-[10px]">
-      <div>{setting.title}</div>
-      <div className="text-[14px]">{setting.description}</div>
+      <div>{t(deriveTranslationKey('setting', setting.title), setting.title)}</div>
+      <div className="text-[14px]">
+        {t(
+          deriveTranslationKey('setting', setting.description),
+          setting.description
+        )}
+      </div>
       <Slider
         value={value === true ? 'on' : 'off'}
         onChange={() => {

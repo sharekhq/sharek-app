@@ -2,6 +2,7 @@
 
 import { FC, useEffect, useRef } from 'react';
 import DrawChart from 'chart.js/auto';
+import i18next from 'i18next';
 import {
   ForksList,
   StarsList,
@@ -54,7 +55,9 @@ export const Chart: FC<{
           {
             borderColor: '#fff',
             // @ts-ignore
-            label: list?.[0]?.totalForks ? 'Forks by date' : 'Stars by date',
+            label: list?.[0]?.totalForks
+              ? i18next.t('forks_by_date', 'Forks by date')
+              : i18next.t('stars_by_date', 'Stars by date'),
             backgroundColor: gradient,
             fill: true,
             // @ts-ignore

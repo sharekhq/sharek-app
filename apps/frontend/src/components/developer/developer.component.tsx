@@ -34,13 +34,17 @@ const CopyButton = ({
   text: string;
   label: string;
 }) => {
+  const t = useT();
   const toaster = useToaster();
   return (
     <button
       type="button"
       onClick={() => {
         copy(text);
-        toaster.show(`${label} copied to clipboard`, 'success');
+        toaster.show(
+          t('copied_to_clipboard', '{{label}} copied to clipboard', { label }),
+          'success'
+        );
       }}
       className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
     >
@@ -116,7 +120,13 @@ export const DeveloperComponent: FC = () => {
 
   const createApp = useCallback(async () => {
     if (!name || !redirectUrl) {
-      toaster.show('Name and Redirect URL are required', 'warning');
+      toaster.show(
+        t(
+          'name_and_redirect_url_are_required',
+          'Name and Redirect URL are required'
+        ),
+        'warning'
+      );
       return;
     }
     try {
@@ -135,7 +145,10 @@ export const DeveloperComponent: FC = () => {
       if (result.clientSecret) {
         setPlaintextSecret(result.clientSecret);
         toaster.show(
-          'App created! Copy your client secret now - it will only be shown once.',
+          t(
+            'app_created_copy_your_client_secret_now_it_will_only_be',
+            'App created! Copy your client secret now - it will only be shown once.'
+          ),
           'success'
         );
       }
@@ -144,9 +157,9 @@ export const DeveloperComponent: FC = () => {
     } catch (e) {
       // The limit modal has already explained it.
       if (isAlreadyAnswered(e)) return;
-      toaster.show('Failed to create app', 'warning');
+      toaster.show(t('failed_to_create_app', 'Failed to create app'), 'warning');
     }
-  }, [name, description, redirectUrl, pictureId]);
+  }, [name, description, redirectUrl, pictureId, t]);
 
   const updateApp = useCallback(async () => {
     try {
@@ -159,22 +172,24 @@ export const DeveloperComponent: FC = () => {
           pictureId,
         }),
       });
-      toaster.show('App updated', 'success');
+      toaster.show(t('app_updated', 'App updated'), 'success');
       setEditing(false);
       mutate();
     } catch (e) {
       if (isAlreadyAnswered(e)) return;
-      toaster.show('Failed to update app', 'warning');
+      toaster.show(t('failed_to_update_app', 'Failed to update app'), 'warning');
     }
-  }, [name, description, redirectUrl, pictureId]);
+  }, [name, description, redirectUrl, pictureId, t]);
 
   const rotateSecret = useCallback(async () => {
     const approved = await decision.open({
-      title: 'Rotate Client Secret?',
-      description:
-        'This will generate a new client secret and invalidate the current one. Any integrations using the old secret will stop working.',
-      approveLabel: 'Rotate',
-      cancelLabel: 'Cancel',
+      title: t('rotate_client_secret', 'Rotate Client Secret?'),
+      description: t(
+        'this_will_generate_a_new_client_secret_and_invalidate_the',
+        'This will generate a new client secret and invalidate the current one. Any integrations using the old secret will stop working.'
+      ),
+      approveLabel: t('rotate', 'Rotate'),
+      cancelLabel: t('billing_cancel', 'Cancel'),
     });
     if (!approved) return;
     try {
@@ -184,36 +199,44 @@ export const DeveloperComponent: FC = () => {
       if (result.clientSecret) {
         setPlaintextSecret(result.clientSecret);
         toaster.show(
-          'Secret rotated! Copy your new client secret now.',
+          t(
+            'secret_rotated_copy_your_new_client_secret_now',
+            'Secret rotated! Copy your new client secret now.'
+          ),
           'success'
         );
         mutate();
       }
     } catch (e) {
       if (isAlreadyAnswered(e)) return;
-      toaster.show('Failed to rotate secret', 'warning');
+      toaster.show(
+        t('failed_to_rotate_secret', 'Failed to rotate secret'),
+        'warning'
+      );
     }
-  }, [decision]);
+  }, [decision, t]);
 
   const deleteApp = useCallback(async () => {
     const approved = await decision.open({
-      title: 'Delete OAuth App?',
-      description:
-        'This will delete the OAuth application and revoke all user authorizations. This action cannot be undone.',
+      title: t('delete_oauth_app', 'Delete OAuth App?'),
+      description: t(
+        'this_will_delete_the_oauth_application_and_revoke_all_user',
+        'This will delete the OAuth application and revoke all user authorizations. This action cannot be undone.'
+      ),
       approveLabel: 'Delete',
-      cancelLabel: 'Cancel',
+      cancelLabel: t('billing_cancel', 'Cancel'),
     });
     if (!approved) return;
     try {
       await fetch('/user/oauth-app', { method: 'DELETE' });
-      toaster.show('OAuth app deleted', 'success');
+      toaster.show(t('oauth_app_deleted', 'OAuth app deleted'), 'success');
       setPlaintextSecret(null);
       mutate();
     } catch (e) {
       if (isAlreadyAnswered(e)) return;
-      toaster.show('Failed to delete app', 'warning');
+      toaster.show(t('failed_to_delete_app', 'Failed to delete app'), 'warning');
     }
-  }, [decision]);
+  }, [decision, t]);
 
   if (app === undefined) {
     return null;

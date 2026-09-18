@@ -25,6 +25,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Slider } from '@gitroom/react/form/slider';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/modal.wrapper.component';
 export function convertBackRegex(s: string) {
   const matches = s.match(/\/(.*)\/([a-z]*)/);
@@ -81,6 +82,7 @@ export const PlugPop: FC<{
   };
 }> = (props) => {
   const { plug, settings, data } = props;
+  const t = useT();
   const { closeAll } = useModals();
   const fetch = useFetch();
   const toaster = useToaster();
@@ -125,33 +127,42 @@ export const PlugPop: FC<{
         })),
       }),
     });
-    toaster.show('Plug updated', 'success');
+    toaster.show(t('plug_updated', 'Plug updated'), 'success');
     closeAll();
-  }, []);
-
-  const t = useT();
+  }, [t]);
 
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
         <div className="relative mx-auto">
-          <div className="my-[20px]">{plug.description}</div>
+          <div className="my-[20px]">
+            {t(
+              deriveTranslationKey('plug', plug.description),
+              plug.description
+            )}
+          </div>
           <div>
-            {plug.fields.map((field) => (
-              <div key={field.name}>
-                {field.type === 'richtext' ? (
-                  <TextArea name={field.name} placeHolder={field.placeholder} />
-                ) : (
-                  <Input
-                    name={field.name}
-                    label={field.description}
-                    className="w-full mt-[8px] p-[8px] border border-tableBorder rounded-md text-black"
-                    placeholder={field.placeholder}
-                    type={field.type}
-                  />
-                )}
-              </div>
-            ))}
+            {plug.fields.map((field) => {
+              const placeholder = t(
+                deriveTranslationKey('placeholder', field.placeholder),
+                field.placeholder
+              );
+              return (
+                <div key={field.name}>
+                  {field.type === 'richtext' ? (
+                    <TextArea name={field.name} placeHolder={placeholder} />
+                  ) : (
+                    <Input
+                      name={field.name}
+                      label={field.description}
+                      className="w-full mt-[8px] p-[8px] border border-tableBorder rounded-md text-black"
+                      placeholder={placeholder}
+                      type={field.type}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div className="mt-[20px]">
             <Button type="submit">{t('activate', 'Activate')}</Button>
@@ -174,6 +185,7 @@ export const PlugItem: FC<{
   };
 }> = (props) => {
   const { plug, addPlug, data } = props;
+  const t = useT();
   const [activated, setActivated] = useState(!!data?.activated);
   useEffect(() => {
     setActivated(!!data?.activated);
@@ -202,7 +214,9 @@ export const PlugItem: FC<{
     >
       <div key={plug.title} className="p-[20px] h-full flex flex-col flex-1 gap-[15px]">
         <div className="flex">
-          <div className="text-lg flex-1">{plug.title}</div>
+          <div className="text-lg flex-1">
+            {t(deriveTranslationKey('plug', plug.title), plug.title)}
+          </div>
           {!!data && (
             <div onClick={(e) => e.stopPropagation()}>
               <Slider
@@ -213,13 +227,18 @@ export const PlugItem: FC<{
             </div>
           )}
         </div>
-        <div className="flex-1">{plug.description}</div>
-        <Button variant="quiet">{!data ? 'Set Plug' : 'Edit Plug'}</Button>
+        <div className="flex-1">
+          {t(deriveTranslationKey('plug', plug.description), plug.description)}
+        </div>
+        <Button variant="quiet">
+          {!data ? t('set_plug', 'Set Plug') : t('edit_plug', 'Edit Plug')}
+        </Button>
       </div>
     </div>
   );
 };
 export const Plug = () => {
+  const t = useT();
   const plug = usePlugs();
   const modals = useModals();
   const fetch = useFetch();
@@ -243,7 +262,9 @@ export const Plug = () => {
             mutate();
           },
           size: '500px',
-          title: `Auto Plug: ${p.title}`,
+          title: t('top_title_auto_plug', 'Auto Plug: {{title}}', {
+            title: t(deriveTranslationKey('plug', p.title), p.title),
+          }),
           children: (
             <PlugPop
               plug={p}
@@ -257,7 +278,7 @@ export const Plug = () => {
           ),
         });
       },
-    [data]
+    [data, t]
   );
   if (isLoading) {
     return null;

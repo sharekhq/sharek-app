@@ -7,7 +7,14 @@ const request = jest.fn();
 let providers: Array<{ identifier: string; title: string }> = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (key: string, fallback: string) => fallback,
+  // The fallback with {{var}} filled in, because that is what t() renders. A mock that
+  // returned the raw default would have this spec assert a string no reader ever sees.
+  useT:
+    () =>
+    (key: string, fallback: string, params?: Record<string, unknown>) =>
+      fallback.replace(/{{(\w+)}}/g, (whole, name) =>
+        params && name in params ? String(params[name]) : whole
+      ),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),

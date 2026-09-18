@@ -9,11 +9,13 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { Input } from '@gitroom/react/form/input';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 export const CommentBox: FC<{
   value?: string;
   type: 'textarea' | 'input';
   onChange: (comment: string) => void;
 }> = (props) => {
+  const t = useT();
   const { value, onChange, type } = props;
   const Component = type === 'textarea' ? Textarea : Input;
   const [newComment, setNewComment] = useState(value || '');
@@ -41,7 +43,8 @@ export const CommentBox: FC<{
       <div className={clsx(type === 'input' && 'flex-1')}>
         <Component
           label={type === 'textarea' ? 'Add comment' : ''}
-          placeholder={type === 'input' ? 'Add comment' : ''}
+          translationKey="add_comment"
+          placeholder={type === 'input' ? t('add_comment', 'Add comment') : ''}
           name="comment"
           disableForm={true}
           value={newComment}
@@ -53,7 +56,7 @@ export const CommentBox: FC<{
         onClick={changeIt}
         className={clsx(type === 'input' && 'mb-[27px]')}
       >
-        {value ? 'Update' : 'Add comment'}
+        {value ? t('update', 'Update') : t('add_comment', 'Add comment')}
       </Button>
     </div>
   );
@@ -72,6 +75,7 @@ export const EditableCommentComponent: FC<{
   onEdit: (content: string) => void;
   onDelete: () => void;
 }> = (props) => {
+  const t = useT();
   const { comment, onEdit, onDelete } = props;
   const [commentContent, setCommentContent] = useState(comment.content);
   const [editMode, setEditMode] = useState(false);
@@ -86,13 +90,16 @@ export const EditableCommentComponent: FC<{
   const deleteCommentFunction = useCallback(async () => {
     if (
       await deleteDialog(
-        'Are you sure you want to delete this comment?',
-        'Yes, Delete'
+        t(
+          'are_you_sure_you_want_to_delete_this_comment',
+          'Are you sure you want to delete this comment?'
+        ),
+        t('yes_delete', 'Yes, delete')
       )
     ) {
       onDelete();
     }
-  }, []);
+  }, [t]);
   if (editMode) {
     return (
       <CommentBox
@@ -142,6 +149,7 @@ export const EditableCommentComponent: FC<{
 export const CommentComponent: FC<{
   date: dayjs.Dayjs;
 }> = (props) => {
+  const t = useT();
   const { date } = props;
   const { closeAll } = useModals();
   const [commentsList, setCommentsList] = useState<Comments[]>([]);
@@ -267,7 +275,16 @@ export const CommentComponent: FC<{
   }, []);
   return (
     <div className="relative flex gap-[20px] flex-col flex-1 rounded-[4px] border border-line bg-sixth p-[16px] pt-0">
-      <TopTitle title={`Comments for ${date.format('DD/MM/YYYY HH:mm')}`} />
+      <TopTitle
+        title={t('comments_for', 'Comments for {{value1}}', {
+        // escapeValue off for this one call: i18next escapes interpolated values by
+        // default, which turns the slashes of DD/MM/YYYY into &#x2F; — and the title
+        // renders as a text node, so the reader would see the entities themselves.
+        // React still escapes what it renders; this only stops the double pass.
+          value1: date.format('DD/MM/YYYY HH:mm'),
+          interpolation: { escapeValue: false },
+        })}
+      />
       <button
         onClick={closeAll}
         className="outline-none absolute end-[20px] top-[15px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa"

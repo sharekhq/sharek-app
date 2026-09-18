@@ -91,7 +91,9 @@ export const GeneralPreviewComponent: FC<{
             <div className="flex-1 flex flex-col gap-[4px]">
               <div className="flex">
                 <div className="h-[22px] text-[15px] font-[700]">
-                  {current === 'global' ? 'Global Edit' : integration?.name}
+                  {current === 'global'
+                    ? t('global_edit', 'Global Edit')
+                    : integration?.name}
                 </div>
                 <div className="text-[15px] text-info mt-[1px] ms-[2px]">
                   <svg
@@ -109,7 +111,7 @@ export const GeneralPreviewComponent: FC<{
                 <div className="text-[15px] font-[400] text-muted ms-[4px]">
                   {current === 'global'
                     ? ''
-                    : integration?.display || '@username'}
+                    : integration?.display || t('username', '@username')}
                 </div>
               </div>
               <div

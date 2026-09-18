@@ -29,6 +29,14 @@ jest.mock('next/navigation', () => ({ useParams: () => ({ id: 'new' }) }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => fallback,
 }));
+// new-modal's confirmation reads its labels from i18next at call time, because they are
+// parameter defaults and cannot hold a hook. Nothing initialises i18next in this
+// environment, and an uninitialised t() returns nothing, so the dialog would render with
+// no buttons to approve.
+jest.mock('i18next', () => ({
+  __esModule: true,
+  default: { t: (key: string, fallback: string) => fallback },
+}));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({
     json: async () => ({ integrations: [{ id: 'ig-1', name: 'Instagram' }] }),

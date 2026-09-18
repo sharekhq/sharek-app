@@ -12,37 +12,46 @@ import { Textarea } from '@gitroom/react/form/textarea';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 const delayOptions = [
   {
     name: 'Immediately',
+    translationKey: 'immediately',
     value: 0,
   },
   {
     name: '1 hour',
+    translationKey: '1_hour',
     value: 3600000,
   },
   {
     name: '2 hours',
+    translationKey: '2_hours',
     value: 7200000,
   },
   {
     name: '3 hours',
+    translationKey: '3_hours',
     value: 10800000,
   },
   {
     name: '8 hours',
+    translationKey: '8_hours',
     value: 28800000,
   },
   {
     name: '12 hours',
+    translationKey: '12_hours',
     value: 43200000,
   },
   {
     name: '15 hours',
+    translationKey: '15_hours',
     value: 54000000,
   },
   {
     name: '24 hours',
+    translationKey: '24_hours',
     value: 86400000,
   },
 ];
@@ -80,14 +89,19 @@ const PlugField: FC<{
     validation?: RegExp;
   };
 }> = ({ plugIdentifier, field }) => {
+  const t = useT();
   const fieldName = `plug--${plugIdentifier}--${field.name}`;
+  const placeholder = t(
+    deriveTranslationKey('placeholder', field.placeholder),
+    field.placeholder
+  );
 
   if (field.type === 'textarea') {
     return (
       <Textarea
         label={field.description}
         name={fieldName}
-        placeholder={field.placeholder}
+        placeholder={placeholder}
       />
     );
   }
@@ -96,7 +110,7 @@ const PlugField: FC<{
     <Input
       label={field.description}
       name={fieldName}
-      placeholder={field.placeholder}
+      placeholder={placeholder}
     />
   );
 };
@@ -151,7 +165,9 @@ const Plug: FC<{
       className="flex flex-col gap-[10px] border-tableBorder border p-[15px] rounded-lg"
     >
       <div className="flex items-center">
-        <div className="flex-1">{plug.title}</div>
+        <div className="flex-1">
+          {t(deriveTranslationKey('plug', plug.title), plug.title)}
+        </div>
         <div>
           <Slider
             value={active ? 'on' : 'off'}
@@ -164,7 +180,7 @@ const Plug: FC<{
       </div>
       <div className="w-full max-w-[600px] overflow-y-auto pb-[10px] text-[12px] flex flex-col gap-[10px]">
         {!allowedIntegrations.length ? (
-          'No available accounts'
+          t('no_available_accounts', 'No available accounts')
         ) : (
           <div
             className={clsx(
@@ -172,7 +188,12 @@ const Plug: FC<{
               !active && 'opacity-25 pointer-events-none'
             )}
           >
-            <div>{plug.description}</div>
+            <div>
+              {t(
+                deriveTranslationKey('plug', plug.description),
+                plug.description
+              )}
+            </div>
             <Select
               label="Delay"
               hideErrors={true}
@@ -180,7 +201,7 @@ const Plug: FC<{
             >
               {delayOptions.map((p) => (
                 <option key={p.name} value={p.value}>
-                  {p.name}
+                  {t(p.translationKey, p.name)}
                 </option>
               ))}
             </Select>

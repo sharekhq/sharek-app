@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useT } from './get.transation.service.client';
+import { deriveTranslationKey } from './derive-key';
 
 interface TranslatedLabelProps {
   label: string;
@@ -25,9 +26,7 @@ export function TranslatedLabel({
   const t = useT();
 
   // If no explicit key is provided, create one from the label
-  const key =
-    translationKey ||
-    `label_${label.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '')}`;
+  const key = translationKey || deriveTranslationKey('label', label);
 
   const translatedLabel = t(key, label, translationParams);
 

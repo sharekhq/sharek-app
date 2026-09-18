@@ -12,6 +12,8 @@ import React, {
 import { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
+import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
@@ -350,7 +352,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             if (item.valid === false) {
               toaster.show(
                 `${platformLabel(item.identifier)} (${item.name}): ${
-                  item.settingsError ||
+                  (item.settingsError &&
+                    t(
+                      deriveTranslationKey('validation', item.settingsError),
+                      item.settingsError
+                    )) ||
                   t('please_fix_your_settings', 'Please fix your settings')
                 }`,
                 'warning'
@@ -363,9 +369,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
             if (item.errors !== true) {
               toaster.show(
-                `${platformLabel(item.identifier)} (${item.name}): ${
+                `${platformLabel(item.identifier)} (${item.name}): ${t(
+                  deriveTranslationKey('validation', item.errors),
                   item.errors
-                }`,
+                )}`,
                 'warning'
               );
               focus(item.id, 'preview');
@@ -750,7 +757,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 }
                 onClick={schedule('draft')}
               >
-                Save Set
+                {t('save_set', 'Save Set')}
               </button>
             )}
             {!addEditSets && (
@@ -841,6 +848,9 @@ Post content can be added using the addPostContentFor{num} function.
 After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} function.
 `}
         labels={{
+          // The eight the window renders that CopilotKit would otherwise fill from
+          // its own English. First, so this surface's own two below always win.
+          ...assistantLabels(t),
           title: t('your_assistant', 'Your Assistant'),
           initial: t(
             'assistant_initial_message',

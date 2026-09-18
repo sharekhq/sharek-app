@@ -135,7 +135,7 @@ export const DelayComponent: FC<{
                 }}
                 className="h-[32px] px-[10px] rounded-[4px] bg-quiet border border-line text-ink text-[12px] font-[600] hover:bg-surface2"
               >
-                Set
+                {t('set', 'Set')}
               </button>
             </div>
           </div>
@@ -144,7 +144,7 @@ export const DelayComponent: FC<{
               onClick={() => handleSelectDelay(0)}
               className="mt-[8px] h-[32px] w-full rounded-[4px] text-[13px] text-error hover:opacity-80"
             >
-              Remove delay
+              {t('remove_delay', 'Remove delay')}
             </button>
           )}
         </div>

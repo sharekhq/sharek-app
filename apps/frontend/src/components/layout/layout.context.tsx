@@ -6,6 +6,7 @@ import { SWRConfig } from 'swr';
 import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import i18next from 'i18next';
 import {
   LimitModalInput,
   showLimitReachedModal,
@@ -124,11 +125,20 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
       if (response.status === 406) {
         if (
+          // i18next.t, not the hook: afterRequest is memoised with an empty
+          // dependency list, so a `t` captured at mount would keep answering in
+          // the language the session started in. This reads the language in
+          // force when the refusal actually arrives.
           await deleteDialog(
-            'You are currently on trial, in order to use the feature you must finish the trial',
-            'Finish the trial, charge me now',
-            'Trial',
-
+            i18next.t(
+              'you_are_currently_on_trial_in_order_to_use_the_feature_you',
+              'You are currently on trial, in order to use the feature you must finish the trial'
+            ),
+            i18next.t(
+              'finish_the_trial_charge_me_now',
+              'Finish the trial, charge me now'
+            ),
+            i18next.t('trial', 'Trial')
           )
         ) {
           window.open('/billing?finishTrial=true', '_blank');

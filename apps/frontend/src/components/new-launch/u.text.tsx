@@ -1,6 +1,7 @@
 'use client';
 
 import { FC, useCallback } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 const underlineMap = {
@@ -74,6 +75,7 @@ export const UText: FC<{
   editor: any;
   currentValue: string;
 }> = ({ editor }) => {
+  const t = useT();
   const mark = () => {
     editor?.commands?.unsetBold();
     editor?.commands?.toggleUnderline();
@@ -82,7 +84,7 @@ export const UText: FC<{
   return (
     <div
       data-tooltip-id="tooltip"
-      data-tooltip-content="Underline"
+      data-tooltip-content={t('underline', 'Underline')}
       onClick={mark}
       className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-surface border border-line flex justify-center items-center"
     >

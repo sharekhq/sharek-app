@@ -9,13 +9,16 @@ import { TwitchDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settin
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { Select } from '@gitroom/react/form/select';
 import { useWatch } from 'react-hook-form';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const messageTypes = [
   {
+    translationKey: 'chat_message',
     label: 'Chat Message',
     value: 'message',
   },
   {
+    translationKey: 'announcement',
     label: 'Announcement',
     value: 'announcement',
   },
@@ -23,28 +26,34 @@ const messageTypes = [
 
 const announcementColors = [
   {
+    translationKey: 'primary_default',
     label: 'Primary (Default)',
     value: 'primary',
   },
   {
+    translationKey: 'blue',
     label: 'Blue',
     value: 'blue',
   },
   {
+    translationKey: 'green',
     label: 'Green',
     value: 'green',
   },
   {
+    translationKey: 'orange',
     label: 'Orange',
     value: 'orange',
   },
   {
+    translationKey: 'purple',
     label: 'Purple',
     value: 'purple',
   },
 ];
 
 const TwitchSettings: FC = () => {
+  const t = useT();
   const { register, control } = useSettings();
   const messageType = useWatch({
     control,
@@ -59,9 +68,9 @@ const TwitchSettings: FC = () => {
           value: 'message',
         })}
       >
-        {messageTypes.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
+        {messageTypes.map((item) => (
+          <option key={item.value} value={item.value}>
+            {t(item.translationKey, item.label)}
           </option>
         ))}
       </Select>
@@ -72,9 +81,9 @@ const TwitchSettings: FC = () => {
             value: 'primary',
           })}
         >
-          {announcementColors.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
+          {announcementColors.map((item) => (
+            <option key={item.value} value={item.value}>
+              {t(item.translationKey, item.label)}
             </option>
           ))}
         </Select>

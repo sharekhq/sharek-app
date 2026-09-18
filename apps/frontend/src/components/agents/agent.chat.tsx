@@ -48,6 +48,7 @@ import dayjs from 'dayjs';
 import i18next from 'i18next';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 
 export const AgentChat: FC = () => {
@@ -85,6 +86,10 @@ export const AgentChat: FC = () => {
           <CopilotChat
             className="w-full h-full"
             labels={{
+              // The eight shared controls. First, so Samy's own two below always
+              // win. Its custom input reads labels.placeholder, so a missing one is
+              // English in the field the user types into.
+              ...assistantLabels(t),
               title: t('samy', 'Samy'),
               initial: t(
                 'samy_welcome_message',

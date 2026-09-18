@@ -31,7 +31,7 @@ const DevtoSettings: FC = () => {
       />
       <MediaComponent
         label={t('label_cover_picture', 'Cover picture')}
-        description="Add a cover picture"
+        description={t('add_a_cover_picture', 'Add a cover picture')}
         {...form.register('main_image')}
       />
       <div className="mt-[20px]">

@@ -20,10 +20,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const roles = [
   {
+    translationKey: 'user',
     name: 'User',
     value: 'USER',
   },
   {
+    translationKey: 'admin',
     name: 'Admin',
     value: 'ADMIN',
   },
@@ -85,7 +87,7 @@ export const AddMember = () => {
             <option value="">{t('select_role', 'Select Role')}</option>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
-                {role.name}
+                {t(role.translationKey, role.name)}
               </option>
             ))}
           </Select>

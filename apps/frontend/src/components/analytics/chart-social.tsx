@@ -2,6 +2,7 @@
 
 import { FC, useEffect, useMemo, useRef } from 'react';
 import DrawChart from 'chart.js/auto';
+import i18next from 'i18next';
 import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
 import { chunk } from 'lodash';
 import useCookie from 'react-use-cookie';
@@ -193,7 +194,7 @@ export const ChartSocial: FC<{
           {
             borderColor: colors.border,
             borderWidth: 2,
-            label: 'Total',
+            label: i18next.t('total', 'Total'),
             backgroundColor: gradient,
             fill: true,
             data: list.map((row) => row.total),
