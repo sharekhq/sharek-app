@@ -149,12 +149,25 @@ beforeEach(() => {
 });
 
 describe('the media strip', () => {
-  it('wraps rather than scrolling on a narrow viewport', async () => {
+  // This assertion was the opposite way round for one deployment, and the
+  // deployment is what corrected it. Branch 138 made the row wrap, on the
+  // theory that a 190px floor on the editor box removed the compression spec
+  // 017 hit. Measured live at commit 9239003a: the strip rendered 195px tall
+  // holding 324px of content and painted 130px below its own box, covering
+  // "Add comment / post" entirely — at 1280 with an ordinary mouse, not only
+  // on a phone. Mutating this single class back to `nowrap` in the live DOM
+  // took the overflow to zero at every width.
+  //
+  // jsdom computes no layout, so nothing here can see that. What this can do
+  // is hold the class list that the measurement settled on, so the wrap is
+  // not reintroduced by someone reading the strip's markup and thinking a
+  // scroller looks like an oversight. It is not: it is the accepted cost.
+  it('scrolls rather than wrapping, so a second row cannot paint over the control below', async () => {
     const host = await render();
 
-    expect(strip(host).className).toContain('flex-wrap');
-    expect(strip(host).className).not.toContain('mobile:overflow-x-auto');
-    expect(strip(host).className).not.toContain('mobile:flex-nowrap');
+    expect(strip(host).className).not.toContain('flex-wrap');
+    expect(strip(host).className).toContain('mobile:overflow-x-auto');
+    expect(strip(host).className).toContain('mobile:flex-nowrap');
   });
 
   it('shows its labels by default', async () => {
