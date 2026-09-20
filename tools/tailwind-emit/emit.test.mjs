@@ -572,6 +572,13 @@ const UI_POLISH_FORMS = [
     prop: 'flex-direction',
     value: 'column-reverse',
   },
+  {
+    // Delete Post takes a full row of its own, the way tag and repeat do.
+    className: 'mobile:basis-full',
+    atRule: '(max-width: 1025px)',
+    prop: 'flex-basis',
+    value: '100%',
+  },
 ];
 
 test('138: every class form the UI-polish batch introduces emits CSS', async () => {
@@ -590,4 +597,17 @@ test('138: every class form the UI-polish batch introduces emits CSS', async () 
       `${form.className} did not emit ${form.prop}: ${form.value} inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
     );
   }
+});
+
+test('138: the wrapper variant reaches the control inside it', async () => {
+  // `[&>*]` emits a child combinator on the selector rather than a media-query
+  // wrapper alone, so UI_POLISH_FORMS' "matched by class" shape cannot see it.
+  // The claim is the same: the variant emitted something, and what it emitted
+  // centres the child. The date picker is reached through its wrapper, so its
+  // alignment is an arbitrary variant carrying an important flag — three
+  // things that each drop silently, in one class.
+  const css = await emit(['mobile:[&>*]:!justify-center']);
+
+  assert.match(css, /@media \(max-width: 1025px\)/);
+  assert.match(css, /justify-content: center !important/);
 });

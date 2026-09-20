@@ -720,7 +720,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
+                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600] mobile:basis-full mobile:justify-center"
               >
                 <div>
                   <TrashIcon />
@@ -730,9 +730,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             )}
             {/* Tag and repeat are a control inside a wrapper; the date
                 picker *is* the control, one level shallower — so without this
-                wrapper no single rule can size or align all three, and the
-                picker's own justify-center strands its text at the far edge. */}
-            <div className="mobile:basis-full mobile:[&>*]:!justify-start mobile:[&>*]:!ml-0">
+                wrapper no single rule can size or align all three. Centred to
+                match the two above it, which centre themselves. */}
+            <div className="mobile:basis-full mobile:[&>*]:!justify-center mobile:[&>*]:!ml-0">
               <DatePicker onChange={setDate} date={date} />
             </div>
             {!addEditSets && (

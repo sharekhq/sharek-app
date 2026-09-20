@@ -159,3 +159,56 @@ describe('the channels row', () => {
     expect(first.querySelector('[data-picks]')).toBeTruthy();
   });
 });
+
+// Below 1025 the footer wraps and every control takes a row of its own. Tags
+// and Repeat centre their own contents, so two of the four rows read centred
+// and two did not: the date picker's wrapper overrode it to justify-start, and
+// Delete Post had no width or alignment rule at all (2026-09-20 screenshot).
+describe('the footer once it wraps', () => {
+  beforeEach(() => {
+    // Delete Post only renders while editing a post that already exists.
+    existing = { integration: 'int-1', posts: [{ state: 'QUEUE' }] };
+  });
+
+  const dateWrapper = (host: HTMLElement) =>
+    host.querySelector('[data-date]')!.parentElement!;
+
+  const deleteButton = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('button')).find((node) =>
+      (node.textContent || '').includes('Delete Post')
+    )!;
+
+  it('centres the date the way tag and repeat are centred', async () => {
+    const host = await render();
+
+    expect(dateWrapper(host).className).toContain(
+      'mobile:[&>*]:!justify-center'
+    );
+    expect(dateWrapper(host).className).not.toContain(
+      'mobile:[&>*]:!justify-start'
+    );
+  });
+
+  // Already true before this change, and it must stay true: the date is the
+  // one footer control whose row-width comes from its wrapper.
+  it('gives the date a row of its own', async () => {
+    const host = await render();
+
+    expect(dateWrapper(host).className).toContain('mobile:basis-full');
+  });
+
+  it('centres Delete Post on a row of its own', async () => {
+    const host = await render();
+
+    expect(deleteButton(host).className).toContain('mobile:basis-full');
+    expect(deleteButton(host).className).toContain('mobile:justify-center');
+  });
+
+  // The 44px floor is what makes Delete Post reachable with a thumb; centring
+  // it must not have been achieved by rewriting the class list around it.
+  it('keeps Delete Post at the touch floor', async () => {
+    const host = await render();
+
+    expect(deleteButton(host).className).toContain('coarse:min-h-[44px]');
+  });
+});
