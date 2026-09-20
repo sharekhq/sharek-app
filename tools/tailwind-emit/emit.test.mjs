@@ -563,6 +563,15 @@ const UI_POLISH_FORMS = [
     prop: 'grid-template-columns',
     value: 'minmax(0,900px) minmax(280px,340px)',
   },
+  {
+    // The channels row and the customer control swap places only once they
+    // stack. A direction utility behind a raw screen variant is exactly the
+    // pairing that emits nothing if the screen was renamed.
+    className: 'mobile:flex-col-reverse',
+    atRule: '(max-width: 1025px)',
+    prop: 'flex-direction',
+    value: 'column-reverse',
+  },
 ];
 
 test('138: every class form the UI-polish batch introduces emits CSS', async () => {

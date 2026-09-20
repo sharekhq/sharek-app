@@ -578,8 +578,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 >
                   {/* A flex-1 channel picker beside a shrink-to-fit customer
                       control: at 390 that squeezes the picker against something
-                      unrelated to it, so the two stack. */}
-                  <div className="flex w-full mobile:flex-col mobile:gap-[12px]">
+                      unrelated to it, so the two stack. Reversed, because
+                      picking a customer filters which channels are worth
+                      choosing and the control belongs above the list it
+                      governs — visual order only; the picker stays first in
+                      the document, so tab order and reading order do not move. */}
+                  <div className="flex w-full mobile:flex-col-reverse mobile:gap-[12px]">
                     <div className="flex flex-1 mobile:min-w-0">
                       <PicksSocialsComponent toolTip={true} />
                     </div>
