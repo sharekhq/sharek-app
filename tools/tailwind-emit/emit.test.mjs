@@ -547,3 +547,38 @@ test('132: the FAQ reveal is emitted after the base utility it has to beat', asy
     `the mobile: reveal must follow the base hidden, got ${JSON.stringify(order)}`
   );
 });
+
+// 138. The UI-polish batch. Same contract as the arrays above, for the forms it
+// introduces: each one is a variant or an arbitrary value that emits nothing at
+// all when it is wrong, and every one of them carries a layout decision that
+// would simply not happen rather than fail.
+const UI_POLISH_FORMS = [
+  {
+    // Support's two-track grid. An arbitrary value carrying both commas and
+    // underscores is the form most likely to be dropped silently — underscores
+    // become spaces, commas have to survive un-escaped, and if Tailwind cannot
+    // parse it the page simply renders one column with no warning anywhere.
+    className: 'grid-cols-[minmax(0,900px)_minmax(280px,340px)]',
+    atRule: null,
+    prop: 'grid-template-columns',
+    value: 'minmax(0,900px) minmax(280px,340px)',
+  },
+];
+
+test('138: every class form the UI-polish batch introduces emits CSS', async () => {
+  const css = await emit(UI_POLISH_FORMS.map((f) => f.className));
+
+  for (const form of UI_POLISH_FORMS) {
+    const decls = emitted(css, form.className);
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some((d) => d.atRule === form.atRule && d.prop === form.prop && d.value === form.value),
+      `${form.className} did not emit ${form.prop}: ${form.value} inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+});

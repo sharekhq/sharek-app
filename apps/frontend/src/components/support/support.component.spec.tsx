@@ -578,3 +578,39 @@ describe('the build identifier it attaches', () => {
     expect((await bodyOf(sha)).appVersion).toBe(sha);
   });
 });
+
+// The page is dropped into `flex flex-1` by the shell, so whatever it does not
+// claim shows as the shell's grey beside it. Billing and analytics claim the
+// whole row; Support capped its content at 1068px and left the rest empty on
+// any window wider than that (2026-09-20 screenshot, 1920 wide).
+//
+// The measure that matters is the *form track*, so that is what is asserted —
+// not the absence of a cap, which a later `max-w-[1200px]` would satisfy while
+// putting the whitespace straight back.
+describe('the columns fill the pane', () => {
+  const columns = (host: HTMLElement) => host.querySelector('.grid')!.className;
+
+  it('gives the form a track that grows to 900px', async () => {
+    const host = await render();
+
+    expect(columns(host)).toContain(
+      'grid-cols-[minmax(0,900px)_minmax(280px,340px)]'
+    );
+  });
+
+  it('caps nothing at the old 1068px measure', async () => {
+    const host = await render();
+
+    expect(columns(host)).not.toContain('max-w-[1068px]');
+  });
+
+  // The narrow arrangement is a separate decision with its own test above, and
+  // this change must not disturb it: one column, and the aside still caps at
+  // the form's old measure so it does not run edge to edge on a phone.
+  it('leaves the narrow arrangement alone', async () => {
+    const host = await render();
+
+    expect(columns(host)).toContain('mobile:grid-cols-1');
+    expect(columns(host)).toContain('mobile:max-w-[680px]');
+  });
+});

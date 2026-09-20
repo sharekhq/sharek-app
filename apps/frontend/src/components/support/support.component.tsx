@@ -33,14 +33,15 @@ const Page = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Started at the same edge as the page title, the way every sibling page lays
-// out; what fills the rest of the row is the aside rather than centring. The
-// form keeps a measure it reads at, and the aside takes the width left over.
-// The form track shrinks before the pair stacks, so two columns still fit a
-// 1100px window; below 1025 they stack and the aside leads, because what it
-// holds — where the reply lands, what the enquiry carries — is meant to be read
-// before sending, not under the button.
+// out. The form track is fluid to 900px and the aside keeps its own band, so
+// the pair takes the pane rather than stopping at a measure and leaving the
+// shell's colour beside it — billing and analytics claim the whole row and this
+// page now does too. The form track shrinks before the pair stacks, so two
+// columns still fit a 1100px window; below 1025 they stack and the aside leads,
+// because what it holds — where the reply lands, what the enquiry carries — is
+// meant to be read before sending, not under the button.
 const Columns = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full max-w-[1068px] grid grid-cols-[minmax(0,680px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
+  <div className="w-full grid grid-cols-[minmax(0,900px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
     {children}
   </div>
 );
