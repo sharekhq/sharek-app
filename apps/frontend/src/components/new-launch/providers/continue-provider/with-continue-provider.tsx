@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { Button } from '@gitroom/react/form/button';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useCustomProviderFunction } from '@gitroom/frontend/components/launches/helpers/use.custom.provider.function';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 
 const SWR_OPTIONS = {
   refreshWhenHidden: false,
@@ -131,11 +132,24 @@ export function withContinueProvider<TItem, TSelection>(
             <div
               key={getItemId(item)}
               className={clsx(
-                'flex flex-col w-full text-center gap-[10px] border border-input p-[10px] hover:bg-brand rounded-[8px]',
-                isSelected(item, selection) && 'bg-brand border-primary'
+                'relative flex flex-col w-full text-center gap-[10px] border border-line p-[10px] hover:bg-surface2 rounded-[8px]',
+                // Grey rather than the solid brand: this card sits above the
+                // Save button, and two solid pomegranates in one dialog made
+                // the card read as the action. The tick is what selection rests
+                // on once the fill stops shouting.
+                isSelected(item, selection) && 'bg-surface2 border-brand'
               )}
               onClick={handleSelect(item)}
             >
+              {isSelected(item, selection) && (
+                <span
+                  data-selected-mark
+                  aria-hidden="true"
+                  className="absolute top-[6px] end-[6px] w-[20px] h-[20px] rounded-full bg-brand text-white flex items-center justify-center"
+                >
+                  <CheckmarkIcon width={11} height={8} />
+                </span>
+              )}
               {renderItem(item, isSelected(item, selection))}
             </div>
           ))}
