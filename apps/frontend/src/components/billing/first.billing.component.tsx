@@ -174,14 +174,14 @@ export const FirstBillingComponent = () => {
         </div>
 
         {!!user?.allowTrial && (
-          <div className="flex mt-[32px] mb-[10px] gap-[15px] mobile:mt-[32px] mobile:mb-[32px] text-[16px] font-[500] mobile:flex-col">
+          <div className="flex flex-col mt-[32px] mb-[10px] gap-[12px] mobile:mt-[32px] mobile:mb-[32px] text-[16px] font-[500]">
             <div className="flex gap-[8px]">
               <div>
                 <CheckIconComponent />
               </div>
               <div>{t('billing_no_risk_trial', '100% No-Risk Free Trial')}</div>
             </div>
-            <div className="flex-1 flex gap-[8px] justify-center mobile:justify-start">
+            <div className="flex gap-[8px]">
               <div>
                 <CheckIconComponent />
               </div>
