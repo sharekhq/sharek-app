@@ -558,10 +558,10 @@ const UI_POLISH_FORMS = [
     // underscores is the form most likely to be dropped silently — underscores
     // become spaces, commas have to survive un-escaped, and if Tailwind cannot
     // parse it the page simply renders one column with no warning anywhere.
-    className: 'grid-cols-[minmax(0,900px)_minmax(280px,340px)]',
+    className: 'grid-cols-[minmax(0,1fr)_minmax(280px,340px)]',
     atRule: null,
     prop: 'grid-template-columns',
-    value: 'minmax(0,900px) minmax(280px,340px)',
+    value: 'minmax(0,1fr) minmax(280px,340px)',
   },
   {
     // The channels row and the customer control swap places only once they

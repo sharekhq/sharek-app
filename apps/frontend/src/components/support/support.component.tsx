@@ -33,15 +33,24 @@ const Page = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Started at the same edge as the page title, the way every sibling page lays
-// out. The form track is fluid to 900px and the aside keeps its own band, so
-// the pair takes the pane rather than stopping at a measure and leaving the
-// shell's colour beside it — billing and analytics claim the whole row and this
-// page now does too. The form track shrinks before the pair stacks, so two
-// columns still fit a 1100px window; below 1025 they stack and the aside leads,
-// because what it holds — where the reply lands, what the enquiry carries — is
-// meant to be read before sending, not under the button.
+// out. The form track takes whatever is left over and the aside keeps its own
+// 280–340px band, so the pair fills the pane at any width — this is the only
+// page in the app that ever capped its content, and studio, analytics, billing,
+// media and settings all run fluid.
+//
+// A fraction, not a pixel ceiling, because a ceiling only moves the problem:
+// capping the form at 900 put the pair's maximum at 900 + 48 + 340 = 1288, and
+// the trailing gap measured exactly `viewport - 1440` — nothing at 1440, 480px
+// at 1920, 1120px at 2560 (dash.sharek.app, 2026-09-20). `minmax(0,…)` rather
+// than a bare `1fr` so a long unbroken string in the form cannot push the track
+// past its share.
+//
+// The form track shrinks before the pair stacks, so two columns still fit a
+// 1100px window; below 1025 they stack and the aside leads, because what it
+// holds — where the reply lands, what the enquiry carries — is meant to be read
+// before sending, not under the button.
 const Columns = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-full grid grid-cols-[minmax(0,900px)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
+  <div className="w-full grid grid-cols-[minmax(0,1fr)_minmax(280px,340px)] gap-[48px] items-start mobile:grid-cols-1 mobile:gap-[24px] mobile:max-w-[680px]">
     {children}
   </div>
 );

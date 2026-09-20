@@ -590,18 +590,24 @@ describe('the build identifier it attaches', () => {
 describe('the columns fill the pane', () => {
   const columns = (host: HTMLElement) => host.querySelector('.grid')!.className;
 
-  it('gives the form a track that grows to 900px', async () => {
+  // A fraction, not a pixel ceiling. The first attempt at this raised the cap
+  // from 1068 to 1288 and was measured on the deployment still leaving exactly
+  // `viewport - 1440` of empty pane — 480px at 1920. Any `Npx` maximum on this
+  // track reintroduces that, so the assertion is on the track being fluid
+  // rather than on one particular number being absent.
+  it('gives the form whatever the aside does not take', async () => {
     const host = await render();
 
     expect(columns(host)).toContain(
-      'grid-cols-[minmax(0,900px)_minmax(280px,340px)]'
+      'grid-cols-[minmax(0,1fr)_minmax(280px,340px)]'
     );
   });
 
-  it('caps nothing at the old 1068px measure', async () => {
+  it('puts no pixel ceiling on the pair at all', async () => {
     const host = await render();
 
     expect(columns(host)).not.toContain('max-w-[1068px]');
+    expect(columns(host)).not.toMatch(/grid-cols-\[minmax\(0,\d+px\)/);
   });
 
   // The narrow arrangement is a separate decision with its own test above, and

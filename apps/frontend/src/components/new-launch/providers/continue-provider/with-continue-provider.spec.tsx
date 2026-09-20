@@ -66,18 +66,22 @@ const pick = async (card: HTMLElement) => {
 };
 
 describe('the page picker', () => {
-  it('does not fill the picked card with the brand', async () => {
+  // `classList`, not `toContain`: the solid fill is `bg-brand` and the
+  // selection tint is `bg-brandSoft`, so a substring check cannot tell the
+  // defect from the fix — it reads the tint as the thing it is meant to
+  // forbid. An exact class token can.
+  it('does not fill the picked card with the solid brand', async () => {
     const host = await render();
     await pick(cards(host)[0]);
 
-    expect(cards(host)[0].className).not.toContain('bg-brand');
+    expect(cards(host)[0].classList.contains('bg-brand')).toBe(false);
   });
 
-  it('fills it with the recessed grey and borders it with the brand', async () => {
+  it('fills it with the selection tint and borders it with the brand', async () => {
     const host = await render();
     await pick(cards(host)[0]);
 
-    expect(cards(host)[0].className).toContain('bg-surface2');
+    expect(cards(host)[0].className).toContain('bg-brandSoft');
     expect(cards(host)[0].className).toContain('border-brand');
   });
 
@@ -86,6 +90,19 @@ describe('the page picker', () => {
 
     expect(cards(host)[0].className).not.toContain('hover:bg-brand');
     expect(cards(host)[0].className).toContain('hover:bg-surface2');
+  });
+
+  // This shipped once as `bg-surface2`, which is also the hover fill, so the
+  // two states were the same colour and an unpicked card under the cursor read
+  // as picked. Whatever the selected fill is, it has to differ from hover.
+  it('does not paint selection the same colour as hover', async () => {
+    const host = await render();
+    await pick(cards(host)[0]);
+    const picked = cards(host)[0].className;
+
+    const hoverFill = /hover:bg-(\S+)/.exec(picked)![1];
+
+    expect(picked).not.toContain(` bg-${hoverFill}`);
   });
 
   it('marks the picked card with something that is not a colour', async () => {
