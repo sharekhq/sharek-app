@@ -77,7 +77,7 @@ export class SubscriptionService {
     );
   }
 
-  updateCustomerId(organizationId: string, customerId: string) {
+  updateCustomerId(organizationId: string, customerId: string | null) {
     return this._subscriptionRepository.updateCustomerId(
       organizationId,
       customerId
