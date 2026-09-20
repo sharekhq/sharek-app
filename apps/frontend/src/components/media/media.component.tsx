@@ -786,6 +786,13 @@ export const MultiMediaComponent: FC<{
    * read as a stray border and a stray indent.
    */
   flush?: boolean;
+  /**
+   * The caller knows its container is narrower than the labels need. Samy's
+   * chat is 470px and the four labelled buttons want about 560, so AI Video
+   * took a line of its own. Icon-only, with the name kept as a tooltip and an
+   * aria-label — the label is what goes, not the control and not its name.
+   */
+  compact?: boolean;
   dummy: boolean;
   allData: {
     content: string;
@@ -834,6 +841,7 @@ export const MultiMediaComponent: FC<{
     aiVideoNotAvailable,
     destination,
     flush,
+    compact,
   } = props;
   const user = useUser();
   const modals = useModals();
@@ -994,20 +1002,14 @@ export const MultiMediaComponent: FC<{
         )}
         <div
           className={clsx(
-            'flex gap-[8px] w-full b1 text-textColor',
-            // Below `mobile` this row's controls are wider than the pane that
-            // holds them — measured at 390 inside compose, where the editor's
-            // own scroll container is overflow-x: hidden, so they were cut off
-            // rather than reachable (specs/017-compose-viewport R11).
-            //
-            // A scroller, not a wrap: this row is a compressed flex item —
-            // 105px of box holding 159px of content — so a second line does not
-            // make it taller, it spills through overflow: visible onto the
-            // control below. Scrolling keeps the height exactly as it is, and
-            // it is what the sizing contract asks for anyway: content that
-            // cannot reflow is owned by a scroll container rather than clipped.
-            'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
-            'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
+            'flex gap-[8px] w-full b1 text-textColor flex-wrap',
+            // This row used to be a scroller below `mobile` (spec 017 R11),
+            // because wrapping it spilled through `overflow: visible` onto the
+            // control underneath — a 105px box holding 159px of content. The
+            // scroller's cost was that pen, U, B and emoji sat past the edge
+            // with nothing saying they were there. editor.tsx gives the box a
+            // 190px floor on a phone, which removes the compression that made
+            // the spill, so the row can take the second line it needs.
             !flush && 'px-[12px] border-t border-newColColor'
           )}
         >
@@ -1015,29 +1017,39 @@ export const MultiMediaComponent: FC<{
             <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
+                data-tooltip-id="tooltip"
+                data-tooltip-content={t('insert_media', 'Insert Media')}
+                aria-label={t('insert_media', 'Insert Media')}
                 className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
               >
                 <div className="flex gap-[8px] items-center">
                   <div>
                     <InsertMediaIcon />
                   </div>
-                  <div className="text-[12px] font-[600] mobile:hidden block">
-                    {t('insert_media', 'Insert Media')}
-                  </div>
+                  {!compact && (
+                    <div className="text-[12px] font-[600] mobile:hidden block">
+                      {t('insert_media', 'Insert Media')}
+                    </div>
+                  )}
                 </div>
               </div>
               {!designNotAvailable && (
                 <div
                   onClick={designMedia}
+                  data-tooltip-id="tooltip"
+                  data-tooltip-content={t('design_media', 'Design Media')}
+                  aria-label={t('design_media', 'Design Media')}
                   className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
                 >
                   <div className="flex gap-[5px] items-center">
                     <div>
                       <DesignMediaIcon />
                     </div>
-                    <div className="text-[12px] font-[600] mobile:hidden block">
-                      {t('design_media', 'Design Media')}
-                    </div>
+                    {!compact && (
+                      <div className="text-[12px] font-[600] mobile:hidden block">
+                        {t('design_media', 'Design Media')}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1050,12 +1062,14 @@ export const MultiMediaComponent: FC<{
                     value={text}
                     onChange={changeMedia}
                     destination={destination}
+                    compact={compact}
                   />
                   {!aiVideoNotAvailable && (
                     <AiVideo
                       value={text}
                       onChange={changeMedia}
                       destination={destination}
+                      compact={compact}
                     />
                   )}
                 </>

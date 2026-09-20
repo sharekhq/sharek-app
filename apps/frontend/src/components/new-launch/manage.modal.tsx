@@ -578,8 +578,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 >
                   {/* A flex-1 channel picker beside a shrink-to-fit customer
                       control: at 390 that squeezes the picker against something
-                      unrelated to it, so the two stack. */}
-                  <div className="flex w-full mobile:flex-col mobile:gap-[12px]">
+                      unrelated to it, so the two stack. Reversed, because
+                      picking a customer filters which channels are worth
+                      choosing and the control belongs above the list it
+                      governs — visual order only; the picker stays first in
+                      the document, so tab order and reading order do not move. */}
+                  <div className="flex w-full mobile:flex-col-reverse mobile:gap-[12px]">
                     <div className="flex flex-1 mobile:min-w-0">
                       <PicksSocialsComponent toolTip={true} />
                     </div>
@@ -716,7 +720,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
+                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600] mobile:basis-full mobile:justify-center"
               >
                 <div>
                   <TrashIcon />
@@ -726,9 +730,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             )}
             {/* Tag and repeat are a control inside a wrapper; the date
                 picker *is* the control, one level shallower — so without this
-                wrapper no single rule can size or align all three, and the
-                picker's own justify-center strands its text at the far edge. */}
-            <div className="mobile:basis-full mobile:[&>*]:!justify-start mobile:[&>*]:!ml-0">
+                wrapper no single rule can size or align all three. Centred to
+                match the two above it, which centre themselves. */}
+            <div className="mobile:basis-full mobile:[&>*]:!justify-center mobile:[&>*]:!ml-0">
               <DatePicker onChange={setDate} date={date} />
             </div>
             {!addEditSets && (

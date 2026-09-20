@@ -732,7 +732,15 @@ export const Editor: FC<{
             >
               {t('drop_files_here_to_upload', 'Drop your files here to upload')}
             </div>
-            <div className="relative border border-newBorder rounded-[6px] shadow-soft flex flex-1 flex-col">
+            {/* mobile:min-h — on a phone this box takes whatever height is left
+                after the channels row, the customer control and the footer,
+                which at 390 is about four lines: a slot rather than a writing
+                surface. The floor also takes the box out of the compressed
+                state that made the tool strip spill when it wrapped
+                (media.component.tsx:995), which is what lets that strip stop
+                being a scroller. min-, not a fixed height: a long post still
+                grows past it. */}
+            <div className="relative border border-newBorder rounded-[6px] shadow-soft flex flex-1 flex-col mobile:min-h-[190px]">
             <div className="px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[5px] relative z-[99]">
               <OnlyEditor
                 value={props.value}

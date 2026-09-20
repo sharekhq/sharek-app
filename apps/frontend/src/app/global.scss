@@ -549,6 +549,20 @@ body .copilotKitPopup .poweredBy {
   display: none !important;
 }
 
+/* …and the gap that tag was standing in for. CopilotKit gives the input
+   container `padding-bottom: 15px`, then cancels it with
+   `.poweredByContainer { padding: 0 }` whenever the tag is shown — which is
+   whenever no Cloud key is configured, i.e. always here. Hiding the tag above
+   therefore leaves the input flush against the window's bottom edge.
+
+   Two classes and a type beat the vendor's single class, which is what this
+   needs: the vendor stylesheet is imported after this file, so an
+   equal-specificity rule would lose on load order and no !important is
+   required once the ancestors are there. */
+body .copilotKitPopup .copilotKitInputContainer {
+  padding-bottom: 15px;
+}
+
 html[dir='rtl'] .rbox {
   direction: rtl !important;
 }
@@ -763,8 +777,11 @@ html[dir='rtl'] .lbox {
 }
 
 .agent {
+  /* The 24px inline padding this surface has always had, plus the bottom gap
+     the popup gets from the rule beside `.poweredBy`. Samy's chat renders its
+     own input and never mounts that tag, so it never had the gap at all. */
   .copilotKitInputContainer {
-    padding: 0 24px !important;
+    padding: 0 24px 15px !important;
   }
 
   /* v3 round 4: the user's own messages read soft, not shouting — the brand

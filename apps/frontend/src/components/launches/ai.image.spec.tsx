@@ -261,6 +261,19 @@ describe('as the composer button', () => {
 
     expect(document.querySelector('textarea')).toBeTruthy();
   });
+
+  // Samy's chat is about 470px whatever the window is doing, and four labelled
+  // buttons in that strip want roughly 560 — so the caller that knows the space
+  // is tight asks for the glyph alone. The name is not dropped with the label:
+  // it moves onto the control, where a tooltip and a screen reader read it.
+  it('drops the word when the caller says the space is tight', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} compact={true} />);
+
+    const trigger = document.querySelector('.bg-ai');
+    expect(trigger?.textContent?.trim()).toBe('');
+    expect(trigger?.getAttribute('aria-label')).toBe('AI Image');
+    expect(trigger?.getAttribute('data-tooltip-content')).toBe('AI Image');
+  });
 });
 
 // Studio renders a card of its own as the trigger; the wiring behind it stays

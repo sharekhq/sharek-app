@@ -547,3 +547,77 @@ test('132: the FAQ reveal is emitted after the base utility it has to beat', asy
     `the mobile: reveal must follow the base hidden, got ${JSON.stringify(order)}`
   );
 });
+
+// 138. The UI-polish batch. Same contract as the arrays above, for the forms it
+// introduces: each one is a variant or an arbitrary value that emits nothing at
+// all when it is wrong, and every one of them carries a layout decision that
+// would simply not happen rather than fail.
+const UI_POLISH_FORMS = [
+  {
+    // Support's two-track grid. An arbitrary value carrying both commas and
+    // underscores is the form most likely to be dropped silently — underscores
+    // become spaces, commas have to survive un-escaped, and if Tailwind cannot
+    // parse it the page simply renders one column with no warning anywhere.
+    className: 'grid-cols-[minmax(0,900px)_minmax(280px,340px)]',
+    atRule: null,
+    prop: 'grid-template-columns',
+    value: 'minmax(0,900px) minmax(280px,340px)',
+  },
+  {
+    // The channels row and the customer control swap places only once they
+    // stack. A direction utility behind a raw screen variant is exactly the
+    // pairing that emits nothing if the screen was renamed.
+    className: 'mobile:flex-col-reverse',
+    atRule: '(max-width: 1025px)',
+    prop: 'flex-direction',
+    value: 'column-reverse',
+  },
+  {
+    // Delete Post takes a full row of its own, the way tag and repeat do.
+    className: 'mobile:basis-full',
+    atRule: '(max-width: 1025px)',
+    prop: 'flex-basis',
+    value: '100%',
+  },
+  {
+    // The writing surface's floor on a phone. It is what takes the box out of
+    // the compressed state that made the tool strip spill when it wrapped, so
+    // a silently dropped variant restores that spill rather than merely
+    // leaving the editor short.
+    className: 'mobile:min-h-[190px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '190px',
+  },
+];
+
+test('138: every class form the UI-polish batch introduces emits CSS', async () => {
+  const css = await emit(UI_POLISH_FORMS.map((f) => f.className));
+
+  for (const form of UI_POLISH_FORMS) {
+    const decls = emitted(css, form.className);
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some((d) => d.atRule === form.atRule && d.prop === form.prop && d.value === form.value),
+      `${form.className} did not emit ${form.prop}: ${form.value} inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+});
+
+test('138: the wrapper variant reaches the control inside it', async () => {
+  // `[&>*]` emits a child combinator on the selector rather than a media-query
+  // wrapper alone, so UI_POLISH_FORMS' "matched by class" shape cannot see it.
+  // The claim is the same: the variant emitted something, and what it emitted
+  // centres the child. The date picker is reached through its wrapper, so its
+  // alignment is an arbitrary variant carrying an important flag — three
+  // things that each drop silently, in one class.
+  const css = await emit(['mobile:[&>*]:!justify-center']);
+
+  assert.match(css, /@media \(max-width: 1025px\)/);
+  assert.match(css, /justify-content: center !important/);
+});

@@ -454,3 +454,54 @@ describe('the video catalog follows the platform', () => {
     expect(videoTriggers).toHaveLength(0);
   });
 });
+
+// Studio was built at 12/13/14/15px against a product whose dominant tier is
+// 14px and whose billing page sets body copy at 16 — it read as a smaller
+// application than the one around it (2026-09-20). Each tier moves one step and
+// nothing renders below 13.
+//
+// The card's two lines are asserted rather than the page's, because the card is
+// the repeated object: a tier that moved on the intro but not on the card would
+// look fixed on a screenshot of the top of the page and wrong everywhere else.
+describe('the type scale', () => {
+  // Scoped to the card rather than the document: the upsell banner carries the
+  // same two tiers, so an unscoped lookup could pass on the wrong element.
+  const lineOf = (name: string, text: string) =>
+    Array.from(card(name)!.querySelectorAll('span')).find(
+      (node) => node.textContent === text
+    )!.className;
+
+  it('sets the card name at 15px', async () => {
+    await mount();
+
+    expect(lineOf('AI image generator', 'AI image generator')).toContain(
+      'text-[15px]'
+    );
+  });
+
+  it('sets the card description at 13px', async () => {
+    await mount();
+
+    expect(
+      lineOf('AI image generator', 'Turn a written prompt into a post-ready image.')
+    ).toContain('text-[13px]');
+  });
+
+  it('sets the section heading at 16px', async () => {
+    await mount();
+
+    expect(section('AI images')!.querySelector('h2')!.className).toContain(
+      'text-[16px]'
+    );
+  });
+
+  it('sets the page intro at 14px and lets it run', async () => {
+    await mount();
+    const intro = document.querySelector('p')!;
+
+    expect(intro.className).toContain('text-[14px]');
+    // Fix 04: a one-sentence subtitle capped at 72ch broke onto two lines at
+    // every desktop width. It is a subtitle, not a paragraph.
+    expect(intro.className).not.toContain('max-w-[72ch]');
+  });
+});
