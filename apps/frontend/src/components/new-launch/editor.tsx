@@ -732,14 +732,16 @@ export const Editor: FC<{
             >
               {t('drop_files_here_to_upload', 'Drop your files here to upload')}
             </div>
-            {/* mobile:min-h — on a phone this box takes whatever height is left
-                after the channels row, the customer control and the footer,
-                which at 390 is about four lines: a slot rather than a writing
-                surface. The floor also takes the box out of the compressed
-                state that made the tool strip spill when it wrapped
-                (media.component.tsx:995), which is what lets that strip stop
-                being a scroller. min-, not a fixed height: a long post still
-                grows past it. */}
+            {/* mobile:min-h — a floor under the writing surface on a phone, so
+                it reads as somewhere to write rather than a slot. min-, not a
+                fixed height: a long post still grows past it.
+
+                It does NOT license the tool strip to wrap. That was branch
+                138's premise and the measurement disproved it: at 390 this box
+                is already handed 277px against 405px of content, so a 190px
+                minimum binds nothing at all, and the strip spilled anyway. The
+                strip stays a scroller — see the note at media.component.tsx
+                for the readings. */}
             <div className="relative border border-newBorder rounded-[6px] shadow-soft flex flex-1 flex-col mobile:min-h-[190px]">
             <div className="px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[5px] relative z-[99]">
               <OnlyEditor

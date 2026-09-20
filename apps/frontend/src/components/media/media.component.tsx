@@ -1002,14 +1002,42 @@ export const MultiMediaComponent: FC<{
         )}
         <div
           className={clsx(
-            'flex gap-[8px] w-full b1 text-textColor flex-wrap',
-            // This row used to be a scroller below `mobile` (spec 017 R11),
-            // because wrapping it spilled through `overflow: visible` onto the
-            // control underneath — a 105px box holding 159px of content. The
-            // scroller's cost was that pen, U, B and emoji sat past the edge
-            // with nothing saying they were there. editor.tsx gives the box a
-            // 190px floor on a phone, which removes the compression that made
-            // the spill, so the row can take the second line it needs.
+            'flex gap-[8px] w-full b1 text-textColor',
+            // A scroller below `mobile`, not a wrap — and the reason is now
+            // measured twice rather than argued. Spec 017 R11 found that
+            // wrapping this row spilled through `overflow: visible` onto the
+            // control underneath: a 105px box holding 159px of content.
+            // Branch 138 tried the wrap anyway, on the theory that a 190px
+            // floor on the editor box would remove the compression. It does
+            // not, and the live readings say why (dash.sharek.app, 2026-09-20,
+            // commit 9239003a):
+            //
+            //   strip height 195, scrollHeight 324 — compressed by 129px, and
+            //   its children paint to y=707 while its own box ends at y=577.
+            //   "Add comment / post" occupies 578–634, so the wrapped rows
+            //   covered it completely and ran 73px past its bottom.
+            //
+            // No single ancestor imposes that: the strip sits under an
+            // unbroken `flex: 1 1 0%` chain inside the height-bounded modal
+            // body, every link `overflow: visible`, so a taller row is
+            // absorbed as compression and painted through. The editor's floor
+            // cannot help — the box is already handed 277px and would need
+            // 405px, so a 190px minimum binds nothing. Nor is it phone-only:
+            // `flex-wrap` applies at every width, and the spill reproduced at
+            // 1280 with an ordinary mouse and at 1440 under a coarse pointer.
+            // Mutating this one class to `nowrap` in the live DOM took the
+            // overflow to zero at every width tested, which is the whole
+            // proof. Fixing this properly means breaking that flex chain —
+            // giving the media container a `shrink-0` so the strip is never
+            // compressed — and that is a change to the editor's layout
+            // contract, not to a class list here.
+            //
+            // The scroller's known cost stands and is deliberately accepted:
+            // pen, U, B and emoji sit past the edge with nothing announcing
+            // them. A row that can be swiped to beats a row that paints over
+            // the control below it.
+            'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
+            'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
             !flush && 'px-[12px] border-t border-newColColor'
           )}
         >

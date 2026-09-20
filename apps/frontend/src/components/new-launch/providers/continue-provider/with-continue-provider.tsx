@@ -133,11 +133,18 @@ export function withContinueProvider<TItem, TSelection>(
               key={getItemId(item)}
               className={clsx(
                 'relative flex flex-col w-full text-center gap-[10px] border border-line p-[10px] hover:bg-surface2 rounded-[8px]',
-                // Grey rather than the solid brand: this card sits above the
-                // Save button, and two solid pomegranates in one dialog made
-                // the card read as the action. The tick is what selection rests
-                // on once the fill stops shouting.
-                isSelected(item, selection) && 'bg-surface2 border-brand'
+                // The brand tint rather than the solid brand: this card sits
+                // above the Save button, and two solid pomegranates in one
+                // dialog made the card read as the action. `brandSoft` is the
+                // system's selection fill — colors.scss calls it the selection
+                // tint and aspect.tile, import-debug-post and the filters all
+                // pair it with `border-brand` for exactly this object.
+                //
+                // Not `surface2`, which this first shipped as: hover is
+                // already `surface2`, so the two states rendered as the same
+                // fill and hovering an unpicked card read as picked with the
+                // border missing.
+                isSelected(item, selection) && 'bg-brandSoft border-brand'
               )}
               onClick={handleSelect(item)}
             >
