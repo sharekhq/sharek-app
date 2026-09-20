@@ -614,3 +614,28 @@ describe('the columns fill the pane', () => {
     expect(columns(host)).toContain('mobile:max-w-[680px]');
   });
 });
+
+// The aside's field labels were the only 12px text on the page. They move to 13
+// with everything else; the aside's body and the form's labels stay at 14,
+// which is what the shared Input and Textarea set on every form in the product
+// (react-shared-libraries/src/form/input.tsx:55). Raising one side of a form
+// and not the other is worse than the size itself.
+describe('the aside type scale', () => {
+  it('sets the identity labels at 13px', async () => {
+    const host = await render();
+    const label = Array.from(host.querySelectorAll('aside div')).find(
+      (node) => node.textContent === 'Reply to'
+    )!;
+
+    expect(label.className).toContain('text-[13px]');
+  });
+
+  it('keeps the form on one size with the rest of the product', async () => {
+    const host = await render();
+    const label = Array.from(host.querySelectorAll('div')).find(
+      (node) => node.textContent === 'What is this about?'
+    )!;
+
+    expect(label.className).toContain('text-[14px]');
+  });
+});

@@ -426,21 +426,21 @@ export const SupportComponent = () => {
                 a fault. The reply address below carries the identity. */}
             {!!user?.name && (
               <div>
-                <div className="text-[12px] text-muted">
+                <div className="text-[13px] text-muted">
                   {t('support_identity_from', 'From')}
                 </div>
                 {user.name}
               </div>
             )}
             <div>
-              <div className="text-[12px] text-muted">
+              <div className="text-[13px] text-muted">
                 {t('support_identity_reply', 'Reply to')}
               </div>
               <div className="break-words">{user?.email}</div>
             </div>
             {!!organizationName && (
               <div>
-                <div className="text-[12px] text-muted">
+                <div className="text-[13px] text-muted">
                   {t('support_identity_workspace', 'Workspace')}
                 </div>
                 <div className="break-words">{organizationName}</div>

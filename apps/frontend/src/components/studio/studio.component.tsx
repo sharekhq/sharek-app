@@ -135,15 +135,15 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
           )}
         </span>
         {locked && (
-          <span className="flex items-center gap-[4px] shrink-0 h-[22px] px-[8px] rounded-full bg-brandSoft text-brandText text-[11px] font-[600]">
+          <span className="flex items-center gap-[4px] shrink-0 h-[22px] px-[8px] rounded-full bg-brandSoft text-brandText text-[12px] font-[600]">
             <LockIcon size={12} />
             {t('studio_upgrade', 'Upgrade')}
           </span>
         )}
       </span>
       <span className="flex flex-col gap-[4px] min-w-0">
-        <span className="text-[14px] font-[600] text-ink">{entry.name(t)}</span>
-        <span className="text-[12px] leading-[1.5] text-muted">
+        <span className="text-[15px] font-[600] text-ink">{entry.name(t)}</span>
+        <span className="text-[13px] leading-[1.5] text-muted">
           {entry.description(t)}
         </span>
       </span>
@@ -237,7 +237,7 @@ export const StudioComponent: FC = () => {
 
   return (
     <div className="flex flex-col gap-[24px]">
-      <p className="text-[13px] text-muted max-w-[72ch]">
+      <p className="text-[14px] text-muted">
         {t(
           'studio_intro',
           'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
@@ -254,10 +254,10 @@ export const StudioComponent: FC = () => {
             ✦
           </span>
           <span className="flex-1 min-w-[220px] flex flex-col gap-[2px]">
-            <span className="text-[14px] font-[600] text-ink">
+            <span className="text-[15px] font-[600] text-ink">
               {t('studio_upsell_title', 'Unlock AI images and video')}
             </span>
-            <span className="text-[13px] leading-[1.5] text-muted">
+            <span className="text-[14px] leading-[1.5] text-muted">
               {t(
                 'studio_upsell_body',
                 'Upgrade your plan to generate images and videos with AI.'
@@ -279,7 +279,7 @@ export const StudioComponent: FC = () => {
           >
             <CheckmarkIcon width={15} height={11} />
           </span>
-          <span className="flex-1 min-w-[200px] text-[14px] font-[600] text-ink">
+          <span className="flex-1 min-w-[200px] text-[15px] font-[600] text-ink">
             {t('studio_saved_to_media', 'Saved to your Media library')}
           </span>
           {/* The editor renders nothing without a channel, and it opens with
@@ -307,7 +307,7 @@ export const StudioComponent: FC = () => {
 
       {catalog.categories.map((category) => (
         <section key={category.id} className="flex flex-col gap-[12px]">
-          <h2 className="text-[15px] font-[600] text-ink">{category.label(t)}</h2>
+          <h2 className="text-[16px] font-[600] text-ink">{category.label(t)}</h2>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] mobile:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[12px]">
             {category.tools.map((tool) => (
               <StudioCard key={tool.entry.id} tool={tool} onSaved={saved} />
