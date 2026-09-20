@@ -108,7 +108,7 @@ export class SubscriptionRepository {
     });
   }
 
-  updateCustomerId(organizationId: string, customerId: string) {
+  updateCustomerId(organizationId: string, customerId: string | null) {
     return this._organization.model.organization.update({
       where: {
         id: organizationId,
