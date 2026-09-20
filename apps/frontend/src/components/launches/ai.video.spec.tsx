@@ -285,6 +285,18 @@ describe('as the composer button', () => {
 
     expect(document.body.textContent).toContain('Choose a video type');
   });
+
+  // The button this complaint was filed about: at 470px it was the one that
+  // wrapped onto a line of its own. Icon-only when the caller says so, with the
+  // name moved onto the control rather than lost with the label.
+  it('drops the word when the caller says the space is tight', async () => {
+    await mount(<AiVideo value="" onChange={jest.fn()} compact={true} />);
+
+    const trigger = document.querySelector('.bg-ai');
+    expect(trigger?.textContent?.trim()).toBe('');
+    expect(trigger?.getAttribute('aria-label')).toBe('AI Video');
+    expect(trigger?.getAttribute('data-tooltip-content')).toBe('AI Video');
+  });
 });
 
 // Studio renders a card of its own as the trigger, one per provider.

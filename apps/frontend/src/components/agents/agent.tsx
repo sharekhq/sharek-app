@@ -59,6 +59,9 @@ export const MediaPortal: FC<{
         value={media}
         dummy={false}
         name="image"
+        // The chat's input is about 470px wide whatever the window is doing, so
+        // the labels would wrap a button onto a second line on any screen.
+        compact={true}
         onChange={setMedia}
         onOpen={() => {}}
         onClose={() => {}}

@@ -579,6 +579,16 @@ const UI_POLISH_FORMS = [
     prop: 'flex-basis',
     value: '100%',
   },
+  {
+    // The writing surface's floor on a phone. It is what takes the box out of
+    // the compressed state that made the tool strip spill when it wrapped, so
+    // a silently dropped variant restores that spill rather than merely
+    // leaving the editor short.
+    className: 'mobile:min-h-[190px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '190px',
+  },
 ];
 
 test('138: every class form the UI-polish batch introduces emits CSS', async () => {

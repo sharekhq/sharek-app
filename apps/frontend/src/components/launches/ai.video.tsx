@@ -982,9 +982,22 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
+  /**
+   * The strip this button sits in is narrower than the labels need — Samy's
+   * chat, at about 470px. Icon-only, with the name moved onto the control as
+   * a tooltip and an aria-label. Set by the strip, never by a breakpoint: the
+   * container is narrow, not the viewport (media.component.tsx).
+   */
+  compact?: boolean;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, only, destination = 'post' } = props;
+  const {
+    onChange,
+    renderTrigger,
+    only,
+    destination = 'post',
+    compact,
+  } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -1032,6 +1045,9 @@ export const AiVideo: FC<{
     <div className="relative">
       <div
         onClick={openVideoModal}
+        data-tooltip-id="tooltip"
+        data-tooltip-content={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
+        aria-label={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
         className={clsx(
           'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-ai text-aiAccent px-[8px]'
         )}
@@ -1068,9 +1084,11 @@ export const AiVideo: FC<{
               </defs>
             </svg>
           </div>
-          <div className="text-[10px] font-[600] mobile:hidden block">
-            {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
-          </div>
+          {!compact && (
+            <div className="text-[10px] font-[600] mobile:hidden block">
+              {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
+            </div>
+          )}
         </div>
       </div>
     </div>
