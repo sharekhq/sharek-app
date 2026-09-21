@@ -23,6 +23,12 @@ export const Input: FC<
     icon?: ReactNode;
     translationKey?: string;
     translationParams?: Record<string, string | number>;
+    /**
+     * Extra classes on the label, mirroring the prop Textarea already takes, so
+     * a form can weight both of its labels the same way. Opt-in rather than a
+     * new default, so no other form in the app is restyled.
+     */
+    labelClassName?: string;
   }
 > = (props) => {
   const {
@@ -35,6 +41,7 @@ export const Input: FC<
     error,
     translationKey,
     translationParams,
+    labelClassName,
     ...rest
   } = props;
   const form = useFormContext();
@@ -52,7 +59,7 @@ export const Input: FC<
   return (
     <div className="flex flex-col gap-[6px]">
       {!!label && (
-        <div className={`text-[14px]`}>
+        <div className={clsx('text-[14px]', labelClassName)}>
           <TranslatedLabel
             label={label}
             translationKey={translationKey}
