@@ -621,27 +621,76 @@ describe('the columns fill the pane', () => {
   });
 });
 
-// The aside's field labels were the only 12px text on the page. They move to 13
-// with everything else; the aside's body and the form's labels stay at 14,
-// which is what the shared Input and Textarea set on every form in the product
-// (react-shared-libraries/src/form/input.tsx:55). Raising one side of a form
-// and not the other is worse than the size itself.
+const labelFor = (host: HTMLElement, text: string) =>
+  Array.from(host.querySelectorAll('div')).find(
+    (node) => node.textContent === text
+  )!;
+
+// The panel held the only page-level prose in the product set below the 16px
+// body default: Plugs declares no size at all, and Billing's feature list
+// declares text-[16px] outright (billing/main.billing.component.tsx:90), so
+// Support read smaller than the pages either side of it.
+//
+// The assertion is a floor rather than an exact string, for the same reason the
+// column track above asserts fluidity rather than the absence of one number: a
+// later text-[15px] would satisfy "not 14" while reintroducing the defect.
 describe('the aside type scale', () => {
-  it('sets the identity labels at 13px', async () => {
+  const declaredSize = (className: string) => {
+    const match = className.match(/text-\[(\d+)px\]/);
+    return match ? Number(match[1]) : null;
+  };
+
+  it('leaves the panel on the same prose size as the rest of the product', async () => {
+    const host = await render();
+    // No declaration at all is the 16px body default, which is the intent here.
+    const size = declaredSize(host.querySelector('aside')!.className) ?? 16;
+
+    expect(size).toBeGreaterThanOrEqual(16);
+  });
+
+  it('sets the identity labels one step under the panel, not two', async () => {
     const host = await render();
     const label = Array.from(host.querySelectorAll('aside div')).find(
       (node) => node.textContent === 'Reply to'
     )!;
 
-    expect(label.className).toContain('text-[13px]');
-  });
-
-  it('keeps the form on one size with the rest of the product', async () => {
-    const host = await render();
-    const label = Array.from(host.querySelectorAll('div')).find(
-      (node) => node.textContent === 'What is this about?'
-    )!;
-
     expect(label.className).toContain('text-[14px]');
+  });
+});
+
+// Parity with Plugs and Billing is the whole point of the panel change, and
+// both of those pages carry forms of their own through this same shared Input —
+// plugs/plug.tsx:155 and billing/lifetime.deal.tsx:147 — each labelling at 14px.
+// So a label that needs more presence gains it in weight, not size, which is the
+// move videos/video.modal.parts.tsx:48 already makes for exactly this reason.
+// Raising one side of a form and not the other is worse than the size itself,
+// so all three are asserted together.
+describe('the form labels', () => {
+  it.each(['What is this about?', 'Subject', 'What happened?'])(
+    'weights %s without taking it off the product-wide 14px',
+    async (text) => {
+      const host = await render();
+      const label = labelFor(host, text);
+
+      expect(label).toBeTruthy();
+      expect(label.className).toContain('font-[600]');
+      expect(label.className).toContain('text-[14px]');
+    }
+  );
+});
+
+// The opening sentence is the page's own prose, not a caption on something
+// else. Muted, it was the one line above the form carrying less weight than the
+// panel beside it, which inverted what the page wanted read first.
+describe('the lede', () => {
+  it('is set in the body colour rather than muted', async () => {
+    const host = await render();
+    const lede = labelFor(
+      host,
+      'Tell us what happened and we will get back to you by email.'
+    );
+
+    expect(lede).toBeTruthy();
+    expect(lede.className).not.toContain('text-muted');
   });
 });

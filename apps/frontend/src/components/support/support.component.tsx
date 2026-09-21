@@ -311,7 +311,7 @@ export const SupportComponent = () => {
         {/* The shell already titles the page — its h1 reads "Support" — so a
             heading here would name the same thing a second time. This line is
             the lede instead. */}
-        <div className={clsx(FULL_WIDTH, 'text-muted')}>
+        <div className={FULL_WIDTH}>
           {t(
             'support_intro',
             'Tell us what happened and we will get back to you by email.'
@@ -324,7 +324,7 @@ export const SupportComponent = () => {
             className="flex flex-col gap-[24px] mobile:order-2"
           >
             <div className="flex flex-col gap-[6px]">
-              <div className="text-[14px]">
+              <div className="text-[14px] font-[600]">
                 {t('support_category_label', 'What is this about?')}
               </div>
               <div
@@ -383,6 +383,7 @@ export const SupportComponent = () => {
             <Input
               name="subject"
               label={t('support_subject_label', 'Subject')}
+              labelClassName="font-[600]"
               placeholder={t(
                 'support_subject_placeholder',
                 'A short summary of the problem'
@@ -396,6 +397,7 @@ export const SupportComponent = () => {
             <Textarea
               name="message"
               label={t('support_message_label', 'What happened?')}
+              labelClassName="font-[600]"
               placeholder={t(
                 'support_message_placeholder',
                 'Include what you expected, what happened instead, and when it started.'
@@ -425,8 +427,13 @@ export const SupportComponent = () => {
             things they should see before they send: who the reply reaches, and
             what the enquiry carries that they never wrote. Beside the form they
             inform without crowding it, and the width they take is the width
-            that was empty. */}
-        <aside className="bg-panel rounded-[12px] p-[20px] flex flex-col gap-[18px] text-[14px] mobile:order-1">
+            that was empty.
+
+            It declares no type size, which is deliberate: the 16px body default
+            is what Plugs renders at and what Billing's feature list asks for by
+            name, so the panel reads as page prose rather than as small print.
+            Anything below that makes this the only such block in the product. */}
+        <aside className="bg-panel rounded-[12px] p-[20px] flex flex-col gap-[18px] mobile:order-1">
           {/* The sender cannot change who this comes from, so it is shown: a
               reply landing at an unexpected address is the surprise this avoids. */}
           <div className="flex flex-col gap-[12px]">
@@ -435,21 +442,21 @@ export const SupportComponent = () => {
                 a fault. The reply address below carries the identity. */}
             {!!user?.name && (
               <div>
-                <div className="text-[13px] text-muted">
+                <div className="text-[14px] text-muted">
                   {t('support_identity_from', 'From')}
                 </div>
                 {user.name}
               </div>
             )}
             <div>
-              <div className="text-[13px] text-muted">
+              <div className="text-[14px] text-muted">
                 {t('support_identity_reply', 'Reply to')}
               </div>
               <div className="break-words">{user?.email}</div>
             </div>
             {!!organizationName && (
               <div>
-                <div className="text-[13px] text-muted">
+                <div className="text-[14px] text-muted">
                   {t('support_identity_workspace', 'Workspace')}
                 </div>
                 <div className="break-words">{organizationName}</div>
