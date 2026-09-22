@@ -1,25 +1,33 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// The seam is the className, so everything the component reaches for on the way
-// to rendering is stubbed. What is under test is which variant gets a touch
-// target: the icon one is 24px of SVG and needs a floor, the text one is as wide
-// as its sentence and must not gain one, because widening it would push the
-// rest of a row that is already tight.
+// For the first cases the seam is the className, so everything the component
+// reaches for on the way to rendering is stubbed. What they test is which
+// variant gets a touch target: the icon one is 24px of SVG and needs a floor,
+// the text one is as wide as its sentence and must not gain one, because
+// widening it would push the rest of a row that is already tight.
+const request = jest.fn();
+const reset = jest.fn();
+let confirmed = false;
+const variables = { isGeneral: true, isSecured: false };
+
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: async () => false,
+  deleteDialog: async () => confirmed,
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
-  useFetch: () => async () => ({}),
+  useFetch: () => request,
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
-  useVariables: () => ({ isGeneral: true, isSecured: false }),
+  useVariables: () => variables,
 }));
 jest.mock('@gitroom/frontend/components/layout/layout.context', () => ({
   setCookie: () => {},
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
+}));
+jest.mock('@gitroom/react/helpers/posthog', () => ({
+  resetAnalyticsIdentity: () => reset(),
 }));
 
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
@@ -95,5 +103,63 @@ describe('LogoutComponent direction', () => {
     const host = render(false);
     expect(host.querySelector('svg')).toBeNull();
     expect(host.innerHTML).not.toContain('-scale-x-100');
+  });
+});
+
+// Signing out drives the stubs above: the dialog's answer, the logout request
+// and the navigation it ends with, which is observed rather than performed.
+describe('LogoutComponent sign-out', () => {
+  const location = window.location;
+
+  // The handler awaits the dialog and the logout request before it navigates.
+  const click = async (element: Element) => {
+    await act(async () => {
+      element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  };
+
+  beforeEach(() => {
+    confirmed = true;
+    variables.isSecured = true;
+    request.mockReset().mockResolvedValue({ status: 200 });
+    reset.mockReset();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+    });
+  });
+
+  afterEach(() => {
+    confirmed = false;
+    variables.isSecured = false;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: location,
+    });
+  });
+
+  it('resets the analytics identity before leaving the app', async () => {
+    let hrefAtReset: string | undefined;
+    reset.mockImplementation(() => {
+      hrefAtReset = window.location.href;
+    });
+
+    await click(target(render()));
+
+    expect(request).toHaveBeenCalledWith('/user/logout', { method: 'POST' });
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(hrefAtReset).toBe('');
+    expect(window.location.href).toBe('/');
+  });
+
+  it('leaves everything alone when the dialog is cancelled', async () => {
+    confirmed = false;
+
+    await click(target(render()));
+
+    expect(reset).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
   });
 });

@@ -16,6 +16,7 @@ import { GoogleProvider } from '@gitroom/frontend/components/auth/providers/goog
 import { AppleProvider } from '@gitroom/frontend/components/auth/providers/apple.provider';
 import { OauthProvider } from '@gitroom/frontend/components/auth/providers/oauth.provider';
 import { useFireEvents } from '@gitroom/helpers/utils/use.fire.events';
+import { useAttribution } from '@gitroom/helpers/utils/utm.saver';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useTrack } from '@gitroom/react/helpers/use.track';
 import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
@@ -86,6 +87,7 @@ export function RegisterAfter({
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const fireEvents = useFireEvents();
+  const attribution = useAttribution();
   const track = useTrack();
   const [datafast_visitor_id] = useCookie('datafast_visitor_id');
   const isAfterProvider = useMemo(() => {
@@ -109,6 +111,7 @@ export function RegisterAfter({
       body: JSON.stringify({
         ...data,
         datafast_visitor_id,
+        ...attribution,
       }),
     })
       .then(async (response) => {

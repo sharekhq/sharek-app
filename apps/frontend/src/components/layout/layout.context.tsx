@@ -13,6 +13,7 @@ import {
 } from '@gitroom/frontend/components/billing/limit.reached.modal';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { resetAnalyticsIdentity } from '@gitroom/react/helpers/posthog';
 
 // App-wide Mantine theme so every Mantine surface (date/time picker, the
 // group autocomplete, the language list) uses the brand instead of Mantine's
@@ -90,6 +91,7 @@ function LayoutContextInner(params: { children: ReactNode }) {
         setCookie('auth', '', -10);
         setCookie('showorg', '', -10);
         setCookie('impersonate', '', -10);
+        resetAnalyticsIdentity();
         window.location.href = '/';
         return true;
       }
@@ -121,6 +123,7 @@ function LayoutContextInner(params: { children: ReactNode }) {
           setCookie('showorg', '', -10);
           setCookie('impersonate', '', -10);
         }
+        resetAnalyticsIdentity();
         window.location.href = '/';
       }
       if (response.status === 406) {

@@ -9,6 +9,7 @@ import { setCookie } from '@gitroom/frontend/components/layout/layout.context';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { TrashIcon } from '@gitroom/frontend/components/ui/icons';
+import { resetAnalyticsIdentity } from '@gitroom/react/helpers/posthog';
 
 const DeleteAccountComponent: FC<{ isLink?: boolean }> = ({ isLink }) => {
   const t = useT();
@@ -51,6 +52,7 @@ const DeleteAccountComponent: FC<{ isLink?: boolean }> = ({ isLink }) => {
       if (!isSecured) {
         setCookie('auth', '', -10);
       }
+      resetAnalyticsIdentity();
       window.location.href = '/';
     } finally {
       setLoading(false);
