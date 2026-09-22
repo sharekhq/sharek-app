@@ -28,7 +28,6 @@ import { ShowLinkedinCompany } from '@gitroom/frontend/components/launches/helpe
 import { MediaSettingsLayout } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
 import { Toaster } from '@gitroom/react/toaster/toaster';
 import { ShowPostSelector } from '@gitroom/frontend/components/post-url-selector/post.url.selector';
-import { NewSubscription } from '@gitroom/frontend/components/layout/new.subscription';
 import { Support } from '@gitroom/frontend/components/layout/support';
 import { ContinueProvider } from '@gitroom/frontend/components/layout/continue.provider';
 import { ContextWrapper } from '@gitroom/frontend/components/layout/user.context';
@@ -47,6 +46,7 @@ import { PreConditionComponent } from '@gitroom/frontend/components/layout/pre-c
 import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/sentry.feedback.component';
 import { FirstBillingComponent } from '@gitroom/frontend/components/billing/first.billing.component';
 import { TrialTracker } from '@gitroom/frontend/components/layout/gtm.component';
+import { PostHogIdentify } from '@gitroom/react/helpers/posthog';
 import { setSentryUser } from '@gitroom/react/sentry/initialize.sentry.client';
 
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
@@ -111,13 +111,13 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
           <ToolTip />
           <Toaster />
           <TrialTracker />
+          <PostHogIdentify />
           <CheckPayment check={searchParams.get('check') || ''} mutate={mutate}>
             <ShowMediaBoxModal />
             <ShowLinkedinCompany />
             <MediaSettingsLayout />
             <ShowPostSelector />
             <PreConditionComponent />
-            <NewSubscription />
             <ContinueProvider />
             <div
               className={clsx(
