@@ -79,8 +79,14 @@ describe('PHProvider', () => {
       custom_campaign_params: ['ref'],
       consent_persistence_name: expect.any(String),
       before_send: expect.any(Function),
-      session_recording: { maskAllInputs: true, maskTextSelector: '*' },
+      session_recording: {
+        maskAllInputs: true,
+        maskTextSelector: '*',
+        maskCapturedNetworkRequestFn: expect.any(Function),
+      },
     });
+    const [, options] = sdk.init.mock.calls[0];
+    expect(options.consent_persistence_name).not.toMatch(/^__ph_opt_in_out_/);
   });
 
   // Declining on sharek.app means no SDK in the app at all: nothing is
@@ -155,9 +161,9 @@ describe('events on their way to PostHog', () => {
     return options.before_send as (event: unknown) => unknown;
   };
 
-  // A password-reset token stays usable for 20 minutes, and an activation
-  // token carries the email, IP and user agent: neither may reach PostHog.
-  it('masks the token of an activation or password-reset link wherever the URL travels', async () => {
+  // The API accepts these tokens as a login, with no expiry: none may reach
+  // PostHog.
+  it('masks the token of an activation or password-reset link in every URL property', async () => {
     const send = await beforeSend();
 
     expect(
@@ -188,6 +194,87 @@ describe('events on their way to PostHog', () => {
       },
       $set_once: {
         $initial_current_url: 'https://dash.sharek.app/auth/activate/<masked>',
+      },
+    });
+  });
+
+  it('masks a session token passed as ?loggedAuth=', async () => {
+    const send = await beforeSend();
+
+    expect(
+      send({
+        uuid: 'u3',
+        event: '$pageview',
+        properties: {
+          $current_url:
+            'https://dash.sharek.app/launches?loggedAuth=aaa.bbb.ccc&x=1',
+        },
+      })
+    ).toEqual({
+      uuid: 'u3',
+      event: '$pageview',
+      properties: {
+        $current_url: 'https://dash.sharek.app/launches?loggedAuth=<masked>&x=1',
+      },
+    });
+  });
+
+  // $web_vitals nests the page URL in each metric, and in the metric's
+  // entries, which are browser PerformanceEntry objects sent as their
+  // toJSON(); $$heatmap keys its data by the URL.
+  it('masks tokens nested inside objects, arrays, entries and object keys', async () => {
+    const send = await beforeSend();
+    class NavigationEntry {
+      constructor(private readonly url: string) {}
+      toJSON() {
+        return { name: this.url, entryType: 'navigation' };
+      }
+    }
+
+    expect(
+      send({
+        uuid: 'u4',
+        event: '$web_vitals',
+        properties: {
+          $web_vitals_FCP_event: {
+            name: 'FCP',
+            value: 812,
+            $current_url: 'https://dash.sharek.app/auth/forgot/aaa.bbb.ccc',
+            entries: [
+              new NavigationEntry(
+                'https://dash.sharek.app/auth/forgot/aaa.bbb.ccc'
+              ),
+            ],
+          },
+          $web_vitals_FCP_value: 812,
+          $heatmap_data: {
+            'https://dash.sharek.app/auth/activate/ddd.e-e.f_f': [
+              { x: 10, y: 20, type: 'click' },
+            ],
+          },
+        },
+      })
+    ).toEqual({
+      uuid: 'u4',
+      event: '$web_vitals',
+      properties: {
+        $web_vitals_FCP_event: {
+          name: 'FCP',
+          value: 812,
+          $current_url: 'https://dash.sharek.app/auth/forgot/<masked>',
+          entries: [
+            {
+              name: 'https://dash.sharek.app/auth/forgot/<masked>',
+              entryType: 'navigation',
+            },
+          ],
+        },
+        $web_vitals_FCP_value: 812,
+        $heatmap_data: {
+          'https://dash.sharek.app/auth/activate/<masked>': [
+            { x: 10, y: 20, type: 'click' },
+          ],
+        },
       },
     });
   });
@@ -226,6 +313,29 @@ describe('events on their way to PostHog', () => {
     const send = await beforeSend();
 
     expect(send(null)).toBeNull();
+  });
+
+  // A recording carries the page URL in its own events, outside before_send.
+  it('masks the token in the page URL a recording carries, and keeps the rest of the entry', async () => {
+    await render(
+      <PHProvider phkey="phc_test" host="https://eu.i.posthog.com">
+        <div />
+      </PHProvider>
+    );
+    const [, options] = sdk.init.mock.calls[0];
+    const mask = options.session_recording.maskCapturedNetworkRequestFn;
+    expect(mask).toEqual(expect.any(Function));
+    const entry = { entryType: 'navigation', startTime: 0, duration: 0 };
+
+    expect(
+      mask({ ...entry, name: 'https://dash.sharek.app/auth/forgot/aaa.bbb.ccc' })
+    ).toEqual({
+      ...entry,
+      name: 'https://dash.sharek.app/auth/forgot/<masked>',
+    });
+    expect(
+      mask({ ...entry, name: 'https://dash.sharek.app/launches' })
+    ).toEqual({ ...entry, name: 'https://dash.sharek.app/launches' });
   });
 });
 
