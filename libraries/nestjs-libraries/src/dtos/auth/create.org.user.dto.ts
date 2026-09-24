@@ -37,4 +37,18 @@ export class CreateOrgUserDto {
   company: string;
 
   datafast_visitor_id: string;
+
+  // How the visitor arrived. Undecorated on purpose: a value pickAttribution
+  // cannot keep is dropped, never a reason to refuse the sign-up.
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  ref?: string;
+  gclid?: string;
+  fbclid?: string;
+  ttclid?: string;
+  referrer?: string;
+  landing_url?: string;
 }

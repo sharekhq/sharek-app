@@ -9,6 +9,7 @@ import {
   FacebookAdsApi,
 } from 'facebook-nodejs-business-sdk';
 import { createHash } from 'crypto';
+import { PostHog } from 'posthog-node';
 
 const access_token = process.env.FACEBOOK_PIXEL_ACCESS_TOKEN!;
 const pixel_id = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL!;
@@ -17,8 +18,20 @@ if (access_token && pixel_id) {
   FacebookAdsApi.init(access_token || '');
 }
 
+export type LifecycleEvent =
+  | 'signed_up'
+  | 'activated'
+  | 'trial_started'
+  | 'subscription_activated'
+  | 'payment_succeeded'
+  | 'subscription_cancelled';
+
 @Injectable()
 export class TrackService {
+  // Built on first use rather than at module scope, so the PostHog variables
+  // are read when an event is sent.
+  private _posthog?: PostHog;
+
   private hashValue(value: string) {
     return createHash('sha256').update(value).digest('hex');
   }
@@ -81,5 +94,26 @@ export class TrackService {
     );
 
     return eventRequest.execute();
+  }
+
+  // Records a lifecycle event in PostHog. Never throws and returns nothing to
+  // await: callers make it the step after their database call.
+  capture(
+    distinctId: string,
+    event: LifecycleEvent,
+    properties: Record<string, unknown> = {}
+  ): void {
+    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    if (!key || !host) {
+      return;
+    }
+    try {
+      if (!this._posthog) {
+        this._posthog = new PostHog(key, { host, flushAt: 1 });
+        this._posthog.on('error', () => {});
+      }
+      this._posthog.capture({ distinctId, event, properties });
+    } catch {}
   }
 }
