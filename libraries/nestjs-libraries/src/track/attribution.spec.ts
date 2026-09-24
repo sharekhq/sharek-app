@@ -2,6 +2,7 @@ import {
   ATTRIBUTION_KEYS,
   pickAttribution,
   readAttribution,
+  toInitialPersonProperties,
 } from './attribution';
 
 describe('attribution set', () => {
@@ -73,6 +74,26 @@ describe('pickAttribution', () => {
       expect(pickAttribution(input)).toEqual({});
     }
   );
+
+  // Activation and password-reset links carry a login in the path, and
+  // ?loggedAuth= carries one in the query. A browser whose first visit was
+  // such a link must not hand the token on with its sign-up. Both keys carry
+  // it, so a second match in a row is checked too.
+  it.each([
+    'https://dash.sharek.app/auth/forgot/abc.def.ghi',
+    'https://dash.sharek.app/auth/activate/abc.def.ghi',
+    'https://dash.sharek.app/launches?loggedAuth=abc.def.ghi',
+  ])('drops a value that carries a login token: %s', (value) => {
+    expect(
+      pickAttribution({ landing_url: value, referrer: value, ref: 'x' })
+    ).toEqual({ ref: 'x' });
+  });
+
+  it('keeps an auth address that carries no token', () => {
+    expect(
+      pickAttribution({ landing_url: 'https://dash.sharek.app/auth/login' })
+    ).toEqual({ landing_url: 'https://dash.sharek.app/auth/login' });
+  });
 });
 
 describe('readAttribution', () => {
@@ -148,6 +169,16 @@ describe('readAttribution', () => {
     ).toEqual({ landing_url: 'https://dash.sharek.app/auth' });
   });
 
+  it('records no landing address when the first visit was a password-reset link', () => {
+    expect(
+      readAttribution(
+        new URLSearchParams(''),
+        '',
+        'https://dash.sharek.app/auth/forgot/abc.def.ghi'
+      )
+    ).toEqual({});
+  });
+
   it('drops a landing address that does not parse', () => {
     expect(readAttribution(new URLSearchParams(''), '', 'not a url')).toEqual(
       {}
@@ -164,5 +195,57 @@ describe('readAttribution', () => {
         'https://dash.sharek.app/auth'
       )
     ).toEqual({ ref: 'x', landing_url: 'https://dash.sharek.app/auth' });
+  });
+});
+
+describe('toInitialPersonProperties', () => {
+  it('names each key after the initial person property PostHog reports on', () => {
+    expect(
+      toInitialPersonProperties({
+        utm_source: 's',
+        utm_medium: 'm',
+        utm_campaign: 'c',
+        utm_term: 't',
+        utm_content: 'n',
+        ref: 'r',
+        gclid: 'g',
+        fbclid: 'f',
+        ttclid: 'tt',
+        referrer: 'https://sharek.app/',
+        landing_url: 'https://dash.sharek.app/auth',
+      })
+    ).toEqual({
+      $initial_utm_source: 's',
+      $initial_utm_medium: 'm',
+      $initial_utm_campaign: 'c',
+      $initial_utm_term: 't',
+      $initial_utm_content: 'n',
+      $initial_ref: 'r',
+      $initial_gclid: 'g',
+      $initial_fbclid: 'f',
+      $initial_ttclid: 'tt',
+      app_referrer: 'https://sharek.app/',
+      app_landing_url: 'https://dash.sharek.app/auth',
+    });
+  });
+
+  it('sets only the keys the set carries', () => {
+    expect(toInitialPersonProperties({ ref: 'pricing-plan-standard' })).toEqual(
+      { $initial_ref: 'pricing-plan-standard' }
+    );
+    expect(toInitialPersonProperties({})).toEqual({});
+  });
+
+  // For a visitor who accepted analytics on sharek.app, the browser SDK sets
+  // these two from the marketing first touch; the app's own referrer and
+  // landing address go under names of their own so they never overwrite it.
+  it('never writes $initial_referrer or $initial_current_url', () => {
+    const properties = toInitialPersonProperties({
+      referrer: 'https://sharek.app/',
+      landing_url: 'https://dash.sharek.app/auth',
+    });
+
+    expect(properties).not.toHaveProperty('$initial_referrer');
+    expect(properties).not.toHaveProperty('$initial_current_url');
   });
 });

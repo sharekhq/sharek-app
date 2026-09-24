@@ -5,12 +5,7 @@ import { PostHogProvider } from 'posthog-js/react';
 import { FC, ReactNode, useEffect } from 'react';
 import { getCookie } from 'react-use-cookie';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
-
-// Activation and password-reset links carry a JWT in the path, and
-// ?loggedAuth= carries a session JWT. The API accepts any of them as a login,
-// with no expiry, so none may reach PostHog.
-const AUTH_TOKEN_IN_URL =
-  /(\/auth\/(?:activate|forgot)\/|[?&]loggedAuth=)[\w.-]+/g;
+import { AUTH_TOKEN_IN_URL } from '@gitroom/nestjs-libraries/track/attribution';
 
 const maskToken = (text: string) =>
   text.replace(AUTH_TOKEN_IN_URL, '$1<masked>');

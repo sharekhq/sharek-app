@@ -11,6 +11,11 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { NewsletterService } from '@gitroom/nestjs-libraries/newsletter/newsletter.service';
+import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
+import {
+  pickAttribution,
+  toInitialPersonProperties,
+} from '@gitroom/nestjs-libraries/track/attribution';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +24,8 @@ export class AuthService {
     private _organizationService: OrganizationService,
     private _notificationService: NotificationService,
     private _emailService: EmailService,
-    private _providerManager: AuthProviderManager
+    private _providerManager: AuthProviderManager,
+    private _trackService: TrackService
   ) {}
   async canRegister(provider: string) {
     if (
@@ -61,6 +67,11 @@ export class AuthService {
           ip,
           userAgent
         );
+        this._trackService.capture(create.users[0].user.id, 'signed_up', {
+          provider,
+          organization_id: create.id,
+          $set_once: toInitialPersonProperties(pickAttribution(body)),
+        });
 
         const addedOrg =
           addToOrg && typeof addToOrg !== 'boolean'
@@ -171,6 +182,11 @@ export class AuthService {
       ip,
       userAgent
     );
+    this._trackService.capture(create.users[0].user.id, 'signed_up', {
+      provider,
+      organization_id: create.id,
+      $set_once: toInitialPersonProperties(pickAttribution(body)),
+    });
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
       (err) => {}
@@ -256,6 +272,7 @@ export class AuthService {
         return false;
       }
       await this._userService.activateUser(user.id);
+      this._trackService.capture(user.id, 'activated');
       user.activated = true;
       this._track('register', user.email, tracking).catch((err) => {});
       await NewsletterService.register(user.email);

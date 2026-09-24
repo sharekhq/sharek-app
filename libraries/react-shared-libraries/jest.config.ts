@@ -14,10 +14,12 @@ const config: Config = {
   setupFiles: ['<rootDir>/../../../jest.setup.js'],
   testMatch: ['**/*.spec.ts', '**/*.spec.tsx'],
   // Jest does not read tsconfig `paths`. posthog.tsx reads the frontend's user
-  // context through `@gitroom/frontend`, and the Sentry client imports its basic
-  // init through `@gitroom/react`.
+  // context through `@gitroom/frontend` and its auth-token pattern through
+  // `@gitroom/nestjs-libraries`, and the Sentry client imports its basic init
+  // through `@gitroom/react`.
   moduleNameMapper: {
     '^@gitroom/frontend/(.*)$': '<rootDir>/../../../apps/frontend/src/$1',
+    '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/../../nestjs-libraries/src/$1',
     '^@gitroom/react/(.*)$': '<rootDir>/$1',
   },
   transform: {
