@@ -31,7 +31,6 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
         tags: {
           service: 'frontend',
           component: 'nextjs',
-          replaysEnabled: 'true',
         },
         contexts: {
           app: {

@@ -26,20 +26,13 @@ export const initializeSentryClient = (environment: string, dsn: string) =>
       // Add default integrations back
       Sentry.browserTracingIntegration(),
       Sentry.browserProfilingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: false,
-        maskAllInputs: false,
-        blockAllMedia: false,
-      }),
+      // Session replay is off: no recording of the page, inputs or canvases.
       Sentry.feedbackIntegration({
         // Disable the injection of the default widget
         autoInject: false,
         showEmail: false,
       }),
-      Sentry.replayCanvasIntegration(),
     ],
-    replaysSessionSampleRate: 1.0,
-    replaysOnErrorSampleRate: 1.0,
 
     profilesSampleRate: environment === 'development' ? 1.0 : 0.75,
   });
