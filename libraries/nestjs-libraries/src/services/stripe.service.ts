@@ -159,7 +159,7 @@ export class StripeService extends PaymentProviderAbstract {
       return { ok: false };
     }
 
-    return this._subscriptionService.createOrUpdateSubscription(
+    const result = await this._subscriptionService.createOrUpdateSubscription(
       STRIPE_PROVIDER,
       event.data.object.status !== 'active',
       uniqueId,
@@ -169,6 +169,25 @@ export class StripeService extends PaymentProviderAbstract {
       period,
       event.data.object.cancel_at
     );
+
+    const { userId } = event.data.object.metadata;
+    if (userId && event.data.object.status === 'trialing') {
+      this._trackService.capture(userId, 'trial_started', {
+        subscription_id: event.data.object.id,
+        plan: billing,
+        period,
+      });
+    }
+    if (userId && event.data.object.status === 'active') {
+      this._trackService.capture(userId, 'subscription_activated', {
+        subscription_id: event.data.object.id,
+        plan: billing,
+        period,
+        from_trial: false,
+      });
+    }
+
+    return result;
   }
   async updateSubscription(event: Stripe.CustomerSubscriptionUpdatedEvent) {
     const { uniqueId, billing, period } = event.data.object.metadata as {
@@ -182,7 +201,7 @@ export class StripeService extends PaymentProviderAbstract {
       return { ok: false };
     }
 
-    return this._subscriptionService.createOrUpdateSubscription(
+    const result = await this._subscriptionService.createOrUpdateSubscription(
       STRIPE_PROVIDER,
       event.data.object.status !== 'active',
       uniqueId,
@@ -192,6 +211,25 @@ export class StripeService extends PaymentProviderAbstract {
       period,
       event.data.object.cancel_at
     );
+
+    // A subscription created incomplete stored nothing then (checkValidCard),
+    // so this update is where it is first stored as active.
+    const { userId } = event.data.object.metadata;
+    const previousStatus = event.data.previous_attributes?.status;
+    if (
+      userId &&
+      event.data.object.status === 'active' &&
+      (previousStatus === 'trialing' || previousStatus === 'incomplete')
+    ) {
+      this._trackService.capture(userId, 'subscription_activated', {
+        subscription_id: event.data.object.id,
+        plan: billing,
+        period,
+        from_trial: previousStatus === 'trialing',
+      });
+    }
+
+    return result;
   }
 
   async deleteSubscription(event: Stripe.CustomerSubscriptionDeletedEvent) {
@@ -199,6 +237,24 @@ export class StripeService extends PaymentProviderAbstract {
       event.data.object.customer as string,
       STRIPE_PROVIDER
     );
+
+    // Stripe sends no previous status on deletion: a subscription that ended
+    // no later than its trial end was still in its trial.
+    const { userId, billing, period } = event.data.object.metadata;
+    const { trial_end, ended_at } = event.data.object;
+    if (userId) {
+      this._trackService.capture(userId, 'subscription_cancelled', {
+        subscription_id: event.data.object.id,
+        plan: billing,
+        period,
+        previous_status:
+          trial_end && ended_at && ended_at <= trial_end
+            ? 'trialing'
+            : 'active',
+        cancellation_reason:
+          event.data.object.cancellation_details?.reason ?? null,
+      });
+    }
   }
 
   // After a login swap, move each Stripe customer's email to the login that
@@ -576,6 +632,7 @@ export class StripeService extends PaymentProviderAbstract {
           service: 'gitroom',
           ...body,
           userId,
+          posthog_person_distinct_id: userId,
           uniqueId,
           ud,
         },
@@ -637,6 +694,7 @@ export class StripeService extends PaymentProviderAbstract {
           service: 'gitroom',
           ...body,
           userId,
+          posthog_person_distinct_id: userId,
           uniqueId,
           ud,
         },
@@ -956,6 +1014,16 @@ export class StripeService extends PaymentProviderAbstract {
     if (user && user.ip && user.agent) {
       this._trackService.track(ud, user.ip, user.agent, TrackEnum.Purchase, {
         value: event.data.object.amount_paid / 100,
+      });
+    }
+
+    if (userId && event.data.object.amount_paid > 0) {
+      this._trackService.capture(userId, 'payment_succeeded', {
+        amount: event.data.object.amount_paid / 100,
+        currency: event.data.object.currency.toUpperCase(),
+        billing_reason: event.data.object.billing_reason ?? null,
+        subscription_id: subscription.id,
+        invoice_id: event.data.object.id,
       });
     }
 
