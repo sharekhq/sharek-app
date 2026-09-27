@@ -50,7 +50,7 @@ export function ForgotReturn({ token }: { token: string }) {
   };
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form className="flex-1" onSubmit={form.handleSubmit(onSubmit)}>
         <div>
           <h1 className="text-3xl font-bold text-start mb-4">
             {t('forgot_password_1', 'Forgot Password')}
@@ -76,7 +76,7 @@ export function ForgotReturn({ token }: { token: string }) {
             </div>
             <div className="text-center mt-6">
               <div className="w-full flex">
-                <Button type="submit" className="flex-1" loading={loading}>
+                <Button type="submit" className="flex-1 !h-[52px] !rounded-[10px]" loading={loading}>
                   {t('change_password', 'Change Password')}
                 </Button>
               </div>
