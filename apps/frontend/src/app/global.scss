@@ -109,7 +109,7 @@ textarea::placeholder {
 .react-tags {
   @apply border border-newTableBorder;
   position: relative;
-  padding-left: 16px;
+  padding-inline: 16px;
   font-size: 14px;
   background-color: var(--new-bgColorInner);
   height: 42px;
@@ -165,7 +165,8 @@ textarea::placeholder {
 }
 
 .react-tags__tag {
-  margin: 0 0.25rem 0 0;
+  margin-block: 0;
+  margin-inline: 0 0.25rem;
   padding: 0.15rem 0.5rem;
   border: 0;
   border-radius: 3px;
@@ -198,7 +199,7 @@ textarea::placeholder {
     90% 0,
     50% 40%
   );
-  margin-left: 0.5rem;
+  margin-inline-start: 0.5rem;
   font-size: 0.875rem;
   @apply bg-muted;
 }
@@ -265,7 +266,7 @@ textarea::placeholder {
 
 .react-tags__listbox-option[aria-selected='true']::after {
   content: '✓';
-  margin-left: 0.5rem;
+  margin-inline-start: 0.5rem;
 }
 
 .react-tags__listbox-option[aria-selected='true']:not(.is-active)::after {
@@ -451,7 +452,7 @@ textarea::placeholder {
   margin-right: 20px;
   border: 0 !important;
   background: transparent !important;
-  padding-left: 0 !important;
+  padding-inline: 0 !important;
 }
 
 .tags-top .react-tags__combobox {
@@ -506,7 +507,6 @@ textarea::placeholder {
   align-items: flex-start;
   padding-top: 6px;
   padding-bottom: 6px;
-  padding-right: 16px;
 }
 
 .medium-tags .react-tags__list {
