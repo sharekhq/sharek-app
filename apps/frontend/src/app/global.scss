@@ -948,9 +948,17 @@ html[dir='rtl'] .lbox {
 .tiptap p.is-editor-empty:first-child::before {
   color: var(--muted);
   content: attr(data-placeholder);
-  float: left;
+  float: inline-start;
   height: 0;
   pointer-events: none;
+}
+
+/* editor.tsx gives every paragraph and heading dir="auto", which takes a
+   line's direction from its first letter. An empty line has none and resolves
+   left-to-right even in Arabic, putting the caret and the placeholder on the
+   left. Until the line has a letter, it follows the interface. */
+.tiptap [dir='auto'].is-empty {
+  direction: inherit;
 }
 
 .forceChange .changeColor {
