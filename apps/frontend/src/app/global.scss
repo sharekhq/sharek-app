@@ -170,14 +170,14 @@ textarea::placeholder {
   padding: 0.15rem 0.5rem;
   border: 0;
   border-radius: 3px;
-  @apply bg-brand;
+  @apply bg-brandSoft text-brandText;
   /* match the font styles */
   font-size: inherit;
   line-height: inherit;
 }
 
 .react-tags__tag:hover {
-  @apply text-textColor bg-brand;
+  @apply bg-brandSoft2;
 }
 
 .react-tags__tag::after {
@@ -201,11 +201,7 @@ textarea::placeholder {
   );
   margin-inline-start: 0.5rem;
   font-size: 0.875rem;
-  @apply bg-muted;
-}
-
-.react-tags__tag:hover::after {
-  @apply bg-primary;
+  @apply bg-current;
 }
 
 .react-tags__combobox {
@@ -254,8 +250,10 @@ textarea::placeholder {
   @apply bg-third;
 }
 
+/* v3: the hovered look. On the grey list a brand tint would take the matched
+   letters below 4.5:1, and a crimson row hides them outright. */
 .react-tags__listbox-option:not([aria-disabled='true']).is-active {
-  @apply text-textColor bg-brand;
+  @apply text-ink bg-surface;
 }
 
 .react-tags__listbox-option[aria-disabled='true'] {
