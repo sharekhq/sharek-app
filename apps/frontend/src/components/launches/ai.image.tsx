@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
+import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import {
@@ -211,19 +212,51 @@ const AiImageModal: FC<{
     setImage(null);
     setPhase('generating');
     startRequest();
+    // Once the request is out, a lost connection leaves a render that cannot be
+    // cancelled: the server finishes it on the credit it already committed and
+    // the image still lands in the Media library. Deliberately NOT the default
+    // "you have not been charged" message. Telling the user it was free would
+    // be a lie.
+    const dropped = t(
+      'image_connection_dropped',
+      'The connection dropped before the image was ready. It may still finish — check your Media library in a minute.'
+    );
     try {
       const response = await fetch('/media/generate-image-with-prompt', {
         method: 'POST',
         body: JSON.stringify({ prompt, aspectRatio, ...(style && { style }) }),
+        headers: { Accept: 'application/x-ndjson' },
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message || '');
       }
-      const generated = await response.json();
+
+      // A render can outlast the proxies' idle cut; the response is an NDJSON
+      // stream whose heartbeat frames keep the connection open until it ends.
+      let generated: { id: string; path: string } | undefined;
+      for await (const frame of ndjsonFrames<{
+        name: string;
+        media?: { id: string; path: string };
+        message?: string;
+      }>(response.body!)) {
+        if (frame.name === 'error') {
+          throw new Error(frame.message || '');
+        }
+        if (frame.name === 'done' && frame.media) {
+          generated = frame.media;
+          break;
+        }
+      }
+
+      // A stream that ends without a terminal frame means the connection went
+      // away mid-render.
+      if (!generated) {
+        throw new Error(dropped);
+      }
       // Anything without a path is not a media record and must not reach the
       // post.
-      if (!generated?.path) {
+      if (!generated.path) {
         throw new Error('');
       }
       endRequest();
@@ -257,7 +290,9 @@ const AiImageModal: FC<{
         }
       } else {
         releaseLock();
-        // Nothing was charged, so the inputs are kept for another attempt.
+        // The inputs are kept for another attempt. Whether this one was
+        // charged is known only from the server's own answer: a dropped
+        // connection may still finish and be charged, which its message says.
         if (mounted.current) {
           setPhase('compose');
         }
@@ -269,11 +304,16 @@ const AiImageModal: FC<{
         return;
       }
       toaster.show(
-        (e instanceof Error && e.message) ||
-          t(
-            'image_generation_failed',
-            'Could not generate the image. You have not been charged.'
-          ),
+        // A connection lost mid-render rarely ends the stream: fetch() or the
+        // body read rejects with the Fetch standard's network error, a
+        // TypeError. Its outcome is just as unknown.
+        e instanceof TypeError
+          ? dropped
+          : (e instanceof Error && e.message) ||
+              t(
+                'image_generation_failed',
+                'Could not generate the image. You have not been charged.'
+              ),
         'warning'
       );
     }

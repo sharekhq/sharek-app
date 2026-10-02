@@ -1196,6 +1196,7 @@
   "creating_step": "Creating… {{done}}/{{total}}",
   "video_creation_failed": "Could not create the video. You have not been charged.",
   "video_connection_dropped": "The connection dropped before the video was ready. It may still finish — check your media library in a few minutes.",
+  "image_connection_dropped": "The connection dropped before the image was ready. It may still finish — check your Media library in a minute.",
   "image_generation_failed": "Could not generate the image. You have not been charged.",
   "reference_images": "Reference images",
   "veo3_audio": "Audio",

@@ -112,70 +112,99 @@ export class MediaService {
   }
 
   /**
-   * The AI image modal's own render path. The client sends a size preset id and
-   * the pixels are resolved here, so a tampered client cannot ask for an
-   * arbitrary render, and the exact dimensions the size tooltips promise are
-   * the ones the renderer is given.
+   * The AI image modal's pre-flight, the counterpart of `resolveVideo`: awaited
+   * before the stream opens, so a refusal is still a status the billing dialog
+   * can act on.
    *
-   * Everything — including the flagged-prompt retry — sits inside the credit
-   * callback: charge-on-success means a generation that never happens must
-   * never reach the renderer either, and a generation that only succeeded on
-   * the second attempt still costs exactly one credit.
+   * The client sends a size preset id and the pixels are resolved here, so a
+   * tampered client cannot ask for an arbitrary render, and the exact
+   * dimensions the size tooltips promise are the ones the renderer is given.
    */
-  async generateImageWithPrompt(
-    dto: GenerateImageWithPromptDto,
-    org: Organization
+  async resolveImageWithPrompt(
+    org: Organization,
+    dto: GenerateImageWithPromptDto
   ) {
     await this.resolveImage(org);
+    return { size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size };
+  }
 
+  /**
+   * The AI image modal's render as a stream, shaped like `processVideo`: the
+   * single frame is the terminal one, and the controller's heartbeat wrapper
+   * supplies the keep-alives in between. The render cannot be cancelled
+   * mid-flight, so a client that disconnects still gets the finished image in
+   * the media library, on the credit that was already committed.
+   */
+  async *generateImageWithPrompt(
+    org: Organization,
+    dto: GenerateImageWithPromptDto,
+    prepared: Awaited<ReturnType<MediaService['resolveImageWithPrompt']>>
+  ) {
+    // The wire carries a style id; the phrase behind it is resolved here so the
+    // client cannot hand the model instructions of its own.
+    const style = IMAGE_STYLES.find((entry) => entry.id === dto.style)?.prompt;
+
+    let saved;
     try {
-      return await this._subscriptionService.useCredit(
+      saved = await this.renderImage(
         org,
-        'ai_images',
-        async () => {
-          // The wire carries a style id; the phrase behind it is resolved here
-          // so the client cannot hand the model instructions of its own.
-          const style = IMAGE_STYLES.find(
-            (entry) => entry.id === dto.style
-          )?.prompt;
-          // The enhancement yields '' when the model refuses or its reply will
-          // not parse. Sending that on asks the renderer for an empty prompt —
-          // an invalid-parameter 400 the user reads as a generic failure — so
-          // fall back to their own words, as the video providers do.
-          const enhanced = await this._openAi.generatePromptForPicture(
-            dto.prompt,
-            style
-          );
-          const prompt = enhanced || dto.prompt;
-
-          const size = IMAGE_ASPECT_PRESETS[dto.aspectRatio].size;
-          const render = async (text: string) =>
-            (await this._openAi.generateImageAtSize(text, size)).toString(
-              'base64'
-            );
-
-          try {
-            return await render(prompt);
-          } catch (err) {
-            // Same recovery the slides renderer uses: a content flag is worth
-            // one sanitized retry, an ordinary failure is not. A second flag
-            // falls through to generationError's 422 with its categories.
-            if (!isSafetyRejection(err)) {
-              throw err;
-            }
-
-            const rewritten = await this._openAi.rewriteFlaggedPrompt(prompt);
-            if (!rewritten) {
-              throw err;
-            }
-
-            return await render(rewritten);
-          }
-        }
+        prepared,
+        // The enhancement yields '' when the model refuses or its reply will
+        // not parse. Sending that on asks the renderer for an empty prompt —
+        // an invalid-parameter 400 the user reads as a generic failure — so
+        // fall back to their own words, as the video providers do.
+        async () =>
+          (await this._openAi.generatePromptForPicture(dto.prompt, style)) ||
+          dto.prompt
       );
     } catch (err) {
       throw generationError(err);
     }
+
+    yield { name: 'done', media: saved };
+  }
+
+  /**
+   * Everything — the prompt improvement, the flagged-prompt retry, the upload
+   * and the save — sits inside the credit callback: charge-on-success means a
+   * generation that never happens must never reach the renderer either, a
+   * generation that only succeeded on the second attempt still costs exactly
+   * one credit, and a spent credit always leaves an image in Media.
+   */
+  private renderImage(
+    org: Organization,
+    prepared: Awaited<ReturnType<MediaService['resolveImageWithPrompt']>>,
+    improve: () => Promise<string>
+  ) {
+    return this._subscriptionService.useCredit(org, 'ai_images', async () => {
+      const prompt = await improve();
+      const render = (text: string) =>
+        this._openAi.generateImageAtSize(text, prepared.size);
+
+      let image: Buffer;
+      try {
+        image = await render(prompt);
+      } catch (err) {
+        // Same recovery the slides renderer uses: a content flag is worth one
+        // sanitized retry, an ordinary failure is not. A second flag falls
+        // through to generationError's 422 with its categories.
+        if (!isSafetyRejection(err)) {
+          throw err;
+        }
+
+        const rewritten = await this._openAi.rewriteFlaggedPrompt(prompt);
+        if (!rewritten) {
+          throw err;
+        }
+
+        image = await render(rewritten);
+      }
+
+      const file = await this.storage.uploadSimple(
+        'data:image/jpeg;base64,' + image.toString('base64')
+      );
+      return this.saveFile(org.id, file.split('/').pop(), file);
+    });
   }
 
   saveFile(org: string, fileName: string, filePath: string, originalName?: string) {

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpException,
   Param,
   Post,
@@ -176,14 +177,39 @@ export class MediaController {
   @Post('/generate-image-with-prompt')
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
-    @Body() body: GenerateImageWithPromptDto
+    @Body() body: GenerateImageWithPromptDto,
+    @Headers('accept') accept: string | undefined,
+    @Res({ passthrough: false }) res: Response
   ) {
-    const image = await this._mediaService.generateImageWithPrompt(body, org);
-    const file = await this.storage.uploadSimple(
-      'data:image/jpeg;base64,' + image
+    // Deliberately outside the stream: the credit check must still be able to
+    // fail with a real status code. Once a byte is written the status line is
+    // fixed at 200, and the billing dialog keys off the status, not the body.
+    const prepared = await this._mediaService.resolveImageWithPrompt(org, body);
+    const frames = this._mediaService.generateImageWithPrompt(
+      org,
+      body,
+      prepared
     );
 
-    return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+    if (accept?.includes('application/x-ndjson')) {
+      return this.streamImage(res, frames);
+    }
+
+    // A page loaded before the stream existed reads one JSON record, and would
+    // take a stream for a failure it was "not charged" for. It keeps today's
+    // answer, drained from the same render, until no such page can still be
+    // open (research R3). Failures take the normal exception path.
+    for await (const frame of frames) {
+      if (frame.name === 'done') {
+        res.json(frame.media);
+        return;
+      }
+    }
+
+    throw new HttpException(
+      'AI generation failed, please try again later.',
+      500
+    );
   }
 
   @Post('/upload-server')
@@ -312,5 +338,54 @@ export class MediaController {
   @Get('/generate-image/allowed')
   generateImageAllowed(@GetOrgFromRequest() org: Organization) {
     return this._mediaService.generateImageAllowed(org);
+  }
+
+  /**
+   * The stream section of the video routes, for an image render that has
+   * already been resolved: from here on a failure can only travel as the last
+   * frame.
+   */
+  private async streamImage(res: Response, frames: AsyncIterable<object>) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    // Tell nginx not to buffer this NDJSON stream — buffered heartbeats cannot
+    // keep the proxy connection alive.
+    res.setHeader('X-Accel-Buffering', 'no');
+    // compression() buffers responses; flush after each event so it actually
+    // leaves the process while the render is still running.
+    const write = (payload: object) => {
+      res.write(JSON.stringify(payload) + '\n');
+      (res as { flush?: () => void }).flush?.();
+    };
+
+    // A render has no yield points, so a disconnect cannot cancel it: it
+    // finishes on the committed credit and the image still lands in the media
+    // library. Writing to a closed socket does not throw, so stop writing.
+    let disconnected = false;
+    res.on('close', () => {
+      disconnected = true;
+    });
+
+    try {
+      for await (const event of withHeartbeat(frames, 20_000, () => ({
+        name: 'heartbeat',
+      }))) {
+        if (disconnected) {
+          break;
+        }
+        write(event);
+      }
+    } catch (err) {
+      // The stream has already started, so a normal HTTP error is no longer
+      // possible. Emit a final error event instead. The render normalises
+      // everything through generationError, so an HttpException here carries a
+      // message written for the user.
+      const message =
+        err instanceof HttpException
+          ? err.message
+          : 'Something went wrong while creating your image, please try again.';
+      write({ name: 'error', error: true, message });
+    }
+
+    res.end();
   }
 }
