@@ -44,6 +44,45 @@ const answer = (status: number, body: any) => ({
   json: async () => body,
 });
 
+/** The NDJSON body the render route answers with, as `ndjsonFrames` reads it. */
+const stream = (...frames: object[]) => {
+  const chunks = frames.map((frame) =>
+    new TextEncoder().encode(JSON.stringify(frame) + '\n')
+  );
+  let next = 0;
+  return {
+    getReader: () => ({
+      read: async () =>
+        next < chunks.length
+          ? { done: false, value: chunks[next++] }
+          : { done: true, value: undefined },
+      cancel: async (): Promise<void> => undefined,
+    }),
+  } as unknown as ReadableStream<Uint8Array>;
+};
+
+const streamed = (...frames: object[]) => ({
+  ok: true,
+  status: 200,
+  body: stream(...frames),
+});
+
+const done = {
+  name: 'done',
+  media: { id: 'media-1', path: 'https://media/first.png' },
+};
+
+/**
+ * Lets the pre-flight through and answers every render with these frames, on
+ * a fresh body each time: a stream can only be read once.
+ */
+const renders = (...frames: object[]) =>
+  request.mockImplementation((url: string) =>
+    Promise.resolve(
+      url.endsWith('/allowed') ? answer(200, true) : streamed(...frames)
+    )
+  );
+
 // What the fetch wrapper actually does with a credit refusal: the interceptor
 // raises the limit modal and the request *rejects*. It must not resolve — a
 // resolved response is indistinguishable from success to every caller that
@@ -121,9 +160,12 @@ const settle = async () => {
 };
 
 /** Opens the AI image modal, types a prompt, and presses Generate. */
-const generate = async (destination?: MediaDestination) => {
+const generate = async (
+  destination?: MediaDestination,
+  onChange = jest.fn()
+) => {
   await mount(
-    <AiImage value="" onChange={jest.fn()} destination={destination} />
+    <AiImage value="" onChange={onChange} destination={destination} />
   );
 
   await click(document.querySelector('.bg-ai'));
@@ -217,14 +259,146 @@ describe('when the generation fails for anything else', () => {
   });
 });
 
+// A render can outlive the proxies' idle cut, so the route streams heartbeats
+// until its one terminal frame (FR-024 – FR-027).
+describe('the streamed render', () => {
+  // The route answers a page loaded before the stream existed with plain JSON;
+  // this window has to ask for the stream to get it.
+  it('asks the route for the stream', async () => {
+    renders(done);
+
+    await generate();
+
+    expect(asked('/media/generate-image-with-prompt')[0][1]).toMatchObject({
+      headers: { Accept: 'application/x-ndjson' },
+    });
+  });
+
+  it('shows the image once heartbeats give way to the done frame', async () => {
+    renders({ name: 'heartbeat' }, { name: 'heartbeat' }, done);
+
+    await generate();
+
+    expect(button('Use image')).toBeTruthy();
+    expect(
+      document.querySelector('img[src="https://media/first.png"]')
+    ).toBeTruthy();
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  // An error frame means the server refunded the credit, so its message is
+  // the true account of what happened.
+  it('reports an error frame in its own words and keeps the prompt', async () => {
+    renders({
+      name: 'error',
+      error: true,
+      message: 'Your request was rejected by the AI safety system.',
+    });
+
+    await generate();
+
+    expect(toast).toHaveBeenCalledWith(
+      'Your request was rejected by the AI safety system.',
+      'warning'
+    );
+    const field = document.querySelector('textarea') as HTMLTextAreaElement;
+    expect(field.value).toBe('a pomegranate on a table');
+  });
+
+  // The render cannot be cancelled once it runs, so a stream that ends without
+  // its last frame may still finish, save and be charged. "You have not been
+  // charged" would be a guess, and a wrong one invites a paid retry.
+  it('says the outcome is unknown when the stream ends early', async () => {
+    renders({ name: 'heartbeat' }, { name: 'heartbeat' });
+
+    await generate();
+
+    expect(toast).toHaveBeenCalledWith(
+      'The connection dropped before the image was ready. It may still finish — check your Media library in a minute.',
+      'warning'
+    );
+    expect(toast).not.toHaveBeenCalledWith(
+      'Could not generate the image. You have not been charged.',
+      'warning'
+    );
+  });
+
+  // A lost connection does not end the stream: fetch() or the body read
+  // rejects with the Fetch standard's network error, a TypeError. Before the
+  // first heartbeat no byte has arrived, so it is fetch() that rejects.
+  it.each([
+    [
+      'before the first byte arrives',
+      () => Promise.reject(new TypeError('Failed to fetch')),
+    ],
+    [
+      'while the body is being read',
+      () =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: () => Promise.reject(new TypeError('network error')),
+              cancel: async (): Promise<void> => undefined,
+            }),
+          },
+        }),
+    ],
+  ])(
+    'says the outcome is unknown when the connection is lost %s',
+    async (_moment, render) => {
+      request.mockImplementation((url: string) =>
+        url.endsWith('/allowed') ? Promise.resolve(answer(200, true)) : render()
+      );
+
+      await generate();
+
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalledWith(
+        'The connection dropped before the image was ready. It may still finish — check your Media library in a minute.',
+        'warning'
+      );
+    }
+  );
+
+  // Closing the window gives up watching, not the image: it lands in the post
+  // by itself when the stream finishes, and only then is the composer free.
+  it('attaches the image when the window was closed mid-render', async () => {
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+    const onChange = jest.fn();
+
+    await generate(undefined, onChange);
+    await settle();
+    act(() => {
+      closeEveryModal?.();
+    });
+
+    expect(setLocked).toHaveBeenLastCalledWith(true);
+
+    await act(async () => {
+      deliver(streamed(done));
+    });
+    await settle();
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(setLocked).toHaveBeenLastCalledWith(false);
+  });
+});
+
 // The credit for the first image was already spent, and `generate()` clears the
 // result before it asks. A refused Regenerate must not take the image with it —
 // `ai.video`'s failRender holds its result for exactly this reason.
 describe('when a Regenerate is refused', () => {
   it('keeps the image the credit already paid for', async () => {
-    request.mockResolvedValue(
-      answer(200, { id: 'media-1', path: 'https://media/first.png' })
-    );
+    renders(done);
     await generate();
 
     // On screen, and reachable: the result phase is what offers "Use image".
@@ -346,9 +520,7 @@ describe('the note under the waiting screen', () => {
 // nothing left to attach it to, and it only confirms and closes.
 describe('the action that accepts the result', () => {
   beforeEach(() => {
-    request.mockResolvedValue(
-      answer(200, { id: 'media-1', path: 'https://media/first.png' })
-    );
+    renders(done);
   });
 
   it('offers to use the image in the post by default', async () => {

@@ -56,6 +56,9 @@ const makeService = (
     openAi?: any;
     spendCredit?: boolean;
     temporal?: any;
+    // Where the upload lands and so what the saved record points at; the real
+    // storage names the file after the type it detects in the bytes.
+    file?: string;
   } = {}
 ) => {
   // The real useCredit commits the credit only when its callback resolves and
@@ -82,12 +85,13 @@ const makeService = (
     manager as any,
     over.temporal as any
   );
+  const file = over.file ?? 'https://media/abc.mp4';
   (service as any).storage = {
-    uploadSimple: jest.fn().mockResolvedValue('https://media/abc.mp4'),
+    uploadSimple: jest.fn().mockResolvedValue(file),
   };
   const saveFile = jest
     .spyOn(service, 'saveFile')
-    .mockResolvedValue({ id: 'media-1', path: 'https://media/abc.mp4' } as any);
+    .mockResolvedValue({ id: 'media-1', path: file } as any);
   return { service, subscription, saveFile, charged };
 };
 
@@ -96,6 +100,17 @@ const drain = async (gen: AsyncGenerator<any>) => {
   for await (const frame of gen) frames.push(frame);
   return frames;
 };
+
+// The image route's two steps, as the controller runs them: the pre-flight,
+// then the render it prepared.
+const generateWithPrompt = async (service: MediaService, request = dto()) =>
+  drain(
+    service.generateImageWithPrompt(
+      org,
+      request,
+      await service.resolveImageWithPrompt(org, request)
+    )
+  );
 
 describe('resolveVideo', () => {
   it('throws SubscriptionException when no credits remain', async () => {
@@ -429,6 +444,7 @@ describe('resolveTwoPhaseVideo', () => {
 // tooltips make, so the preset id has to reach the renderer as exact pixels;
 // legacy generateImage() keeps its fixed square for its other callers.
 describe('generateImageWithPrompt', () => {
+  const IMAGE_FILE = 'https://media/abc.jpg';
   const flagged = () =>
     new Error('400 Your request was rejected by the safety system');
 
@@ -441,16 +457,28 @@ describe('generateImageWithPrompt', () => {
     const ai = openAi();
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto({ aspectRatio }), org);
+    await generateWithPrompt(service, dto({ aspectRatio }));
 
     expect(ai.generateImageAtSize).toHaveBeenCalledWith('an enhanced scene', size);
+  });
+
+  // The pixels are settled by the pre-flight, before the stream opens, so the
+  // render is handed a size rather than a preset id it could misread.
+  it('resolves the preset to its pixels without rendering anything', async () => {
+    const ai = openAi();
+    const { service } = makeService({ openAi: ai });
+
+    await expect(
+      service.resolveImageWithPrompt(org, dto({ aspectRatio: 'portrait' }))
+    ).resolves.toEqual({ size: '1024x1280' });
+    expect(ai.generateImageAtSize).not.toHaveBeenCalled();
   });
 
   it('hands the enhancement the user\'s prompt verbatim', async () => {
     const ai = openAi();
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto(), org);
+    await generateWithPrompt(service);
 
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
@@ -464,7 +492,7 @@ describe('generateImageWithPrompt', () => {
     const ai = openAi();
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto({ style: 'watercolor' }), org);
+    await generateWithPrompt(service, dto({ style: 'watercolor' }));
 
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
@@ -476,7 +504,7 @@ describe('generateImageWithPrompt', () => {
     const ai = openAi();
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto({ style: undefined }), org);
+    await generateWithPrompt(service, dto({ style: undefined }));
 
     expect(ai.generatePromptForPicture.mock.calls[0][1]).toBeUndefined();
   });
@@ -490,7 +518,7 @@ describe('generateImageWithPrompt', () => {
     ai.generatePromptForPicture.mockResolvedValue('');
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto(), org);
+    await generateWithPrompt(service);
 
     expect(ai.generateImageAtSize).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
@@ -503,23 +531,39 @@ describe('generateImageWithPrompt', () => {
     const ai = openAi();
     const { service } = makeService({ openAi: ai });
 
-    await service.generateImageWithPrompt(dto(), org);
+    await generateWithPrompt(service);
 
     expect(ai.generateImageAtSize).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the image as base64', async () => {
-    const { service } = makeService({ openAi: openAi() });
+  // The stream's one terminal frame carries the saved record, so what the
+  // window attaches is exactly what Media now holds.
+  it('yields a single done frame carrying the saved media record', async () => {
+    const { service } = makeService({ openAi: openAi(), file: IMAGE_FILE });
 
-    expect(await service.generateImageWithPrompt(dto(), org)).toBe(
-      Buffer.from('JPEG-BYTES').toString('base64')
+    expect(await generateWithPrompt(service)).toEqual([
+      { name: 'done', media: { id: 'media-1', path: IMAGE_FILE } },
+    ]);
+  });
+
+  it('uploads the render as a JPEG and saves it under the uploaded name', async () => {
+    const { service, saveFile } = makeService({
+      openAi: openAi(),
+      file: IMAGE_FILE,
+    });
+
+    await generateWithPrompt(service);
+
+    expect((service as any).storage.uploadSimple).toHaveBeenCalledWith(
+      'data:image/jpeg;base64,' + Buffer.from('JPEG-BYTES').toString('base64')
     );
+    expect(saveFile).toHaveBeenCalledWith('org-1', 'abc.jpg', IMAGE_FILE);
   });
 
   it('spends one ai_images credit', async () => {
     const { service, subscription } = makeService({ openAi: openAi() });
 
-    await service.generateImageWithPrompt(dto(), org);
+    await generateWithPrompt(service);
 
     expect(subscription.useCredit).toHaveBeenCalledWith(
       org,
@@ -530,15 +574,33 @@ describe('generateImageWithPrompt', () => {
   });
 
   // Charge-on-success is the whole reason the work sits inside the callback:
-  // a credit that is never committed must leave the renderer untouched.
+  // a credit that is never committed must leave the renderer, the bucket and
+  // the library untouched.
   it('does no work outside the credit callback', async () => {
     const ai = openAi();
-    const { service } = makeService({ openAi: ai, spendCredit: false });
+    const { service, saveFile } = makeService({
+      openAi: ai,
+      spendCredit: false,
+    });
 
-    await service.generateImageWithPrompt(dto(), org);
+    await generateWithPrompt(service);
 
     expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+    expect((service as any).storage.uploadSimple).not.toHaveBeenCalled();
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  // One credit is one image in Media: a render whose save fails delivered
+  // nothing, so its credit is refunded like any other failure.
+  it('refunds the credit when the image cannot be saved', async () => {
+    const { service, saveFile, charged } = makeService({ openAi: openAi() });
+    saveFile.mockRejectedValue(new Error('insert failed'));
+
+    const err = await generateWithPrompt(service).catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(charged.value).toBe(false);
   });
 
   it('normalises provider failures through generationError', async () => {
@@ -548,9 +610,7 @@ describe('generateImageWithPrompt', () => {
     );
     const { service } = makeService({ openAi: ai });
 
-    const err = await service
-      .generateImageWithPrompt(dto(), org)
-      .catch((e) => e);
+    const err = await generateWithPrompt(service).catch((e) => e);
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(422);
   });
@@ -565,7 +625,7 @@ describe('generateImageWithPrompt', () => {
         .mockResolvedValueOnce(Buffer.from('RETRY-BYTES'));
       const { service } = makeService({ openAi: ai });
 
-      const result = await service.generateImageWithPrompt(dto(), org);
+      await generateWithPrompt(service);
 
       expect(ai.rewriteFlaggedPrompt).toHaveBeenCalledTimes(1);
       expect(ai.rewriteFlaggedPrompt).toHaveBeenCalledWith('an enhanced scene');
@@ -574,7 +634,9 @@ describe('generateImageWithPrompt', () => {
         'an anonymous scene',
         '1024x1024'
       );
-      expect(result).toBe(Buffer.from('RETRY-BYTES').toString('base64'));
+      expect((service as any).storage.uploadSimple).toHaveBeenCalledWith(
+        'data:image/jpeg;base64,' + Buffer.from('RETRY-BYTES').toString('base64')
+      );
     });
 
     it('charges exactly one credit for a generation that needed the retry', async () => {
@@ -584,7 +646,7 @@ describe('generateImageWithPrompt', () => {
         .mockResolvedValueOnce(Buffer.from('RETRY-BYTES'));
       const { service, subscription, charged } = makeService({ openAi: ai });
 
-      await service.generateImageWithPrompt(dto(), org);
+      await generateWithPrompt(service);
 
       expect(subscription.useCredit).toHaveBeenCalledTimes(1);
       expect(charged.value).toBe(true);
@@ -595,9 +657,7 @@ describe('generateImageWithPrompt', () => {
       ai.generateImageAtSize.mockRejectedValue(flagged());
       const { service, charged } = makeService({ openAi: ai });
 
-      const err = await service
-        .generateImageWithPrompt(dto(), org)
-        .catch((e) => e);
+      const err = await generateWithPrompt(service).catch((e) => e);
 
       expect(ai.generateImageAtSize).toHaveBeenCalledTimes(2);
       expect(ai.rewriteFlaggedPrompt).toHaveBeenCalledTimes(1);
@@ -613,9 +673,7 @@ describe('generateImageWithPrompt', () => {
       ai.generateImageAtSize.mockRejectedValue(new Error('socket hang up'));
       const { service, charged } = makeService({ openAi: ai });
 
-      const err = await service
-        .generateImageWithPrompt(dto(), org)
-        .catch((e) => e);
+      const err = await generateWithPrompt(service).catch((e) => e);
 
       expect(ai.rewriteFlaggedPrompt).not.toHaveBeenCalled();
       expect(ai.generateImageAtSize).toHaveBeenCalledTimes(1);
@@ -631,9 +689,7 @@ describe('generateImageWithPrompt', () => {
       ai.rewriteFlaggedPrompt.mockResolvedValue('');
       const { service, charged } = makeService({ openAi: ai });
 
-      const err = await service
-        .generateImageWithPrompt(dto(), org)
-        .catch((e) => e);
+      const err = await generateWithPrompt(service).catch((e) => e);
 
       expect(ai.generateImageAtSize).toHaveBeenCalledTimes(1);
       expect(err.getStatus()).toBe(422);
@@ -689,7 +745,9 @@ describe('image credit enforcement', () => {
       expect(charged.value).toBe(false);
     });
 
-    it('refuses generateImageWithPrompt without touching the renderer or a credit', async () => {
+    // The image route's pre-flight, awaited before its stream opens: the
+    // refusal must still be a real 402, so nothing may have run by then.
+    it('refuses resolveImageWithPrompt without touching OpenAI or a credit', async () => {
       const ai = openAi();
       const { service, subscription, charged } = makeService({
         credits: 0,
@@ -697,13 +755,14 @@ describe('image credit enforcement', () => {
       });
 
       await expect(
-        service.generateImageWithPrompt(dto(), org)
+        service.resolveImageWithPrompt(org, dto())
       ).rejects.toBeInstanceOf(SubscriptionException);
 
       expect(subscription.checkCredits).toHaveBeenCalledWith(org, 'ai_images');
       expect(subscription.useCredit).not.toHaveBeenCalled();
-      expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
-      expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+      for (const method of Object.values(ai)) {
+        expect(method).not.toHaveBeenCalled();
+      }
       expect(charged.value).toBe(false);
     });
 
@@ -782,9 +841,9 @@ describe('image credit enforcement', () => {
         openAi: openAi(),
       });
 
-      await expect(service.generateImageWithPrompt(dto(), org)).resolves.toBe(
-        Buffer.from('JPEG-BYTES').toString('base64')
-      );
+      await expect(generateWithPrompt(service)).resolves.toEqual([
+        expect.objectContaining({ name: 'done' }),
+      ]);
 
       expect(subscription.checkCredits).not.toHaveBeenCalled();
     });
