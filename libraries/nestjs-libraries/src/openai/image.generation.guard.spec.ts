@@ -16,7 +16,10 @@ import * as path from 'path';
 // so the receiver is resolved from the declarations in each file rather than
 // guessed — `this._mediaService.generateImage(...)` is the metered path and
 // must not be mistaken for a raw one.
-const RAW_METHODS = ['generateImage', 'generateImageAtSize'];
+// editImageAtSize renders references and edits (feature
+// 031-ai-image-references-edit): a render like the others, metered the same
+// way.
+const RAW_METHODS = ['generateImage', 'generateImageAtSize', 'editImageAtSize'];
 
 const ALLOWED = [
   // The metering point itself.

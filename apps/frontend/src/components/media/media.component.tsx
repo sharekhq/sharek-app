@@ -290,7 +290,14 @@ export const MediaBox: FC<{
   standalone?: boolean;
   type?: 'image' | 'video';
   closeModal: () => void;
-}> = ({ type, standalone, setMedia }) => {
+  /**
+   * The most items the caller can still take: the AI image window's free
+   * reference slots. A pick past it is refused with a toast and an upload
+   * selects only what fits, so nothing is dropped in silence. Absent, nothing
+   * changes.
+   */
+  max?: number;
+}> = ({ type, standalone, setMedia, max }) => {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounce(search, 300);
@@ -326,7 +333,18 @@ export const MediaBox: FC<{
     [data?.results, type]
   );
   const [selected, setSelected] = useState([]);
+  // Uppy keeps the upload callback it was created with, so that callback
+  // counts the selection through a ref rather than its own first render's.
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
   const t = useT();
+  const overLimit = t(
+    'media_selection_limit',
+    'You can choose up to {{count}} images here.',
+    { count: max }
+  );
   const uploaderRef = useRef<any>(null);
   const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
@@ -343,8 +361,15 @@ export const MediaBox: FC<{
       if (standalone) {
         return;
       }
+      // Every upload stays in the library; only what fits under `max` joins
+      // the selection.
+      const free =
+        max === undefined ? arr.length : max - selectedRef.current.length;
+      if (arr.length > free) {
+        toaster.show(overLimit, 'warning');
+      }
       setSelected((prevSelected) => {
-        return [...prevSelected, ...arr];
+        return [...prevSelected, ...arr.slice(0, free)];
       });
     },
     onStart: () => setLoading(true),
@@ -361,9 +386,13 @@ export const MediaBox: FC<{
         setSelected(selected.filter((f: any) => f.id !== media.id));
         return;
       }
+      if (max !== undefined && selected.length >= max) {
+        toaster.show(overLimit, 'warning');
+        return;
+      }
       setSelected([...selected, media]);
     },
-    [selected]
+    [selected, max, toaster, overLimit]
   );
 
   const addMedia = useCallback(async () => {

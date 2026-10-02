@@ -26,10 +26,12 @@ import {
   IMAGE_ASPECT_PRESETS,
   IMAGE_POPULAR_STYLES,
   IMAGE_PROMPT_MAX_CHARS,
+  IMAGE_REFERENCE_MAX,
   IMAGE_STYLE_CATEGORIES,
   IMAGE_STYLE_CATEGORY_LABELS,
   IMAGE_STYLES,
   ImageAspectId,
+  ImageReferenceRefusal,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import {
@@ -40,6 +42,7 @@ import {
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
+import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -112,6 +115,37 @@ const chipClasses = (selected: boolean) =>
       : 'bg-newBgColorInner border-newColColor text-textItemBlur hover:border-textItemFocused'
   );
 
+/**
+ * A refused reference comes back named by the number on its thumbnail, and is
+ * said in the window's language rather than the server's English (research
+ * R13). Anything else keeps the server's message.
+ */
+const referenceRefusal = (
+  t: ReturnType<typeof useT>,
+  payload: { code?: ImageReferenceRefusal; index?: number } | null
+) => {
+  switch (payload?.code) {
+    case 'reference_missing':
+      return t(
+        'image_reference_missing',
+        'Reference image {{n}} is no longer in your Media library. Remove it and try again.',
+        { n: payload.index }
+      );
+    case 'reference_unreadable':
+      return t(
+        'image_reference_unreadable',
+        "Reference image {{n}} can't be used — its file format isn't supported. Remove it and try again.",
+        { n: payload.index }
+      );
+    case 'reference_too_large':
+      return t(
+        'image_reference_too_large',
+        'Reference image {{n}} is larger than 30 MB. Remove it and try again.',
+        { n: payload.index }
+      );
+  }
+};
+
 const AiImageModal: FC<{
   close: () => void;
   setLoading: (loading: boolean) => void;
@@ -127,6 +161,9 @@ const AiImageModal: FC<{
   const [aspectRatio, setAspectRatio] = useState<ImageAspectId>('square');
   // Auto imposes nothing, so it is the absence of a style rather than a value.
   const [style, setStyle] = useState<string | undefined>(undefined);
+  const [references, setReferences] = useState<{ id: string; path: string }[]>(
+    []
+  );
   const [phase, setPhase] = useState<'compose' | 'generating' | 'result'>(
     'compose'
   );
@@ -224,12 +261,20 @@ const AiImageModal: FC<{
     try {
       const response = await fetch('/media/generate-image-with-prompt', {
         method: 'POST',
-        body: JSON.stringify({ prompt, aspectRatio, ...(style && { style }) }),
+        body: JSON.stringify({
+          prompt,
+          aspectRatio,
+          ...(style && { style }),
+          // Absent rather than empty without references: today's request.
+          ...(references.length
+            ? { references: references.map((reference) => reference.id) }
+            : {}),
+        }),
         headers: { Accept: 'application/x-ndjson' },
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.message || '');
+        throw new Error(referenceRefusal(t, payload) || payload?.message || '');
       }
 
       // A render can outlast the proxies' idle cut; the response is an NDJSON
@@ -317,7 +362,7 @@ const AiImageModal: FC<{
         'warning'
       );
     }
-  }, [prompt, aspectRatio, style, onChange]);
+  }, [prompt, aspectRatio, style, references, onChange]);
 
   const useImage = () => {
     releaseLock();
@@ -451,6 +496,11 @@ const AiImageModal: FC<{
             </span>
           </div>
         </div>
+        <ReferenceImages
+          value={references}
+          onChange={setReferences}
+          max={IMAGE_REFERENCE_MAX}
+        />
         <div className="flex flex-col gap-[6px]">
           <div className="text-[14px] font-[600]">
             {t('image_orientation', 'Orientation')}

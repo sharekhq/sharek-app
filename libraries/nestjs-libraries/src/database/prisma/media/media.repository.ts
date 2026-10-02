@@ -126,4 +126,20 @@ export class MediaRepository {
       results,
     };
   }
+
+  // The rows a render's references name. Scoped to the organization and to
+  // live rows, so another workspace's id or a deleted image reads as missing.
+  getMediaByIds(org: string, ids: string[]) {
+    return this._media.model.media.findMany({
+      where: {
+        organizationId: org,
+        id: { in: ids },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        path: true,
+      },
+    });
+  }
 }

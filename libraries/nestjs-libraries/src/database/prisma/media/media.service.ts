@@ -11,8 +11,15 @@ import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/sa
 import { GenerateImageWithPromptDto } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
   IMAGE_ASPECT_PRESETS,
+  IMAGE_REFERENCE_MAX_BYTES,
   IMAGE_STYLES,
+  ImageReferenceRefusal,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import {
+  MediaTooLargeError,
+  readOrFetch,
+} from '@gitroom/helpers/utils/read.or.fetch';
+import sharp from 'sharp';
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import {
   CreateVideoDto,
@@ -28,6 +35,21 @@ import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
 import { organizationId } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+
+// A reference is fitted inside this many pixels before it is sent: the
+// presets' longest edge. Gate G1 measured the provider charging more input
+// tokens for a larger input, so pixels past this would only cost (research
+// R6).
+const REFERENCE_MAX_EDGE = 1792;
+
+// A reference refused before the render, named by the number on its
+// thumbnail so the window can say which one, in its own words (research R13).
+const refuseReference = (
+  status: 404 | 422,
+  code: ImageReferenceRefusal,
+  index: number,
+  message: string
+) => new HttpException({ message, code, index }, status);
 
 @Injectable()
 export class MediaService {
@@ -125,7 +147,87 @@ export class MediaService {
     dto: GenerateImageWithPromptDto
   ) {
     await this.resolveImage(org);
-    return { size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size };
+    return {
+      size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
+      inputs: await this.loadReferences(org, dto.references || []),
+    };
+  }
+
+  /**
+   * The references as the provider receives them, in the order the user
+   * numbered them. Everything a reference can be refused for is found here,
+   * before the stream opens and before a credit exists, and the refusal
+   * carries the number on its thumbnail (`index`): an id this organization's
+   * library does not hold, a file over the bound, a format sharp cannot read.
+   *
+   * One at a time, so no more than one original is in memory at once. Each is
+   * turned upright, fitted inside REFERENCE_MAX_EDGE and re-encoded, PNG when
+   * it has transparency (a logo keeps it) and JPEG otherwise (research R6).
+   */
+  private async loadReferences(org: Organization, ids: string[]) {
+    const inputs: Parameters<OpenaiService['editImageAtSize']>[2] = [];
+    if (!ids.length) {
+      return inputs;
+    }
+
+    const rows = await this._mediaRepository.getMediaByIds(org.id, ids);
+    const paths = ids.map((id) => rows.find((row) => row.id === id)?.path);
+    const missing = paths.findIndex((path) => !path);
+    if (missing !== -1) {
+      throw refuseReference(
+        404,
+        'reference_missing',
+        missing + 1,
+        `Reference image ${missing + 1} is no longer in your Media library.`
+      );
+    }
+
+    for (const [position, path] of paths.entries()) {
+      const index = position + 1;
+
+      let original: Buffer;
+      try {
+        original = await readOrFetch(path!, IMAGE_REFERENCE_MAX_BYTES);
+      } catch (err) {
+        if (!(err instanceof MediaTooLargeError)) {
+          throw err;
+        }
+        throw refuseReference(
+          422,
+          'reference_too_large',
+          index,
+          `Reference image ${index} is larger than ${
+            IMAGE_REFERENCE_MAX_BYTES / (1024 * 1024)
+          } MB.`
+        );
+      }
+
+      try {
+        const image = sharp(original).rotate().resize({
+          width: REFERENCE_MAX_EDGE,
+          height: REFERENCE_MAX_EDGE,
+          fit: 'inside',
+          withoutEnlargement: true,
+        });
+        const { hasAlpha } = await image.metadata();
+        inputs.push({
+          data: await (hasAlpha
+            ? image.png()
+            : image.jpeg({ quality: 90 })
+          ).toBuffer(),
+          mime: hasAlpha ? 'image/png' : 'image/jpeg',
+        });
+      } catch {
+        throw refuseReference(
+          422,
+          'reference_unreadable',
+          index,
+          `Reference image ${index} can't be used: its file format isn't supported.`
+        );
+      }
+    }
+
+    return inputs;
   }
 
   /**
@@ -154,8 +256,11 @@ export class MediaService {
         // an invalid-parameter 400 the user reads as a generic failure — so
         // fall back to their own words, as the video providers do.
         async () =>
-          (await this._openAi.generatePromptForPicture(dto.prompt, style)) ||
-          dto.prompt
+          (await this._openAi.generatePromptForPicture(
+            dto.prompt,
+            style,
+            prepared.inputs.length
+          )) || dto.prompt
       );
     } catch (err) {
       throw generationError(err);
@@ -178,8 +283,12 @@ export class MediaService {
   ) {
     return this._subscriptionService.useCredit(org, 'ai_images', async () => {
       const prompt = await improve();
+      // References go through the edit call with the images; without them the
+      // render is the plain call it has always been.
       const render = (text: string) =>
-        this._openAi.generateImageAtSize(text, prepared.size);
+        prepared.inputs.length
+          ? this._openAi.editImageAtSize(text, prepared.size, prepared.inputs)
+          : this._openAi.generateImageAtSize(text, prepared.size);
 
       let image: Buffer;
       try {

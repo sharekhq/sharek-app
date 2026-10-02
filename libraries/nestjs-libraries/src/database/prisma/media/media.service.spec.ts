@@ -18,10 +18,22 @@ jest.mock(
 jest.mock('@gitroom/nestjs-libraries/videos/video.manager', () => ({
   VideoManager: class {},
 }));
+// A reference's bytes come from storage; each test says what the stored file
+// holds, and the error class stays a class so the service can tell it apart.
+jest.mock('@gitroom/helpers/utils/read.or.fetch', () => ({
+  readOrFetch: jest.fn(),
+  MediaTooLargeError: class MediaTooLargeError extends Error {},
+}));
 
 import { HttpException } from '@nestjs/common';
+import sharp from 'sharp';
 import { MediaService } from './media.service';
 import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import {
+  MediaTooLargeError,
+  readOrFetch,
+} from '@gitroom/helpers/utils/read.or.fetch';
+import { IMAGE_REFERENCE_MAX } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 const org = { id: 'org-1', isTrailing: false } as any;
 const body = () =>
@@ -39,6 +51,7 @@ const openAi = () => ({
   generateImage: jest.fn().mockResolvedValue('LEGACYB64'),
   generatePromptForPicture: jest.fn().mockResolvedValue('an enhanced scene'),
   generateImageAtSize: jest.fn().mockResolvedValue(Buffer.from('JPEG-BYTES')),
+  editImageAtSize: jest.fn().mockResolvedValue(Buffer.from('EDIT-BYTES')),
   rewriteFlaggedPrompt: jest.fn().mockResolvedValue('an anonymous scene'),
 });
 
@@ -59,6 +72,9 @@ const makeService = (
     // Where the upload lands and so what the saved record points at; the real
     // storage names the file after the type it detects in the bytes.
     file?: string;
+    // The Media rows the organization's library answers with for a reference
+    // lookup, in the order the database returns them.
+    references?: Array<{ id: string; path: string }>;
   } = {}
 ) => {
   // The real useCredit commits the credit only when its callback resolves and
@@ -78,8 +94,11 @@ const makeService = (
     ),
   };
   const manager = { getVideoByName: jest.fn().mockReturnValue(over.video) };
+  const repository = {
+    getMediaByIds: jest.fn().mockResolvedValue(over.references ?? []),
+  };
   const service = new MediaService(
-    {} as any,
+    repository as any,
     over.openAi ?? ({} as any),
     subscription as any,
     manager as any,
@@ -92,8 +111,14 @@ const makeService = (
   const saveFile = jest
     .spyOn(service, 'saveFile')
     .mockResolvedValue({ id: 'media-1', path: file } as any);
-  return { service, subscription, saveFile, charged };
+  return { service, subscription, saveFile, charged, repository };
 };
+
+const read = readOrFetch as jest.Mock;
+
+beforeEach(() => {
+  read.mockReset();
+});
 
 const drain = async (gen: AsyncGenerator<any>) => {
   const frames = [];
@@ -470,7 +495,7 @@ describe('generateImageWithPrompt', () => {
 
     await expect(
       service.resolveImageWithPrompt(org, dto({ aspectRatio: 'portrait' }))
-    ).resolves.toEqual({ size: '1024x1280' });
+    ).resolves.toEqual({ size: '1024x1280', inputs: [] });
     expect(ai.generateImageAtSize).not.toHaveBeenCalled();
   });
 
@@ -482,7 +507,8 @@ describe('generateImageWithPrompt', () => {
 
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
-      undefined
+      undefined,
+      0
     );
   });
 
@@ -496,7 +522,8 @@ describe('generateImageWithPrompt', () => {
 
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
-      'a watercolour painting with soft bleeding washes'
+      'a watercolour painting with soft bleeding washes',
+      0
     );
   });
 
@@ -698,6 +725,359 @@ describe('generateImageWithPrompt', () => {
   });
 });
 
+// References ride the same route: Media rows the render draws on, for the same
+// single credit (feature 031-ai-image-references-edit, US1). Everything a
+// reference can be refused for is found in the pre-flight, before the stream
+// opens and before a credit exists.
+describe('generateImageWithPrompt with references', () => {
+  const MB = 1024 * 1024;
+  const flagged = () =>
+    new Error('400 Your request was rejected by the safety system');
+  const row = (id: string) => ({ id, path: `https://media/${id}` });
+
+  // What each stored file holds, by path. Real images, tiny wherever size does
+  // not matter: normalization is sharp's real code path, which a double would
+  // only restate.
+  const stored: Record<string, Buffer> = {};
+  const picture = (width: number, height: number, channels: 3 | 4 = 3) =>
+    sharp({
+      create: {
+        width,
+        height,
+        channels,
+        background: { r: 185, g: 45, b: 67, alpha: channels === 4 ? 0.5 : 1 },
+      },
+    });
+
+  // Two 1×1 frames. sharp 0.33 cannot write a multi-page GIF from scratch, so
+  // the bytes are spelled out: header, screen, a two-colour palette, then a
+  // graphic control block and an image per frame.
+  const twoFrameGif = () => {
+    const frame = [
+      0x21, 0xf9, 0x04, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00,
+      0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00,
+    ];
+    return Buffer.from([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00,
+      0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, ...frame, ...frame, 0x3b,
+    ]);
+  };
+
+  // A 1×1 24-bit BMP, the 58 bytes of research R6: uploads accept the format
+  // and sharp cannot decode it.
+  const bmp = () => {
+    const bytes = Buffer.alloc(58);
+    bytes.write('BM', 0, 'ascii');
+    bytes.writeUInt32LE(58, 2);
+    bytes.writeUInt32LE(54, 10);
+    bytes.writeUInt32LE(40, 14);
+    bytes.writeInt32LE(1, 18);
+    bytes.writeInt32LE(1, 22);
+    bytes.writeUInt16LE(1, 26);
+    bytes.writeUInt16LE(24, 28);
+    bytes.writeUInt32LE(4, 34);
+    return bytes;
+  };
+
+  beforeAll(async () => {
+    stored['https://media/jpeg'] = await picture(16, 16).jpeg().toBuffer();
+    stored['https://media/alpha'] = await picture(16, 16, 4).png().toBuffer();
+    stored['https://media/large'] = await picture(3000, 2000).jpeg().toBuffer();
+    stored['https://media/rotated'] = await picture(40, 20)
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    stored['https://media/avif'] = await picture(16, 16).avif().toBuffer();
+    stored['https://media/gif'] = twoFrameGif();
+    stored['https://media/bmp'] = bmp();
+  });
+
+  beforeEach(() => {
+    read.mockImplementation(async (path: string) => stored[path]);
+  });
+
+  const prepare = (service: MediaService, references: string[]) =>
+    service.resolveImageWithPrompt(org, dto({ references }));
+
+  it('looks the ids up in the asking organization\'s library', async () => {
+    const { service, repository } = makeService({
+      openAi: openAi(),
+      references: [row('jpeg'), row('alpha')],
+    });
+
+    await prepare(service, ['jpeg', 'alpha']);
+
+    expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+      'jpeg',
+      'alpha',
+    ]);
+  });
+
+  // The Media library promises 30 MB in the browser and its multipart upload
+  // path never checks it on the server (research R5).
+  it('reads every reference with the 30 MB bound', async () => {
+    const { service } = makeService({
+      openAi: openAi(),
+      references: [row('jpeg'), row('alpha')],
+    });
+
+    await prepare(service, ['jpeg', 'alpha']);
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read).toHaveBeenCalledWith('https://media/jpeg', 30 * MB);
+    expect(read).toHaveBeenCalledWith('https://media/alpha', 30 * MB);
+  });
+
+  // `index` is the number on the thumbnail, so the window can say which one.
+  describe('refuses before any credit exists', () => {
+    it('names a reference that is no longer in the library by its position', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('jpeg')],
+      });
+
+      const err = await prepare(service, ['jpeg', 'deleted']).catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(404);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_missing',
+        index: 2,
+      });
+      expect(read).not.toHaveBeenCalled();
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    // The query filters on the organization, so another workspace's id comes
+    // back as nothing at all; the answer says no more than "missing".
+    it('answers an id from another organization exactly as a missing one', async () => {
+      const { service } = makeService({ openAi: openAi(), references: [] });
+
+      const err = await prepare(service, ['theirs']).catch((e) => e);
+
+      expect(err.getStatus()).toBe(404);
+      expect(err.getResponse()).toEqual({
+        message: 'Reference image 1 is no longer in your Media library.',
+        code: 'reference_missing',
+        index: 1,
+      });
+    });
+
+    it('names a reference larger than the bound without reading it', async () => {
+      read.mockImplementation(async (path: string) => {
+        if (path === 'https://media/huge') {
+          throw new MediaTooLargeError(30 * MB, 31 * MB);
+        }
+        return stored[path];
+      });
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('jpeg'), row('huge')],
+      });
+
+      const err = await prepare(service, ['jpeg', 'huge']).catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(422);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_too_large',
+        index: 2,
+      });
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    it('names a reference it cannot decode', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('bmp'), row('jpeg')],
+      });
+
+      const err = await prepare(service, ['bmp', 'jpeg']).catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(422);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_unreadable',
+        index: 1,
+      });
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('normalizes what reaches the provider', () => {
+    const inputFor = async (id: string) => {
+      const { service } = makeService({
+        openAi: openAi(),
+        references: [row(id)],
+      });
+      const [input] = (await prepare(service, [id])).inputs;
+      return { mime: input.mime, ...(await sharp(input.data).metadata()) };
+    };
+
+    // A logo keeps its transparency.
+    it('keeps an image with transparency as PNG', async () => {
+      expect(await inputFor('alpha')).toMatchObject({
+        mime: 'image/png',
+        format: 'png',
+        hasAlpha: true,
+      });
+    });
+
+    // Gate G1: input tokens grow with resolution past what the render can
+    // use, and 1792 px is the presets' longest edge (research R6).
+    it('fits a large photo inside 1792 px, as JPEG', async () => {
+      expect(await inputFor('large')).toMatchObject({
+        mime: 'image/jpeg',
+        format: 'jpeg',
+        width: 1792,
+        height: 1195,
+      });
+    });
+
+    // Phone photos carry their rotation as an EXIF tag the provider may not
+    // apply, and would arrive on their side.
+    it('turns a photo upright', async () => {
+      expect(await inputFor('rotated')).toMatchObject({
+        width: 20,
+        height: 40,
+      });
+    });
+
+    it.each([
+      ['an AVIF', 'avif'],
+      ['an animated GIF', 'gif'],
+    ])('makes %s a single-frame PNG or JPEG', async (_case, id) => {
+      const input = await inputFor(id);
+
+      expect(['image/png', 'image/jpeg']).toContain(input.mime);
+      expect(input.format).toBe(input.mime.replace('image/', ''));
+      expect(input.pages ?? 1).toBe(1);
+    });
+  });
+
+  it('keeps the order the user attached them in', async () => {
+    // The database answers in its own order.
+    const { service } = makeService({
+      openAi: openAi(),
+      references: [row('alpha'), row('jpeg')],
+    });
+
+    const { inputs } = await prepare(service, ['jpeg', 'alpha']);
+
+    expect(inputs.map((input) => input.mime)).toEqual([
+      'image/jpeg',
+      'image/png',
+    ]);
+  });
+
+  it('renders through the edit call with the prepared inputs', async () => {
+    const ai = openAi();
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('jpeg'), row('alpha')],
+    });
+    const request = dto({ references: ['jpeg', 'alpha'] });
+    const prepared = await service.resolveImageWithPrompt(org, request);
+
+    await drain(service.generateImageWithPrompt(org, request, prepared));
+
+    expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
+    expect(ai.editImageAtSize).toHaveBeenCalledWith(
+      'an enhanced scene',
+      '1024x1024',
+      prepared.inputs
+    );
+    expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+    expect((service as any).storage.uploadSimple).toHaveBeenCalledWith(
+      'data:image/jpeg;base64,' + Buffer.from('EDIT-BYTES').toString('base64')
+    );
+  });
+
+  // SC-007: a render without references is today's render, call for call.
+  it.each([
+    ['absent', undefined],
+    ['empty', []],
+  ])('keeps the plain render when the list is %s', async (_case, references) => {
+    const ai = openAi();
+    const { service, repository } = makeService({ openAi: ai });
+
+    await generateWithPrompt(service, dto({ references }));
+
+    expect(ai.generateImageAtSize).toHaveBeenCalledWith(
+      'an enhanced scene',
+      '1024x1024'
+    );
+    expect(ai.editImageAtSize).not.toHaveBeenCalled();
+    expect(repository.getMediaByIds).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // The improver never sees the images; told nothing, it describes a subject
+  // that competes with the one in the picture (research R7).
+  it('tells the enhancement how many references there are', async () => {
+    const ai = openAi();
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('jpeg'), row('alpha')],
+    });
+
+    await generateWithPrompt(
+      service,
+      dto({ style: 'watercolor', references: ['jpeg', 'alpha'] })
+    );
+
+    expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+      'قهوة مختصة في الرياض',
+      'a watercolour painting with soft bleeding washes',
+      2
+    );
+  });
+
+  it('retries a flagged render through the edit call, with the same inputs', async () => {
+    const ai = openAi();
+    ai.editImageAtSize
+      .mockRejectedValueOnce(flagged())
+      .mockResolvedValueOnce(Buffer.from('RETRY-BYTES'));
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('jpeg')],
+    });
+
+    await generateWithPrompt(service, dto({ references: ['jpeg'] }));
+
+    expect(ai.rewriteFlaggedPrompt).toHaveBeenCalledWith('an enhanced scene');
+    expect(ai.editImageAtSize).toHaveBeenCalledTimes(2);
+    expect(ai.editImageAtSize.mock.calls[1][0]).toBe('an anonymous scene');
+    expect(ai.editImageAtSize.mock.calls[1][2]).toBe(
+      ai.editImageAtSize.mock.calls[0][2]
+    );
+    expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+  });
+
+  // Four references at one credit was the maintainer's call; gate G1 measured
+  // the cap at 1.91× a plain render's cost.
+  it.each([0, 1, IMAGE_REFERENCE_MAX])(
+    'spends exactly one credit for %s references',
+    async (count) => {
+      const ids = ['jpeg', 'alpha', 'avif', 'gif'].slice(0, count);
+      const { service, subscription, charged } = makeService({
+        openAi: openAi(),
+        references: ids.map(row),
+      });
+
+      await generateWithPrompt(service, dto({ references: ids }));
+
+      expect(subscription.useCredit).toHaveBeenCalledTimes(1);
+      expect(subscription.useCredit).toHaveBeenCalledWith(
+        org,
+        'ai_images',
+        expect.any(Function)
+      );
+      expect(charged.value).toBe(true);
+    }
+  );
+});
+
 // The image allowance used to be enforced by whichever route remembered to ask,
 // so the wizard, autopost and Samy each generated unmetered. Both image methods
 // now refuse for themselves — the same shape `resolveVideo` gives videos — which
@@ -764,6 +1144,23 @@ describe('image credit enforcement', () => {
         expect(method).not.toHaveBeenCalled();
       }
       expect(charged.value).toBe(false);
+    });
+
+    // The allowance is checked before any reference is looked up or read: an
+    // organization with nothing left must not cost four storage reads either.
+    it('refuses before looking up or reading a single reference', async () => {
+      const { service, repository } = makeService({
+        credits: 0,
+        openAi: openAi(),
+        references: [{ id: 'a', path: 'https://media/a' }],
+      });
+
+      await expect(
+        service.resolveImageWithPrompt(org, dto({ references: ['a'] }))
+      ).rejects.toBeInstanceOf(SubscriptionException);
+
+      expect(repository.getMediaByIds).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
     });
 
     // generationError normalises anything the render throws, and it passes an

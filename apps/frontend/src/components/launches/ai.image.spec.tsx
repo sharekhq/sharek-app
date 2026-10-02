@@ -29,6 +29,23 @@ jest.mock('swr', () => ({
   __esModule: true,
   default: () => ({ data: { credits: 0 }, mutate: jest.fn() }),
 }));
+// The Media library the reference row opens. Its own behaviour, the limit
+// included, has its own spec; here it only records what it was opened with,
+// so a test can answer for it.
+const picker: Array<{
+  max?: number;
+  type?: string;
+  setMedia: (media: { id: string; path: string }[]) => void;
+}> = [];
+jest.mock('@gitroom/frontend/components/media/media.component', () => ({
+  MediaBox: (props: (typeof picker)[number]) => {
+    picker.push(props);
+    return null;
+  },
+}));
+jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
+  useMediaDirectory: () => ({ set: (p: string) => p }),
+}));
 
 import {
   ModalManagerInner,
@@ -182,6 +199,7 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  picker.length = 0;
   jest.clearAllMocks();
 });
 
@@ -262,8 +280,8 @@ describe('when the generation fails for anything else', () => {
 // A render can outlive the proxies' idle cut, so the route streams heartbeats
 // until its one terminal frame (FR-024 – FR-027).
 describe('the streamed render', () => {
-  // The route answers a page loaded before the stream existed with plain JSON;
-  // this window has to ask for the stream to get it.
+  // The window says what it reads. Increment 1's route answered any request
+  // that did not with plain JSON, for pages loaded before the stream existed.
   it('asks the route for the stream', async () => {
     renders(done);
 
@@ -553,6 +571,177 @@ describe('the hint under the prompt', () => {
 
     expect(document.body.textContent).toContain(
       'Put the words you want on the image in quotes.'
+    );
+  });
+});
+
+// Feature 031-ai-image-references-edit, US1: up to four Media images the render
+// draws on, numbered in the order they were attached (contracts/ui.md).
+describe('reference images', () => {
+  const ref = (id: string) => ({ id, path: `https://media/${id}.png` });
+
+  /** Opens the window on its compose step. */
+  const compose = async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+  };
+
+  /** Opens the Media library from the add tile and picks these. */
+  const attach = async (...items: { id: string; path: string }[]) => {
+    await click(button('Add image'));
+    await act(async () => {
+      picker[picker.length - 1].setMedia(items);
+    });
+  };
+
+  const thumbnails = () =>
+    Array.from(
+      document.querySelectorAll<HTMLImageElement>('img[alt^="Reference image"]')
+    ).map((img) => ({
+      alt: img.alt,
+      src: img.getAttribute('src'),
+      // The number drawn on the thumbnail, next to the picture.
+      number: img.parentElement?.textContent?.trim(),
+    }));
+
+  it('numbers attached images in the order they were picked', async () => {
+    await compose();
+    await attach(ref('a'), ref('b'));
+
+    expect(thumbnails()).toEqual([
+      {
+        alt: 'Reference image 1',
+        src: 'https://media/a.png',
+        number: '1',
+      },
+      {
+        alt: 'Reference image 2',
+        src: 'https://media/b.png',
+        number: '2',
+      },
+    ]);
+  });
+
+  it('opens the Media library on images only', async () => {
+    await compose();
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].type).toBe('image');
+  });
+
+  it('renumbers the rest when one is removed', async () => {
+    await compose();
+    await attach(ref('a'), ref('b'));
+
+    await click(
+      document.querySelector('button[aria-label="Remove reference image 1"]')
+    );
+
+    expect(thumbnails()).toEqual([
+      {
+        alt: 'Reference image 1',
+        src: 'https://media/b.png',
+        number: '1',
+      },
+    ]);
+  });
+
+  // FR-005: the same picture twice is the same reference.
+  it('adds nothing for an image that is already attached', async () => {
+    await compose();
+    await attach(ref('a'), ref('b'));
+    await attach(ref('b'));
+
+    expect(thumbnails().map((thumbnail) => thumbnail.src)).toEqual([
+      'https://media/a.png',
+      'https://media/b.png',
+    ]);
+  });
+
+  it('opens the picker with only the slots that are left, and hides it when full', async () => {
+    await compose();
+    await attach(ref('a'), ref('b'), ref('c'));
+
+    await click(button('Add image'));
+    expect(picker[picker.length - 1].max).toBe(1);
+
+    await act(async () => {
+      picker[picker.length - 1].setMedia([ref('d')]);
+    });
+    expect(thumbnails()).toHaveLength(4);
+    expect(button('Add image')).toBeUndefined();
+  });
+
+  describe('when generating', () => {
+    const body = () =>
+      JSON.parse(asked('/media/generate-image-with-prompt')[0][1].body);
+
+    const generateWith = async (...items: { id: string; path: string }[]) => {
+      await compose();
+      if (items.length) {
+        await attach(...items);
+      }
+      await type(
+        document.querySelector('textarea') as HTMLTextAreaElement,
+        'the cup from image 1 on the table in image 2'
+      );
+      await click(button('Generate'));
+    };
+
+    it('sends the references in their order', async () => {
+      renders(done);
+
+      await generateWith(ref('a'), ref('b'));
+
+      expect(body().references).toEqual(['a', 'b']);
+    });
+
+    // SC-007: without references the request is today's, byte for byte.
+    it('sends no references key when none are attached', async () => {
+      renders(done);
+
+      await generateWith();
+
+      expect(body()).not.toHaveProperty('references');
+    });
+
+    // The server names the reference by its number; the window says it in
+    // the user's language rather than toasting the server's English.
+    it.each([
+      [
+        404,
+        'reference_missing',
+        2,
+        'Reference image 2 is no longer in your Media library. Remove it and try again.',
+      ],
+      [
+        422,
+        'reference_unreadable',
+        1,
+        "Reference image 1 can't be used — its file format isn't supported. Remove it and try again.",
+      ],
+      [
+        422,
+        'reference_too_large',
+        1,
+        'Reference image 1 is larger than 30 MB. Remove it and try again.',
+      ],
+    ])(
+      'explains a %i %s by the number on the thumbnail',
+      async (status, code, index, message) => {
+        request.mockImplementation((url: string) =>
+          Promise.resolve(
+            url.endsWith('/allowed')
+              ? answer(200, true)
+              : answer(status, { message: 'server words', code, index })
+          )
+        );
+
+        await generateWith(ref('a'), ref('b'));
+
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith(message, 'warning');
+      }
     );
   });
 });

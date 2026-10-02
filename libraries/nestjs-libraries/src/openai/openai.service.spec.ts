@@ -9,12 +9,26 @@ const mockCreate = jest.fn();
 const mockImagesGenerate = jest.fn(async () => ({
   data: [{ b64_json: 'B64' }],
 }));
+const mockImagesEdit = jest.fn<
+  Promise<{ data: { b64_json?: string }[] }>,
+  [Record<string, unknown>]
+>(async () => ({ data: [{ b64_json: 'EDITB64' }] }));
+// The SDK's file wrapper, reduced to what it was handed, so the files the edit
+// call sends can be read back in order.
+const mockToFile = jest.fn(
+  async (data: Buffer, name: string, options?: { type?: string }) => ({
+    data,
+    name,
+    type: options?.type,
+  })
+);
 jest.mock('openai', () => ({
   __esModule: true,
   default: class {
     chat = { completions: { parse: mockParse, create: mockCreate } };
-    images = { generate: mockImagesGenerate };
+    images = { generate: mockImagesGenerate, edit: mockImagesEdit };
   },
+  toFile: mockToFile,
 }));
 
 import { OpenaiService } from './openai.service';
@@ -241,6 +255,102 @@ describe('OpenaiService.generatePromptForPicture', () => {
       ]);
     });
   });
+
+  // The improver never sees the images. Told nothing about them, it writes a
+  // description of its own that competes with the picture the user attached
+  // (feature 031-ai-image-references-edit, research R7).
+  describe('with reference images', () => {
+    // Captured from the code before references existed. A render without
+    // references must send these exact bytes (SC-007), so they are pinned
+    // whole rather than by the phrases the other cases look for.
+    const TODAY_SYSTEM = `You rewrite a user's description into one prompt for an AI image generation model.
+Return one prompt, in English regardless of the description's language.
+Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
+Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
+When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
+A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
+Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`;
+
+    const sent = () => {
+      const [params] = mockParse.mock.calls[0] as unknown as [
+        { messages: { content: string }[] }
+      ];
+      return {
+        system: params.messages[0].content,
+        user: params.messages[1].content,
+      };
+    };
+
+    it.each([
+      ['no count', () => service.generatePromptForPicture('p', 's')],
+      ['a count of zero', () => service.generatePromptForPicture('p', 's', 0)],
+    ])('sends today\'s exact prompt with %s', async (_case, call) => {
+      await call();
+
+      expect(sent()).toEqual({
+        system: TODAY_SYSTEM,
+        user: 'prompt: p\nRender in this style: s',
+      });
+    });
+
+    it('sends today\'s exact user message without a style', async () => {
+      await service.generatePromptForPicture('p', undefined, 0);
+
+      expect(sent().user).toBe('prompt: p');
+    });
+
+    it('keeps every rule of today\'s prompt and adds the reference rules after them', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().system.startsWith(TODAY_SYSTEM + '\n')).toBe(true);
+    });
+
+    it('says how the images are numbered', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().system).toMatch(/numbered from 1 in the order given/i);
+    });
+
+    // FR-008: a reference is named by its number in whatever form the user
+    // wrote it, and the image, not the prompt, says what it looks like.
+    it('names a reference by its number instead of describing it', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+      const { system } = sent();
+
+      expect(system).toMatch(/never describe that subject's appearance/i);
+      expect(system).toContain('"image 2"');
+      expect(system).toContain('«الصورة 2»');
+      expect(system).toContain('«الصورة ٢»');
+      expect(system).toContain('«الصورة الثانية»');
+      expect(system).toContain('"the second picture"');
+    });
+
+    // Today's no-text rule bans logos and lettering the user did not ask for;
+    // a logo the user brings in as a reference is not one of those.
+    it('keeps what a reference carries out of the no-text rule', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().system).toMatch(
+        /any logo, label or lettering it already carries/i
+      );
+    });
+
+    it('uses a reference the description does not mention for what it implies', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().system).toMatch(/does not mention/i);
+    });
+
+    it('tells the model how many references there are', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().user).toBe(
+        'prompt: p\nRender in this style: s\nReference images: 2'
+      );
+    });
+  });
 });
 
 // gpt-image-2.5-sunburst is current and deliberately pinned to `high`: 2.5
@@ -305,6 +415,73 @@ describe('OpenaiService.generateImageAtSize', () => {
     mockImagesGenerate.mockResolvedValueOnce({ data: [{}] });
     await expect(
       service.generateImageAtSize('a scene', '1088x1920')
+    ).rejects.toThrow(/returned no image/);
+  });
+});
+
+// References and edits render through the edit endpoint, which takes the
+// images as files. "image N" in the prompt is the N-th file, so the order is
+// the numbering the user sees (feature 031-ai-image-references-edit,
+// research R1).
+describe('OpenaiService.editImageAtSize', () => {
+  const png = Buffer.from('PNG-BYTES');
+  const jpg = Buffer.from('JPG-BYTES');
+  const inputs = [
+    { data: png, mime: 'image/png' as const },
+    { data: jpg, mime: 'image/jpeg' as const },
+  ];
+
+  beforeEach(() => {
+    mockImagesEdit.mockClear();
+    mockToFile.mockClear();
+  });
+
+  const body = () => mockImagesEdit.mock.calls[0][0];
+
+  it('renders on the same model, quality and format as a plain render', async () => {
+    await service.editImageAtSize('p', '1024x1280', inputs);
+
+    expect(body()).toMatchObject({
+      prompt: 'p',
+      model: 'gpt-image-2.5-sunburst',
+      size: '1024x1280',
+      quality: 'high',
+      output_format: 'jpeg',
+    });
+  });
+
+  it('sends the inputs as files named by their number, in order', async () => {
+    await service.editImageAtSize('p', '1024x1280', inputs);
+
+    expect(body().image).toEqual([
+      { data: png, name: 'image-1.png', type: 'image/png' },
+      { data: jpg, name: 'image-2.jpg', type: 'image/jpeg' },
+    ]);
+  });
+
+  // Gate G1: the edit endpoint accepts moderation although the SDK types it
+  // for generations only, so references and edits get the same 'low' a plain
+  // render has. input_fidelity is ignored by 2.x and is not sent.
+  it('sends moderation low and no input fidelity', async () => {
+    await service.editImageAtSize('p', '1024x1280', inputs);
+
+    expect(body().moderation).toBe('low');
+    expect(body()).not.toHaveProperty('input_fidelity');
+  });
+
+  it('returns the image as raw bytes', async () => {
+    const buffer = await service.editImageAtSize('p', '1024x1280', inputs);
+
+    expect(buffer.equals(Buffer.from('EDITB64', 'base64'))).toBe(true);
+  });
+
+  // As for a plain render: an empty answer must fail here, where the credit
+  // can still be refunded, not as a storage error three steps later.
+  it('throws when the model returns no image', async () => {
+    mockImagesEdit.mockResolvedValueOnce({ data: [{}] });
+
+    await expect(
+      service.editImageAtSize('p', '1024x1280', inputs)
     ).rejects.toThrow(/returned no image/);
   });
 });

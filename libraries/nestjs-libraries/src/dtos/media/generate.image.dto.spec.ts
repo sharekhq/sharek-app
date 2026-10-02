@@ -5,6 +5,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { GenerateImageWithPromptDto } from './generate.image.dto';
+import { IMAGE_REFERENCE_MAX } from './image.generation.catalog';
 
 const failures = async (payload: Record<string, unknown>) => {
   const errors = await validate(
@@ -53,5 +54,52 @@ describe('GenerateImageWithPromptDto', () => {
   // sentinel the enhancement step would have to special-case.
   it('rejects "auto" as a style rather than treating it as the sentinel', async () => {
     expect(await failures({ ...valid, style: 'auto' })).toContain('style');
+  });
+
+  // References name Media rows by id, never by URL (FR-006): the server reads
+  // only files its own storage wrote, from the organization that asked.
+  // (feature 031-ai-image-references-edit, US1.)
+  describe('references', () => {
+    const uuid = (n: number) =>
+      `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const ids = (count: number) =>
+      Array.from({ length: count }, (_, i) => uuid(i + 1));
+    const constraintsOf = async (payload: Record<string, unknown>) => {
+      const errors = await validate(
+        plainToInstance(GenerateImageWithPromptDto, payload)
+      );
+      return errors.flatMap((error) => Object.keys(error.constraints || {}));
+    };
+
+    it('accepts the cap, which is the most one render takes', async () => {
+      expect(
+        await failures({ ...valid, references: ids(IMAGE_REFERENCE_MAX) })
+      ).toEqual([]);
+    });
+
+    it('rejects one more than the cap', async () => {
+      expect(
+        await constraintsOf({
+          ...valid,
+          references: ids(IMAGE_REFERENCE_MAX + 1),
+        })
+      ).toContain('arrayMaxSize');
+    });
+
+    // The same image twice is one reference sent twice (FR-005).
+    it('rejects the same image twice', async () => {
+      expect(
+        await constraintsOf({ ...valid, references: [uuid(1), uuid(1)] })
+      ).toContain('arrayUnique');
+    });
+
+    it.each([
+      ['a URL', 'https://evil/x.png'],
+      ['an empty string', ''],
+    ])('rejects %s in place of a Media id', async (_case, reference) => {
+      expect(
+        await constraintsOf({ ...valid, references: [reference] })
+      ).toContain('isUuid');
+    });
   });
 });

@@ -23,6 +23,11 @@ jest.mock(
         : undefined,
   })
 );
+// The AI image window's reference row opens the Media library, which drags in
+// its uploader; the catalog's rules never open the window.
+jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
+  AiImage: () => null,
+}));
 
 import {
   buildStudioCatalog,

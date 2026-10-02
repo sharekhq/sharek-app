@@ -36,6 +36,33 @@ export const IMAGE_ASPECT_IDS = Object.keys(
  */
 export const IMAGE_PROMPT_MAX_CHARS = 2000;
 
+/**
+ * How many images one render takes as references, still for one credit. The
+ * DTO caps the request with it and the window's picker counts down from it.
+ * Research R2 set the line at 2.2× a plain render's cost, and gate G1 measured
+ * four at 1.91×.
+ */
+export const IMAGE_REFERENCE_MAX = 4;
+
+/**
+ * The largest stored file the server reads as a reference: the Media library's
+ * own image limit. Only the browser enforces it — the multipart upload path
+ * never checks a size on the server — so the read checks it again (research
+ * R5).
+ */
+export const IMAGE_REFERENCE_MAX_BYTES = 30 * 1024 * 1024;
+
+/**
+ * Why a reference was refused before the render: the `code` of the 404 or 422
+ * the pre-flight answers, beside the `index` its thumbnail shows. The window
+ * reads the same union to say it in the user's language, so a code cannot be
+ * renamed on one side only.
+ */
+export type ImageReferenceRefusal =
+  | 'reference_missing'
+  | 'reference_unreadable'
+  | 'reference_too_large';
+
 export const IMAGE_STYLE_CATEGORIES = [
   'photography',
   'illustration',
