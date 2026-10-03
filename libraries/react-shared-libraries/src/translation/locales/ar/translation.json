@@ -1270,6 +1270,7 @@
   "please_describe_the_change": "يرجى وصف التغيير المطلوب",
   "editing_your_image": "جاري تعديل صورتك…",
   "image_edit_pill": "تعديل النسخة {{n}}",
+  "image_edit_missing": "لم تعد الصورة التي تعدلها موجودة في مكتبة الوسائط. ارجع إلى الموجه لإنشاء صورة جديدة.",
   "image_style_realistic_photo": "صورة واقعية",
   "image_style_flat_illustration": "رسم مسطح",
   "image_style_cartoon": "كرتون",

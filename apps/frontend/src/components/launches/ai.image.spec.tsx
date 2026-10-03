@@ -743,6 +743,30 @@ describe('reference images', () => {
         expect(toast).toHaveBeenCalledWith(message, 'warning');
       }
     );
+
+    // Image 1 of a generation is a reference like the others; only an edit's
+    // image 1 is the image being edited.
+    it('names a missing image 1 as a reference', async () => {
+      request.mockImplementation((url: string) =>
+        Promise.resolve(
+          url.endsWith('/allowed')
+            ? answer(200, true)
+            : answer(404, {
+                message: 'server words',
+                code: 'reference_missing',
+                index: 1,
+              })
+        )
+      );
+
+      await generateWith(ref('a'), ref('b'));
+
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalledWith(
+        'Reference image 1 is no longer in your Media library. Remove it and try again.',
+        'warning'
+      );
+    });
   });
 });
 
@@ -903,6 +927,38 @@ describe('editing the result', () => {
       'https://media/first.png',
       'https://media/logo.png',
     ]);
+  });
+
+  // Image 1 is the image being edited and has no remove control, so its
+  // refusal says what can be done instead; an added image keeps its own.
+  it.each([
+    [
+      1,
+      "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one.",
+    ],
+    [
+      2,
+      'Reference image 2 is no longer in your Media library. Remove it and try again.',
+    ],
+  ])('explains a missing image %i of the edit', async (index, message) => {
+    await toResult();
+    await attach(ref('logo'));
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/allowed')
+          ? answer(200, true)
+          : answer(404, {
+              message: 'server words',
+              code: 'reference_missing',
+              index,
+            })
+      )
+    );
+
+    await applyEdit('put the logo from image 2 on the cup');
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(message, 'warning');
   });
 
   // The limit modal has already spoken, and nothing was committed to.

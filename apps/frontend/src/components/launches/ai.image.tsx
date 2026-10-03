@@ -122,10 +122,19 @@ const chipClasses = (selected: boolean) =>
  */
 const referenceRefusal = (
   t: ReturnType<typeof useT>,
-  payload: { code?: ImageReferenceRefusal; index?: number } | null
+  payload: { code?: ImageReferenceRefusal; index?: number } | null,
+  edit: boolean
 ) => {
   switch (payload?.code) {
     case 'reference_missing':
+      // In an edit, image 1 is the image being edited. It has no remove
+      // control, so removing it is not advice the window can give.
+      if (edit && payload.index === 1) {
+        return t(
+          'image_edit_missing',
+          "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one."
+        );
+      }
       return t(
         'image_reference_missing',
         'Reference image {{n}} is no longer in your Media library. Remove it and try again.',
@@ -301,7 +310,9 @@ const AiImageModal: FC<{
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(referenceRefusal(t, payload) || payload?.message || '');
+        throw new Error(
+          referenceRefusal(t, payload, edit) || payload?.message || ''
+        );
       }
 
       // A render can outlast the proxies' idle cut; the response is an NDJSON

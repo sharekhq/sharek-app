@@ -34,8 +34,9 @@ describe('AI image window locale keys', () => {
     'image_reference_missing',
     'image_reference_unreadable',
     'image_reference_too_large',
-    // Increment 3: the edit row, its waiting screen, and the way back to the
-    // compose step renamed so only the field says "Edit" (US2).
+    // Increment 3: the edit row, its waiting screen, the way back to the
+    // compose step renamed so only the field says "Edit", and the refusal for
+    // an edited image that is gone, which has no remove control (US2).
     'image_edit_label',
     'image_edit_placeholder',
     'image_edit_apply',
@@ -44,6 +45,7 @@ describe('AI image window locale keys', () => {
     'editing_your_image',
     'image_edit_pill',
     'back_to_prompt',
+    'image_edit_missing',
   ])('says %s in both languages', (key) => {
     expect(typeof en[key]).toBe('string');
     expect(en[key].length).toBeGreaterThan(0);
