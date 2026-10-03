@@ -1210,6 +1210,38 @@ describe('a second click while the credits are checked', () => {
 
     expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
   });
+
+  // Closing would leave the render to finish on its own and hand the post a
+  // second image after the one just used.
+  it('keeps Use image waiting for the render', async () => {
+    const onChange = jest.fn();
+    renders(done);
+    await generate(undefined, onChange);
+    request.mockClear();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(button('Use image'));
+    await answerChecks();
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
+    expect(button('Use image')).toBeTruthy();
+  });
+
+  // Going back would show the prompt until the check answers, and then the
+  // waiting screen over it.
+  it('keeps the result on screen when Back to prompt is pressed', async () => {
+    renders(done);
+    await generate();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(button('Back to prompt'));
+
+    expect(button('Use image')).toBeTruthy();
+    await answerChecks();
+  });
 });
 
 // global.scss sets `body * { outline: none !important }`, so a field without an

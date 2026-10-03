@@ -205,9 +205,10 @@ const AiImageModal: FC<{
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const holdsLock = useRef(false);
-  // Set from the click until the render is over. Generate, Regenerate and
-  // Apply edit stay on screen through the credit check, and a second click
-  // there must not start a second paid render.
+  // Set from the click until the render is over. The window's actions stay on
+  // screen through the credit check: a second click there must not start a
+  // second paid render, and the result must not be used or left while one is
+  // coming.
   const rendering = useRef(false);
 
   // `loading` follows the request, whose end also ends the render
@@ -458,12 +459,21 @@ const AiImageModal: FC<{
   };
 
   const useImage = () => {
+    // A render under way would finish after the window closed and hand the
+    // post a second image.
+    if (rendering.current) {
+      return;
+    }
     releaseLock();
     onChange(versions[shown].media);
     close();
   };
 
   const backToPrompt = () => {
+    // A render under way would bring the waiting screen up over the prompt.
+    if (rendering.current) {
+      return;
+    }
     // Giving up the result ends the flow; the inputs stay as they were, and so
     // do the versions, for the result step to come back to (FR-023).
     releaseLock();
