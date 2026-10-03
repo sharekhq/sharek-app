@@ -219,8 +219,9 @@ export const Modal: FC<{
   const holdsLock = useRef(false);
   // Set from the click until the render is over, by whichever path starts it:
   // `generate` below, or a provider that runs its own render (`claimRender`).
-  // The actions that start a render stay on screen until its request is
-  // answered, and a second click there must not start a second paid render.
+  // The window's actions stay on screen until the render's request is
+  // answered: a second click there must not start a second paid render, and
+  // the result must not be used or left while one is coming.
   const rendering = useRef(false);
   // The held result is mirrored in a ref because `failRender` is handed to the
   // provider and captured inside its own memoised render callback: a version
@@ -475,12 +476,22 @@ export const Modal: FC<{
   }, [type, position, claimRender, startRender, onMedia, failRender]);
 
   const useVideoInPost = () => {
+    // A render under way would finish after the window closed and hand the
+    // post a second video.
+    if (rendering.current) {
+      return;
+    }
     releaseLock();
     onChange(result!);
     close();
   };
 
   const backFromResult = () => {
+    // A render under way would bring the waiting screen up over the screen
+    // this returns to.
+    if (rendering.current) {
+      return;
+    }
     // Giving up the result ends the flow; the provider's own inputs stay as
     // they were, on the screen it returns to.
     releaseLock();

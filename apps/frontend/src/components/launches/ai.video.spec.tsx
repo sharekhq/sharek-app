@@ -123,7 +123,7 @@ const settle = async () => {
 };
 
 /** Renders one provider's modal, as the chooser does once a type is picked. */
-const open = async (destination?: MediaDestination) => {
+const open = async (destination?: MediaDestination, onChange = jest.fn()) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -135,15 +135,18 @@ const open = async (destination?: MediaDestination) => {
         type={{ identifier: 'veo3', title: 'Veo3' }}
         close={jest.fn()}
         setLoading={jest.fn()}
-        onChange={jest.fn()}
+        onChange={onChange}
         destination={destination}
       />
     );
   });
 };
 
-const generate = async (destination?: MediaDestination) => {
-  await open(destination);
+const generate = async (
+  destination?: MediaDestination,
+  onChange = jest.fn()
+) => {
+  await open(destination, onChange);
 
   const submit = Array.from(document.querySelectorAll('button')).find(
     (node) => node.textContent?.trim() === 'Generate'
@@ -585,5 +588,39 @@ describe('a second click while the credits are checked', () => {
     expect(mockVideo!.claimRender()).toBe(false);
     act(() => mockVideo!.failRender());
     expect(mockVideo!.claimRender()).toBe(true);
+  });
+
+  // Closing would leave the render to finish on its own and hand the post a
+  // second video after the one just used.
+  it('keeps Use video waiting for the render', async () => {
+    const onChange = jest.fn();
+    renders();
+    await generate(undefined, onChange);
+    await settle();
+    request.mockClear();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(buttonStarting('Use video'));
+    await answerChecks();
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(posted('/media/generate-video')).toHaveLength(1);
+    expect(buttonStarting('Use video')).toBeTruthy();
+  });
+
+  // Going back would show the provider's screen until the check answers, and
+  // then the waiting screen over it.
+  it('keeps the result on screen when the back action is pressed', async () => {
+    renders();
+    await generate();
+    await settle();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(buttonStarting('Edit prompt'));
+
+    expect(buttonStarting('Use video')).toBeTruthy();
+    await answerChecks();
   });
 });
