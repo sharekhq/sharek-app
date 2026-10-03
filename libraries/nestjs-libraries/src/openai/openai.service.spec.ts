@@ -353,6 +353,140 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
   });
 });
 
+// An edit asks for a change to an image that already exists. Rewritten the way
+// a generation is, as a scene, the change would come back as a new picture
+// (feature 031-ai-image-references-edit, research R7).
+describe('OpenaiService.generateEditPrompt', () => {
+  beforeEach(() => {
+    mockParse.mockReset();
+    mockParse.mockResolvedValue({ choices: [{ message: { parsed: {} } }] });
+  });
+
+  const sent = () => {
+    const [params] = mockParse.mock.calls[0] as unknown as [
+      {
+        model: string;
+        reasoning_effort: string;
+        temperature?: number;
+        messages: { content: string }[];
+        response_format: {
+          json_schema: { schema: { properties: Record<string, unknown> } };
+        };
+      }
+    ];
+    return {
+      params,
+      system: params.messages[0].content,
+      user: params.messages[1].content,
+    };
+  };
+
+  // The remedies generatePromptForPicture needed hold here too: several
+  // constraints at once, and the words to print decided before the
+  // instruction is written against them.
+  it('runs gpt-5.6-luna with low reasoning, resolving the words to print first', async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+    const { params } = sent();
+
+    expect(params.model).toBe('gpt-5.6-luna');
+    expect(params.reasoning_effort).toBe('low');
+    expect(params).not.toHaveProperty('temperature');
+    expect(
+      Object.keys(params.response_format.json_schema.schema.properties)
+    ).toEqual(['inImageText', 'prompt']);
+  });
+
+  it('sends the change verbatim, with how many images there are', async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+
+    expect(sent().user).toBe(
+      'change: اجعل الخلفية بيضاء\nImages: 1, image 1 is the image being edited.'
+    );
+  });
+
+  it('asks for the change and only the change', async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+    const { system } = sent();
+
+    expect(system).toMatch(/only the change/i);
+    expect(system).toMatch(/never describe a new scene/i);
+  });
+
+  it('keeps everything else as it is', async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+    const { system } = sent();
+
+    expect(system).toMatch(/everything else/i);
+    expect(system).toMatch(/composition/i);
+    expect(system).toMatch(/faces/i);
+    expect(system).toMatch(/existing text/i);
+    expect(system).toMatch(/colours/i);
+    expect(system).toMatch(/framing/i);
+  });
+
+  // It shares the words-to-print rule with the generation's prompt and nothing
+  // else: the generation's scene rule would redraw the picture, and its no-text
+  // rule would strip the lettering and logos the image already carries.
+  it('carries none of the generation\'s scene or no-text rules', async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+    const { system } = sent();
+
+    expect(system).not.toMatch(/concrete scene/i);
+    expect(system).not.toMatch(/must contain no text/i);
+  });
+
+  it('keeps the words to print verbatim, in their own script', async () => {
+    await service.generateEditPrompt('غير اللافتة إلى «خصم 30%»', 1);
+    const { system } = sent();
+
+    expect(system).toMatch(/verbatim/i);
+    expect(system).toMatch(/original script/i);
+    expect(system).toMatch(/never translate/i);
+    expect(system).toMatch(/inImageText field/);
+  });
+
+  // The images added to an edit are numbered from 2, as their thumbnails are,
+  // and the image supplies what they look like.
+  it('names an added image by its number instead of describing it', async () => {
+    await service.generateEditPrompt('ضع الشعار من الصورة 2 على الكوب', 2);
+    const { system } = sent();
+
+    expect(system).toMatch(/image 1/);
+    expect(system).toMatch(/never describe that subject's appearance/i);
+    expect(system).toContain('"image 2"');
+    expect(system).toContain('«الصورة 2»');
+    expect(system).toContain('«الصورة ٢»');
+    expect(system).toContain('«الصورة الثانية»');
+    expect(system).toContain('"the second picture"');
+  });
+
+  it('returns the rewritten instruction', async () => {
+    mockParse.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            parsed: {
+              inImageText: '',
+              prompt: 'Make the background plain white; keep everything else.',
+            },
+          },
+        },
+      ],
+    });
+
+    await expect(
+      service.generateEditPrompt('اجعل الخلفية بيضاء', 1)
+    ).resolves.toBe('Make the background plain white; keep everything else.');
+  });
+
+  // Empty is the caller's cue to send the user's own words instead.
+  it('returns an empty string when nothing was parsed', async () => {
+    await expect(
+      service.generateEditPrompt('اجعل الخلفية بيضاء', 1)
+    ).resolves.toBe('');
+  });
+});
+
 // gpt-image-2.5-sunburst is current and deliberately pinned to `high`: 2.5
 // re-based its quality labels, so `high` is the render budget — and the price
 // — that gpt-image-2 `medium` was, `medium` is a quarter of it, and `auto` is

@@ -100,12 +100,29 @@ describe('generateImage', () => {
   });
 });
 
-// The AI image window's route. Its render can outlive both proxies' idle cuts,
-// so it streams NDJSON with heartbeats as the video routes do. Everything that
-// can be refused is refused before the first byte, while a status can still be
-// sent (FR-024 – FR-027).
-describe('generateImageFromText', () => {
-  const body = { prompt: 'a pomegranate', aspectRatio: 'square' } as any;
+// The AI image window's two render routes: a generation, and an edit of the
+// version on screen. A render can outlive both proxies' idle cuts, so each
+// streams NDJSON with heartbeats as the video routes do. Everything that can be
+// refused is refused before the first byte, while a status can still be sent
+// (FR-024 – FR-027).
+describe.each([
+  {
+    route: 'generateImageFromText',
+    preflight: 'resolveImageWithPrompt',
+    generator: 'generateImageWithPrompt',
+    body: { prompt: 'a pomegranate', aspectRatio: 'square' },
+  },
+  {
+    route: 'editImage',
+    preflight: 'resolveImageEdit',
+    generator: 'editImageWithPrompt',
+    body: {
+      imageId: '00000000-0000-4000-8000-000000000001',
+      prompt: 'make the background plain white',
+      aspectRatio: 'square',
+    },
+  },
+] as const)('$route', ({ route, preflight, generator, body }) => {
   const prepared = { size: '1024x1024' };
   const media = { id: 'media-1', path: 'https://media/abc.jpg' };
 
@@ -119,37 +136,47 @@ describe('generateImageFromText', () => {
       }
     });
 
+  // The route under test, on a controller whose service has these doubles.
+  const handle = (
+    service: Record<string, any>,
+    res: ReturnType<typeof fakeResponse>
+  ) => makeController(service)[route](org, body as any, res as any);
+
   it('refuses before the stream opens, as a real status', async () => {
-    const generateImageWithPrompt = render([{ name: 'done', media }]);
-    const controller = makeController({
-      resolveImageWithPrompt: jest.fn().mockRejectedValue(refusal()),
-      generateImageWithPrompt,
-    });
+    const rendering = render([{ name: 'done', media }]);
     const res = fakeResponse();
 
     await expect(
-      controller.generateImageFromText(org, body, res as any)
+      handle(
+        {
+          [preflight]: jest.fn().mockRejectedValue(refusal()),
+          [generator]: rendering,
+        },
+        res
+      )
     ).rejects.toBeInstanceOf(SubscriptionException);
     expect(res.setHeader).not.toHaveBeenCalled();
     expect(res.frames).toEqual([]);
-    expect(generateImageWithPrompt).not.toHaveBeenCalled();
+    expect(rendering).not.toHaveBeenCalled();
   });
 
   it('streams the saved record as one unbuffered NDJSON line', async () => {
-    const generateImageWithPrompt = render([{ name: 'done', media }]);
-    const controller = makeController({
-      resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-      generateImageWithPrompt,
-    });
+    const rendering = render([{ name: 'done', media }]);
     const res = fakeResponse();
 
-    await controller.generateImageFromText(org, body, res as any);
+    await handle(
+      {
+        [preflight]: jest.fn().mockResolvedValue(prepared),
+        [generator]: rendering,
+      },
+      res
+    );
 
     expect(res.headers).toEqual({
       'Content-Type': 'application/json; charset=utf-8',
       'X-Accel-Buffering': 'no',
     });
-    expect(generateImageWithPrompt).toHaveBeenCalledWith(org, body, prepared);
+    expect(rendering).toHaveBeenCalledWith(org, body, prepared);
     expect(res.write).toHaveBeenCalledTimes(1);
     expect(res.write).toHaveBeenCalledWith(
       JSON.stringify({ name: 'done', media }) + '\n'
@@ -167,19 +194,17 @@ describe('generateImageFromText', () => {
 
     // SC-004: three minutes, past nginx's 95 s and Cloudflare's ~100 s cuts.
     it('sends heartbeats until the image is ready', async () => {
-      const controller = makeController({
-        resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-        generateImageWithPrompt: jest.fn(async function* () {
-          await new Promise((resolve) => setTimeout(resolve, 180_000));
-          yield { name: 'done', media };
-        }),
-      });
       const res = fakeResponse();
 
-      const handled = controller.generateImageFromText(
-        org,
-        body,
-        res as any
+      const handled = handle(
+        {
+          [preflight]: jest.fn().mockResolvedValue(prepared),
+          [generator]: jest.fn(async function* () {
+            await new Promise((resolve) => setTimeout(resolve, 180_000));
+            yield { name: 'done', media };
+          }),
+        },
+        res
       );
       await jest.advanceTimersByTimeAsync(180_000);
       await handled;
@@ -205,13 +230,15 @@ describe('generateImageFromText', () => {
       'Something went wrong while creating your image, please try again.',
     ],
   ])('ends with an error frame for %s', async (_case, failure, message) => {
-    const controller = makeController({
-      resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-      generateImageWithPrompt: render([], failure),
-    });
     const res = fakeResponse();
 
-    await controller.generateImageFromText(org, body, res as any);
+    await handle(
+      {
+        [preflight]: jest.fn().mockResolvedValue(prepared),
+        [generator]: render([], failure),
+      },
+      res
+    );
 
     expect(res.frames[res.frames.length - 1]).toEqual({
       name: 'error',
@@ -225,15 +252,17 @@ describe('generateImageFromText', () => {
   // on its credit, but nothing is written to a client that has left.
   it('stops writing once the client has gone', async () => {
     const res = fakeResponse();
-    const controller = makeController({
-      resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-      generateImageWithPrompt: jest.fn(async function* () {
-        res.onClose?.();
-        yield { name: 'done', media };
-      }),
-    });
 
-    await controller.generateImageFromText(org, body, res as any);
+    await handle(
+      {
+        [preflight]: jest.fn().mockResolvedValue(prepared),
+        [generator]: jest.fn(async function* () {
+          res.onClose?.();
+          yield { name: 'done', media };
+        }),
+      },
+      res
+    );
 
     expect(res.frames).toEqual([]);
     expect(res.ended).toBe(true);

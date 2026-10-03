@@ -30,6 +30,12 @@ const PicturePrompt = z.object({
     ),
 });
 
+// Which words are printed, and how they are carried: the rule
+// generatePromptForPicture was sampled into (its comment has the history),
+// shared with generateEditPrompt so a change of copy is decided the same way.
+const IN_IMAGE_TEXT_RULES = `When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.`;
+
 // Added to generatePromptForPicture's instructions only when reference images
 // are attached; without them the prompt stays byte for byte what it was. The
 // improver never sees the images, and told nothing it describes a subject of
@@ -226,8 +232,7 @@ export class OpenaiService {
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
-When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
-Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+${IN_IMAGE_TEXT_RULES}
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
@@ -240,6 +245,49 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
                 `prompt: ${prompt}`,
                 ...(style ? [`Render in this style: ${style}`] : []),
                 ...(references ? [`Reference images: ${references}`] : []),
+              ].join('\n'),
+            },
+          ],
+          response_format: zodResponseFormat(PicturePrompt, 'picturePrompt'),
+        })
+      ).choices[0].message.parsed?.prompt || ''
+    );
+  }
+
+  /**
+   * The edit counterpart of generatePromptForPicture. That rewrite writes a
+   * whole scene; handed a change, it describes a new picture with the change in
+   * it, and the editing model redraws everything the user meant to keep. An
+   * edit is therefore rewritten as the change alone, with the rest of the image
+   * named as staying as it is.
+   *
+   * The improver never sees the images, only how many there are (`inputs`):
+   * the image being edited is image 1 and the ones added to the edit follow
+   * it, as the window numbers them. Same model, reasoning and schema as
+   * generatePromptForPicture, for the same reasons, and the same rule for the
+   * words to print.
+   */
+  async generateEditPrompt(instruction: string, inputs: number) {
+    return (
+      (
+        await openai.chat.completions.parse({
+          model: 'gpt-5.6-luna',
+          reasoning_effort: 'low',
+          messages: [
+            {
+              role: 'system',
+              content: `You rewrite a change a user asks for into one instruction for an AI image editing model.
+The editing model receives the image to edit as image 1 and any images the user added to the edit as image 2 onwards, in the order given; the user message says how many.
+Return one instruction, in English regardless of the request's language.
+State the change and only the change, and say that everything else stays exactly as it is: the composition, the subjects and their faces, any existing text, the colours and the framing. Never describe a new scene.
+${IN_IMAGE_TEXT_RULES}
+When the change points to one of the images, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries.`,
+            },
+            {
+              role: 'user',
+              content: [
+                `change: ${instruction}`,
+                `Images: ${inputs}, image 1 is the image being edited.`,
               ].join('\n'),
             },
           ],

@@ -23,7 +23,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
-import { GenerateImageWithPromptDto } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
+import {
+  EditImageWithPromptDto,
+  GenerateImageWithPromptDto,
+} from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
   CreateVideoDto,
   VideoDto,
@@ -187,6 +190,21 @@ export class MediaController {
     return this.streamImage(
       res,
       this._mediaService.generateImageWithPrompt(org, body, prepared)
+    );
+  }
+
+  @Post('/edit-image-with-prompt')
+  async editImage(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: EditImageWithPromptDto,
+    @Res({ passthrough: false }) res: Response
+  ) {
+    // Same contract as the generate route: the credit check and every refusal
+    // of the image or its references happen before the first byte.
+    const prepared = await this._mediaService.resolveImageEdit(org, body);
+    return this.streamImage(
+      res,
+      this._mediaService.editImageWithPrompt(org, body, prepared)
     );
   }
 

@@ -411,9 +411,9 @@ describe('the streamed render', () => {
   });
 });
 
-// The credit for the first image was already spent, and `generate()` clears the
-// result before it asks. A refused Regenerate must not take the image with it —
-// `ai.video`'s failRender holds its result for exactly this reason.
+// The credit for the first image was already spent, so a refused Regenerate
+// must not take it off screen — `ai.video`'s failRender holds its result for
+// exactly this reason.
 describe('when a Regenerate is refused', () => {
   it('keeps the image the credit already paid for', async () => {
     renders(done);
@@ -575,34 +575,34 @@ describe('the hint under the prompt', () => {
   });
 });
 
+const ref = (id: string) => ({ id, path: `https://media/${id}.png` });
+
+/** Opens the Media library from the add tile and picks these. */
+const attach = async (...items: { id: string; path: string }[]) => {
+  await click(button('Add image'));
+  await act(async () => {
+    picker[picker.length - 1].setMedia(items);
+  });
+};
+
+const thumbnails = () =>
+  Array.from(
+    document.querySelectorAll<HTMLImageElement>('img[alt^="Reference image"]')
+  ).map((img) => ({
+    alt: img.alt,
+    src: img.getAttribute('src'),
+    // The number drawn on the thumbnail, next to the picture.
+    number: img.parentElement?.textContent?.trim(),
+  }));
+
 // Feature 031-ai-image-references-edit, US1: up to four Media images the render
 // draws on, numbered in the order they were attached (contracts/ui.md).
 describe('reference images', () => {
-  const ref = (id: string) => ({ id, path: `https://media/${id}.png` });
-
   /** Opens the window on its compose step. */
   const compose = async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-ai'));
   };
-
-  /** Opens the Media library from the add tile and picks these. */
-  const attach = async (...items: { id: string; path: string }[]) => {
-    await click(button('Add image'));
-    await act(async () => {
-      picker[picker.length - 1].setMedia(items);
-    });
-  };
-
-  const thumbnails = () =>
-    Array.from(
-      document.querySelectorAll<HTMLImageElement>('img[alt^="Reference image"]')
-    ).map((img) => ({
-      alt: img.alt,
-      src: img.getAttribute('src'),
-      // The number drawn on the thumbnail, next to the picture.
-      number: img.parentElement?.textContent?.trim(),
-    }));
 
   it('numbers attached images in the order they were picked', async () => {
     await compose();
@@ -743,5 +743,338 @@ describe('reference images', () => {
         expect(toast).toHaveBeenCalledWith(message, 'warning');
       }
     );
+  });
+});
+
+// Feature 031-ai-image-references-edit, US2: a change typed under the result
+// and applied to the image on screen, for one credit (contracts/ui.md, Result
+// step).
+describe('editing the result', () => {
+  const edited = {
+    name: 'done',
+    media: { id: 'media-2', path: 'https://media/edited.png' },
+  };
+
+  /** Generates the first image; every render after it answers with an edit. */
+  const toResult = async (onChange = jest.fn()) => {
+    renders(done);
+    await generate(undefined, onChange);
+    renders(edited);
+  };
+
+  // The window's one field: the prompt on the compose step, the change on the
+  // result step.
+  const field = () => document.querySelector('textarea') as HTMLTextAreaElement;
+  const apply = () => buttonStarting('Apply edit');
+  const preview = () =>
+    document
+      .querySelector('a[aria-label="Open the image full size"] img')
+      ?.getAttribute('src');
+  const editBody = () =>
+    JSON.parse(asked('/media/edit-image-with-prompt')[0][1].body);
+
+  const applyEdit = async (change: string) => {
+    await type(field(), change);
+    await click(apply());
+  };
+
+  // FR-015: nothing to apply, so nothing is asked of the server either.
+  it('asks for the change before anything is sent', async () => {
+    await toResult();
+    request.mockClear();
+
+    await click(apply());
+
+    expect(toast).toHaveBeenCalledWith('Please describe the change', 'warning');
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  // FR-011: the cost is on the action, as Regenerate's is.
+  it('states its cost on the action', async () => {
+    await toResult();
+
+    expect(apply()?.textContent).toContain('1 credit');
+  });
+
+  it("counts the change against the prompt's ceiling", async () => {
+    await toResult();
+
+    await type(field(), 'make it white');
+
+    expect(field().maxLength).toBe(2000);
+    expect(document.body.textContent).toContain('13 / 2000');
+  });
+
+  // FR-016: the credit check a generation runs comes first for an edit too.
+  it('checks the credits first, then asks for the edit as a stream', async () => {
+    await toResult();
+    request.mockClear();
+
+    await applyEdit('make the background plain white');
+
+    expect(request.mock.calls.map(([url]) => url)).toEqual([
+      '/media/generate-image/allowed',
+      '/media/edit-image-with-prompt',
+    ]);
+    expect(asked('/media/edit-image-with-prompt')[0][1]).toMatchObject({
+      method: 'POST',
+      headers: { Accept: 'application/x-ndjson' },
+    });
+  });
+
+  it('edits the image on screen', async () => {
+    await toResult();
+
+    await applyEdit('make the background plain white');
+
+    expect(editBody()).toEqual({
+      imageId: 'media-1',
+      prompt: 'make the background plain white',
+      aspectRatio: 'square',
+    });
+  });
+
+  // An edit keeps its frame (FR-012): the preset the image was made at, even
+  // after the compose step has moved on to another.
+  it('keeps the preset the image was made at', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await type(field(), 'a pomegranate on a table');
+    await click(buttonStarting('Portrait'));
+    renders(done);
+    await click(button('Generate'));
+
+    await click(button('Back to prompt'));
+    await click(buttonStarting('Landscape'));
+    renders({ name: 'error', error: true, message: 'The renderer fell over.' });
+    await click(button('Generate'));
+    renders(edited);
+
+    await applyEdit('make the background plain white');
+
+    expect(editBody().aspectRatio).toBe('portrait');
+  });
+
+  it('sends the images added to it after the one being edited', async () => {
+    await toResult();
+    await attach(ref('logo'));
+
+    await applyEdit('put the logo from image 2 on the cup');
+
+    expect(editBody().references).toEqual(['logo']);
+  });
+
+  it('shows the edit, and clears the change and the images added to it', async () => {
+    await toResult();
+    await attach(ref('logo'));
+
+    await applyEdit('put the logo from image 2 on the cup');
+
+    expect(preview()).toBe('https://media/edited.png');
+    expect(field().value).toBe('');
+    expect(thumbnails()).toEqual([
+      {
+        alt: 'Reference image 1',
+        src: 'https://media/edited.png',
+        number: '1',
+      },
+    ]);
+  });
+
+  // A failed edit costs nothing and takes nothing away (spec, Edge Cases).
+  it('keeps the image, the change and the added images when the edit fails', async () => {
+    await toResult();
+    await attach(ref('logo'));
+    renders({
+      name: 'error',
+      error: true,
+      message: 'Your request was rejected by the AI safety system.',
+    });
+
+    await applyEdit('put the logo from image 2 on the cup');
+
+    expect(toast).toHaveBeenCalledWith(
+      'Your request was rejected by the AI safety system.',
+      'warning'
+    );
+    expect(preview()).toBe('https://media/first.png');
+    expect(field().value).toBe('put the logo from image 2 on the cup');
+    expect(thumbnails().map((thumbnail) => thumbnail.src)).toEqual([
+      'https://media/first.png',
+      'https://media/logo.png',
+    ]);
+  });
+
+  // The limit modal has already spoken, and nothing was committed to.
+  it('says nothing and keeps everything when the credits have run out', async () => {
+    const onChange = jest.fn();
+    await toResult(onChange);
+    await attach(ref('logo'));
+    await type(field(), 'put the logo from image 2 on the cup');
+    request.mockImplementation(refused);
+
+    await click(apply());
+    await settle();
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(asked('/media/edit-image-with-prompt')).toHaveLength(0);
+    expect(preview()).toBe('https://media/first.png');
+    expect(field().value).toBe('put the logo from image 2 on the cup');
+    expect(thumbnails()).toHaveLength(2);
+
+    await click(button('Use image'));
+    expect(onChange).toHaveBeenCalledWith(done.media);
+  });
+
+  // FR-019: two actions called "Edit" side by side would be one too many; the
+  // way back to the compose step says where it goes instead.
+  it('names no action "Edit", and goes back to the prompt with it kept', async () => {
+    await toResult();
+
+    const labels = Array.from(document.querySelectorAll('button')).map(
+      (node) => node.textContent?.trim() ?? ''
+    );
+    expect(labels.some((label) => label.startsWith('Edit'))).toBe(false);
+
+    await click(button('Back to prompt'));
+
+    expect(field().value).toBe('a pomegranate on a table');
+  });
+
+  // FR-013: the image being edited is image 1, so the images added to it
+  // count from 2, as the change names them.
+  it('shows the image being edited as a fixed image 1, and numbers added ones from 2', async () => {
+    await toResult();
+    await attach(ref('logo'));
+
+    expect(thumbnails()).toEqual([
+      { alt: 'Reference image 1', src: 'https://media/first.png', number: '1' },
+      { alt: 'Reference image 2', src: 'https://media/logo.png', number: '2' },
+    ]);
+    expect(
+      document.querySelector('button[aria-label="Remove reference image 1"]')
+    ).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Remove reference image 2"]')
+    ).toBeTruthy();
+  });
+
+  it('leaves the slots the image being edited does not take', async () => {
+    await toResult();
+
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].max).toBe(3);
+  });
+
+  // It is image 1 already; sent twice, the server would refuse the edit.
+  it('adds nothing when the image being edited is picked again', async () => {
+    await toResult();
+
+    await attach(done.media);
+
+    expect(thumbnails()).toHaveLength(1);
+  });
+
+  it('says it is editing, and which version', async () => {
+    await toResult();
+    // Never resolves, so the waiting screen stays to be read.
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+
+    await applyEdit('make the background plain white');
+    await settle();
+
+    expect(document.body.textContent).toContain('Editing your image…');
+    expect(document.body.textContent).toContain('Edit of version 1');
+  });
+
+  // Closing the window gives up watching, not the edit, as for a generation.
+  it('attaches the edit when the window was closed mid-edit', async () => {
+    const onChange = jest.fn();
+    await toResult(onChange);
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+
+    await applyEdit('make the background plain white');
+    await settle();
+    act(() => {
+      closeEveryModal?.();
+    });
+    await act(async () => {
+      deliver(streamed(edited));
+    });
+    await settle();
+
+    expect(onChange).toHaveBeenCalledWith(edited.media);
+    expect(setLocked).toHaveBeenLastCalledWith(false);
+  });
+
+  // The image on screen was paid for, so an edit that fails after the window
+  // closed hands that one to the post rather than nothing.
+  it('attaches the image on screen when the window was closed and the edit failed', async () => {
+    const onChange = jest.fn();
+    await toResult(onChange);
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+
+    await applyEdit('make the background plain white');
+    await settle();
+    act(() => {
+      closeEveryModal?.();
+    });
+    await act(async () => {
+      deliver(
+        streamed({
+          name: 'error',
+          error: true,
+          message: 'Your request was rejected by the AI safety system.',
+        })
+      );
+    });
+    await settle();
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(setLocked).toHaveBeenLastCalledWith(false);
+  });
+
+  it('uses the edit on screen', async () => {
+    const onChange = jest.fn();
+    await toResult(onChange);
+    await applyEdit('make the background plain white');
+
+    await click(button('Use image'));
+
+    expect(onChange).toHaveBeenCalledWith(edited.media);
+  });
+
+  // Regenerate is still the compose request (FR-022), whatever was edited.
+  it('regenerates from the prompt after an edit', async () => {
+    await toResult();
+    await applyEdit('make the background plain white');
+    request.mockClear();
+    renders(done);
+
+    await click(buttonStarting('Regenerate'));
+
+    expect(asked('/media/edit-image-with-prompt')).toHaveLength(0);
+    expect(
+      JSON.parse(asked('/media/generate-image-with-prompt')[0][1].body).prompt
+    ).toBe('a pomegranate on a table');
   });
 });
