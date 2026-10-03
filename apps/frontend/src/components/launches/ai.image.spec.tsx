@@ -1211,3 +1211,25 @@ describe('a second click while the credits are checked', () => {
     expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
   });
 });
+
+// global.scss sets `body * { outline: none !important }`, so a field without an
+// explicit focus-visible ring shows no focus at all.
+describe('keyboard visibility', () => {
+  it('rings the prompt field', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    const field = document.querySelector('textarea') as HTMLTextAreaElement;
+
+    expect(field.className).toContain('focus-visible:ring-2');
+    expect(field.className).toContain('focus-visible:ring-brand');
+  });
+
+  it('rings the edit field', async () => {
+    renders(done);
+    await generate();
+    const field = document.querySelector('textarea') as HTMLTextAreaElement;
+
+    expect(field.className).toContain('focus-visible:ring-2');
+    expect(field.className).toContain('focus-visible:ring-brand');
+  });
+});

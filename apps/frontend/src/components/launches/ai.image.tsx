@@ -586,7 +586,7 @@ const AiImageModal: FC<{
               'describe_the_image_you_want_to_generate',
               'Describe the image you want to generate'
             )}
-            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused"
+            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
           />
           <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
             <span className="text-muted">
