@@ -217,6 +217,12 @@ export const Modal: FC<{
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const holdsLock = useRef(false);
+  // Set from the click until the render is over, by whichever path starts it:
+  // `generate` below, or a provider that runs its own render (`claimRender`).
+  // The window's actions stay on screen until the render's request is
+  // answered: a second click there must not start a second paid render, and
+  // the result must not be used or left while one is coming.
+  const rendering = useRef(false);
   // The held result is mirrored in a ref because `failRender` is handed to the
   // provider and captured inside its own memoised render callback: a version
   // whose identity changed with the result would go stale exactly when it
@@ -228,8 +234,9 @@ export const Modal: FC<{
     setResult(media);
   };
 
-  // `loading` follows the request; the composer lock follows the whole flow,
-  // which is not over until the video is attached or the user gives it up.
+  // `loading` follows the request, whose end also ends the render
+  // (`rendering`); the composer lock follows the whole flow, which is not over
+  // until the video is attached or the user gives it up.
   // Memoized like `releaseLock` below: the context functions built on them have
   // to keep one identity for the life of the modal.
   const startRequest = useCallback(() => {
@@ -243,6 +250,7 @@ export const Modal: FC<{
 
   const endRequest = useCallback(() => {
     inFlight.current = false;
+    rendering.current = false;
     setLoading(false);
   }, [setLoading]);
 
@@ -269,9 +277,19 @@ export const Modal: FC<{
     [releaseLock]
   );
 
-  // The four context functions below are deliberately stable: the provider
+  // The five context functions below are deliberately stable: the provider
   // captures them when it builds its render handshake, and the Regenerate it
   // hands back re-runs that same closure.
+  // One render at a time, claimed at the click; `endRequest` lets it go when
+  // the render is handed back, through `onMedia` or `failRender`.
+  const claimRender = useCallback(() => {
+    if (rendering.current) {
+      return false;
+    }
+    rendering.current = true;
+    return true;
+  }, []);
+
   const startRender = useCallback((next: RenderHandshake) => {
     setHandshake(next);
     setProgress(null);
@@ -347,6 +365,11 @@ export const Modal: FC<{
   }, [phase, hasSteps]);
 
   const generate: () => Promise<void> = useCallback(async () => {
+    // One render at a time. It is over when its request ends, or below, when
+    // the credit check refuses it or the form does not validate.
+    if (!claimRender()) {
+      return;
+    }
     // The point of asking first: a refusal here has already raised its own
     // modal, so the flow stops before the waiting screen exists. Falling
     // through would only reach the same refusal again, from the render call.
@@ -354,8 +377,10 @@ export const Modal: FC<{
       await fetch(`/media/generate-video/${type.identifier}/allowed`);
     } catch (e) {
       // Already answered — a refusal here rejects before the waiting screen
-      // exists, so there is nothing to reset and nothing more to say.
+      // exists, so there is nothing to undo but the guard and nothing more to
+      // say.
       if (isAlreadyAnswered(e)) {
+        rendering.current = false;
         return;
       }
       // Any other failure would fail the render call the same way a moment
@@ -365,6 +390,7 @@ export const Modal: FC<{
 
     const customParams = form.getValues();
     if (!(await form.trigger())) {
+      rendering.current = false;
       toaster.show(
         t('please_fill_all_required_fields', 'Please fill all required fields'),
         'warning'
@@ -447,21 +473,40 @@ export const Modal: FC<{
         'warning'
       );
     }
-  }, [type, position, startRender, onMedia, failRender]);
+  }, [type, position, claimRender, startRender, onMedia, failRender]);
 
   const useVideoInPost = () => {
+    // A render under way would finish after the window closed and hand the
+    // post a second video.
+    if (rendering.current) {
+      return;
+    }
     releaseLock();
     onChange(result!);
     close();
   };
 
   const backFromResult = () => {
+    // A render under way would bring the waiting screen up over the screen
+    // this returns to.
+    if (rendering.current) {
+      return;
+    }
     // Giving up the result ends the flow; the provider's own inputs stay as
     // they were, on the screen it returns to.
     releaseLock();
     holdResult(null);
     setPhase('setup');
     handshake?.onBack();
+  };
+
+  const changeType = () => {
+    // A render under way would go on after this window is gone, and the next
+    // type could start another.
+    if (rendering.current) {
+      return;
+    }
+    onChangeType?.();
   };
 
   // The video is already in the Media library by the time any of this renders
@@ -525,6 +570,7 @@ export const Modal: FC<{
         close,
         phase,
         actionsSlot,
+        claimRender,
         startRender,
         reportProgress,
         failRender,
@@ -555,7 +601,7 @@ export const Modal: FC<{
           {onChangeType && phase === 'setup' ? (
             <button
               type="button"
-              onClick={onChangeType}
+              onClick={changeType}
               className="min-w-0 inline-flex items-center gap-[4px] rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
             >
               <svg

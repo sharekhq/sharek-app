@@ -708,6 +708,7 @@ const ImageSlidesComponent = () => {
   const {
     output,
     onMedia,
+    claimRender,
     startRender,
     reportProgress,
     failRender,
@@ -739,6 +740,10 @@ const ImageSlidesComponent = () => {
     const steps = STEPS.filter(
       ({ step }) => step !== 'voicing' || !!getValues().voiceover
     );
+    // Create video and Regenerate stay on screen until the create route
+    // answers, so the modal's one render at a time is asked for first. It holds
+    // the claim until this render is handed back, through onMedia or failRender.
+    if (!claimRender()) return;
     try {
       const response = await fetch('/media/generate-video/create', {
         method: 'POST',
@@ -830,6 +835,7 @@ const ImageSlidesComponent = () => {
     getValues,
     output,
     onMedia,
+    claimRender,
     startRender,
     reportProgress,
     failRender,
