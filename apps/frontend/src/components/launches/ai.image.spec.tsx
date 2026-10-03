@@ -1078,3 +1078,80 @@ describe('editing the result', () => {
     ).toBe('a pomegranate on a table');
   });
 });
+
+// Generate, Regenerate and Apply edit stay on screen while the credits are
+// checked, so a second click there started a second render and a second charge.
+describe('a second click while the credits are checked', () => {
+  /**
+   * Holds every credit check until the returned function answers them all;
+   * renders answer at once. Answering every one matters: were only the last
+   * answered, a missing guard would still show a single render.
+   */
+  const holdCreditChecks = () => {
+    const pending: Array<() => void> = [];
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? new Promise((resolve) =>
+            pending.push(() => resolve(answer(200, true)))
+          )
+        : Promise.resolve(streamed(done))
+    );
+    return async () => {
+      await act(async () => {
+        pending.splice(0).forEach((answerCheck) => answerCheck());
+      });
+      await settle();
+    };
+  };
+
+  it('starts one generation', async () => {
+    const answerChecks = holdCreditChecks();
+
+    await generate();
+    await click(button('Generate'));
+    await answerChecks();
+
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
+  });
+
+  it('starts one regeneration', async () => {
+    renders(done);
+    await generate();
+    request.mockClear();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(buttonStarting('Regenerate'));
+    await answerChecks();
+
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
+  });
+
+  it('applies one edit', async () => {
+    renders(done);
+    await generate();
+    await type(
+      document.querySelector('textarea') as HTMLTextAreaElement,
+      'make the background plain white'
+    );
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Apply edit'));
+    await click(buttonStarting('Apply edit'));
+    await answerChecks();
+
+    expect(asked('/media/edit-image-with-prompt')).toHaveLength(1);
+  });
+
+  // A refused check ends the render, and the guard with it: the button must
+  // not stay dead for when credits are bought.
+  it('takes the next click once a refused check has answered', async () => {
+    request.mockImplementation(refused);
+    await generate();
+    renders(done);
+
+    await click(button('Generate'));
+
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
+  });
+});

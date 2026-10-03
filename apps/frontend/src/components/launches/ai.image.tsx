@@ -196,9 +196,14 @@ const AiImageModal: FC<{
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const holdsLock = useRef(false);
+  // Set from the click until the render is over. Generate, Regenerate and
+  // Apply edit stay on screen through the credit check, and a second click
+  // there must not start a second paid render.
+  const rendering = useRef(false);
 
-  // `loading` follows the request; the composer lock follows the whole flow,
-  // which is not over until the image is attached or the user gives it up.
+  // `loading` follows the request, whose end also ends the render
+  // (`rendering`); the composer lock follows the whole flow, which is not over
+  // until the image is attached or the user gives it up.
   const startRequest = () => {
     inFlight.current = true;
     setLoading(true);
@@ -210,6 +215,7 @@ const AiImageModal: FC<{
 
   const endRequest = () => {
     inFlight.current = false;
+    rendering.current = false;
     setLoading(false);
   };
 
@@ -250,6 +256,12 @@ const AiImageModal: FC<{
     body: { aspectRatio: ImageAspectId } & Record<string, unknown>,
     edit = false
   ) => {
+    // One render at a time. It is over when its request ends, or below, when
+    // the credit check refuses it.
+    if (rendering.current) {
+      return false;
+    }
+    rendering.current = true;
     // Asked before the generating phase begins, exactly as the video modal
     // asks: a refusal lands on a window that never moved, instead of a
     // loader that appears for half a second and is replaced by the limit card.
@@ -257,8 +269,9 @@ const AiImageModal: FC<{
       await fetch('/media/generate-image/allowed');
     } catch (e) {
       // Already answered — nothing has been committed to yet, so there is
-      // nothing to reset and nothing more to say.
+      // nothing to undo but the guard and nothing more to say.
       if (isAlreadyAnswered(e)) {
+        rendering.current = false;
         return false;
       }
       // Anything else would fail the render the same way; fall through so
