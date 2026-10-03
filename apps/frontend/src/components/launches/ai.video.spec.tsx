@@ -1,5 +1,6 @@
 import { act, FC, ReactNode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useFormContext } from 'react-hook-form';
 
 const toast = jest.fn();
 const setLocked = jest.fn();
@@ -38,17 +39,19 @@ jest.mock('swr', () => ({
       ? { data: providers, isLoading: false }
       : { data: { credits: 0 }, mutate: jest.fn() },
 }));
+// Whether the provider's form holds a required field; most cases leave it out,
+// so the form always validates.
+let mockRequiredField = false;
+// What the modal hands its provider, as the provider receives it.
+let mockVideo: ReturnType<typeof useVideo> | undefined;
 // The provider registry drags in every video provider; this spec only needs a
 // type that leaves the action bar — and therefore the Generate button — to the
 // modal.
-jest.mock(
-  '@gitroom/frontend/components/videos/video.render.component',
-  () => ({
-    VideoWrapper: () => null,
-    videoOwnsActions: () => false,
-    videoTypeCard: () => undefined,
-  })
-);
+jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
+  VideoWrapper: () => <ProviderStandIn />,
+  videoOwnsActions: () => false,
+  videoTypeCard: () => undefined,
+}));
 
 import {
   AiVideo,
@@ -60,6 +63,22 @@ import {
 } from '@gitroom/frontend/components/layout/new-modal';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
+import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
+
+/**
+ * The provider's side of the modal: the context it is handed, and one required
+ * field when a case asks for it.
+ */
+const ProviderStandIn: FC = () => {
+  const { register } = useFormContext();
+  const video = useVideo();
+  useEffect(() => {
+    mockVideo = video;
+  }, [video]);
+  return mockRequiredField ? (
+    <input {...register('prompt', { required: true })} />
+  ) : null;
+};
 
 const answer = (status: number, body: any) => ({
   ok: status >= 200 && status < 300,
@@ -175,6 +194,40 @@ const click = async (element: Element | null | undefined) => {
   });
 };
 
+// Some actions carry a credit cost after the label ("Regenerate· 1 credit"),
+// so an exact match silently finds nothing and clicking it does nothing.
+const buttonStarting = (label: string) =>
+  Array.from(document.querySelectorAll('button')).find((node) =>
+    node.textContent?.trim().startsWith(label)
+  );
+
+const type = async (element: HTMLInputElement, value: string) => {
+  // React tracks the last value it wrote, so assigning `.value` directly looks
+  // like no change at all; the native setter is what moves the tracker.
+  const setter = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(element),
+    'value'
+  )?.set;
+  await act(async () => {
+    setter?.call(element, value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+};
+
+const finished = { id: 'media-1', path: 'https://media/first.mp4' };
+
+/** The render route's answer: a stream that goes straight to its done frame. */
+const rendered = () => ({
+  ...answer(200, {}),
+  body: stream({ name: 'done', media: finished }),
+});
+
+/** Lets every credit check through; every render finishes at once. */
+const renders = () =>
+  request.mockImplementation((url: string) =>
+    Promise.resolve(url.endsWith('/allowed') ? answer(200, true) : rendered())
+  );
+
 const cardTrigger = (open: () => void) => (
   <button data-testid="card" onClick={open}>
     Card
@@ -194,6 +247,8 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  mockRequiredField = false;
+  mockVideo = undefined;
   jest.clearAllMocks();
 });
 
@@ -402,19 +457,8 @@ describe('the note under the waiting screen', () => {
 // it finishes — so outside a composer the action is not "use" at all: there is
 // nothing left to attach it to, and it only confirms and closes.
 describe('the action that accepts the result', () => {
-  const finished = { id: 'media-1', path: 'https://media/first.mp4' };
-
   beforeEach(() => {
-    request.mockImplementation((url: string) =>
-      Promise.resolve(
-        url.endsWith('/allowed')
-          ? answer(200, true)
-          : {
-              ...answer(200, {}),
-              body: stream({ name: 'done', media: finished }),
-            }
-      )
-    );
+    renders();
   });
 
   it('offers to use the video in the post by default', async () => {
@@ -436,5 +480,110 @@ describe('the action that accepts the result', () => {
     );
     expect(labels).not.toContain('Use video');
     expect(labels).toContain('Done');
+  });
+});
+
+// Generate and Regenerate stay on screen while the credits are checked, so a
+// second click there started a second render and a second charge.
+describe('a second click while the credits are checked', () => {
+  /**
+   * Holds every credit check until the returned function answers them all;
+   * renders answer at once. Answering every one matters: were only the last
+   * answered, a missing guard would still show a single render.
+   */
+  const holdCreditChecks = () => {
+    const pending: Array<() => void> = [];
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? new Promise((resolve) =>
+            pending.push(() => resolve(answer(200, true)))
+          )
+        : Promise.resolve(rendered())
+    );
+    return async () => {
+      await act(async () => {
+        pending.splice(0).forEach((answerCheck) => answerCheck());
+      });
+      await settle();
+    };
+  };
+
+  const field = () =>
+    document.querySelector('input[name="prompt"]') as HTMLInputElement;
+
+  it('starts one render', async () => {
+    const answerChecks = holdCreditChecks();
+
+    await generate();
+    await click(buttonStarting('Generate'));
+    await settle();
+    await answerChecks();
+
+    expect(posted('/media/generate-video')).toHaveLength(1);
+  });
+
+  it('starts one regeneration', async () => {
+    renders();
+    await generate();
+    await settle();
+    request.mockClear();
+    const answerChecks = holdCreditChecks();
+
+    await click(buttonStarting('Regenerate'));
+    await click(buttonStarting('Regenerate'));
+    await answerChecks();
+
+    expect(posted('/media/generate-video')).toHaveLength(1);
+  });
+
+  // A refused check ends the render, and the guard with it: the button must
+  // not stay dead for when credits are bought.
+  it('takes the next click once a refused check has answered', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed') ? refused() : Promise.resolve(answer(200, {}))
+    );
+    await generate();
+    renders();
+
+    await click(buttonStarting('Generate'));
+    await settle();
+
+    expect(posted('/media/generate-video')).toHaveLength(1);
+  });
+
+  // The form is checked again once the credits are: a field emptied while
+  // they were being checked ends the render before it starts, and the guard
+  // with it.
+  it('takes the next click once an incomplete form has been reported', async () => {
+    mockRequiredField = true;
+    await open();
+    await type(field(), 'a pomegranate');
+    const answerChecks = holdCreditChecks();
+    await click(buttonStarting('Generate'));
+    await settle();
+    await type(field(), '');
+    await answerChecks();
+    renders();
+    await type(field(), 'a pomegranate');
+
+    await click(buttonStarting('Generate'));
+    await settle();
+
+    expect(toast).toHaveBeenCalledWith(
+      'Please fill all required fields',
+      'warning'
+    );
+    expect(posted('/media/generate-video')).toHaveLength(1);
+  });
+
+  // A provider that runs its own render claims it from the modal at the click,
+  // and the modal holds the claim until that render is handed back.
+  it("holds a provider's claim until its render is handed back", async () => {
+    await open();
+
+    expect(mockVideo!.claimRender()).toBe(true);
+    expect(mockVideo!.claimRender()).toBe(false);
+    act(() => mockVideo!.failRender());
+    expect(mockVideo!.claimRender()).toBe(true);
   });
 });

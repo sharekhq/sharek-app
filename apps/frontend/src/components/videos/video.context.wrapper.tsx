@@ -58,6 +58,13 @@ export const VideoContextWrapper = createContext<{
    * whenever the phase changes. `null` means there is no bar to fill.
    */
   actionsSlot: HTMLElement | null;
+  /**
+   * Asks for the modal's one render at a time, at the click, before anything is
+   * requested. False while another render is starting or running: the click
+   * must then do nothing. The modal lets the claim go when the render is handed
+   * back, through `onMedia` or `failRender`.
+   */
+  claimRender: () => boolean;
   startRender: (handshake: RenderHandshake) => void;
   reportProgress: (progress: RenderProgress) => void;
   failRender: () => void;
@@ -69,6 +76,7 @@ export const VideoContextWrapper = createContext<{
   close: () => undefined,
   phase: 'setup',
   actionsSlot: null,
+  claimRender: () => true,
   startRender: () => undefined,
   reportProgress: () => undefined,
   failRender: () => undefined,
