@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   HttpException,
   Param,
   Post,
@@ -178,37 +177,16 @@ export class MediaController {
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
     @Body() body: GenerateImageWithPromptDto,
-    @Headers('accept') accept: string | undefined,
     @Res({ passthrough: false }) res: Response
   ) {
-    // Deliberately outside the stream: the credit check must still be able to
-    // fail with a real status code. Once a byte is written the status line is
-    // fixed at 200, and the billing dialog keys off the status, not the body.
+    // Deliberately outside the stream: the credit check and every reference
+    // refusal must still be able to fail with a real status code. Once a byte
+    // is written the status line is fixed at 200, and the billing dialog keys
+    // off the status, not the body.
     const prepared = await this._mediaService.resolveImageWithPrompt(org, body);
-    const frames = this._mediaService.generateImageWithPrompt(
-      org,
-      body,
-      prepared
-    );
-
-    if (accept?.includes('application/x-ndjson')) {
-      return this.streamImage(res, frames);
-    }
-
-    // A page loaded before the stream existed reads one JSON record, and would
-    // take a stream for a failure it was "not charged" for. It keeps today's
-    // answer, drained from the same render, until no such page can still be
-    // open (research R3). Failures take the normal exception path.
-    for await (const frame of frames) {
-      if (frame.name === 'done') {
-        res.json(frame.media);
-        return;
-      }
-    }
-
-    throw new HttpException(
-      'AI generation failed, please try again later.',
-      500
+    return this.streamImage(
+      res,
+      this._mediaService.generateImageWithPrompt(org, body, prepared)
     );
   }
 

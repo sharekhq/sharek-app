@@ -25,6 +25,15 @@ describe('AI image window locale keys', () => {
   it.each([
     // Increment 1: the stream ended before its last frame (FR-025).
     'image_connection_dropped',
+    // Increment 2: the reference row and the refusals that name a reference
+    // by its number (US1).
+    'image_reference_hint',
+    'image_reference_add',
+    'image_reference_number',
+    'image_reference_remove',
+    'image_reference_missing',
+    'image_reference_unreadable',
+    'image_reference_too_large',
   ])('says %s in both languages', (key) => {
     expect(typeof en[key]).toBe('string');
     expect(en[key].length).toBeGreaterThan(0);
@@ -38,5 +47,41 @@ describe('AI image window locale keys', () => {
     for (const placeholder of placeholders(en[key])) {
       expect(ar[key]).toContain(placeholder);
     }
+  });
+
+  // The Media library's limit names a count, and Arabic agrees a counted noun
+  // with its number in six CLDR forms where English has two. Each Arabic form
+  // carries the count wherever the English form it stands for does: one for
+  // one; few, many and other for other. Zero and two are said in words.
+  describe('media_selection_limit, a plural set', () => {
+    const ENGLISH_FORM: Record<string, 'one' | 'other' | null> = {
+      zero: null,
+      one: 'one',
+      two: null,
+      few: 'other',
+      many: 'other',
+      other: 'other',
+    };
+
+    it.each(['one', 'other'])('has the English %s form', (form) => {
+      expect(typeof en[`media_selection_limit_${form}`]).toBe('string');
+      expect(en[`media_selection_limit_${form}`].length).toBeGreaterThan(0);
+    });
+
+    it.each(Object.entries(ENGLISH_FORM))(
+      'has the Arabic %s form',
+      (form, english) => {
+        const arabic = ar[`media_selection_limit_${form}`];
+        expect(typeof arabic).toBe('string');
+        expect(arabic.length).toBeGreaterThan(0);
+        if (english) {
+          for (const placeholder of placeholders(
+            en[`media_selection_limit_${english}`]
+          )) {
+            expect(arabic).toContain(placeholder);
+          }
+        }
+      }
+    );
   });
 });

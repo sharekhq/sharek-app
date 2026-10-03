@@ -51,7 +51,6 @@ const fakeResponse = () => {
     end: jest.fn(() => {
       res.ended = true;
     }),
-    json: jest.fn(),
     on: jest.fn((event: string, listener: () => void) => {
       if (event === 'close') {
         res.onClose = listener;
@@ -106,7 +105,6 @@ describe('generateImage', () => {
 // can be refused is refused before the first byte, while a status can still be
 // sent (FR-024 – FR-027).
 describe('generateImageFromText', () => {
-  const NDJSON = 'application/x-ndjson';
   const body = { prompt: 'a pomegranate', aspectRatio: 'square' } as any;
   const prepared = { size: '1024x1024' };
   const media = { id: 'media-1', path: 'https://media/abc.jpg' };
@@ -130,7 +128,7 @@ describe('generateImageFromText', () => {
     const res = fakeResponse();
 
     await expect(
-      controller.generateImageFromText(org, body, NDJSON, res as any)
+      controller.generateImageFromText(org, body, res as any)
     ).rejects.toBeInstanceOf(SubscriptionException);
     expect(res.setHeader).not.toHaveBeenCalled();
     expect(res.frames).toEqual([]);
@@ -145,7 +143,7 @@ describe('generateImageFromText', () => {
     });
     const res = fakeResponse();
 
-    await controller.generateImageFromText(org, body, NDJSON, res as any);
+    await controller.generateImageFromText(org, body, res as any);
 
     expect(res.headers).toEqual({
       'Content-Type': 'application/json; charset=utf-8',
@@ -181,7 +179,6 @@ describe('generateImageFromText', () => {
       const handled = controller.generateImageFromText(
         org,
         body,
-        NDJSON,
         res as any
       );
       await jest.advanceTimersByTimeAsync(180_000);
@@ -214,7 +211,7 @@ describe('generateImageFromText', () => {
     });
     const res = fakeResponse();
 
-    await controller.generateImageFromText(org, body, NDJSON, res as any);
+    await controller.generateImageFromText(org, body, res as any);
 
     expect(res.frames[res.frames.length - 1]).toEqual({
       name: 'error',
@@ -236,68 +233,9 @@ describe('generateImageFromText', () => {
       }),
     });
 
-    await controller.generateImageFromText(org, body, NDJSON, res as any);
+    await controller.generateImageFromText(org, body, res as any);
 
     expect(res.frames).toEqual([]);
     expect(res.ended).toBe(true);
-  });
-
-  // A page loaded before the stream existed reads one JSON record, and would
-  // read a stream as a failure that "was not charged". Until no such page can
-  // be open, it gets the record it understands (research R3).
-  describe('for a request that does not ask for the stream', () => {
-    it('answers the saved record as plain JSON', async () => {
-      const controller = makeController({
-        resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-        generateImageWithPrompt: render([{ name: 'done', media }]),
-      });
-      const res = fakeResponse();
-
-      await controller.generateImageFromText(
-        org,
-        body,
-        'application/json',
-        res as any
-      );
-
-      expect(res.json).toHaveBeenCalledWith(media);
-      expect(res.setHeader).not.toHaveBeenCalled();
-      expect(res.frames).toEqual([]);
-    });
-
-    it('fails with the status of the failure', async () => {
-      const controller = makeController({
-        resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-        generateImageWithPrompt: render([], new HttpException('x', 422)),
-      });
-      const res = fakeResponse();
-
-      const err = await controller
-        .generateImageFromText(org, body, 'application/json', res as any)
-        .catch((e) => e);
-
-      expect(err).toBeInstanceOf(HttpException);
-      expect(err.getStatus()).toBe(422);
-      expect(res.json).not.toHaveBeenCalled();
-      expect(res.frames).toEqual([]);
-    });
-
-    // The handler owns the response, so a render that ends without its record
-    // must still be answered, or the page waits for the proxy to cut it.
-    it('fails rather than leaving the request unanswered', async () => {
-      const controller = makeController({
-        resolveImageWithPrompt: jest.fn().mockResolvedValue(prepared),
-        generateImageWithPrompt: render([]),
-      });
-      const res = fakeResponse();
-
-      const err = await controller
-        .generateImageFromText(org, body, 'application/json', res as any)
-        .catch((e) => e);
-
-      expect(err).toBeInstanceOf(HttpException);
-      expect(err.getStatus()).toBe(500);
-      expect(res.json).not.toHaveBeenCalled();
-    });
   });
 });

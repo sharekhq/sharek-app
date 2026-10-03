@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import OpenAI from 'openai';
-import type { ImageGenerateParams } from 'openai/resources/images';
+import OpenAI, { toFile } from 'openai';
+import type {
+  ImageEditParamsNonStreaming,
+  ImageGenerateParams,
+} from 'openai/resources/images';
 import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
@@ -26,6 +29,15 @@ const PicturePrompt = z.object({
       'The rewritten image prompt, written in English, carrying the words in the inImageText field verbatim inside quotation marks.'
     ),
 });
+
+// Added to generatePromptForPicture's instructions only when reference images
+// are attached; without them the prompt stays byte for byte what it was. The
+// improver never sees the images, and told nothing it describes a subject of
+// its own that competes with the one in the picture. A reference's own logo or
+// lettering is the user's to keep, so the no-text rule must not strip it.
+const REFERENCE_RULES = `The image model also receives the reference images the user attached, numbered from 1 in the order given; the user message says how many.
+When the description points to one of them, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries, which the no-text rule above never removes.
+A reference the description does not mention is used for what the description implies: its subject, its product or its look.`;
 
 const VoicePrompt = z.object({
   voice: z.string(),
@@ -107,6 +119,54 @@ export class OpenaiService {
   }
 
   /**
+   * References and edits render through the edit endpoint, with the same model,
+   * quality and format as generateImageAtSize. The inputs go as files named by
+   * their number, so "image N" in the prompt is the N-th file.
+   *
+   * moderation 'low' for the same reason generateImageAtSize sends it.
+   * openai@6.27 declares it on generations only, but the edit endpoint accepts
+   * it (gate G1, research R1), so the body types the field itself.
+   * input_fidelity is not sent: the 2.x models read every input at high
+   * fidelity and ignore it.
+   */
+  async editImageAtSize(
+    prompt: string,
+    size: string,
+    inputs: Array<{ data: Buffer; mime: 'image/png' | 'image/jpeg' }>
+  ): Promise<Buffer> {
+    const body: ImageEditParamsNonStreaming &
+      Pick<ImageGenerateParams, 'moderation'> = {
+      prompt,
+      model: 'gpt-image-2.5-sunburst',
+      image: await Promise.all(
+        inputs.map((input, i) =>
+          toFile(
+            input.data,
+            `image-${i + 1}.${input.mime === 'image/png' ? 'png' : 'jpg'}`,
+            { type: input.mime }
+          )
+        )
+      ),
+      // openai@6.27 types predate arbitrary sizes; the API accepts any
+      // WIDTHxHEIGHT with both edges divisible by 16.
+      size: size as ImageEditParamsNonStreaming['size'],
+      quality: 'high',
+      moderation: 'low',
+      output_format: 'jpeg',
+    };
+    const response = await openai.images.edit(body);
+    const edited = response.data[0];
+
+    if (!edited?.b64_json) {
+      throw new Error(
+        `gpt-image-2.5-sunburst returned no image: ${JSON.stringify(response).slice(0, 300)}`
+      );
+    }
+
+    return Buffer.from(edited.b64_json, 'base64');
+  }
+
+  /**
    * `style` is the catalog's English phrase for the style the user picked, and
    * it arrives as its own line rather than spliced into the description — the
    * client used to wrap it in HTML comments inside the prompt itself, which
@@ -143,8 +203,16 @@ export class OpenaiService {
    * and reordered «تخفيضات 50%» 3 times in 20 — so the words stay an
    * extraction, and the modal's hint tells users that quotes are the
    * guarantee.
+   *
+   * `references` is how many reference images the render receives
+   * (REFERENCE_RULES); at 0 the request is exactly what it was before
+   * references existed.
    */
-  async generatePromptForPicture(prompt: string, style?: string) {
+  async generatePromptForPicture(
+    prompt: string,
+    style?: string,
+    references = 0
+  ) {
     return (
       (
         await openai.chat.completions.parse({
@@ -153,7 +221,8 @@ export class OpenaiService {
           messages: [
             {
               role: 'system',
-              content: `You rewrite a user's description into one prompt for an AI image generation model.
+              content: [
+                `You rewrite a user's description into one prompt for an AI image generation model.
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
@@ -162,12 +231,15 @@ Carry those words into the prompt verbatim, inside quotation marks, in their ori
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
+                ...(references ? [REFERENCE_RULES] : []),
+              ].join('\n'),
             },
             {
               role: 'user',
               content: [
                 `prompt: ${prompt}`,
                 ...(style ? [`Render in this style: ${style}`] : []),
+                ...(references ? [`Reference images: ${references}`] : []),
               ].join('\n'),
             },
           ],
