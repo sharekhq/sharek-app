@@ -42,6 +42,7 @@ import {
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
 
 const useImageCredits = () => {
@@ -155,10 +156,15 @@ const referenceRefusal = (
   }
 };
 
-/** An image this window made, and the preset it was made at. */
+/**
+ * An image this window made, the preset it was made at, and the prompt and
+ * style its caption names: the generation's, which an edit keeps.
+ */
 type Version = {
   media: { id: string; path: string };
   aspectRatio: ImageAspectId;
+  prompt: string;
+  style?: string;
 };
 
 const AiImageModal: FC<{
@@ -251,6 +257,21 @@ const AiImageModal: FC<{
     },
     [releaseLock]
   );
+
+  // The version on screen is brought into view when it is picked, when it
+  // arrives and when a failed render comes back to it: in a strip wider than
+  // the window, it may be past an edge (US3 scenario 4). Nearest, so a version
+  // already in view moves nothing. One below the fold of a short window brings
+  // the window down to it, which on a laptop shows the whole image with the
+  // strip under it. Whether it glides is the stylesheet's call, where the app's
+  // reduced-motion layer can stop it.
+  const shownThumbnail = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    shownThumbnail.current?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [shown, phase]);
 
   /**
    * One render, a generation or an edit, from the credit check to a new version
@@ -356,7 +377,15 @@ const AiImageModal: FC<{
 
       setVersions([
         ...versions,
-        { media: generated, aspectRatio: body.aspectRatio },
+        {
+          media: generated,
+          aspectRatio: body.aspectRatio,
+          // An edit is captioned as the version it changed; a generation, by
+          // what the compose step asked for.
+          ...(edit
+            ? { prompt: held.prompt, style: held.style }
+            : { prompt, style }),
+        },
       ]);
       setShown(versions.length);
       setPhase('result');
@@ -480,6 +509,23 @@ const AiImageModal: FC<{
     setPhase('compose');
   };
 
+  const select = (index: number) => {
+    // A render under way changes, or falls back to, the version on screen
+    // when it began, and its waiting screen names that one.
+    if (rendering.current) {
+      return;
+    }
+    setShown(index);
+    // The version picked is image 1 of the next edit, so it leaves the images
+    // added to it: the same image twice is one reference (FR-005), and the
+    // server refuses an edit that sends it twice.
+    setEditReferences(
+      editReferences.filter(
+        (reference) => reference.id !== versions[index].media.id
+      )
+    );
+  };
+
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
   // compose step's.
@@ -513,15 +559,21 @@ const AiImageModal: FC<{
   const styleLabel = (entry: ImageStyle) =>
     t(`image_style_${entry.id}`, entry.label);
 
+  // A style as a pill or a caption names it: Auto, the absence of one, by its
+  // mark.
+  const styleSummary = (id: string | undefined) => {
+    const entry = IMAGE_STYLES.find((candidate) => candidate.id === id);
+    return entry ? (
+      styleLabel(entry)
+    ) : (
+      <>
+        <span className="text-aiAccent">✦</span>
+        {t('auto_style', 'Auto')}
+      </>
+    );
+  };
+
   const chosenStyle = IMAGE_STYLES.find((entry) => entry.id === style);
-  const styleSummary = chosenStyle ? (
-    styleLabel(chosenStyle)
-  ) : (
-    <>
-      <span className="text-aiAccent">✦</span>
-      {t('auto_style', 'Auto')}
-    </>
-  );
 
   // A style picked deep in the catalog joins the collapsed row, so the choice
   // stays visible once the catalog closes.
@@ -782,7 +834,7 @@ const AiImageModal: FC<{
                   ? t('image_edit_pill', 'Edit of version {{n}}', {
                       n: shown + 1,
                     })
-                  : styleSummary}
+                  : styleSummary(style)}
               </span>
             </div>
             {/* The placeholder carries the chosen shape so the wait shows what
@@ -834,7 +886,7 @@ const AiImageModal: FC<{
 
       {phase === 'result' && version && (
         <>
-          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center">
+          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
             {/* A rendered video plays where it sits; an image had no way to be
                 seen at its real size. A link rather than an onClick so
                 ⌘-click, middle-click and the keyboard all reach it. The corner
@@ -850,7 +902,7 @@ const AiImageModal: FC<{
             >
               <img
                 src={version.media.path}
-                alt={prompt}
+                alt={version.prompt}
                 style={previewBox(
                   IMAGE_ASPECT_PRESETS[version.aspectRatio].size
                 )}
@@ -881,16 +933,66 @@ const AiImageModal: FC<{
                 </svg>
               </span>
             </a>
+            {/* Every image made in this window, in the order it was made, once
+                there is a second to go back to (FR-020). The one on screen
+                has a border and a check, so colour is not its only mark; the
+                border is brandText, as brand is only 3:1 on the dark panel.
+                The ring is left to keyboard focus, as on the orientation
+                tiles. The padding is room for the ring and the check, and the
+                scroll padding keeps it when a version is scrolled to an edge. */}
+            {versions.length > 1 && (
+              <div
+                role="group"
+                aria-label={t('image_versions', 'Versions')}
+                className="flex gap-[10px] max-w-full overflow-x-auto p-[8px] scroll-px-[8px] motion-safe:scroll-smooth"
+              >
+                {versions.map((entry, index) => (
+                  <button
+                    // Versions are only ever added, so a place in the strip
+                    // never changes hands.
+                    key={index}
+                    ref={index === shown ? shownThumbnail : undefined}
+                    type="button"
+                    onClick={() => select(index)}
+                    aria-pressed={index === shown}
+                    aria-label={t('image_version_n', 'Version {{n}}', {
+                      n: index + 1,
+                    })}
+                    className="group relative flex-none w-[52px] h-[52px] rounded-[8px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    {/* The button's name already says which version it is. */}
+                    <img
+                      src={entry.media.path}
+                      alt=""
+                      className={clsx(
+                        'w-full h-full rounded-[8px] object-cover transition-colors',
+                        index === shown
+                          ? 'border-2 border-brandText'
+                          : 'border border-line group-hover:border-inkSoft'
+                      )}
+                    />
+                    {index === shown && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-[5px] -end-[5px] w-[18px] h-[18px] rounded-full bg-brand text-white flex items-center justify-center ring-2 ring-panel"
+                      >
+                        <CheckmarkIcon width={10} height={7} />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="text-[12px] text-muted text-center line-clamp-2">
-            {prompt}
+            {version.prompt}
             {' · '}
             {t(
               `image_aspect_${version.aspectRatio}`,
               ASPECT_TILES[version.aspectRatio].label
             )}
             {' · '}
-            {styleSummary}
+            {styleSummary(version.style)}
           </div>
           {/* The change applies to the image above, as a new version. Its
               field has the prompt's ceiling and counter (FR-015); its row of

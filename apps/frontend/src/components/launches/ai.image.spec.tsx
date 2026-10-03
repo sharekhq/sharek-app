@@ -206,6 +206,26 @@ afterEach(() => {
 const asked = (url: string) =>
   request.mock.calls.filter(([called]) => called === url);
 
+// The window's one field: the prompt on the compose step, the change on the
+// result step.
+const field = () => document.querySelector('textarea') as HTMLTextAreaElement;
+const apply = () => buttonStarting('Apply edit');
+const preview = () =>
+  document
+    .querySelector('a[aria-label="Open the image full size"] img')
+    ?.getAttribute('src');
+const editBody = () =>
+  JSON.parse(asked('/media/edit-image-with-prompt')[0][1].body);
+
+const applyEdit = async (change: string) => {
+  await type(field(), change);
+  await click(apply());
+};
+
+// A thumbnail in the result step's version strip.
+const version = (n: number) =>
+  document.querySelector(`button[aria-label="Version ${n}"]`);
+
 // The reported symptom: the image modal showed its own warning toast where the
 // limit modal belongs, because the route answered `200 false` instead of a 402.
 describe('when the generation is refused for credits', () => {
@@ -222,9 +242,8 @@ describe('when the generation is refused for credits', () => {
   it('returns to the composer with the prompt intact', async () => {
     await generate();
 
-    const field = document.querySelector('textarea') as HTMLTextAreaElement;
-    expect(field).toBeTruthy();
-    expect(field.value).toBe('a pomegranate on a table');
+    expect(field()).toBeTruthy();
+    expect(field().value).toBe('a pomegranate on a table');
   });
 
   // The pre-flight refuses before anything is committed to, so the composer is
@@ -319,8 +338,7 @@ describe('the streamed render', () => {
       'Your request was rejected by the AI safety system.',
       'warning'
     );
-    const field = document.querySelector('textarea') as HTMLTextAreaElement;
-    expect(field.value).toBe('a pomegranate on a table');
+    expect(field().value).toBe('a pomegranate on a table');
   });
 
   // The render cannot be cancelled once it runs, so a stream that ends without
@@ -786,22 +804,6 @@ describe('editing the result', () => {
     renders(edited);
   };
 
-  // The window's one field: the prompt on the compose step, the change on the
-  // result step.
-  const field = () => document.querySelector('textarea') as HTMLTextAreaElement;
-  const apply = () => buttonStarting('Apply edit');
-  const preview = () =>
-    document
-      .querySelector('a[aria-label="Open the image full size"] img')
-      ?.getAttribute('src');
-  const editBody = () =>
-    JSON.parse(asked('/media/edit-image-with-prompt')[0][1].body);
-
-  const applyEdit = async (change: string) => {
-    await type(field(), change);
-    await click(apply());
-  };
-
   // FR-015: nothing to apply, so nothing is asked of the server either.
   it('asks for the change before anything is sent', async () => {
     await toResult();
@@ -1135,6 +1137,301 @@ describe('editing the result', () => {
   });
 });
 
+// Feature 031-ai-image-references-edit, US3: every image made in the window, in
+// the order it was made, to go back to (contracts/ui.md, Result step).
+describe('the version strip', () => {
+  const second = {
+    name: 'done',
+    media: { id: 'media-2', path: 'https://media/second.png' },
+  };
+  const third = {
+    name: 'done',
+    media: { id: 'media-3', path: 'https://media/third.png' },
+  };
+  const fourth = {
+    name: 'done',
+    media: { id: 'media-4', path: 'https://media/fourth.png' },
+  };
+
+  const strip = () =>
+    document.querySelector('[role="group"][aria-label="Versions"]');
+  const versions = () => Array.from(strip()?.querySelectorAll('button') ?? []);
+  // Which version is marked as the one on screen, in strip order.
+  const pressed = () =>
+    versions().map((node) => node.getAttribute('aria-pressed'));
+  const previewAlt = () =>
+    document
+      .querySelector('a[aria-label="Open the image full size"] img')
+      ?.getAttribute('alt');
+  // The element the spied scroll was last called on.
+  const lastScrolled = (scrolled: jest.SpyInstance) =>
+    scrolled.mock.contexts[scrolled.mock.contexts.length - 1];
+
+  /** Generates the first image and regenerates a second. */
+  const toTwoVersions = async (onChange = jest.fn()) => {
+    renders(done);
+    await generate(undefined, onChange);
+    renders(second);
+    await click(buttonStarting('Regenerate'));
+  };
+
+  /**
+   * Generates the first image, then goes back and generates the second from
+   * another prompt, in Watercolor: two versions described differently.
+   */
+  const toTwoPrompts = async () => {
+    renders(done);
+    await generate();
+    await click(button('Back to prompt'));
+    await type(field(), 'a fig on a plate');
+    await click(button('Watercolor'));
+    renders(second);
+    await click(button('Generate'));
+  };
+
+  // US3 scenario 1 and FR-020: one image has nothing to go back to.
+  it('appears from the second version, marking the one on screen by more than colour', async () => {
+    renders(done);
+    await generate();
+
+    expect(strip()).toBeNull();
+
+    renders(second);
+    await click(buttonStarting('Regenerate'));
+
+    expect(pressed()).toEqual(['false', 'true']);
+    // The check, beside the ring.
+    expect(version(2)?.querySelector('svg')).toBeTruthy();
+    expect(version(1)?.querySelector('svg')).toBeNull();
+  });
+
+  // The button says which version it is; its picture would only say it again.
+  it('names each version by its number and leaves its picture unnamed', async () => {
+    await toTwoVersions();
+
+    expect(versions().map((node) => node.getAttribute('aria-label'))).toEqual([
+      'Version 1',
+      'Version 2',
+    ]);
+    expect(
+      versions().map((node) => {
+        const picture = node.querySelector('img');
+        return [picture?.getAttribute('src'), picture?.getAttribute('alt')];
+      })
+    ).toEqual([
+      ['https://media/first.png', ''],
+      ['https://media/second.png', ''],
+    ]);
+  });
+
+  // US3 scenario 2 and FR-021.
+  it('shows the version picked, and uses it', async () => {
+    const onChange = jest.fn();
+    await toTwoVersions(onChange);
+
+    await click(version(1));
+
+    expect(pressed()).toEqual(['true', 'false']);
+    expect(preview()).toBe('https://media/first.png');
+
+    await click(button('Use image'));
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+  });
+
+  // An edit keeps the frame of the version it changes (FR-012), which a
+  // version picked in the strip need not share with the latest.
+  it('edits the version picked, at the preset it was made at', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await type(field(), 'a pomegranate on a table');
+    await click(buttonStarting('Portrait'));
+    renders(done);
+    await click(button('Generate'));
+    await click(button('Back to prompt'));
+    await click(buttonStarting('Landscape'));
+    renders(second);
+    await click(button('Generate'));
+    renders(third);
+
+    await click(version(1));
+    await applyEdit('make the background plain white');
+
+    expect(editBody()).toEqual({
+      imageId: 'media-1',
+      prompt: 'make the background plain white',
+      aspectRatio: 'portrait',
+    });
+  });
+
+  // US3 scenario 3 and FR-022: nothing in the strip is replaced.
+  it('adds a Regenerate after an edit as a third version', async () => {
+    renders(done);
+    await generate();
+    renders(second);
+    await applyEdit('make the background plain white');
+    renders(third);
+
+    await click(buttonStarting('Regenerate'));
+
+    expect(pressed()).toEqual(['false', 'false', 'true']);
+    expect(preview()).toBe('https://media/third.png');
+  });
+
+  // US3 scenario 5 and FR-023: the strip lasts as long as the window.
+  it('keeps the strip through Back to prompt', async () => {
+    renders(done);
+    await generate();
+    renders(second);
+    await applyEdit('make the background plain white');
+    renders(third);
+    await click(buttonStarting('Regenerate'));
+
+    await click(button('Back to prompt'));
+    renders(fourth);
+    await click(button('Generate'));
+
+    expect(pressed()).toEqual(['false', 'false', 'false', 'true']);
+  });
+
+  // The limit modal answers a refused edit; the window stays as usable as it
+  // was.
+  it('still picks and uses versions after an edit is refused for credits', async () => {
+    const onChange = jest.fn();
+    await toTwoVersions(onChange);
+    await type(field(), 'make the background plain white');
+    request.mockImplementation(refused);
+    await click(apply());
+    await settle();
+
+    await click(version(1));
+
+    expect(pressed()).toEqual(['true', 'false']);
+
+    await click(button('Use image'));
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+  });
+
+  // Versions are Media items, so one can be added to an edit of another.
+  // Picked, it is image 1, and sent twice the server would refuse the edit: it
+  // leaves the added images, as a second pick of an attached image would.
+  it('takes the version picked out of the images added to the edit', async () => {
+    await toTwoVersions();
+    await attach(done.media);
+
+    expect(thumbnails().map((thumbnail) => thumbnail.src)).toEqual([
+      'https://media/second.png',
+      'https://media/first.png',
+    ]);
+
+    await click(version(1));
+
+    expect(thumbnails()).toEqual([
+      { alt: 'Reference image 1', src: 'https://media/first.png', number: '1' },
+    ]);
+
+    renders(third);
+    await applyEdit('make the background plain white');
+
+    expect(editBody()).not.toHaveProperty('references');
+  });
+
+  // The compose step may have moved on since a version was made, so the
+  // caption and the picture's description come from the version.
+  it('describes each version by the prompt and style it was made from', async () => {
+    await toTwoPrompts();
+
+    expect(document.body.textContent).toContain(
+      'a fig on a plate · Square · Watercolor'
+    );
+
+    await click(version(1));
+
+    expect(document.body.textContent).toContain(
+      'a pomegranate on a table · Square · ✦Auto'
+    );
+    expect(document.body.textContent).not.toContain('a fig on a plate');
+    expect(previewAlt()).toBe('a pomegranate on a table');
+  });
+
+  // As the approved mockup has it, an edit is described as the version it
+  // changed (review-3 A8), whatever the compose step says by then.
+  it('describes an edit by the version it changed', async () => {
+    await toTwoPrompts();
+    await click(version(1));
+    renders(third);
+
+    await applyEdit('make the background plain white');
+
+    expect(preview()).toBe('https://media/third.png');
+    expect(document.body.textContent).toContain(
+      'a pomegranate on a table · Square · ✦Auto'
+    );
+    expect(previewAlt()).toBe('a pomegranate on a table');
+  });
+
+  // US3 scenario 4: a strip wider than the window scrolls, and the version on
+  // screen is brought into view, picked or just made. Nearest, so a version
+  // already in view moves nothing; the scroll padding keeps its ring and check
+  // clear of the strip's edge. The animation is the stylesheet's, where the
+  // app's reduced-motion layer can take it away.
+  it('keeps the version on screen in view', async () => {
+    const scrolled = jest.spyOn(Element.prototype, 'scrollIntoView');
+
+    await toTwoVersions();
+
+    expect(lastScrolled(scrolled)).toBe(version(2));
+    expect(scrolled).toHaveBeenLastCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+
+    await click(version(1));
+
+    expect(lastScrolled(scrolled)).toBe(version(1));
+    expect(strip()?.className).toContain('overflow-x-auto');
+    expect(strip()?.className).toContain('scroll-px-[8px]');
+    expect(strip()?.className).toContain('motion-safe:scroll-smooth');
+    scrolled.mockRestore();
+  });
+
+  // The waiting screen replaces the strip, so a failed render comes back to a
+  // new one, scrolled to its start.
+  it('brings the version on screen back into view after a failed edit', async () => {
+    const scrolled = jest.spyOn(Element.prototype, 'scrollIntoView');
+    await toTwoVersions();
+    await click(version(1));
+    renders({ name: 'error', error: true, message: 'The renderer fell over.' });
+
+    await applyEdit('make the background plain white');
+
+    expect(pressed()).toEqual(['true', 'false']);
+    expect(lastScrolled(scrolled)).toBe(version(1));
+    scrolled.mockRestore();
+  });
+
+  // Keyboard focus is drawn with a ring, so the version on screen is marked
+  // with a border instead: marked with a ring, it would show no change when
+  // focused, brand and brandText being one colour in the light theme.
+  it('marks the version on screen without the focus ring', async () => {
+    await toTwoVersions();
+    // Ring classes that apply without focus.
+    const resting = (node: Element | null) =>
+      Array.from(node?.classList ?? []).filter((name) =>
+        name.startsWith('ring-')
+      );
+
+    expect(resting(version(2))).toEqual([]);
+    expect(version(2)?.querySelector('img')?.className).toContain(
+      'border-brandText'
+    );
+    expect(version(1)?.querySelector('img')?.className).not.toContain(
+      'border-brandText'
+    );
+  });
+});
+
 // Generate, Regenerate and Apply edit stay on screen while the credits are
 // checked, so a second click there started a second render and a second charge.
 describe('a second click while the credits are checked', () => {
@@ -1242,6 +1539,22 @@ describe('a second click while the credits are checked', () => {
     expect(button('Use image')).toBeTruthy();
     await answerChecks();
   });
+
+  // An edit changes the version on screen at the click, and its waiting screen
+  // names that version: another picked meanwhile would be named instead.
+  it('keeps the version being edited on screen', async () => {
+    renders(done);
+    await generate();
+    await click(buttonStarting('Regenerate'));
+    await type(field(), 'make the background plain white');
+    const answerChecks = holdCreditChecks();
+
+    await click(apply());
+    await click(version(1));
+
+    expect(version(2)?.getAttribute('aria-pressed')).toBe('true');
+    await answerChecks();
+  });
 });
 
 // global.scss sets `body * { outline: none !important }`, so a field without an
@@ -1250,19 +1563,17 @@ describe('keyboard visibility', () => {
   it('rings the prompt field', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-ai'));
-    const field = document.querySelector('textarea') as HTMLTextAreaElement;
 
-    expect(field.className).toContain('focus-visible:ring-2');
-    expect(field.className).toContain('focus-visible:ring-brand');
+    expect(field().className).toContain('focus-visible:ring-2');
+    expect(field().className).toContain('focus-visible:ring-brand');
   });
 
   it('rings the edit field', async () => {
     renders(done);
     await generate();
-    const field = document.querySelector('textarea') as HTMLTextAreaElement;
 
-    expect(field.className).toContain('focus-visible:ring-2');
-    expect(field.className).toContain('focus-visible:ring-brand');
+    expect(field().className).toContain('focus-visible:ring-2');
+    expect(field().className).toContain('focus-visible:ring-brand');
   });
 
   // The chips, the tiles and the actions, with the frame's close button, which
@@ -1286,6 +1597,21 @@ describe('keyboard visibility', () => {
     const interactive = Array.from(document.querySelectorAll('button'));
 
     expect(interactive.length).toBeGreaterThan(0);
+    interactive.forEach((element) => {
+      expect(element.className).toContain('focus-visible:ring-2');
+      expect(element.className).toContain('focus-visible:ring-brand');
+    });
+  });
+
+  // The version strip's buttons with the edit row's and the action bar's.
+  it('rings every button on the result step', async () => {
+    renders(done);
+    await generate();
+    await click(buttonStarting('Regenerate'));
+    const interactive = Array.from(document.querySelectorAll('button'));
+
+    expect(version(1)).toBeTruthy();
+    expect(version(2)).toBeTruthy();
     interactive.forEach((element) => {
       expect(element.className).toContain('focus-visible:ring-2');
       expect(element.className).toContain('focus-visible:ring-brand');

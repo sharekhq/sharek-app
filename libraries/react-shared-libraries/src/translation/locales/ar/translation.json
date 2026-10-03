@@ -1271,6 +1271,8 @@
   "editing_your_image": "جاري تعديل صورتك…",
   "image_edit_pill": "تعديل النسخة {{n}}",
   "image_edit_missing": "لم تعد الصورة التي تعدلها موجودة في مكتبة الوسائط. ارجع إلى الموجه لإنشاء صورة جديدة.",
+  "image_versions": "النسخ",
+  "image_version_n": "النسخة {{n}}",
   "image_style_realistic_photo": "صورة واقعية",
   "image_style_flat_illustration": "رسم مسطح",
   "image_style_cartoon": "كرتون",
