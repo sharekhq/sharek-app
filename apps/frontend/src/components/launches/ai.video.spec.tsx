@@ -623,4 +623,22 @@ describe('a second click while the credits are checked', () => {
     expect(buttonStarting('Use video')).toBeTruthy();
     await answerChecks();
   });
+
+  // Swapping the type unmounts the window over its render, which goes on
+  // without it, and the next type could start another.
+  it('keeps the type while a render is starting', async () => {
+    await mount(
+      <AiVideo value="" onChange={jest.fn()} renderTrigger={cardTrigger} />
+    );
+    await click(document.querySelector('[data-testid="card"]'));
+    await click(buttonStarting('Veo 3'));
+    const answerChecks = holdCreditChecks();
+    await click(buttonStarting('Generate'));
+    await settle();
+
+    await click(buttonStarting('Veo 3'));
+
+    expect(document.body.textContent).not.toContain('Choose a video type');
+    await answerChecks();
+  });
 });

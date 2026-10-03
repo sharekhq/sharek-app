@@ -500,6 +500,15 @@ export const Modal: FC<{
     handshake?.onBack();
   };
 
+  const changeType = () => {
+    // A render under way would go on after this window is gone, and the next
+    // type could start another.
+    if (rendering.current) {
+      return;
+    }
+    onChangeType?.();
+  };
+
   // The video is already in the Media library by the time any of this renders
   // — the route saves it as it finishes — so the destination names what happens
   // next rather than whether the video is kept. A reference row has no video
@@ -592,7 +601,7 @@ export const Modal: FC<{
           {onChangeType && phase === 'setup' ? (
             <button
               type="button"
-              onClick={onChangeType}
+              onClick={changeType}
               className="min-w-0 inline-flex items-center gap-[4px] rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
             >
               <svg
