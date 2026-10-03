@@ -105,7 +105,7 @@ const pillClasses =
   'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
 
 const CHIP_BASE =
-  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors';
+  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors focus-visible:ring-2 focus-visible:ring-brand';
 
 const chipClasses = (selected: boolean) =>
   clsx(
@@ -691,7 +691,7 @@ const AiImageModal: FC<{
         <>
           <div className="flex flex-col gap-[6px]">
             <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
-            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px]">
+            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px] focus-within:ring-2 focus-within:ring-brand">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <circle
                   cx="7"
@@ -753,7 +753,7 @@ const AiImageModal: FC<{
                 setCatalogOpen(false);
                 setSearch('');
               }}
-              className="text-[12px] font-[600] text-brandText cursor-pointer"
+              className="text-[12px] font-[600] text-brandText cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
             >
               {t('show_less', '- Show less')}
             </button>

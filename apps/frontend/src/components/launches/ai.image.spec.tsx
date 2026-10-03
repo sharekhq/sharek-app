@@ -1264,4 +1264,44 @@ describe('keyboard visibility', () => {
     expect(field.className).toContain('focus-visible:ring-2');
     expect(field.className).toContain('focus-visible:ring-brand');
   });
+
+  // The chips, the tiles and the actions, with the frame's close button, which
+  // already carries its own.
+  it('rings every button on the compose step', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    const interactive = Array.from(document.querySelectorAll('button'));
+
+    expect(interactive.length).toBeGreaterThan(0);
+    interactive.forEach((element) => {
+      expect(element.className).toContain('focus-visible:ring-2');
+      expect(element.className).toContain('focus-visible:ring-brand');
+    });
+  });
+
+  it('rings every button in the style catalog', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await click(button('All styles'));
+    const interactive = Array.from(document.querySelectorAll('button'));
+
+    expect(interactive.length).toBeGreaterThan(0);
+    interactive.forEach((element) => {
+      expect(element.className).toContain('focus-visible:ring-2');
+      expect(element.className).toContain('focus-visible:ring-brand');
+    });
+  });
+
+  // The search field sits borderless inside its box, so the ring belongs on
+  // the box and has to key off focus-within.
+  it('rings the style search around its box', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await click(button('All styles'));
+    const box = document.querySelector('input[placeholder="Search styles"]')!
+      .parentElement!;
+
+    expect(box.className).toContain('focus-within:ring-2');
+    expect(box.className).toContain('focus-within:ring-brand');
+  });
 });
