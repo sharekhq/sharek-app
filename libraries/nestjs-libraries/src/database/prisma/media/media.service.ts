@@ -8,7 +8,10 @@ import {
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { Organization } from '@prisma/client';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
-import { GenerateImageWithPromptDto } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
+import {
+  EditImageWithPromptDto,
+  GenerateImageWithPromptDto,
+} from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
   IMAGE_ASPECT_PRESETS,
   IMAGE_REFERENCE_MAX_BYTES,
@@ -251,14 +254,71 @@ export class MediaService {
       saved = await this.renderImage(
         org,
         prepared,
-        // The enhancement yields '' when the model refuses or its reply will
-        // not parse. Sending that on asks the renderer for an empty prompt —
-        // an invalid-parameter 400 the user reads as a generic failure — so
-        // fall back to their own words, as the video providers do.
+        // The enhancement yields '' when the model refuses. Sending that on
+        // asks the renderer for an empty prompt — an invalid-parameter 400 the
+        // user reads as a generic failure — so fall back to their own words,
+        // as the video providers do.
         async () =>
           (await this._openAi.generatePromptForPicture(
             dto.prompt,
             style,
+            prepared.inputs.length
+          )) || dto.prompt
+      );
+    } catch (err) {
+      throw generationError(err);
+    }
+
+    yield { name: 'done', media: saved };
+  }
+
+  /**
+   * The edit's pre-flight, the counterpart of `resolveImageWithPrompt`: the
+   * credit check, then the image on screen as image 1 and the images added to
+   * the edit after it, each refused by the number on its thumbnail. The size is
+   * the preset that version was made at, resolved here as a generation's is.
+   */
+  async resolveImageEdit(org: Organization, dto: EditImageWithPromptDto) {
+    await this.resolveImage(org);
+
+    // The window shows the edited image as image 1 and never offers it as a
+    // reference too, so a request that names it twice is not one it sent.
+    if (dto.references?.includes(dto.imageId)) {
+      throw new HttpException(
+        'The image being edited cannot also be a reference.',
+        400
+      );
+    }
+
+    return {
+      size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
+      inputs: await this.loadReferences(org, [
+        dto.imageId,
+        ...(dto.references || []),
+      ]),
+    };
+  }
+
+  /**
+   * The edit as a stream, shaped like `generateImageWithPrompt`: the same
+   * render, credit and save, with the change improved as a change rather than
+   * as a scene. An edit takes no style.
+   */
+  async *editImageWithPrompt(
+    org: Organization,
+    dto: EditImageWithPromptDto,
+    prepared: Awaited<ReturnType<MediaService['resolveImageEdit']>>
+  ) {
+    let saved;
+    try {
+      saved = await this.renderImage(
+        org,
+        prepared,
+        // '' when the model refuses: the user's own words then, as for a
+        // generation.
+        async () =>
+          (await this._openAi.generateEditPrompt(
+            dto.prompt,
             prepared.inputs.length
           )) || dto.prompt
       );
@@ -283,8 +343,8 @@ export class MediaService {
   ) {
     return this._subscriptionService.useCredit(org, 'ai_images', async () => {
       const prompt = await improve();
-      // References go through the edit call with the images; without them the
-      // render is the plain call it has always been.
+      // Images (references, or the image being edited) go through the edit
+      // call; without them the render is the plain call it has always been.
       const render = (text: string) =>
         prepared.inputs.length
           ? this._openAi.editImageAtSize(text, prepared.size, prepared.inputs)

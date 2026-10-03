@@ -52,11 +52,16 @@ const openAi = () => ({
   generatePromptForPicture: jest.fn().mockResolvedValue('an enhanced scene'),
   generateImageAtSize: jest.fn().mockResolvedValue(Buffer.from('JPEG-BYTES')),
   editImageAtSize: jest.fn().mockResolvedValue(Buffer.from('EDIT-BYTES')),
+  generateEditPrompt: jest.fn().mockResolvedValue('an edit instruction'),
   rewriteFlaggedPrompt: jest.fn().mockResolvedValue('an anonymous scene'),
 });
 
 const dto = (over: Partial<Record<string, any>> = {}) =>
   ({ prompt: 'قهوة مختصة في الرياض', aspectRatio: 'square', ...over } as any);
+
+// How the image API answers a render its safety system flagged.
+const flagged = () =>
+  new Error('400 Your request was rejected by the safety system');
 
 // The real checkCredits returns the far end of the window it counted usage
 // over alongside the balance; a refusal quotes it.
@@ -470,8 +475,6 @@ describe('resolveTwoPhaseVideo', () => {
 // legacy generateImage() keeps its fixed square for its other callers.
 describe('generateImageWithPrompt', () => {
   const IMAGE_FILE = 'https://media/abc.jpg';
-  const flagged = () =>
-    new Error('400 Your request was rejected by the safety system');
 
   it.each([
     ['square', '1024x1024'],
@@ -725,29 +728,30 @@ describe('generateImageWithPrompt', () => {
   });
 });
 
+// A Media row as the organization's library answers for a reference lookup.
+const row = (id: string) => ({ id, path: `https://media/${id}` });
+
+// Real images, tiny wherever size does not matter: normalization is sharp's
+// real code path, which a double would only restate.
+const picture = (width: number, height: number, channels: 3 | 4 = 3) =>
+  sharp({
+    create: {
+      width,
+      height,
+      channels,
+      background: { r: 185, g: 45, b: 67, alpha: channels === 4 ? 0.5 : 1 },
+    },
+  });
+
 // References ride the same route: Media rows the render draws on, for the same
 // single credit (feature 031-ai-image-references-edit, US1). Everything a
 // reference can be refused for is found in the pre-flight, before the stream
 // opens and before a credit exists.
 describe('generateImageWithPrompt with references', () => {
   const MB = 1024 * 1024;
-  const flagged = () =>
-    new Error('400 Your request was rejected by the safety system');
-  const row = (id: string) => ({ id, path: `https://media/${id}` });
 
-  // What each stored file holds, by path. Real images, tiny wherever size does
-  // not matter: normalization is sharp's real code path, which a double would
-  // only restate.
+  // What each stored file holds, by path.
   const stored: Record<string, Buffer> = {};
-  const picture = (width: number, height: number, channels: 3 | 4 = 3) =>
-    sharp({
-      create: {
-        width,
-        height,
-        channels,
-        background: { r: 185, g: 45, b: 67, alpha: channels === 4 ? 0.5 : 1 },
-      },
-    });
 
   // Two 1×1 frames. sharp 0.33 cannot write a multi-page GIF from scratch, so
   // the bytes are spelled out: header, screen, a two-colour palette, then a
@@ -1078,6 +1082,272 @@ describe('generateImageWithPrompt with references', () => {
   );
 });
 
+// An edit applies the user's change to the version on screen, through the edit
+// call references use: the edited image is image 1 and anything added follows
+// it (feature 031-ai-image-references-edit, US2).
+describe('editImageWithPrompt', () => {
+  // What each stored file holds, by path. The edited image is a JPEG and the
+  // logo keeps its transparency, so the two can be told apart in the inputs.
+  const stored: Record<string, Buffer> = {};
+
+  beforeAll(async () => {
+    stored['https://media/shown'] = await picture(16, 16).jpeg().toBuffer();
+    stored['https://media/logo'] = await picture(16, 16, 4).png().toBuffer();
+  });
+
+  beforeEach(() => {
+    read.mockImplementation(async (path: string) => stored[path]);
+  });
+
+  const edit = (over: Partial<Record<string, any>> = {}) =>
+    ({
+      imageId: 'shown',
+      prompt: 'اجعل الخلفية بيضاء',
+      aspectRatio: 'portrait',
+      ...over,
+    } as any);
+
+  // The edit route's two steps, as the controller runs them.
+  const editWith = async (service: MediaService, request = edit()) =>
+    drain(
+      service.editImageWithPrompt(
+        org,
+        request,
+        await service.resolveImageEdit(org, request)
+      )
+    );
+
+  it('sends the edited image first, then the ones added to it', async () => {
+    const ai = openAi();
+    const { service, repository } = makeService({
+      openAi: ai,
+      // The database answers in its own order.
+      references: [row('logo'), row('shown')],
+    });
+
+    await editWith(service, edit({ references: ['logo'] }));
+
+    expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+      'shown',
+      'logo',
+    ]);
+    expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
+    const [, , inputs] = ai.editImageAtSize.mock.calls[0];
+    expect(inputs.map((input: { mime: string }) => input.mime)).toEqual([
+      'image/jpeg',
+      'image/png',
+    ]);
+    expect(ai.generateImageAtSize).not.toHaveBeenCalled();
+  });
+
+  // An edit keeps its frame: the preset of the version being edited, resolved
+  // to pixels here as a generation's is.
+  it('resolves the version\'s preset to its pixels', async () => {
+    const { service } = makeService({
+      openAi: openAi(),
+      references: [row('shown')],
+    });
+
+    const prepared = await service.resolveImageEdit(
+      org,
+      edit({ aspectRatio: 'story' })
+    );
+
+    expect(prepared.size).toBe('1008x1792');
+    expect(prepared.inputs).toHaveLength(1);
+  });
+
+  // `index` is the number on the thumbnail: the edited image is 1, and the
+  // images added to it are numbered from 2.
+  describe('refuses before any credit exists', () => {
+    it('names the edited image 1 when it is no longer in the library', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [],
+      });
+
+      const err = await service.resolveImageEdit(org, edit()).catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(404);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_missing',
+        index: 1,
+      });
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    it('counts the images added to it from 2', async () => {
+      const { service } = makeService({
+        openAi: openAi(),
+        references: [row('shown'), row('logo')],
+      });
+
+      const err = await service
+        .resolveImageEdit(org, edit({ references: ['logo', 'gone'] }))
+        .catch((e) => e);
+
+      expect(err.getStatus()).toBe(404);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_missing',
+        index: 3,
+      });
+    });
+
+    // The window never sends it: the image on screen is already image 1.
+    it('refuses the edited image as one of its own references, before reading anything', async () => {
+      const { service, repository } = makeService({
+        openAi: openAi(),
+        references: [row('shown')],
+      });
+
+      const err = await service
+        .resolveImageEdit(org, edit({ references: ['shown'] }))
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(400);
+      expect(repository.getMediaByIds).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    });
+  });
+
+  // Rewritten as a scene, a change would come back as a new picture, so an
+  // edit has an improver of its own, told how many images it renders from
+  // (research R7). Edits take no style: a stray one is never read.
+  it('improves the change as an edit, never as a scene', async () => {
+    const ai = openAi();
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('shown'), row('logo')],
+    });
+
+    await editWith(
+      service,
+      edit({ references: ['logo'], style: 'watercolor' })
+    );
+
+    expect(ai.generateEditPrompt).toHaveBeenCalledWith('اجعل الخلفية بيضاء', 2);
+    expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+    expect(ai.editImageAtSize).toHaveBeenCalledWith(
+      'an edit instruction',
+      '1024x1280',
+      expect.any(Array)
+    );
+  });
+
+  it('falls back to the user\'s words when the improvement comes back empty', async () => {
+    const ai = openAi();
+    ai.generateEditPrompt.mockResolvedValue('');
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('shown')],
+    });
+
+    await editWith(service);
+
+    expect(ai.editImageAtSize).toHaveBeenCalledWith(
+      'اجعل الخلفية بيضاء',
+      '1024x1280',
+      expect.any(Array)
+    );
+  });
+
+  it('yields a single done frame carrying the saved media record', async () => {
+    const { service, saveFile } = makeService({
+      openAi: openAi(),
+      file: 'https://media/edit.jpg',
+      references: [row('shown')],
+    });
+
+    expect(await editWith(service)).toEqual([
+      {
+        name: 'done',
+        media: { id: 'media-1', path: 'https://media/edit.jpg' },
+      },
+    ]);
+    expect((service as any).storage.uploadSimple).toHaveBeenCalledWith(
+      'data:image/jpeg;base64,' + Buffer.from('EDIT-BYTES').toString('base64')
+    );
+    expect(saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'edit.jpg',
+      'https://media/edit.jpg'
+    );
+  });
+
+  it('spends exactly one ai_images credit', async () => {
+    const { service, subscription, charged } = makeService({
+      openAi: openAi(),
+      references: [row('shown'), row('logo')],
+    });
+
+    await editWith(service, edit({ references: ['logo'] }));
+
+    expect(subscription.useCredit).toHaveBeenCalledTimes(1);
+    expect(subscription.useCredit).toHaveBeenCalledWith(
+      org,
+      'ai_images',
+      expect.any(Function)
+    );
+    expect(charged.value).toBe(true);
+  });
+
+  // As for a generation: a credit that is never committed leaves the improver,
+  // the renderer, the bucket and the library untouched.
+  it('does no work outside the credit callback', async () => {
+    const ai = openAi();
+    const { service, saveFile } = makeService({
+      openAi: ai,
+      spendCredit: false,
+      references: [row('shown')],
+    });
+
+    await editWith(service);
+
+    expect(ai.generateEditPrompt).not.toHaveBeenCalled();
+    expect(ai.editImageAtSize).not.toHaveBeenCalled();
+    expect((service as any).storage.uploadSimple).not.toHaveBeenCalled();
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it('retries a flagged edit once, with the same inputs', async () => {
+    const ai = openAi();
+    ai.editImageAtSize
+      .mockRejectedValueOnce(flagged())
+      .mockResolvedValueOnce(Buffer.from('RETRY-BYTES'));
+    const { service, charged } = makeService({
+      openAi: ai,
+      references: [row('shown')],
+    });
+
+    await editWith(service);
+
+    expect(ai.rewriteFlaggedPrompt).toHaveBeenCalledWith('an edit instruction');
+    expect(ai.editImageAtSize).toHaveBeenCalledTimes(2);
+    expect(ai.editImageAtSize.mock.calls[1][0]).toBe('an anonymous scene');
+    expect(ai.editImageAtSize.mock.calls[1][2]).toBe(
+      ai.editImageAtSize.mock.calls[0][2]
+    );
+    expect(charged.value).toBe(true);
+  });
+
+  it('gives up after a second flag, without charging', async () => {
+    const ai = openAi();
+    ai.editImageAtSize.mockRejectedValue(flagged());
+    const { service, charged } = makeService({
+      openAi: ai,
+      references: [row('shown')],
+    });
+
+    const err = await editWith(service).catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(422);
+    expect(charged.value).toBe(false);
+  });
+});
+
 // The image allowance used to be enforced by whichever route remembered to ask,
 // so the wizard, autopost and Samy each generated unmetered. Both image methods
 // now refuse for themselves — the same shape `resolveVideo` gives videos — which
@@ -1161,6 +1431,28 @@ describe('image credit enforcement', () => {
 
       expect(repository.getMediaByIds).not.toHaveBeenCalled();
       expect(read).not.toHaveBeenCalled();
+    });
+
+    // FR-016: an edit is refused exactly as a generation is, before the image
+    // it edits is looked up or read.
+    it('refuses resolveImageEdit before looking up or reading the image', async () => {
+      const { service, repository, subscription } = makeService({
+        credits: 0,
+        openAi: openAi(),
+        references: [{ id: 'a', path: 'https://media/a' }],
+      });
+
+      await expect(
+        service.resolveImageEdit(org, {
+          imageId: 'a',
+          prompt: 'make the background plain white',
+          aspectRatio: 'square',
+        })
+      ).rejects.toBeInstanceOf(SubscriptionException);
+
+      expect(repository.getMediaByIds).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+      expect(subscription.useCredit).not.toHaveBeenCalled();
     });
 
     // generationError normalises anything the render throws, and it passes an

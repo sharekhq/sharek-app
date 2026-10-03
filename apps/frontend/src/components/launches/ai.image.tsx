@@ -42,6 +42,7 @@ import {
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
 
 const useImageCredits = () => {
@@ -105,7 +106,7 @@ const pillClasses =
   'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
 
 const CHIP_BASE =
-  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors';
+  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors focus-visible:ring-2 focus-visible:ring-brand';
 
 const chipClasses = (selected: boolean) =>
   clsx(
@@ -122,10 +123,19 @@ const chipClasses = (selected: boolean) =>
  */
 const referenceRefusal = (
   t: ReturnType<typeof useT>,
-  payload: { code?: ImageReferenceRefusal; index?: number } | null
+  payload: { code?: ImageReferenceRefusal; index?: number } | null,
+  edit: boolean
 ) => {
   switch (payload?.code) {
     case 'reference_missing':
+      // In an edit, image 1 is the image being edited. It has no remove
+      // control, so removing it is not advice the window can give.
+      if (edit && payload.index === 1) {
+        return t(
+          'image_edit_missing',
+          "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one."
+        );
+      }
       return t(
         'image_reference_missing',
         'Reference image {{n}} is no longer in your Media library. Remove it and try again.',
@@ -144,6 +154,17 @@ const referenceRefusal = (
         { n: payload.index }
       );
   }
+};
+
+/**
+ * An image this window made, the preset it was made at, and the prompt and
+ * style its caption names: the generation's, which an edit keeps.
+ */
+type Version = {
+  media: { id: string; path: string };
+  aspectRatio: ImageAspectId;
+  prompt: string;
+  style?: string;
 };
 
 const AiImageModal: FC<{
@@ -167,7 +188,19 @@ const AiImageModal: FC<{
   const [phase, setPhase] = useState<'compose' | 'generating' | 'result'>(
     'compose'
   );
-  const [image, setImage] = useState<{ id: string; path: string } | null>(null);
+  // Every image made since the window opened, in order: a render adds one and
+  // never replaces what a credit was already spent on (FR-020 – FR-023).
+  const [versions, setVersions] = useState<Version[]>([]);
+  // The version on screen: the one an edit changes and Use image takes.
+  const [shown, setShown] = useState(0);
+  // The change typed under the result, and the images added to it.
+  const [editText, setEditText] = useState('');
+  const [editReferences, setEditReferences] = useState<
+    { id: string; path: string }[]
+  >([]);
+  // Whether the render on the waiting screen is an edit of the version on
+  // screen rather than a generation from the compose step.
+  const [editing, setEditing] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: credits, mutate: mutateCredits } = useImageCredits();
@@ -178,13 +211,15 @@ const AiImageModal: FC<{
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const holdsLock = useRef(false);
-  // The last result that a credit was actually spent on, mirrored in a ref
-  // because `generate` clears `image` before it asks again — a Regenerate that
-  // fails must not throw away something already paid for.
-  const held = useRef<{ id: string; path: string } | null>(null);
+  // Set from the click until the render is over. The window's actions stay on
+  // screen through the credit check: a second click there must not start a
+  // second paid render, and the result must not be used or left while one is
+  // coming.
+  const rendering = useRef(false);
 
-  // `loading` follows the request; the composer lock follows the whole flow,
-  // which is not over until the image is attached or the user gives it up.
+  // `loading` follows the request, whose end also ends the render
+  // (`rendering`); the composer lock follows the whole flow, which is not over
+  // until the image is attached or the user gives it up.
   const startRequest = () => {
     inFlight.current = true;
     setLoading(true);
@@ -196,6 +231,7 @@ const AiImageModal: FC<{
 
   const endRequest = () => {
     inFlight.current = false;
+    rendering.current = false;
     setLoading(false);
   };
 
@@ -222,31 +258,61 @@ const AiImageModal: FC<{
     [releaseLock]
   );
 
-  const generate = useCallback(async () => {
-    if (!prompt.trim()) {
-      toaster.show(
-        t('please_type_your_prompt', 'Please type your prompt'),
-        'warning'
-      );
-      return;
-    }
+  // The version on screen is brought into view when it is picked, when it
+  // arrives and when a failed render comes back to it: in a strip wider than
+  // the window, it may be past an edge (US3 scenario 4). Nearest, so a version
+  // already in view moves nothing. One below the fold of a short window brings
+  // the window down to it, which on a laptop shows the whole image with the
+  // strip under it. Whether it glides is the stylesheet's call, where the app's
+  // reduced-motion layer can stop it.
+  const shownThumbnail = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    shownThumbnail.current?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [shown, phase]);
 
+  /**
+   * One render, a generation or an edit, from the credit check to a new version
+   * on screen. Resolves true when it put one there; a render that is refused
+   * or fails leaves every version as it was.
+   *
+   * A plain function, as are the handlers that call it: each reads `versions`
+   * and `shown` as they stand at the click, where a memoized copy would append
+   * to the list it was built with.
+   */
+  const render = async (
+    url: string,
+    body: { aspectRatio: ImageAspectId } & Record<string, unknown>,
+    edit = false
+  ) => {
+    // One render at a time. It is over when its request ends, or below, when
+    // the credit check refuses it.
+    if (rendering.current) {
+      return false;
+    }
+    rendering.current = true;
     // Asked before the generating phase begins, exactly as the video modal
-    // asks: a refusal lands on a composer that never moved, instead of a
+    // asks: a refusal lands on a window that never moved, instead of a
     // loader that appears for half a second and is replaced by the limit card.
     try {
       await fetch('/media/generate-image/allowed');
     } catch (e) {
       // Already answered — nothing has been committed to yet, so there is
-      // nothing to reset and nothing more to say.
+      // nothing to undo but the guard and nothing more to say.
       if (isAlreadyAnswered(e)) {
-        return;
+        rendering.current = false;
+        return false;
       }
-      // Anything else would fail the generation the same way; fall through so
+      // Anything else would fail the render the same way; fall through so
       // it is reported once, by the path that reports it properly.
     }
 
-    setImage(null);
+    // The version on screen was already paid for, so a render that fails, or
+    // is abandoned, hands it back rather than nothing.
+    const held = versions[shown];
+    setEditing(edit);
     setPhase('generating');
     startRequest();
     // Once the request is out, a lost connection leaves a render that cannot be
@@ -259,22 +325,16 @@ const AiImageModal: FC<{
       'The connection dropped before the image was ready. It may still finish — check your Media library in a minute.'
     );
     try {
-      const response = await fetch('/media/generate-image-with-prompt', {
+      const response = await fetch(url, {
         method: 'POST',
-        body: JSON.stringify({
-          prompt,
-          aspectRatio,
-          ...(style && { style }),
-          // Absent rather than empty without references: today's request.
-          ...(references.length
-            ? { references: references.map((reference) => reference.id) }
-            : {}),
-        }),
+        body: JSON.stringify(body),
         headers: { Accept: 'application/x-ndjson' },
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(referenceRefusal(t, payload) || payload?.message || '');
+        throw new Error(
+          referenceRefusal(t, payload, edit) || payload?.message || ''
+        );
       }
 
       // A render can outlast the proxies' idle cut; the response is an NDJSON
@@ -312,25 +372,36 @@ const AiImageModal: FC<{
       if (!mounted.current) {
         onChange(generated);
         releaseLock();
-        return;
+        return false;
       }
 
-      held.current = generated;
-      setImage(generated);
+      setVersions([
+        ...versions,
+        {
+          media: generated,
+          aspectRatio: body.aspectRatio,
+          // An edit is captioned as the version it changed; a generation, by
+          // what the compose step asked for.
+          ...(edit
+            ? { prompt: held.prompt, style: held.style }
+            : { prompt, style }),
+        },
+      ]);
+      setShown(versions.length);
       setPhase('result');
+      return true;
     } catch (e) {
       endRequest();
-      // An earlier result was already paid for, so a failed Regenerate puts it
+      // An earlier result was already paid for, so a failed render puts it
       // back rather than losing it — the same thing `ai.video`'s failRender
       // does, and the reason the lock stays: that image can still be used.
-      if (held.current) {
+      if (held) {
         if (mounted.current) {
-          setImage(held.current);
           setPhase('result');
         } else {
-          // Closed mid-Regenerate. It is paid for, and the composer was
-          // promised an image — attaching it is closer to that than nothing.
-          onChange(held.current);
+          // Closed mid-render. It is paid for, and the composer was promised
+          // an image — attaching it is closer to that than nothing.
+          onChange(held.media);
           releaseLock();
         }
       } else {
@@ -342,11 +413,11 @@ const AiImageModal: FC<{
           setPhase('compose');
         }
       }
-      // Already answered: the limit modal is on screen and the composer is
+      // Already answered: the limit modal is on screen and the window is
       // back exactly as it was. A second message would be the same refusal
       // twice, in two different voices.
       if (isAlreadyAnswered(e)) {
-        return;
+        return false;
       }
       toaster.show(
         // A connection lost mid-render rarely ends the stream: fetch() or the
@@ -361,21 +432,105 @@ const AiImageModal: FC<{
               ),
         'warning'
       );
+      return false;
     }
-  }, [prompt, aspectRatio, style, references, onChange]);
+  };
+
+  const generate = () => {
+    if (!prompt.trim()) {
+      toaster.show(
+        t('please_type_your_prompt', 'Please type your prompt'),
+        'warning'
+      );
+      return;
+    }
+
+    return render('/media/generate-image-with-prompt', {
+      prompt,
+      aspectRatio,
+      ...(style && { style }),
+      // Absent rather than empty without references: today's request.
+      ...(references.length
+        ? { references: references.map((reference) => reference.id) }
+        : {}),
+    });
+  };
+
+  const applyEdit = async () => {
+    if (!editText.trim()) {
+      toaster.show(
+        t('please_describe_the_change', 'Please describe the change'),
+        'warning'
+      );
+      return;
+    }
+
+    // The change applies to the version on screen, at the preset it was made
+    // at: an edit keeps its frame (FR-012).
+    const edited = versions[shown];
+    const applied = await render(
+      '/media/edit-image-with-prompt',
+      {
+        imageId: edited.media.id,
+        prompt: editText,
+        aspectRatio: edited.aspectRatio,
+        ...(editReferences.length
+          ? { references: editReferences.map((reference) => reference.id) }
+          : {}),
+      },
+      true
+    );
+    // The next change starts from the new version, with nothing in it yet.
+    if (applied) {
+      setEditText('');
+      setEditReferences([]);
+    }
+  };
 
   const useImage = () => {
+    // A render under way would finish after the window closed and hand the
+    // post a second image.
+    if (rendering.current) {
+      return;
+    }
     releaseLock();
-    onChange(image!);
+    onChange(versions[shown].media);
     close();
   };
 
-  const editPrompt = () => {
-    // Giving up the result ends the flow; the inputs stay as they were.
+  const backToPrompt = () => {
+    // A render under way would bring the waiting screen up over the prompt.
+    if (rendering.current) {
+      return;
+    }
+    // Giving up the result ends the flow; the inputs stay as they were, and so
+    // do the versions, for the result step to come back to (FR-023).
     releaseLock();
-    setImage(null);
     setPhase('compose');
   };
+
+  const select = (index: number) => {
+    // A render under way changes, or falls back to, the version on screen
+    // when it began, and its waiting screen names that one.
+    if (rendering.current) {
+      return;
+    }
+    setShown(index);
+    // The version picked is image 1 of the next edit, so it leaves the images
+    // added to it: the same image twice is one reference (FR-005), and the
+    // server refuses an edit that sends it twice.
+    setEditReferences(
+      editReferences.filter(
+        (reference) => reference.id !== versions[index].media.id
+      )
+    );
+  };
+
+  const version = versions[shown] as Version | undefined;
+  // An edit keeps the frame of the version it changes; a generation takes the
+  // compose step's.
+  const renderingAspect =
+    editing && version ? version.aspectRatio : aspectRatio;
 
   // The image is already in the Media library by the time any of this renders
   // — the route saves it before it answers — so the destination names what
@@ -404,15 +559,21 @@ const AiImageModal: FC<{
   const styleLabel = (entry: ImageStyle) =>
     t(`image_style_${entry.id}`, entry.label);
 
+  // A style as a pill or a caption names it: Auto, the absence of one, by its
+  // mark.
+  const styleSummary = (id: string | undefined) => {
+    const entry = IMAGE_STYLES.find((candidate) => candidate.id === id);
+    return entry ? (
+      styleLabel(entry)
+    ) : (
+      <>
+        <span className="text-aiAccent">✦</span>
+        {t('auto_style', 'Auto')}
+      </>
+    );
+  };
+
   const chosenStyle = IMAGE_STYLES.find((entry) => entry.id === style);
-  const styleSummary = chosenStyle ? (
-    styleLabel(chosenStyle)
-  ) : (
-    <>
-      <span className="text-aiAccent">✦</span>
-      {t('auto_style', 'Auto')}
-    </>
-  );
 
   // A style picked deep in the catalog joins the collapsed row, so the choice
   // stays visible once the catalog closes.
@@ -435,6 +596,29 @@ const AiImageModal: FC<{
   const listedStyles = groups.reduce(
     (total, group) => total + group.styles.length,
     0
+  );
+
+  // A field that simply stops accepting characters at the ceiling has to show
+  // the count for that to read as a limit rather than a broken keyboard. Marked
+  // in the warning tone, not the error one: the ceiling is a valid length — the
+  // DTO accepts it — so the counter says "this is as far as it goes", not "this
+  // is wrong". Fixed direction: a counter that reverses under RTL reads as a
+  // different number entirely.
+  const promptCounter = (used: number) => (
+    <span
+      dir="ltr"
+      className={clsx(
+        'flex-none tabular-nums text-[12px]',
+        used >= IMAGE_PROMPT_MAX_CHARS
+          ? 'text-warning font-[600]'
+          : 'text-muted'
+      )}
+    >
+      {t('prompt_counter', '{{used}} / {{max}}', {
+        used,
+        max: IMAGE_PROMPT_MAX_CHARS,
+      })}
+    </span>
   );
 
   const pickStyle = (id: string) => {
@@ -464,13 +648,8 @@ const AiImageModal: FC<{
               'describe_the_image_you_want_to_generate',
               'Describe the image you want to generate'
             )}
-            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused"
+            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
           />
-          {/* The field simply stops accepting characters at the ceiling, so the
-              count has to be on screen for that to read as a limit rather than
-              a broken keyboard. Marked in the warning tone, not the error one:
-              the ceiling is a valid length — the DTO accepts it — so the
-              counter says "this is as far as it goes", not "this is wrong". */}
           <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
             <span className="text-muted">
               {t(
@@ -478,22 +657,7 @@ const AiImageModal: FC<{
                 'Describe the subject, the setting and the light. Put the words you want on the image in quotes.'
               )}
             </span>
-            {/* Fixed direction: a counter that reverses under RTL reads as a
-                different number entirely. */}
-            <span
-              dir="ltr"
-              className={clsx(
-                'flex-none tabular-nums',
-                prompt.length >= IMAGE_PROMPT_MAX_CHARS
-                  ? 'text-warning font-[600]'
-                  : 'text-muted'
-              )}
-            >
-              {t('prompt_counter', '{{used}} / {{max}}', {
-                used: prompt.length,
-                max: IMAGE_PROMPT_MAX_CHARS,
-              })}
-            </span>
+            {promptCounter(prompt.length)}
           </div>
         </div>
         <ReferenceImages
@@ -579,7 +743,7 @@ const AiImageModal: FC<{
         <>
           <div className="flex flex-col gap-[6px]">
             <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
-            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px]">
+            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px] focus-within:ring-2 focus-within:ring-brand">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <circle
                   cx="7"
@@ -641,7 +805,7 @@ const AiImageModal: FC<{
                 setCatalogOpen(false);
                 setSearch('');
               }}
-              className="text-[12px] font-[600] text-brandText cursor-pointer"
+              className="text-[12px] font-[600] text-brandText cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
             >
               {t('show_less', '- Show less')}
             </button>
@@ -658,21 +822,32 @@ const AiImageModal: FC<{
           <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
             <div className="flex gap-[8px]">
               <span className={pillClasses}>
-                {t(`image_aspect_${aspectRatio}`, ASPECT_TILES[aspectRatio].label)}
+                {t(
+                  `image_aspect_${renderingAspect}`,
+                  ASPECT_TILES[renderingAspect].label
+                )}
                 {' · '}
-                {IMAGE_ASPECT_PRESETS[aspectRatio].ratio}
+                {IMAGE_ASPECT_PRESETS[renderingAspect].ratio}
               </span>
-              <span className={pillClasses}>{styleSummary}</span>
+              <span className={pillClasses}>
+                {editing
+                  ? t('image_edit_pill', 'Edit of version {{n}}', {
+                      n: shown + 1,
+                    })
+                  : styleSummary(style)}
+              </span>
             </div>
             {/* The placeholder carries the chosen shape so the wait shows what
                 is coming. The app's reduced-motion layer stops the pulse. */}
             <div
               className="bg-surface2 rounded-[14px] animate-pulse"
-              style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
+              style={previewBox(IMAGE_ASPECT_PRESETS[renderingAspect].size)}
             />
             <div className="text-center">
               <div className="text-[14px] font-[600]">
-                {t('creating_your_image', 'Creating your image…')}
+                {editing
+                  ? t('editing_your_image', 'Editing your image…')
+                  : t('creating_your_image', 'Creating your image…')}
               </div>
               <div className="text-[12px] text-muted mt-[2px]">
                 {t(
@@ -709,9 +884,9 @@ const AiImageModal: FC<{
         </>
       )}
 
-      {phase === 'result' && image && (
+      {phase === 'result' && version && (
         <>
-          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center">
+          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
             {/* A rendered video plays where it sits; an image had no way to be
                 seen at its real size. A link rather than an onClick so
                 ⌘-click, middle-click and the keyboard all reach it. The corner
@@ -719,16 +894,18 @@ const AiImageModal: FC<{
                 pointer: a magnifier would promise a lightbox that opening a
                 tab does not deliver. */}
             <a
-              href={image.path}
+              href={version.media.path}
               target="_blank"
               rel="noreferrer"
               aria-label={t('open_image_full_size', 'Open the image full size')}
               className="group relative cursor-pointer rounded-[14px] focus-visible:ring-2 focus-visible:ring-brand"
             >
               <img
-                src={image.path}
-                alt={prompt}
-                style={previewBox(IMAGE_ASPECT_PRESETS[aspectRatio].size)}
+                src={version.media.path}
+                alt={version.prompt}
+                style={previewBox(
+                  IMAGE_ASPECT_PRESETS[version.aspectRatio].size
+                )}
                 // `block` rather than the inline default: an inline image
                 // leaves descender space inside the link, which would put the
                 // focus ring and the corner badge a few pixels below the
@@ -756,13 +933,102 @@ const AiImageModal: FC<{
                 </svg>
               </span>
             </a>
+            {/* Every image made in this window, in the order it was made, once
+                there is a second to go back to (FR-020). The one on screen
+                has a border and a check, so colour is not its only mark; the
+                border is brandText, as brand is only 3:1 on the dark panel.
+                The ring is left to keyboard focus, as on the orientation
+                tiles. The padding is room for the ring and the check, and the
+                scroll padding keeps it when a version is scrolled to an edge. */}
+            {versions.length > 1 && (
+              <div
+                role="group"
+                aria-label={t('image_versions', 'Versions')}
+                className="flex gap-[10px] max-w-full overflow-x-auto p-[8px] scroll-px-[8px] motion-safe:scroll-smooth"
+              >
+                {versions.map((entry, index) => (
+                  <button
+                    // Versions are only ever added, so a place in the strip
+                    // never changes hands.
+                    key={index}
+                    ref={index === shown ? shownThumbnail : undefined}
+                    type="button"
+                    onClick={() => select(index)}
+                    aria-pressed={index === shown}
+                    aria-label={t('image_version_n', 'Version {{n}}', {
+                      n: index + 1,
+                    })}
+                    className="group relative flex-none w-[52px] h-[52px] rounded-[8px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    {/* The button's name already says which version it is. */}
+                    <img
+                      src={entry.media.path}
+                      alt=""
+                      className={clsx(
+                        'w-full h-full rounded-[8px] object-cover transition-colors',
+                        index === shown
+                          ? 'border-2 border-brandText'
+                          : 'border border-line group-hover:border-inkSoft'
+                      )}
+                    />
+                    {index === shown && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-[5px] -end-[5px] w-[18px] h-[18px] rounded-full bg-brand text-white flex items-center justify-center ring-2 ring-panel"
+                      >
+                        <CheckmarkIcon width={10} height={7} />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="text-[12px] text-muted text-center line-clamp-2">
-            {prompt}
+            {version.prompt}
             {' · '}
-            {t(`image_aspect_${aspectRatio}`, ASPECT_TILES[aspectRatio].label)}
+            {t(
+              `image_aspect_${version.aspectRatio}`,
+              ASPECT_TILES[version.aspectRatio].label
+            )}
             {' · '}
-            {styleSummary}
+            {styleSummary(version.style)}
+          </div>
+          {/* The change applies to the image above, as a new version. Its
+              field has the prompt's ceiling and counter (FR-015); its row of
+              images starts with the one being edited. */}
+          <div className="flex flex-col gap-[6px]">
+            <div className="flex items-baseline justify-between gap-[10px]">
+              <div className="text-[14px] font-[600]">
+                {t('image_edit_label', 'Edit this image')}
+              </div>
+              {promptCounter(editText.length)}
+            </div>
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              maxLength={IMAGE_PROMPT_MAX_CHARS}
+              aria-label={t('image_edit_label', 'Edit this image')}
+              placeholder={t(
+                'image_edit_placeholder',
+                'Describe the change — for example, make the background plain white'
+              )}
+              className="bg-newBgColorInner min-h-[96px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
+            />
+            <ReferenceImages
+              lead={version.media}
+              value={editReferences}
+              onChange={setEditReferences}
+              max={IMAGE_REFERENCE_MAX - 1}
+              action={
+                <Button variant="quiet" onClick={applyEdit}>
+                  {t('image_edit_apply', 'Apply edit')}
+                  <span className="ms-[6px] font-[500] opacity-75">
+                    · {t('one_credit', '1 credit')}
+                  </span>
+                </Button>
+              }
+            />
           </div>
         </>
       )}
@@ -774,8 +1040,8 @@ const AiImageModal: FC<{
         <ModalActionBar>
           {phase === 'result' ? (
             <>
-              <Button variant="quiet" onClick={editPrompt}>
-                {t('edit_prompt', 'Edit prompt')}
+              <Button variant="quiet" onClick={backToPrompt}>
+                {t('back_to_prompt', 'Back to prompt')}
               </Button>
               <div className="flex-1" />
               <Button variant="ghost" onClick={generate}>
