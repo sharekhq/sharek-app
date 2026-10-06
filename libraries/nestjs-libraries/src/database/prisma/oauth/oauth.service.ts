@@ -3,7 +3,7 @@ import { OAuthRepository } from '@gitroom/nestjs-libraries/database/prisma/oauth
 import { CreateOAuthAppDto } from '@gitroom/nestjs-libraries/dtos/oauth/create-oauth-app.dto';
 import { UpdateOAuthAppDto } from '@gitroom/nestjs-libraries/dtos/oauth/update-oauth-app.dto';
 import { RegisterClientDto } from '@gitroom/nestjs-libraries/dtos/oauth/register-client.dto';
-import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { extractBearerToken } from '@gitroom/nestjs-libraries/chat/oauth-types';
 import { createHash } from 'crypto';
@@ -51,8 +51,8 @@ export class OAuthService {
       );
     }
 
-    const clientId = 'pca_' + makeId(32);
-    const clientSecret = 'pcs_' + makeId(48);
+    const clientId = 'pca_' + makeSecureId(32);
+    const clientSecret = 'pcs_' + makeSecureId(48);
     const encryptedSecret = AuthService.fixedEncryption(clientSecret);
 
     const app = await this._oauthRepository.createApp(orgId, {
@@ -92,7 +92,7 @@ export class OAuthService {
       throw new HttpException('No OAuth app found', HttpStatus.NOT_FOUND);
     }
 
-    const newSecret = 'pcs_' + makeId(48);
+    const newSecret = 'pcs_' + makeSecureId(48);
     const encrypted = AuthService.fixedEncryption(newSecret);
     await this._oauthRepository.updateClientSecret(orgId, encrypted);
     return { clientSecret: newSecret };
@@ -180,8 +180,8 @@ export class OAuthService {
       .catch(() => {});
 
     const isPublicClient = dto.token_endpoint_auth_method === 'none';
-    const clientId = 'pcd_' + makeId(32);
-    const clientSecret = isPublicClient ? undefined : 'pcs_' + makeId(48);
+    const clientId = 'pcd_' + makeSecureId(32);
+    const clientSecret = isPublicClient ? undefined : 'pcs_' + makeSecureId(48);
 
     const app = await this._oauthRepository.createDynamicApp({
       name: dto.client_name?.trim().slice(0, 100) || 'MCP Client',
@@ -256,7 +256,7 @@ export class OAuthService {
       redirectUri?: string;
     }
   ) {
-    const code = makeId(32);
+    const code = makeSecureId(32);
     const encryptedCode = AuthService.fixedEncryption(code);
     const codeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -344,7 +344,7 @@ export class OAuthService {
       );
     }
 
-    const token = 'pos_' + makeId(40);
+    const token = 'pos_' + makeSecureId(40);
     const encryptedToken = AuthService.fixedEncryption(token);
     const {
       organizationId,
