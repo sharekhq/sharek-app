@@ -2,11 +2,11 @@
 // agent tool chain; none of it runs here, so the modules are swapped for shells
 // (same pattern as media.controller.spec).
 const capturedContexts: any[] = [];
-const capturedEndpoints: any[] = [];
+const capturedEndpoints: Record<string, unknown>[] = [];
 
 jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: class {},
-  copilotRuntimeNodeHttpEndpoint: (options: any) => {
+  copilotRuntimeNodeHttpEndpoint: (options: Record<string, unknown>) => {
     capturedEndpoints.push(options);
     return () => undefined;
   },
@@ -48,11 +48,7 @@ const send = async (body: unknown) => {
     {} as any,
     { mastra: async () => ({}) } as any
   );
-  await controller.agent(
-    { body } as any,
-    {} as any,
-    { id: 'org-1' } as any
-  );
+  await controller.agent({ body } as any, {} as any, { id: 'org-1' } as any);
   expect(capturedContexts).toHaveLength(1);
   return capturedContexts[0];
 };
@@ -107,7 +103,9 @@ describe('CopilotController agent request context', () => {
   // The shape CopilotKit sent before 1.72. Nothing sends it any more, so a
   // controller still reading it would lose the language without an error.
   it('reads nothing from the pre-1.72 request shape', async () => {
-    const context = await send({ variables: { properties: { language: 'ar' } } });
+    const context = await send({
+      variables: { properties: { language: 'ar' } },
+    });
     expect(context.get('language')).toBe('');
   });
 
