@@ -38,13 +38,27 @@ export const weightedLength = (text: string): number => {
   return twitter.parseTweet(text).weightedLength;
 };
 
+// One emoji sequence: a flag, a keycap, or a pictograph with its presentation
+// selector or skin tone, joined by ZWJ and followed by any tag characters.
+const EMOJI_SEQUENCE =
+  /\p{RI}\p{RI}|[#*0-9]\u{FE0F}?\u{20E3}|\p{Extended_Pictographic}(?:\u{FE0F}|\p{Emoji_Modifier})?(?:\u{200D}\p{Extended_Pictographic}(?:\u{FE0F}|\p{Emoji_Modifier})?)*[\u{E0020}-\u{E007F}]*/gu;
+
+// Threads counts an emoji as its UTF-8 bytes and every other character as one.
+const threadsLength = (text: string): number => {
+  const encoder = new TextEncoder();
+  return (text.match(EMOJI_SEQUENCE) || []).reduce(
+    (length, emoji) => length + encoder.encode(emoji).length - emoji.length,
+    text.length
+  );
+};
+
 export const countLength = (integrationType: string, text: string): number => {
   if (integrationType === 'x') {
     return weightedLength(text);
   }
 
   if (integrationType === 'threads') {
-    return new TextEncoder().encode(text).length;
+    return threadsLength(text);
   }
 
   return text.length;
