@@ -25,7 +25,8 @@ import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/p
 
 export type ChannelsContext = {
   // The selected channels as the browser sent them through CopilotKit
-  // `properties`; the agent's instructions render them and validate the shape.
+  // `properties`, which arrive in the run's forwardedProps; the agent's
+  // instructions render them and validate the shape.
   integrations: unknown[];
   // The interface language as an i18next code, straight from the browser.
   language: string;
@@ -96,18 +97,13 @@ export class CopilotController {
     }
     const mastra = await this._mastraService.mastra();
     const requestContext = new RequestContext<ChannelsContext>();
-    requestContext.set(
-      'integrations',
-      req?.body?.body?.forwardedProps?.integrations || []
-    );
+    const forwardedProps = req?.body?.body?.forwardedProps;
+    requestContext.set('integrations', forwardedProps?.integrations || []);
 
     // The interface language, which the agent's instructions name outright
     // rather than leave the model to infer. Same untrusted browser payload as
     // the channels above: the prompt validates it and falls back on its own.
-    requestContext.set(
-      'language',
-      req?.body?.variables?.properties?.language || ''
-    );
+    requestContext.set('language', forwardedProps?.language || '');
 
     requestContext.set('organization', JSON.stringify(organization));
     requestContext.set('ui', 'true');

@@ -27,9 +27,12 @@ jest.mock('@copilotkit/react-ui', () => ({
 jest.mock('@copilotkit/react-core', () => ({
   CopilotKit: ({ children }: any) => children,
   useCopilotAction: () => {},
-  useCopilotMessagesContext: () => ({ messages: [], setMessages: () => {} }),
+  useCopilotChatInternal: () => ({
+    messages: [],
+    setMessages: () => {},
+    isAvailable: true,
+  }),
 }));
-jest.mock('@copilotkit/runtime-client-gql', () => ({ TextMessage: class {} }));
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
   Input: () => null,
 }));

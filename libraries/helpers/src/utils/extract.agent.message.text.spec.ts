@@ -79,6 +79,21 @@ describe('extractAgentMessageText', () => {
     ).toBe('');
   });
 
+  // CopilotKit 1.72 sends user content as AG-UI input parts, so a message on
+  // screen can carry an array where stored rows carry a string.
+  it('joins the text parts of an AG-UI content array', () => {
+    expect(
+      extractAgentMessageText({
+        role: 'user',
+        content: [
+          { type: 'text', text: 'a' },
+          { type: 'binary', mimeType: 'image/png', data: 'x' },
+          { type: 'text', text: 'b' },
+        ],
+      })
+    ).toBe('a\nb');
+  });
+
   it('falls back to parts when the flattened content is an empty string', () => {
     expect(
       extractAgentMessageText({

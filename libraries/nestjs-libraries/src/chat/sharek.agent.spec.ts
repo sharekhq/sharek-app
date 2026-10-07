@@ -98,6 +98,40 @@ describe('SharekAgent', () => {
       state: { a: 1 },
     });
   });
+
+  // CopilotKit 1.72 runs a per-request clone of every registered agent, not the
+  // agent itself. MastraAgent.clone() builds a plain MastraAgent, which would
+  // quietly bring back the whole-thread resend.
+  describe('clone', () => {
+    it('is a SharekAgent', () => {
+      const { agent } = build();
+      expect(agent.clone()).toBeInstanceOf(SharekAgent);
+    });
+
+    it('still passes only the newest exchange to the vendor run', () => {
+      const { agent, seen } = build();
+      agent.clone().run({
+        threadId: 't',
+        runId: 'r',
+        messages: [
+          { id: '1', role: 'user' },
+          { id: '2', role: 'assistant' },
+          { id: '3', role: 'user' },
+        ],
+        tools: [],
+        context: [],
+      });
+      expect(seen[0].messages).toEqual([{ id: '3', role: 'user' }]);
+    });
+
+    it('carries the original headers as a copy', () => {
+      const { agent } = build();
+      agent.headers = { authorization: 'x' };
+      const cloned = agent.clone();
+      expect(cloned.headers).toEqual({ authorization: 'x' });
+      expect(cloned.headers).not.toBe(agent.headers);
+    });
+  });
 });
 
 // The multi-turn storage proof lives outside jest: Mastra's LLM execution path

@@ -13,6 +13,8 @@ export interface StoredAgentMessage {
   role: string;
   content?:
     | string
+    // AG-UI input content, which CopilotKit 1.72 uses for messages on screen.
+    | StoredAgentMessagePart[]
     | {
         format?: number;
         content?: string;
@@ -31,15 +33,8 @@ const INTEGRATIONS_BLOCK = /\n?\[--integrations--\][\s\S]*?\[--integrations--\]/
 export const stripIntegrationsBlock = (text: string): string =>
   text.replace(INTEGRATIONS_BLOCK, '').trimEnd();
 
-export const extractAgentMessageText = (message: StoredAgentMessage): string => {
-  const { content } = message;
-  if (typeof content === 'string') {
-    return content;
-  }
-  if (typeof content?.content === 'string' && content.content.length > 0) {
-    return content.content;
-  }
-  return (content?.parts || [])
+const joinTextParts = (parts: StoredAgentMessagePart[]): string =>
+  parts
     .filter(
       (part) =>
         part.type === 'text' &&
@@ -48,4 +43,17 @@ export const extractAgentMessageText = (message: StoredAgentMessage): string => 
     )
     .map((part) => part.text)
     .join('\n');
+
+export const extractAgentMessageText = (message: StoredAgentMessage): string => {
+  const { content } = message;
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return joinTextParts(content);
+  }
+  if (typeof content?.content === 'string' && content.content.length > 0) {
+    return content.content;
+  }
+  return joinTextParts(content?.parts || []);
 };

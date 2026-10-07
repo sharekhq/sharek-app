@@ -10,13 +10,16 @@ import type { RequestContext } from '@mastra/core/request-context';
 type VendorRun = MastraAgent['run'];
 type VendorRunInput = Parameters<VendorRun>[0];
 type VendorRunOutput = ReturnType<VendorRun>;
+type VendorConfig = ConstructorParameters<typeof MastraAgent>[0];
 
 export type AguiMessage = { id?: string; role?: string; [key: string]: unknown };
 
 /**
  * CopilotKit resends the entire thread on every turn, and Mastra saves whatever
- * it is given — its dedupe is by message id, and @ag-ui/mastra's converter drops
- * ids. Production threads reached 368 rows for 78 real messages because of it.
+ * it is given. @ag-ui/mastra 1.1.4 skips resent messages whose ids it has
+ * stored, but falls back to the whole list when an id is unknown or when all of
+ * them are stored. Production threads reached 368 rows for 78 real messages
+ * before this.
  *
  * Mastra Memory already holds the history, so only the newest exchange needs to
  * be sent. That is everything from the last user message onward: during a
@@ -49,6 +52,21 @@ export const messagesToSend = (messages: AguiMessage[]): AguiMessage[] => {
  * converter, on the hot path of every message.
  */
 export class SharekAgent extends MastraAgent {
+  constructor(private readonly sharekConfig: VendorConfig) {
+    super(sharekConfig);
+  }
+
+  // CopilotKit 1.72 runs a per-request clone of each agent, and the vendor's
+  // clone() builds a plain MastraAgent from its private config, which would
+  // resend the whole thread again. Same copy, same headers, but this class.
+  clone() {
+    const cloned = new SharekAgent(this.sharekConfig);
+    if (this.headers) {
+      cloned.headers = { ...this.headers };
+    }
+    return cloned;
+  }
+
   run(input: VendorRunInput): VendorRunOutput {
     return super.run({
       ...input,

@@ -42,14 +42,14 @@ jest.mock('@mastra/core/di', () => ({
 
 import { CopilotController } from './copilot.controller';
 
-const run = async (properties: unknown) => {
+const send = async (body: unknown) => {
   capturedContexts.length = 0;
   const controller = new CopilotController(
     {} as any,
     { mastra: async () => ({}) } as any
   );
   await controller.agent(
-    { body: { variables: { properties } } } as any,
+    { body } as any,
     {} as any,
     { id: 'org-1' } as any
   );
@@ -57,11 +57,20 @@ const run = async (properties: unknown) => {
   return capturedContexts[0];
 };
 
+// The request CopilotKit 1.72 sends on its single endpoint: the provider's
+// `properties` arrive spread into the run's forwardedProps.
+const run = (forwardedProps: unknown) =>
+  send({
+    method: 'agent/run',
+    params: { agentId: 'sharek' },
+    body: { forwardedProps },
+  });
+
 // Samy names the interface language in its system prompt so the model has a
 // stated value instead of a judgment to make (load.tools.service.ts). The
 // browser is the only thing that knows which language that is, and it travels
-// on the same CopilotKit `properties` payload the selected channels already use
-// — a rename on either side would drop the anchor with nothing else failing.
+// in the same forwardedProps as the selected channels — a rename on either
+// side would drop the anchor with nothing else failing.
 describe('CopilotController agent request context', () => {
   const key = 'sk-test';
   let previous: string | undefined;
@@ -95,6 +104,13 @@ describe('CopilotController agent request context', () => {
 
   // An older browser, or the MCP path, sends neither. The prompt falls back to
   // its relative wording, so this only has to not throw.
+  // The shape CopilotKit sent before 1.72. Nothing sends it any more, so a
+  // controller still reading it would lose the language without an error.
+  it('reads nothing from the pre-1.72 request shape', async () => {
+    const context = await send({ variables: { properties: { language: 'ar' } } });
+    expect(context.get('language')).toBe('');
+  });
+
   it('survives a payload with no properties at all', async () => {
     const context = await run(undefined);
     expect(context.get('language')).toBe('');

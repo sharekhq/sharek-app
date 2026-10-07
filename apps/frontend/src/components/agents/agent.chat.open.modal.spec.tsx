@@ -12,9 +12,12 @@ jest.mock('@copilotkit/react-ui', () => ({ CopilotChat: () => null }));
 jest.mock('@copilotkit/react-core', () => ({
   CopilotKit: () => null,
   useCopilotAction: () => {},
-  useCopilotMessagesContext: () => ({ setMessages: () => {} }),
+  useCopilotChatInternal: () => ({
+    messages: [],
+    setMessages: () => {},
+    isAvailable: true,
+  }),
 }));
-jest.mock('@copilotkit/runtime-client-gql', () => ({ TextMessage: class {} }));
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
   Input: () => null,
 }));

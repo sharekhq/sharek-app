@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 // properties handed to the CopilotKit provider matter here, so the rest is
 // stubbed out (same mock set as agent.chat.open.modal.spec).
 const capturedProperties: any[] = [];
+const capturedSingleEndpoint: unknown[] = [];
 // T047: the chat's own labels, captured the same way its properties are.
 const capturedLabels: Record<string, string>[] = [];
 
@@ -17,15 +18,19 @@ jest.mock('@copilotkit/react-ui', () => ({
 jest.mock('@copilotkit/react-core', () => ({
   // Renders its children now, so the CopilotChat inside it is reached and its own
   // labels can be captured. Everything below that chat is already stubbed.
-  CopilotKit: ({ properties, children }: any) => {
+  CopilotKit: ({ properties, useSingleEndpoint, children }: any) => {
     capturedProperties.push(properties);
+    capturedSingleEndpoint.push(useSingleEndpoint);
     return children;
   },
   useCopilotAction: () => {},
   // messages too, now that CopilotKit renders its children and LoadMessages runs.
-  useCopilotMessagesContext: () => ({ messages: [], setMessages: () => {} }),
+  useCopilotChatInternal: () => ({
+    messages: [],
+    setMessages: () => {},
+    isAvailable: true,
+  }),
 }));
-jest.mock('@copilotkit/runtime-client-gql', () => ({ TextMessage: class {} }));
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
   Input: () => null,
 }));
@@ -54,6 +59,7 @@ import { ASSISTANT_LABELS } from '@gitroom/frontend/components/ui/assistant.labe
 
 const render = () => {
   capturedProperties.length = 0;
+  capturedSingleEndpoint.length = 0;
   capturedLabels.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -81,6 +87,13 @@ describe('AgentChat properties', () => {
 
   it('still sends the selected channels', () => {
     expect(render().integrations).toEqual([]);
+  });
+
+  // The backend's /copilot/agent is CopilotKit 1.72's single endpoint; the
+  // provider's default REST routes do not exist there.
+  it('talks to the single endpoint', () => {
+    render();
+    expect(capturedSingleEndpoint[capturedSingleEndpoint.length - 1]).toBe(true);
   });
 });
 

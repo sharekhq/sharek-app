@@ -23,7 +23,7 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
   CopilotKit,
   useCopilotAction,
-  useCopilotMessagesContext,
+  useCopilotChatInternal,
 } from '@copilotkit/react-core';
 import {
   MediaPortal,
@@ -36,10 +36,6 @@ import {
   extractAgentMessageText,
   stripIntegrationsBlock,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
-import {
-  Message as CopilotMessage,
-  TextMessage,
-} from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
@@ -105,70 +101,86 @@ export const AgentChat: FC = () => {
   );
 };
 
+type ChatMessage = ReturnType<typeof useCopilotChatInternal>['messages'][number];
+
+// A thread opens with nothing stored to show.
+const NEW_THREAD: { id: string; messages: ChatMessage[] } = {
+  id: 'new',
+  messages: [],
+};
+
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
-  const { messages, setMessages } = useCopilotMessagesContext();
+  const { messages, setMessages, isAvailable } = useCopilotChatInternal();
   const fetch = useFetch();
   const currentId = useRef<string | null>(null);
-  const loaded = useRef<{ id: string; messages: CopilotMessage[] } | null>(
-    null
-  );
-
-  const loadMessages = useCallback(async (idToSet: string) => {
-    const data = await (await fetch(`/copilot/${idToSet}/list`)).json();
-    const list = data.messages.flatMap((p: any) => {
-      // Threads written before the channel list moved into the system prompt
-      // carry it in the message text. Drop it here so reopening an old thread
-      // does not resend it to the model on every turn.
-      const content = stripIntegrationsBlock(extractAgentMessageText(p));
-      return content ? [new TextMessage({ content, role: p.role })] : [];
-    });
-
-    if (currentId.current !== idToSet) {
-      return;
-    }
-
-    loaded.current = { id: idToSet, messages: list };
-    setMessages(list);
-  }, []);
+  const [loaded, setLoaded] = useState<{
+    id: string;
+    messages: ChatMessage[];
+  } | null>(null);
+  // The thread whose stored messages are on screen, and what to put back if
+  // the chat is emptied while it stays open: the stored messages, then the
+  // conversation as it grows.
+  const written = useRef<string | null>(null);
+  const restore = useRef<ChatMessage[]>([]);
 
   useEffect(() => {
     currentId.current = id;
     if (id === 'new') {
-      loaded.current = { id, messages: [] };
-      setMessages([]);
       return;
     }
-    loaded.current = null;
-    loadMessages(id);
+
+    fetch(`/copilot/${id}/list`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (currentId.current !== id) {
+          return;
+        }
+
+        const list = data.messages.flatMap((p: any) => {
+          // Threads written before the channel list moved into the system
+          // prompt carry it in the message text. Drop it here so reopening an
+          // old thread does not resend it to the model on every turn.
+          const content = stripIntegrationsBlock(extractAgentMessageText(p));
+          // CopilotKit matches messages by id in the chat, its runner and the
+          // Mastra bridge; without the stored ids each one shows twice.
+          return content ? [{ id: p.id, role: p.role, content }] : [];
+        });
+        setLoaded({ id, messages: list });
+      });
   }, [id]);
 
-  // CopilotKit resolves loadAgentState to an empty list for Mastra local agents
-  // and can clobber the messages we hold, depending on which request resolves last
+  const thread = id === 'new' ? NEW_THREAD : loaded;
+
+  // A list written before the agent connects is emptied by the connect, and the
+  // connect can also empty the chat after the list is shown.
   useEffect(() => {
-    if (loaded.current?.id !== id) {
+    if (!isAvailable || thread?.id !== id) {
+      return;
+    }
+
+    if (written.current !== id) {
+      written.current = id;
+      restore.current = thread.messages;
+      setMessages(thread.messages);
       return;
     }
 
     if (messages.length) {
-      loaded.current.messages = messages;
+      restore.current = messages;
       return;
     }
 
-    if (loaded.current.messages.length) {
-      setMessages(loaded.current.messages);
+    if (restore.current.length) {
+      setMessages(restore.current);
     }
-  }, [messages, id]);
+  }, [isAvailable, thread, messages, id]);
 
   return null;
 };
 
 const Message: FC<UserMessageProps> = (props) => {
   const convertContentToImagesAndVideo = useMemo(() => {
-    const content = props.message?.content || '';
-    const text =
-      typeof content === 'string'
-        ? content
-        : content.map((p) => (p.type === 'text' ? p.text : '')).join('');
+    const text = props.message ? extractAgentMessageText(props.message) : '';
 
     return stripIntegrationsBlock(text)
       .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
@@ -180,7 +192,7 @@ const Message: FC<UserMessageProps> = (props) => {
       .replace(/\[\-\-Media\-\-\](.*)\[\-\-Media\-\-\]/g, (match, p1) => {
         return `<div class="flex justify-center mt-[20px]">${p1}</div>`;
       });
-  }, [props.message?.content]);
+  }, [props.message]);
   return (
     <div
       dir="auto"
