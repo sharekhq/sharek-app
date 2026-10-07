@@ -1,8 +1,7 @@
 // Chat storage rows (mastra_messages) hold either a plain string or a Mastra v2
 // content object; a turn that died mid-stream persists one with no flattened
-// string and no text parts. CopilotKit's GraphQL schema requires every resent
-// message to carry a string content, so callers must drop messages that
-// yield '' here — otherwise the whole thread 400s on every send.
+// string and no text parts. Callers drop messages that yield '' here rather
+// than restore an empty one into the thread.
 export interface StoredAgentMessagePart {
   type: string;
   text?: string;

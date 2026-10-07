@@ -316,6 +316,9 @@ const CommentBody: FC<{ comment: PreviewComment }> = ({ comment }) => {
   );
 };
 
+const quoteClassName =
+  'border-s-[3px] border-btnPrimary ps-[8px] text-[12px] text-textItemBlur truncate';
+
 const ThreadCard: FC<{
   comment: PreviewComment;
   replies: PreviewComment[];
@@ -337,8 +340,6 @@ const ThreadCard: FC<{
   } = usePreviewComments();
   const resolved = !!comment.resolvedAt;
   const anchored = comment.anchorStart !== null && comment.anchorEnd !== null;
-  const quoteClassName =
-    'border-s-[3px] border-btnPrimary ps-[8px] text-[12px] text-textItemBlur truncate';
 
   useEffect(() => {
     if (activeThread?.id !== comment.id || activeThread.source !== 'mark') {

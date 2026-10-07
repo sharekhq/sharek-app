@@ -264,7 +264,7 @@ export const MenuGroupComponent: FC<
             <button
               type="button"
               aria-label={t('edit_group_name', 'Edit group name')}
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 hover:text-brandText focus-visible:ring-2 focus-visible:ring-brand"
+              className="flex items-center justify-center coarse:w-[44px] coarse:h-[44px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity hover:text-brandText focus-visible:ring-2 focus-visible:ring-brand"
               onClick={editGroupName}
             >
               <EditPencil />

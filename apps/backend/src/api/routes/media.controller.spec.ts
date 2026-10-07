@@ -1,6 +1,6 @@
-// The controller builds a storage client at construction and its imports drag
-// in the upload SDKs and Prisma; none of that code runs here, so the modules are
-// swapped for empty shells (same pattern as media.service.spec).
+// The controller's imports drag in the upload SDKs and Prisma; none of that
+// code runs here, so the modules are swapped for empty shells (same pattern as
+// media.service.spec).
 jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
   UploadFactory: { createStorage: () => ({}) },
 }));

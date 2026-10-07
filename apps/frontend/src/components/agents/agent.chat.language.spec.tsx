@@ -93,7 +93,9 @@ describe('AgentChat properties', () => {
   // provider's default REST routes do not exist there.
   it('talks to the single endpoint', () => {
     render();
-    expect(capturedSingleEndpoint[capturedSingleEndpoint.length - 1]).toBe(true);
+    expect(capturedSingleEndpoint[capturedSingleEndpoint.length - 1]).toBe(
+      true
+    );
   });
 });
 

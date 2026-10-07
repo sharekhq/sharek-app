@@ -21,7 +21,6 @@ import { ApiTags } from '@nestjs/swagger';
 import handleR2Upload from '@gitroom/nestjs-libraries/upload/r2.uploader';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { streamUploadOptions } from '@gitroom/nestjs-libraries/upload/multer.stream.engine';
-import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 import {
   EditImageWithPromptDto,
@@ -37,7 +36,6 @@ import { withHeartbeat } from '@gitroom/nestjs-libraries/agent/heartbeat';
 @ApiTags('Media')
 @Controller('/media')
 export class MediaController {
-  private storage = UploadFactory.createStorage();
   constructor(private _mediaService: MediaService) {}
 
   @Delete('/:id')

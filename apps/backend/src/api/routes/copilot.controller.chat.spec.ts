@@ -99,6 +99,8 @@ const composerRequest = (content: string) => ({
   },
 });
 
+// The controller's own parameter types: importing express's Response would
+// shadow the fetch Response the model stub builds.
 type ChatAgent = CopilotController['chatAgent'];
 
 const send = async (content: string) => {

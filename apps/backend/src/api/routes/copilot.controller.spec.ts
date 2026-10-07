@@ -98,8 +98,6 @@ describe('CopilotController agent request context', () => {
     expect(context.get('integrations')).toBe(integrations);
   });
 
-  // An older browser, or the MCP path, sends neither. The prompt falls back to
-  // its relative wording, so this only has to not throw.
   // The shape CopilotKit sent before 1.72. Nothing sends it any more, so a
   // controller still reading it would lose the language without an error.
   it('reads nothing from the pre-1.72 request shape', async () => {
@@ -109,6 +107,8 @@ describe('CopilotController agent request context', () => {
     expect(context.get('language')).toBe('');
   });
 
+  // An older browser, or the MCP path, sends neither. The prompt falls back to
+  // its relative wording, so this only has to not throw.
   it('survives a payload with no properties at all', async () => {
     const context = await run(undefined);
     expect(context.get('language')).toBe('');
