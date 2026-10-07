@@ -205,7 +205,7 @@ export const PostContentClient: FC<{ postId: string; html: string }> = ({
     if (!mark) {
       return;
     }
-    mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    mark.scrollIntoView({ block: 'center' });
     mark.classList.add('animate-pulse');
     const timer = setTimeout(
       () => mark.classList.remove('animate-pulse'),
@@ -352,7 +352,7 @@ export const PostContentClient: FC<{ postId: string; html: string }> = ({
           onMouseDown={(e) => e.preventDefault()}
           onClick={startComment}
           style={{ top: selection.top, left: selection.left }}
-          className="absolute z-[10] bg-btnPrimary text-white text-[12px] font-[500] rounded-[6px] px-[10px] h-[28px] flex items-center gap-[6px] shadow-lg"
+          className="absolute z-[10] bg-btnPrimary text-white text-[12px] font-[500] rounded-[6px] px-[10px] h-[28px] flex items-center gap-[6px] shadow-lg focus-visible:ring-2 focus-visible:ring-brand"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

@@ -50,7 +50,7 @@ export const CustomerModal: FC<{
   return (
     <div className="relative w-full">
       <div className="mb-[80px] flex flex-col gap-[6px]">
-        <label htmlFor="customer-name" className="text-[14px] text-white">
+        <label htmlFor="customer-name" className="text-[14px] text-textColor">
           {t('select_customer_label', 'Select Customer')}
         </label>
         <input
@@ -60,7 +60,7 @@ export const CustomerModal: FC<{
           onChange={(e) => setCustomer(e.target.value)}
           placeholder={t('start_typing', 'Start typing...')}
           autoComplete="off"
-          className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor placeholder-textColor px-[16px] text-[14px] outline-none"
+          className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor px-[16px] text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
         />
         <datalist id="customer-name-options">
           {(data?.map((p: any) => p.name) || []).map((name: string) => (

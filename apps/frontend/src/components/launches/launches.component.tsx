@@ -261,12 +261,14 @@ export const MenuGroupComponent: FC<
             {group.name}
           </div>
           {!collapsed && (
-            <div
-              className="hidden group-hover:block hover:opacity-70"
+            <button
+              type="button"
+              aria-label={t('edit_group_name', 'Edit group name')}
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 hover:text-brandText focus-visible:ring-2 focus-visible:ring-brand"
               onClick={editGroupName}
             >
               <EditPencil />
-            </div>
+            </button>
           )}
         </div>
       )}

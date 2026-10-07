@@ -241,10 +241,10 @@ const CommentComposer: FC<{
       >
         {!!anchor && (
           <div className="flex items-start gap-[8px] border-s-[3px] border-btnPrimary ps-[8px] text-[12px] text-textItemBlur">
-            <div className="flex-1 italic truncate">{anchor.quote}</div>
+            <div className="flex-1 truncate">{anchor.quote}</div>
             <button
               type="button"
-              className="hover:text-newTextColor"
+              className="hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand"
               onClick={() => setPending(null)}
               aria-label={t('cancel', 'Cancel')}
             >
@@ -337,12 +337,14 @@ const ThreadCard: FC<{
   } = usePreviewComments();
   const resolved = !!comment.resolvedAt;
   const anchored = comment.anchorStart !== null && comment.anchorEnd !== null;
+  const quoteClassName =
+    'border-s-[3px] border-btnPrimary ps-[8px] text-[12px] text-textItemBlur truncate';
 
   useEffect(() => {
     if (activeThread?.id !== comment.id || activeThread.source !== 'mark') {
       return;
     }
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ref.current?.scrollIntoView({ block: 'center' });
     setFlash(true);
     const timer = setTimeout(() => setFlash(false), 1500);
     return () => clearTimeout(timer);
@@ -388,28 +390,29 @@ const ThreadCard: FC<{
           </div>
         )}
       </div>
-      {!!comment.anchorQuote && (
-        <div
-          className={clsx(
-            'border-s-[3px] border-btnPrimary ps-[8px] text-[12px] italic text-textItemBlur truncate',
-            anchored && !resolved && 'cursor-pointer hover:text-newTextColor'
-          )}
-          onClick={() =>
-            anchored &&
-            !resolved &&
-            setActiveThread({ id: comment.id, source: 'card' })
-          }
-        >
-          {comment.anchorQuote}
-        </div>
-      )}
+      {!!comment.anchorQuote &&
+        (anchored && !resolved ? (
+          <button
+            type="button"
+            className={clsx(
+              quoteClassName,
+              'w-full text-start cursor-pointer hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand'
+            )}
+            onClick={() => setActiveThread({ id: comment.id, source: 'card' })}
+          >
+            {comment.anchorQuote}
+          </button>
+        ) : (
+          <div className={quoteClassName}>{comment.anchorQuote}</div>
+        ))}
       {resolved && !expanded ? (
-        <div
-          className="text-[14px] truncate cursor-pointer"
+        <button
+          type="button"
+          className="w-full text-start text-[14px] truncate cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
           onClick={() => setExpanded(true)}
         >
           {comment.content}
-        </div>
+        </button>
       ) : (
         <CommentBody comment={comment} />
       )}
@@ -425,7 +428,7 @@ const ThreadCard: FC<{
           {!resolved && (
             <button
               type="button"
-              className="text-textItemBlur hover:text-newTextColor"
+              className="text-textItemBlur hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand"
               onClick={() => setReplying(!replying)}
             >
               {t('reply', 'Reply')}
@@ -434,7 +437,7 @@ const ThreadCard: FC<{
           {canResolve && (
             <button
               type="button"
-              className="text-textItemBlur hover:text-newTextColor"
+              className="text-textItemBlur hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand"
               onClick={toggleResolved}
             >
               {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
@@ -443,7 +446,7 @@ const ThreadCard: FC<{
           {resolved && (
             <button
               type="button"
-              className="text-textItemBlur hover:text-newTextColor"
+              className="text-textItemBlur hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand"
               onClick={() => setExpanded(false)}
             >
               {t('collapse', 'Collapse')}
