@@ -71,7 +71,8 @@ describe('initializeSentryBasic', () => {
     ['masked Safari', 'webkit-masked-url://hidden/'],
   ])('drops errors thrown by %s extension code', async (_browser, url) => {
     Sentry.captureException(
-      errorWithStack('MetaMask extension not found', [
+      // No ignoreErrors pattern matches this message, so only the URL filter can drop it.
+      errorWithStack('probe thrown from extension code', [
         `    at ${url}:4:42708`,
         `    at Object.connect (${url}:7:84292)`,
       ])

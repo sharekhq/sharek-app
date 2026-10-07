@@ -9,8 +9,8 @@ import { useEffect } from 'react';
  * Next requires this to be a Client Component (it renders its own document element
  * when it replaces the root layout), so it cannot read cookies and cannot know the
  * user's language, direction or theme. It also renders no localized content —
- * `<NextError statusCode={0} />` plus a Sentry dialog whose labels are hardcoded
- * English below — so there is nothing for direction to lay out.
+ * only `<NextError statusCode={0} />`; the error is captured and no report
+ * dialog opens — so there is nothing for direction to lay out.
  *
  * This is why FR-010 reads "every root layout *that renders localized content*".
  * Do not reach for `resolveDocumentFrame` here; it needs cookie values this
@@ -23,8 +23,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // The variables context is not mounted here (this replaces the root
-    // layout), so don't gate on its DSN. Without a client this is a no-op, and
-    // beforeSend already opens the report dialog for captured exceptions
+    // layout), so don't gate on its DSN. Without a client this is a no-op.
     Sentry.captureException(error);
   }, [error]);
   return (
