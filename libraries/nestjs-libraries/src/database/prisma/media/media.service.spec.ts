@@ -2,7 +2,7 @@
 // deps drag in Prisma and provider SDKs; none of that code runs here, so the
 // modules are swapped for empty shells (same pattern as load.tools.service.spec).
 jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
-  UploadFactory: { createStorage: () => ({}) },
+  UploadFactory: { createStorage: () => ({}), createProcessor: () => null },
 }));
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.repository',
