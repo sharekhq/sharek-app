@@ -35,6 +35,16 @@ class MockRedis {
     return 'OK';
   }
 
+  async rpush(key: string, value: any) {
+    this.data.set(key, [...(this.data.get(key) || []), value]);
+    return this.data.get(key).length;
+  }
+
+  async lrange(key: string, start: number, end: number) {
+    const list = this.data.get(key) || [];
+    return list.slice(start, end === -1 ? undefined : end + 1);
+  }
+
   // Add other Redis methods as needed for your tests
 }
 

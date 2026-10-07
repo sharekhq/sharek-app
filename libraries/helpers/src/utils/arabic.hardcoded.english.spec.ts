@@ -217,6 +217,12 @@ const EXEMPT: readonly Exemption[] = [
     reason:
       "The identifier of the tab that groups every MCP client with no tab of its own. It is compared against the selected tab and used as a literal type (typeof otherTab), never rendered as itself: the one place it reaches the screen reads `item === otherTab ? t('other_agents', 'Other agents') : item`.",
   },
+  {
+    file: 'components/preview/comments.components.tsx',
+    text: 'recaptcha failed to load',
+    reason:
+      "The message of the Error that rejects loadRecaptchaToken when Google's script fails to load. The only caller catches it and shows t('preview_comment_failed', …) instead, so the message never reaches a reader.",
+  },
 ];
 
 // Tables whose every value is already handed to t() as its DEFAULT, under a key built
@@ -254,25 +260,6 @@ const TABLE_OF_DEFAULTS_EXEMPT: readonly Exemption[] = [
     'No speech and no music — only quiet ambience.',
   ],
 ].map(([file, text]) => ({ file, text, reason: TABLE_OF_DEFAULTS_REASON }));
-
-// The Sentry report dialog in app/global-error.tsx. Its six labels are English on
-// purpose and the file explains why: global-error replaces the root layout, so it is a
-// Client Component that cannot read cookies and therefore cannot know the language,
-// direction or theme. There is no t() to call. The call passes lang: 'en' deliberately.
-//
-// Listed as six entries rather than one file exclusion so that any OTHER literal
-// appearing in that file is still reported.
-const GLOBAL_ERROR_REASON =
-  'A label of the Sentry report dialog in the one root layout that cannot resolve a language: global-error.tsx replaces the root layout as a Client Component with no cookie access, so no translation is available to it. The call sets lang: "en" for the same reason.';
-
-const SENTRY_DIALOG_EXEMPT: readonly Exemption[] = [
-  'Something broke!',
-  'Please help us fix the issue by providing some details.',
-  'What happened?',
-  'Your name',
-  'Your email',
-  'Send Report',
-].map((text) => ({ file: 'app/global-error.tsx', text, reason: GLOBAL_ERROR_REASON }));
 
 // Components that route their `label` prop through TranslatedLabel, which derives
 // label_<normalised> and calls t() itself. A bare label="Title" on one of these is NOT
@@ -696,7 +683,6 @@ const shapeOf = (node: ts.Node): string => {
 const ALL_EXEMPT: readonly Exemption[] = [
   ...EXEMPT,
   ...TABLE_OF_DEFAULTS_EXEMPT,
-  ...SENTRY_DIALOG_EXEMPT,
 ];
 
 const isExempt = (literal: Literal) =>

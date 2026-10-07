@@ -2,7 +2,8 @@
 // These cannot run under the plain config: @mastra/core's execution path uses a
 // dynamic import(), which jest's VM rejects unless Node is started with
 // --experimental-vm-modules — and once that flag is on, jest refuses to require
-// `tokenx` (ESM only, pulled in by @mastra/core), so it is mapped to a stub.
+// `tokenx`, `@sindresorhus/slugify` or `p-map` (ESM only, pulled in by
+// @mastra/core), so they are mapped to stubs.
 //
 // Both conditions come from upstream's dependency set; neither is reachable from
 // the unit config, which is why this is separate rather than merged into it.
@@ -19,6 +20,8 @@ const config: Config = {
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
     '^tokenx$': '<rootDir>/../test/tokenx.stub.ts',
+    '^@sindresorhus/slugify$': '<rootDir>/../test/slugify.stub.ts',
+    '^p-map$': '<rootDir>/../test/p-map.stub.ts',
   },
   transform: {
     '^.+\\.[mc]?[tj]s$': [

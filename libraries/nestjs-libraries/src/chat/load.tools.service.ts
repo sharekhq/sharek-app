@@ -6,6 +6,7 @@ import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { languageName } from '@gitroom/helpers/utils/language.names';
+import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import dayjs from 'dayjs';
 
 const renderArray = (list: string[], show: boolean) => {
@@ -95,11 +96,16 @@ const organizationId = (organization?: string) => {
 export class LoadToolsService {
   constructor(private _moduleRef: ModuleRef) {}
 
-  async loadTools() {
+  async loadTools(mcpOnly = false) {
     return (
       await Promise.all<{ name: string; tool: any }>(
         toolList
-          .map((p) => this._moduleRef.get(p, { strict: false }))
+          .map(
+            (p) =>
+              this._moduleRef.get(p, { strict: false }) as AgentToolInterface
+          )
+          .filter((p) => !!p.mcpOnly === mcpOnly)
+          .filter((p) => !p.available || p.available())
           .map(async (p) => ({
             name: p.name as string,
             tool: await p.run(),
@@ -119,7 +125,8 @@ export class LoadToolsService {
     return new Agent({
       id: 'sharek',
       name: 'Sharek',
-      description: 'Agent that helps schedule and list social media posts for users',
+      description:
+        'Agent that helps schedule and list social media posts for users',
       instructions: ({ requestContext }) => {
         const ui: string = requestContext.get('ui' as never);
         const channels = renderChannels(

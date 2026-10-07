@@ -50,9 +50,11 @@ const config: Config = {
   // file-type 22 and music-metadata 11 are ESM-only for the same reason: Node
   // 22.12+ loads them from require() natively, but Jest's own CommonJS runtime
   // does not, so custom.upload.validation's require('file-type') needs them —
-  // and their ESM dependencies — transformed as well.
+  // and their ESM dependencies — transformed as well. @mastra/core 1.67 adds
+  // @sindresorhus/slugify (with transliterate and escape-string-regexp 5) and
+  // p-map, ESM-only too.
   transformIgnorePatterns: [
-    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/)',
+    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/)',
   ],
 };
 

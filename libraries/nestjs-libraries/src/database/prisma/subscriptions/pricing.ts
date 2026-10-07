@@ -12,6 +12,7 @@ export interface PricingInnerInterface {
   image_generator?: boolean;
   image_generation_count: number;
   generate_videos: number;
+  clipping_minutes: number;
   public_api: boolean;
   webhooks: number;
   autoPost: boolean;
@@ -37,6 +38,7 @@ export const pricing: PricingInterface = {
     webhooks: 0,
     autoPost: false,
     generate_videos: 0,
+    clipping_minutes: 0,
   },
   STANDARD: {
     current: 'STANDARD',
@@ -55,6 +57,7 @@ export const pricing: PricingInterface = {
     webhooks: 2,
     autoPost: false,
     generate_videos: 5,
+    clipping_minutes: 0,
   },
   TEAM: {
     current: 'TEAM',
@@ -73,6 +76,7 @@ export const pricing: PricingInterface = {
     webhooks: 10,
     autoPost: true,
     generate_videos: 15,
+    clipping_minutes: 0,
   },
   PRO: {
     current: 'PRO',
@@ -91,6 +95,7 @@ export const pricing: PricingInterface = {
     webhooks: 30,
     autoPost: true,
     generate_videos: 25,
+    clipping_minutes: 0,
   },
   ULTIMATE: {
     current: 'ULTIMATE',
@@ -109,5 +114,6 @@ export const pricing: PricingInterface = {
     webhooks: 10000,
     autoPost: true,
     generate_videos: 100,
+    clipping_minutes: 0,
   },
 };

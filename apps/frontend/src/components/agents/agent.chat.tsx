@@ -12,14 +12,12 @@ import React, {
 import useSWR from 'swr';
 import {
   AssistantMessage,
+  AssistantMessageProps,
   CopilotChat,
   CopilotKitCSSProperties,
-} from '@copilotkit/react-ui';
-import {
-  AssistantMessageProps,
   InputProps,
   UserMessageProps,
-} from '@copilotkit/react-ui/dist/components/chat/props';
+} from '@copilotkit/react-ui';
 import { Input } from '@gitroom/frontend/components/agents/agent.input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
@@ -62,6 +60,7 @@ export const AgentChat: FC = () => {
       {...(params.id === 'new' ? {} : { threadId: params.id })}
       credentials="include"
       runtimeUrl={backendUrl + '/copilot/agent'}
+      useSingleEndpoint={true}
       showDevConsole={false}
       agent="postiz"
       properties={{
@@ -165,7 +164,13 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
 
 const Message: FC<UserMessageProps> = (props) => {
   const convertContentToImagesAndVideo = useMemo(() => {
-    return stripIntegrationsBlock(props.message?.content || '')
+    const content = props.message?.content || '';
+    const text =
+      typeof content === 'string'
+        ? content
+        : content.map((p) => (p.type === 'text' ? p.text : '')).join('');
+
+    return stripIntegrationsBlock(text)
       .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
         return `<video controls class="h-[150px] w-[150px] rounded-[8px] mb-[10px]"><source src="${p1.trim()}" type="video/mp4">Your browser does not support the video tag.</video>`;
       })

@@ -2,7 +2,6 @@
 import * as Sentry from '@sentry/nextjs';
 import NextError from 'next/error';
 import { useEffect } from 'react';
-import { useVariables } from '@gitroom/react/helpers/variable.context';
 
 /**
  * The one root layout that does NOT resolve a document frame, deliberately.
@@ -22,24 +21,11 @@ export default function GlobalError({
 }: {
   error: Error & { digest?: string };
 }) {
-  const { sentryDsn } = useVariables();
-
   useEffect(() => {
-    if (!sentryDsn) {
-      return;
-    }
-    const eventId = Sentry.captureException(error);
-    Sentry.showReportDialog({
-      eventId,
-      title: 'Something broke!',
-      subtitle: 'Please help us fix the issue by providing some details.',
-      labelComments: 'What happened?',
-      labelName: 'Your name',
-      labelEmail: 'Your email',
-      labelSubmit: 'Send Report',
-      lang: 'en',
-    });
-
+    // The variables context is not mounted here (this replaces the root
+    // layout), so don't gate on its DSN. Without a client this is a no-op, and
+    // beforeSend already opens the report dialog for captured exceptions
+    Sentry.captureException(error);
   }, [error]);
   return (
     <html>
