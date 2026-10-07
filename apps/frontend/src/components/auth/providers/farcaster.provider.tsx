@@ -21,9 +21,6 @@ export const FarcasterProvider = () => {
     modal.openModal({
       title: t('farcaster', 'Farcaster'),
       withCloseButton: true,
-      classNames: {
-        modal: 'bg-transparent text-textColor',
-      },
       children: (close) => (
         <FarcasterApproval login={gotoLogin} onFail={close} />
       ),

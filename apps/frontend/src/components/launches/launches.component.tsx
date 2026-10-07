@@ -532,9 +532,6 @@ export const LaunchesComponent = () => {
           modal.openModal({
             title: t('custom_url', 'Custom URL'),
             withCloseButton: false,
-            classNames: {
-              modal: 'md',
-            },
             children: (
               <CustomVariables
                 identifier={integration.identifier}

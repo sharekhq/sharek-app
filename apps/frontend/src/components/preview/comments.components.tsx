@@ -138,9 +138,6 @@ const CommentComposer: FC<{
     () =>
       new Promise<string | null>((resolve) => {
         modals.openModal({
-          classNames: {
-            modal: 'bg-transparent text-textColor',
-          },
           title: t('preview_comment_your_name', 'Your name'),
           withCloseButton: true,
           onClose: () => resolve(null),
