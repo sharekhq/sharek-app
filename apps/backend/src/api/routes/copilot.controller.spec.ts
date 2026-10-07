@@ -2,15 +2,16 @@
 // agent tool chain; none of it runs here, so the modules are swapped for shells
 // (same pattern as media.controller.spec).
 const capturedContexts: any[] = [];
+const capturedEndpoints: any[] = [];
 
 jest.mock('@copilotkit/runtime', () => ({
   CopilotRuntime: class {},
-  OpenAIAdapter: class {},
-  copilotRuntimeNodeHttpEndpoint: () => () => undefined,
-  copilotRuntimeNextJSAppRouterEndpoint: () => ({
-    handleRequest: async () => undefined,
-  }),
+  copilotRuntimeNodeHttpEndpoint: (options: any) => {
+    capturedEndpoints.push(options);
+    return () => undefined;
+  },
 }));
+jest.mock('@copilotkit/runtime/v2', () => ({ BuiltInAgent: class {} }));
 jest.mock('@gitroom/nestjs-libraries/chat/sharek.agent', () => ({
   getSharekAgents: ({ requestContext }: any) => {
     capturedContexts.push(requestContext);
@@ -98,5 +99,15 @@ describe('CopilotController agent request context', () => {
     const context = await run(undefined);
     expect(context.get('language')).toBe('');
     expect(context.get('integrations')).toEqual([]);
+  });
+
+  // Samy runs on its own agents, so a service adapter here would only name a
+  // model nothing calls.
+  it('gives the agent route no fallback model', async () => {
+    capturedEndpoints.length = 0;
+    await run(undefined);
+    expect(capturedEndpoints).toHaveLength(1);
+    expect(capturedEndpoints[0].endpoint).toBe('/copilot/agent');
+    expect(capturedEndpoints[0]).not.toHaveProperty('serviceAdapter');
   });
 });

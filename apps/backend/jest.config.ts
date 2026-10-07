@@ -12,12 +12,13 @@ const config: Config = {
   // file-type 22 (custom.upload.validation) is ESM-only and publishes no
   // "require" condition: Node 22.12+ resolves it from require() through
   // "module-sync", and Jest's resolver and CommonJS runtime both have to be
-  // told the same — see libraries/nestjs-libraries/jest.config.ts.
+  // told the same — see libraries/nestjs-libraries/jest.config.ts. The same
+  // goes for @remix-run/node-fetch-server, which @copilotkit/runtime/v2 loads.
   testEnvironmentOptions: {
     customExportConditions: ['node', 'node-addons', 'module-sync'],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!file-type/|strtok3/|token-types/|uint8array-extras/|@tokenizer/inflate/|@borewit/text-codec/)',
+    '/node_modules/(?!file-type/|strtok3/|token-types/|uint8array-extras/|@tokenizer/inflate/|@borewit/text-codec/|@remix-run/node-fetch-server/)',
   ],
   moduleNameMapper: {
     '^@gitroom/backend/(.*)$': '<rootDir>/$1',

@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import {
   CopilotRuntime,
-  OpenAIAdapter,
   copilotRuntimeNodeHttpEndpoint,
 } from '@copilotkit/runtime';
+import { BuiltInAgent } from '@copilotkit/runtime/v2';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -43,6 +43,9 @@ const copilotCors = () => ({
   credentials: !process.env.NOT_SECURED,
 });
 
+const COMPOSER_PROMPT =
+  "You are the AI Assistant in Sharek's post editor and help the user write and schedule social media posts. Write post content into the editor by calling setPosts, with one string per post: several strings make a thread.";
+
 @Controller('/copilot')
 export class CopilotController {
   constructor(
@@ -62,9 +65,15 @@ export class CopilotController {
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({
       endpoint: '/copilot/chat',
       cors: copilotCors(),
-      runtime: new CopilotRuntime(),
-      serviceAdapter: new OpenAIAdapter({
-        model: 'gpt-4.1',
+      runtime: new CopilotRuntime({
+        agents: {
+          default: new BuiltInAgent({
+            model: 'openai/gpt-5.6-luna',
+            apiKey: process.env.OPENAI_API_KEY,
+            providerOptions: { openai: { reasoningEffort: 'none' } },
+            prompt: COMPOSER_PROMPT,
+          }),
+        },
       }),
     });
 
@@ -119,9 +128,6 @@ export class CopilotController {
       endpoint: '/copilot/agent',
       cors: copilotCors(),
       runtime,
-      serviceAdapter: new OpenAIAdapter({
-        model: 'gpt-4.1',
-      }),
     });
 
     return copilotRuntimeHandler(req, res);

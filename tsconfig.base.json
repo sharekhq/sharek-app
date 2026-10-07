@@ -26,6 +26,7 @@
     "strict": true,
     "paths": {
       "@langchain/langgraph/prebuilt": ["node_modules/@langchain/langgraph/dist/prebuilt/index.d.ts"],
+      "@copilotkit/runtime/v2": ["node_modules/@copilotkit/runtime/dist/v2/index.d.cts"],
       "@gitroom/backend/*": ["apps/backend/src/*"],
       "@gitroom/frontend/*": ["apps/frontend/src/*"],
       "@gitroom/helpers/*": ["libraries/helpers/src/*"],
