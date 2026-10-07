@@ -15,7 +15,7 @@ import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { string } from 'yup';
 
-const WORDPRESS_USER_AGENT = 'Postiz/1.0 (+https://postiz.com)';
+const WORDPRESS_USER_AGENT = 'Sharek/1.0 (+https://sharek.app)';
 
 export class WordpressProvider
   extends SocialAbstract
