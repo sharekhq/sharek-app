@@ -99,19 +99,26 @@ const composerRequest = (content: string) => ({
   },
 });
 
+type ChatAgent = CopilotController['chatAgent'];
+
 const send = async (content: string) => {
-  const res: any = new PassThrough();
-  res.statusCode = 0;
-  res.headers = {};
-  res.setHeader = (key: string, value: string) => {
-    res.headers[key.toLowerCase()] = value;
-  };
+  const headers: Record<string, string> = {};
+  const res = Object.assign(new PassThrough(), {
+    statusCode: 0,
+    headers,
+    setHeader: (key: string, value: string) => {
+      headers[key.toLowerCase()] = value;
+    },
+  });
   let text = '';
   res.on('data', (chunk: Buffer) => (text += chunk.toString()));
   const ended = new Promise((resolve) => res.on('end', resolve));
-  await new CopilotController({} as any, {} as any).chatAgent(
-    composerRequest(content) as any,
-    res
+  await new CopilotController(
+    {} as unknown as ConstructorParameters<typeof CopilotController>[0],
+    {} as unknown as ConstructorParameters<typeof CopilotController>[1]
+  ).chatAgent(
+    composerRequest(content) as unknown as Parameters<ChatAgent>[0],
+    res as unknown as Parameters<ChatAgent>[1]
   );
   await ended;
   return { status: res.statusCode, text };
@@ -124,7 +131,13 @@ const hasKey = (value: unknown, key: string): boolean =>
 
 describe('CopilotController /copilot/chat model request', () => {
   let previous: string | undefined;
-  let modelBodies: any[];
+  let modelBodies: {
+    model: string;
+    reasoning: unknown;
+    tools: { name: string }[];
+    instructions?: unknown;
+    input: unknown;
+  }[];
   let fetchSpy: jest.SpyInstance;
 
   beforeAll(() => {
@@ -146,12 +159,17 @@ describe('CopilotController /copilot/chat model request', () => {
     modelBodies = [];
     fetchSpy = jest
       .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (input: any, init?: any) => {
-        const url = typeof input === 'string' ? input : input.url;
+      .mockImplementation(async (input, init) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+            ? input.href
+            : input.url;
         if (url !== RESPONSES_URL) {
           throw new Error(`unexpected request to ${url}`);
         }
-        modelBodies.push(JSON.parse(init.body));
+        modelBodies.push(JSON.parse(String(init?.body)));
         return emptyResponse();
       });
   });
@@ -169,7 +187,7 @@ describe('CopilotController /copilot/chat model request', () => {
     expect(body.model).toBe('gpt-5.6-luna');
     expect(body.reasoning).toEqual({ effort: 'none' });
     expect(hasKey(body, 'temperature')).toBe(false);
-    expect(body.tools.map((tool: any) => tool.name)).toContain('setPosts');
+    expect(body.tools.map((tool) => tool.name)).toContain('setPosts');
 
     const prompt = JSON.stringify([body.instructions, body.input]);
     expect(prompt).toContain("AI Assistant in Sharek's post editor");

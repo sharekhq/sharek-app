@@ -1,4 +1,5 @@
-import { act } from 'react';
+import { act, ReactNode } from 'react';
+import { StoredAgentMessage } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { createRoot, Root } from 'react-dom/client';
 
 // Reopening a thread from the history panel. CopilotKit 1.72 keeps the chat's
@@ -9,15 +10,16 @@ import { createRoot, Root } from 'react-dom/client';
 // agent.chat.language.spec; the chat hook is a stand-in each case drives.
 const chat = {
   isAvailable: true,
-  messages: [] as any[],
+  messages: [] as { id: string; role: string; content: string }[],
   setMessages: jest.fn(),
 };
 const params = { id: 'thread-1' };
-const fetched: Record<string, Array<(rows: any[]) => void>> = {};
+type Row = StoredAgentMessage & { id: string };
+const fetched: Record<string, Array<(rows: Row[]) => void>> = {};
 
 jest.mock('@copilotkit/react-ui', () => ({ CopilotChat: () => null }));
 jest.mock('@copilotkit/react-core', () => ({
-  CopilotKit: ({ children }: any) => children,
+  CopilotKit: ({ children }: { children: ReactNode }) => children,
   useCopilotAction: () => {},
   useCopilotChatInternal: () => chat,
 }));
@@ -26,7 +28,9 @@ jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
 }));
 jest.mock('@gitroom/frontend/components/agents/agent', () => ({
   MediaPortal: () => null,
-  PropertiesContext: require('react').createContext({ properties: [] }),
+  PropertiesContext: jest
+    .requireActual('react')
+    .createContext({ properties: [] }),
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ backendUrl: '' }),
@@ -40,7 +44,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async (url: string) => {
     const id = url.split('/')[2];
-    const rows = await new Promise<any[]>((resolve) => {
+    const rows = await new Promise<Row[]>((resolve) => {
       (fetched[id] = fetched[id] || []).push(resolve);
     });
     return { json: async () => ({ messages: rows }) };
@@ -74,7 +78,7 @@ const render = async () => {
   });
 };
 
-const answer = async (id: string, rows: any[]) => {
+const answer = async (id: string, rows: Row[]) => {
   await act(async () => {
     (fetched[id] || []).forEach((resolve) => resolve(rows));
     fetched[id] = [];
