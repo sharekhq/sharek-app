@@ -67,7 +67,7 @@ export const AgentChat: FC = () => {
       }}
     >
       <Hooks />
-      <LoadMessages id={params.id} />
+      <LoadMessages key={params.id} id={params.id} />
       <div
         style={
           {
@@ -101,30 +101,26 @@ export const AgentChat: FC = () => {
   );
 };
 
-type ChatMessage = ReturnType<typeof useCopilotChatInternal>['messages'][number];
+type ChatMessage = ReturnType<
+  typeof useCopilotChatInternal
+>['messages'][number];
 
-// A thread opens with nothing stored to show.
-const NEW_THREAD: { id: string; messages: ChatMessage[] } = {
-  id: 'new',
-  messages: [],
-};
-
+// Rendered with the thread id as its key, so each thread starts from nothing:
+// a list kept from an earlier visit would miss the exchanges since then.
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
   const { messages, setMessages, isAvailable } = useCopilotChatInternal();
   const fetch = useFetch();
-  const currentId = useRef<string | null>(null);
-  const [loaded, setLoaded] = useState<{
-    id: string;
-    messages: ChatMessage[];
-  } | null>(null);
-  // The thread whose stored messages are on screen, and what to put back if
-  // the chat is emptied while it stays open: the stored messages, then the
+  // The thread's stored messages, once they arrive; a new thread has none.
+  const [stored, setStored] = useState<ChatMessage[] | null>(
+    id === 'new' ? [] : null
+  );
+  // Whether the stored messages are on screen, and what to put back if the
+  // chat is emptied while the thread stays open: the stored messages, then the
   // conversation as it grows.
-  const written = useRef<string | null>(null);
+  const written = useRef(false);
   const restore = useRef<ChatMessage[]>([]);
 
   useEffect(() => {
-    currentId.current = id;
     if (id === 'new') {
       return;
     }
@@ -132,36 +128,31 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     fetch(`/copilot/${id}/list`)
       .then((response) => response.json())
       .then((data) => {
-        if (currentId.current !== id) {
-          return;
-        }
-
-        const list = data.messages.flatMap((p: any) => {
-          // Threads written before the channel list moved into the system
-          // prompt carry it in the message text. Drop it here so reopening an
-          // old thread does not resend it to the model on every turn.
-          const content = stripIntegrationsBlock(extractAgentMessageText(p));
-          // CopilotKit matches messages by id in the chat, its runner and the
-          // Mastra bridge; without the stored ids each one shows twice.
-          return content ? [{ id: p.id, role: p.role, content }] : [];
-        });
-        setLoaded({ id, messages: list });
+        setStored(
+          data.messages.flatMap((p: any) => {
+            // Threads written before the channel list moved into the system
+            // prompt carry it in the message text. Drop it here so reopening
+            // an old thread does not resend it to the model on every turn.
+            const content = stripIntegrationsBlock(extractAgentMessageText(p));
+            // CopilotKit matches messages by id in the chat, its runner and
+            // the Mastra bridge; without the stored ids each one shows twice.
+            return content ? [{ id: p.id, role: p.role, content }] : [];
+          })
+        );
       });
   }, [id]);
-
-  const thread = id === 'new' ? NEW_THREAD : loaded;
 
   // A list written before the agent connects is emptied by the connect, and the
   // connect can also empty the chat after the list is shown.
   useEffect(() => {
-    if (!isAvailable || thread?.id !== id) {
+    if (!isAvailable || !stored) {
       return;
     }
 
-    if (written.current !== id) {
-      written.current = id;
-      restore.current = thread.messages;
-      setMessages(thread.messages);
+    if (!written.current) {
+      written.current = true;
+      restore.current = stored;
+      setMessages(stored);
       return;
     }
 
@@ -173,7 +164,7 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     if (restore.current.length) {
       setMessages(restore.current);
     }
-  }, [isAvailable, thread, messages, id]);
+  }, [isAvailable, stored, messages]);
 
   return null;
 };

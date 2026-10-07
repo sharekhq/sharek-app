@@ -175,6 +175,29 @@ describe('AgentChat reopened thread', () => {
     ]);
   });
 
+  // The list from the first visit is out of date by the time the user comes
+  // back: the exchanges since then are only in the fresh one.
+  it('shows the fresh list when the user returns to a thread they left', async () => {
+    await render();
+    await answer('thread-1', stored);
+    params.id = 'new';
+    await render();
+    const before = chat.setMessages.mock.calls.length;
+
+    params.id = 'thread-1';
+    await render();
+    expect(chat.setMessages).toHaveBeenCalledTimes(before);
+
+    await answer('thread-1', [
+      ...stored,
+      { id: 'm3', role: 'user', content: 'and again' },
+    ]);
+    expect(chat.setMessages).toHaveBeenLastCalledWith([
+      ...shown,
+      { id: 'm3', role: 'user', content: 'and again' },
+    ]);
+  });
+
   it('keeps the thread the user moved to when the one they left answers last', async () => {
     await render();
     params.id = 'thread-2';
