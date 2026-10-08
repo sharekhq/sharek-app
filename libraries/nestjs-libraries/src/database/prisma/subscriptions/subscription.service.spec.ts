@@ -101,3 +101,116 @@ describe('checkCredits', () => {
     expect(repository.getCreditsFrom).not.toHaveBeenCalled();
   });
 });
+
+// BIL-3: channels the old plan's limit disabled come back after an upgrade,
+// but only when the new plan holds every channel and its limit grew, so a
+// channel the user disabled on purpose stays disabled on a renewal.
+const makeModifyService = (over: {
+  current?: { subscriptionTier: string; totalChannels: number } | null;
+  channels: { disabled: boolean }[];
+  enable?: jest.Mock;
+}) => {
+  const repository = {
+    getOrganizationByCustomerId: jest.fn().mockResolvedValue({ id: 'org-1' }),
+    getSubscriptionByCustomerId: jest
+      .fn()
+      .mockResolvedValue(over.current ?? null),
+  };
+  const integrations = {
+    getIntegrationsList: jest.fn().mockResolvedValue(over.channels),
+    disableIntegrations: jest.fn().mockResolvedValue(undefined),
+    enableAllIntegrations:
+      over.enable ?? jest.fn().mockResolvedValue({ count: 1 }),
+    changeActiveCron: jest.fn().mockResolvedValue(undefined),
+  };
+  const organizations = {
+    disableOrEnableNonSuperAdminUsers: jest.fn().mockResolvedValue(undefined),
+  };
+  const service = new SubscriptionService(
+    repository as unknown as ConstructorParameters<
+      typeof SubscriptionService
+    >[0],
+    integrations as unknown as ConstructorParameters<
+      typeof SubscriptionService
+    >[1],
+    organizations as unknown as ConstructorParameters<
+      typeof SubscriptionService
+    >[2]
+  );
+  return { service, integrations };
+};
+
+const channels = (enabled: number, disabled: number) => [
+  ...Array.from({ length: enabled }, () => ({ disabled: false })),
+  ...Array.from({ length: disabled }, () => ({ disabled: true })),
+];
+
+describe('modifySubscription channel limits', () => {
+  it('enables every channel again when the new plan holds them all and its limit grew', async () => {
+    const { service, integrations } = makeModifyService({
+      current: { subscriptionTier: 'STANDARD', totalChannels: 10 },
+      channels: channels(9, 3),
+    });
+
+    await expect(service.modifySubscription('cus_1', 25, 'TEAM')).resolves.toBe(
+      true
+    );
+
+    expect(integrations.enableAllIntegrations).toHaveBeenCalledTimes(1);
+    expect(integrations.enableAllIntegrations).toHaveBeenCalledWith('org-1');
+    expect(integrations.disableIntegrations).not.toHaveBeenCalled();
+  });
+
+  it('enables nothing when the limit did not grow', async () => {
+    const { service, integrations } = makeModifyService({
+      current: { subscriptionTier: 'STANDARD', totalChannels: 10 },
+      channels: channels(6, 2),
+    });
+
+    await service.modifySubscription('cus_1', 10, 'STANDARD');
+
+    expect(integrations.enableAllIntegrations).not.toHaveBeenCalled();
+  });
+
+  it('enables nothing when the new plan cannot hold every channel', async () => {
+    const { service, integrations } = makeModifyService({
+      current: null,
+      channels: channels(2, 30),
+    });
+
+    await service.modifySubscription('cus_1', 25, 'TEAM');
+
+    expect(integrations.enableAllIntegrations).not.toHaveBeenCalled();
+  });
+
+  it('enables nothing on the free plan', async () => {
+    const { service, integrations } = makeModifyService({
+      current: { subscriptionTier: 'STANDARD', totalChannels: 10 },
+      channels: channels(0, 1),
+    });
+
+    await service.modifySubscription('cus_1', 1, 'FREE');
+
+    expect(integrations.enableAllIntegrations).not.toHaveBeenCalled();
+  });
+
+  it('logs a failed re-enable and still completes the plan change', async () => {
+    const error = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { service } = makeModifyService({
+      current: { subscriptionTier: 'STANDARD', totalChannels: 10 },
+      channels: channels(9, 3),
+      enable: jest.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(service.modifySubscription('cus_1', 25, 'TEAM')).resolves.toBe(
+      true
+    );
+    expect(error).toHaveBeenCalledWith(
+      'Error enabling channels after subscription change:',
+      expect.any(Error)
+    );
+    error.mockRestore();
+  });
+});

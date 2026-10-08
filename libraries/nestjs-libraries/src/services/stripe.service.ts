@@ -262,6 +262,24 @@ export class StripeService extends PaymentProviderAbstract {
         customer,
         STRIPE_PROVIDER
       );
+
+      // Stripe sends no previous status on deletion: a subscription that ended
+      // no later than its trial end was still in its trial.
+      const { userId, billing, period } = event.data.object.metadata;
+      const { trial_end, ended_at } = event.data.object;
+      if (userId) {
+        this._trackService.capture(userId, 'subscription_cancelled', {
+          subscription_id: event.data.object.id,
+          plan: billing,
+          period,
+          previous_status:
+            trial_end && ended_at && ended_at <= trial_end
+              ? 'trialing'
+              : 'active',
+          cancellation_reason:
+            event.data.object.cancellation_details?.reason ?? null,
+        });
+      }
       return;
     }
 
@@ -291,24 +309,6 @@ export class StripeService extends PaymentProviderAbstract {
       period,
       survivor.cancel_at
     );
-
-    // Stripe sends no previous status on deletion: a subscription that ended
-    // no later than its trial end was still in its trial.
-    const { userId, billing, period } = event.data.object.metadata;
-    const { trial_end, ended_at } = event.data.object;
-    if (userId) {
-      this._trackService.capture(userId, 'subscription_cancelled', {
-        subscription_id: event.data.object.id,
-        plan: billing,
-        period,
-        previous_status:
-          trial_end && ended_at && ended_at <= trial_end
-            ? 'trialing'
-            : 'active',
-        cancellation_reason:
-          event.data.object.cancellation_details?.reason ?? null,
-      });
-    }
   }
 
   // After a login swap, move each Stripe customer's email to the login that
@@ -919,7 +919,7 @@ export class StripeService extends PaymentProviderAbstract {
     const org = await this._organizationService.getOrgById(organizationId);
     const customer = await this.createOrGetCustomer(org!);
     if ((await this.getLiveSubscriptions(customer)).length) {
-      return { blocked: true };
+      return { blocked: true, alreadySubscribed: true };
     }
     const allProducts = await stripe.products.list({
       active: true,

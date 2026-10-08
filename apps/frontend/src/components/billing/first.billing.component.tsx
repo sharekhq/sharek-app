@@ -285,10 +285,15 @@ export const FirstBillingComponent = () => {
           </div>
           {data?.blocked ? (
             <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">
-              {t(
-                'billing_other_account_subscribed',
-                'Another account with this email already has an active subscription. Please log off and sign in to that account to manage your subscription.'
-              )}
+              {data.alreadySubscribed
+                ? t(
+                    'billing_subscription_already_active',
+                    'Your subscription is already active. Please refresh the page in a moment.'
+                  )
+                : t(
+                    'billing_other_account_subscribed',
+                    'Another account with this email already has an active subscription. Please log off and sign in to that account to manage your subscription.'
+                  )}
             </div>
           ) : stripeFailed ? (
             <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">

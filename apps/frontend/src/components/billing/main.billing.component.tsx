@@ -259,17 +259,27 @@ export const MainBillingComponent: FC<{
       async () => {
         if (reactivate) {
           setLoading(true);
-          const { cancel_at } = await (
-            await fetch('/billing/cancel', {
-              method: 'POST',
-              body: JSON.stringify({
-                feedback: '',
-              }),
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-          ).json();
+          const response = await fetch('/billing/cancel', {
+            method: 'POST',
+            body: JSON.stringify({
+              feedback: '',
+            }),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          if (!response.ok) {
+            toast.show(
+              t(
+                'subscription_change_failed',
+                'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
+              ),
+              'warning'
+            );
+            setLoading(false);
+            return;
+          }
+          const { cancel_at } = await response.json();
           setSubscription((subs) => ({
             ...subs!,
             cancelAt: cancel_at,
@@ -347,17 +357,27 @@ export const MainBillingComponent: FC<{
             });
 
             setLoading(true);
-            const { cancel_at } = await (
-              await fetch('/billing/cancel', {
-                method: 'POST',
-                body: JSON.stringify({
-                  feedback: info,
-                }),
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              })
-            ).json();
+            const response = await fetch('/billing/cancel', {
+              method: 'POST',
+              body: JSON.stringify({
+                feedback: info,
+              }),
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            if (!response.ok) {
+              toast.show(
+                t(
+                  'subscription_change_failed',
+                  'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
+                ),
+                'warning'
+              );
+              setLoading(false);
+              return;
+            }
+            const { cancel_at } = await response.json();
             setSubscription((subs) => ({
               ...subs!,
               cancelAt: cancel_at,

@@ -4,6 +4,7 @@
 const mockSubscriptionsList = jest.fn();
 const mockSubscriptionsCancel = jest.fn();
 const mockSubscriptionsRetrieve = jest.fn();
+const mockSubscriptionsUpdate = jest.fn();
 const mockCheckoutSessionsCreate = jest.fn();
 const mockCustomersUpdate = jest.fn();
 const mockProductsList = jest.fn();
@@ -16,6 +17,7 @@ jest.mock('stripe', () => ({
       list: mockSubscriptionsList,
       cancel: mockSubscriptionsCancel,
       retrieve: mockSubscriptionsRetrieve,
+      update: mockSubscriptionsUpdate,
     };
     checkout = { sessions: { create: mockCheckoutSessionsCreate } };
     customers = { update: mockCustomersUpdate };
@@ -66,12 +68,14 @@ import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/o
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { BillingSubscribeDto } from '@gitroom/nestjs-libraries/dtos/billing/billing.subscribe.dto';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
+import { BadRequestException } from '@nestjs/common';
 
 const makeService = (paymentId: string | null) => {
   const subscriptionService = {
     deleteSubscription: jest.fn().mockResolvedValue({ count: 1 }),
     deleteSubscriptionByOrgId: jest.fn().mockResolvedValue({ count: 1 }),
     updateCustomerId: jest.fn().mockResolvedValue(undefined),
+    updateCancelAt: jest.fn().mockResolvedValue({ count: 1 }),
   };
   const organizationService = {
     getOrgById: jest.fn().mockResolvedValue({ id: 'org-1', paymentId }),
@@ -156,6 +160,63 @@ describe('cancelSubscription', () => {
       'stripe'
     );
     expect(subscriptionService.updateCustomerId).not.toHaveBeenCalled();
+  });
+});
+
+// BIL-2: the Billing page shows a cancel or a reactivation at once, so the
+// date is stored with the Stripe update instead of waiting for the webhook.
+describe('setToCancel', () => {
+  beforeEach(() => {
+    mockSubscriptionsList.mockReset();
+    mockSubscriptionsUpdate.mockReset();
+  });
+
+  it('refuses with a 400 when the org has no live Stripe subscription', async () => {
+    const { service, subscriptionService } = makeService(COMPED_PAYMENT_ID);
+
+    await expect(service.setToCancel('org-1')).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+    expect(mockSubscriptionsList).not.toHaveBeenCalled();
+    expect(subscriptionService.updateCancelAt).not.toHaveBeenCalled();
+  });
+
+  it('sets every live subscription to cancel and stores the earliest date', async () => {
+    const { service, subscriptionService } = makeService('cus_123');
+    mockSubscriptionsList.mockResolvedValue({
+      data: [
+        { id: 'sub_1', status: 'active', cancel_at_period_end: false },
+        { id: 'sub_2', status: 'active', cancel_at_period_end: false },
+      ],
+    });
+    mockSubscriptionsUpdate
+      .mockResolvedValueOnce({ cancel_at: 2000 })
+      .mockResolvedValueOnce({ cancel_at: 1000 });
+
+    const result = await service.setToCancel('org-1');
+
+    expect(mockSubscriptionsUpdate).toHaveBeenCalledTimes(2);
+    expect(subscriptionService.updateCancelAt).toHaveBeenCalledWith(
+      'org-1',
+      1000
+    );
+    expect(result.cancel_at).toEqual(new Date(1000 * 1000));
+  });
+
+  it('reactivates every live subscription and clears the stored date', async () => {
+    const { service, subscriptionService } = makeService('cus_123');
+    mockSubscriptionsList.mockResolvedValue({
+      data: [{ id: 'sub_1', status: 'active', cancel_at_period_end: true }],
+    });
+    mockSubscriptionsUpdate.mockResolvedValue({ cancel_at: null });
+
+    const result = await service.setToCancel('org-1');
+
+    expect(subscriptionService.updateCancelAt).toHaveBeenCalledWith(
+      'org-1',
+      null
+    );
+    expect(result.cancel_at).toBeUndefined();
   });
 });
 
@@ -339,6 +400,8 @@ describe('billing events', () => {
     mockSubscriptionsRetrieve.mockResolvedValue(
       subscription({ status: 'active' })
     );
+    // The customer has no other live subscription unless a case says so.
+    mockSubscriptionsList.mockResolvedValue({ data: [] });
   });
 
   afterEach(() => {
@@ -717,6 +780,179 @@ describe('billing events', () => {
         );
       }
     );
+  });
+
+  // BIL-1: a customer keeps one live subscription. The webhooks read the
+  // customer's live subscriptions from Stripe, so the list is the arrange.
+  describe('duplicate subscriptions', () => {
+    const live = (fields: Record<string, unknown>) =>
+      subscription({ status: 'active', created: 100, ...fields });
+
+    // The duplicate and survivor paths log for support; the cases keep the
+    // output quiet and one of them reads the line.
+    let logSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => logSpy.mockRestore());
+
+    it('keeps the org on the surviving subscription and records nothing when a duplicate ends', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0' })],
+      });
+      const { service, subscriptionService, written } = makeBillingService();
+
+      const result = await service.processWebhook(deleted({ ended_at: 3000 }));
+
+      expect(subscriptionService.deleteSubscription).not.toHaveBeenCalled();
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).toHaveBeenCalledWith(
+        'stripe',
+        false,
+        'u',
+        'cus_1',
+        pricing.STANDARD.channel,
+        'STANDARD',
+        'MONTHLY',
+        null
+      );
+      expect(mockCapture).not.toHaveBeenCalled();
+      expect(result).toBe(written);
+    });
+
+    it('records subscription_cancelled once when the last live subscription ends', async () => {
+      const { service, subscriptionService } = makeBillingService();
+
+      await service.processWebhook(deleted({ ended_at: 3000 }));
+
+      expect(subscriptionService.deleteSubscription).toHaveBeenCalledWith(
+        'cus_1',
+        'stripe'
+      );
+      expect(mockCapture).toHaveBeenCalledTimes(1);
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'subscription_cancelled' })
+      );
+    });
+
+    it('keeps a survivor without plan metadata, without resyncing or recording', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0', metadata: {} })],
+      });
+      const { service, subscriptionService } = makeBillingService();
+
+      const result = await service.processWebhook(deleted({ ended_at: 3000 }));
+
+      expect(result).toBeUndefined();
+      expect(subscriptionService.deleteSubscription).not.toHaveBeenCalled();
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).not.toHaveBeenCalled();
+      expect(mockCapture).not.toHaveBeenCalled();
+    });
+
+    it('cancels a newer duplicate once, and stores and records nothing', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0' }), live({ id: 'sub_1', created: 200 })],
+      });
+      const { service, subscriptionService } = makeBillingService();
+
+      const result = await service.processWebhook({
+        ...created({ status: 'active', created: 200 }),
+        id: 'evt_1',
+      });
+
+      expect(mockSubscriptionsCancel).toHaveBeenCalledTimes(1);
+      expect(mockSubscriptionsCancel).toHaveBeenCalledWith('sub_1');
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).not.toHaveBeenCalled();
+      expect(mockCapture).not.toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
+      // Support refunds the cancelled duplicate by hand, from this line.
+      expect(logSpy).toHaveBeenCalledWith(
+        'stripe_duplicate_subscription_cancelled',
+        expect.objectContaining({
+          stripe_event_id: 'evt_1',
+          stripe_subscription_id: 'sub_1',
+        })
+      );
+    });
+
+    it('lets a failed duplicate cancel reject, so Stripe retries the webhook', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0' }), live({ id: 'sub_1', created: 200 })],
+      });
+      const failure = new Error('stripe unavailable');
+      mockSubscriptionsCancel.mockRejectedValueOnce(failure);
+      const { service, subscriptionService } = makeBillingService();
+
+      await expect(
+        service.processWebhook(created({ status: 'active', created: 200 }))
+      ).rejects.toBe(failure);
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).not.toHaveBeenCalled();
+      expect(mockCapture).not.toHaveBeenCalled();
+    });
+
+    it('does not cancel a duplicate again when the webhook is retried', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [
+          live({ id: 'sub_0' }),
+          live({ id: 'sub_1', created: 200, status: 'canceled' }),
+        ],
+      });
+      const { service, subscriptionService } = makeBillingService();
+
+      const result = await service.processWebhook(
+        created({ status: 'active', created: 200 })
+      );
+
+      expect(mockSubscriptionsCancel).not.toHaveBeenCalled();
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).not.toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('does not count an incomplete subscription as live', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0', status: 'incomplete' })],
+      });
+      const { service, subscriptionService, written } = makeBillingService();
+
+      const result = await service.processWebhook(
+        created({ status: 'active', created: 200 })
+      );
+
+      expect(mockSubscriptionsCancel).not.toHaveBeenCalled();
+      expect(result).toBe(written);
+      expect(
+        subscriptionService.createOrUpdateSubscription
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses a second checkout while the customer has a live subscription, and says why', async () => {
+      mockSubscriptionsList.mockResolvedValue({
+        data: [live({ id: 'sub_0' })],
+      });
+      const { service } = makeBillingService();
+
+      await expect(
+        service.embedded(
+          'u',
+          'org-1',
+          USER_ID,
+          { billing: 'STANDARD', period: 'MONTHLY' } as BillingSubscribeDto,
+          true
+        )
+      ).resolves.toEqual({ blocked: true, alreadySubscribed: true });
+      expect(mockCheckoutSessionsCreate).not.toHaveBeenCalled();
+    });
   });
 
   // FR-017: analytics never changes what a billing webhook returns to Stripe
