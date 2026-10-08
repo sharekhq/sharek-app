@@ -1018,9 +1018,14 @@ html[dir='rtl'] .lbox {
 /* Arabic typography layer (DESIGN.md §Typography): Arabic carries dots and
    marks above/below the baseline — prose surfaces get extra leading, and
    Latin tracking utilities must never letter-space Arabic script. Requires
-   the server-set lang attribute on <html> (app layout). */
+   the server-set lang attribute on <html> (app layout). The editor's headings
+   are named too: upstream's heading spacing sets their line-height directly,
+   which the editor's own leading cannot reach by inheritance. */
 html[lang='ar'] .copilotKitMessage,
 html[lang='ar'] .ProseMirror,
+html[lang='ar'] .ProseMirror h1,
+html[lang='ar'] .ProseMirror h2,
+html[lang='ar'] .ProseMirror h3,
 html[lang='ar'] .preview {
   line-height: 1.65;
 }
