@@ -5,8 +5,11 @@ import { useSearchParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { OAuthSelfHosted } from '@gitroom/frontend/components/oauth/self.hosted.component';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import i18next from 'i18next';
 
 export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
+  const t = useT();
   const searchParams = useSearchParams();
   const fetch = useFetch();
   const [appInfo, setAppInfo] = useState<any>(null);
@@ -23,14 +26,26 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
   const codeChallengeMethod = searchParams.get('code_challenge_method');
   const resource = searchParams.get('resource');
 
+  // i18next.t, not the hook: this effect runs once, and listing t in its
+  // dependencies would re-run the whole request when the reader switches language.
   useEffect(() => {
     if (!clientId || !responseType) {
-      setError('Missing required parameters (client_id, response_type)');
+      setError(
+        i18next.t(
+          'missing_required_parameters_client_id_response_type',
+          'Missing required parameters (client_id, response_type)'
+        )
+      );
       setLoading(false);
       return;
     }
     if (responseType !== 'code') {
-      setError('Only response_type=code is supported');
+      setError(
+        i18next.t(
+          'oauth_only_code_response_type',
+          'Only response_type=code is supported'
+        )
+      );
       setLoading(false);
       return;
     }
@@ -51,14 +66,22 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
       .then((r) => r.json())
       .then((data) => {
         if (data.statusCode && data.statusCode >= 400) {
-          setError(data.message || 'Invalid OAuth request');
+          setError(
+            data.message ||
+              i18next.t('invalid_oauth_request', 'Invalid OAuth request')
+          );
         } else {
           setAppInfo(data);
         }
         setLoading(false);
       })
       .catch(() => {
-        setError('Failed to validate OAuth request');
+        setError(
+          i18next.t(
+            'failed_to_validate_oauth_request',
+            'Failed to validate OAuth request'
+          )
+        );
         setLoading(false);
       });
   }, [
@@ -95,11 +118,16 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
           window.location.href = result.redirect;
         }
       } catch {
-        setError('Failed to process authorization');
+        setError(
+          t(
+            'failed_to_process_authorization',
+            'Failed to process authorization'
+          )
+        );
         setSubmitting(false);
       }
     },
-    [clientId, state, redirectUri, codeChallenge, codeChallengeMethod]
+    [clientId, state, redirectUri, codeChallenge, codeChallengeMethod, t]
   );
 
   // Sign in (or sign up) and land back on this same request
@@ -111,20 +139,16 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-[#612BD3] rounded-full blur-[120px]" />
-          <div className="absolute bottom-[20%] right-[10%] w-[250px] h-[250px] bg-[#FC69FF] rounded-full blur-[120px]" />
-        </div>
+      <div className="flex flex-1 items-center justify-center text-newTextColor relative overflow-hidden">
         <div className="relative z-10 text-center">
           <div className="flex justify-center mb-[24px]">
             <Logo />
           </div>
-          <div className="text-[16px] text-gray-400">
-            Please wait...
+          <div className="text-[16px] text-muted">
+            {t('please_wait_2', 'Please wait...')}
           </div>
           <div className="mt-[32px] flex justify-center">
-            <div className="w-[48px] h-[48px] border-[3px] border-[#612BD3] border-t-transparent rounded-full animate-spin" />
+            <div className="w-[48px] h-[48px] border-[3px] border-brand border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
       </div>
@@ -133,18 +157,14 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
 
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-[#612BD3] rounded-full blur-[120px]" />
-          <div className="absolute bottom-[20%] right-[10%] w-[250px] h-[250px] bg-[#FC69FF] rounded-full blur-[120px]" />
-        </div>
+      <div className="flex flex-1 items-center justify-center text-newTextColor relative overflow-hidden">
         <div className="relative z-10 text-center">
           <div className="flex justify-center mb-[24px]">
             <Logo />
           </div>
-          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-red-500/20 flex items-center justify-center">
+          <div className="w-[80px] h-[80px] mx-auto mb-[24px] rounded-full bg-[color-mix(in_srgb,var(--error)_18%,transparent)] flex items-center justify-center">
             <svg
-              className="w-[40px] h-[40px] text-red-500"
+              className="w-[40px] h-[40px] text-error"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -156,11 +176,9 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
             </svg>
           </div>
           <div className="text-[28px] font-semibold mb-[12px]">
-            Authorization Error
+            {t('authorization_error', 'Authorization Error')}
           </div>
-          <div className="text-[16px] text-gray-400 max-w-[400px]">
-            {error}
-          </div>
+          <div className="text-[16px] text-muted max-w-[400px]">{error}</div>
         </div>
       </div>
     );
@@ -171,18 +189,13 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center text-white relative overflow-hidden">
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-[#612BD3] rounded-full blur-[120px]" />
-        <div className="absolute bottom-[20%] right-[10%] w-[250px] h-[250px] bg-[#FC69FF] rounded-full blur-[120px]" />
-      </div>
-
+    <div className="flex flex-1 items-center justify-center text-newTextColor relative overflow-hidden">
       <div className="relative z-10 w-full max-w-[500px] mx-auto px-[20px]">
         <div className="flex justify-center mb-[32px]">
           <Logo />
         </div>
 
-        <div className="bg-[#1A1919] rounded-[16px] p-[32px] flex flex-col gap-[24px]">
+        <div className="bg-newBgColorInner border border-newTableBorder shadow-soft rounded-[16px] p-[32px] flex flex-col gap-[24px]">
           <div className="flex flex-col items-center gap-[16px]">
             {appInfo.app.picture?.path ? (
               <img
@@ -191,7 +204,7 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
                 className="w-[64px] h-[64px] rounded-full object-cover"
               />
             ) : (
-              <div className="w-[64px] h-[64px] rounded-full bg-[#2A2929] flex items-center justify-center text-[24px] text-gray-400">
+              <div className="w-[64px] h-[64px] rounded-full bg-surface2 flex items-center justify-center text-[24px] text-muted">
                 {appInfo.app.name?.[0]?.toUpperCase() || '?'}
               </div>
             )}
@@ -199,7 +212,7 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
               {appInfo.app.name}
             </h2>
             {appInfo.app.description && (
-              <div className="text-gray-400 text-center text-[14px]">
+              <div className="text-muted text-center text-[14px]">
                 {appInfo.app.description}
               </div>
             )}
@@ -221,15 +234,32 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
             />
           ) : (
             <>
-              <div className="border-t border-[#2A2929] pt-[16px]">
-                <div className="text-[14px] text-gray-400 mb-[12px]">
-                  This application is requesting access to your Postiz
-                  account. It will be able to:
+              <div className="border-t border-line pt-[16px]">
+                <div className="text-[14px] text-muted mb-[12px]">
+                  {t(
+                    'this_application_is_requesting_access_to_your_sharek',
+                    'This application is requesting access to your Sharek account. It will be able to:'
+                  )}
                 </div>
                 <ul className="text-[14px] list-disc list-inside space-y-[4px]">
-                  <li>Access your integrations and channels</li>
-                  <li>Create and schedule posts on your behalf</li>
-                  <li>Read your post analytics</li>
+                  <li>
+                    {t(
+                      'oauth_scope_integrations',
+                      'Access your integrations and channels'
+                    )}
+                  </li>
+                  <li>
+                    {t(
+                      'oauth_scope_create_posts',
+                      'Create and schedule posts on your behalf'
+                    )}
+                  </li>
+                  <li>
+                    {t(
+                      'oauth_scope_read_analytics',
+                      'Read your post analytics'
+                    )}
+                  </li>
                 </ul>
               </div>
 
@@ -238,24 +268,24 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
                   <button
                     onClick={() => handleAction('approve')}
                     disabled={submitting}
-                    className="flex-1 bg-[#612BD3] hover:bg-[#7B3FF2] disabled:opacity-50 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
+                    className="flex-1 bg-brand hover:opacity-90 disabled:opacity-50 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand"
                   >
-                    Authorize
+                    {t('authorize', 'Authorize')}
                   </button>
                   <button
                     onClick={() => handleAction('deny')}
                     disabled={submitting}
-                    className="flex-1 bg-[#2A2929] hover:bg-[#3A3939] disabled:opacity-50 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
+                    className="flex-1 bg-quiet border border-line hover:bg-surface2 disabled:opacity-50 text-ink rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand"
                   >
-                    Deny
+                    {t('deny', 'Deny')}
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={signIn}
-                  className="bg-[#612BD3] hover:bg-[#7B3FF2] text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors"
+                  className="bg-brand hover:opacity-90 text-white rounded-[8px] py-[10px] px-[16px] text-[14px] font-semibold transition-colors coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  Sign in to Postiz
+                  {t('sign_in_to_sharek', 'Sign in to Sharek')}
                 </button>
               )}
 
@@ -263,9 +293,9 @@ export const OAuthAuthorize: FC<{ logged: boolean }> = ({ logged }) => {
                 <button
                   onClick={() => setSelfHosted(true)}
                   disabled={submitting}
-                  className="text-[14px] text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+                  className="text-[14px] text-muted hover:text-ink disabled:opacity-50 transition-colors focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  Use self-hosted
+                  {t('oauth_use_self_hosted', 'Use self-hosted')}
                 </button>
               )}
             </>

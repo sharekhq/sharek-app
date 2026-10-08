@@ -286,16 +286,20 @@ export const TagsComponentInner: FC<{
                   {p.name}
                 </span>
               </div>
-              <div
+              <button
+                type="button"
+                aria-label={t('edit_tag', 'Edit Tag')}
                 onClick={(e) => editTag(p, e)}
-                className="ms-auto me-[12px] transition-opacity cursor-pointer opacity-60 hover:opacity-100"
+                className="ms-auto me-[12px] flex items-center justify-center coarse:w-[44px] coarse:h-[44px] transition-colors cursor-pointer text-muted hover:text-brandText focus-visible:ring-2 focus-visible:ring-brand"
               >
                 <PencilIcon size={12} />
-              </div>
+              </button>
               {!tagValue.find((a) => a.id === p.id) && (
-                <div
+                <button
+                  type="button"
+                  aria-label={t('delete_tag', 'Delete Tag')}
                   onClick={(e) => deleteTag(p, e)}
-                  className="cursor-pointer text-muted hover:text-error transition-colors"
+                  className="flex items-center justify-center coarse:w-[44px] coarse:h-[44px] cursor-pointer text-muted hover:text-error transition-colors focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   <svg
                     width="14"
@@ -309,7 +313,7 @@ export const TagsComponentInner: FC<{
                   >
                     <path d="M18 6 6 18M6 6l12 12" />
                   </svg>
-                </div>
+                </button>
               )}
             </div>
           ))}

@@ -87,6 +87,11 @@ const EXCLUDE: readonly Exclusion[] = [
     reason:
       'Route handlers return HTTP responses. Their strings are protocol, not UI, and no component renders them.',
   },
+  {
+    pattern: /oauth\/self\.hosted\.component/,
+    reason:
+      'The self-hosted connector screen renders only after the "Use self-hosted" button of oauth/authorize.component.tsx:292, which shows only when GET /oauth/authorize reports selfHosted. OAuthService.allowsSelfHosted (oauth.service.ts:272) is false unless MCP_SELF_HOSTED_RELAY is "true" (oauth.service.ts:20), and production leaves it unset, so no reader reaches it. The day someone sets it, these strings are defects again.',
+  },
 ];
 
 const KEEP_LATIN = new Set<string>([
