@@ -2,10 +2,11 @@
 // layout and sender. sendEmail queues one sendSingleEmailWorkflow per email,
 // each under its own id, so one email can no longer hold up another behind a
 // shared workflow. sendEmailSync sends from the request: the three account
-// emails take it now (PLT-2), and the queued workflow's activity ends in it.
+// emails take it now, and the queued workflow's activity ends in it.
 //
 // EmailService reaches Temporal for queued emails and the provider SDKs for
-// direct ones; both are doubles here, so the cases can see what was sent.
+// direct ones; both are doubles here (the Temporal shell is the same pattern
+// as autopost.service.spec), so the cases can see what was sent.
 jest.mock('nestjs-temporal-core', () => ({ TemporalService: class {} }));
 
 import type { TemporalService } from 'nestjs-temporal-core';
@@ -28,7 +29,12 @@ const makeService = () => {
   return { service, start, send };
 };
 
+// The service logs its provider, each send and each failed attempt; the cases
+// keep the output quiet.
+let logSpy: jest.SpyInstance;
+
 beforeEach(() => {
+  logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
   jest.useFakeTimers();
   process.env.EMAIL_FROM_NAME = 'Sharek';
   process.env.EMAIL_FROM_ADDRESS = 'noreply@updates.sharek.app';
@@ -36,6 +42,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  logSpy.mockRestore();
   jest.useRealTimers();
   delete process.env.EMAIL_FROM_NAME;
   delete process.env.EMAIL_FROM_ADDRESS;

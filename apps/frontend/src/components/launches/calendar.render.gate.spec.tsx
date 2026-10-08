@@ -179,7 +179,7 @@ describe('calendar render gate', () => {
     });
   });
 
-  // CAL-2: the channel filter picks the channels the calendar shows, on the
+  // The channel filter picks the channels the calendar shows, on the
   // grid and in the phone's list alike.
   describe('the channel filter', () => {
     beforeEach(() => {

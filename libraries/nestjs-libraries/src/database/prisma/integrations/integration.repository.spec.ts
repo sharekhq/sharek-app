@@ -22,7 +22,7 @@ const makeRepository = (integration: Record<string, jest.Mock>) =>
     {} as unknown as ConstructorParameters<typeof IntegrationRepository>[5]
   );
 
-// BIL-4: an Integration row holds the channel's tokens, so a write answers
+// An Integration row holds the channel's tokens, so a write answers
 // with the id only (CLAUDE.md).
 describe('IntegrationRepository.updateCustomName', () => {
   it('writes the trimmed name for the asking organization and returns only the id', async () => {
@@ -50,7 +50,7 @@ describe('IntegrationRepository.updateCustomName', () => {
   });
 });
 
-// BIL-3: only the channels a lapsed plan disabled, never deleted ones.
+// Only the channels a lapsed plan disabled, never deleted ones.
 describe('IntegrationRepository.enableAllIntegrations', () => {
   it("enables the organization's disabled, undeleted channels in one write", async () => {
     const updateMany = jest.fn().mockResolvedValue({ count: 2 });

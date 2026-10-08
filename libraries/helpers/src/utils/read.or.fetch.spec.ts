@@ -1,6 +1,6 @@
 // readOrFetch has one caller, MediaService.loadReferences (spec 031): the AI
 // image references, which must not read an unbounded file. Providers read media
-// through SocialAbstract.readOrFetch (MED-1). The Media library's
+// through SocialAbstract.readOrFetch. The Media library's
 // multipart upload path never checks a size on the server, so a stored file
 // can be any size, and a reference is read into the memory of the one backend
 // process. With a bound the size is learned before any body is read, the way

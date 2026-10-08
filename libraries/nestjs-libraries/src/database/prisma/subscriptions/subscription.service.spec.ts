@@ -102,7 +102,7 @@ describe('checkCredits', () => {
   });
 });
 
-// BIL-3: channels the old plan's limit disabled come back after an upgrade,
+// Channels the old plan's limit disabled come back after an upgrade,
 // but only when the new plan holds every channel and its limit grew, so a
 // channel the user disabled on purpose stays disabled on a renewal.
 const makeModifyService = (over: {

@@ -74,7 +74,7 @@ afterEach(() => {
   delete process.env.STRIPE_PUBLISHABLE_KEY;
 });
 
-// BIL-5: refreshing a connected channel adds none, so the limit does not apply.
+// Refreshing a connected channel adds none, so the limit does not apply.
 describe('channel limit on refresh', () => {
   it('lets a channel of this organization refresh at the limit, found by the id the connect link carries', async () => {
     const { service, integrations } = makeService({ id: 'int-1' });

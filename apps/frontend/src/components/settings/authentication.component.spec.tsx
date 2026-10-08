@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// Upstream's SEC-8 shows in Settings how the account signs in, and the address
+// Upstream shows in Settings how the account signs in, and the address
 // it signs in with where there is one. Sharek's Settings opens at 390px: the
 // label and the address used to share one line there, and a long address ran
 // out of the card. `t` answers the key itself, so each method's label is

@@ -1,13 +1,13 @@
 import { act, ComponentProps, ReactElement, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// Pictures in post text (upstream's CAL-6) reuse the attachments strip: the
+// Upstream's pictures in post text reuse the attachments strip: the
 // editor passes `insertInContent`, and a picked file goes into the text instead
 // of the attachments. Only a picture belongs in the text, so the library opens
 // on pictures alone, and the two sources that bring video or someone else's
 // files, AI video and third-party media, leave the strip.
 //
-// The stage-2 merge grafted that onto Sharek's own strip (MED-6), so what is
+// The stage-2 merge grafted that onto Sharek's own strip, so what is
 // pinned here is the graft: the two gates, the library's type and where a pick
 // goes. The mock list is media.component.compact.spec.tsx's; only the AI video,
 // third-party media and modal stubs differ, because their props are the
@@ -124,6 +124,8 @@ jest.mock('next/dynamic', () => ({
 
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 
+const roots: Array<{ unmount: () => void }> = [];
+
 const render = async (
   props: Partial<ComponentProps<typeof MultiMediaComponent>> = {}
 ) => {
@@ -132,8 +134,10 @@ const render = async (
   opened.length = 0;
   const host = document.createElement('div');
   document.body.appendChild(host);
+  const root = createRoot(host);
+  roots.push(root);
   await act(async () => {
-    createRoot(host).render(
+    root.render(
       <MultiMediaComponent
         allData={[{ content: '' }]}
         text=""
@@ -151,6 +155,13 @@ const render = async (
   });
   return host;
 };
+
+afterEach(() => {
+  act(() => {
+    roots.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+});
 
 describe('MultiMediaComponent with insertInContent', () => {
   it('keeps AI video and third-party media for attachments', async () => {

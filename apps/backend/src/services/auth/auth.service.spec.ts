@@ -408,7 +408,7 @@ describe.each(failures)('when %s', (_, arrange) => {
   );
 });
 
-// PLT-2: account emails leave the email queue and are sent in the request, so
+// Account emails leave the email queue and are sent in the request, so
 // a sign-up still gets its activation link when the queue is backed up.
 describe('AuthService account emails', () => {
   it('sends the activation email directly through sendEmailSync', async () => {
@@ -433,6 +433,7 @@ describe('AuthService account emails', () => {
 
     await service.forgot('a@b.c');
 
+    expect(email.sendEmailSync).toHaveBeenCalledTimes(1);
     expect(email.sendEmailSync).toHaveBeenCalledWith(
       'a@b.c',
       'Reset your password',

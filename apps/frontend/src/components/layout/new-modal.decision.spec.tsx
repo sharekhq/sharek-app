@@ -18,7 +18,7 @@ import {
 } from '@gitroom/frontend/components/layout/new-modal';
 
 /**
- * Upstream's CAL-5 painted the delete confirmation red: a darker red approve
+ * Upstream painted the delete confirmation red: a darker red approve
  * button inside a red-bordered card, switched on by a new `destructive` flag.
  * Sharek's confirmations already approve with the danger button, so the merge
  * kept the flag's plumbing and left it unread. Upstream also gave the dialog

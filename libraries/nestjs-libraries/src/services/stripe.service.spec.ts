@@ -163,7 +163,7 @@ describe('cancelSubscription', () => {
   });
 });
 
-// BIL-2: the Billing page shows a cancel or a reactivation at once, so the
+// The Billing page shows a cancel or a reactivation at once, so the
 // date is stored with the Stripe update instead of waiting for the webhook.
 describe('setToCancel', () => {
   beforeEach(() => {
@@ -782,7 +782,7 @@ describe('billing events', () => {
     );
   });
 
-  // BIL-1: a customer keeps one live subscription. The webhooks read the
+  // A customer keeps one live subscription. The webhooks read the
   // customer's live subscriptions from Stripe, so the list is the arrange.
   describe('duplicate subscriptions', () => {
     const live = (fields: Record<string, unknown>) =>

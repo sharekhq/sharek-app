@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// Upstream's CAL-3 opens a post's live address from the calendar. The merge
+// Upstream opens a post's live address from the calendar. The merge
 // kept upstream's `openPost` and Sharek's own post menu, so Open Post is a
 // menu action here: offered where there is an address to open, and opening a
 // tab inside the click that chose it, before the server is asked for the
@@ -31,7 +31,7 @@ const mockFetch = jest.fn(async (url: string) => {
 });
 
 jest.mock('@gitroom/frontend/components/launches/calendar.context', () => ({
-  CalendarContext: require('react').createContext({}),
+  CalendarContext: jest.requireActual('react').createContext({}),
   useCalendar: () => calendar,
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
@@ -145,7 +145,7 @@ const item = (label: string) =>
 // address land in it.
 const settle = async () => {
   await act(async () => {
-    await Promise.resolve();
+    await new Promise((res) => setTimeout(res, 0));
   });
 };
 

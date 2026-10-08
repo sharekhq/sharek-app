@@ -1,7 +1,7 @@
 import { act, ComponentProps, FC, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// The calendar's channel filter came with upstream's CAL-2. As merged, its list
+// The calendar's channel filter came from upstream. As merged, its list
 // always hung from the trigger's left edge, so in Arabic it opened away from
 // the trigger; its border was upstream's purple; the trigger was a div no
 // keyboard could reach; a filtered calendar showed itself by border colour
@@ -23,7 +23,7 @@ type CalendarDouble = {
 // The real hook reads the calendar's context, so the double keeps that shape:
 // the harness below holds the selection in state and provides it.
 jest.mock('@gitroom/frontend/components/launches/calendar.context', () => {
-  const { createContext, useContext } = require('react');
+  const { createContext, useContext } = jest.requireActual('react');
   const CalendarContext = createContext(undefined);
   return {
     CalendarContext,
