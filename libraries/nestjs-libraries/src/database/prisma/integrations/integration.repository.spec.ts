@@ -50,6 +50,21 @@ describe('IntegrationRepository.updateCustomName', () => {
   });
 });
 
+// Deleting is a write too: the web app and the public API hand its result back.
+describe('IntegrationRepository.deleteChannel', () => {
+  it("soft-deletes the asking organization's channel and returns only the id", async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'int-1' });
+
+    await makeRepository({ update }).deleteChannel('org-1', 'int-1');
+
+    expect(update).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { id: 'int-1', organizationId: 'org-1' },
+      data: { deletedAt: expect.any(Date) },
+    });
+  });
+});
+
 // Only the channels a lapsed plan disabled, never deleted ones.
 describe('IntegrationRepository.enableAllIntegrations', () => {
   it("enables the organization's disabled, undeleted channels in one write", async () => {
