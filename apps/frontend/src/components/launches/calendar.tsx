@@ -1098,6 +1098,13 @@ const CalendarItem: FC<{
     statistics,
   ]);
 
+  // The post's live address: published, or failed but still holding a URL. A
+  // recurring post's URL is its last run's, so it has none of its own.
+  const canOpenPost =
+    (state === 'PUBLISHED' || state === 'ERROR') &&
+    !post.intervalInDays &&
+    !!post.releaseURL?.startsWith('http');
+
   const actions = useMemo(
     () =>
       [
@@ -1113,6 +1120,16 @@ const CalendarItem: FC<{
           label: t('preview_post', 'Preview Post'),
           onClick: preview,
         },
+        ...(canOpenPost
+          ? [
+              {
+                key: 'open',
+                icon: <OpenPost />,
+                label: t('open_post', 'Open Post'),
+                onClick: openPost,
+              },
+            ]
+          : []),
         ...(statisticsAction
           ? [
               {
@@ -1145,6 +1162,8 @@ const CalendarItem: FC<{
       t,
       duplicatePost,
       preview,
+      canOpenPost,
+      openPost,
       statisticsAction,
       copyDebugJson,
       deletePost,

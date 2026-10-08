@@ -66,6 +66,10 @@ const labels = () =>
   [...document.querySelectorAll('[role="menuitem"]')].map((n) =>
     (n.textContent || '').trim()
   );
+const menuItem = (label: string) =>
+  [...document.querySelectorAll('[role="menuitem"]')].find((n) =>
+    (n.textContent || '').includes(label)
+  )!;
 
 const click = async (node: Element) => {
   await act(async () => {
@@ -109,14 +113,28 @@ describe('post actions menu', () => {
   it('runs the action it was asked for, once, and closes', async () => {
     await mount();
     await click(trigger());
-    await click(
-      [...document.querySelectorAll('[role="menuitem"]')].find((n) =>
-        (n.textContent || '').includes('Preview')
-      )!
-    );
+    await click(menuItem('Preview'));
 
     expect(calls).toEqual(['preview']);
     expect(panel()).toBeNull();
+  });
+
+  // Open Post opens its tab from the action, and a browser only lets a page
+  // open one inside the click that asked for it: an action run a tick later
+  // is blocked as a popup.
+  it('runs the action inside the click that chose it', async () => {
+    await mount();
+    await click(trigger());
+
+    // A synchronous act runs no timer, so an action deferred past the click
+    // has not run when the assertion reads the calls.
+    act(() => {
+      menuItem('Preview').dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+
+    expect(calls).toEqual(['preview']);
   });
 
   it('closes on a press elsewhere without running anything', async () => {

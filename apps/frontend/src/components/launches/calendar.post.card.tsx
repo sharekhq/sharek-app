@@ -63,8 +63,9 @@ export const CalendarPostCard = forwardRef<
     >
       {state === 'ERROR' && (
         <div
-          className="absolute -top-[6px] -left-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
+          className="absolute -top-[6px] -start-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
           data-tooltip-id="tooltip"
+          data-tooltip-class-name="!max-w-[400px] break-words"
           data-tooltip-content={
             post.error ||
             t(
@@ -77,7 +78,7 @@ export const CalendarPostCard = forwardRef<
         </div>
       )}
       {showCreationMethodBadge && (
-        <div className="absolute -bottom-[4px] -right-[4px] z-10">
+        <div className="absolute -bottom-[4px] -end-[4px] z-10">
           <CreationMethodBadge
             creationMethod={post.creationMethod}
             ringColor="var(--new-bgColor)"
@@ -111,7 +112,7 @@ export const CalendarPostCard = forwardRef<
         )}
         <div
           className={clsx(
-            post?.tags?.[0]?.tag?.color ? 'mix-blend-difference' : '',
+            post?.tags?.[0]?.tag?.color ? 'text-shadow-tags' : '',
             'group-hover:hidden coarse:hidden cursor-pointer'
           )}
         >
