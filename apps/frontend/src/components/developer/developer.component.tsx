@@ -270,7 +270,7 @@ export const DeveloperComponent: FC = () => {
                 )}
               </div>
             </div>
-            <div className="flex gap-[6px] shrink-0 pt-[2px]">
+            <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
               <a
                 className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
                 href="https://docs.sharek.app/api/oauth"
@@ -383,7 +383,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={createApp}
@@ -433,7 +433,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               href="https://docs.sharek.app/api/oauth"
@@ -507,7 +507,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={updateApp}
@@ -551,9 +551,9 @@ export const DeveloperComponent: FC = () => {
               <div className="text-[13px] font-[600] text-muted">
                 {t('redirect_url', 'Redirect URL')}
               </div>
-              <div className="text-[14px]">{app.redirectUrl}</div>
+              <div className="text-[14px] break-all">{app.redirectUrl}</div>
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={startEditing}
@@ -602,7 +602,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[8px]">
+          <div className="flex flex-wrap gap-[8px]">
             <CopyButton text={app.clientId} label={t('copy_id', 'Copy ID')} />
             {plaintextSecret && (
               <CopyButton

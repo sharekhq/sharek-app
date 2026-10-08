@@ -276,10 +276,16 @@ export const MainBillingComponent: FC<{
           }));
 
           toast.show(
-            t(
-              'subscription_reactivated_successfully',
-              'Subscription reactivated successfully'
-            )
+            cancel_at
+              ? t(
+                  'subscription_was_active_now_set_to_cancel',
+                  'Your subscription was already active, so it is now set to cancel. Click Reactivate subscription again to keep it.'
+                )
+              : t(
+                  'subscription_reactivated_successfully',
+                  'Subscription reactivated successfully'
+                ),
+            cancel_at ? 'warning' : 'success'
           );
           setLoading(false);
           return;
@@ -356,13 +362,18 @@ export const MainBillingComponent: FC<{
               ...subs!,
               cancelAt: cancel_at,
             }));
-            if (cancel_at)
-              toast.show(
-                t(
-                  'subscription_set_to_canceled_successfully',
-                  'Subscription set to canceled successfully'
-                )
-              );
+            toast.show(
+              cancel_at
+                ? t(
+                    'subscription_set_to_canceled_successfully',
+                    'Subscription set to canceled successfully'
+                  )
+                : t(
+                    'subscription_was_cancelling_now_reactivated',
+                    'Your subscription was already set to cancel, so it has been reactivated. Click Cancel subscription again to cancel it.'
+                  ),
+              cancel_at ? 'success' : 'warning'
+            );
             setLoading(false);
           }
           return;

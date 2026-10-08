@@ -40,6 +40,7 @@ import { useIntegrationList } from '@gitroom/frontend/components/launches/helper
 import useCookie from 'react-use-cookie';
 import { NoChannelsIllustration } from '@gitroom/frontend/components/launches/no-channels.illustration';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
+import { ChannelsAfterPayment } from '@gitroom/frontend/components/layout/check.payment';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
@@ -600,6 +601,7 @@ export const LaunchesComponent = () => {
           either a filled rectangle or nothing at all on their own. */}
       <CalendarDragLayer />
       <Onboarding />
+      <ChannelsAfterPayment integrations={integrations} />
       <CalendarWeekProvider integrations={sortedIntegrations}>
         <SplitPanel
           open={channelsOpen}

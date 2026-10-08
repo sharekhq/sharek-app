@@ -12,5 +12,5 @@ export const Title = () => {
     (item) => path.indexOf(item.path) > -1
   )?.name;
 
-  return <h1>{currentTitle}</h1>;
+  return <h1 className="truncate">{currentTitle}</h1>;
 };

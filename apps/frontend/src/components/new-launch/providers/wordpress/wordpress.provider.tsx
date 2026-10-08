@@ -52,4 +52,5 @@ export default withProvider({
   CustomPreviewComponent: undefined, // WordpressPreview,
   dto: WordpressDto,
   maximumCharacters: 100000,
+  inlineImages: true,
 });

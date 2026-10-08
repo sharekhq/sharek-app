@@ -27,6 +27,7 @@ interface OpenModalInterface {
   top?: string | number;
   closeOnEscape?: boolean;
   withCloseButton?: boolean;
+  destructive?: boolean;
   askClose?: boolean;
   onClose?: () => void;
   children: ReactNode | ((close: () => void) => ReactNode);
@@ -446,6 +447,7 @@ export const DecisionModal: FC<{
   approveLabel: string;
   cancelLabel: string;
   onlyApprove: boolean;
+  destructive?: boolean;
   resolution: (value: boolean) => void;
 }> = ({ description, cancelLabel, approveLabel, resolution, onlyApprove }) => {
   const { closeCurrent } = useModals();
@@ -488,6 +490,7 @@ export const areYouSure = ({
   ) as any,
   approveLabel = i18next.t('yes', 'Yes'),
   cancelLabel = i18next.t('no', 'No'),
+  destructive = false,
 } = {}): Promise<boolean> => {
   return new Promise<boolean>((newRes) => {
     decisionModalEmitter.emit('open', {
@@ -495,6 +498,7 @@ export const areYouSure = ({
       description,
       approveLabel,
       cancelLabel,
+      destructive,
       newRes,
     });
   });
@@ -520,16 +524,19 @@ export const useDecisionModal = () => {
       onlyApprove = false,
       approveLabel = i18next.t('yes', 'Yes'),
       cancelLabel = i18next.t('no', 'No'),
+      destructive = false,
       newRes = undefined as any,
     } = {}) => {
       return new Promise<boolean>((res) => {
         modals.openModal({
           title,
           askClose: false,
+          destructive,
           onClose: () => res(false),
           children: (
             <DecisionModal
               onlyApprove={onlyApprove}
+              destructive={destructive}
               resolution={(value) => (newRes ? newRes(value) : res(value))}
               description={description}
               approveLabel={approveLabel}
