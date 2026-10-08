@@ -6,13 +6,19 @@
 // (branch 126-rtl-auto-direction.)
 jest.mock('isomorphic-dompurify', () => ({
   __esModule: true,
-  default: { sanitize: jest.fn((value: string) => value) },
+  default: {
+    sanitize: jest.fn((value: string) => value),
+    addHook: jest.fn(),
+  },
 }));
 
 import DOMPurify from 'isomorphic-dompurify';
 import { sanitizePostContent } from './sanitize.post.content';
 
 const sanitize = DOMPurify.sanitize as jest.Mock;
+// Registered once, when the module loads, so it is read before any test runs.
+const uponSanitizeElement = (DOMPurify.addHook as jest.Mock).mock
+  .calls[0][1] as (node: Element, data: { tagName: string }) => void;
 
 const configFor = (value: string) => {
   sanitize.mockClear();
@@ -60,7 +66,14 @@ describe('sanitizePostContent allow-list', () => {
       'h2',
       'h3',
       'span',
+      'img',
     ]);
+  });
+
+  it("allows 'src' and 'alt', which a picture in the post text needs", () => {
+    expect(configFor('<p>x</p>').ALLOWED_ATTR).toEqual(
+      expect.arrayContaining(['src', 'alt'])
+    );
   });
 
   it('has not acquired an attribute that can execute or reposition', () => {
@@ -75,6 +88,30 @@ describe('sanitizePostContent allow-list', () => {
     expect('mailto:mo@sharek.app').toMatch(ALLOWED_URI_REGEXP);
     expect('javascript:alert(1)').not.toMatch(ALLOWED_URI_REGEXP);
     expect('data:text/html;base64,x').not.toMatch(ALLOWED_URI_REGEXP);
+  });
+});
+
+describe('sanitizePostContent picture hook', () => {
+  // DOMPurify keeps a data: URI on <img> whatever ALLOWED_URI_REGEXP says, so
+  // the hook drops any picture that does not point to a real file.
+  const picture = (src: string) => {
+    const parent = { removeChild: jest.fn() };
+    const node = {
+      getAttribute: () => src,
+      parentNode: parent,
+    } as unknown as Element;
+    uponSanitizeElement(node, { tagName: 'img' });
+    return { node, removed: parent.removeChild };
+  };
+
+  it('removes a picture whose src is a data: URI', () => {
+    const { node, removed } = picture('data:image/png;base64,iVBORw0KGgo=');
+    expect(removed).toHaveBeenCalledWith(node);
+  });
+
+  it('keeps a picture whose src is an https URL', () => {
+    const { removed } = picture('https://cdn.sharek.app/a.png');
+    expect(removed).not.toHaveBeenCalled();
   });
 });
 

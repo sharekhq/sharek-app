@@ -30,9 +30,15 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// The view saved in the cookie. A first visit has none, and the hook then
+// answers the default it was given.
+let savedView: string | undefined = 'week';
 jest.mock('react-use-cookie', () => ({
   __esModule: true,
-  default: () => ['week', () => undefined],
+  default: (_key: string, initial: string) => [
+    savedView ?? initial,
+    () => undefined,
+  ],
 }));
 
 import {
@@ -55,7 +61,14 @@ const Probe: FC = () => {
 
 const mounted: Array<{ unmount: () => void }> = [];
 
-const mountAt = async (matches: boolean) => {
+// Each query is answered for a viewport this wide, as a browser would.
+const matchesAt = (width: number, query: string) => {
+  const max = /max-width:\s*(\d+)px/.exec(query);
+  const min = /min-width:\s*(\d+)px/.exec(query);
+  return (!max || width <= +max[1]) && (!min || width >= +min[1]);
+};
+
+const mountAt = async (width: number) => {
   matchMediaCalls = 0;
   frames.length = 0;
   swrKeys.length = 0;
@@ -63,7 +76,7 @@ const mountAt = async (matches: boolean) => {
     matchMediaCalls++;
     return {
       media: query,
-      matches,
+      matches: matchesAt(width, query),
       onchange: null,
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
@@ -94,7 +107,7 @@ afterEach(() => {
 
 describe('calendar render gate', () => {
   it('never draws a grid arrangement on a narrow viewport, at any render', async () => {
-    await mountAt(true);
+    await mountAt(390);
 
     expect(frames.length).toBeGreaterThan(0);
     expect(frames.map((f) => f.display)).not.toContain('week');
@@ -104,14 +117,14 @@ describe('calendar render gate', () => {
   });
 
   it('never requests the calendar key on a narrow viewport', async () => {
-    await mountAt(true);
+    await mountAt(390);
 
     expect(postKeys().some((k) => k.startsWith('/posts-list-'))).toBe(true);
     expect(postKeys().filter((k) => !k.startsWith('/posts-list-'))).toEqual([]);
   });
 
   it('asks nothing until the width is known, rather than guessing', async () => {
-    await mountAt(true);
+    await mountAt(390);
 
     // The width is not read during the first render — that is the hydration
     // mismatch use.media.query.tsx documents avoiding — so the first frame
@@ -121,11 +134,32 @@ describe('calendar render gate', () => {
   });
 
   it('leaves the wide viewport on its saved grid, fetching only its own key', async () => {
-    await mountAt(false);
+    await mountAt(1440);
 
     expect(frames[frames.length - 1].display).toBe('week');
     expect(frames.map((f) => f.display)).not.toContain('list');
     expect(postKeys().some((k) => k.startsWith('/posts-list-'))).toBe(false);
     expect(postKeys().some((k) => !k.startsWith('/posts-list-'))).toBe(true);
+  });
+
+  describe('a first visit with no saved view', () => {
+    beforeEach(() => {
+      savedView = undefined;
+    });
+    afterEach(() => {
+      savedView = 'week';
+    });
+
+    it('opens the list on a phone', async () => {
+      await mountAt(390);
+
+      expect(frames[frames.length - 1].display).toBe('list');
+    });
+
+    it('opens the week grid on an iPad', async () => {
+      await mountAt(1024);
+
+      expect(frames[frames.length - 1].display).toBe('week');
+    });
   });
 });
