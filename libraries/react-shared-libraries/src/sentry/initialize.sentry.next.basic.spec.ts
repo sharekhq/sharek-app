@@ -94,6 +94,29 @@ describe('initializeSentryBasic', () => {
     ).toBe('app:///_next/static/chunks/app/page.js');
   });
 
+  it('tags an error thrown only by third-party code', async () => {
+    Sentry.captureException(
+      // Not an extension URL, so the URL filter keeps it, and no ignoreErrors pattern matches.
+      errorWithStack('probe thrown from a third-party script', [
+        '    at handler (https://cdn.example.test/widget.js:1:200)',
+      ])
+    );
+    await Sentry.flush();
+
+    expect(sentEvents).toHaveLength(1);
+    expect(sentEvents[0].tags?.third_party_code).toBe(true);
+  });
+
+  it('does not tag an error thrown by our own bundle', async () => {
+    Sentry.captureException(
+      errorWithStack('own bundle probe', [ownBundleFrame])
+    );
+    await Sentry.flush();
+
+    expect(sentEvents).toHaveLength(1);
+    expect(sentEvents[0].tags?.third_party_code).toBeUndefined();
+  });
+
   it('does not open the crash-report dialog for a captured error', async () => {
     Sentry.captureException(errorWithStack('dialog probe', [ownBundleFrame]));
     await Sentry.flush();
