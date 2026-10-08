@@ -46,7 +46,7 @@ export const Checkbox = forwardRef<
         },
       });
     }
-  }, [val, disabled]);
+  }, [val, disabled, props.onChange, props.name, disableForm]);
   return (
     <div
       className={clsx(

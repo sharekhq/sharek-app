@@ -1,4 +1,5 @@
-import { FC } from 'react';
+import { FC, act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Checkbox } from './checkbox';
@@ -72,5 +73,40 @@ describe('Checkbox', () => {
   it('fills the checked box with the brand, matching the Slider', () => {
     expect(fillToken(boxClasses(true))).toBe('brand');
     expect(borderToken(boxClasses(true))).toBe('brand');
+  });
+
+  // A caller whose handler closes over its own state hands the box a new one on
+  // every render while `checked` stays the same: the calendar's channel filter
+  // re-ticked the first channel on the second untick, through the handler of an
+  // earlier render.
+  it('calls the onChange it was last rendered with', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const first = jest.fn();
+    const latest = jest.fn();
+
+    act(() => {
+      root.render(<Checkbox disableForm checked={false} onChange={first} />);
+    });
+    act(() => {
+      root.render(<Checkbox disableForm checked={false} onChange={latest} />);
+    });
+    // Not a [class*="w-[24px]"] selector: happy-dom's parser trips on the nested
+    // brackets.
+    const box = [...host.querySelectorAll('div')].find((d) =>
+      d.className.includes('w-[24px]')
+    ) as HTMLElement;
+    if (!box) throw new Error(`no 24px box in: ${host.innerHTML}`);
+    act(() => {
+      box.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(latest).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+    act(() => {
+      root.unmount();
+    });
+    host.remove();
   });
 });

@@ -35,8 +35,20 @@ export const SelectChannels: FC = () => {
       return;
     }
 
-    const { x, y, height } = ref.current?.getBoundingClientRect();
-    setPos({ top: y + height, left: Math.min(x, window.innerWidth - 270) });
+    const { x, y, width, height } = ref.current?.getBoundingClientRect();
+    // the list hangs from the trigger's start edge, so in Arabic it opens
+    // leftwards from the trigger's right edge, clamped like the left case
+    setPos(
+      document.dir === 'rtl'
+        ? {
+            top: y + height,
+            right: Math.min(
+              window.innerWidth - (x + width),
+              window.innerWidth - 270
+            ),
+          }
+        : { top: y + height, left: Math.min(x, window.innerWidth - 270) }
+    );
     setOpen(true);
   }, [open]);
 
@@ -58,19 +70,34 @@ export const SelectChannels: FC = () => {
     return null;
   }
 
+  // a filtered calendar hides posts, so the trigger says so by its name and a
+  // corner mark, not by its border colour alone
+  const name = allSelected
+    ? t('select_channels_tooltip', 'Select Channels')
+    : t('select_channels_filtered', 'Select Channels (filter on)');
+
   return (
     <div className="relative select-none z-[500]" ref={ref}>
-      <div
+      <button
+        type="button"
         data-tooltip-id="tooltip"
-        data-tooltip-content={t('select_channels_tooltip', 'Select Channels')}
+        data-tooltip-content={name}
+        aria-label={name}
+        aria-expanded={open}
         onClick={openClose}
         className={clsx(
-          'relative z-[20] cursor-pointer h-[42px] rounded-[8px] px-[12px] border flex items-center',
-          open || !allSelected ? 'border-[#612BD3]' : 'border-newColColor'
+          'relative z-[20] cursor-pointer h-[42px] coarse:h-[54px] rounded-[8px] px-[12px] border flex items-center focus-visible:ring-2 focus-visible:ring-brand',
+          open || !allSelected ? 'border-brand' : 'border-newColColor'
         )}
       >
         <FilterIcon />
-      </div>
+        {!allSelected && (
+          <span
+            aria-hidden="true"
+            className="w-[8px] h-[8px] bg-brand -top-[1px] -end-[3px] absolute rounded-full"
+          />
+        )}
+      </button>
       {open && (
         <div
           style={pos}

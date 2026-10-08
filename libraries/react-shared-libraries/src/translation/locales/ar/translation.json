@@ -783,6 +783,7 @@
   "select_customer_tooltip": "اختر العميل",
   "select_customer": "اختر العميل",
   "select_channels_tooltip": "اختر القنوات",
+  "select_channels_filtered": "اختر القنوات (التصفية مفعلة)",
   "select_all": "تحديد الكل",
   "customers": "العملاء",
   "hour": "ساعة",

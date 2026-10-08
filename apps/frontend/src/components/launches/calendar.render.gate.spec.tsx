@@ -10,15 +10,25 @@
 // its four data-layer modules stubbed, and a probe records the context value at
 // every render. What it asserts is the sequence, because a fix that only settles
 // on the right answer eventually is the bug.
-import { FC, act, useContext } from 'react';
+import { ContextType, FC, act, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const swrKeys: Array<string | null> = [];
+// What the grid's request answers. Nothing, unless a case puts posts on it.
+let gridPosts:
+  | Array<{ id: string; integration: { id: string }; publishDate: string }>
+  | undefined;
 jest.mock('swr', () => ({
   __esModule: true,
   default: (key: string | null) => {
     swrKeys.push(key);
-    return { data: undefined, isLoading: false, mutate: () => undefined };
+    const grid =
+      !!key && key.startsWith('/posts-') && !key.startsWith('/posts-list-');
+    return {
+      data: grid && gridPosts ? { posts: gridPosts } : undefined,
+      isLoading: false,
+      mutate: () => undefined,
+    };
   },
 }));
 
@@ -53,9 +63,14 @@ const frames: Array<{ display: string | undefined; matchMediaCalls: number }> =
 
 let matchMediaCalls = 0;
 
+// The context at every render, for the cases that act on it.
+const contexts: Array<ContextType<typeof CalendarContext>> = [];
+const latest = () => contexts[contexts.length - 1];
+
 const Probe: FC = () => {
-  const { display } = useContext(CalendarContext);
-  frames.push({ display, matchMediaCalls });
+  const context = useContext(CalendarContext);
+  contexts.push(context);
+  frames.push({ display: context.display, matchMediaCalls });
   return null;
 };
 
@@ -71,6 +86,7 @@ const matchesAt = (width: number, query: string) => {
 const mountAt = async (width: number) => {
   matchMediaCalls = 0;
   frames.length = 0;
+  contexts.length = 0;
   swrKeys.length = 0;
   window.matchMedia = (query: string) => {
     matchMediaCalls++;
@@ -160,6 +176,53 @@ describe('calendar render gate', () => {
       await mountAt(1024);
 
       expect(frames[frames.length - 1].display).toBe('week');
+    });
+  });
+
+  // CAL-2: the channel filter picks the channels the calendar shows, on the
+  // grid and in the phone's list alike.
+  describe('the channel filter', () => {
+    beforeEach(() => {
+      gridPosts = [
+        {
+          id: 'p1',
+          integration: { id: 'a' },
+          publishDate: '2099-01-01T10:00:00Z',
+        },
+        {
+          id: 'p2',
+          integration: { id: 'b' },
+          publishDate: '2099-01-01T11:00:00Z',
+        },
+      ];
+    });
+    afterEach(() => {
+      gridPosts = undefined;
+    });
+
+    it('shows only the picked channels on the grid', async () => {
+      await mountAt(1440);
+      expect(latest().posts.map((post) => post.id)).toEqual(['p1', 'p2']);
+
+      await act(async () => {
+        latest().setSelectedChannels(['b']);
+      });
+
+      expect(latest().posts.map((post) => post.id)).toEqual(['p2']);
+    });
+
+    it('asks the list for the picked channels on a phone', async () => {
+      await mountAt(390);
+
+      await act(async () => {
+        latest().setSelectedChannels(['a', 'b']);
+      });
+
+      expect(
+        postKeys()
+          .filter((k) => k.startsWith('/posts-list-'))
+          .pop()
+      ).toContain('integrations=a%2Cb');
     });
   });
 });

@@ -734,6 +734,7 @@
   "select_customer_tooltip": "Select Customer",
   "select_customer": "Select Customer",
   "select_channels_tooltip": "Select Channels",
+  "select_channels_filtered": "Select Channels (filter on)",
   "select_all": "Select all",
   "customers": "Customers",
   "hour": "Hour",
