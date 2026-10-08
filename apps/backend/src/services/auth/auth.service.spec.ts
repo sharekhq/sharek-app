@@ -29,10 +29,6 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service',
   () => ({ OrganizationService: class {} })
 );
-jest.mock(
-  '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service',
-  () => ({ NotificationService: class {} })
-);
 jest.mock('@gitroom/nestjs-libraries/services/email.service', () => ({
   EmailService: class {},
 }));
@@ -51,7 +47,6 @@ import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto
 import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
-import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { AuthProviderManager } from '@gitroom/backend/services/auth/providers/providers.manager';
 
@@ -83,7 +78,7 @@ const makeService = () => {
     }),
     addUserToOrg: jest.fn(),
   };
-  const email = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+  const email = { sendEmailSync: jest.fn().mockResolvedValue(undefined) };
   const provider = {
     getUser: jest.fn().mockResolvedValue({ id: 'google-1', email: 'g@b.c' }),
   };
@@ -91,7 +86,6 @@ const makeService = () => {
   const service = new AuthService(
     users as unknown as UsersService,
     organizations as unknown as OrganizationService,
-    {} as NotificationService,
     email as unknown as EmailService,
     providers as unknown as AuthProviderManager,
     new TrackService()
@@ -171,7 +165,7 @@ const run = async (
       users.activateUser.mock.calls,
       organizations.createOrgAndUser.mock.calls,
       organizations.addUserToOrg.mock.calls,
-      email.sendEmail.mock.calls,
+      email.sendEmailSync.mock.calls,
       provider.getUser.mock.calls,
       mockNewsletterRegister.mock.calls,
     ],
@@ -412,4 +406,37 @@ describe.each(failures)('when %s', (_, arrange) => {
       expect(failing.calls).toEqual(recorded.calls);
     }
   );
+});
+
+// PLT-2: account emails leave the email queue and are sent in the request, so
+// a sign-up still gets its activation link when the queue is backed up.
+describe('AuthService account emails', () => {
+  it('sends the activation email directly through sendEmailSync', async () => {
+    const { service, email } = makeService();
+
+    await service.routeAuth(Provider.LOCAL, emailBody(), IP, AGENT);
+
+    expect(email.sendEmailSync).toHaveBeenCalledTimes(1);
+    expect(email.sendEmailSync).toHaveBeenCalledWith(
+      'a@b.c',
+      'Activate your account',
+      expect.stringContaining('/auth/activate/')
+    );
+  });
+
+  it('sends the password reset link directly through sendEmailSync', async () => {
+    const { service, email, users } = makeService();
+    users.getUserByEmail.mockResolvedValue({
+      ...USER,
+      providerName: Provider.LOCAL,
+    });
+
+    await service.forgot('a@b.c');
+
+    expect(email.sendEmailSync).toHaveBeenCalledWith(
+      'a@b.c',
+      'Reset your password',
+      expect.stringContaining('/auth/forgot/')
+    );
+  });
 });
