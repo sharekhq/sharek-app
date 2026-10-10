@@ -1,4 +1,5 @@
-// The controller's imports pull in Prisma, Stripe and the auth services; none of
+// The controller's imports pull in Prisma, the social providers, Redis and
+// Temporal (through IntegrationService), the Facebook SDK and PostHog; none of
 // that code runs here, so those modules are swapped for shells (same pattern as
 // support.controller.spec).
 jest.mock(
@@ -15,9 +16,10 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service',
   () => ({ OrganizationService: class {} })
 );
-jest.mock('@gitroom/nestjs-libraries/database/prisma/users/users.service', () => ({
-  UsersService: class {},
-}));
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/users/users.service',
+  () => ({ UsersService: class {} })
+);
 jest.mock('@gitroom/nestjs-libraries/track/track.service', () => ({
   TrackService: class {},
 }));
