@@ -132,6 +132,30 @@ export const PLUG_CONCEPT = {
   ],
 } as const;
 
+// The upload concept, named once.
+//
+// Arabic has two words English calls "upload" here: رفع, sending a file up to the
+// app, and تحميل, which this locale already uses for loading and downloading
+// (loading, failed_to_load_profile). Three strings still said تحميل for upload, so
+// the composer's drop overlay used the loading spinner's word. Like the plugs
+// concept, the rule is scoped by the ENGLISH value rather than retiring تحميل, which
+// is correct Arabic everywhere it means loading.
+export const UPLOAD_CONCEPT = {
+  /** Matches the English value of a key that names the concept. */
+  english: /\bupload/i,
+  /**
+   * Matches the Arabic every such key must carry: the root ر-ف-ع rather than the
+   * substring رفع, because the participle مرفوع puts a و between the last two
+   * letters, and "uploaded" is مرفوعًا.
+   */
+  arabic: /رفو?ع/,
+  /**
+   * Words that mean this key still says loading for upload, matched as whole words:
+   * حمل is also the start of حملة (campaign).
+   */
+  forbidden: ['تحميل', 'حمل'],
+} as const;
+
 export interface RetiredTerm {
   /** The word the product stopped using, as it appears in an Arabic string. */
   term: string;

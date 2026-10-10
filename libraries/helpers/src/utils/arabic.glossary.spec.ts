@@ -16,6 +16,7 @@ import * as path from 'path';
 import {
   PLUG_CONCEPT,
   RETIRED_TERMS,
+  UPLOAD_CONCEPT,
 } from '@gitroom/react/translation/arabic-policy';
 
 const LOCALES_DIR = path.join(
@@ -146,6 +147,37 @@ describe('Arabic glossary', () => {
   });
 });
 
+interface Misnaming {
+  key: string;
+  english: string;
+  arabic: string;
+  problem: string;
+}
+
+/**
+ * The keys whose Arabic does not carry `concept`'s word, or still says one it
+ * replaced. `says` decides what "still says" means, because the two concepts below
+ * need different answers; `exempt` keys skip the naming rule and that rule only.
+ */
+const misnamingsOf = (
+  concept: { arabic: RegExp; forbidden: readonly string[] },
+  keys: ReadonlyArray<[string, unknown]>,
+  says: (arabic: string, replaced: string) => boolean,
+  exempt: ReadonlySet<string> = new Set()
+): Misnaming[] =>
+  keys.flatMap(([key, english]) => {
+    const arabic = typeof ar[key] === 'string' ? (ar[key] as string) : '';
+    const wrong = concept.forbidden.filter((replaced) =>
+      says(arabic, replaced)
+    );
+    const problem = !exempt.has(key) && !concept.arabic.test(arabic)
+      ? `does not name the concept ${concept.arabic.source}`
+      : wrong.length
+      ? `still says ${wrong.join(', ')}`
+      : '';
+    return problem ? [{ key, english: String(english), arabic, problem }] : [];
+  });
+
 // The concept the app named three ways. Scoped by the English rather than by a list
 // of keys, so this keeps guarding keys that do not exist yet: any future key whose
 // English says "plug" is held to the same Arabic, and "Auto Repost Posts" — a plug
@@ -160,33 +192,20 @@ describe('the plugs concept', () => {
       typeof value === 'string' && PLUG_CONCEPT.english.test(value)
   );
 
-  interface Misnaming {
-    key: string;
-    english: string;
-    arabic: string;
-    problem: string;
-  }
-
   // The keys whose English says "plug" as a verb are exempt from the naming rule and
   // from that rule only: ملحق or توصيل inside a verb phrase is the same drift by
   // another route, so what they must not say is still checked below.
   const verbUse = new Set<string>(PLUG_CONCEPT.verbUses.map((use) => use.key));
 
-  const misnamings = (): Misnaming[] =>
-    namesTheConcept.flatMap(([key, english]) => {
-      const arabic = typeof ar[key] === 'string' ? (ar[key] as string) : '';
-      const wrong = PLUG_CONCEPT.forbidden.filter((stem) =>
-        arabic.includes(stem)
-      );
-      const problem = !verbUse.has(key) && !PLUG_CONCEPT.arabic.test(arabic)
-        ? `does not name the concept ${PLUG_CONCEPT.arabic.source}`
-        : wrong.length
-        ? `still says ${wrong.join(', ')}`
-        : '';
-      return problem
-        ? [{ key, english: String(english), arabic, problem }]
-        : [];
-    });
+  // The old names are stems, matched inside words: إعلانات and ملحقات are the same
+  // drift as their singulars.
+  const misnamings = () =>
+    misnamingsOf(
+      PLUG_CONCEPT,
+      namesTheConcept,
+      (arabic, stem) => arabic.includes(stem),
+      verbUse
+    );
 
   it('is named the same way everywhere it is named', () => {
     expect(misnamings()).toEqual([]);
@@ -213,5 +232,43 @@ describe('the plugs concept', () => {
   it('finds the keys whose English names the concept', () => {
     expect(namesTheConcept.length).toBeGreaterThan(0);
     expect(namesTheConcept.map(([key]) => key).sort()).toContain('plugs');
+  });
+});
+
+// The upload concept, held the same way: scoped by the English a key carries, because
+// تحميل is the right word wherever it means loading, so only keys whose English says
+// "upload" are held to رفع. A key with no Arabic value is skipped: the counted
+// uploader keys' `_one` forms are English-only by decision, and a missing value is the
+// missing-key checks' concern, not this rule's.
+describe('the upload concept', () => {
+  const namesTheConcept = Object.entries(en).filter(
+    ([key, value]) =>
+      typeof value === 'string' &&
+      UPLOAD_CONCEPT.english.test(value) &&
+      typeof ar[key] === 'string'
+  );
+
+  // The replaced words are matched as whole words, particles stripped (للتحميل is
+  // تحميل): as a substring, حمل would also report حملة, a campaign.
+  const misnamings = () =>
+    misnamingsOf(UPLOAD_CONCEPT, namesTheConcept, (arabic, word) =>
+      hasTerm(arabic.match(ARABIC_WORD) ?? [], word)
+    );
+
+  it('is named the same way everywhere it is named', () => {
+    expect(misnamings()).toEqual([]);
+  });
+
+  // The participle is the case a substring check gets wrong: مرفوعًا carries the
+  // root with a و inside it, and must pass.
+  it('accepts the participle as well as the verb', () => {
+    expect(UPLOAD_CONCEPT.arabic.test('مرفوعًا')).toBe(true);
+    expect(UPLOAD_CONCEPT.arabic.test('ارفع صورًا')).toBe(true);
+  });
+
+  // Without this the assertion above passes by finding nothing to check.
+  it('finds the keys whose English names the concept', () => {
+    expect(namesTheConcept.length).toBeGreaterThan(10);
+    expect(namesTheConcept.map(([key]) => key)).toContain('upload');
   });
 });

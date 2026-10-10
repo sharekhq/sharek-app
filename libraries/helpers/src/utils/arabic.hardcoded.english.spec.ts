@@ -399,6 +399,42 @@ const attributeName = (attribute: ts.JsxAttribute): string =>
   ts.isIdentifier(attribute.name) ? attribute.name.text : attribute.name.text;
 
 /**
+ * The key an inline default sits beside — `{ key: 'x', text: 'English' }` — when
+ * `child` is that default: '' when the key is computed and cannot be read, null when
+ * this is not the shape at all.
+ *
+ * `translationKey` is the spelling an option table uses — the name TranslatedLabel
+ * already gives the prop that overrides its derivation — and `name` the property a
+ * couple of those tables call their English, so an entry that carries its own key is a
+ * t() default wherever it is rendered.
+ */
+const keyBesideDefault = (parent: ts.Node, child: ts.Node): string | null => {
+  if (!ts.isPropertyAssignment(parent) || parent.initializer !== child)
+    return null;
+  const name = ts.isIdentifier(parent.name) || ts.isStringLiteral(parent.name)
+    ? parent.name.text
+    : '';
+  if (
+    !['defaultValue', 'fallback', 'titleDefault', 'text', 'label', 'name'].includes(
+      name
+    ) ||
+    !ts.isObjectLiteralExpression(parent.parent)
+  )
+    return null;
+  const keyProperty = parent.parent.properties.find(
+    (property): property is ts.PropertyAssignment =>
+      ts.isPropertyAssignment(property) &&
+      (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
+      ['key', 'titleKey', 'translationKey'].includes(property.name.text)
+  );
+  if (!keyProperty) return null;
+  return ts.isStringLiteral(keyProperty.initializer) ||
+    ts.isNoSubstitutionTemplateLiteral(keyProperty.initializer)
+    ? keyProperty.initializer.text
+    : '';
+};
+
+/**
  * Walks up from a literal and returns the reason its context tolerates it, or null
  * when nothing does — in which case it is reported.
  */
@@ -475,29 +511,14 @@ const denyReason = (node: ts.Node): string | null => {
     )
       return 'comparison operand — matched against, never shown';
 
-    // An inline default beside a key: the consumer translates it. `translationKey` is
-    // the spelling an option table uses — the name TranslatedLabel already gives the
-    // prop that overrides its derivation — and `name` the property a couple of those
-    // tables call their English, so an entry that carries its own key is a t() default
-    // wherever it is rendered.
-    if (ts.isPropertyAssignment(parent) && parent.initializer === child) {
-      const name = ts.isIdentifier(parent.name) || ts.isStringLiteral(parent.name)
-        ? parent.name.text
-        : '';
-      if (
-        ['defaultValue', 'fallback', 'titleDefault', 'text', 'label', 'name'].includes(
-          name
-        ) &&
-        ts.isObjectLiteralExpression(parent.parent) &&
-        parent.parent.properties.some(
-          (property) =>
-            ts.isPropertyAssignment(property) &&
-            (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) &&
-            ['key', 'titleKey', 'translationKey'].includes(property.name.text)
-        )
-      )
-        return 'inline default beside a key — its consumer calls t() with both';
-    }
+    // An inline default beside a key: the consumer translates it — but only while the
+    // key exists. Without it t() renders this English in every language, which is how
+    // the channel-picking step after connecting YouTube reached Arabic readers in
+    // English with every check green. A key computed at runtime cannot be read here
+    // and is still tolerated.
+    const besideKey = keyBesideDefault(parent, child);
+    if (besideKey === '' || (besideKey !== null && inBothLocales(besideKey)))
+      return 'inline default beside a key — its consumer calls t() with both';
 
     // The AI-prompt props again, as object properties: autosuggestionsConfig passes
     // textareaPurpose through an object literal rather than as a JSX attribute, so the
@@ -628,6 +649,9 @@ const readLocale = (lng: string): Record<string, unknown> =>
 
 const en = readLocale('en');
 const arLocale = readLocale('ar');
+
+const inBothLocales = (key: string) =>
+  typeof en[key] === 'string' && typeof arLocale[key] === 'string';
 
 const walkDir = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -840,7 +864,7 @@ const literalsIn = (file: string, source: ts.SourceFile): Literal[] => {
           TRANSLATES_LABEL.has(ownerTagName(attribute))
         ) {
           const key = deriveTranslationKey('label', normalise(text));
-          if (typeof en[key] !== 'string' || typeof arLocale[key] !== 'string')
+          if (!inBothLocales(key))
             found.push({
               file,
               line: at(node),
@@ -848,7 +872,17 @@ const literalsIn = (file: string, source: ts.SourceFile): Literal[] => {
               shape: 'derived-label-key',
             });
         } else if (denyReason(node) === null) {
-          report(node, text);
+          // Tolerated beside a key the locale has, so a key here is a missing one: the
+          // fix is the key, not a t() call, and the row says which.
+          const besideKey = keyBesideDefault(node.parent, node);
+          if (besideKey)
+            found.push({
+              file,
+              line: at(node),
+              text: `${normalise(text)}  (beside key: ${besideKey} missing from the locale)`,
+              shape: 'keyed-default-key',
+            });
+          else report(node, text);
         }
       }
     }
@@ -1042,6 +1076,11 @@ const SHAPES: ReadonlyArray<readonly [string, string, string]> = [
     `export const metadata = { title: 'Sharek Billing' };`,
     'Sharek Billing',
   ],
+  [
+    'an inline default beside a key no locale has',
+    `const steps = [{ key: 'fixture_key_no_locale_has', text: 'Nothing is connected yet' }];`,
+    'Nothing is connected yet  (beside key: fixture_key_no_locale_has missing from the locale)',
+  ],
 ];
 
 describe('the shapes the previous detector could not see', () => {
@@ -1058,6 +1097,14 @@ describe('the shapes the previous detector could not see', () => {
       shapesReportedIn(
         `export const C = () => <div>{t('set_plug', 'Set Plug')}</div>;`
       )
+    ).toEqual([]);
+  });
+
+  // The same for an inline default beside a key: tolerated, as long as both locales
+  // carry the key.
+  it('reports nothing for an inline default beside a key both locales carry', () => {
+    expect(
+      shapesReportedIn(`const actions = [{ key: 'save', text: 'Save' }];`)
     ).toEqual([]);
   });
 
