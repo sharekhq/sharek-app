@@ -30,7 +30,8 @@ const readLocale = (lng: string): Record<string, unknown> =>
   );
 
 const ar = readLocale('ar');
-// The plug-concept rule is scoped by the ENGLISH a key carries, so en is read too.
+// The plug and upload concept rules are scoped by the ENGLISH a key carries, so
+// en is read too.
 const en = readLocale('en');
 
 // Arabic letters and the combining marks that sit on them. Anything else — spaces,

@@ -16,7 +16,7 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ closeAll: jest.fn(), openModal: jest.fn() }),
+  useModals: () => ({ closeAll: jest.fn() }),
 }));
 // The channel list and its picker only appear for "Specific integrations"; the
 // test keeps "All".

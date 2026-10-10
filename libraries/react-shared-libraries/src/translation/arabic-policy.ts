@@ -6,7 +6,7 @@
 
 // Products their own communities write in Latin. An Arabic spelling nobody uses
 // reads worse than the Latin name, so a scan reporting these as untranslated is
-// reporting a non-defect. The other nineteen platform_* labels are Arabic and C2
+// reporting a non-defect. The other twenty platform_* labels are Arabic and C2
 // enforces them in both directions, with the label as the source of truth.
 export const KEEP_LATIN_PRODUCTS = [
   'Dev.to',
