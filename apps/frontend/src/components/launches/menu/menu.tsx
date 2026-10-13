@@ -114,6 +114,10 @@ export const Menu: FC<{
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       const padding = 10;
+      // Inside a transformed parent (the phone drawer, ui/split.panel.tsx),
+      // `fixed` is measured from that parent, so the menu paints offset from
+      // show.x; the right-edge clamp is in viewport numbers and takes it off.
+      const offsetX = menuRect.left - show.x;
 
       // Check if menu overflows bottom of viewport
       if (menuRect.bottom > viewportHeight - padding) {
@@ -129,7 +133,9 @@ export const Menu: FC<{
 
       // Check if menu overflows right of viewport (small screens)
       if (menuRect.right > viewportWidth - padding) {
-        const newX = Math.max(padding, viewportWidth - menuRect.width - padding);
+        const newX =
+          Math.max(padding, viewportWidth - menuRect.width - padding) -
+          offsetX;
         if (Math.abs(show.x - newX) > 1) {
           setShow((prev) => (prev ? { ...prev, x: newX } : false));
         }
