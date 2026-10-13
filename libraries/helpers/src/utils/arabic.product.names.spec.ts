@@ -35,6 +35,30 @@ const PLATFORM_KEYS = Object.keys(en).filter((key) =>
   key.startsWith('platform_')
 );
 
+const PROVIDERS_DIR = path.join(
+  __dirname,
+  '../../../nestjs-libraries/src/integrations/social'
+);
+
+// Each provider's platform, read the way platformLabel reads an identifier
+// (launches/helpers/platform-label.ts): the segment before the first `-`, so
+// instagram-standalone and linkedin-page share their base's label.
+const PROVIDER_BASES = Array.from(
+  new Set(
+    fs
+      .readdirSync(PROVIDERS_DIR)
+      .filter((file) => file.endsWith('.provider.ts'))
+      .flatMap((file) =>
+        Array.from(
+          fs
+            .readFileSync(path.join(PROVIDERS_DIR, file), 'utf8')
+            .matchAll(/identifier = '([^']+)'/g),
+          (match) => match[1].split('-')[0]
+        )
+      )
+  )
+).sort();
+
 const hasArabicLetters = (value: string) => /[ء-ي]/.test(value);
 
 const labelOf = (locale: Record<string, unknown>, key: string) =>
@@ -107,6 +131,17 @@ describe('Arabic product names', () => {
   it('reads platform labels in both locales', () => {
     expect(PLATFORM_KEYS.length).toBeGreaterThan(20);
     const unlabelled = PLATFORM_KEYS.filter(
+      (key) => !labelOf(en, key).trim() || !labelOf(ar, key).trim()
+    );
+    expect(unlabelled).toEqual([]);
+  });
+
+  // The checks above only read the labels that exist. A provider without one falls
+  // back to its capitalised identifier, English in every language, and nothing here
+  // would notice.
+  it('labels every provider in both locales', () => {
+    expect(PROVIDER_BASES.length).toBeGreaterThan(20);
+    const unlabelled = PROVIDER_BASES.map((base) => `platform_${base}`).filter(
       (key) => !labelOf(en, key).trim() || !labelOf(ar, key).trim()
     );
     expect(unlabelled).toEqual([]);

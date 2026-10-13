@@ -59,7 +59,7 @@ export default async function Auth(
         <div className="flex bg-newBgColorInner rounded-[12px] min-h-[80px] px-[20px] py-[12px] items-center gap-[20px] flex-wrap">
           <Link
             href="/"
-            className="flex items-center gap-[10px] coarse:min-h-[44px] text-textColor"
+            className="flex items-center gap-[10px] coarse:min-h-[44px] text-textColor focus-visible:ring-2 focus-visible:ring-brand"
           >
             <LogoTextComponent />
           </Link>
