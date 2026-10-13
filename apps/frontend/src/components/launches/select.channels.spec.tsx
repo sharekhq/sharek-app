@@ -252,6 +252,22 @@ describe('the channel filter', () => {
     expect(trigger(host).getAttribute('aria-label')).toBe('Select Channels');
   });
 
+  // On a phone the Channels drawer (ui/split.panel.tsx, z-[190] over a z-[180]
+  // backdrop) opens over the toolbar, and a level on the filter's wrapper drew
+  // the filter over the drawer and the channel menu in it (walk W53). Only the
+  // open list is lifted, as the customer selector's is.
+  it('lifts only its open list over the page', async () => {
+    const host = await mount();
+    const levels = (node: Element) =>
+      node.className.split(' ').filter((name) => name.startsWith('z-'));
+
+    expect(levels(host.firstElementChild!)).toEqual([]);
+
+    await click(trigger(host));
+
+    expect(levels(list(host))).toEqual(['z-[500]']);
+  });
+
   it('renders nothing for a single channel', async () => {
     const host = await mount([channel('a')]);
 

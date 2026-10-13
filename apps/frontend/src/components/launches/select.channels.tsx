@@ -77,7 +77,7 @@ export const SelectChannels: FC = () => {
     : t('select_channels_filtered', 'Select Channels (filter on)');
 
   return (
-    <div className="relative select-none z-[500]" ref={ref}>
+    <div className="relative select-none" ref={ref}>
       <button
         type="button"
         data-tooltip-id="tooltip"
@@ -101,7 +101,7 @@ export const SelectChannels: FC = () => {
       {open && (
         <div
           style={pos}
-          className="flex flex-col fixed py-[12px] bg-newBgColorInner menu-shadow min-w-[250px] max-h-[320px] overflow-y-auto"
+          className="flex flex-col fixed z-[500] py-[12px] bg-newBgColorInner menu-shadow min-w-[250px] max-h-[320px] overflow-y-auto"
         >
           <div className="p-[12px] hover:bg-newBgColor text-[14px] font-[600] flex items-center">
             <Checkbox
