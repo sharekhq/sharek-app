@@ -8,6 +8,9 @@ import { createRoot } from 'react-dom/client';
 // the right-edge clamp, which worked in viewport numbers, pushed it 80px off a
 // 390px screen (walk W53, 2026-10-13). happy-dom has no layout, so the menu's
 // box is stubbed from its own `left` plus that offset.
+
+// Everything below is scenery: the menu has to mount. Only the calendar's one
+// channel is read, and none of it is asserted on.
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({ json: async () => ({}) }),
 }));
@@ -122,6 +125,8 @@ beforeEach(() => {
     configurable: true,
     value: SCREEN.height,
   });
+  // On the prototype, not one element: the menu's box only exists after the
+  // click, and the layout effect measures it in the same act.
   jest
     .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
     .mockImplementation(function (this: HTMLElement) {
