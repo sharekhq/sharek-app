@@ -18,7 +18,7 @@ const useFaqList = () => {
             ),
             description: t(
               'faq_to_confirm_credit_card_information_postiz_will_hold',
-              'To confirm credit card information Sharek will hold $2 and release it immediately, you can cancel your subscription anytime from settings without talking to a person'
+              'To confirm credit card information Sharek will hold $1 and release it immediately, you can cancel your subscription anytime from settings without talking to a person'
             ),
           },
         ]
