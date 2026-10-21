@@ -8,13 +8,26 @@ import dayjs from 'dayjs';
 import { useClickAway } from '@uidotdev/usehooks';
 import ReactLoading from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+// notifications are plain text, the urls in them become links
 function replaceLinks(text: string) {
   const urlRegex =
     /(\bhttps?:\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
-  return text.replace(
-    urlRegex,
-    '<a class="cursor-pointer underline font-bold" target="_blank" href="$1">$1</a>'
-  );
+  return text.split(urlRegex).map((part, index) => {
+    if (index % 2 === 0) {
+      return part;
+    }
+    return (
+      <a
+        key={index}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="cursor-pointer underline font-bold"
+      >
+        {part}
+      </a>
+    );
+  });
 }
 export const ShowNotification: FC<{
   notification: {
@@ -38,12 +51,7 @@ export const ShowNotification: FC<{
           'font-bold bg-brandSoft border-s-2 border-s-brand animate-newMessages'
       )}
     >
-      <div
-        className="break-words"
-        dangerouslySetInnerHTML={{
-          __html: replaceLinks(notification.content),
-        }}
-      />
+      <div className="break-words">{replaceLinks(notification.content)}</div>
       <div
         className="text-[11px] mt-[4px] opacity-60 font-normal"
         title={isWithin24h ? fullDate : undefined}
