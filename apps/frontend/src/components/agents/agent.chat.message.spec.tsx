@@ -97,8 +97,17 @@ describe("the user's message in Samy's chat", () => {
     expect(bubble.querySelector('img')?.getAttribute('src')).toBe(
       'https://media.sharek.app/a.png'
     );
-    expect(
-      bubble.querySelector('video[controls] source')?.getAttribute('src')
-    ).toBe('https://media.sharek.app/b.mp4');
+    const source = bubble.querySelector('video[controls] source');
+    expect(source?.getAttribute('src')).toBe('https://media.sharek.app/b.mp4');
+    expect(source?.getAttribute('type')).toBe('video/mp4');
+  });
+
+  // The app's tooltip renders data-tooltip-html as HTML on hover.
+  it('does not let the text bring its own tooltip markup', async () => {
+    const bubble = await showMessage(
+      '<span data-tooltip-id="tooltip" data-tooltip-html="<img src=x onerror=document.title=1>">hover</span>'
+    );
+
+    expect(bubble.querySelector('[data-tooltip-html]')).toBeNull();
   });
 });

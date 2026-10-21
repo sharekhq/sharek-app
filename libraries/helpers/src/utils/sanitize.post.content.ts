@@ -48,6 +48,11 @@ export const sanitizePostContent = (value: unknown): string => {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+    // only the data-* attributes named above: the app's tooltip renders
+    // data-tooltip-html as HTML. Named ones are then checked against
+    // ALLOWED_URI_REGEXP, which only a link passes, unless marked safe here
+    ALLOW_DATA_ATTR: false,
+    ADD_URI_SAFE_ATTR: ['data-mention-id', 'data-mention-label'],
   });
 };
 
@@ -70,6 +75,15 @@ export const sanitizeDisplayHtml = (value: unknown): string => {
       'data-tooltip-content',
     ],
     ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+    ALLOW_DATA_ATTR: false,
+    ADD_URI_SAFE_ATTR: [
+      'dir',
+      'type',
+      'data-mention-id',
+      'data-mention-label',
+      'data-tooltip-id',
+      'data-tooltip-content',
+    ],
   });
 };
 

@@ -103,6 +103,16 @@ describe.each([
       expect(host.querySelector('[onerror]')).toBeNull();
     });
 
+    // The app's tooltip renders data-tooltip-html as HTML on hover.
+    it('does not let the text bring its own tooltip markup', async () => {
+      const host = await showPreview(
+        Preview,
+        `<span data-tooltip-id="tooltip" data-tooltip-html="<img src=x ${hostile}>">hover</span>`
+      );
+
+      expect(host.querySelector('[data-tooltip-html]')).toBeNull();
+    });
+
     it('keeps its own mention and cropped-text markup', async () => {
       const host = await showPreview(
         Preview,
@@ -130,5 +140,13 @@ describe('Instagram', () => {
     });
 
     expect(host.querySelector('[onerror]')).toBeNull();
+  });
+
+  it('keeps the caption in its own reading direction', async () => {
+    const host = await showPreview(InstagramPreview, '<p>صباح الخير</p>');
+
+    expect(host.querySelector('span[dir="auto"]')?.textContent).toBe(
+      'صباح الخير'
+    );
   });
 });
