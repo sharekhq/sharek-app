@@ -2,6 +2,7 @@ import { useIntegration } from '@gitroom/frontend/components/launches/helpers/us
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
+import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { FC } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
@@ -88,7 +89,7 @@ export const InstagramPreview: FC<{
         dir="auto"
         className="text-[14px] font-[400] whitespace-pre-line"
         dangerouslySetInnerHTML={{
-          __html: renderContent?.[0]?.text,
+          __html: sanitizeDisplayHtml(renderContent?.[0]?.text),
         }}
       />
       <div className="py-[8px] text-textColor flex text-[14px] font-[700] gap-[10.5px]">
@@ -188,7 +189,7 @@ export const InstagramPreview: FC<{
                       dir="auto"
                       className="whitespace-pre-line text-[14px] font-[400] flex-1"
                       dangerouslySetInnerHTML={{
-                        __html: value.text,
+                        __html: sanitizeDisplayHtml(value.text),
                       }}
                     />
                     <div>

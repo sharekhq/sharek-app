@@ -7,6 +7,7 @@ import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
+import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const GeneralPreviewComponent: FC<{
@@ -118,7 +119,7 @@ export const GeneralPreviewComponent: FC<{
                 dir="auto"
                 className={clsx('text-wrap whitespace-pre', 'preview')}
                 dangerouslySetInnerHTML={{
-                  __html: value.text,
+                  __html: sanitizeDisplayHtml(value.text),
                 }}
               />
               {!!value?.images?.length && (

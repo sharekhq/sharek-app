@@ -51,6 +51,28 @@ export const sanitizePostContent = (value: unknown): string => {
   });
 };
 
+// The editor's previews and Samy's chat build HTML around text that is not
+// markup (a preview decodes the post's entities to show it as the network
+// will). Their own wrappers survive; anything the text brings in does not.
+export const sanitizeDisplayHtml = (value: unknown): string => {
+  if (typeof value !== 'string' || !value) {
+    return '';
+  }
+
+  return DOMPurify.sanitize(value, {
+    ALLOWED_TAGS: [...ALLOWED_TAGS, 'mark', 'div', 'video', 'source'],
+    ALLOWED_ATTR: [
+      ...ALLOWED_ATTR,
+      'style',
+      'controls',
+      'type',
+      'data-tooltip-id',
+      'data-tooltip-content',
+    ],
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+  });
+};
+
 // The plain text a reviewer sees for a post item: the text nodes of the
 // sanitised HTML, in order, entities decoded. This is what anchor offsets
 // index into on both the frontend (element.textContent) and the backend.
