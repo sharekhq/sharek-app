@@ -78,3 +78,58 @@ describe('IntegrationRepository.enableAllIntegrations', () => {
     });
   });
 });
+
+// The channel menu's group, customer and avatar/nickname actions; any member
+// of the team may call them, and the controllers hand the result back.
+describe('IntegrationRepository.updateIntegrationGroup', () => {
+  it("moves the asking organization's channel to the customer and returns only the id", async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'int-1' });
+
+    await makeRepository({ update }).updateIntegrationGroup(
+      'org-1',
+      'int-1',
+      'customer-1'
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { id: 'int-1', organizationId: 'org-1' },
+      data: { customer: { connect: { id: 'customer-1' } } },
+    });
+  });
+});
+
+describe('IntegrationRepository.updateOnCustomerName', () => {
+  it("takes the asking organization's channel off its customer and returns only the id", async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'int-1' });
+
+    await makeRepository({ update }).updateOnCustomerName('org-1', 'int-1', '');
+
+    expect(update).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { id: 'int-1', organizationId: 'org-1' },
+      data: { customer: { disconnect: true } },
+    });
+  });
+});
+
+describe('IntegrationRepository.updateNameAndUrl', () => {
+  it('writes the name and picture the network answered with and returns only the id', async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'int-1' });
+
+    await makeRepository({ update }).updateNameAndUrl(
+      'int-1',
+      'Sharek Café',
+      'https://media.sharek.app/int-1.png'
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { id: 'int-1' },
+      data: {
+        name: 'Sharek Café',
+        picture: 'https://media.sharek.app/int-1.png',
+      },
+    });
+  });
+});
