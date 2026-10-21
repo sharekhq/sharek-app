@@ -130,13 +130,13 @@ const postRow = (over: Record<string, unknown> = {}) => ({
   group: 'group-1',
   organizationId: 'org-1',
   integrationId: 'int-1',
-  parentPostId: null,
+  parentPostId: null as string | null,
   content: '<p>صباح الخير</p>',
   image: '[]',
   settings: '{"__type":"instagram"}',
   state: 'QUEUE',
-  intervalInDays: null,
-  tags: [],
+  intervalInDays: null as number | null,
+  tags: [] as unknown[],
   ...over,
 });
 

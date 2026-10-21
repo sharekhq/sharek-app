@@ -1,4 +1,4 @@
-import { act, ReactNode } from 'react';
+import { act, FC, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 let search = new URLSearchParams();
@@ -44,7 +44,7 @@ const render = async (element: ReactNode) => {
 // signing in.
 const readAfterSignIn = async () => {
   let value: string | null | undefined;
-  const Reader = () => {
+  const Reader: FC = () => {
     value = useReturnUrl().getAndClear();
     return null;
   };
