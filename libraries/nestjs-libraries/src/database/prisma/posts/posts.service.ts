@@ -34,6 +34,7 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { Readable } from 'stream';
+import { resolve, sep } from 'path';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 dayjs.extend(utc);
 import * as Sentry from '@sentry/nestjs';
@@ -468,6 +469,7 @@ export class PostsService {
             })
           )
         )
+          .filter((m) => this.isAllowedMediaPath(m?.path))
           .map((m) => {
             return {
               ...m,
@@ -547,8 +549,28 @@ export class PostsService {
 
       return getImageList;
     } catch (err: any) {
-      return imagesList;
+      return (imagesList || []).filter((m) =>
+        this.isAllowedMediaPath(m?.path)
+      );
     }
+  }
+
+  // a media path that isn't a remote url is read straight from the worker's
+  // disk, so it has to resolve inside UPLOAD_DIRECTORY
+  private isAllowedMediaPath(path: unknown) {
+    if (typeof path !== 'string' || /^https?:\/\//.test(path)) {
+      return true;
+    }
+
+    // containing "http" anywhere skips the UPLOAD_DIRECTORY prefix, and the
+    // providers would then read it relative to the working directory
+    if (path.indexOf('http') > -1) {
+      return false;
+    }
+
+    const base = resolve(String(process.env.UPLOAD_DIRECTORY));
+    const filePath = resolve(process.env.UPLOAD_DIRECTORY + path);
+    return filePath.startsWith(base + sep);
   }
 
   async getPostGroupDebugExport(orgId: string, group: string) {
@@ -599,18 +621,36 @@ export class PostsService {
   }
 
   async getPostsByGroup(orgId: string, group: string) {
-    const convertToJPEG = false;
     const loadAll = await this._postRepository.getPostsByGroup(orgId, group);
     const posts = this.arrangePostsByGroup(loadAll, undefined);
     if (!posts.length) {
       throw new NotFoundException('Post not found');
     }
 
+    return this.groupForEditor(posts);
+  }
+
+  // the post as the editor loads it, its channel without the tokens
+  private async groupForEditor(
+    posts: PostWithConditionals[],
+    convertToJPEG = false
+  ) {
     return {
       group: posts?.[0]?.group,
       posts: await Promise.all(
-        (posts || []).map(async (post) => ({
+        (posts || []).map(async ({ integration, ...post }) => ({
           ...post,
+          ...(integration
+            ? {
+                integration: {
+                  id: integration.id,
+                  name: integration.name,
+                  picture: integration.picture,
+                  providerIdentifier: integration.providerIdentifier,
+                  profile: integration.profile,
+                },
+              }
+            : {}),
           image: await this.updateMedia(
             post.id,
             JSON.parse(post.image || '[]'),
@@ -648,24 +688,7 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    const list = {
-      group: posts?.[0]?.group,
-      posts: await Promise.all(
-        (posts || []).map(async (post) => ({
-          ...post,
-          image: await this.updateMedia(
-            post.id,
-            JSON.parse(post.image || '[]'),
-            convertToJPEG
-          ),
-        }))
-      ),
-      integrationPicture: posts[0]?.integration?.picture,
-      integration: posts[0].integrationId,
-      settings: JSON.parse(posts[0].settings || '{}'),
-    };
-
-    return list;
+    return this.groupForEditor(posts, convertToJPEG);
   }
 
   async getOldPosts(orgId: string, date: string) {
@@ -796,6 +819,8 @@ export class PostsService {
           } catch (err) {}
         }
       } catch (err) {}
+
+      return { id: post.id };
     }
 
     return { error: true };

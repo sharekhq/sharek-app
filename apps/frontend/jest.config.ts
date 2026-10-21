@@ -21,6 +21,11 @@ const config: Config = {
     '^@gitroom/helpers/(.*)$': '<rootDir>/libraries/helpers/src/$1',
     '^@gitroom/nestjs-libraries/(.*)$':
       '<rootDir>/libraries/nestjs-libraries/src/$1',
+    // The client bundle takes isomorphic-dompurify's browser build, dompurify on the page's
+    // window. Its Node build requires jsdom, whose ESM tree Jest cannot load; here the window is
+    // happy-dom's (jest.setup.js).
+    '^isomorphic-dompurify$':
+      '<rootDir>/node_modules/isomorphic-dompurify/dist/browser.js',
   },
   // react-hotkeys-hook (the modal manager's Escape handling) ships ESM only, so it has to go
   // through the transform rather than be required as-is.

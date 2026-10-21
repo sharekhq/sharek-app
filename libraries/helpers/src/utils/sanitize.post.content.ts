@@ -48,6 +48,11 @@ export const sanitizePostContent = (value: unknown): string => {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+    // only the data-* attributes named above: the app's tooltip renders
+    // data-tooltip-html as HTML. Named ones are then checked against
+    // ALLOWED_URI_REGEXP, which only a link passes, unless marked safe here
+    ALLOW_DATA_ATTR: false,
+    ADD_URI_SAFE_ATTR: ['data-mention-id', 'data-mention-label'],
   });
 };
 
@@ -63,4 +68,36 @@ export const postContentPlainText = (value: unknown): string => {
       .join('');
 
   return walk(parseFragment(sanitizePostContent(value)).childNodes as any[]);
+};
+
+// The editor's previews and Samy's chat build HTML around text that is not
+// markup (a preview decodes the post's entities to show it as the network
+// will). Only the tags and attributes those wrappers use survive, wherever
+// they come from.
+export const sanitizeDisplayHtml = (value: unknown): string => {
+  if (typeof value !== 'string' || !value) {
+    return '';
+  }
+
+  return DOMPurify.sanitize(value, {
+    ALLOWED_TAGS: [...ALLOWED_TAGS, 'mark', 'div', 'video', 'source'],
+    ALLOWED_ATTR: [
+      ...ALLOWED_ATTR,
+      'style',
+      'controls',
+      'type',
+      'data-tooltip-id',
+      'data-tooltip-content',
+    ],
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+    ALLOW_DATA_ATTR: false,
+    ADD_URI_SAFE_ATTR: [
+      'dir',
+      'type',
+      'data-mention-id',
+      'data-mention-label',
+      'data-tooltip-id',
+      'data-tooltip-content',
+    ],
+  });
 };

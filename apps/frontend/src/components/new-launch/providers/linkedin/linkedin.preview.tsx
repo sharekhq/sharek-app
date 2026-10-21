@@ -2,6 +2,7 @@ import { useIntegration } from '@gitroom/frontend/components/launches/helpers/us
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
+import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { FC } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
@@ -323,7 +324,7 @@ export const LinkedinPreview: FC<{
         dir="auto"
         className="text-[14px] font-[400] whitespace-pre-line"
         dangerouslySetInnerHTML={{
-          __html: renderContent?.[0]?.text,
+          __html: sanitizeDisplayHtml(renderContent?.[0]?.text),
         }}
       />
       {!!renderContent?.[0]?.images?.length && (
@@ -458,7 +459,7 @@ export const LinkedinPreview: FC<{
                     dir="auto"
                     className="whitespace-pre-line text-[14px] font-[400]"
                     dangerouslySetInnerHTML={{
-                      __html: value.text,
+                      __html: sanitizeDisplayHtml(value.text),
                     }}
                   />
                   <div className="flex gap-[6px] font-[400] text-[12px] text-textLinkedin items-center">

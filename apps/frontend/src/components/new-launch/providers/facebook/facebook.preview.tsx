@@ -2,6 +2,7 @@ import { useIntegration } from '@gitroom/frontend/components/launches/helpers/us
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
+import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
 import { FACEBOOK_PRESET_MAX_CHARS } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
 import { getPresetBackground } from '@gitroom/frontend/components/new-launch/providers/facebook/facebook.background';
@@ -159,7 +160,7 @@ export const FacebookPreview: FC<{
           className="-mx-[15px] min-h-[320px] flex items-center justify-center text-center px-[32px] py-[32px] text-[28px] font-[700] leading-[36px] whitespace-pre-line break-words"
           style={{ background: background.background, color: background.text }}
           dangerouslySetInnerHTML={{
-            __html: renderContent?.[0]?.text,
+            __html: sanitizeDisplayHtml(renderContent?.[0]?.text),
           }}
         />
       ) : (
@@ -167,7 +168,7 @@ export const FacebookPreview: FC<{
           dir="auto"
           className="text-[14px] font-[400] whitespace-pre-line"
           dangerouslySetInnerHTML={{
-            __html: renderContent?.[0]?.text,
+            __html: sanitizeDisplayHtml(renderContent?.[0]?.text),
           }}
         />
       )}
@@ -302,7 +303,7 @@ export const FacebookPreview: FC<{
                       dir="auto"
                       className="whitespace-pre-line text-[14px] font-[400]"
                       dangerouslySetInnerHTML={{
-                        __html: value.text,
+                        __html: sanitizeDisplayHtml(value.text),
                       }}
                     />
                     {!!value.images?.length && (

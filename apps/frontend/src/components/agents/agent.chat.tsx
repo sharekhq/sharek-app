@@ -36,6 +36,7 @@ import {
   extractAgentMessageText,
   stripIntegrationsBlock,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
+import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
@@ -188,7 +189,9 @@ const Message: FC<UserMessageProps> = (props) => {
     <div
       dir="auto"
       className="copilotKitMessage copilotKitUserMessage min-w-[300px]"
-      dangerouslySetInnerHTML={{ __html: convertContentToImagesAndVideo }}
+      dangerouslySetInnerHTML={{
+        __html: sanitizeDisplayHtml(convertContentToImagesAndVideo),
+      }}
     />
   );
 };
