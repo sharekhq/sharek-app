@@ -40,7 +40,9 @@ jest.mock('isomorphic-dompurify', () => ({
 
 import { PostsService } from './posts.service';
 
-const makeService = (over: { repository?: any; media?: any } = {}) => {
+const makeService = (
+  over: { repository?: any; media?: any; temporal?: any } = {}
+) => {
   const repository = over.repository ?? {
     updateImages: jest.fn().mockResolvedValue(undefined),
   };
@@ -52,7 +54,7 @@ const makeService = (over: { repository?: any; media?: any } = {}) => {
     media as any,
     {} as any,
     {} as any,
-    {} as any,
+    (over.temporal ?? {}) as any,
     {} as any
   );
   return { service, repository, media };
@@ -204,5 +206,38 @@ describe('PostsService.getPost', () => {
     expect(result.integration).toBe('int-1');
     expect(result.integrationPicture).toBe(integrationRow.picture);
     expectNoCredentials(result);
+  });
+});
+
+describe('PostsService.deletePost', () => {
+  // No workflow is running for the post; deleting stops any that is.
+  const temporal = {
+    client: {
+      getRawClient: () => ({ workflow: { list: async function* () {} } }),
+    },
+  };
+
+  it('answers with the deleted post id', async () => {
+    const { service } = makeService({
+      repository: {
+        deletePost: jest.fn().mockResolvedValue({ id: 'post-1' }),
+      },
+      temporal,
+    });
+
+    expect(await service.deletePost('org-1', 'group-1')).toEqual({
+      id: 'post-1',
+    });
+  });
+
+  it('answers with an error when the group matches no post', async () => {
+    const { service } = makeService({
+      repository: { deletePost: jest.fn().mockResolvedValue(null) },
+      temporal,
+    });
+
+    expect(await service.deletePost('org-1', 'group-x')).toEqual({
+      error: true,
+    });
   });
 });
