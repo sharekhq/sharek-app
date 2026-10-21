@@ -68,7 +68,11 @@ describe('PostsService.updateMedia', () => {
   });
 
   afterAll(() => {
-    process.env.UPLOAD_DIRECTORY = uploadDirectory;
+    if (uploadDirectory === undefined) {
+      delete process.env.UPLOAD_DIRECTORY;
+    } else {
+      process.env.UPLOAD_DIRECTORY = uploadDirectory;
+    }
   });
 
   // A path that isn't a remote URL is read straight from the worker's disk
@@ -83,7 +87,7 @@ describe('PostsService.updateMedia', () => {
       { path: 'https://cdn.example.com/b.png' },
     ]);
 
-    expect(list.map((m: any) => m.path)).toEqual([
+    expect(list.map((m) => m.path)).toEqual([
       '/uploads/2026/10/a.png',
       'https://cdn.example.com/b.png',
     ]);
@@ -175,7 +179,7 @@ describe('PostsService.getPostsByGroup', () => {
 
     const result = await service.getPostsByGroup('org-1', 'group-1');
 
-    expect(result.posts.map((p: any) => p.id)).toEqual(['post-1', 'post-2']);
+    expect(result.posts.map((p) => p.id)).toEqual(['post-1', 'post-2']);
     expect(result.posts[0].integration).toEqual(channelForEditor);
     expect(result.posts[1]).not.toHaveProperty('integration');
     expect(result.integration).toBe('int-1');
@@ -201,7 +205,7 @@ describe('PostsService.getPost', () => {
 
     const result = await service.getPost('org-1', 'post-1');
 
-    expect(result.posts.map((p: any) => p.id)).toEqual(['post-1', 'post-2']);
+    expect(result.posts.map((p) => p.id)).toEqual(['post-1', 'post-2']);
     expect(result.posts[0].integration).toEqual(channelForEditor);
     expect(result.integration).toBe('int-1');
     expect(result.integrationPicture).toBe(integrationRow.picture);

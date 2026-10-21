@@ -4,11 +4,10 @@ import { createRoot, Root } from 'react-dom/client';
 // The user's own bubble in Samy's chat. Threads belong to the organization, so
 // a teammate who opens one sees these messages too. Module shells as in
 // agent.chat.language.spec; the chat shell renders the bubble slot with the
-// message each case sets.
+// message each case sets. The real sanitizer runs: jest.config.ts maps
+// isomorphic-dompurify to its browser build on happy-dom's window.
 let message: { id: string; role: string; content: string };
 
-// The real sanitizer runs: jest.config.ts maps isomorphic-dompurify to its
-// browser build on happy-dom's window.
 jest.mock('@copilotkit/react-ui', () => ({
   CopilotChat: ({ UserMessage }: { UserMessage: FC<{ message: unknown }> }) => (
     <UserMessage message={message} />
@@ -81,12 +80,15 @@ describe("the user's message in Samy's chat", () => {
     expect(bubble.querySelector('img[src="x"]')).toBeNull();
   });
 
-  it('keeps a picture line inside its src', async () => {
+  it('drops an attribute a picture address breaks out into', async () => {
     const bubble = await showMessage(
       'Image: https://media.sharek.app/a.png" onerror="document.title=1\nUse this one'
     );
 
     expect(bubble.querySelector('[onerror]')).toBeNull();
+    expect(bubble.querySelector('img')?.getAttribute('src')).toBe(
+      'https://media.sharek.app/a.png'
+    );
   });
 
   it('still shows the pictures and videos it attaches', async () => {

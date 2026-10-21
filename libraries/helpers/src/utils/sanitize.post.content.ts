@@ -56,9 +56,24 @@ export const sanitizePostContent = (value: unknown): string => {
   });
 };
 
+// The plain text a reviewer sees for a post item: the text nodes of the
+// sanitised HTML, in order, entities decoded. This is what anchor offsets
+// index into on both the frontend (element.textContent) and the backend.
+export const postContentPlainText = (value: unknown): string => {
+  const walk = (nodes: any[]): string =>
+    nodes
+      .map((node) =>
+        node.nodeName === '#text' ? node.value : walk(node.childNodes || [])
+      )
+      .join('');
+
+  return walk(parseFragment(sanitizePostContent(value)).childNodes as any[]);
+};
+
 // The editor's previews and Samy's chat build HTML around text that is not
 // markup (a preview decodes the post's entities to show it as the network
-// will). Their own wrappers survive; anything the text brings in does not.
+// will). Only the tags and attributes those wrappers use survive, wherever
+// they come from.
 export const sanitizeDisplayHtml = (value: unknown): string => {
   if (typeof value !== 'string' || !value) {
     return '';
@@ -85,18 +100,4 @@ export const sanitizeDisplayHtml = (value: unknown): string => {
       'data-tooltip-content',
     ],
   });
-};
-
-// The plain text a reviewer sees for a post item: the text nodes of the
-// sanitised HTML, in order, entities decoded. This is what anchor offsets
-// index into on both the frontend (element.textContent) and the backend.
-export const postContentPlainText = (value: unknown): string => {
-  const walk = (nodes: any[]): string =>
-    nodes
-      .map((node) =>
-        node.nodeName === '#text' ? node.value : walk(node.childNodes || [])
-      )
-      .join('');
-
-  return walk(parseFragment(sanitizePostContent(value)).childNodes as any[]);
 };

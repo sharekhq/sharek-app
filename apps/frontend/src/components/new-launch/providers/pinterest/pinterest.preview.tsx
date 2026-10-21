@@ -157,7 +157,9 @@ export const PinterestPreview: FC<{
       <div
         dir="auto"
         className="mt-[13px] whitespace-pre-line"
-        dangerouslySetInnerHTML={{ __html: sanitizeDisplayHtml(renderContent?.[0]?.text) }}
+        dangerouslySetInnerHTML={{
+          __html: sanitizeDisplayHtml(renderContent?.[0]?.text),
+        }}
       ></div>
     </div>
   );

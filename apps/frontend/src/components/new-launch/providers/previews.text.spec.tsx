@@ -1,12 +1,17 @@
 import { act, FC, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// The real sanitizer runs: jest.config.ts maps isomorphic-dompurify to its
-// browser build on happy-dom's window.
+// The seven previews that render their text as HTML, through the real
+// sanitizer: jest.config.ts maps isomorphic-dompurify to its browser build on
+// happy-dom's window. Each preview reads its post and channel from the real
+// IntegrationContext.
+
+// Scenery: the previews read only which editor tab is open.
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) =>
     select({ current: 'global' }),
 }));
+// Scenery: the English fallbacks stand in for the locale files.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback?: string) => fallback ?? key,
 }));
@@ -123,9 +128,7 @@ describe.each([
       const mention = Array.from(host.querySelectorAll('span.font-bold')).find(
         (span) => span.textContent === '@Sara'
       );
-      expect(mention?.getAttribute('style')).toBe(
-        'color: var(--brand-text)'
-      );
+      expect(mention?.getAttribute('style')).toBe('color: var(--brand-text)');
       expect(
         host.querySelector('mark[data-tooltip-id="tooltip"]')
       ).not.toBeNull();

