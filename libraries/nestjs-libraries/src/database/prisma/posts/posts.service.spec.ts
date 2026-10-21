@@ -100,3 +100,109 @@ describe('PostsService.updateMedia', () => {
     expect(list).toEqual([{ id: 'media-1', path: '/2026/10/a.png' }]);
   });
 });
+
+// The Integration row as Prisma returns it for `include: { integration: true }`,
+// credentials included.
+const integrationRow = {
+  id: 'int-1',
+  internalId: 'page-42',
+  organizationId: 'org-1',
+  name: 'Sharek Café',
+  picture: 'https://media.sharek.app/int-1.png',
+  providerIdentifier: 'instagram',
+  type: 'social',
+  profile: 'sharek.cafe',
+  token: 'ACCESS-TOKEN',
+  refreshToken: 'REFRESH-TOKEN',
+  tokenExpiration: new Date('2026-12-01T00:00:00Z'),
+  customInstanceDetails: 'INSTANCE-SECRET',
+  disabled: false,
+  refreshNeeded: false,
+  inBetweenSteps: false,
+  additionalSettings: '[]',
+  postingTimes: '[{"time":120}]',
+};
+
+const postRow = (over: Record<string, unknown> = {}) => ({
+  id: 'post-1',
+  group: 'group-1',
+  organizationId: 'org-1',
+  integrationId: 'int-1',
+  parentPostId: null,
+  content: '<p>صباح الخير</p>',
+  image: '[]',
+  settings: '{"__type":"instagram"}',
+  state: 'QUEUE',
+  intervalInDays: null,
+  tags: [],
+  ...over,
+});
+
+// Any member of the team may open a post in the editor, so what leaves is the
+// channel as the editor shows it.
+const channelForEditor = {
+  id: 'int-1',
+  name: 'Sharek Café',
+  picture: 'https://media.sharek.app/int-1.png',
+  providerIdentifier: 'instagram',
+  profile: 'sharek.cafe',
+};
+
+const expectNoCredentials = (result: unknown) => {
+  const body = JSON.stringify(result);
+  expect(body).not.toContain('ACCESS-TOKEN');
+  expect(body).not.toContain('REFRESH-TOKEN');
+  expect(body).not.toContain('INSTANCE-SECRET');
+};
+
+describe('PostsService.getPostsByGroup', () => {
+  it('sends the post with its channel trimmed to what the editor shows', async () => {
+    const { service } = makeService({
+      repository: {
+        getPostsByGroup: jest.fn().mockResolvedValue([
+          postRow({ integration: integrationRow }),
+          postRow({
+            id: 'post-2',
+            parentPostId: 'post-1',
+            content: '<p>والتعليق</p>',
+            integration: integrationRow,
+          }),
+        ]),
+      },
+    });
+
+    const result = await service.getPostsByGroup('org-1', 'group-1');
+
+    expect(result.posts.map((p: any) => p.id)).toEqual(['post-1', 'post-2']);
+    expect(result.posts[0].integration).toEqual(channelForEditor);
+    expect(result.posts[1]).not.toHaveProperty('integration');
+    expect(result.integration).toBe('int-1');
+    expect(result.integrationPicture).toBe(integrationRow.picture);
+    expectNoCredentials(result);
+  });
+});
+
+describe('PostsService.getPost', () => {
+  it('sends the post with its channel trimmed to what the editor shows', async () => {
+    const getPost = jest
+      .fn()
+      .mockResolvedValueOnce(
+        postRow({
+          integration: integrationRow,
+          childrenPost: [postRow({ id: 'post-2', parentPostId: 'post-1' })],
+        })
+      )
+      .mockResolvedValueOnce(
+        postRow({ id: 'post-2', parentPostId: 'post-1', childrenPost: [] })
+      );
+    const { service } = makeService({ repository: { getPost } });
+
+    const result = await service.getPost('org-1', 'post-1');
+
+    expect(result.posts.map((p: any) => p.id)).toEqual(['post-1', 'post-2']);
+    expect(result.posts[0].integration).toEqual(channelForEditor);
+    expect(result.integration).toBe('int-1');
+    expect(result.integrationPicture).toBe(integrationRow.picture);
+    expectNoCredentials(result);
+  });
+});
