@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import dayjs from 'dayjs';
+import i18next from 'i18next';
 
 // The composer's date picker: its time field follows the 12- or 24-hour
 // setting that the date beside it and the calendar already follow, with the
@@ -19,23 +20,39 @@ jest.mock('@mantine/dates', () => ({
 }));
 
 import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
+// The date beside the time field prints through dayjs, with the word for the
+// half of the day that the app's layout sets up.
+import 'dayjs/locale/ar';
+import '@gitroom/frontend/components/layout/html.component';
 
 // happy-dom has a localStorage; jest.setup.js lifts a fixed list of globals onto
 // globalThis and that is not one of them, so isUSCitizen would throw.
 globalThis.localStorage = window.localStorage;
 
+// The mocked useT names the time field's halves; dayjs takes its word from the
+// singleton, set up with the pair the Arabic locale ships.
+beforeAll(async () => {
+  await i18next.init({
+    lng: 'en',
+    resources: {
+      en: { translation: {} },
+      ar: { translation: { am: 'ص', pm: 'م' } },
+    },
+  });
+});
+
 const mounted: Array<{ unmount: () => void }> = [];
 
 const at = dayjs('2026-10-21 21:30');
 
-const open = async (hours: '12' | '24', onChange = jest.fn()) => {
+const open = async (hours: '12' | '24', onChange = jest.fn(), date = at) => {
   localStorage.setItem('isUS', hours === '12' ? 'US' : 'GLOBAL');
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(<DatePicker date={at} onChange={onChange} />);
+    root.render(<DatePicker date={date} onChange={onChange} />);
   });
   await act(async () => {
     host.firstElementChild!.dispatchEvent(
@@ -56,13 +73,15 @@ const step = async (input: HTMLInputElement) => {
   });
 };
 
-afterEach(() => {
+afterEach(async () => {
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
   localStorage.clear();
   words = {};
+  await i18next.changeLanguage('en');
+  dayjs.locale('en');
 });
 
 describe('the date picker’s time field', () => {
@@ -102,5 +121,20 @@ describe('the date picker’s time field', () => {
     expect(onChange.mock.calls[0][0].format('YYYY-MM-DD HH:mm')).toBe(
       '2026-10-21 09:30'
     );
+  });
+});
+
+describe('the date picker’s date', () => {
+  it('names half past noon as afternoon in Arabic', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open(
+      '12',
+      jest.fn(),
+      dayjs(new Date(2026, 9, 21, 12, 30))
+    );
+
+    expect(host.firstElementChild!.children[1].textContent).toMatch(/12:30 م$/);
   });
 });

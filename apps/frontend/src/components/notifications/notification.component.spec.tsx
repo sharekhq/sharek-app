@@ -6,12 +6,28 @@ import { createRoot } from 'react-dom/client';
 jest.mock('@uidotdev/usehooks', () => ({ useClickAway: () => null }));
 
 import dayjs from 'dayjs';
+import i18next from 'i18next';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { ShowNotification } from '@gitroom/frontend/components/notifications/notification.component';
+// The row's full date takes its word for the half of the day from the app's
+// layout, which every page mounts.
+import 'dayjs/locale/ar';
+import '@gitroom/frontend/components/layout/html.component';
 
 // The app extends dayjs once, in layout/set.timezone; the row's time label
 // needs fromNow.
 dayjs.extend(relativeTime);
+
+// The singleton, set up with the pair the Arabic locale ships.
+beforeAll(async () => {
+  await i18next.init({
+    lng: 'en',
+    resources: {
+      en: { translation: {} },
+      ar: { translation: { am: 'ص', pm: 'م' } },
+    },
+  });
+});
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -26,11 +42,13 @@ const render = async (element: ReactNode) => {
   return host;
 };
 
-afterEach(() => {
+afterEach(async () => {
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  await i18next.changeLanguage('en');
+  dayjs.locale('en');
 });
 
 // A notification's text embeds channel names and the networks' error
@@ -78,5 +96,27 @@ describe('ShowNotification', () => {
 
     expect(body.childElementCount).toBe(0);
     expect(body.textContent).toBe(content);
+  });
+});
+
+describe('the date under a notification', () => {
+  it('names half past noon as afternoon in Arabic', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    // Older than a day, so the row shows its full date.
+    const host = await render(
+      <ShowNotification
+        notification={{
+          createdAt: new Date(2026, 9, 1, 12, 30).toISOString(),
+          content: 'تم نشر منشورك',
+        }}
+        lastReadNotification="2026-10-20T10:00:00Z"
+      />
+    );
+
+    expect(host.firstElementChild!.lastElementChild!.textContent).toMatch(
+      /12:30 م$/
+    );
   });
 });
