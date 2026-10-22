@@ -89,6 +89,10 @@ export const DatePicker: FC<{
           <TimeInput
             onChange={changeDate('time')}
             format={isUSCitizen() ? '12' : '24'}
+            // Mantine 5 lower-cases a typed or stepped half before matching it
+            // against these, so an upper-case label leaves the half stuck
+            amLabel={t('am', 'AM').toLowerCase()}
+            pmLabel={t('pm', 'PM').toLowerCase()}
             label={t('label_pick_time', 'Pick time')}
             classNames={{
               label: 'text-textColor py-[12px]',
