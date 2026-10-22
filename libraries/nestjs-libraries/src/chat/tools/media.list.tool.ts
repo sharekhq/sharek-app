@@ -13,7 +13,7 @@ export class MediaListTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'mediaListTool',
-      description: `List the media (images and videos) already uploaded to the media library, newest first, 18 per page, optionally searched by original filename.
+      description: `List the media (images and videos) already uploaded to the media library, newest first, 32 per page, optionally searched by original filename.
 Use the returned path as an attachment URL in integrationSchedulePostTool instead of uploading the file again.`,
       inputSchema: z.object({
         search: z
