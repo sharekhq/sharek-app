@@ -78,6 +78,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     current,
     activateExitButton,
     setHide,
+    channelDates,
+    setChannelDate,
     publishBlockers,
     narrowView,
     setNarrowView,
@@ -87,6 +89,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setHide: state.setHide,
       date: state.date,
       setDate: state.setDate,
+      channelDates: state.channelDates,
+      setChannelDate: state.setChannelDate,
       current: state.current,
       repeater: state.repeater,
       setRepeater: state.setRepeater,
@@ -102,6 +106,25 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setNarrowView: state.setNarrowView,
     }))
   );
+  // the other channels of an existing post show and move only their own date
+  const channelDate = channelDates[current];
+  const pickerDate = channelDate || date;
+  const setPickerDate = useCallback(
+    (newDate: dayjs.Dayjs) => {
+      if (channelDate) {
+        return setChannelDate(current, newDate);
+      }
+
+      setDate(newDate);
+    },
+    [channelDate, current, setChannelDate, setDate]
+  );
+
+  // the channels the post already has, each with its own post
+  const existingPosts = [existingData, ...(existingData.siblings || [])];
+  // the channel in view, or the one that was opened
+  const channel =
+    existingPosts.find((p) => p.integration === current) || existingData;
 
   // A channel's settings panel can veto publishing before submission, for
   // platforms whose guidelines require the publish control itself to be
@@ -190,6 +213,73 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
   const deletePost = useCallback(async () => {
     setLoading(true);
+    if (existingData.siblings?.length) {
+      const groups = await new Promise<string[]>((resolve) => {
+        modal.openModal({
+          id: 'delete-post-channels',
+          title: t('delete_post', 'Delete Post'),
+          onClose: () => resolve([]),
+          children: (
+            <div className="flex flex-col">
+              <div className="text-[20px] mb-[20px]">
+                {t(
+                  'delete_post_from_all_channels_question',
+                  'This post was created for more than one channel. Do you want to delete it from all of them?'
+                )}
+              </div>
+              <div className="flex w-full gap-[10px]">
+                <div className="flex-1 flex">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={() => {
+                      modal.closeById('delete-post-channels');
+                      resolve(existingPosts.map((p) => p.group!));
+                    }}
+                  >
+                    {t('delete_from_all_channels', 'Delete from all channels')}
+                  </Button>
+                </div>
+                <div className="flex-1 flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex-1"
+                    onClick={() => {
+                      modal.closeById('delete-post-channels');
+                      resolve([channel.group!]);
+                    }}
+                  >
+                    {t('delete_only_from', 'Only from')}{' '}
+                    {
+                      integrations.find((p) => p.id === channel.integration)
+                        ?.name
+                    }
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ),
+        });
+      });
+
+      if (!groups.length) {
+        setLoading(false);
+        return;
+      }
+
+      await Promise.all(
+        groups.map((group) =>
+          fetch(`/posts/${group}`, {
+            method: 'DELETE',
+          })
+        )
+      );
+      mutate();
+      modal.closeAll();
+      return;
+    }
+
     if (
       !(await deleteDialog(
         t(
@@ -208,26 +298,172 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     mutate();
     modal.closeAll();
     return;
-  }, [existingData, mutate, modal]);
+  }, [existingData, mutate, modal, current, integrations]);
 
   const schedule = useCallback(
     (type: 'draft' | 'now' | 'schedule' | 'update') => async () => {
       let republish = false;
+      // the channels saved as another type, the rest are saved as `type`
+      const saveAs: Record<string, 'draft' | 'schedule' | 'update'> = {};
+      const saveTypeOf = (id: string) => saveAs[id] || type;
+      // the channels that already went out, or are going out right now
+      const published = existingPosts.filter(
+        (p) =>
+          p.posts?.[0]?.state === 'PUBLISHED' ||
+          (p.posts?.[0]?.state === 'QUEUE' &&
+            dayjs().isAfter((channelDates[p.integration] || date).utc()))
+      );
+      const others = existingPosts.filter((p) => p !== channel);
+
+      // another channel whose date already passed would go out right away, it
+      // only gets its details saved
+      if (type === 'schedule') {
+        for (const p of others) {
+          if (
+            !published.includes(p) &&
+            dayjs().isAfter((channelDates[p.integration] || date).utc())
+          ) {
+            saveAs[p.integration] = 'update';
+          }
+        }
+      }
+
+      // a draft of a post with other channels leaves the published ones as they are
+      if (type === 'draft' && existingData.siblings?.length) {
+        for (const p of published) {
+          if (p.posts[0].state === 'PUBLISHED') {
+            saveAs[p.integration] = 'update';
+          }
+        }
+      }
+
+      // the save that leaves a channel in its state
+      const asItIs = (p: (typeof existingPosts)[number]) =>
+        p.posts?.[0]?.state === 'DRAFT'
+          ? 'draft'
+          : p.posts?.[0]?.state === 'QUEUE' && !published.includes(p)
+          ? 'schedule'
+          : 'update';
+
+      // like the delete, a save that changes the state of the other channels
+      // (scheduling their drafts, moving them to drafts) can do it only for
+      // the channel in view, the others keep their state
       if (
-        (type === 'now' || type === 'schedule') &&
-        (existingData?.posts?.[0]?.state === 'PUBLISHED' ||
-          (existingData?.posts?.[0]?.state === 'QUEUE' &&
-            dayjs().isAfter(date.utc())))
+        type !== 'update' &&
+        others.some(
+          (p) =>
+            !saveAs[p.integration] &&
+            // the republish question covers the published ones
+            (type === 'draft' || !published.includes(p)) &&
+            asItIs(p) !== type
+        )
       ) {
-        const channels = selectedIntegrations
-          .map((p) => p.integration.name)
+        const question =
+          type === 'draft'
+            ? t(
+                'draft_post_in_all_channels_question',
+                'This post was created for more than one channel. Do you want to move all of them to drafts?'
+              )
+            : type === 'now'
+            ? t(
+                'post_now_in_all_channels_question',
+                'This post was created for more than one channel. Do you want to post all of them now?'
+              )
+            : t(
+                'schedule_post_in_all_channels_question',
+                'This post was created for more than one channel. Do you want to schedule all of them?'
+              );
+
+        const allChannels =
+          type === 'draft'
+            ? t('draft_all_channels', 'Move all channels to drafts')
+            : type === 'now'
+            ? t('post_now_all_channels', 'Post all channels now')
+            : t('schedule_all_channels', 'Schedule all channels');
+
+        const whichChannels = await new Promise((resolve) => {
+          modal.openModal({
+            id: 'change-post-channels',
+            title: t('what_do_you_want_to_do', 'What do you want to do?'),
+            onClose: () => resolve(undefined),
+            children: (
+              <div className="flex flex-col">
+                <div className="text-[20px] mb-[20px]">{question}</div>
+                <div className="flex w-full gap-[10px]">
+                  <div className="flex-1 flex">
+                    <Button
+                      type="button"
+                      className="flex-1"
+                      onClick={() => {
+                        modal.closeById('change-post-channels');
+                        resolve('all');
+                      }}
+                    >
+                      {allChannels}
+                    </Button>
+                  </div>
+                  {/* a published channel in view stays published on a draft */}
+                  {!saveAs[channel.integration] && (
+                    <div className="flex-1 flex">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="flex-1"
+                        onClick={() => {
+                          modal.closeById('change-post-channels');
+                          resolve('only');
+                        }}
+                      >
+                        {t('only_channel', 'Only')}{' '}
+                        {
+                          integrations.find((p) => p.id === channel.integration)
+                            ?.name
+                        }
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ),
+          });
+        });
+
+        if (!whichChannels) {
+          return;
+        }
+
+        if (whichChannels === 'only') {
+          for (const p of others) {
+            saveAs[p.integration] = asItIs(p);
+          }
+        }
+      }
+
+      // the published channels that would go out again
+      const republishing = published.filter((p) => !saveAs[p.integration]);
+
+      if ((type === 'now' || type === 'schedule') && republishing.length) {
+        const channels = republishing
+          .map(
+            (p) =>
+              `${integrations.find((i) => i.id === p.integration)?.name} ${t(
+                'republish_at',
+                'at'
+              )} ${(channelDates[p.integration] || date).format(
+                'DD/MM/YYYY HH:mm'
+              )}`
+          )
           .join(', ');
         const isRecurring =
           !!repeater || !!existingData?.posts?.[0]?.intervalInDays;
 
+        // it closes on a choice, so a save that then fails its checks shows
+        // the channel to fix
         const whatToDo = await new Promise((resolve) => {
           modal.openModal({
+            id: 'republish-post',
             title: t('what_do_you_want_to_do', 'What do you want to do?'),
+            onClose: () => resolve(undefined),
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">
@@ -235,8 +471,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     'post_already_published_republish_warning',
                     'This post was already published. Republishing will publish it again to'
                   )}{' '}
-                  {channels} {t('republish_at', 'at')}{' '}
-                  {date.format('DD/MM/YYYY HH:mm')}.
+                  {channels}.
                   {isRecurring && (
                     <div className="mt-[10px]">
                       {t(
@@ -251,7 +486,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     <Button
                       type="button"
                       className="flex-1"
-                      onClick={() => resolve('update')}
+                      onClick={() => {
+                        modal.closeById('republish-post');
+                        resolve('update');
+                      }}
                     >
                       {t(
                         'just_update_post_details',
@@ -263,7 +501,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     <Button
                       type="button"
                       className="flex-1"
-                      onClick={() => resolve('republish')}
+                      onClick={() => {
+                        modal.closeById('republish-post');
+                        resolve('republish');
+                      }}
                     >
                       {t('republish_the_post', 'Republish the post')}
                     </Button>
@@ -274,8 +515,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           });
         });
 
+        if (!whatToDo) {
+          return;
+        }
+
         if (whatToDo === 'update') {
-          type = 'update';
+          for (const p of republishing) {
+            saveAs[p.integration] = 'update';
+          }
         }
 
         if (whatToDo === 'republish') {
@@ -299,7 +546,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         integration: {
           id: post.id,
         },
-        group,
+        // every channel of an existing post updates its own post
+        group:
+          existingPosts.find((p) => p.integration === post.id)?.group || group,
+        ...(channelDates[post.id]
+          ? {
+              date: channelDates[post.id].utc().format('YYYY-MM-DDTHH:mm:ss'),
+            }
+          : {}),
         settings: { ...(post.settings || {}) },
         value: post.values.map((value: any) => ({
           ...(value.id ? { id: value.id } : {}),
@@ -347,52 +601,55 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           return;
         }
 
-        if (type !== 'draft') {
-          for (const item of checkAllValid) {
-            if (item.valid === false) {
-              toaster.show(
-                `${platformLabel(item.identifier)} (${item.name}): ${
-                  (item.settingsError &&
-                    t(
-                      deriveTranslationKey('validation', item.settingsError),
-                      item.settingsError
-                    )) ||
-                  t('please_fix_your_settings', 'Please fix your settings')
-                }`,
-                'warning'
-              );
-              focus(item.id, 'fix');
-              setLoading(false);
-              setShowSettings(true);
-              return;
-            }
+        // a channel saved as a draft gets these checks once it's scheduled
+        const notDrafts = checkAllValid.filter(
+          (p: any) => saveTypeOf(p.id) !== 'draft'
+        );
 
-            if (item.errors !== true) {
-              toaster.show(
-                `${platformLabel(item.identifier)} (${item.name}): ${t(
-                  deriveTranslationKey('validation', item.errors),
-                  item.errors
-                )}`,
-                'warning'
-              );
-              focus(item.id, 'preview');
-              setLoading(false);
-              setShowSettings(false);
-              return;
-            }
+        for (const item of notDrafts) {
+          if (item.valid === false) {
+            toaster.show(
+              `${platformLabel(item.identifier)} (${item.name}): ${
+                (item.settingsError &&
+                  t(
+                    deriveTranslationKey('validation', item.settingsError),
+                    item.settingsError
+                  )) ||
+                t('please_fix_your_settings', 'Please fix your settings')
+              }`,
+              'warning'
+            );
+            focus(item.id, 'fix');
+            setLoading(false);
+            setShowSettings(true);
+            return;
+          }
 
-            if (item.tooLong) {
-              toaster.show(
-                `${item.name} (${item.identifier}) ${t(
-                  'post_is_too_long',
-                  'post is too long, please fix it'
-                )}`,
-                'warning'
-              );
-              focus(item.id, 'preview');
-              setLoading(false);
-              return;
-            }
+          if (item.errors !== true) {
+            toaster.show(
+              `${platformLabel(item.identifier)} (${item.name}): ${t(
+                deriveTranslationKey('validation', item.errors),
+                item.errors
+              )}`,
+              'warning'
+            );
+            focus(item.id, 'preview');
+            setLoading(false);
+            setShowSettings(false);
+            return;
+          }
+
+          if (item.tooLong) {
+            toaster.show(
+              `${item.name} (${item.identifier}) ${t(
+                'post_is_too_long',
+                'post is too long, please fix it'
+              )}`,
+              'warning'
+            );
+            focus(item.id, 'preview');
+            setLoading(false);
+            return;
           }
         }
       }
@@ -462,23 +719,43 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         if (addEditSets) {
           addEditSets(data);
         } else {
-          const response = await fetch('/posts', {
-            method: 'POST',
-            body: JSON.stringify(data),
-          });
-
-          if (!response.ok) {
-            if (response.status !== 402) {
-              const { message } = await response.json().catch(() => ({}));
-              toaster.show(
-                typeof message === 'string'
-                  ? message
-                  : t('post_save_failed', 'Could not save the post'),
-                'warning'
-              );
+          // every type of save is its own request, the drafts last, since a
+          // draft save skips the checks the others still run
+          let saved = false;
+          for (const requestType of ['update', 'schedule', 'now', 'draft']) {
+            const request = {
+              type: requestType,
+              posts: posts.filter(
+                (p: any) => saveTypeOf(p.integration.id) === requestType
+              ),
+            };
+            if (!request.posts.length) {
+              continue;
             }
-            setLoading(false);
-            return;
+
+            const response = await fetch('/posts', {
+              method: 'POST',
+              body: JSON.stringify({ ...data, ...request }),
+            });
+
+            if (!response.ok) {
+              if (response.status !== 402) {
+                const { message } = await response.json().catch(() => ({}));
+                toaster.show(
+                  typeof message === 'string'
+                    ? message
+                    : t('post_save_failed', 'Could not save the post'),
+                  'warning'
+                );
+              }
+              // the channels saved before the failure show in the calendar
+              if (saved) {
+                mutate();
+              }
+              setLoading(false);
+              return;
+            }
+            saved = true;
           }
         }
 
@@ -501,7 +778,19 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         }
       }
     },
-    [ref, repeater, tags, date, addEditSets, dummy, shortlinkPreferenceData]
+    [
+      ref,
+      repeater,
+      tags,
+      date,
+      channelDates,
+      current,
+      integrations,
+      selectedIntegrations,
+      addEditSets,
+      dummy,
+      shortlinkPreferenceData,
+    ]
   );
 
   return (
@@ -604,7 +893,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       <PicksSocialsComponent toolTip={true} />
                     </div>
                     <div className="mobile:w-full mobile:[&>*]:w-full">
-                      {!dummy && (
+                      {/* an existing post keeps its channels */}
+                      {!dummy && !existingData.integration && (
                         <SelectCustomer
                           onChange={changeCustomer}
                           integrations={integrations}
@@ -613,7 +903,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     </div>
                   </div>
                   <div className="flex flex-1 gap-[6px] flex-col">
-                    <div>{!existingData.integration && <SelectCurrent />}</div>
+                    <div>
+                      {(!existingData.integration ||
+                        !!existingData.siblings?.length) && <SelectCurrent />}
+                    </div>
                     {/* min-w-0: the outermost item of the editor's flex chain.
                         The rest are in editor.tsx — see the note at its :363. */}
                     <div className="flex-1 flex min-w-0">
@@ -749,7 +1042,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 wrapper no single rule can size or align all three. Centred to
                 match the two above it, which centre themselves. */}
             <div className="mobile:basis-full mobile:[&>*]:!justify-center mobile:[&>*]:!ml-0">
-              <DatePicker onChange={setDate} date={date} />
+              <DatePicker onChange={setPickerDate} date={pickerDate} />
             </div>
             {!addEditSets && (
               <button

@@ -95,6 +95,7 @@ export const CalendarContext = createContext({
   setSelectedChannels: (channels: string[] | null) => {
     /** empty **/
   },
+  currentHour: newDayjs().startOf('hour'),
 });
 
 export interface Integrations {
@@ -148,6 +149,23 @@ function getDateRange(display: string, referenceDate?: string) {
       };
   }
 }
+
+// The current time rounded down to the unit. It checks on every minute, so it
+// also catches up within a minute after the computer wakes up from sleep.
+export const useNow = (unit: 'minute' | 'hour' = 'minute') => {
+  const [now, setNow] = useState(() => newDayjs().startOf(unit).valueOf());
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    const tick = () => {
+      // same number = no re-render, so the hour clock only renders once an hour
+      setNow(newDayjs().startOf(unit).valueOf());
+      timeout = setTimeout(tick, 60000 - (Date.now() % 60000));
+    };
+    tick();
+    return () => clearTimeout(timeout);
+  }, [unit]);
+  return useMemo(() => newDayjs(now), [now]);
+};
 
 export const CalendarWeekProvider: FC<{
   children: ReactNode;
@@ -400,6 +418,9 @@ export const CalendarWeekProvider: FC<{
     !effectiveDisplay ||
     (effectiveDisplay === 'list' ? listIsLoading : calendarIsLoading);
 
+  // one clock for every calendar cell, instead of a timer per cell
+  const currentHour = useNow('hour');
+
   return (
     <CalendarContext.Provider
       value={{
@@ -425,6 +446,7 @@ export const CalendarWeekProvider: FC<{
         setListState,
         selectedChannels,
         setSelectedChannels,
+        currentHour,
       }}
     >
       {children}

@@ -104,7 +104,7 @@ export const TagsComponentInner: FC<{
         },
       });
     }
-  }, []);
+  }, [tagValue, name, onChange, mutate, modals, t]);
 
   const editTag = useCallback(
     async (tag: any, e: React.MouseEvent) => {

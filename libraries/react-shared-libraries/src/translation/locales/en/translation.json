@@ -360,6 +360,9 @@
   "preview_youtube_subscribers": "16.7M subscribers",
   "post_actions": "Post actions",
   "open_post": "Open Post",
+  "post_link_not_ready": "The post link is not available yet, please try again in a minute",
+  "post_has_no_public_link": "This post has no public link",
+  "post_link_reconnect_channel": "Reconnect this channel to open the post link",
   "post_statistics": "Post Statistics",
   "draft": "Draft",
   "week_number": "Week {{number}}",
@@ -1883,5 +1886,15 @@
   "auth_method_apple": "Apple",
   "auth_method_farcaster": "Farcaster",
   "auth_method_wallet": "Wallet",
-  "auth_method_generic": "Single sign-on"
+  "auth_method_generic": "Single sign-on",
+  "delete_post_from_all_channels_question": "This post was created for more than one channel. Do you want to delete it from all of them?",
+  "delete_from_all_channels": "Delete from all channels",
+  "delete_only_from_named": "Only from {{name}}",
+  "only_channel_named": "Only {{name}}",
+  "draft_post_in_all_channels_question": "This post was created for more than one channel. Do you want to move all of them to drafts?",
+  "draft_all_channels": "Move all channels to drafts",
+  "post_now_in_all_channels_question": "This post was created for more than one channel. Do you want to post all of them now?",
+  "post_now_all_channels": "Post all channels now",
+  "schedule_post_in_all_channels_question": "This post was created for more than one channel. Do you want to schedule all of them?",
+  "schedule_all_channels": "Schedule all channels"
 }

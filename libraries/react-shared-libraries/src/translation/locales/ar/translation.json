@@ -366,6 +366,9 @@
   "preview_youtube_subscribers": "16.7 مليون مشترك",
   "post_actions": "إجراءات المنشور",
   "open_post": "فتح المنشور",
+  "post_link_not_ready": "رابط المنشور غير متوفر بعد، يرجى المحاولة مرة أخرى بعد دقيقة",
+  "post_has_no_public_link": "هذا المنشور ليس له رابط عام",
+  "post_link_reconnect_channel": "أعد ربط هذه القناة لفتح رابط المنشور",
   "post_statistics": "تحليلات المنشور",
   "draft": "مسودة",
   "week_number": "الأسبوع {{number}}",
@@ -1940,5 +1943,15 @@
   "auth_method_apple": "Apple",
   "auth_method_farcaster": "فاركاستر",
   "auth_method_wallet": "المحفظة",
-  "auth_method_generic": "تسجيل الدخول الموحد"
+  "auth_method_generic": "تسجيل الدخول الموحد",
+  "delete_post_from_all_channels_question": "تم إنشاء هذا المنشور لأكثر من قناة. هل تريد حذفه منها جميعًا؟",
+  "delete_from_all_channels": "حذف من جميع القنوات",
+  "delete_only_from_named": "من {{name}} فقط",
+  "only_channel_named": "{{name}} فقط",
+  "draft_post_in_all_channels_question": "تم إنشاء هذا المنشور لأكثر من قناة. هل تريد نقلها جميعًا إلى المسودات؟",
+  "draft_all_channels": "نقل جميع القنوات إلى المسودات",
+  "post_now_in_all_channels_question": "تم إنشاء هذا المنشور لأكثر من قناة. هل تريد نشرها جميعًا الآن؟",
+  "post_now_all_channels": "النشر الآن على جميع القنوات",
+  "schedule_post_in_all_channels_question": "تم إنشاء هذا المنشور لأكثر من قناة. هل تريد جدولتها جميعًا؟",
+  "schedule_all_channels": "جدولة جميع القنوات"
 }

@@ -166,6 +166,7 @@ export class MediaRepository {
         thumbnail: true,
         alt: true,
         thumbnailTimestamp: true,
+        createdAt: true,
       },
       skip: pageNum * MEDIA_PAGE_SIZE,
       take: MEDIA_PAGE_SIZE,
