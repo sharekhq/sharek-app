@@ -75,8 +75,16 @@ export const hours = Array.from(
 );
 
 // The current time badge at the start of the now line
-const NowTime: FC<{ time: string }> = ({ time }) => (
-  <div className="rounded-[6px] bg-newTableTextFocused px-[6px] text-[12px] leading-[20px] font-[500] text-black whitespace-nowrap">
+const NowTime: FC<{ time: string; className?: string }> = ({
+  time,
+  className,
+}) => (
+  <div
+    className={clsx(
+      'rounded-[6px] bg-brand px-[6px] text-[12px] leading-[20px] font-[500] text-white whitespace-nowrap',
+      className
+    )}
+  >
     {time}
   </div>
 );
@@ -95,14 +103,26 @@ const WeekNowLine: FC<{ days: dayjs.Dayjs[] }> = ({ days }) => {
   const top = `${(now.minute() / 60) * 100}%`;
   return (
     <>
-      {/* covers this hour's label with the calendar background, the time takes its place */}
+      {/* The whole hour row, so the cover inside it can stay at the start edge
+          with the sticky hour labels while the grid scrolls sideways below
+          1025px, where the columns stop fitting. */}
       <div
-        className="absolute inset-0 bg-newBgColorInner pointer-events-none"
-        style={{ gridColumn: '1 / 2', gridRow }}
+        className="absolute inset-0 pointer-events-none"
+        style={{ gridColumn: '1 / -1', gridRow }}
       >
-        <div className="absolute end-0 -translate-y-1/2" style={{ top }}>
-          {/* same format as the hour labels */}
-          <NowTime time={now.format(isUSCitizen() ? 'h:mm A' : 'H:mm')} />
+        {/* covers this hour's label with the calendar background, the time
+            takes its place. As wide as the grid's hour column (136px, 44px
+            below 1025px). Below 1025px it sits over the sticky labels (17) and
+            under the sticky day headers (20) and the corner (30). */}
+        <div className="sticky start-0 h-full w-[136px] mobile:w-[44px] bg-newBgColorInner mobile:z-[18]">
+          <div className="absolute end-0 -translate-y-1/2" style={{ top }}>
+            {/* same format as the hour labels; a 12-hour time is wider than
+                the 44px column, so there it wraps as the labels do */}
+            <NowTime
+              time={now.format(isUSCitizen() ? 'h:mm A' : 'H:mm')}
+              className="mobile:px-[3px] mobile:whitespace-normal mobile:text-center mobile:leading-[16px]"
+            />
+          </div>
         </div>
       </div>
       {/* a piece per day, so nothing shows through the gaps of the sticky header */}
@@ -114,11 +134,12 @@ const WeekNowLine: FC<{ days: dayjs.Dayjs[] }> = ({ days }) => {
         >
           {index === todayIndex ? (
             <>
-              <div className="w-[3px] h-[12px] rounded-full bg-newTableTextFocused" />
-              <div className="flex-1 h-[3px] bg-newTableTextFocused" />
+              <div className="w-[3px] h-[12px] rounded-full bg-brand" />
+              <div className="flex-1 h-[3px] bg-brand" />
             </>
           ) : (
-            <div className="flex-1 h-[1px] bg-newTableTextFocused opacity-40" />
+            // the other days only need a hint of where now is
+            <div className="flex-1 h-[1px] bg-line" />
           )}
         </div>
       ))}
@@ -139,7 +160,7 @@ const DayNowLine: FC<{ now: dayjs.Dayjs; className?: string }> = ({
   >
     {/* same format as the slot labels */}
     <NowTime time={now.format(isUSCitizen() ? 'hh:mm A' : 'LT')} />
-    <div className="flex-1 h-[3px] bg-newTableTextFocused" />
+    <div className="flex-1 h-[3px] bg-brand" />
   </div>
 );
 
@@ -545,7 +566,10 @@ export const WeekView = () => {
           ))}
           {hours.map((hour) => (
             <Fragment key={hour}>
-              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-10 mobile:bg-newBgColorInner mobile:ps-[2px] mobile:pe-[2px] mobile:text-[12px]">
+              {/* below 1025px the labels stick while the days scroll under
+                  them, so they sit over the add buttons (z-[16]) and the now
+                  line (z-[15]) passing beneath */}
+              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:ps-[2px] mobile:pe-[2px] mobile:text-[12px]">
                 {convertTimeFormatBasedOnLocality(hour)}
               </div>
               {localizedDays.map((day, indexDay) => (
@@ -999,13 +1023,18 @@ export const CalendarColumn: FC<{
       ref={drop as any}
     >
       {display === 'month' && (
-        <div
-          className={clsx(
-            'pt-[6px] text-[14px]',
-            isBeforeNow && 'line-through text-muted'
-          )}
-        >
-          {getDate.date()}
+        <div className={clsx('pt-[3px] text-[14px] flex justify-center')}>
+          {/* every day number gets the same box so only today's is filled */}
+          <div
+            className={clsx(
+              'h-[24px] min-w-[24px] px-[5px] rounded-[6px] flex items-center justify-center',
+              getDate.isSame(currentHour, 'day') &&
+                'bg-brand text-white font-[600]',
+              isBeforeNow && 'line-through text-muted'
+            )}
+          >
+            {getDate.date()}
+          </div>
         </div>
       )}
       <div
