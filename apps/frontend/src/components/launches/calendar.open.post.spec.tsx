@@ -7,10 +7,15 @@ import { createRoot } from 'react-dom/client';
 // tab inside the click that chose it, before the server is asked for the
 // address, so a popup blocker still sees the user's gesture.
 //
+// When there is nothing to open, the tab opened in the click is closed again
+// and a message says why: TikTok has not released the link yet (also when the
+// request fails or takes longer than five seconds), the post has no public
+// link (only-me and friends-only posts), or the channel has to be reconnected.
+//
 // The real ListView renders the card and its menu; everything around them is
 // scenery.
 type ListPost = Record<string, unknown>;
-type Tab = { opener: unknown; location: { href: string } };
+type Tab = { opener: unknown; location: { href: string }; close: jest.Mock };
 
 const calendar = {
   integrations: [] as unknown[],
@@ -20,15 +25,21 @@ const calendar = {
   reloadCalendarView: jest.fn(),
 };
 const order: string[] = [];
-let releaseReply: { releaseURL: string } = { releaseURL: '' };
+let releaseReply: Record<string, unknown> = { releaseURL: '' };
 let releaseFails = false;
+// the server never answers, for the five-second limit
+let releaseHangs = false;
 const mockFetch = jest.fn(async (url: string) => {
   order.push(`fetch ${url}`);
   if (releaseFails) {
     throw new Error('network');
   }
+  if (releaseHangs) {
+    return new Promise<never>(() => undefined);
+  }
   return { json: async () => releaseReply };
 });
+const mockToast = jest.fn();
 
 jest.mock('@gitroom/frontend/components/launches/calendar.context', () => ({
   CalendarContext: jest.requireActual('react').createContext({}),
@@ -53,7 +64,7 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   }),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
-  useToaster: () => ({ show: () => undefined }),
+  useToaster: () => ({ show: mockToast }),
 }));
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: async () => false,
@@ -112,6 +123,20 @@ const post = (fields: ListPost = {}): ListPost => ({
   ...fields,
 });
 
+// A TikTok post whose link TikTok gives out late: the profile address until then
+const tiktok = (fields: ListPost = {}): ListPost =>
+  post({
+    releaseURL: 'https://www.tiktok.com/@sharek',
+    releaseId: 'v_pub_url~123',
+    integration: {
+      id: 'i2',
+      picture: '',
+      providerIdentifier: 'tiktok',
+      name: 'TikTok',
+    },
+    ...fields,
+  });
+
 const mounted: Array<{ unmount: () => void }> = [];
 
 const mount = async (listed: ListPost) => {
@@ -149,15 +174,20 @@ const settle = async () => {
   });
 };
 
+const NOT_READY =
+  'The post link is not available yet, please try again in a minute';
+
 let tab: Tab;
 let openSpy: jest.SpyInstance;
 
 beforeEach(() => {
   order.length = 0;
   mockFetch.mockClear();
+  mockToast.mockClear();
   releaseReply = { releaseURL: '' };
   releaseFails = false;
-  tab = { opener: { sharek: true }, location: { href: '' } };
+  releaseHangs = false;
+  tab = { opener: { sharek: true }, location: { href: '' }, close: jest.fn() };
   openSpy = jest.spyOn(window, 'open').mockImplementation(() => {
     order.push('open');
     return tab as unknown as Window;
@@ -165,6 +195,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.useRealTimers();
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
@@ -217,10 +248,28 @@ describe('Open Post', () => {
     expect(tab.opener).toBeNull();
     // A post published to several places joins their addresses with commas.
     expect(tab.location.href).toBe('https://reddit.com/r/a/1');
+    expect(tab.close).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
   });
 
-  it('falls back to the stored address when the server cannot answer', async () => {
-    releaseFails = true;
+  it('opens the address the server resolved, a TikTok photo page', async () => {
+    releaseReply = {
+      releaseURL: 'https://www.tiktok.com/@sharek/photo/7420000000000000001',
+      pending: false,
+      unavailable: false,
+    };
+    await openMenu(await mount(tiktok()));
+
+    await click(item('Open Post'));
+    await settle();
+
+    expect(tab.location.href).toBe(
+      'https://www.tiktok.com/@sharek/photo/7420000000000000001'
+    );
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the stored address when the server answers without one', async () => {
     await openMenu(
       await mount(
         post({ releaseURL: 'https://a.example/1,https://b.example/2' })
@@ -231,6 +280,68 @@ describe('Open Post', () => {
     await settle();
 
     expect(tab.location.href).toBe('https://a.example/1');
+  });
+
+  it.each([
+    [
+      'the platform has not released the link yet',
+      { releaseURL: 'https://www.tiktok.com/@sharek', pending: true },
+      NOT_READY,
+    ],
+    [
+      'the post has no public link',
+      { releaseURL: 'https://www.tiktok.com/@sharek', unavailable: true },
+      'This post has no public link',
+    ],
+    [
+      'the channel has to be reconnected',
+      { releaseURL: 'https://www.tiktok.com/@sharek', reconnect: true },
+      'Reconnect this channel to open the post link',
+    ],
+  ])(
+    'when %s, closes the tab and says so instead of opening the profile',
+    async (_name, reply, message) => {
+      releaseReply = reply;
+      await openMenu(await mount(tiktok()));
+
+      await click(item('Open Post'));
+      await settle();
+
+      expect(tab.close).toHaveBeenCalledTimes(1);
+      expect(tab.location.href).toBe('');
+      expect(mockToast).toHaveBeenCalledWith(message, 'warning');
+    }
+  );
+
+  it('says the link is not ready when the server cannot answer', async () => {
+    releaseFails = true;
+    await openMenu(await mount(tiktok()));
+
+    await click(item('Open Post'));
+    await settle();
+
+    expect(tab.close).toHaveBeenCalledTimes(1);
+    expect(tab.location.href).toBe('');
+    expect(mockToast).toHaveBeenCalledWith(NOT_READY, 'warning');
+  });
+
+  it('waits five seconds for the server, then says the link is not ready', async () => {
+    releaseHangs = true;
+    await openMenu(await mount(tiktok()));
+    jest.useFakeTimers();
+
+    await click(item('Open Post'));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(4999);
+    });
+    expect(tab.close).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1);
+    });
+    expect(tab.close).toHaveBeenCalledTimes(1);
+    expect(mockToast).toHaveBeenCalledWith(NOT_READY, 'warning');
   });
 
   it('asks nothing when the browser blocks the tab', async () => {

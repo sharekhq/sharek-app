@@ -27,15 +27,17 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
   EditorWrapper: () => null,
 }));
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
-  SelectCurrent: () => null,
+  SelectCurrent: () => <div data-current />,
 }));
 jest.mock(
   '@gitroom/frontend/components/new-launch/providers/show.all.providers',
   () => {
     const { forwardRef, useImperativeHandle } = require('react');
     return {
-      ShowAllProviders: forwardRef((_props: any, ref: any) => {
-        useImperativeHandle(ref, () => ({ getAllValues: async () => [] }));
+      ShowAllProviders: forwardRef((_props: any, ref: any): null => {
+        useImperativeHandle(ref, () => ({
+          getAllValues: async (): Promise<unknown[]> => [],
+        }));
         return null;
       }),
     };
@@ -210,5 +212,41 @@ describe('the footer once it wraps', () => {
     const host = await render();
 
     expect(deleteButton(host).className).toContain('coarse:min-h-[44px]');
+  });
+});
+
+// A post that already exists keeps the channels and the customer it was saved
+// with. Its channel tabs only show when it was saved for several channels,
+// where they switch between each channel's own post.
+describe('an existing post', () => {
+  const saved = { integration: 'int-1', posts: [{ state: 'QUEUE' }] };
+
+  it('offers the customer control for a new post only', async () => {
+    existing = {};
+    expect((await render()).querySelector('[data-customer]')).toBeTruthy();
+
+    existing = saved;
+    expect((await render()).querySelector('[data-customer]')).toBeNull();
+  });
+
+  it('shows the channel tabs for a new post', async () => {
+    existing = {};
+
+    expect((await render()).querySelector('[data-current]')).toBeTruthy();
+  });
+
+  it('shows the channel tabs for a post saved with other channels', async () => {
+    existing = {
+      ...saved,
+      siblings: [{ integration: 'int-2', posts: [{ state: 'QUEUE' }] }],
+    };
+
+    expect((await render()).querySelector('[data-current]')).toBeTruthy();
+  });
+
+  it('shows no channel tabs for a post saved alone', async () => {
+    existing = saved;
+
+    expect((await render()).querySelector('[data-current]')).toBeNull();
   });
 });

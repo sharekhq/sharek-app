@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TiktokProvider } from './tiktok.provider';
+import { Integration } from '@prisma/client';
 
 // The `@gitroom/react/*` alias is not mapped in this Jest config, so the
 // locale JSON is read from disk the way the suite's other locale specs do.
@@ -193,5 +194,166 @@ describe('TiktokProvider.maxVideoLength', () => {
 
     expect(result).toEqual({ maxDurationSeconds: 600 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// TikTok's publish-status answer. The post id is an int64, so the provider
+// reads it from the raw text; the helper keeps the digits exact.
+const statusText = (status: string, publicId?: string) =>
+  `{"data":{"status":"${status}"${
+    publicId ? `,"publicaly_available_post_id":[${publicId}]` : ''
+  }},"error":{"code":"ok","message":"","log_id":"log-3"}}`;
+
+const textResponse = (text: string) => ({
+  status: 200,
+  ok: true,
+  text: async () => text,
+  json: async () => JSON.parse(text),
+});
+
+const channel = {
+  id: 'int-1',
+  internalId: 'open-id-1',
+  profile: 'sharek.cafe',
+} as unknown as Integration;
+
+const INBOX = 'https://www.tiktok.com/messages?lang=en';
+
+describe('TiktokProvider.checkPostStatus, the link stored at publish time', () => {
+  // The draft keeps the 'missing' marker the API, the CLI and the calendar
+  // read; its publish id rides after # so Open Post can ask TikTok later. The
+  // fragment never reaches TikTok and the link still opens the inbox.
+  it('stores an inbox draft as missing, with its publish id after # in the inbox link', async () => {
+    fetchMock.mockResolvedValue(textResponse(statusText('SEND_TO_USER_INBOX')));
+
+    await expect(
+      provider.checkPostStatus(
+        'token-123',
+        { publishId: 'v_inbox_file~v2.123' },
+        channel
+      )
+    ).resolves.toEqual({
+      status: 'completed',
+      postId: 'missing',
+      releaseURL: `${INBOX}#v_inbox_file~v2.123`,
+    });
+  });
+
+  it.each([
+    ['p_pub_url~v2.9', 'photo'],
+    ['v_pub_file~v2.9', 'video'],
+  ])('links a published %s post under /%s/', async (publishId, kind) => {
+    fetchMock.mockResolvedValue(
+      textResponse(statusText('PUBLISH_COMPLETE', '7444444444444444444'))
+    );
+
+    await expect(
+      provider.checkPostStatus('token-123', { publishId }, channel)
+    ).resolves.toEqual({
+      status: 'completed',
+      postId: '7444444444444444444',
+      releaseURL: `https://www.tiktok.com/@sharek.cafe/${kind}/7444444444444444444`,
+    });
+  });
+});
+
+describe('TiktokProvider.resolveReleaseId, Open Post', () => {
+  it('asks TikTok about an inbox draft by the publish id kept in its link', async () => {
+    fetchMock.mockResolvedValue(
+      textResponse(statusText('PUBLISH_COMPLETE', '7123'))
+    );
+
+    await expect(
+      provider.resolveReleaseId(
+        'token-123',
+        'missing',
+        channel,
+        {},
+        `${INBOX}#v_inbox_file~v2.123`
+      )
+    ).resolves.toEqual({
+      postId: '7123',
+      releaseURL: 'https://www.tiktok.com/@sharek.cafe/video/7123',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      publish_id: 'v_inbox_file~v2.123',
+    });
+  });
+
+  it('keeps an inbox draft on the inbox while TikTok has no public post for it', async () => {
+    fetchMock.mockResolvedValue(textResponse(statusText('SEND_TO_USER_INBOX')));
+
+    await expect(
+      provider.resolveReleaseId(
+        'token-123',
+        'missing',
+        channel,
+        {},
+        `${INBOX}#v_inbox_file~v2.123`
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  // Drafts stored before the publish id was kept carry no fragment: they
+  // keep opening the inbox, and TikTok is not asked.
+  it('leaves a draft link stored without a publish id alone', async () => {
+    await expect(
+      provider.resolveReleaseId('token-123', 'missing', channel, {}, INBOX)
+    ).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['SELF_ONLY', 'MUTUAL_FOLLOW_FRIENDS'])(
+    'says a %s post will never have a public link, without asking TikTok',
+    async (privacy_level) => {
+      await expect(
+        provider.resolveReleaseId(
+          'token-123',
+          'v_pub_file~v2.9',
+          channel,
+          { privacy_level },
+          'https://www.tiktok.com/@sharek.cafe'
+        )
+      ).resolves.toEqual({ unavailable: true });
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it('reports a public post TikTok has not released yet as pending', async () => {
+    fetchMock.mockResolvedValue(textResponse(statusText('PUBLISH_COMPLETE')));
+
+    await expect(
+      provider.resolveReleaseId(
+        'token-123',
+        'v_pub_file~v2.9',
+        channel,
+        { privacy_level: 'PUBLIC_TO_EVERYONE' },
+        'https://www.tiktok.com/@sharek.cafe'
+      )
+    ).resolves.toEqual({ pending: true });
+  });
+});
+
+describe('TiktokProvider.releaseUrl, a post connected by hand', () => {
+  // share_url carries tracking parameters, Sharek's client key among them,
+  // and the stored link reaches the public API and webhooks.
+  it('stores the share link without its query', async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        data: {
+          videos: [
+            {
+              id: '7123',
+              share_url:
+                'https://www.tiktok.com/@sharek.cafe/video/7123?utm_campaign=tt4d_open_api&utm_source=awclientkey',
+            },
+          ],
+        },
+      })
+    );
+
+    await expect(provider.releaseUrl('token-123', '7123')).resolves.toBe(
+      'https://www.tiktok.com/@sharek.cafe/video/7123'
+    );
   });
 });

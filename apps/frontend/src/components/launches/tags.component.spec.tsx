@@ -1,15 +1,22 @@
-import { act } from 'react';
+import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // Upstream's tag editing puts a pencil and a delete control on each row of the
 // composer's tag list. Both arrived as clickable divs: no name for a screen
 // reader, and no way to reach them from the keyboard. Each sits inside the
 // row that ticks the tag, so a click on either must not also tick it.
-const tags = [
+const initialTags = [
   { id: 't1', name: 'Launch', color: '#B92D43' },
   { id: 't2', name: 'Ramadan', color: '#000000' },
 ];
+// What the server returns: a tag created in a test is added here.
+const tags = [...initialTags];
 const opened: string[] = [];
+// The modals' contents, to answer the Add New Tag one the way its form does.
+type ModalContent = (
+  close: () => void
+) => ReactElement<{ resolve: (value: string) => void }>;
+const contents: ModalContent[] = [];
 
 jest.mock('swr', () => ({
   __esModule: true,
@@ -25,10 +32,19 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
 }));
-// What the two handlers open; the modal itself is out of scope.
+// What the handlers open; the modal itself is out of scope.
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
-    openModal: ({ title }: { title: string }) => opened.push(title),
+    openModal: ({
+      title,
+      children,
+    }: {
+      title: string;
+      children: ModalContent;
+    }) => {
+      opened.push(title);
+      contents.push(children);
+    },
   }),
 }));
 
@@ -72,6 +88,8 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   opened.length = 0;
+  contents.length = 0;
+  tags.splice(0, tags.length, ...initialTags);
 });
 
 describe('the tag list’s edit and delete controls', () => {
@@ -82,7 +100,7 @@ describe('the tag list’s edit and delete controls', () => {
 
       const found = controls(host, name);
 
-      expect(found).toHaveLength(tags.length);
+      expect(found).toHaveLength(initialTags.length);
       found.forEach((button) => {
         expect(button.getAttribute('type')).toBe('button');
         expect(button.className.split(' ')).toEqual(
@@ -109,4 +127,40 @@ describe('the tag list’s edit and delete controls', () => {
       expect(onChange).not.toHaveBeenCalled();
     }
   );
+});
+
+describe('creating a tag from the list', () => {
+  it('keeps the tags picked before it', async () => {
+    const onChange = jest.fn();
+    const host = await openList(onChange);
+
+    await click(
+      Array.from(host.querySelectorAll('span')).find(
+        (span) => span.textContent === 'Launch'
+      )!
+    );
+    await click(
+      Array.from(host.querySelectorAll('div')).find(
+        (node) =>
+          node.textContent === 'Add New Tag' &&
+          node.className.includes('mt-[12px]')
+      )!
+    );
+    // The form saved the tag, and the server lists it from now on.
+    tags.push({ id: 't3', name: 'Eid', color: '#1F6F5C' });
+    await act(async () => {
+      contents[0](() => {}).props.resolve('Eid');
+    });
+
+    expect(opened).toEqual(['Add New Tag']);
+    expect(onChange).toHaveBeenLastCalledWith({
+      target: {
+        name: 'tags',
+        value: [
+          expect.objectContaining({ name: 'Launch' }),
+          expect.objectContaining({ name: 'Eid' }),
+        ],
+      },
+    });
+  });
 });
