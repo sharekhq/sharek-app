@@ -122,6 +122,18 @@ describe('the date picker’s time field', () => {
       '2026-10-21 09:30'
     );
   });
+
+  // Right to left, the row would read 30 : 09 م, minutes first, unlike the
+  // date line it sets.
+  it('keeps the hour before the minutes in Arabic', async () => {
+    words = { am: 'ص', pm: 'م' };
+    const host = await open('12');
+    const [hour, minute, half] = Array.from(host.querySelectorAll('input'));
+    const row = hour.closest('div')!;
+
+    expect(row.contains(minute) && row.contains(half)).toBe(true);
+    expect(Array.from(row.classList)).toContain('[direction:ltr]');
+  });
 });
 
 describe('the date picker’s date', () => {

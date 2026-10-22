@@ -98,6 +98,7 @@ export const DatePicker: FC<{
               label: 'text-textColor py-[12px]',
               input:
                 'bg-sixth h-[40px] border border-tableBorder text-textColor rounded-[4px] outline-none',
+              controls: '[direction:ltr]',
             }}
             defaultValue={date.toDate()}
           />
