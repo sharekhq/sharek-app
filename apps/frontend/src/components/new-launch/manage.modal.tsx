@@ -50,6 +50,13 @@ import { useShortlinkPreference } from '@gitroom/frontend/components/settings/sh
 import dayjs from 'dayjs';
 import { Button } from '@gitroom/react/form/button';
 
+// A channel name inside a translated sentence. Isolated (FSI…PDI, the
+// plain-text <bdi>) so a Latin name in an Arabic sentence, or the reverse,
+// keeps its own direction and its trailing punctuation stays with it. The
+// calls pass `escapeValue: false`: React escapes the text it renders, and
+// i18next escaping it first would show a name's & or ' as an entity.
+const isolate = (text = '') => `\u2068${text}\u2069`;
+
 export const ManageModal: FC<AddEditModalProps> = (props) => {
   const t = useT();
   const fetch = useFetch();
@@ -227,11 +234,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   'This post was created for more than one channel. Do you want to delete it from all of them?'
                 )}
               </div>
-              <div className="flex w-full gap-[10px]">
+              <div className="flex w-full gap-[10px] phone:flex-col">
                 <div className="flex-1 flex">
                   <Button
                     type="button"
-                    className="flex-1"
+                    variant="danger"
+                    className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                     onClick={() => {
                       modal.closeById('delete-post-channels');
                       resolve(existingPosts.map((p) => p.group!));
@@ -244,17 +252,19 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="flex-1"
+                    className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                     onClick={() => {
                       modal.closeById('delete-post-channels');
                       resolve([channel.group!]);
                     }}
                   >
-                    {t('delete_only_from', 'Only from')}{' '}
-                    {
-                      integrations.find((p) => p.id === channel.integration)
-                        ?.name
-                    }
+                    {t('delete_only_from_named', 'Only from {{name}}', {
+                      name: isolate(
+                        integrations.find((p) => p.id === channel.integration)
+                          ?.name
+                      ),
+                      interpolation: { escapeValue: false },
+                    })}
                   </Button>
                 </div>
               </div>
@@ -389,11 +399,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">{question}</div>
-                <div className="flex w-full gap-[10px]">
+                <div className="flex w-full gap-[10px] phone:flex-col">
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1"
+                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                       onClick={() => {
                         modal.closeById('change-post-channels');
                         resolve('all');
@@ -408,17 +418,20 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       <Button
                         type="button"
                         variant="ghost"
-                        className="flex-1"
+                        className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                         onClick={() => {
                           modal.closeById('change-post-channels');
                           resolve('only');
                         }}
                       >
-                        {t('only_channel', 'Only')}{' '}
-                        {
-                          integrations.find((p) => p.id === channel.integration)
-                            ?.name
-                        }
+                        {t('only_channel_named', 'Only {{name}}', {
+                          name: isolate(
+                            integrations.find(
+                              (p) => p.id === channel.integration
+                            )?.name
+                          ),
+                          interpolation: { escapeValue: false },
+                        })}
                       </Button>
                     </div>
                   )}
@@ -446,12 +459,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         const channels = republishing
           .map(
             (p) =>
-              `${integrations.find((i) => i.id === p.integration)?.name} ${t(
-                'republish_at',
-                'at'
-              )} ${(channelDates[p.integration] || date).format(
-                'DD/MM/YYYY HH:mm'
-              )}`
+              `${isolate(
+                integrations.find((i) => i.id === p.integration)?.name
+              )} ${t('republish_at', 'at')} ${(
+                channelDates[p.integration] || date
+              ).format('DD/MM/YYYY HH:mm')}`
           )
           .join(', ');
         const isRecurring =
@@ -481,11 +493,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     </div>
                   )}
                 </div>
-                <div className="flex w-full gap-[10px]">
+                <div className="flex w-full gap-[10px] phone:flex-col">
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1"
+                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                       onClick={() => {
                         modal.closeById('republish-post');
                         resolve('update');
@@ -500,7 +512,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1"
+                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
                       onClick={() => {
                         modal.closeById('republish-post');
                         resolve('republish');
@@ -622,6 +634,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'fix');
             setLoading(false);
             setShowSettings(true);
+            setNarrowView('settings');
             return;
           }
 
@@ -636,6 +649,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'preview');
             setLoading(false);
             setShowSettings(false);
+            setNarrowView('editor');
             return;
           }
 
@@ -790,6 +804,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       addEditSets,
       dummy,
       shortlinkPreferenceData,
+      setNarrowView,
     ]
   );
 
