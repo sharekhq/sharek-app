@@ -57,6 +57,12 @@ import { Button } from '@gitroom/react/form/button';
 // i18next escaping it first would show a name's & or ' as an entity.
 const isolate = (text = '') => `\u2068${text}\u2069`;
 
+// The two answers under a question sit side by side, and stack on a phone,
+// where each takes the full width and grows to fit a long channel name.
+const answerRowClasses = 'flex w-full gap-[10px] phone:flex-col';
+const answerButtonClasses =
+  'flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]';
+
 export const ManageModal: FC<AddEditModalProps> = (props) => {
   const t = useT();
   const fetch = useFetch();
@@ -234,12 +240,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   'This post was created for more than one channel. Do you want to delete it from all of them?'
                 )}
               </div>
-              <div className="flex w-full gap-[10px] phone:flex-col">
+              <div className={answerRowClasses}>
                 <div className="flex-1 flex">
                   <Button
                     type="button"
                     variant="danger"
-                    className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                    className={answerButtonClasses}
                     onClick={() => {
                       modal.closeById('delete-post-channels');
                       resolve(existingPosts.map((p) => p.group!));
@@ -252,7 +258,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                    className={answerButtonClasses}
                     onClick={() => {
                       modal.closeById('delete-post-channels');
                       resolve([channel.group!]);
@@ -399,11 +405,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">{question}</div>
-                <div className="flex w-full gap-[10px] phone:flex-col">
+                <div className={answerRowClasses}>
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                      className={answerButtonClasses}
                       onClick={() => {
                         modal.closeById('change-post-channels');
                         resolve('all');
@@ -418,7 +424,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       <Button
                         type="button"
                         variant="ghost"
-                        className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                        className={answerButtonClasses}
                         onClick={() => {
                           modal.closeById('change-post-channels');
                           resolve('only');
@@ -493,11 +499,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     </div>
                   )}
                 </div>
-                <div className="flex w-full gap-[10px] phone:flex-col">
+                <div className={answerRowClasses}>
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                      className={answerButtonClasses}
                       onClick={() => {
                         modal.closeById('republish-post');
                         resolve('update');
@@ -512,7 +518,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div className="flex-1 flex">
                     <Button
                       type="button"
-                      className="flex-1 phone:!h-auto phone:min-h-[44px] phone:py-[8px]"
+                      className={answerButtonClasses}
                       onClick={() => {
                         modal.closeById('republish-post');
                         resolve('republish');

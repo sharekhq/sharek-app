@@ -48,9 +48,15 @@ const integration = {
   picture: '',
 };
 
+// The store is one for the page: tabs left open by an earlier case would
+// answer the next case's reset with their own effects.
+const mounted: Array<{ unmount: () => void }> = [];
+
 const render = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
   await act(async () => {
     useLaunchStore.getState().reset();
     useLaunchStore.setState({
@@ -62,10 +68,17 @@ const render = async () => {
         { integration, integrationValue: [] },
       ] as unknown as Store['internal'],
     });
-    createRoot(host).render(<SelectCurrent />);
+    root.render(<SelectCurrent />);
   });
   return host;
 };
+
+afterEach(() => {
+  act(() => {
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+});
 
 const click = async (node: Element) => {
   await act(async () => {

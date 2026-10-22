@@ -42,9 +42,15 @@ const channels = [
   channel('int-4', 'Sharek Café (Facebook)'),
 ];
 
+// The store is one for the page: a picker left open by an earlier case would
+// answer the next case's reset with its own effects.
+const mounted: Array<{ unmount: () => void }> = [];
+
 const render = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
   await act(async () => {
     useLaunchStore.getState().reset();
     useLaunchStore.setState({
@@ -53,10 +59,17 @@ const render = async () => {
         { integration: channels[0], settings: {} },
       ] as unknown as Store['selectedIntegrations'],
     });
-    createRoot(host).render(<PicksSocialsComponent toolTip={true} />);
+    root.render(<PicksSocialsComponent toolTip={true} />);
   });
   return host;
 };
+
+afterEach(() => {
+  act(() => {
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+});
 
 const shown = (host: HTMLElement) =>
   Array.from(host.querySelectorAll('[data-tooltip-content]')).map((node) =>

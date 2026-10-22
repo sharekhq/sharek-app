@@ -52,10 +52,16 @@ const integration = {
   additionalSettings: '[]',
 };
 
+// The store is one for the page: a channel left open by an earlier case would
+// answer the next case's reset with its own effects.
+const mounted: Array<{ unmount: () => void }> = [];
+
 const render = async (current: string) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const ref = createRef<Handle>();
+  const root = createRoot(host);
+  mounted.push(root);
   await act(async () => {
     useLaunchStore.getState().reset();
     useLaunchStore.setState({
@@ -69,10 +75,17 @@ const render = async (current: string) => {
       date: dayjs('2026-11-01T10:00:00'),
       channelDates: { 'int-1': dayjs('2026-11-03T18:30:00') },
     });
-    createRoot(host).render(<Provider id="int-1" ref={ref} />);
+    root.render(<Provider id="int-1" ref={ref} />);
   });
   return { host, ref };
 };
+
+afterEach(() => {
+  act(() => {
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+});
 
 describe('a channel of the composer', () => {
   it("previews with the channel's own date, not the composer's", async () => {
