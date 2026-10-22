@@ -15,20 +15,6 @@ import {
   useNow,
 } from '@gitroom/frontend/components/launches/calendar.context';
 import dayjs from 'dayjs';
-import 'dayjs/locale/en';
-import 'dayjs/locale/he';
-import 'dayjs/locale/ru';
-import 'dayjs/locale/zh';
-import 'dayjs/locale/fr';
-import 'dayjs/locale/es';
-import 'dayjs/locale/pt';
-import 'dayjs/locale/de';
-import 'dayjs/locale/it';
-import 'dayjs/locale/ja';
-import 'dayjs/locale/ko';
-import 'dayjs/locale/ar';
-import 'dayjs/locale/tr';
-import 'dayjs/locale/vi';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import clsx from 'clsx';
@@ -70,20 +56,6 @@ import { usePostCardDrag } from '@gitroom/frontend/components/launches/calendar.
 extend(isSameOrAfter);
 extend(isSameOrBefore);
 extend(localizedFormat);
-
-// Initialize language
-const updateDayjsLocale = () => {
-  const currentLanguage = i18next.resolvedLanguage || 'en';
-  dayjs.locale(currentLanguage);
-};
-
-// Set dayjs locale whenever i18next language changes
-i18next.on('languageChanged', () => {
-  updateDayjsLocale();
-});
-
-// Initial setup
-updateDayjsLocale();
 
 const convertTimeFormatBasedOnLocality = (time: number) => {
   if (isUSCitizen()) {

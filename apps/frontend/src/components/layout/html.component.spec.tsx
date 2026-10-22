@@ -49,3 +49,23 @@ describe('the time of day dayjs prints', () => {
     expect(timeAt(12, 5)).toBe('12:05 PM');
   });
 });
+
+// The bell and the public preview print dates on pages that never load the
+// calendar, so the language comes from the layout every page mounts.
+describe('the language dayjs prints in', () => {
+  it('follows the interface into Arabic', async () => {
+    await i18next.changeLanguage('ar');
+
+    expect(dayjs.locale()).toBe('ar');
+    expect(dayjs(new Date(2026, 9, 21)).format('MMMM')).toBe('أكتوبر');
+  });
+
+  it('follows the interface back to English', async () => {
+    dayjs.locale('ar');
+    await i18next.changeLanguage('ar');
+    await i18next.changeLanguage('en');
+
+    expect(dayjs.locale()).toBe('en');
+    expect(dayjs(new Date(2026, 9, 21)).format('MMMM')).toBe('October');
+  });
+});
