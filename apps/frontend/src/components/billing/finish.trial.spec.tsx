@@ -80,6 +80,12 @@ afterEach(() => {
 });
 
 describe('ending the trial early', () => {
+  it("says the trial ended and the plan's first payment was charged", async () => {
+    const host = await render(<FinishTrial close={close} />);
+
+    expect(host.textContent).toContain('trial_ended_first_payment_charged');
+  });
+
   it("runs the bank's 3D Secure check inside the page when the bank asks for it", async () => {
     mockRoutes['/billing/finish-trial'] = () => ({
       finish: false,
@@ -144,5 +150,22 @@ describe('ending the trial early', () => {
     expect(overlay.className).toContain('bg-popup');
     expect(overlay.className).not.toMatch(/bg-primary\/80|bg-black\/50/);
     expect(host.textContent).toContain('finishing_trial');
+  });
+
+  // The box is 500px wide inside a 60px frame; on a phone it takes the screen's width instead of
+  // running off both sides. Its wrapper is a flex item, which keeps the box's 500px as its minimum
+  // width unless told otherwise.
+  it('fits the dialog on a phone', async () => {
+    const host = await render(<FinishTrial close={close} />);
+    const overlay = host.firstElementChild as HTMLElement;
+    const box = Array.from(host.querySelectorAll('div')).find((el) =>
+      el.classList.contains('w-[500px]')
+    )!;
+
+    expect(box.className.split(/\s+/)).toContain('max-w-full');
+    expect(box.parentElement!.className.split(/\s+/)).toContain('min-w-0');
+    expect(overlay.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['p-[60px]', 'phone:p-[16px]'])
+    );
   });
 });

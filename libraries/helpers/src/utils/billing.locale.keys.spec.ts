@@ -50,6 +50,7 @@ describe('billing surfaces — every string they render', () => {
     expect(referenced).toContain('billing_and_subscription');
     expect(referenced).toContain('delete_account_confirm_subscription_members');
     expect(referenced).toContain('billing_team_members_will_be_disabled');
+    expect(referenced).toContain('trial_feature_unavailable');
   });
 
   it.each(referenced)('says %s in both languages', (key) => {
@@ -68,13 +69,13 @@ describe('billing surfaces — every string they render', () => {
 
 describe('billing Arabic, in Sharek style', () => {
   const STEP_KEYS = Object.keys(ar).filter((key) =>
-    /^(billing_(cycle|renews_on|trial_ends_on|ai_credits_reset_monthly|ai_images|ai_videos|clipping_minutes|and_subscription|and_subscription_description|current_plan|upgrade|downgrade|downgrade_on|switch_to_yearly|switch_to_monthly|purchase|payment_method|payment_method_description|update_payment_method|history|search|all_statuses|export|plan|amount|purchase_date|end_date|status|action|invoice|status_paid|status_open|status_failed|status_void|download_invoice|view_invoice|no_matching_invoices|no_invoices|team_members_will_be_disabled)|finish_trial(_\w+)?|delete_account_confirm_\w+|no_keep_subscription)$/.test(
+    /^(billing_(cycle|renews_on|trial_ends_on|ai_credits_reset_monthly|ai_images|ai_videos|clipping_minutes|and_subscription|and_subscription_description|current_plan|upgrade|downgrade|downgrade_on|switch_to_yearly|switch_to_monthly|purchase|payment_method|payment_method_description|update_payment_method|history|search|all_statuses|export|plan|amount|purchase_date|end_date|status|action|invoice|status_paid|status_open|status_failed|status_void|download_invoice|view_invoice|no_matching_invoices|no_invoices|team_members_will_be_disabled)|finish_trial(_\w+)?|delete_account_confirm_\w+|no_keep_subscription|trial_feature_unavailable|channel_connected_to_another_account|trial_ended_first_payment_charged|payment_failed)$/.test(
       key
     )
   );
 
   it('covers the step’s new keys', () => {
-    expect(STEP_KEYS.length).toBe(48);
+    expect(STEP_KEYS.length).toBe(52);
   });
 
   // The 20% sits at the end of the badge, where a percent sign takes the paragraph's direction;
@@ -89,6 +90,13 @@ describe('billing Arabic, in Sharek style', () => {
 
   it.each(STEP_KEYS)('%s says رفع/تنزيل, never تحميل', (key) => {
     expect(ar[key]).not.toContain('تحميل');
+  });
+
+  it('names the brand شارك in prose', () => {
+    expect(ar.channel_connected_to_another_account).toContain('شارك');
+    expect(ar.channel_connected_to_another_account).not.toMatch(
+      /Sharek|Postiz/i
+    );
   });
 
   // upstream's ar side declares a second billing_unlimited_team_members; JSON keeps the last one
@@ -109,6 +117,11 @@ describe('keys the step orphans', () => {
     'purchase',
     'downgrade_on',
     'your_team_members_will_be_removed_from_your_organization',
+    'you_are_currently_on_trial_in_order_to_use_the_feature_you',
+    'this_social_channel_was_connected_previously_to_another',
+    'you_trial_has_been_successfully_finished_and_you_have_been',
+    'finish_the_trial_charge_me_now',
+    'fast_track_charge_me_now',
     'close_window',
     'close_dialog',
   ])('%s is gone from en and ar', (key) => {

@@ -8,8 +8,22 @@ const mockLoadStripe = jest.fn();
 jest.mock('@stripe/stripe-js', () => ({
   loadStripe: (...args: unknown[]) => mockLoadStripe(...args),
 }));
+// The interface language Stripe.js is asked to speak.
+let mockLanguage: string | undefined = 'ar';
+jest.mock('i18next', () => ({
+  __esModule: true,
+  default: {
+    get resolvedLanguage() {
+      return mockLanguage;
+    },
+  },
+}));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ stripeClient: 'pk_live_sharek' }),
+}));
+// Returns the key, so a case can tell which sentence the reader gets.
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => (key: string) => key,
 }));
 
 import { usePaymentAction } from '@gitroom/frontend/components/billing/use.payment.action';
@@ -25,6 +39,7 @@ const Harness = (): null => {
 const mounted: Array<{ unmount: () => void }> = [];
 
 beforeEach(async () => {
+  mockLanguage = 'ar';
   mockHandleNextAction.mockReset().mockResolvedValue({});
   mockLoadStripe
     .mockReset()
@@ -43,6 +58,25 @@ afterEach(() => {
 });
 
 describe("the bank's 3D Secure check", () => {
+  // Every card form loads Stripe.js in the interface language.
+  it('loads Stripe.js in the interface language', async () => {
+    await action('pi_secret');
+
+    expect(mockLoadStripe).toHaveBeenCalledWith('pk_live_sharek', {
+      locale: 'ar',
+    });
+  });
+
+  it('lets Stripe choose when the interface language is unknown', async () => {
+    mockLanguage = undefined;
+
+    await action('pi_secret');
+
+    expect(mockLoadStripe).toHaveBeenCalledWith('pk_live_sharek', {
+      locale: 'auto',
+    });
+  });
+
   it('runs the check with the intent it was given and reports no error when it passes', async () => {
     await expect(action('pi_secret')).resolves.toEqual({ error: undefined });
     expect(mockHandleNextAction).toHaveBeenCalledWith({
@@ -57,6 +91,36 @@ describe("the bank's 3D Secure check", () => {
 
     await expect(action('pi_secret')).resolves.toEqual({
       error: 'Your card was declined.',
+    });
+  });
+
+  // Stripe.js's own messages for these are technical English: the reader gets a sentence in their
+  // language, one for each cause.
+  it.each([
+    [
+      'rejects',
+      () =>
+        mockLoadStripe.mockRejectedValue(new Error('Failed to load Stripe.js')),
+    ],
+    ['answers nothing', () => mockLoadStripe.mockResolvedValue(null)],
+  ])(
+    'reports a Stripe.js that cannot load (it %s) as the paywall does',
+    async (_cause, arrange) => {
+      arrange();
+
+      await expect(action('pi_secret')).resolves.toEqual({
+        error: 'billing_stripe_load_failed',
+      });
+    }
+  );
+
+  it('reports a check Stripe.js refuses to run as a failed payment', async () => {
+    mockHandleNextAction.mockRejectedValue(
+      new Error('IntegrationError: PaymentIntent is not in requires_action')
+    );
+
+    await expect(action('pi_secret')).resolves.toEqual({
+      error: 'payment_failed',
     });
   });
 });

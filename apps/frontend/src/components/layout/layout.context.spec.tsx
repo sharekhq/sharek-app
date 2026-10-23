@@ -42,6 +42,11 @@ jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
 jest.mock('@gitroom/frontend/components/billing/limit.reached.modal', () => ({
   showLimitReachedModal: jest.fn(),
 }));
+// Answers with the key, so a case can tell which sentence a dialog shows.
+jest.mock('i18next', () => ({
+  __esModule: true,
+  default: { t: (key: string) => key },
+}));
 jest.mock('@gitroom/frontend/app/(app)/auth/return.url.component', () => ({
   useReturnUrl: () => ({ getAndClear: () => null }),
 }));
@@ -128,6 +133,30 @@ describe('the request interceptor signing a session out', () => {
 
     expect(reset).not.toHaveBeenCalled();
     expect(window.location.href).toBe('http://localhost/launches');
+  });
+});
+
+describe('the trial-blocked answer (406)', () => {
+  // The dialog says the plan's first payment is taken today and nothing extra is added.
+  it('offers to end the trial in the new words', async () => {
+    await intercept(new Response(null, { status: 406 }));
+
+    expect(mockDeleteDialog).toHaveBeenCalledWith(
+      'trial_feature_unavailable',
+      'finish_trial_charge_me_now',
+      'trial'
+    );
+  });
+
+  it('opens the trial page in a new tab on confirm, and stops the caller', async () => {
+    mockDeleteDialog.mockResolvedValueOnce(true);
+    const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+
+    const answered = await intercept(new Response(null, { status: 406 }));
+
+    expect(open).toHaveBeenCalledWith('/billing?finishTrial=true', '_blank');
+    expect(answered).toBe(false);
+    open.mockRestore();
   });
 });
 

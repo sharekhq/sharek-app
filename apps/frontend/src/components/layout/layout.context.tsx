@@ -134,13 +134,10 @@ function LayoutContextInner(params: { children: ReactNode }) {
           // force when the refusal actually arrives.
           await deleteDialog(
             i18next.t(
-              'you_are_currently_on_trial_in_order_to_use_the_feature_you',
-              'You are currently on trial, in order to use the feature you must finish the trial'
+              'trial_feature_unavailable',
+              "This feature is not available during the trial. You can end the trial now: your plan's first payment is charged today instead of at the end of the trial."
             ),
-            i18next.t(
-              'finish_the_trial_charge_me_now',
-              'Finish the trial, charge me now'
-            ),
+            i18next.t('finish_trial_charge_me_now', 'End trial and pay now'),
             i18next.t('trial', 'Trial')
           )
         ) {
