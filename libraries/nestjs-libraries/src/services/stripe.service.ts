@@ -1221,29 +1221,40 @@ export class StripeService extends PaymentProviderAbstract {
     // only feeds the Facebook pixel, it runs in the background so it can
     // never fail or slow down the webhook
     this.trackConversion(event.data.object).catch((err) => {});
-
-    // get subscription from payment
-    const subscriptionId =
-      event.data.object.parent?.subscription_details?.subscription;
-    if (!subscriptionId) {
-      return { ok: true };
-    }
-    const subscription = await stripe.subscriptions.retrieve(
-      typeof subscriptionId === 'string' ? subscriptionId : subscriptionId.id
-    );
-
-    const { userId } = subscription.metadata;
-    if (userId && event.data.object.amount_paid > 0) {
-      this._trackService.capture(userId, 'payment_succeeded', {
-        amount: event.data.object.amount_paid / 100,
-        currency: event.data.object.currency.toUpperCase(),
-        billing_reason: event.data.object.billing_reason ?? null,
-        subscription_id: subscription.id,
-        invoice_id: event.data.object.id,
-      });
-    }
-
+    await this.capturePayment(event.data.object);
     return { ok: true };
+  }
+
+  // The payment as a product analytics event for the user who checked out the
+  // subscription. Never throws: a failed read is logged and the webhook still
+  // answers, tracking must not affect billing.
+  private async capturePayment(invoice: Stripe.Invoice) {
+    try {
+      const subscriptionId = invoice.parent?.subscription_details?.subscription;
+      if (!subscriptionId) {
+        return;
+      }
+      const subscription = await stripe.subscriptions.retrieve(
+        typeof subscriptionId === 'string' ? subscriptionId : subscriptionId.id
+      );
+
+      const { userId } = subscription.metadata;
+      if (userId && invoice.amount_paid > 0) {
+        this._trackService.capture(userId, 'payment_succeeded', {
+          amount: invoice.amount_paid / 100,
+          currency: invoice.currency.toUpperCase(),
+          billing_reason: invoice.billing_reason ?? null,
+          subscription_id: subscription.id,
+          invoice_id: invoice.id,
+        });
+      }
+    } catch (err) {
+      console.error(
+        'stripe_payment_capture_failed',
+        { stripe_invoice_id: invoice.id },
+        err
+      );
+    }
   }
 
   // The first charge of a subscription is the conversion: a trial that turned

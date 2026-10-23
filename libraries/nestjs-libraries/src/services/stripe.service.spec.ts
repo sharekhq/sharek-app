@@ -1006,6 +1006,25 @@ describe('billing events', () => {
       error.mockRestore();
     });
 
+    it('answers a paid invoice and records nothing when the subscription read fails', async () => {
+      mockSubscriptionsRetrieve.mockRejectedValue(
+        new Error('Stripe unavailable')
+      );
+      const { service } = makeBillingService();
+
+      await expect(service.processWebhook(invoicePaid())).resolves.toEqual({
+        ok: true,
+      });
+      await flushBackground();
+
+      expect(mockCapture).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalledWith(
+        'stripe_payment_capture_failed',
+        { stripe_invoice_id: 'in_1' },
+        expect.any(Error)
+      );
+    });
+
     it('still records the payment when the conversion report cannot list the invoices', async () => {
       mockInvoicesList.mockRejectedValue(new Error('Stripe unavailable'));
       const { service } = makeBillingService();
