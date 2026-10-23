@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -121,6 +122,18 @@ export const SettingsPopup: FC<{
       : 'global_settings';
   });
 
+  // Phones draw the tab list as one sideways strip, where a tab named in the
+  // address can open past the screen's edge, so the strip starts scrolled to
+  // it. Only when the strip overflows: the iPad and desktop column has
+  // nothing to scroll.
+  const activeTab = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const strip = activeTab.current?.parentElement;
+    if (strip && strip.scrollWidth > strip.clientWidth) {
+      activeTab.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+  }, []);
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -131,13 +144,16 @@ export const SettingsPopup: FC<{
        against a 355px overflow-hidden clipper — 28px of the panel off the
        right edge at 390. Measured on the live app. */
     <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
-      <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] phone:w-full">
-        <div className="flex flex-1 flex-col gap-[15px]">
+      <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] phone:w-full phone:p-[12px]">
+        <div className="flex flex-1 flex-col gap-[15px] phone:flex-row phone:gap-[8px] phone:overflow-x-auto phone:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
           {list.map(({ tab: tabKey, label }) => (
-            <div
+            <button
+              type="button"
               key={tabKey}
+              ref={tabKey === tab ? activeTab : undefined}
+              aria-pressed={tabKey === tab}
               className={clsx(
-                'cursor-pointer flex items-center gap-[12px] rounded-[10px] px-[16px] py-[11px] transition-colors',
+                'cursor-pointer flex items-center gap-[12px] rounded-[10px] px-[16px] py-[11px] text-start transition-colors focus-visible:ring-2 focus-visible:ring-brand coarse:min-h-[44px] phone:shrink-0 phone:whitespace-nowrap phone:px-[14px] phone:py-[10px]',
                 tabKey === tab
                   ? 'bg-brandSoft text-brandText font-[600]'
                   : 'hover:bg-boxHover'
@@ -145,12 +161,12 @@ export const SettingsPopup: FC<{
               onClick={() => setTab(tabKey)}
             >
               {label}
-            </div>
+            </button>
           ))}
         </div>
         <div>
           {showLogout && (
-            <div className="mt-4">
+            <div className="mt-4 phone:mt-[8px]">
               <LogoutComponent />
             </div>
           )}

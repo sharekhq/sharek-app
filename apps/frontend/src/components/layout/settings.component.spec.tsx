@@ -288,3 +288,86 @@ describe('the Integrations address with third-party integrations switched off', 
     expect(panel(await settings())).toBe('integrations');
   });
 });
+
+describe('the tab list on a phone', () => {
+  const overridden: Array<[string, PropertyDescriptor | undefined]> = [];
+  const override = (name: string, descriptor: PropertyDescriptor) => {
+    const proto = HTMLElement.prototype;
+    overridden.push([name, Object.getOwnPropertyDescriptor(proto, name)]);
+    Object.defineProperty(proto, name, { configurable: true, ...descriptor });
+  };
+  // happy-dom lays nothing out, so the strip's two widths are set by hand.
+  const strip = (scrollWidth: number, clientWidth: number) => {
+    override('scrollWidth', { get: () => scrollWidth });
+    override('clientWidth', { get: () => clientWidth });
+  };
+  let scrollIntoView: jest.Mock;
+
+  beforeEach(() => {
+    scrollIntoView = jest.fn();
+    override('scrollIntoView', { writable: true, value: scrollIntoView });
+  });
+
+  afterEach(() => {
+    const proto = HTMLElement.prototype;
+    for (const [name, original] of overridden.splice(0).reverse()) {
+      if (original) Object.defineProperty(proto, name, original);
+      else Reflect.deleteProperty(proto, name);
+    }
+  });
+
+  it('draws every tab as a button a keyboard reaches, with a focus ring, and says which is open', async () => {
+    mockParams = new URLSearchParams('tab=plugs');
+    const all = tabs(await settings());
+
+    for (const tab of all) {
+      expect(tab.tagName).toBe('BUTTON');
+      expect(tab.getAttribute('type')).toBe('button');
+      expect(tab.className).toContain('focus-visible:ring-2');
+      expect(tab.className).toContain('focus-visible:ring-brand');
+    }
+    expect(
+      all
+        .filter((tab) => tab.getAttribute('aria-pressed') === 'true')
+        .map((tab) => tab.textContent)
+    ).toEqual(['Plugs']);
+  });
+
+  it('turns the column into one sideways strip on phones only', async () => {
+    const host = await settings();
+    const list = tabs(host)[0].parentElement!;
+
+    expect(list.className).toContain('flex-col');
+    expect(list.className).toContain('phone:flex-row');
+    expect(list.className).toContain('phone:overflow-x-auto');
+    for (const tab of tabs(host)) {
+      expect(tab.className).toContain('phone:shrink-0');
+      expect(tab.className).toContain('phone:whitespace-nowrap');
+    }
+    // iPads keep the side column: nothing here answers to Sharek's 1025px screen.
+    expect(host.innerHTML).not.toMatch(/\bmobile:/);
+  });
+
+  it('opens with the tab the address names scrolled into view when the strip overflows', async () => {
+    strip(900, 366);
+    mockParams = new URLSearchParams('tab=apps');
+    const host = await settings();
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      inline: 'center',
+      block: 'nearest',
+    });
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      tabs(host).find((tab) => tab.textContent === 'Apps')
+    );
+  });
+
+  it('leaves the page alone where the tabs fit, as in the iPad and desktop column', async () => {
+    strip(260, 260);
+    mockParams = new URLSearchParams('tab=apps');
+    await settings();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+});
