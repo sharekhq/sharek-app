@@ -10,6 +10,10 @@ import {
   nextTierFor,
   viewerCanBuy,
 } from '@gitroom/frontend/components/billing/limit.sections';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 // Every section a @CheckPolicies or a MediaService throw can reach as a 402
 // (research R1). None of them may land on an empty card.
@@ -191,5 +195,34 @@ describe('the reset date', () => {
     expect(formatted).not.toMatch(/[٠-٩]/);
     // ...and an English month name means the locale never took.
     expect(formatted).not.toContain('September');
+  });
+});
+
+describe('the reset date with a zone chosen', () => {
+  const ZONE = 'Asia/Tokyo';
+  // 16:00 UTC on 31 October is already 1 November in Tokyo, and still
+  // 31 October on every machine the gate uses
+  const iso = '2026-10-31T16:00:00.000Z';
+
+  afterEach(() => setUserTimezone(null));
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it('is the day in the zone', () => {
+    setUserTimezone(ZONE);
+
+    expect(formatResetDate(iso, 'en')).toBe('November 1');
+  });
+
+  it('is the day in the zone in Arabic', () => {
+    setUserTimezone(ZONE);
+
+    expect(formatResetDate(iso, 'ar')).toBe('1 نوفمبر');
+  });
+
+  it("is the day in the browser's zone on Automatic", () => {
+    expect(formatResetDate(iso, 'en')).toBe('October 31');
   });
 });

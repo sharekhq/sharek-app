@@ -6,6 +6,7 @@ import {
   BillingFeature,
   billingFeatureFor,
 } from '@gitroom/frontend/components/billing/billing.features';
+import { getTimezone } from '@gitroom/frontend/components/layout/set.timezone';
 
 /**
  * The limit modal's entire knowledge of "which limit is this". Data, not
@@ -393,4 +394,5 @@ export const formatResetDate = (iso: string, lang: string) =>
   new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-u-nu-latn' : lang, {
     day: 'numeric',
     month: 'long',
+    timeZone: getTimezone(),
   });
