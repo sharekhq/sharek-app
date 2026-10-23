@@ -39,6 +39,16 @@ const makeTool = (rows: unknown[] = []) => {
 };
 
 describe('DeletePostTool', () => {
+  // What a client tells the user before a deletion it cannot undo.
+  it('says a published post stays live and names Sharek, never the upstream product', () => {
+    const { description } = makeTool().tool;
+
+    expect(description).toContain(
+      'Deleting a published post only removes it from Sharek - it stays live on the social network.'
+    );
+    expect(description).not.toMatch(/postiz/i);
+  });
+
   // Clients such as Claude ask before running a tool marked destructive.
   it('is marked destructive', () => {
     expect(makeTool().tool.mcp.annotations).toMatchObject({

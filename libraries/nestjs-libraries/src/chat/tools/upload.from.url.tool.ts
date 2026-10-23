@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 
 @Injectable()
 export class UploadFromUrlTool implements AgentToolInterface {
@@ -11,14 +12,20 @@ export class UploadFromUrlTool implements AgentToolInterface {
   name = 'uploadFromUrlTool';
 
   run() {
+    // adjusting needs the media processor; without it the option is not offered
+    const adjustable = UploadFactory.processorEnabled();
     return createTool({
       id: 'uploadFromUrlTool',
       description: `Upload a remote image or video into the media library from a public http(s) URL.
 Local or private files cannot be fetched by this tool: upload them with the Sharek CLI (sharek upload <file>, https://docs.sharek.app/cli/introduction) or the public API (POST /public/v1/upload with an API key, https://docs.sharek.app/api/introduction).
 Use this before scheduling a post when the user provides an external media URL (not already hosted on our domain),
-so the attachment passes the upload-domain validation. Returns the hosted media { id, path, status } to use as an attachment (or as the src of an <img> in the content, when the channel rules say pictures go inside the content), or { error } on failure.
+so the attachment passes the upload-domain validation. Returns the hosted media { id, path, status } to use as an attachment (or as the src of an <img> in the content, when the channel rules say pictures go inside the content), or { error } on failure.${
+        adjustable
+          ? `
 Set adjust to true (off by default) to adjust the media to the platforms' limits after the upload, for media a platform may reject as too large, too small or in an unsupported encoding: videos get their short side scaled to 1080 px (up or down, long side at most 1920 px) and are re-encoded to H.264 MP4 with AAC audio at up to 60 fps; images are only scaled down (short side at most 1080 px, long side at most 1920 px) and keep their format. GIF, AVIF, BMP and TIFF files are stored as uploaded.
-Without adjust the status is "ready" and the path can be used immediately. With adjust the status is "processing" until the adjusted file replaces the original at the same path, usually within seconds. Wait until it is "ready" before publishing a post with this path: a post published while it is processing uses the original, unadjusted file. To know when the adjusted file is in place, call mediaStatusTool with the returned id (not uploadWidgetStatusTool, which only covers the upload widget).`,
+Without adjust the status is "ready" and the path can be used immediately. With adjust the status is "processing" until the adjusted file replaces the original at the same path, usually within seconds. Wait until it is "ready" before publishing a post with this path: a post published while it is processing uses the original, unadjusted file. To know when the adjusted file is in place, call mediaStatusTool with the returned id (not uploadWidgetStatusTool, which only covers the upload widget).`
+          : ''
+      }`,
       mcp: {
         annotations: {
           title: 'Upload Media From URL',
@@ -35,12 +42,16 @@ Without adjust the status is "ready" and the path can be used immediately. With 
           .describe(
             'The public http(s) URL of the image or video to upload. Local files and private hosts are not supported, use the Sharek CLI (sharek upload <file>) or POST /public/v1/upload instead'
           ),
-        adjust: z
-          .boolean()
-          .optional()
-          .describe(
-            'Adjust the media to the platforms\' limits (resize and re-encode) after the upload. Defaults to false'
-          ),
+        ...(adjustable
+          ? {
+              adjust: z
+                .boolean()
+                .optional()
+                .describe(
+                  'Adjust the media to the platforms\' limits (resize and re-encode) after the upload. Defaults to false'
+                ),
+            }
+          : {}),
       }),
       // Mastra validates a tool's return against this schema, so it must also
       // allow the graceful { error } shape. Fields are optional (rather than

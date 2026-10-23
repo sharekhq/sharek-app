@@ -2,7 +2,27 @@ import { YoutubeProvider } from './youtube.provider';
 import { Integration } from '@prisma/client';
 import { PostDetails } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 
-describe('YoutubeProvider, a refresh failure', () => {
+describe('YoutubeProvider, a Google Workspace session policy refusal', () => {
+  // What Google answers a refresh when the Workspace reauthentication policy
+  // invalidated the grant.
+  const invalidRapt = {
+    response: {
+      data: {
+        error: 'invalid_grant',
+        error_subtype: 'invalid_rapt',
+        error_description: 'reauth related error (invalid_rapt)',
+      },
+    },
+  };
+
+  // The text reaches the user in the bell and by email (informAboutRefreshError).
+  it('tells the user to ask their Workspace admin to trust Sharek', () => {
+    const message = new YoutubeProvider().refreshErrorMessage(invalidRapt);
+
+    expect(message).toContain('mark Sharek as a trusted app');
+    expect(message).not.toMatch(/postiz/i);
+  });
+
   it('leaves any other refresh failure to the generic message', () => {
     expect(
       new YoutubeProvider().refreshErrorMessage({

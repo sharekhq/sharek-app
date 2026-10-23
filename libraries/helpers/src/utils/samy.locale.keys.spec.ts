@@ -38,4 +38,14 @@ describe('Samy persona locale keys', () => {
     expect(ar.samy_welcome_message).toContain('سامي');
     expect(ar.samy_welcome_message).toContain('MCP');
   });
+
+  // The MCP setup lives in Settings' Developers tab. "Public API" names no tab
+  // Sharek has, and upstream's "Agents / Dev" is a rename Sharek did not take.
+  it('sends the reader to Settings → Developers for the MCP setup, in both languages', () => {
+    expect(en.samy_welcome_message).toContain('Settings → Developers');
+    expect(ar.samy_welcome_message).toContain(ar.developers);
+    for (const welcome of [en.samy_welcome_message, ar.samy_welcome_message]) {
+      expect(welcome).not.toMatch(/Public API|Agents \/ Dev/);
+    }
+  });
 });

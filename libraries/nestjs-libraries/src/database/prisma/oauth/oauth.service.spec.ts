@@ -1,6 +1,6 @@
 // HubSpot arrives switched off: with its settings unset, or passed through as
 // empty strings, there is no install link, the install callback is not found
-// and no client gets a refresh grant.
+// and no client gets a refresh grant. Once installed, its errors name Sharek.
 // The repository opens a database client at import; the switched-off paths never reach it, and the
 // install path only talks to HubSpot (fetch).
 jest.mock(
@@ -76,4 +76,50 @@ describe.each([
       expect(getAppByClientId).not.toHaveBeenCalled();
     }
   );
+});
+
+describe('the HubSpot install errors', () => {
+  const realFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.HUBSPOT_APP_CLIENT_ID = 'hubspot-app';
+    process.env.HUBSPOT_APP_CLIENT_SECRET = 'hubspot-secret';
+  });
+
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  const installFailure = async () =>
+    (await makeService()
+      .completeHubspotInstall('code-1')
+      .catch((err: unknown) => err)) as HttpException;
+
+  it('name Sharek when HubSpot cannot be reached', async () => {
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('timeout')) as unknown as typeof fetch;
+
+    const failure = await installFailure();
+
+    expect(failure.getStatus()).toBe(502);
+    expect(failure.message).toBe(
+      'Could not reach HubSpot to finish installing Sharek, please try again'
+    );
+  });
+
+  it('name Sharek when HubSpot refuses the code', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ message: 'code expired' }),
+    }) as unknown as typeof fetch;
+
+    const failure = await installFailure();
+
+    expect(failure.getStatus()).toBe(400);
+    expect(failure.message).toBe(
+      'Could not finish installing Sharek in HubSpot: code expired'
+    );
+    expect(failure.message).not.toMatch(/postiz/i);
+  });
 });

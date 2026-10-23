@@ -211,7 +211,7 @@ describe('LoadToolsService selected channels', () => {
   });
 
   it('renders no channel section when nothing is selected', async () => {
-    for (const value of [[], undefined, null]) {
+    for (const value of [[] as unknown[], undefined, null]) {
       const instructions = await instructionsWith(contextWithChannels(value));
       expect(instructions).not.toContain('Channels selected');
     }
@@ -479,15 +479,28 @@ describe('LoadToolsService post management guidance', () => {
   });
 
   // The create modal only ever creates, so editing through it duplicates the
-  // post; deletion has no tool at all.
-  it('forbids editing through the create modal and offering deletion', async () => {
+  // post.
+  it('forbids editing through the create modal', async () => {
     const instructions = await instructionsWith(uiContext());
     expect(instructions).toContain(
       'Never open the "modal with populated content" to edit an existing post'
     );
+  });
+
+  // Deleting has its own tool now. A sentence left from before it would tell the
+  // model both that it can delete and that it cannot.
+  it('advertises the delete tool and its find-then-delete flow, and nothing that forbids deleting', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain('- Delete a post (deletePostTool)');
     expect(instructions).toContain(
-      'delete it themselves in the Sharek app (the calendar)'
+      "then use deletePostTool with the post's id"
     );
+    expect(instructions).toContain(
+      'Deleting a published post only removes it from Sharek, it stays live on the social network.'
+    );
+    expect(instructions).toContain('get their confirmation first');
+    expect(instructions).not.toContain('CANNOT delete');
+    expect(instructions).not.toContain('delete it themselves');
   });
 
   it('names Sharek, never the upstream product, and keeps the agent identity', async () => {

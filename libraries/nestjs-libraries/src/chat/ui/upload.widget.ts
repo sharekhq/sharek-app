@@ -11,7 +11,7 @@ export const UPLOAD_WIDGET_URI = 'ui://postiz/upload';
 // the host) -> POST /media-widget/upload -> report the media back to the model.
 // The upload is a plain multipart fetch on purpose: no custom headers and no
 // XHR progress listeners, so the browser never sends a CORS preflight
-export const uploadWidgetHtml = (backendUrl: string) => `<!DOCTYPE html>
+export const uploadWidgetHtml = (backendUrl: string, adjustable: boolean) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -54,11 +54,15 @@ export const uploadWidgetHtml = (backendUrl: string) => `<!DOCTYPE html>
   #error:empty { display: none; }
 </style>
 </head>
-<body>
+<body>${
+  adjustable
+    ? `
   <div id="options">
     <label><input id="adjust" type="checkbox" /> Adjust media to platform limits</label>
     <i class="info" tabindex="0" aria-label="About adjusting media">i<span>Platforms reject media that is too large, too small or in an unsupported format. Videos are resized to 1080p MP4 and oversized images are scaled down; if that fails, the original is used. Check it before choosing files.</span></i>
-  </div>
+  </div>`
+    : ''
+}
   <label id="drop" class="disabled">
     Choose files or drop them here
     <small>Images up to ${megabytes('image/png')} MB and videos up to ${megabytes('video/mp4')} MB</small>
@@ -268,7 +272,8 @@ export const uploadWidgetHtml = (backendUrl: string) => `<!DOCTYPE html>
     drop.className = 'disabled';
     fail('');
     var done = [];
-    var adjust = document.getElementById('adjust').checked;
+    var adjustBox = document.getElementById('adjust');
+    var adjust = !!adjustBox && adjustBox.checked;
     getTicket()
       .then(function (ticket) {
         return files.reduce(function (chain, file) {

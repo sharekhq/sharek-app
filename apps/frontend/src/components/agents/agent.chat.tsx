@@ -89,7 +89,7 @@ export const AgentChat: FC = () => {
               title: t('samy', 'Samy'),
               initial: t(
                 'samy_welcome_message',
-                "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Public API."
+                "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
               ),
             }}
             UserMessage={Message}

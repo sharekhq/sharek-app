@@ -110,7 +110,7 @@ export const startMcp = async (app: INestApplication) => {
     [UPLOAD_WIDGET_URI]: {
       name: 'Upload Media',
       description: 'Upload an image or video from the device to the media library',
-      html: uploadWidgetHtml(backendUrl!),
+      html: uploadWidgetHtml(backendUrl!, UploadFactory.processorEnabled()),
       meta: {
         csp: { connectDomains: [new URL(backendUrl!).origin] },
         // the "Copy link" button of the uploaded media
