@@ -483,6 +483,7 @@
   "enter_email": "Введите email",
   "are_you_sure": "Вы уверены?",
   "no_cancel": "Нет, отмена!",
+  "no_keep_subscription": "Нет, оставить",
   "are_you_sure_you_want_to_delete": "Вы уверены, что хотите удалить {{name}}?",
   "are_you_sure_you_want_to_delete_the_image": "Вы уверены, что хотите удалить изображение?",
   "are_you_sure_you_want_to_logout": "Вы уверены, что хотите выйти?",

@@ -70,7 +70,8 @@ export const Prorate: FC<{
   }
   return (
     <div className="animate-fadeIn">
-      {t('pay_today', 'Pay Today')} ${Math.max(price, 0).toFixed(2)}
+      {t('pay_today', 'Pay Today')}{' '}
+      <bdi dir="ltr">${Math.max(price, 0).toFixed(2)}</bdi>
     </div>
   );
 };
@@ -153,8 +154,8 @@ const BillingCycle: FC<{
   ].filter((p) => p.total);
 
   return (
-    <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] mobile:flex-col mobile:items-stretch mobile:p-[16px]">
-      <div className="w-[48px] h-[48px] rounded-full bg-[#612bd3]/10 text-[#612bd3] flex items-center justify-center shrink-0 mobile:hidden">
+    <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
+      <div className="w-[48px] h-[48px] rounded-full bg-brandSoft text-brandText flex items-center justify-center shrink-0 phone:hidden">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
@@ -195,7 +196,7 @@ const BillingCycle: FC<{
           )}
         </div>
       </div>
-      <div className="flex gap-[8px] mobile:flex-col">
+      <div className="flex gap-[8px] phone:flex-col">
         {usage.map((p) => (
           <div
             key={p.label}
@@ -224,10 +225,10 @@ type PlanAction = {
 };
 
 const planButton = {
-  primary: 'bg-btnPrimary text-white hover:bg-[#5023b8]',
+  primary: 'bg-brand text-white hover:opacity-90',
   simple: 'bg-btnSimple text-btnText hover:opacity-80',
   current: 'bg-newBgLineColor text-textItemBlur',
-  danger: 'bg-red-500 text-white hover:bg-red-600',
+  danger: 'bg-error text-white hover:opacity-90',
 };
 
 const PlanCard: FC<{
@@ -248,9 +249,9 @@ const PlanCard: FC<{
   return (
     <div
       className={clsx(
-        'relative flex flex-col gap-[20px] rounded-[12px] border p-[24px] mobile:p-[20px]',
+        'relative flex flex-col gap-[20px] rounded-[12px] border p-[24px] phone:p-[20px]',
         current
-          ? 'border-transparent bg-gradient-to-b from-seventh to-btnPrimary text-white shadow-lg shadow-purple-500/25'
+          ? 'border-transparent bg-brand text-white'
           : 'border-newTableBorder bg-newBgColorInner shadow-previewShadow'
       )}
     >
@@ -275,19 +276,19 @@ const PlanCard: FC<{
         <div className="text-[18px] font-[600]">{capitalize(name)}</div>
         {current && (
           <div className="flex items-center gap-[6px] h-[26px] px-[10px] rounded-full bg-white/15 text-[12px] font-[600] uppercase whitespace-nowrap">
-            <span className="w-[6px] h-[6px] rounded-full bg-[#32D583]" />
+            <span className="w-[6px] h-[6px] rounded-full bg-white" />
             {t('active', 'Active')}
           </div>
         )}
       </div>
       <div className="flex items-baseline gap-[6px]">
         <div className="text-[40px] leading-[48px] font-[600] tracking-tight">
-          ${price}
+          ${price.toLocaleString('en-US')}
         </div>
         <div
           className={clsx(
             'text-[14px]',
-            current ? 'text-white/70' : 'text-textItemBlur'
+            current ? 'text-white/75' : 'text-textItemBlur'
           )}
         >
           {yearly
@@ -301,11 +302,13 @@ const PlanCard: FC<{
           onClick={action.onClick}
           disabled={disabled}
           className={clsx(
-            'h-[44px] px-[16px] rounded-[8px] text-[15px] font-[600] flex items-center justify-center transition-all',
+            'h-[44px] px-[16px] rounded-[8px] text-[15px] font-[600] flex items-center justify-center transition-all focus-visible:ring-2',
+            // a brand ring would vanish against the current card's brand fill
+            current ? 'focus-visible:ring-white' : 'focus-visible:ring-brand',
             current
               ? action.variant === 'current'
                 ? 'bg-white/15 text-white'
-                : 'bg-white text-btnPrimary hover:bg-white/90'
+                : 'bg-white text-brand hover:bg-white/90'
               : planButton[action.variant],
             disabled ? 'cursor-default' : 'cursor-pointer',
             disabled && action.variant !== 'current' && 'opacity-50'
@@ -326,7 +329,7 @@ const PlanCard: FC<{
           <div
             className={clsx(
               'absolute top-full inset-x-0 h-[28px] flex items-center justify-center text-[12px]',
-              current ? 'text-white/70' : 'text-textItemBlur'
+              current ? 'text-white/75' : 'text-textItemBlur'
             )}
           >
             {note}
@@ -345,7 +348,7 @@ const PlanCard: FC<{
             key={feature.key}
             className={clsx(
               'flex gap-[10px]',
-              current ? 'text-white' : 'text-newTextColor/90'
+              current ? 'text-white' : 'text-newTextColor'
             )}
           >
             <svg
@@ -356,7 +359,7 @@ const PlanCard: FC<{
               fill="none"
               className={clsx(
                 'shrink-0',
-                current ? 'text-white/75' : 'text-[#8b5cf6]'
+                current ? 'text-white/75' : 'text-success'
               )}
             >
               <circle
@@ -639,7 +642,10 @@ export const MainBillingComponent: FC<{
           }
           if (hasMembers) {
             messages.push(
-              `Your team members will be disabled and lose access to your organization until you upgrade to a plan that includes team members again`
+              t(
+                'billing_team_members_will_be_disabled',
+                'Your team members will be disabled and lose access to your organization until you upgrade to a plan that includes team members again'
+              )
             );
           }
         }
@@ -654,7 +660,7 @@ export const MainBillingComponent: FC<{
               ),
               t('yes_cancel', 'Yes, cancel'),
               t('cancel_subscription', 'Cancel Subscription'),
-              'No, keep it'
+              t('no_keep_subscription', 'No, keep it')
             ))
           ) {
             const checkDiscount = await (
@@ -739,19 +745,30 @@ export const MainBillingComponent: FC<{
           return;
         }
         setLoading(true);
-        const { url, portal, blocked, requiresAction, clientSecret } = await (
-          await fetch('/billing/subscribe', {
-            method: 'POST',
-            body: JSON.stringify({
-              period: monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY',
-              utm,
-              billing,
-              ...(dub ? { dub } : {}),
-              ...(fbc ? { fbc } : {}),
-              ...(fbp ? { fbp } : {}),
-            }),
-          })
-        ).json();
+        const response = await fetch('/billing/subscribe', {
+          method: 'POST',
+          body: JSON.stringify({
+            period: monthlyOrYearly === 'on' ? 'YEARLY' : 'MONTHLY',
+            utm,
+            billing,
+            ...(dub ? { dub } : {}),
+            ...(fbc ? { fbc } : {}),
+            ...(fbp ? { fbp } : {}),
+          }),
+        });
+        if (!response.ok) {
+          toast.show(
+            t(
+              'subscription_change_failed',
+              'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
+            ),
+            'warning'
+          );
+          setLoading(false);
+          return;
+        }
+        const { url, portal, blocked, requiresAction, clientSecret } =
+          await response.json();
         if (blocked) {
           setLoading(false);
           await deleteDialog(
@@ -917,7 +934,7 @@ export const MainBillingComponent: FC<{
           }}
         />
       )}
-      <div className="flex items-center gap-[16px] mobile:flex-col mobile:items-stretch">
+      <div className="flex items-center gap-[16px] phone:flex-col phone:items-stretch">
         <div className="flex-1 flex flex-col gap-[4px]">
           <div className="text-[20px] font-[600]">
             {t('billing_and_subscription', 'Billing & Subscription')}
@@ -930,32 +947,36 @@ export const MainBillingComponent: FC<{
           </div>
         </div>
         <div className="flex p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] select-none">
-          <div
+          <button
+            type="button"
+            aria-pressed={!yearly}
             onClick={() => setMonthlyOrYearly('off')}
             className={clsx(
-              'h-[34px] px-[16px] rounded-[6px] flex items-center justify-center mobile:flex-1',
+              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2 focus-visible:ring-brand',
               !yearly ? 'bg-boxFocused text-textItemFocused' : 'cursor-pointer'
             )}
           >
             {t('billing_monthly', 'Monthly')}
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
+            aria-pressed={yearly}
             onClick={() => setMonthlyOrYearly('on')}
             className={clsx(
-              'h-[34px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] mobile:flex-1',
+              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2 focus-visible:ring-brand',
               yearly ? 'bg-boxFocused text-textItemFocused' : 'cursor-pointer'
             )}
           >
             {t('billing_yearly', 'Yearly')}
-            <div className="bg-[#AA0FA4] text-white text-[12px] px-[6px] rounded-[4px]">
+            <span className="bg-brand text-white text-[12px] px-[6px] rounded-[4px]">
               {t('billing_20_percent_off', '20% Off')}
-            </div>
-          </div>
+            </span>
+          </button>
         </div>
       </div>
       {subscription?.cancelAt && isGeneral && (
-        <div className="flex items-center gap-[12px] rounded-[12px] border border-[#FFAC30]/30 bg-[#FFAC30]/10 px-[16px] py-[12px] text-[14px]">
-          <div className="w-[8px] h-[8px] rounded-full bg-[#FFAC30] shrink-0" />
+        <div className="flex items-center gap-[12px] rounded-[12px] border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] px-[16px] py-[12px] text-[14px]">
+          <div className="w-[8px] h-[8px] rounded-full bg-warning shrink-0" />
           <div>
             {t(
               'your_subscription_will_be_canceled_at',
@@ -974,7 +995,7 @@ export const MainBillingComponent: FC<{
       )}
       <div
         className={clsx(
-          'grid gap-[16px] tablet:grid-cols-2 mobile:!grid-cols-1',
+          'grid gap-[16px] mobile:grid-cols-2 phone:grid-cols-1',
           plans.length > 4 ? 'grid-cols-5' : 'grid-cols-4'
         )}
       >
@@ -1019,8 +1040,8 @@ export const MainBillingComponent: FC<{
         />
       )}
       {!!subscription?.id && (
-        <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] mobile:flex-col mobile:items-stretch mobile:p-[16px]">
-          <div className="w-[48px] h-[48px] rounded-full bg-[#612bd3]/10 text-[#612bd3] flex items-center justify-center shrink-0 mobile:hidden">
+        <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
+          <div className="w-[48px] h-[48px] rounded-full bg-brandSoft text-brandText flex items-center justify-center shrink-0 phone:hidden">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -1047,7 +1068,7 @@ export const MainBillingComponent: FC<{
               )}
             </div>
           </div>
-          <div className="flex items-center gap-[8px] mobile:flex-col-reverse mobile:items-stretch">
+          <div className="flex flex-wrap items-center justify-end gap-[8px] phone:flex-col-reverse phone:items-stretch">
             {isGeneral && !subscription?.cancelAt && (
               <button
                 type="button"
@@ -1056,7 +1077,7 @@ export const MainBillingComponent: FC<{
                   setClicked('CANCEL');
                   moveToCheckout('FREE')();
                 }}
-                className="h-[44px] px-[16px] rounded-[8px] border border-red-500/40 text-red-500 text-[14px] font-[500] flex items-center justify-center hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                className="h-[44px] px-[16px] rounded-[8px] border border-line text-error text-[14px] font-[500] flex items-center justify-center hover:bg-boxHover transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand"
               >
                 {loading && clicked === 'CANCEL' ? (
                   <ReactLoading
@@ -1073,7 +1094,7 @@ export const MainBillingComponent: FC<{
             <button
               type="button"
               onClick={updatePayment}
-              className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity"
+              className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
             >
               {t('billing_update_payment_method', 'Update payment method')}
             </button>
@@ -1081,7 +1102,7 @@ export const MainBillingComponent: FC<{
               <button
                 type="button"
                 onClick={finishTrialNow}
-                className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity"
+                className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
               >
                 {t('finish_trial', 'Finish trial')}
               </button>

@@ -15,13 +15,18 @@ type OpenedModal = {
 };
 
 // Returns the English default with its {{placeholders}} filled, so a case reads the sentence the
-// customer reads.
+// customer reads, and remembers the key each sentence was asked for by.
+const mockKeys = new Map<string, string>();
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT:
-    () => (_key: string, fallback: string, options?: Record<string, unknown>) =>
-      (fallback || '').replace(/{{(\w+)}}/g, (_m, name) =>
+    () =>
+    (key: string, fallback: string, options?: Record<string, unknown>) => {
+      const text = (fallback || '').replace(/{{(\w+)}}/g, (_m, name) =>
         String(options?.[name] ?? '')
-      ),
+      );
+      mockKeys.set(text, key);
+      return text;
+    },
 }));
 
 const mockShow = jest.fn();
@@ -199,11 +204,19 @@ const period = (host: HTMLElement, label: string) =>
       el.firstChild?.nodeName === '#text' && el.firstChild.textContent === label
   )!;
 const toasts = () => mockShow.mock.calls.map(([text, type]) => [text, type]);
+// The key a sentence on the page was asked for by; undefined for a literal, which reads English in
+// every language.
+const keyOf = (text: string) => mockKeys.get(text);
+const classes = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll('*')).map(
+    (el) => el.getAttribute('class') || ''
+  );
 
 // Stands in for the old single /billing/cancel answer of the trunk's cases.
 let mockCancelResponse: () => Response;
 
 beforeEach(() => {
+  mockKeys.clear();
   mockUser = { id: 'me', tier: { current: 'STANDARD' }, isTrailing: false };
   mockSwrData = {};
   mockDeleteDialog.mockResolvedValue(true);
@@ -331,9 +344,30 @@ describe('Cancel subscription', () => {
       'Your subscription will be canceled at'
     );
   });
+
+  it('offers to keep the subscription in the interface language', async () => {
+    mockDeleteDialog.mockResolvedValue(false);
+    const host = await render(SUB);
+
+    await click(host, 'Cancel subscription');
+
+    expect(mockDeleteDialog.mock.calls[0][3]).toBe('No, keep it');
+    expect(keyOf('No, keep it')).toBe('no_keep_subscription');
+  });
 });
 
 describe('the plan cards', () => {
+  it('fills the current plan with the brand colour and leaves the others on white cards', async () => {
+    const host = await render(subscription('TEAM'));
+
+    expect(card(host, 'Team').className).toContain('bg-brand');
+    expect(card(host, 'Team').textContent).toContain('Active');
+    for (const other of ['Standard', 'Pro', 'Ultimate']) {
+      expect(card(host, other).className).toContain('bg-newBgColorInner');
+      expect(card(host, other).className).not.toContain('bg-brand');
+    }
+  });
+
   it("lists Sharek's features on every card", async () => {
     const host = await render(subscription('TEAM'));
 
@@ -365,9 +399,47 @@ describe('the plan cards', () => {
     );
     expect(card(host, 'Team').querySelector('button')!.disabled).toBe(true);
   });
+
+  it('shows four plans across, two on an iPad and one on a phone', async () => {
+    const host = await render(SUB);
+    const grid = card(host, 'Team').parentElement!;
+
+    expect(grid.className).toMatch(/\bgrid-cols-4\b/);
+    expect(grid.className).toContain('mobile:grid-cols-2');
+    expect(grid.className).toContain('phone:grid-cols-1');
+    expect(grid.className).not.toContain('tablet:');
+  });
+
+  it('keeps "Pay today" amounts in reading order', async () => {
+    const host = await render(SUB);
+    const amount = card(host, 'Pro').querySelector('bdi[dir="ltr"]');
+
+    expect(amount?.textContent).toBe('$13.20');
+  });
 });
 
 describe('the billing period', () => {
+  it('is a pair of real buttons that say which period is shown', async () => {
+    const host = await render(SUB);
+    const [monthly, yearly] = Array.from(
+      host.querySelectorAll('button[aria-pressed]')
+    );
+
+    expect(monthly.getAttribute('aria-pressed')).toBe('true');
+    expect(yearly.textContent).toContain('20% Off');
+    await press(yearly);
+    expect(yearly.getAttribute('aria-pressed')).toBe('true');
+    expect(monthly.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('groups the thousands of a yearly price', async () => {
+    const host = await render(SUB);
+
+    await press(period(host, 'Yearly'));
+
+    expect(card(host, 'Ultimate').textContent).toContain('$2,352');
+  });
+
   it('offers a monthly subscriber the switch to yearly', async () => {
     const host = await render(SUB);
 
@@ -380,6 +452,28 @@ describe('the billing period', () => {
 });
 
 describe('a plan change', () => {
+  it('shows an error and no success when the server refuses it', async () => {
+    mockRoutes['/billing/subscribe'] = () => json({ message: 'refused' }, 400);
+    const host = await render(SUB);
+
+    await press(card(host, 'Pro').querySelector('button')!);
+
+    expect(toasts()).toEqual([
+      [
+        'Your subscription could not be changed. Please try again, or contact support if this keeps happening.',
+        'warning',
+      ],
+    ]);
+    expect(
+      keyOf(
+        'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
+      )
+    ).toBe('subscription_change_failed');
+    expect(card(host, 'Pro').querySelector('button')!.textContent).toBe(
+      'Upgrade'
+    );
+  });
+
   it("runs the bank's 3D Secure check inside the page before it reports the new plan", async () => {
     mockRoutes['/billing/subscribe'] = () =>
       json({ requiresAction: true, clientSecret: 'pi_secret' });
@@ -457,6 +551,14 @@ describe('the downgrade warning', () => {
     );
 
     expect(mockDeleteDialog).toHaveBeenCalledWith(WARNING, 'Yes, continue');
+  });
+
+  it('words the warning in the interface language', async () => {
+    await downgrade(() =>
+      json({ users: [{ user: { id: 'me' } }, { user: { id: 'colleague' } }] })
+    );
+
+    expect(keyOf(WARNING)).toBe('billing_team_members_will_be_disabled');
   });
 
   it('says nothing when the owner is the only member', async () => {
@@ -551,5 +653,67 @@ describe('ending the trial early', () => {
     const host = await render(subscription('TEAM'));
 
     expect(host.textContent).not.toContain('Finish trial');
+  });
+});
+
+describe("Sharek's style", () => {
+  const FORBIDDEN =
+    /#[0-9a-f]{6}|\b(bg|text|border|from|to|shadow)-(red|green|amber|yellow|purple|pink|fuchsia|violet)-\d{3}|\bseventh\b|btnPrimary|(brand|success|warning|error)\/\d+/i;
+
+  it.each([
+    ['paying', subscription('TEAM')],
+    [
+      'cancelled',
+      subscription('TEAM', { cancelAt: new Date('2026-11-01T00:00:00Z') }),
+    ],
+  ])(
+    'uses no purple, magenta, pink or stock palette class (%s)',
+    async (_state, sub) => {
+      mockSwrData = {
+        '/copilot/credits?type=ai_images': { credits: 1 },
+        '/copilot/credits?type=ai_videos': { credits: 1 },
+      };
+      const host = await render(sub);
+
+      expect(classes(host).filter((c) => FORBIDDEN.test(c))).toEqual([]);
+    }
+  );
+
+  it('gives every button a focus ring', async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    const host = await render(subscription('TEAM'));
+    const buttons = Array.from(host.querySelectorAll('button'));
+
+    expect(buttons.length).toBeGreaterThan(6);
+    expect(
+      buttons.filter((b) => !b.className.includes('focus-visible:ring-2'))
+    ).toEqual([]);
+  });
+
+  it("draws the cancellation notice in Sharek's warning tint", async () => {
+    const host = await render(
+      subscription('TEAM', { cancelAt: new Date('2026-11-01T00:00:00Z') })
+    );
+    const notice = Array.from(host.querySelectorAll('div')).find((el) =>
+      el.className.includes('var(--warning)')
+    );
+
+    expect(notice?.textContent).toContain(
+      'Your subscription will be canceled at'
+    );
+  });
+
+  // On an iPad in portrait the trial's payment card holds three buttons beside its text; they
+  // wrap to the end of the row instead of squeezing the text.
+  it("wraps the payment card's buttons to the end of their row", async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    const host = await render(subscription('TEAM'));
+    const row = Array.from(host.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Update payment method'
+    )!.parentElement!;
+
+    expect(row.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['flex-wrap', 'justify-end'])
+    );
   });
 });

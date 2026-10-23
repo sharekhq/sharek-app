@@ -483,6 +483,7 @@
   "enter_email": "Digite o e-mail",
   "are_you_sure": "Tem certeza?",
   "no_cancel": "Não, cancelar!",
+  "no_keep_subscription": "Não, manter",
   "are_you_sure_you_want_to_delete": "Tem certeza de que deseja excluir {{name}}?",
   "are_you_sure_you_want_to_delete_the_image": "Tem certeza de que deseja excluir a imagem?",
   "are_you_sure_you_want_to_logout": "Tem certeza de que deseja sair?",
