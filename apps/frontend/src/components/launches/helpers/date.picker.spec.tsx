@@ -13,13 +13,23 @@ let words: Record<string, string> = {};
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => words[key] ?? fallback,
 }));
-// Scenery: the month grid above the time field.
+// Scenery: the month grid above the time field. It keeps the props it was
+// rendered with, for the cases that pick a day as Mantine hands it over.
+let mockCalendarProps: { value?: Date; onChange?: (day: Date) => void } = {};
 jest.mock('@mantine/dates', () => ({
   ...jest.requireActual('@mantine/dates'),
-  Calendar: (): null => null,
+  Calendar: (props: { value?: Date; onChange?: (day: Date) => void }): null => {
+    mockCalendarProps = props;
+    return null;
+  },
 }));
 
 import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
+import {
+  browserTimezone,
+  newDayjs,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 // The date beside the time field prints through dayjs, with the word for the
 // half of the day that the app's layout sets up.
 import 'dayjs/locale/ar';
@@ -73,11 +83,17 @@ const step = async (input: HTMLInputElement) => {
   });
 };
 
+// the date line beside the calendar icon
+const line = (host: HTMLElement) =>
+  host.firstElementChild!.children[1].textContent;
+
 afterEach(async () => {
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  mockCalendarProps = {};
+  setUserTimezone(null);
   localStorage.clear();
   words = {};
   await i18next.changeLanguage('en');
@@ -147,6 +163,86 @@ describe('the date picker’s date', () => {
       dayjs(new Date(2026, 9, 21, 12, 30))
     );
 
-    expect(host.firstElementChild!.children[1].textContent).toMatch(/12:30 م$/);
+    expect(line(host)).toMatch(/12:30 م$/);
+  });
+});
+
+// The account's timezone reaches Sharek's own picker: Mantine works in
+// the machine's local dates, so the picker hands it the zone's wall clock
+// (toPickerDate) and reads what comes back as a wall clock (plain dayjs), then
+// places it in the zone (newDayjs). The gate runs this file under the
+// machine's zone, TZ=UTC and TZ=America/New_York (run-tz-matrix.sh).
+describe('the date picker with a zone chosen', () => {
+  // ahead of every machine the gate uses, no daylight saving
+  const AHEAD = 'Asia/Tokyo';
+  // behind every machine the gate uses, no daylight saving: a picked day read
+  // through the zone would land on the day before
+  const BEHIND = 'Pacific/Honolulu';
+
+  it('runs on a machine outside both zones', () => {
+    expect([AHEAD, BEHIND]).not.toContain(browserTimezone());
+  });
+
+  it("shows the zone's time in the field and on the date line", async () => {
+    setUserTimezone(AHEAD);
+    const host = await open('12', jest.fn(), newDayjs('2026-10-21 21:30:00'));
+
+    expect(fields(host)).toEqual(['09', '30', 'pm']);
+    expect(line(host)).toBe('10/21/2026 09:30 PM');
+  });
+
+  it('saves the moment the field shows when only the half changes', async () => {
+    setUserTimezone(AHEAD);
+    const onChange = jest.fn();
+    const host = await open('12', onChange, newDayjs('2026-10-21 21:30:00'));
+
+    await step(host.querySelectorAll('input')[2]);
+
+    // 09:30 in Tokyo
+    expect(onChange.mock.calls[0][0].utc().format()).toBe(
+      '2026-10-21T00:30:00Z'
+    );
+  });
+
+  it('saves the moment the field shows when only the minutes change', async () => {
+    setUserTimezone(AHEAD);
+    const onChange = jest.fn();
+    const host = await open('24', onChange, newDayjs('2026-10-21 21:30:00'));
+
+    await step(host.querySelectorAll('input')[1]);
+
+    // 21:31 in Tokyo
+    expect(onChange.mock.calls[0][0].utc().format()).toBe(
+      '2026-10-21T12:31:00Z'
+    );
+  });
+
+  it('keeps the picked day and the time in the zone', async () => {
+    setUserTimezone(BEHIND);
+    const onChange = jest.fn();
+    await open('24', onChange, newDayjs('2026-10-21 21:30:00'));
+
+    // the month grid shows the zone's day and time as a machine-local date...
+    const { value, onChange: pick } = mockCalendarProps;
+    expect([value!.getDate(), value!.getHours(), value!.getMinutes()]).toEqual([
+      21, 21, 30,
+    ]);
+    // ...and hands back a machine-local midnight, as Mantine does
+    await act(async () => pick!(new Date(2026, 9, 25)));
+
+    // 25 October at 21:30 in Honolulu
+    expect(onChange.mock.calls[0][0].utc().format()).toBe(
+      '2026-10-26T07:30:00Z'
+    );
+  });
+
+  it('names half past noon in the zone as afternoon in Arabic', async () => {
+    setUserTimezone(AHEAD);
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open('12', jest.fn(), newDayjs('2026-10-21 12:30:00'));
+
+    expect(line(host)).toMatch(/12:30 م$/);
   });
 });

@@ -228,6 +228,36 @@ const EXEMPT: readonly Exemption[] = [
     reason:
       "The message of the Error that rejects loadRecaptchaToken when Google's script fails to load. The only caller catches it and shows t('preview_comment_failed', …) instead, so the message never reaches a reader.",
   },
+  {
+    file: 'components/billing/main.billing.component.tsx',
+    text: 'Failed to load credits',
+    reason:
+      "Thrown, never rendered: the credits fetcher's Error becomes SWR's `error`, which the billing cycle never reads, and showConfirmedPlan's empty catch swallows it.",
+  },
+  {
+    file: 'components/billing/main.billing.component.tsx',
+    text: 'Failed to load renewal date',
+    reason:
+      "Thrown, never rendered: the renewal fetcher's Error becomes SWR's `error`, which the billing cycle never reads.",
+  },
+  {
+    file: 'components/billing/billing.history.component.tsx',
+    text: 'Failed to load invoices',
+    reason:
+      "Thrown, never rendered: the invoices fetcher's Error becomes SWR's `error`, and the history renders nothing while it is set.",
+  },
+  {
+    file: 'components/launches/calendar.tsx',
+    text: 'YYYY-MM-DD HH:mm',
+    reason:
+      "A dayjs format pattern from upstream's timezone code (2f671180), passed to `.format` to compare a post's hour with its cell, never rendered.",
+  },
+  {
+    file: 'components/layout/set.timezone.tsx',
+    text: 'YYYY-MM-DDTHH:mm:ssZ',
+    reason:
+      "A dayjs format pattern from upstream's timezone code (2f671180), the zoned dayjs's default for a bare `.format()`, never rendered.",
+  },
 ];
 
 // Tables whose every value is already handed to t() as its DEFAULT, under a key built
@@ -396,7 +426,9 @@ const calleeObject = (call: ts.CallExpression): string =>
     : '';
 
 const attributeName = (attribute: ts.JsxAttribute): string =>
-  ts.isIdentifier(attribute.name) ? attribute.name.text : attribute.name.text;
+  ts.isIdentifier(attribute.name)
+    ? attribute.name.text
+    : `${attribute.name.namespace.text}:${attribute.name.name.text}`;
 
 /**
  * The key an inline default sits beside — `{ key: 'x', text: 'English' }` — when

@@ -16,10 +16,17 @@ import { createRoot } from 'react-dom/client';
 // question it was asking. This question has no such alternative. C3 cannot see
 // `item.errors`: it is a variable, not a literal. C6 proves the key exists, not that
 // anything looks it up. The only thing that can catch this wrapper being dropped is a
-// test that runs the submit path, so the stubs below earn their place: none of them
-// is asserted on, and the assertion is entirely about the message this file builds.
+// test that runs the submit path, so the stubs below earn their place: the first
+// block asserts only on the message this file builds, and the second also reads the
+// requests and closeAll, to show that a failed check saves nothing.
 const shown: Array<[string, string]> = [];
 const postsValid: any[] = [];
+// Every request the modal sends, and what `/posts/valid` answers when a case sets
+// it; unset, it answers 200 with `postsValid`. A real Response, because the modal
+// reads `ok` and `status` before it reads the body (upstream 81292402).
+const requests: Array<{ url: string; method?: string }> = [];
+let validReply: Response | undefined;
+const closeAll = jest.fn();
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string) => key,
@@ -30,9 +37,13 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
   }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
-  useFetch: () => async (url: string) => ({
-    json: async () => (url === '/posts/valid' ? postsValid : {}),
-  }),
+  useFetch: () => async (url: string, init?: { method?: string }) => {
+    requests.push({ url, method: init?.method });
+    if (url === '/posts/valid') {
+      return validReply || new Response(JSON.stringify(postsValid));
+    }
+    return new Response('{}');
+  },
 }));
 // Everything below is scenery: the modal has to mount for its submit handler to run.
 jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => ({}));
@@ -54,9 +65,11 @@ jest.mock(
   () => {
     const { forwardRef, useImperativeHandle } = require('react');
     return {
-      ShowAllProviders: forwardRef((_props: any, ref: any) => {
+      ShowAllProviders: forwardRef((_props: any, ref: any): null => {
         useImperativeHandle(ref, () => ({
-          getAllValues: async () => [{ id: 'int-1', settings: {}, values: [] }],
+          getAllValues: async () => [
+            { id: 'int-1', settings: {}, values: [] as unknown[] },
+          ],
         }));
         return null;
       }),
@@ -83,7 +96,7 @@ jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: async () => false,
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ closeAll: () => {}, openModal: () => {} }),
+  useModals: () => ({ closeAll, openModal: () => {} }),
 }));
 jest.mock('@gitroom/frontend/components/launches/helpers/platform-label', () => ({
   platformLabel: (identifier: string) => identifier,
@@ -195,5 +208,56 @@ describe('the validation toast', () => {
     const [[message]] = await publish();
 
     expect(message).toContain('please_fix_your_settings');
+  });
+});
+
+// Upstream 81292402: a `/posts/valid` that fails used to throw on `.json()` or read
+// an error body as the list of checks. The composer now says what went wrong, saves
+// nothing and stays open; a 402 is left to the payment dialog the fetch hook opens.
+describe('a validity check that fails to answer', () => {
+  beforeEach(() => {
+    shown.length = 0;
+    postsValid.length = 0;
+    requests.length = 0;
+    closeAll.mockClear();
+  });
+
+  afterEach(() => {
+    validReply = undefined;
+  });
+
+  const saves = () =>
+    requests.filter((r) => r.url === '/posts' && r.method === 'POST');
+
+  it("shows the server's message, saves nothing and stays open", async () => {
+    validReply = new Response(JSON.stringify({ message: 'Try again soon' }), {
+      status: 500,
+    });
+
+    const toasts = await publish();
+
+    expect(toasts).toEqual([['Try again soon', 'warning']]);
+    expect(saves()).toEqual([]);
+    expect(closeAll).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the save failure when the answer names nothing', async () => {
+    validReply = new Response('<html>Bad gateway</html>', { status: 502 });
+
+    const toasts = await publish();
+
+    expect(toasts).toEqual([['post_save_failed', 'warning']]);
+    expect(saves()).toEqual([]);
+  });
+
+  it('leaves a payment-required answer to the payment dialog', async () => {
+    validReply = new Response(JSON.stringify({ message: 'Upgrade' }), {
+      status: 402,
+    });
+
+    const toasts = await publish();
+
+    expect(toasts).toEqual([]);
+    expect(saves()).toEqual([]);
   });
 });

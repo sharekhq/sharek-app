@@ -1,14 +1,27 @@
+// The billing page: the trunk's plan change, cancel and reactivation cases, on a harness that
+// mocks what upstream's redesign reads (SWR's default export for the billing cycle, the invoice
+// history, the 3D Secure hook, the feature hook, the cookies, the debounce and the timer), and
+// the redesign's states.
 import { act, ComponentProps, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 // What the feedback modal is opened with: the Info form it renders.
 type OpenedModal = {
   children: ReactElement<{ proceed?: (feedback: string) => void }>;
 };
 
-// Returns the English default, so a case reads the sentence the customer reads.
+// Returns the English default with its {{placeholders}} filled, so a case reads the sentence the
+// customer reads.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback: string) => fallback,
+  useT:
+    () => (_key: string, fallback: string, options?: Record<string, unknown>) =>
+      (fallback || '').replace(/{{(\w+)}}/g, (_m, name) =>
+        String(options?.[name] ?? '')
+      ),
 }));
 
 const mockShow = jest.fn();
@@ -16,15 +29,22 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: mockShow }),
 }));
 
-// Each case answers /billing/cancel with the Response it is about.
-let mockCancelResponse: () => Response;
+// Each case answers the endpoints it is about; anything else answers {}.
+let mockRoutes: Record<string, () => Response | Promise<Response>> = {};
 const mockFetch = jest.fn(async (url: string) =>
-  url === '/billing/check-discount'
-    ? new Response(JSON.stringify({ offerCoupon: false }))
-    : mockCancelResponse()
+  mockRoutes[url] ? mockRoutes[url]() : new Response('{}')
 );
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
+}));
+
+// The billing cycle reads the renewal date and the credits through SWR.
+let mockSwrData: Record<string, unknown> = {};
+const mockMutate = jest.fn();
+jest.mock('swr', () => ({
+  __esModule: true,
+  default: (key: string) => ({ data: mockSwrData[key] }),
+  useSWRConfig: () => ({ mutate: mockMutate }),
 }));
 
 // The cancel flow asks for feedback in a modal; the double answers it at once.
@@ -35,19 +55,20 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
     closeAll: jest.fn(),
   }),
 }));
+const mockDeleteDialog = jest.fn();
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: jest.fn().mockResolvedValue(true),
+  deleteDialog: (...args: unknown[]) => mockDeleteDialog(...args),
 }));
-jest.mock('swr', () => ({ useSWRConfig: () => ({ mutate: jest.fn() }) }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: jest.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
-  useVariables: () => ({ isGeneral: true }),
+  useVariables: () => ({ isGeneral: true, billingEnabled: true }),
 }));
+let mockUser: Record<string, unknown> = {};
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ tier: 'STANDARD' }),
+  useUser: () => mockUser,
 }));
 jest.mock('@gitroom/helpers/utils/use.fire.events', () => ({
   useFireEvents: () => jest.fn(),
@@ -59,7 +80,49 @@ jest.mock('@gitroom/react/helpers/use.track', () => ({
 jest.mock('@gitroom/frontend/components/layout/dubAnalytics', () => ({
   useDubClickId: () => undefined,
 }));
-// Scenery: none of these take part in a cancel or a reactivation.
+jest.mock('react-use-cookie', () => ({
+  __esModule: true,
+  default: () => [''],
+}));
+// The prorate preview waits 500 ms and the confirmed-plan check polls once a second; both run at
+// once here.
+jest.mock('use-debounce', () => ({
+  useDebouncedCallback: (fn: (...args: unknown[]) => unknown) => fn,
+}));
+jest.mock('@gitroom/helpers/utils/timer', () => ({
+  timer: () => Promise.resolve(),
+}));
+const mockPaymentAction = jest.fn();
+jest.mock('@gitroom/frontend/components/billing/use.payment.action', () => ({
+  usePaymentAction: () => mockPaymentAction,
+}));
+// Each card lists what Sharek's billingFeatures() gives its plan, labelled by key here; that
+// first.billing renders those keys through t() is first.billing.component.spec.tsx's job.
+jest.mock(
+  '@gitroom/frontend/components/billing/first.billing.component',
+  () => {
+    const { billingFeatures } = jest.requireActual(
+      '@gitroom/frontend/components/billing/billing.features'
+    );
+    const { pricing } = jest.requireActual(
+      '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing'
+    );
+    return {
+      useBillingFeatures: (tier: string) =>
+        billingFeatures(pricing[tier]).map((feature: { key: string }) => ({
+          key: feature.key,
+          label: feature.key,
+        })),
+    };
+  }
+);
+// Scenery: none of these take part in a plan change, a cancel or a reactivation.
+jest.mock(
+  '@gitroom/frontend/components/billing/billing.history.component',
+  () => ({
+    BillingHistory: () => null,
+  })
+);
 jest.mock('@gitroom/frontend/components/billing/faq.component', () => ({
   FAQComponent: () => null,
 }));
@@ -69,21 +132,32 @@ jest.mock('@gitroom/frontend/components/billing/finish.trial', () => ({
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
   LogoutComponent: () => null,
 }));
-jest.mock('@gitroom/react/form/slider', () => ({ Slider: () => null }));
 jest.mock('@gitroom/react/form/textarea', () => ({ Textarea: () => null }));
 
 import { MainBillingComponent } from '@gitroom/frontend/components/billing/main.billing.component';
 
 type Sub = NonNullable<ComponentProps<typeof MainBillingComponent>['sub']>;
 
-const SUB = {
-  id: 'subscription-row',
-  subscriptionTier: 'STANDARD',
-  period: 'MONTHLY',
-  totalChannels: 10,
-} as unknown as Sub;
+const subscription = (tier: string, extra: Record<string, unknown> = {}) =>
+  ({
+    id: 'subscription-row',
+    subscriptionTier: tier,
+    period: 'MONTHLY',
+    totalChannels: 10,
+    ...extra,
+  } as unknown as Sub);
+const SUB = subscription('STANDARD');
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status });
 
 const mounted: Array<{ unmount: () => void }> = [];
+// Upstream's handlers chain several awaits (the team list, the 3D Secure check, the confirmed
+// plan); a few macrotask turns let each case read the settled page.
+const flush = async () => {
+  for (let i = 0; i < 5; i++) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  }
+};
 const render = async (sub: Sub) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -92,17 +166,54 @@ const render = async (sub: Sub) => {
   await act(async () => {
     root.render(<MainBillingComponent sub={sub} />);
   });
+  await flush();
   return host;
 };
-const click = async (host: HTMLElement, label: string) => {
-  const button = Array.from(host.querySelectorAll('button')).find(
-    (b) => b.textContent?.trim() === label
-  )!;
+const press = async (element: Element) => {
   await act(async () => {
-    button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
+  await flush();
 };
+const click = async (host: HTMLElement, label: string) =>
+  press(
+    Array.from(host.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === label
+    )!
+  );
+// The plan card whose heading is `name` ("Team"). Walked up by class, since happy-dom's selector
+// engine does not match a bracketed class such as rounded-[12px].
+const card = (host: HTMLElement, name: string) => {
+  let el: HTMLElement | null = Array.from(host.querySelectorAll('div')).find(
+    (div) => div.textContent === name && div.children.length === 0
+  )!;
+  while (el && !el.classList.contains('rounded-[12px]')) {
+    el = el.parentElement;
+  }
+  return el!;
+};
+// A billing period by the label its control starts with ("Yearly" carries its discount after it).
+const period = (host: HTMLElement, label: string) =>
+  Array.from(host.querySelectorAll('*')).find(
+    (el) =>
+      el.firstChild?.nodeName === '#text' && el.firstChild.textContent === label
+  )!;
 const toasts = () => mockShow.mock.calls.map(([text, type]) => [text, type]);
+
+// Stands in for the old single /billing/cancel answer of the trunk's cases.
+let mockCancelResponse: () => Response;
+
+beforeEach(() => {
+  mockUser = { id: 'me', tier: { current: 'STANDARD' }, isTrailing: false };
+  mockSwrData = {};
+  mockDeleteDialog.mockResolvedValue(true);
+  mockPaymentAction.mockResolvedValue({});
+  mockRoutes = {
+    '/billing/check-discount': () => json({ offerCoupon: false }),
+    '/billing/cancel': () => mockCancelResponse(),
+    '/billing/prorate': () => json({ price: 13.2 }),
+  };
+});
 
 afterEach(() => {
   act(() => {
@@ -113,7 +224,9 @@ afterEach(() => {
 });
 
 describe('Reactivate subscription', () => {
-  const cancelling = { ...SUB, cancelAt: new Date('2026-11-01T00:00:00.000Z') };
+  const cancelling = subscription('STANDARD', {
+    cancelAt: new Date('2026-11-01T00:00:00.000Z'),
+  });
 
   it('says it was reactivated when the request reactivated it', async () => {
     mockCancelResponse = () => new Response(JSON.stringify({ id: 'x' }));
@@ -217,5 +330,226 @@ describe('Cancel subscription', () => {
     expect(host.textContent).not.toContain(
       'Your subscription will be canceled at'
     );
+  });
+});
+
+describe('the plan cards', () => {
+  it("lists Sharek's features on every card", async () => {
+    const host = await render(subscription('TEAM'));
+
+    expect(card(host, 'Standard').textContent).toContain(
+      'billing_samy_ai_agent'
+    );
+    expect(card(host, 'Team').textContent).toContain(
+      'billing_unlimited_team_members'
+    );
+    expect(card(host, 'Ultimate').textContent).toContain(
+      'billing_priority_support_sla'
+    );
+    expect(host.textContent).not.toMatch(
+      /billing_ai_copilots|billing_clipping/
+    );
+  });
+
+  it('says Upgrade above the current plan and Downgrade below it', async () => {
+    const host = await render(subscription('TEAM'));
+
+    expect(card(host, 'Standard').querySelector('button')!.textContent).toBe(
+      'Downgrade'
+    );
+    expect(card(host, 'Pro').querySelector('button')!.textContent).toBe(
+      'Upgrade'
+    );
+    expect(card(host, 'Team').querySelector('button')!.textContent).toBe(
+      'Current Plan'
+    );
+    expect(card(host, 'Team').querySelector('button')!.disabled).toBe(true);
+  });
+});
+
+describe('the billing period', () => {
+  it('offers a monthly subscriber the switch to yearly', async () => {
+    const host = await render(SUB);
+
+    await press(period(host, 'Yearly'));
+
+    expect(card(host, 'Standard').querySelector('button')!.textContent).toBe(
+      'Switch to yearly'
+    );
+  });
+});
+
+describe('a plan change', () => {
+  it("runs the bank's 3D Secure check inside the page before it reports the new plan", async () => {
+    mockRoutes['/billing/subscribe'] = () =>
+      json({ requiresAction: true, clientSecret: 'pi_secret' });
+    mockRoutes['/user/subscription'] = () =>
+      json({ subscription: { subscriptionTier: 'PRO', period: 'MONTHLY' } });
+    const host = await render(SUB);
+
+    await press(card(host, 'Pro').querySelector('button')!);
+
+    expect(mockPaymentAction).toHaveBeenCalledWith('pi_secret');
+    expect(toasts()).toEqual([
+      ['Subscription updated successfully', undefined],
+    ]);
+    expect(mockMutate).toHaveBeenCalledWith('/billing/invoices');
+    expect(mockMutate).toHaveBeenCalledWith('/billing/renewal');
+  });
+
+  it('reports a declined 3D Secure check and keeps the plan', async () => {
+    mockRoutes['/billing/subscribe'] = () =>
+      json({ requiresAction: true, clientSecret: 'pi_secret' });
+    mockPaymentAction.mockResolvedValue({ error: 'Your card was declined.' });
+    const host = await render(SUB);
+
+    await press(card(host, 'Pro').querySelector('button')!);
+
+    expect(toasts()).toEqual([['Your card was declined.', 'warning']]);
+    expect(card(host, 'Standard').querySelector('button')!.textContent).toBe(
+      'Current Plan'
+    );
+  });
+
+  // A declined charge without 3D Secure answers with the billing portal.
+  it('asks for a new payment method when the charge is declined', async () => {
+    mockRoutes['/billing/subscribe'] = () =>
+      json({ portal: 'https://billing.stripe.com/p/session' });
+    mockDeleteDialog.mockResolvedValue(false);
+    const host = await render(SUB);
+
+    await press(card(host, 'Pro').querySelector('button')!);
+
+    expect(mockDeleteDialog).toHaveBeenCalledWith(
+      'We could not charge your credit card, please update your payment method',
+      'Update',
+      'Payment Method Required'
+    );
+    expect(toasts()).toEqual([]);
+  });
+
+  it('says another account holds the subscription instead of charging', async () => {
+    mockRoutes['/billing/subscribe'] = () => json({ blocked: true });
+    const host = await render(SUB);
+
+    await press(card(host, 'Pro').querySelector('button')!);
+
+    expect(mockDeleteDialog.mock.calls[0][0]).toContain(
+      'Another account with this email already has an active subscription'
+    );
+    expect(toasts()).toEqual([]);
+  });
+});
+
+describe('the downgrade warning', () => {
+  const downgrade = async (team: () => Response | Promise<Response>) => {
+    mockRoutes['/settings/team'] = team;
+    mockDeleteDialog.mockResolvedValue(false);
+    const host = await render(subscription('TEAM'));
+    await press(card(host, 'Standard').querySelector('button')!);
+  };
+  const WARNING =
+    'Your team members will be disabled and lose access to your organization until you upgrade to a plan that includes team members again';
+
+  it('says the other members will be disabled when there are any', async () => {
+    await downgrade(() =>
+      json({ users: [{ user: { id: 'me' } }, { user: { id: 'colleague' } }] })
+    );
+
+    expect(mockDeleteDialog).toHaveBeenCalledWith(WARNING, 'Yes, continue');
+  });
+
+  it('says nothing when the owner is the only member', async () => {
+    await downgrade(() => json({ users: [{ user: { id: 'me' } }] }));
+
+    expect(mockDeleteDialog).not.toHaveBeenCalled();
+  });
+
+  it('keeps the warning when the team list cannot be loaded', async () => {
+    await downgrade(() => Promise.reject(new Error('offline')));
+
+    expect(mockDeleteDialog).toHaveBeenCalledWith(WARNING, 'Yes, continue');
+  });
+});
+
+describe('the billing cycle', () => {
+  // noon UTC, so the date reads the same in every machine timezone
+  const RENEWS = Date.UTC(2026, 10, 14, 12) / 1000;
+
+  it("shows the AI images and videos left of the plan's totals, and no clipping row", async () => {
+    mockSwrData = {
+      '/billing/renewal': { renewsAt: RENEWS, trialing: false },
+      '/copilot/credits?type=ai_images': { credits: 112 },
+      '/copilot/credits?type=ai_videos': { credits: 9 },
+      '/copilot/credits?type=clipping_minutes': { credits: 0 },
+    };
+    const host = await render(subscription('TEAM'));
+
+    expect(host.textContent).toContain('Your plan renews on 14 Nov, 2026');
+    expect(host.textContent).toContain('112 / 150');
+    expect(host.textContent).toContain('9 / 15');
+    expect(host.textContent).not.toContain('Clipping minutes');
+  });
+
+  it('says when the trial ends and the first payment is taken', async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    mockSwrData = { '/billing/renewal': { renewsAt: RENEWS, trialing: true } };
+    const host = await render(subscription('TEAM'));
+
+    expect(host.textContent).toContain(
+      'Your free trial ends and your first payment is charged on 14 Nov, 2026'
+    );
+  });
+});
+
+describe('the renewal date with a zone chosen', () => {
+  const ZONE = 'Asia/Tokyo';
+  // 16:00 UTC on 31 October is already 1 November in Tokyo, and still 31 October on every machine
+  // the gate uses
+  const RENEWS = Date.UTC(2026, 9, 31, 16) / 1000;
+
+  beforeEach(() => {
+    mockSwrData = { '/billing/renewal': { renewsAt: RENEWS, trialing: false } };
+  });
+  afterEach(() => setUserTimezone(null));
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it('is the day in the zone', async () => {
+    setUserTimezone(ZONE);
+    const host = await render(subscription('TEAM'));
+
+    expect(host.textContent).toContain('Your plan renews on 1 Nov, 2026');
+  });
+
+  it("is the day in the browser's zone on Automatic", async () => {
+    const host = await render(subscription('TEAM'));
+
+    expect(host.textContent).toContain('Your plan renews on 31 Oct, 2026');
+  });
+});
+
+describe('ending the trial early', () => {
+  // The charge is stated before the user confirms.
+  it('says what it charges before it starts', async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    mockDeleteDialog.mockResolvedValue(false);
+    const host = await render(subscription('TEAM'));
+
+    await click(host, 'Finish trial');
+
+    expect(mockDeleteDialog).toHaveBeenCalledWith(
+      "Ending the trial charges your plan's first payment today instead of at the end of the trial. Nothing extra is added. Continue?",
+      'End trial and pay now',
+      'Trial'
+    );
+  });
+
+  it('is offered only during a trial', async () => {
+    const host = await render(subscription('TEAM'));
+
+    expect(host.textContent).not.toContain('Finish trial');
   });
 });

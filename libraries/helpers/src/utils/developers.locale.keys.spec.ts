@@ -15,11 +15,14 @@ const LOCALES_DIR = path.join(
   '../../../react-shared-libraries/src/translation/locales'
 );
 
-// The two components behind Settings › Developers: the page itself, and the
-// approved-apps list its revoke dialog belongs to. They live in different
-// directories, so these are full relative paths rather than bare filenames.
+// The components behind Settings › Developers and Settings › Apps, which took
+// the OAuth apps and the approved apps out of Developers: the Developers page,
+// the Apps tab, and the approved-apps list its revoke dialog belongs to. They
+// live in different directories, so these are full relative paths rather than
+// bare filenames.
 const SURFACES = [
   '../../../../apps/frontend/src/components/public-api/public.component.tsx',
+  '../../../../apps/frontend/src/components/settings/apps.component.tsx',
   '../../../../apps/frontend/src/components/approved-apps/approved-apps.component.tsx',
 ].map((file) => path.join(__dirname, file));
 

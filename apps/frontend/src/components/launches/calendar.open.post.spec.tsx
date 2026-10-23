@@ -103,6 +103,10 @@ jest.mock('@gitroom/react/helpers/safe.image', () => ({
 }));
 
 import { ListView } from '@gitroom/frontend/components/launches/calendar';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 // happy-dom has a localStorage; jest.setup.js lifts a fixed list of globals onto
 // globalThis and that is not one of them, so the list's date heading
@@ -201,6 +205,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   openSpy.mockRestore();
+  setUserTimezone(null);
 });
 
 describe('Open Post', () => {
@@ -351,5 +356,39 @@ describe('Open Post', () => {
     await click(item('Open Post'));
 
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// The agenda dates its groups and its cards with fromUtc, Sharek's card
+// (calendar.post.card.tsx) included.
+describe('the agenda with a zone chosen', () => {
+  const ZONE = 'Asia/Tokyo';
+
+  beforeEach(() => {
+    setUserTimezone(ZONE);
+    localStorage.setItem('isUS', 'GLOBAL');
+  });
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it('files a post under its day in the zone, at its time there', async () => {
+    // 16:30 UTC on the 21st is 01:30 on the 22nd in Tokyo
+    const host = await mount(post({ publishDate: '2099-10-21T16:30:00.000Z' }));
+
+    expect(host.textContent).toContain('22 October 2099');
+    expect(host.textContent).toContain('01:30');
+    expect(host.textContent).not.toContain('21 October 2099');
+  });
+
+  // A post dragged to another slot is dated as UTC without the Z until the
+  // calendar reloads (calendar.context.tsx's changeDate); it is still UTC.
+  it('reads a moved post, dated without the Z, as UTC', async () => {
+    const host = await mount(post({ publishDate: '2099-10-21T16:30:00' }));
+
+    expect(host.textContent).toContain('22 October 2099');
+    expect(host.textContent).toContain('01:30');
+    expect(host.textContent).not.toContain('16:30');
   });
 });

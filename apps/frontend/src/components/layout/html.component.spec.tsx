@@ -4,6 +4,13 @@ import i18next from 'i18next';
 // missing locale. The layout's dayjs setup runs when its module loads.
 import 'dayjs/locale/ar';
 import '@gitroom/frontend/components/layout/html.component';
+// The timezone second; set.timezone.spec.tsx loads them the other way round.
+import {
+  browserTimezone,
+  fromUtc,
+  newDayjs,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 // The word comes from the translations, as the week's hour labels take it, so
 // the singleton is set up with the pair the Arabic locale ships.
@@ -67,5 +74,49 @@ describe('the language dayjs prints in', () => {
 
     expect(dayjs.locale()).toBe('en');
     expect(dayjs(new Date(2026, 9, 21)).format('MMMM')).toBe('October');
+  });
+});
+
+// Upstream's timezone patches the same dayjs the layout sets up (its parse,
+// init, clone, format, add, utcOffset, fromNow, diff): a chosen zone must not
+// reset the language or the word for the half of the day.
+describe('with a zone chosen', () => {
+  const ZONE = 'Asia/Tokyo';
+
+  beforeEach(() => setUserTimezone(ZONE));
+  afterEach(() => setUserTimezone(null));
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  describe('in Arabic', () => {
+    beforeEach(async () => {
+      await i18next.changeLanguage('ar');
+    });
+
+    // 03:30, 02:05, 04:05 and 15:05 UTC are 12:30, 11:05, 13:05 and 00:05
+    // in Tokyo
+    it.each([
+      { utc: '2026-10-21T03:30:00Z', expected: '12:30 م' },
+      { utc: '2026-10-21T02:05:00Z', expected: '11:05 ص' },
+      { utc: '2026-10-21T04:05:00Z', expected: '1:05 م' },
+      { utc: '2026-10-21T15:05:00Z', expected: '12:05 ص' },
+    ])('reads $expected at $utc', ({ utc, expected }) => {
+      expect(fromUtc(utc).format('h:mm A')).toBe(expected);
+    });
+
+    it('keeps the language through the zone’s own arithmetic', () => {
+      const date = newDayjs('2026-10-21 12:30:00');
+
+      expect(date.format('MMMM D h:mm A')).toBe('أكتوبر 21 12:30 م');
+      expect(date.add(1, 'hour').format('h:mm A')).toBe('1:30 م');
+      expect(date.clone().format('MMMM')).toBe('أكتوبر');
+      expect(dayjs.locale()).toBe('ar');
+    });
+  });
+
+  it('keeps English as dayjs prints it', () => {
+    expect(fromUtc('2026-10-21T03:30:00Z').format('h:mm A')).toBe('12:30 PM');
   });
 });

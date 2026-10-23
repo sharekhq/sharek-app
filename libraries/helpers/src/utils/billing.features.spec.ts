@@ -132,6 +132,7 @@ const RETIRED = [
   'billing_unlimited',
   'billing_ai_images_per_month',
   'billing_ai_videos_per_month',
+  'billing_clipping_minutes_per_month',
 ];
 
 // The components call t(key, defaultValue, feature); mirror that exactly.

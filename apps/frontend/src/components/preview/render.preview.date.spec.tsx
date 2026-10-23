@@ -6,6 +6,10 @@ import i18next from 'i18next';
 // the layout's dayjs setup is all the page has.
 import '@gitroom/frontend/components/layout/html.component';
 import { RenderPreviewDate } from '@gitroom/frontend/components/preview/render.preview.date';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 // The singleton, set up with the pair the Arabic locale ships.
 beforeAll(async () => {
@@ -26,6 +30,7 @@ afterEach(async () => {
   });
   document.body.innerHTML = '';
   jest.restoreAllMocks();
+  setUserTimezone(null);
   await i18next.changeLanguage('en');
   dayjs.locale('en');
 });
@@ -48,5 +53,33 @@ describe('the public preview’s date', () => {
 
     expect(host.textContent).toContain('أكتوبر');
     expect(host.textContent).toMatch(/12:30 م$/);
+  });
+});
+
+// The public preview does not load the user: it shows the zone this browser
+// applied last, and a browser that never applied one shows the viewer's own
+// time, as before.
+describe('the public preview’s date with a zone applied in this browser', () => {
+  const ZONE = 'Asia/Tokyo';
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it('prints the moment in that zone, in the interface language', async () => {
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    setUserTimezone(ZONE);
+    await i18next.changeLanguage('ar');
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      // 03:30 UTC is 12:30 in Tokyo
+      root.render(<RenderPreviewDate date="2026-10-21T03:30:00.000Z" />);
+    });
+
+    expect(host.textContent).toBe('أكتوبر 21, 2026 12:30 م');
   });
 });

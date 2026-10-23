@@ -18,9 +18,15 @@ import dayjs from 'dayjs';
 import { SubscriptionService } from './subscription.service';
 import { pricing } from './pricing';
 
-const makeService = (over: { totalUse?: number } = {}) => {
+const makeService = (
+  over: { totalUse?: number; subscription?: unknown; deleted?: number } = {}
+) => {
   const repository = {
     getCreditsFrom: jest.fn().mockResolvedValue(over.totalUse ?? 0),
+    getSubscription: jest.fn().mockResolvedValue(over.subscription ?? null),
+    deleteCreditsFrom: jest
+      .fn()
+      .mockResolvedValue({ count: over.deleted ?? 0 }),
   };
   const service = new SubscriptionService(
     repository as any,
@@ -102,6 +108,51 @@ describe('checkCredits', () => {
   });
 });
 
+// The public API's POST /credits/reset, behind the existing super-admin check.
+describe('resetCredits', () => {
+  it('answers null for an organization without a subscription, and deletes nothing', async () => {
+    const { service, repository } = makeService();
+
+    await expect(
+      service.resetCredits('org-1', 'ai_images')
+    ).resolves.toBeNull();
+    expect(repository.deleteCreditsFrom).not.toHaveBeenCalled();
+  });
+
+  it("deletes the type's credits used since the current period started, and says how many", async () => {
+    const { service, repository } = makeService({
+      subscription: { createdAt },
+      deleted: 3,
+    });
+
+    await expect(service.resetCredits('org-1', 'ai_videos')).resolves.toEqual({
+      deleted: 3,
+    });
+    expect(repository.deleteCreditsFrom).toHaveBeenCalledWith(
+      'org-1',
+      expect.anything(),
+      'ai_videos'
+    );
+  });
+
+  // A reset must free exactly what checkCredits counts, or a user is refused
+  // right after the reset (or credited for an older period).
+  it('counts from the same window checkCredits counts usage over', async () => {
+    const { service, repository } = makeService({
+      subscription: { createdAt },
+    });
+
+    await service.resetCredits('org-1', 'ai_images');
+    await service.checkCredits(org(), 'ai_images');
+
+    const [, resetFrom] = repository.deleteCreditsFrom.mock.calls[0];
+    const [, countedFrom] = repository.getCreditsFrom.mock.calls[0];
+    expect(dayjs(resetFrom).toISOString()).toBe(
+      dayjs(countedFrom).toISOString()
+    );
+  });
+});
+
 // Channels the old plan's limit disabled come back after an upgrade,
 // but only when the new plan holds every channel and its limit grew, so a
 // channel the user disabled on purpose stays disabled on a renewal.
@@ -109,12 +160,18 @@ const makeModifyService = (over: {
   current?: { subscriptionTier: string; totalChannels: number } | null;
   channels: { disabled: boolean }[];
   enable?: jest.Mock;
+  organization?: { id: string } | null;
 }) => {
   const repository = {
-    getOrganizationByCustomerId: jest.fn().mockResolvedValue({ id: 'org-1' }),
+    getOrganizationByCustomerId: jest
+      .fn()
+      .mockResolvedValue(
+        over.organization === undefined ? { id: 'org-1' } : over.organization
+      ),
     getSubscriptionByCustomerId: jest
       .fn()
       .mockResolvedValue(over.current ?? null),
+    deleteSubscriptionByCustomerId: jest.fn().mockResolvedValue({ count: 0 }),
   };
   const integrations = {
     getIntegrationsList: jest.fn().mockResolvedValue(over.channels),
@@ -137,7 +194,7 @@ const makeModifyService = (over: {
       typeof SubscriptionService
     >[2]
   );
-  return { service, integrations };
+  return { service, integrations, organizations };
 };
 
 const channels = (enabled: number, disabled: number) => [
@@ -212,5 +269,37 @@ describe('modifySubscription channel limits', () => {
       expect.any(Error)
     );
     error.mockRestore();
+  });
+});
+
+// Account deletion removes the subscription row first, so the cancellation
+// Stripe sends afterwards finds none. The webhook must still answer.
+describe('a cancellation that follows an account deletion', () => {
+  it('changes nothing once the organization is gone', async () => {
+    const { service, integrations, organizations } = makeModifyService({
+      current: null,
+      channels: [],
+      organization: null,
+    });
+
+    await expect(
+      service.deleteSubscription('cus_1', 'stripe')
+    ).resolves.toEqual({ count: 0 });
+    expect(integrations.getIntegrationsList).not.toHaveBeenCalled();
+    expect(integrations.disableIntegrations).not.toHaveBeenCalled();
+    expect(integrations.changeActiveCron).not.toHaveBeenCalled();
+    expect(
+      organizations.disableOrEnableNonSuperAdminUsers
+    ).not.toHaveBeenCalled();
+  });
+
+  // The organization lookup does not filter out soft-deleted rows, so a
+  // deleted organization is still found.
+  it('answers when the organization is soft-deleted and has no subscription row', async () => {
+    const { service } = makeModifyService({ current: null, channels: [] });
+
+    await expect(
+      service.deleteSubscription('cus_1', 'stripe')
+    ).resolves.toEqual({ count: 0 });
   });
 });

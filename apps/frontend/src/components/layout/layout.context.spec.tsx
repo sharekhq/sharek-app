@@ -32,8 +32,12 @@ jest.mock('@gitroom/react/helpers/posthog', () => ({
 jest.mock('@mantine/core', () => ({
   MantineProvider: ({ children }: { children: ReactNode }) => children,
 }));
+// Answers false, which keeps the trial branch from opening a window.
+const mockDeleteDialog = jest.fn<Promise<boolean>, unknown[]>(
+  async () => false
+);
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: async () => false,
+  deleteDialog: (...args: unknown[]) => mockDeleteDialog(...args),
 }));
 jest.mock('@gitroom/frontend/components/billing/limit.reached.modal', () => ({
   showLimitReachedModal: jest.fn(),
@@ -43,6 +47,7 @@ jest.mock('@gitroom/frontend/app/(app)/auth/return.url.component', () => ({
 }));
 
 import LayoutContext from '@gitroom/frontend/components/layout/layout.context';
+import { showLimitReachedModal } from '@gitroom/frontend/components/billing/limit.reached.modal';
 
 const mounted: Array<{ unmount: () => void }> = [];
 const location = window.location;
@@ -59,14 +64,18 @@ const intercept = async (response: Response) => {
       </LayoutContext>
     );
   });
+  let answered: boolean | undefined;
   await act(async () => {
-    await afterRequest('/user/self', {}, response);
+    answered = await afterRequest('/user/self', {}, response);
   });
+  return answered;
 };
 
 beforeEach(() => {
   variables.isSecured = true;
   reset.mockReset();
+  mockDeleteDialog.mockClear();
+  jest.mocked(showLimitReachedModal).mockClear();
   Object.defineProperty(window, 'location', {
     configurable: true,
     value: { href: 'http://localhost/launches', pathname: '/launches' },
@@ -119,5 +128,28 @@ describe('the request interceptor signing a session out', () => {
 
     expect(reset).not.toHaveBeenCalled();
     expect(window.location.href).toBe('http://localhost/launches');
+  });
+});
+
+describe('the payment-required answer (402), Sharek’s own dialog', () => {
+  it('opens the limit dialog with what the server named, and stops the caller', async () => {
+    const answered = await intercept(
+      new Response(
+        JSON.stringify({
+          section: 'posts_per_month',
+          message: 'limit',
+          resetsAt: '2026-11-01T00:00:00.000Z',
+        }),
+        { status: 402 }
+      )
+    );
+
+    expect(showLimitReachedModal).toHaveBeenCalledWith({
+      section: 'posts_per_month',
+      message: 'limit',
+      resetsAt: '2026-11-01T00:00:00.000Z',
+    });
+    expect(answered).toBe(false);
+    expect(mockDeleteDialog).not.toHaveBeenCalled();
   });
 });

@@ -115,6 +115,39 @@ describe('sanitizePostContent picture hook', () => {
   });
 });
 
+// Upstream 14e5a467 + 2ded21d1: block tags the editor does not know become
+// paragraphs before DOMPurify runs, which would otherwise drop the tag and glue
+// its line to the next one. Read off what the stubbed sanitizer receives.
+describe('sanitizePostContent block tags', () => {
+  const received = (value: string) => {
+    sanitize.mockClear();
+    sanitizePostContent(value);
+    return sanitize.mock.calls[0][0] as string;
+  };
+
+  it('turns the block tags the editor lacks into paragraphs, attributes dropped', () => {
+    expect(
+      received(
+        '<div>Line one</div><div class="x">Line two</div><blockquote>q</blockquote><pre>p</pre><h4>T</h4>'
+      )
+    ).toBe('<p>Line one</p><p>Line two</p><p>q</p><p>p</p><p>T</p>');
+  });
+
+  it("leaves the editor's own tags and look-alike names alone", () => {
+    const value = '<p>a</p><h2>b</h2><span>c</span><divider>d</divider>';
+
+    expect(received(value)).toBe(value);
+  });
+
+  // The attribute run stops at a '<', so a block tag that never closes cannot
+  // swallow the tag after it (or scan to the end of a long text).
+  it('does not let an unclosed block tag take the next tag with it', () => {
+    const value = '<div <strong>bold</strong>';
+
+    expect(received(value)).toBe(value);
+  });
+});
+
 describe('sanitizePostContent input handling', () => {
   it.each([null, undefined, 42, {}, []])(
     'returns an empty string for %p without calling the sanitizer',

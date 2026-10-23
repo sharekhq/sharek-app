@@ -18,7 +18,6 @@ jest.mock('@gitroom/helpers/utils/use.fire.events', () => ({
   useFireEvents: () => fireEvents,
 }));
 
-import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
 import UtmSaver, {
   useAttribution,
   useUtmUrl,
@@ -96,13 +95,15 @@ describe('UtmSaver', () => {
     expect(localStorage.getItem('attribution')).toBe(first);
   });
 
-  // The checkout return marks a trial start, not a payment.
-  it('reports the checkout return as a trial start and nothing else', async () => {
+  // The payment webhook reports the trial once Stripe confirms it (PostHog's
+  // trial_started, the pixel's StartTrial); a report from the browser on the
+  // checkout return would count it a second time.
+  it('reports nothing on the checkout return', async () => {
     arrive('http://localhost/launches?check=cs_1');
 
     await render(<UtmSaver />);
 
-    expect(track).toHaveBeenCalledWith(TrackEnum.StartTrial);
+    expect(track).not.toHaveBeenCalled();
     expect(fireEvents).not.toHaveBeenCalled();
   });
 });

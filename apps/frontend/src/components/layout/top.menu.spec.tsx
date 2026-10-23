@@ -1,11 +1,9 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// "Make UGC" opens upstream's AgentMedia offer, which Sharek hides behind
-// `showUpstreamExtras`, the default-off build-time flag that also hides the
-// Generate Posts trigger and the Affiliate link. The stage-2 merge renamed the
-// entry's key (UGC → make_ugc) inside upstream's hunk, and the flag sits outside
-// it, so this pins that the entry still carries it.
+// The rail as Settings left it: Plugs and Integrations moved into Settings, and
+// Make UGC left with its modal. Each case starts from these switches; the
+// beforeEach resets the three a case changes.
 const variables = {
   isGeneral: true,
   billingEnabled: true,
@@ -28,12 +26,6 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/frontend/components/new-layout/menu-item', () => ({
   MenuItem: ({ label }: { label: string }) => <div data-menu-item>{label}</div>,
 }));
-jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ openModal: () => undefined }),
-}));
-jest.mock('@gitroom/frontend/components/layout/agent.media.modal', () => ({
-  AgentMediaModal: () => null,
-}));
 
 import { TopMenu } from '@gitroom/frontend/components/layout/top.menu';
 
@@ -54,6 +46,12 @@ const menu = async () => {
   );
 };
 
+beforeEach(() => {
+  variables.showUpstreamExtras = false;
+  variables.showThirdParty = false;
+  variables.supportEnabled = false;
+});
+
 afterEach(() => {
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
@@ -61,22 +59,39 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('the Make UGC entry', () => {
-  beforeEach(() => {
-    variables.showUpstreamExtras = false;
+describe('the side menu', () => {
+  // Analytics stays where Sharek put it, after Media; Plugs moved into Settings.
+  it('runs Calendar, Studio, Samy, Media and Analytics, then Billing and Settings', async () => {
+    expect(await menu()).toEqual([
+      'Calendar',
+      'Studio',
+      'Samy',
+      'Media',
+      'Analytics',
+      'Billing',
+      'Settings',
+    ]);
   });
 
-  it('is not rendered while upstream extras are hidden', async () => {
+  // Plugs and Integrations live in Settings now, and Make UGC left with its
+  // modal: no switch brings any of them back to the rail.
+  it('has no Plugs, Integrations or Make UGC entry, whatever the switches say', async () => {
+    variables.showUpstreamExtras = true;
+    variables.showThirdParty = true;
     const items = await menu();
 
+    expect(items).not.toContain('Plugs');
+    expect(items).not.toContain('Integrations');
     expect(items).not.toContain('Make UGC');
     // The menu did render: an unrelated empty rail would otherwise pass.
     expect(items).toContain('Settings');
   });
 
-  it('comes back when the flag is set, so nothing is deleted', async () => {
-    variables.showUpstreamExtras = true;
+  // What showUpstreamExtras still hides on the rail.
+  it('keeps the Affiliate link behind showUpstreamExtras', async () => {
+    expect(await menu()).not.toContain('Affiliate');
 
-    expect(await menu()).toContain('Make UGC');
+    variables.showUpstreamExtras = true;
+    expect(await menu()).toContain('Affiliate');
   });
 });

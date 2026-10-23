@@ -20,9 +20,6 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useDecisionModal: () => jest.fn(),
 }));
-jest.mock('@gitroom/frontend/components/developer/developer.component', () => ({
-  DeveloperComponent: () => null,
-}));
 jest.mock('@gitroom/frontend/components/public-api/mcp.client.icons', () => ({
   McpClientIcon: () => null,
 }));

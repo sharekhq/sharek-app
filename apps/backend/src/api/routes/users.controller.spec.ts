@@ -97,3 +97,33 @@ describe('UsersController.getOrgs', () => {
     ]);
   });
 });
+
+const makeTimezoneController = (updateTimezone: jest.Mock) =>
+  new UsersController(
+    {} as unknown as ConstructorParameters<typeof UsersController>[0],
+    {} as unknown as ConstructorParameters<typeof UsersController>[1],
+    {} as unknown as ConstructorParameters<typeof UsersController>[2],
+    {} as unknown as ConstructorParameters<typeof UsersController>[3],
+    { updateTimezone } as unknown as ConstructorParameters<
+      typeof UsersController
+    >[4],
+    {} as unknown as ConstructorParameters<typeof UsersController>[5]
+  );
+
+describe('UsersController.updateTimezone', () => {
+  it("saves the signed-in user's zone and answers nothing", async () => {
+    const updateTimezone = jest.fn().mockResolvedValue(undefined);
+
+    await expect(
+      makeTimezoneController(updateTimezone).updateTimezone(
+        { id: 'user-1' } as unknown as Parameters<
+          UsersController['updateTimezone']
+        >[0],
+        { timezoneName: 'Asia/Dubai' }
+      )
+    ).resolves.toBeUndefined();
+    expect(updateTimezone).toHaveBeenCalledWith('user-1', {
+      timezoneName: 'Asia/Dubai',
+    });
+  });
+});

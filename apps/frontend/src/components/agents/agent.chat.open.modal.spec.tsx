@@ -57,7 +57,12 @@ jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => {
   } = require('@gitroom/frontend/components/layout/new-modal');
 
   return {
-    AddEditModal: ({ mutate, customClose, onlyValues }: AddEditModalProps) => {
+    AddEditModal: ({
+      mutate,
+      customClose,
+      onlyValues,
+      date,
+    }: AddEditModalProps) => {
       const modals = useModals();
       return React.createElement(
         'div',
@@ -66,6 +71,11 @@ jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => {
           'span',
           { 'data-testid': 'editor-content' },
           onlyValues?.[0].content
+        ),
+        React.createElement(
+          'span',
+          { 'data-testid': 'editor-date' },
+          date?.format('YYYY-MM-DD HH:mm')
         ),
         React.createElement('button', {
           'data-testid': 'save',
@@ -88,11 +98,15 @@ import {
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 
 const entry = (content: string) => ({
   integrationIds: ['ig-1'],
   date: '2026-08-01T10:00:00.000Z',
-  posts: [{ content, attachments: [] }],
+  posts: [{ content, attachments: [] as Array<{ id: string; path: string }> }],
 });
 
 // The modal manager keeps its open modals in a module-level store, so anything a test leaves
@@ -160,6 +174,10 @@ const queue = async (...contents: string[]) => {
     openContent: () =>
       editors().pop()?.querySelector('[data-testid="editor-content"]')
         ?.textContent,
+    /** The moment the editor on screen opened on. */
+    openDate: () =>
+      editors().pop()?.querySelector('[data-testid="editor-date"]')
+        ?.textContent,
     save: () => press('save'),
     close: () => press('close'),
     /** Escape, the modal manager's own way out: confirm dialog, then close. */
@@ -197,6 +215,7 @@ afterEach(() => {
     closeEveryModal?.();
   });
   document.body.innerHTML = '';
+  setUserTimezone(null);
 });
 
 describe('manualPosting queue', () => {
@@ -261,5 +280,31 @@ describe('manualPosting queue', () => {
     await run.close();
 
     expect(run.respond.mock.calls[0][0]).toContain('saved 1 of 2');
+  });
+});
+
+// Samy hands over each post's moment in UTC (`entry.date`); the editor opens
+// on it in the account's zone (fromUtc), not on the UTC wall clock.
+describe('the date Samy’s post opens on', () => {
+  const ZONE = 'Asia/Tokyo';
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it('is its moment in the chosen zone', async () => {
+    setUserTimezone(ZONE);
+    // entry() dates every post 2026-08-01T10:00:00.000Z, 19:00 in Tokyo
+    const run = await queue('first post');
+
+    expect(run.openDate()).toBe('2026-08-01 19:00');
+  });
+
+  it("is its moment in the browser's zone on Automatic", async () => {
+    const run = await queue('first post');
+
+    expect(run.openDate()).toBe(
+      dayjs.utc('2026-08-01T10:00:00.000Z').local().format('YYYY-MM-DD HH:mm')
+    );
   });
 });

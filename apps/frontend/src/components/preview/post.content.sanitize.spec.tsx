@@ -15,6 +15,14 @@ describe('sanitizePostContent', () => {
     expect(sanitizePostContent(post)).toBe(post);
   });
 
+  // Upstream 14e5a467: text that arrives through the API or the AI tools in
+  // blocks the editor lacks keeps one line per block, on save and on /p/.
+  it('keeps unsupported blocks as separate paragraphs', () => {
+    expect(sanitizePostContent('<div>Line one</div><div>Line two</div>')).toBe(
+      '<p>Line one</p><p>Line two</p>'
+    );
+  });
+
   // The tooltip renders data-tooltip-html as HTML on hover.
   it('drops tooltip markup the text brings in', () => {
     const cleaned = sanitizePostContent(

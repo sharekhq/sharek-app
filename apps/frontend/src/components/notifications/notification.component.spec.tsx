@@ -1,22 +1,53 @@
+// The bell's popup: a notification's text is never markup, its date follows
+// the account's zone and the interface language, and the list is read fresh on
+// each opening, with nothing marked new while it reloads.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// Scenery: the bell's click-away hook ships ESM only, and the row under test
-// does not use it.
+// Scenery: the bell's click-away hook ships ESM only, and nothing under test
+// uses it.
 jest.mock('@uidotdev/usehooks', () => ({ useClickAway: () => null }));
+// The list as SWR hands it to the popup, and what the popup asked SWR for.
+type MockList = {
+  data?: {
+    lastReadNotifications: string;
+    notifications: Array<{ createdAt: string; content: string }>;
+  };
+  isLoading: boolean;
+  isValidating: boolean;
+};
+let mockList: MockList = { isLoading: false, isValidating: false };
+const mockUseSWR = jest.fn<
+  MockList,
+  [string, unknown, Record<string, unknown>?]
+>(() => mockList);
+jest.mock('swr', () => ({
+  __esModule: true,
+  default: (key: string, fetcher: unknown, options?: Record<string, unknown>) =>
+    mockUseSWR(key, fetcher, options),
+}));
+jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
+  useFetch: () => jest.fn(),
+}));
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => (_key: string, fallback: string, values?: { count?: number }) =>
+    fallback.replace('{{count}}', String(values?.count)),
+}));
 
 import dayjs from 'dayjs';
 import i18next from 'i18next';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import { ShowNotification } from '@gitroom/frontend/components/notifications/notification.component';
+import {
+  NotificationOpenComponent,
+  ShowNotification,
+} from '@gitroom/frontend/components/notifications/notification.component';
+import {
+  browserTimezone,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
 // The row's full date takes its word for the half of the day from the app's
 // layout, which every page mounts.
 import 'dayjs/locale/ar';
 import '@gitroom/frontend/components/layout/html.component';
-
-// The app extends dayjs once, in layout/set.timezone; the row's time label
-// needs fromNow.
-dayjs.extend(relativeTime);
 
 // The singleton, set up with the pair the Arabic locale ships.
 beforeAll(async () => {
@@ -47,55 +78,69 @@ afterEach(async () => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  mockList = { isLoading: false, isValidating: false };
+  mockUseSWR.mockClear();
+  setUserTimezone(null);
   await i18next.changeLanguage('en');
   dayjs.locale('en');
 });
 
-// A notification's text embeds channel names and the networks' error
-// messages, so it is never markup.
-const showContent = async (content: string) => {
-  const host = await render(
+const row = (
+  content: string,
+  createdAt = '2026-10-21T10:00:00Z',
+  newNotification = false
+) =>
+  render(
     <ShowNotification
-      notification={{ createdAt: '2026-10-21T10:00:00Z', content }}
-      lastReadNotification="2026-10-20T10:00:00Z"
+      notification={{ createdAt, content }}
+      newNotification={newNotification}
     />
   );
-  return host.firstElementChild!.firstElementChild as HTMLElement;
-};
+// the text of a row, and the time under it
+const body = (host: HTMLElement) =>
+  host.querySelector<HTMLElement>('.break-words')!;
+const time = (host: HTMLElement) => body(host).nextElementSibling!;
+// every element that marks something new, in whatever look the bell draws it
+const brandMarks = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('[class]')).filter((el) =>
+    /(^|\s)(bg|border-s)-brand/.test(el.className)
+  );
 
+// A notification's text embeds channel names and the networks' error
+// messages, so it is never markup.
 describe('ShowNotification', () => {
   it('shows markup in the text as text', async () => {
     const content =
       'Error posting to <img src=x onerror="document.title=1"> on Bluesky';
 
-    const body = await showContent(content);
+    const host = await row(content);
 
-    expect(body.querySelector('img')).toBeNull();
-    expect(body.textContent).toBe(content);
+    expect(body(host).querySelector('img')).toBeNull();
+    expect(body(host).textContent).toBe(content);
   });
 
   it('turns an address in the text into a link that opens apart from the app', async () => {
     const url = 'https://www.instagram.com/p/abc123/';
 
-    const body = await showContent(`Your post is live: ${url} via Sharek`);
+    const host = await row(`Your post is live: ${url} via Sharek`);
 
-    const links = body.querySelectorAll('a');
+    const links = body(host).querySelectorAll('a');
     expect(links).toHaveLength(1);
     expect(links[0].getAttribute('href')).toBe(url);
     expect(links[0].textContent).toBe(url);
     expect(links[0].getAttribute('target')).toBe('_blank');
     expect(links[0].getAttribute('rel')).toBe('noopener noreferrer');
     expect(links[0].className).toBe('cursor-pointer underline font-bold');
-    expect(body.textContent).toBe(`Your post is live: ${url} via Sharek`);
+    expect(body(host).textContent).toBe(`Your post is live: ${url} via Sharek`);
   });
 
   it('shows ordinary text unchanged', async () => {
     const content = 'تم نشر منشورك على إنستغرام';
 
-    const body = await showContent(content);
+    const host = await row(content);
 
-    expect(body.childElementCount).toBe(0);
-    expect(body.textContent).toBe(content);
+    expect(body(host).childElementCount).toBe(0);
+    expect(body(host).textContent).toBe(content);
   });
 });
 
@@ -105,18 +150,107 @@ describe('the date under a notification', () => {
     dayjs.locale('ar');
 
     // Older than a day, so the row shows its full date.
-    const host = await render(
-      <ShowNotification
-        notification={{
-          createdAt: new Date(2026, 9, 1, 12, 30).toISOString(),
-          content: 'تم نشر منشورك',
-        }}
-        lastReadNotification="2026-10-20T10:00:00Z"
-      />
+    const host = await row(
+      'تم نشر منشورك',
+      new Date(2026, 9, 1, 12, 30).toISOString()
     );
 
-    expect(host.firstElementChild!.lastElementChild!.textContent).toMatch(
-      /12:30 م$/
+    expect(time(host).textContent).toMatch(/12:30 م$/);
+  });
+
+  // The bell's two dates go through newDayjs.
+  describe('with a zone chosen', () => {
+    const ZONE = 'Asia/Tokyo';
+
+    beforeEach(() => setUserTimezone(ZONE));
+
+    it('runs on a machine outside the chosen zone', () => {
+      expect(browserTimezone()).not.toBe(ZONE);
+    });
+
+    it('shows the time in the zone', async () => {
+      // 03:30 UTC is 12:30 in Tokyo
+      const host = await row('Your post is live', '2026-10-01T03:30:00.000Z');
+
+      expect(time(host).textContent).toBe('Oct 1, 2026 12:30 PM');
+    });
+
+    it('names half past noon in the zone as afternoon in Arabic', async () => {
+      await i18next.changeLanguage('ar');
+      dayjs.locale('ar');
+
+      const host = await row('تم نشر منشورك', '2026-10-01T03:30:00.000Z');
+
+      expect(time(host).textContent).toBe('أكتوبر 1, 2026 12:30 م');
+    });
+
+    it('still says how long ago a recent one came', async () => {
+      const host = await row(
+        'Your post is live',
+        new Date(Date.now() - 3 * 3600_000).toISOString()
+      );
+
+      expect(time(host).textContent).toBe('3 hours ago');
+    });
+  });
+});
+
+// The list: read on each opening, never again on focus or reconnect, and
+// nothing marked new from the cached list while the fresh one loads.
+describe('the list', () => {
+  // read up to 20 October; three of the four came after it
+  const list = {
+    lastReadNotifications: '2026-10-20T10:00:00.000Z',
+    notifications: [
+      { createdAt: '2026-10-21T09:00:00.000Z', content: 'third' },
+      { createdAt: '2026-10-21T08:00:00.000Z', content: 'second' },
+      { createdAt: '2026-10-20T12:00:00.000Z', content: 'first' },
+      { createdAt: '2026-10-19T12:00:00.000Z', content: 'read' },
+    ],
+  };
+
+  it('loads fresh at each opening and not on focus or reconnect', async () => {
+    mockList = { data: list, isLoading: false, isValidating: false };
+    await render(<NotificationOpenComponent />);
+
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      'notifications',
+      expect.any(Function),
+      expect.objectContaining({
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        dedupingInterval: 0,
+      })
     );
+  });
+
+  it('shows the empty state when the list has nothing', async () => {
+    mockList = {
+      data: {
+        lastReadNotifications: list.lastReadNotifications,
+        notifications: [],
+      },
+      isLoading: false,
+      isValidating: false,
+    };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(host.textContent).toContain('No notifications');
+  });
+
+  it('marks the new ones once the fresh list is in', async () => {
+    mockList = { data: list, isLoading: false, isValidating: false };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(brandMarks(host).length).toBeGreaterThan(0);
+  });
+
+  it('marks nothing new while the list reloads', async () => {
+    // reopening: the cached list, read mark included, is what SWR hands back
+    // until the fresh one arrives
+    mockList = { data: list, isLoading: false, isValidating: true };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(brandMarks(host)).toEqual([]);
   });
 });

@@ -27,6 +27,7 @@ const mockCalendar = {
   changeDate: jest.fn(),
   reloadCalendarView: jest.fn(),
   currentHour: dayjs(),
+  postDates: new Map<object, dayjs.Dayjs>(),
 };
 const mockUseCalendar = jest.fn(() => mockCalendar);
 
@@ -113,6 +114,13 @@ jest.mock('@gitroom/react/helpers/safe.image', () => ({
 // for the half of the day, as every page has them before the calendar loads.
 import '@gitroom/frontend/components/layout/html.component';
 import {
+  browserTimezone,
+  fromUtc,
+  newDayjs,
+  setUserTimezone,
+} from '@gitroom/frontend/components/layout/set.timezone';
+import {
+  CalendarColumn,
   DayView,
   MonthView,
   WeekView,
@@ -196,6 +204,7 @@ beforeEach(() => {
     display: 'week',
     integrations: [],
     posts: [],
+    postDates: new Map(),
   });
   localStorage.setItem('isUS', 'GLOBAL');
 });
@@ -206,6 +215,7 @@ afterEach(async () => {
   });
   document.body.innerHTML = '';
   jest.useRealTimers();
+  setUserTimezone(null);
   await i18next.changeLanguage('en');
 });
 
@@ -450,5 +460,123 @@ describe('the day view now line', () => {
     );
     // the day view itself reads the calendar again; its slots do not
     expect(mockUseCalendar.mock.calls.length).toBe(renders + 1);
+  });
+});
+
+// The now line, today's mark and the month's today box follow the account's
+// zone, and a post sits in the cell of its time there. The gate runs this file
+// under the machine's zone, TZ=UTC and TZ=America/New_York.
+describe('with a zone chosen', () => {
+  const ZONE = 'Asia/Tokyo';
+  // Tuesday 20 October 2026 at 19:37 UTC: already Wednesday the 21st at 04:37
+  // in Tokyo, still Tuesday on every machine the gate uses
+  const NOW = new Date(Date.UTC(2026, 9, 20, 19, 37));
+
+  const atZone = (now: Date) => {
+    jest.useFakeTimers({ now });
+    mockCalendar.currentHour = newDayjs(now).startOf('hour');
+  };
+
+  beforeEach(() => setUserTimezone(ZONE));
+
+  it('runs on a machine outside the chosen zone', () => {
+    expect(browserTimezone()).not.toBe(ZONE);
+  });
+
+  it("crosses the zone's hour in the zone's today", async () => {
+    atZone(NOW);
+    const host = await render(<WeekView />);
+
+    const row = pieces(host, 4);
+    expect(row).toHaveLength(7);
+    // Wednesday, the third column, is today in Tokyo
+    expect(row[2].children).toHaveLength(2);
+    expect(row.map((el) => el.style.top)).toEqual(
+      Array(7).fill(`${(37 / 60) * 100}%`)
+    );
+    expect(badge(host)!.textContent).toBe('4:37');
+    // nothing at the machine's own hour
+    expect(pieces(host, NOW.getHours())).toEqual([]);
+  });
+
+  it("marks the zone's today and shades the zone's past hours", async () => {
+    atZone(NOW);
+    const host = await render(<WeekView />);
+
+    const today = withClass(host, 'shadow-[inset_0_-2px_0_0_var(--brand)]');
+    expect(today).toHaveLength(1);
+    expect(today[0].textContent).toContain('10/21/2026');
+    // Monday, Tuesday, and Wednesday before 04:00 in Tokyo
+    expect(withClass(host, 'repeated-strip')).toHaveLength(24 + 24 + 4);
+  });
+
+  it("fills the zone's today in the month view", async () => {
+    atZone(NOW);
+    mockCalendar.display = 'month';
+    mockCalendar.startDate = '2026-10-01';
+    mockCalendar.endDate = '2026-10-31';
+    const host = await render(<MonthView />);
+
+    const day = (n: number) =>
+      withClass(host, 'min-w-[24px]').find((el) => el.textContent === `${n}`)!;
+    expect(day(21).className).toContain('bg-brand');
+    expect(day(20).className).toContain('line-through');
+  });
+
+  it("puts the day view's slots and its line on the zone's clock", async () => {
+    // 12:37 UTC is 21:37 in Tokyo; the slots at 10:37 and 14:37 UTC are 19:37
+    // and 23:37 there
+    atZone(new Date(Date.UTC(2026, 9, 21, 12, 37)));
+    mockCalendar.display = 'day';
+    mockCalendar.startDate = '2026-10-21';
+    mockCalendar.endDate = '2026-10-21';
+    mockCalendar.integrations = [
+      {
+        id: 'i1',
+        identifier: 'x',
+        name: 'X',
+        picture: '',
+        time: [{ time: 10 * 60 + 37 }, { time: 14 * 60 + 37 }],
+      },
+    ];
+    const host = await render(<DayView />);
+
+    expect(badge(host)!.textContent).toBe(
+      newDayjs('2026-10-21 21:37:00').format('LT')
+    );
+    expect(badge(host)!.parentElement!.nextElementSibling!.textContent).toBe(
+      newDayjs('2026-10-21 23:37:00').format('LT')
+    );
+  });
+
+  it('puts a post in the cell of its time in the zone', async () => {
+    atZone(NOW);
+    // 01:00 UTC on the 21st is 10:00 in Tokyo
+    const post = {
+      id: 'p1',
+      group: 'g1',
+      content: '<p>autumn launch</p>',
+      publishDate: '2026-10-21T01:00:00.000Z',
+      state: 'QUEUE',
+      integration: {
+        id: 'i1',
+        picture: '',
+        providerIdentifier: 'x',
+        name: 'X',
+      },
+      tags: [] as unknown[],
+    };
+    mockCalendar.posts = [post];
+    mockCalendar.postDates = new Map([[post, fromUtc(post.publishDate)]]);
+
+    const at = async (wall: string) =>
+      (
+        await render(
+          <CalendarColumn getDate={newDayjs(wall).startOf('hour')} />
+        )
+      ).textContent;
+
+    expect(await at('2026-10-21 10:00:00')).toContain('autumn launch');
+    expect(await at('2026-10-21 01:00:00')).not.toContain('autumn launch');
   });
 });

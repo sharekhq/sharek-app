@@ -10,6 +10,7 @@ const mockCustomersUpdate = jest.fn();
 const mockProductsList = jest.fn();
 const mockPricesList = jest.fn();
 const mockPromotionCodesList = jest.fn();
+const mockInvoicesList = jest.fn();
 jest.mock('stripe', () => ({
   __esModule: true,
   default: class {
@@ -19,6 +20,7 @@ jest.mock('stripe', () => ({
       retrieve: mockSubscriptionsRetrieve,
       update: mockSubscriptionsUpdate,
     };
+    invoices = { list: mockInvoicesList };
     checkout = { sessions: { create: mockCheckoutSessionsCreate } };
     customers = { update: mockCustomersUpdate };
     products = { list: mockProductsList };
@@ -44,20 +46,14 @@ jest.mock(
 
 // The billing events go through the real TrackService, and posthog-node, its
 // transport, is the double: each case chooses what the client does. The
-// Facebook SDK the same module loads is swapped for inert shells.
+// Facebook events beside them send nothing while the pixel settings are
+// unset, as they are here.
 const mockCapture = jest.fn();
 jest.mock('posthog-node', () => ({
   PostHog: class {
     capture = mockCapture;
     on = jest.fn();
   },
-}));
-jest.mock('facebook-nodejs-business-sdk', () => ({
-  FacebookAdsApi: { init: jest.fn() },
-  ServerEvent: class {},
-  EventRequest: class {},
-  UserData: class {},
-  CustomData: class {},
 }));
 
 import Stripe from 'stripe';
@@ -313,8 +309,8 @@ const makeBillingService = () => {
       .fn()
       .mockResolvedValue({ id: 'org-1', paymentId: 'cus_1' }),
   };
-  // No ip or agent, so the Facebook conversion beside the invoice event is
-  // skipped.
+  // The pixel settings are unset, so the Facebook events beside the billing
+  // events send nothing.
   const userService = {
     getUserById: jest.fn().mockResolvedValue({ id: USER_ID, email: 'a@b.c' }),
   };
@@ -370,6 +366,12 @@ const flows: Array<[string, (doubles: Doubles) => Promise<unknown>]> = [
   ['a paid invoice', ({ service }) => service.processWebhook(invoicePaid())],
 ];
 
+// The trial start and the first paid invoice start tracking work the webhook
+// does not wait for. Every awaited double resolves at once, so that work is
+// microtasks, and one turn of the event loop settles it.
+const flushBackground = () =>
+  new Promise<void>((resolve) => setImmediate(resolve));
+
 const run = async (
   flow: (doubles: Doubles) => Promise<unknown>,
   arrange: () => void = () => undefined
@@ -378,6 +380,7 @@ const run = async (
   const doubles = makeBillingService();
   arrange();
   const result = await flow(doubles);
+  await flushBackground();
   const { subscriptionService, organizationService, userService } = doubles;
 
   return {
@@ -402,6 +405,8 @@ describe('billing events', () => {
     );
     // The customer has no other live subscription unless a case says so.
     mockSubscriptionsList.mockResolvedValue({ data: [] });
+    // Nor an earlier paid invoice.
+    mockInvoicesList.mockResolvedValue({ data: [] });
   });
 
   afterEach(() => {
@@ -984,6 +989,108 @@ describe('billing events', () => {
 
         expect(failing.result).toEqual(recorded.result);
         expect(failing.calls).toEqual(recorded.calls);
+      }
+    );
+  });
+
+  // CLAUDE.md: code a payment provider's webhook reaches must not throw. A read made only for
+  // tracking is the step that can fail without anything being wrong with the payment.
+  describe('a failing tracking read leaves the webhook answered', () => {
+    let error: jest.SpyInstance;
+
+    beforeEach(() => {
+      error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      error.mockRestore();
+    });
+
+    it('still records the payment when the conversion report cannot list the invoices', async () => {
+      mockInvoicesList.mockRejectedValue(new Error('Stripe unavailable'));
+      const { service } = makeBillingService();
+
+      await expect(service.processWebhook(invoicePaid())).resolves.toEqual({
+        ok: true,
+      });
+      await flushBackground();
+
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'payment_succeeded' })
+      );
+      expect(error).toHaveBeenCalledWith(
+        'stripe_pixel_conversion_failed',
+        { stripe_invoice_id: 'in_1' },
+        expect.any(Error)
+      );
+    });
+
+    it('stores a trial start when the user read behind its ad event fails', async () => {
+      const { service, written, userService } = makeBillingService();
+      userService.getUserById.mockRejectedValue(new Error('database down'));
+
+      await expect(
+        service.processWebhook(created({ status: 'trialing' }))
+      ).resolves.toBe(written);
+      await flushBackground();
+
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'trial_started' })
+      );
+      expect(error).toHaveBeenCalledWith(
+        'stripe_pixel_event_failed',
+        { stripe_object_id: 'sub_1', event: 'StartTrial' },
+        expect.any(Error)
+      );
+    });
+  });
+
+  // Facebook's server-side tracking arrives switched off.
+  describe('with the pixel settings unset or blank', () => {
+    const realFetch = global.fetch;
+    const fetchMock = jest.fn();
+
+    beforeEach(() => {
+      global.fetch = fetchMock as unknown as typeof fetch;
+      fetchMock.mockResolvedValue({
+        ok: true,
+        body: { cancel: async (): Promise<void> => undefined },
+      });
+    });
+
+    afterEach(() => {
+      global.fetch = realFetch;
+      delete process.env.FACEBOOK_PIXEL_ACCESS_TOKEN;
+      delete process.env.NEXT_PUBLIC_FACEBOOK_PIXEL;
+    });
+
+    it.each([
+      ['unset', undefined],
+      // the deployment passes some settings through as empty strings
+      ['blank', ''],
+    ])(
+      'sends nothing to Meta for a trial start or a first payment while they are %s',
+      async (_name, value) => {
+        if (value !== undefined) {
+          process.env.FACEBOOK_PIXEL_ACCESS_TOKEN = value;
+          process.env.NEXT_PUBLIC_FACEBOOK_PIXEL = value;
+        }
+        const { service, userService } = makeBillingService();
+        // a user agent and an address, so only the settings stand between the event and Meta
+        userService.getUserById.mockResolvedValue({
+          id: USER_ID,
+          email: 'a@b.c',
+          ip: '203.0.113.7',
+          agent: 'Mozilla/5.0',
+        });
+
+        await service.processWebhook(created({ status: 'trialing' }));
+        await service.processWebhook(
+          invoicePaid({ billing_reason: 'subscription_create' })
+        );
+        await flushBackground();
+
+        expect(fetchMock).not.toHaveBeenCalled();
       }
     );
   });
