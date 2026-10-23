@@ -94,6 +94,17 @@ afterEach(() => {
 });
 
 describe('which invoices are listed', () => {
+  it('lists every invoice above $0, the small ones included', async () => {
+    mockInvoices = [invoice(4500), invoice(500), invoice(1)];
+    const host = await render(<BillingHistory />);
+
+    expect(rows(host).map((row) => row.textContent)).toEqual([
+      expect.stringContaining('$45.00'),
+      expect.stringContaining('$5.00'),
+      expect.stringContaining('$0.01'),
+    ]);
+  });
+
   // A trial's start invoice is $0.
   it('leaves out $0 invoices and credits', async () => {
     mockInvoices = [invoice(4500), invoice(0), invoice(-1000, 'void')];
@@ -143,6 +154,19 @@ describe('each row', () => {
     expect(text).toContain('14 Oct, 2026');
     expect(text).toContain('14 Nov, 2026');
     expect(text).toContain('Paid');
+  });
+
+  it.each([
+    ['paid', 'text-success'],
+    ['pending', 'text-warning'],
+    ['failed', 'text-error'],
+    ['void', 'text-textItemBlur'],
+  ])("colours a %s invoice with Sharek's %s", async (status, token) => {
+    mockInvoices = [invoice(4500, status)];
+    const host = await render(<BillingHistory />);
+    const dot = rows(host)[0].querySelector('[class~="bg-current"]')!;
+
+    expect(dot.parentElement!.className).toContain(token);
   });
 });
 
@@ -219,5 +243,40 @@ describe("an invoice's date with a zone chosen", () => {
     const host = await render(<BillingHistory />);
 
     expect(rows(host)[0].textContent).toContain('31 Oct, 2026');
+  });
+});
+
+describe("Sharek's style", () => {
+  it('rings every control on keyboard focus', async () => {
+    mockInvoices = Array.from({ length: 11 }, () => invoice(4500));
+    const host = await render(<BillingHistory />);
+    const controls = [
+      host.querySelector('input')!,
+      ...Array.from(host.querySelectorAll('button')),
+      ...Array.from(host.querySelectorAll('a')),
+    ];
+
+    expect(controls.length).toBeGreaterThan(20);
+    expect(
+      controls
+        .filter((c) => !c.className.includes('focus-visible:ring-2'))
+        .map((c) => c.outerHTML.slice(0, 60))
+    ).toEqual([]);
+  });
+
+  it('uses no purple, stock palette or opacity-on-variable class, and no upstream mobile: class', async () => {
+    mockInvoices = [invoice(4500, 'paid'), invoice(4500, 'failed')];
+    const host = await render(<BillingHistory />);
+    const classes = Array.from(host.querySelectorAll('*')).map(
+      (el) => el.getAttribute('class') || ''
+    );
+
+    expect(
+      classes.filter((c) =>
+        /#[0-9a-f]{6}|\b(bg|text|border)-(red|green|amber|purple)-\d{3}|(brand|success|warning|error)\/\d+|\bmobile:/i.test(
+          c
+        )
+      )
+    ).toEqual([]);
   });
 });

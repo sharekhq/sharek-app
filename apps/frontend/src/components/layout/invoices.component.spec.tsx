@@ -54,6 +54,20 @@ afterEach(() => {
 });
 
 describe('the invoice history icon in the header and the paywall', () => {
+  // The DeveloperIconComponent shape: a named button, a focus ring, 44px under a finger.
+  it('is a named button with a focus ring', async () => {
+    const host = await render();
+    const icon = host.querySelector('button[aria-label="Billing History"]');
+
+    expect(icon).not.toBeNull();
+    expect(icon!.getAttribute('type')).toBe('button');
+    expect(icon!.className).toContain(
+      'focus-visible:ring-2 focus-visible:ring-brand'
+    );
+    expect(icon!.className).toContain('coarse:min-h-[44px]');
+    expect(host.querySelector('div')).toBeNull();
+  });
+
   it('opens the invoice history in a window', async () => {
     const host = await render();
 

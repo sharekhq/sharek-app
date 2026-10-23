@@ -25,8 +25,6 @@ interface Invoice {
 }
 
 const PAGE_SIZE = 10;
-// invoices under $10 (trial starts, proration leftovers) are left out of the history
-const MIN_AMOUNT = 1000;
 
 const useInvoices = () => {
   const fetch = useFetch();
@@ -71,7 +69,7 @@ const ActionLink: FC<{
     aria-label={label}
     data-tooltip-id="tooltip"
     data-tooltip-content={label}
-    className="w-[36px] h-[36px] rounded-[8px] border border-newTableBorder flex items-center justify-center text-textItemBlur hover:text-newTextColor hover:bg-boxHover transition-colors"
+    className="w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] border border-newTableBorder flex items-center justify-center text-textItemBlur hover:text-newTextColor hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand"
   >
     {icon}
   </a>
@@ -89,15 +87,15 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       ({
         paid: {
           label: t('billing_status_paid', 'Paid'),
-          color: 'text-[#32D583]',
+          color: 'text-success',
         },
         pending: {
           label: t('billing_status_open', 'Pending'),
-          color: 'text-[#FFAC30]',
+          color: 'text-warning',
         },
         failed: {
           label: t('billing_status_failed', 'Failed'),
-          color: 'text-[#F97066]',
+          color: 'text-error',
         },
         void: {
           label: t('billing_status_void', 'Void'),
@@ -110,7 +108,8 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
   const rows = useMemo(
     () =>
       (data || [])
-        .filter((invoice) => invoice.amount >= MIN_AMOUNT)
+        // a trial's $0 start invoice is left out; every charge is listed, however small
+        .filter((invoice) => invoice.amount > 0)
         .map((invoice) => ({
           ...invoice,
           plan: invoice.tier
@@ -204,15 +203,15 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       className={clsx(
         'flex flex-col gap-[20px]',
         !modal &&
-          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow p-[24px] mobile:p-[16px]'
+          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow p-[24px] phone:p-[16px]'
       )}
     >
-      <div className="flex items-center gap-[12px] mobile:flex-col mobile:items-stretch">
+      <div className="flex items-center gap-[12px] phone:flex-col phone:items-stretch">
         <div className="flex-1 text-[20px] font-[600]">
           {!modal && t('billing_history', 'Billing History')}
         </div>
-        <div className="flex items-center gap-[8px] mobile:flex-wrap">
-          <div className="relative w-[240px] mobile:w-full">
+        <div className="flex items-center gap-[8px] phone:flex-wrap">
+          <div className="relative w-[240px] phone:w-full">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="18"
@@ -236,10 +235,11 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
                 setVisible(PAGE_SIZE);
               }}
               placeholder={t('billing_search', 'Search...')}
-              className="w-full h-[42px] ps-[38px] pe-[12px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] outline-none focus:border-[#612BD3]"
+              aria-label={t('billing_search', 'Search...')}
+              className="w-full h-[42px] coarse:h-[44px] ps-[38px] pe-[12px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] coarse:text-[16px] outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
-          <div className="mobile:flex-1">
+          <div className="phone:flex-1">
             <Select
               label=""
               name="status"
@@ -266,7 +266,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
             type="button"
             onClick={exportCsv}
             disabled={!filtered.length}
-            className="h-[42px] px-[16px] rounded-[8px] border border-newTableBorder bg-newBgColorInner flex items-center gap-[8px] text-[14px] font-[500] hover:bg-boxHover transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="h-[42px] coarse:h-[44px] px-[16px] rounded-[8px] border border-newTableBorder bg-newBgColorInner flex items-center gap-[8px] text-[14px] font-[500] hover:bg-boxHover transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -292,7 +292,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
         <div
           className={clsx(
             columns,
-            'h-[48px] rounded-[8px] border border-newTableBorder bg-newTableHeader text-[14px] text-newTableText mobile:hidden'
+            'h-[48px] rounded-[8px] border border-newTableBorder bg-newTableHeader text-[14px] text-newTableText phone:hidden'
           )}
         >
           <div>{t('billing_plan', 'Plan')}</div>
@@ -305,7 +305,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
 
         {!filtered.length ? (
           <div className="flex flex-col items-center justify-center gap-[12px] py-[40px] px-[16px] text-center">
-            <div className="w-[48px] h-[48px] rounded-full bg-[#612bd3]/10 flex items-center justify-center text-[#612bd3]">
+            <div className="w-[48px] h-[48px] rounded-full bg-brandSoft flex items-center justify-center text-brandText">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -334,10 +334,10 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
               key={row.id}
               className={clsx(
                 columns,
-                'min-h-[64px] py-[12px] border-b border-newTableBorder last:border-b-0 text-[14px] mobile:grid-cols-[minmax(0,1fr)_auto] mobile:gap-y-[6px] mobile:py-[14px] mobile:px-0'
+                'min-h-[64px] py-[12px] border-b border-newTableBorder last:border-b-0 text-[14px] phone:grid-cols-[minmax(0,1fr)_auto] phone:gap-y-[6px] phone:py-[14px] phone:px-0'
               )}
             >
-              <div className="flex flex-col min-w-0 mobile:col-start-1 mobile:row-start-1">
+              <div className="flex flex-col min-w-0 phone:col-start-1 phone:row-start-1">
                 <div className="text-[15px] font-[500] truncate">
                   {row.plan}
                 </div>
@@ -347,33 +347,33 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
                   </div>
                 )}
               </div>
-              <div className="font-[500] mobile:col-start-2 mobile:row-start-1 mobile:text-end">
+              <div className="font-[500] phone:col-start-2 phone:row-start-1 phone:text-end">
                 {row.amountLabel}
               </div>
-              <div className="mobile:col-start-1 mobile:row-start-2 mobile:text-[13px] mobile:text-textItemBlur">
+              <div className="phone:col-start-1 phone:row-start-2 phone:text-[13px] phone:text-textItemBlur">
                 <bdi>{row.purchaseDate}</bdi>
                 {!!row.endDate && (
-                  <span className="hidden mobile:inline">
+                  <span className="hidden phone:inline">
                     {' - '}
                     <bdi>{row.endDate}</bdi>
                   </span>
                 )}
               </div>
-              <div className="mobile:hidden">
+              <div className="phone:hidden">
                 <bdi>{row.endDate}</bdi>
               </div>
               <div
                 className={clsx(
-                  'flex items-center gap-[8px] font-[500] mobile:col-start-2 mobile:row-start-2 mobile:justify-end',
+                  'flex items-center gap-[8px] font-[500] phone:col-start-2 phone:row-start-2 phone:justify-end',
                   row.statusInfo.color
                 )}
               >
                 <span className="w-[8px] h-[8px] rounded-full bg-current shrink-0" />
                 {row.statusInfo.label}
               </div>
-              <div className="flex items-center gap-[8px] mobile:col-span-2 mobile:row-start-3">
+              <div className="flex items-center gap-[8px] phone:col-span-2 phone:row-start-3">
                 {!row.downloadUrl ? (
-                  <div className="w-[36px] mobile:hidden" />
+                  <div className="w-[36px] coarse:w-[44px] phone:hidden" />
                 ) : (
                   <ActionLink
                     href={row.downloadUrl}
@@ -429,7 +429,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
         <button
           type="button"
           onClick={() => setVisible((current) => current + PAGE_SIZE)}
-          className="self-center h-[36px] px-[16px] rounded-[8px] text-[14px] font-[500] text-textItemBlur hover:text-newTextColor hover:bg-boxHover transition-colors"
+          className="self-center h-[36px] coarse:h-[44px] px-[16px] rounded-[8px] text-[14px] font-[500] text-textItemBlur hover:text-newTextColor hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand"
         >
           {t('show_more', '+ Show more')}
         </button>
