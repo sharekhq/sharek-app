@@ -38,6 +38,7 @@ const loginToken: Omit<User, 'password'> = {
   pictureId: null,
   providerId: null,
   timezone: 0,
+  timezoneName: null,
   createdAt: new Date('2026-10-01T09:00:00.000Z'),
   updatedAt: new Date('2026-10-01T09:00:00.000Z'),
   lastReadNotifications: new Date('2026-10-01T09:00:00.000Z'),

@@ -4,7 +4,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { FC, useCallback, useState } from 'react';
 import clsx from 'clsx';
-import dayjs from 'dayjs';
+import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { useClickAway } from '@uidotdev/usehooks';
 import ReactLoading from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -34,14 +34,11 @@ export const ShowNotification: FC<{
     createdAt: string;
     content: string;
   };
-  lastReadNotification: string;
+  newNotification: boolean;
 }> = (props) => {
-  const { notification } = props;
-  const [newNotification] = useState(
-    new Date(notification.createdAt) > new Date(props.lastReadNotification)
-  );
-  const createdAt = dayjs(notification.createdAt);
-  const isWithin24h = dayjs().diff(createdAt, 'hour') < 24;
+  const { notification, newNotification } = props;
+  const createdAt = newDayjs(notification.createdAt);
+  const isWithin24h = newDayjs().diff(createdAt, 'hour') < 24;
   const fullDate = createdAt.format('MMM D, YYYY h:mm A');
   return (
     <div
@@ -61,14 +58,30 @@ export const ShowNotification: FC<{
     </div>
   );
 };
-export const NotificationOpenComponent = () => {
+// every call marks the notifications as read, so it only runs when the popup opens
+const useNotificationsList = () => {
   const fetch = useFetch();
-  const loadNotifications = useCallback(async () => {
-    return await (await fetch('/notifications/list')).json();
-  }, []);
+  return useSWR(
+    'notifications',
+    async () => {
+      return await (await fetch('/notifications/list')).json();
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 0,
+    }
+  );
+};
+export const NotificationOpenComponent = () => {
   const t = useT();
-
-  const { data, isLoading } = useSWR('notifications', loadNotifications);
+  const { data, isLoading, isValidating } = useNotificationsList();
+  const notifications: { createdAt: string; content: string }[] =
+    data?.notifications || [];
+  // reopening shows the cached list first, only the fresh one knows what is new
+  const isNew = (createdAt: string) =>
+    !isValidating &&
+    new Date(createdAt) > new Date(data?.lastReadNotifications);
   return (
     <div
       id="notification-popup"
@@ -86,27 +99,19 @@ export const NotificationOpenComponent = () => {
             <ReactLoading type="spin" color="var(--ink)" width={36} height={36} />
           </div>
         )}
-        {!isLoading && !data.notifications.length && (
+        {!isLoading && !notifications.length && (
           <div className="text-center p-[16px] text-textColor flex-1 flex justify-center items-center mt-[20px]">
             {t('no_notifications', 'No notifications')}
           </div>
         )}
         {!isLoading &&
-          data.notifications.map(
-            (
-              notification: {
-                createdAt: string;
-                content: string;
-              },
-              index: number
-            ) => (
-              <ShowNotification
-                notification={notification}
-                lastReadNotification={data.lastReadNotifications}
-                key={`notifications_${index}`}
-              />
-            )
-          )}
+          notifications.map((notification, index) => (
+            <ShowNotification
+              notification={notification}
+              newNotification={isNew(notification.createdAt)}
+              key={`notifications_${index}`}
+            />
+          ))}
       </div>
     </div>
   );

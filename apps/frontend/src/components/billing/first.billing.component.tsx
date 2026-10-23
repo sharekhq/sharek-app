@@ -35,6 +35,7 @@ import {
   useChannelCatalogue,
 } from '@gitroom/frontend/components/billing/use.channel.catalogue';
 import { tutorialVideoEmbedUrl } from '@gitroom/frontend/components/ui/tutorial.video';
+import { InvoicesComponent } from '@gitroom/frontend/components/layout/invoices.component';
 
 const ModeComponent = dynamic(
   () => import('@gitroom/frontend/components/layout/mode.component'),
@@ -68,6 +69,8 @@ export const FirstBillingComponent = () => {
   const { remainder } = useChannelCatalogue();
   const [datafast_visitor_id] = useCookie('datafast_visitor_id', '');
   const [datafast_session_id] = useCookie('datafast_session_id', '');
+  const [fbc] = useCookie('_fbc', '');
+  const [fbp] = useCookie('_fbp', '');
 
   useEffect(() => {
     const stripePromise = loadStripe(stripeClient, {
@@ -88,6 +91,8 @@ export const FirstBillingComponent = () => {
             ? { datafast_visitor_id, datafast_session_id }
             : {}),
           ...(dub ? { dub } : {}),
+          ...(fbc ? { fbc } : {}),
+          ...(fbp ? { fbp } : {}),
         }),
       })
     ).json();
@@ -261,6 +266,7 @@ export const FirstBillingComponent = () => {
         <div className="flex items-center">
           <div className="flex gap-[20px] phone:gap-[8px] text-textItemBlur">
             <OrganizationSelector />
+            <InvoicesComponent />
             <div className="hover:text-newTextColor">
               <ModeComponent />
             </div>
@@ -410,9 +416,18 @@ export const FirstBillingComponent = () => {
   );
 };
 
-export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
+export const useBillingFeatures = (tier: string) => {
   const t = useT();
   const features = useMemo(() => billingFeatures(pricing[tier]), [tier]);
+
+  return features.map((feature) => ({
+    key: feature.key,
+    label: t(feature.key, feature.defaultValue, feature),
+  }));
+};
+
+export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
+  const features = useBillingFeatures(tier);
 
   return (
     <div className="grid grid-cols-2 mobile:grid-cols-1 gap-y-[8px] gap-x-[32px]">
@@ -432,7 +447,7 @@ export const BillingFeatures: FC<{ tier: string }> = ({ tier }) => {
               />
             </svg>
           </div>
-          <div>{t(feature.key, feature.defaultValue, feature)}</div>
+          <div>{feature.label}</div>
         </div>
       ))}
     </div>

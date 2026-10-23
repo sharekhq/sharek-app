@@ -125,11 +125,24 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
     []
   );
 
+  // Installed on the other platform, not connected here with an API key.
+  // noopener: the page it ends on closes itself when it has an opener
+  const install = useCallback(
+    (installUrl: string) => () => {
+      window.open(installUrl, '_blank', 'noopener,noreferrer');
+    },
+    []
+  );
+
   return (
     <div className="grid grid-cols-4 gap-[16px] justify-items-center justify-center">
       {data?.map((p: any) => (
         <div
-          onClick={addApiKey(p.title, p.identifier)}
+          onClick={
+            p.installUrl
+              ? install(p.installUrl)
+              : addApiKey(p.title, p.identifier)
+          }
           key={p.identifier}
           className="w-full h-full p-[20px] min-h-[100px] text-[14px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card rounded-[14px] text-textColor relative flex flex-col gap-[15px] cursor-pointer"
         >

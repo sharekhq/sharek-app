@@ -30,11 +30,13 @@ import { SignaturesComponent } from '@gitroom/frontend/components/settings/signa
 import { Autopost } from '@gitroom/frontend/components/autopost/autopost';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { GlobalSettings } from '@gitroom/frontend/components/settings/global.settings';
-import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
+import { AppsComponent } from '@gitroom/frontend/components/settings/apps.component';
+import { ThirdPartyComponent } from '@gitroom/frontend/components/third-parties/third-party.component';
+import { Plugs } from '@gitroom/frontend/components/plugs/plugs';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
-  const { isGeneral } = useVariables();
+  const { isGeneral, showThirdParty } = useVariables();
   const { getRef } = props;
   const fetch = useFetch();
   const toast = useToaster();
@@ -80,8 +82,6 @@ export const SettingsPopup: FC<{
     close();
   }, []);
 
-  const [tab, setTab] = useState('global_settings');
-
   const t = useT();
   const list = useMemo(() => {
     const arr = [];
@@ -105,10 +105,21 @@ export const SettingsPopup: FC<{
     if (user?.tier?.public_api && isGeneral && showLogout) {
       arr.push({ tab: 'api', label: t('developers', 'Developers') });
     }
-    arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
+    if (showThirdParty) {
+      arr.push({ tab: 'integrations', label: t('integrations', 'Integrations') });
+    }
+    arr.push({ tab: 'plugs', label: t('plugs', 'Plugs') });
+    arr.push({ tab: 'apps', label: t('apps', 'Apps') });
 
     return arr;
-  }, [user, isGeneral, showLogout, t]);
+  }, [user, isGeneral, showLogout, showThirdParty, t]);
+
+  const [tab, setTab] = useState(() => {
+    const requested = url.get('tab');
+    return list.some((p) => p.tab === requested)
+      ? requested!
+      : 'global_settings';
+  });
 
   useEffect(() => {
     loadProfile();
@@ -198,6 +209,18 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
+              {tab === 'integrations' && showThirdParty && (
+                <div>
+                  <ThirdPartyComponent />
+                </div>
+              )}
+
+              {tab === 'plugs' && (
+                <div>
+                  <Plugs />
+                </div>
+              )}
+
               {tab === 'api' &&
                 !!user?.tier?.public_api &&
                 isGeneral &&
@@ -207,9 +230,16 @@ export const SettingsPopup: FC<{
                   </div>
                 )}
 
-              {tab === 'approved_apps' && (
+              {tab === 'apps' && (
                 <div>
-                  <ApprovedAppsComponent />
+                  <AppsComponent
+                    canManageApps={
+                      !!user?.tier?.public_api &&
+                      isGeneral &&
+                      showLogout &&
+                      user?.role !== 'USER'
+                    }
+                  />
                 </div>
               )}
             </div>

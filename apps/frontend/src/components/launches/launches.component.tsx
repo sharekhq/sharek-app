@@ -41,6 +41,7 @@ import useCookie from 'react-use-cookie';
 import { NoChannelsIllustration } from '@gitroom/frontend/components/launches/no-channels.illustration';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 import { ChannelsAfterPayment } from '@gitroom/frontend/components/layout/check.payment';
+import { HubspotInstalled } from '@gitroom/frontend/components/launches/hubspot.installed';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
@@ -602,6 +603,7 @@ export const LaunchesComponent = () => {
       <CalendarDragLayer />
       <Onboarding />
       <ChannelsAfterPayment integrations={integrations} />
+      <HubspotInstalled />
       <CalendarWeekProvider integrations={sortedIntegrations}>
         <SplitPanel
           open={channelsOpen}

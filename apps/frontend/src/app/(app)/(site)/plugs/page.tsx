@@ -1,14 +1,7 @@
-import { Plugs } from '@gitroom/frontend/components/plugs/plugs';
+import { redirect } from 'next/navigation';
+
 export const dynamic = 'force-dynamic';
-import { Metadata } from 'next';
-import { getT } from '@gitroom/react/translation/get.translation.service.backend';
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getT();
-  return {
-    title: t('page_title_plugs', 'Sharek Plugs'),
-    description: '',
-  };
-}
+
 export default async function Index() {
-  return <Plugs />;
+  return redirect('/settings?tab=plugs');
 }

@@ -39,8 +39,8 @@ import {
 import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
-import dayjs from 'dayjs';
 import i18next from 'i18next';
+import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
@@ -379,7 +379,7 @@ export const OpenModal: FC<{
           // one the calendar opens and the channels stay editable.
           children: (
             <AddEditModal
-              date={dayjs.utc(entry.date)}
+              date={fromUtc(entry.date)}
               allIntegrations={allIntegrations}
               integrations={allIntegrations}
               selectedChannels={entry.integrationIds}

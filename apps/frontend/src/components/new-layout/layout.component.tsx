@@ -41,6 +41,7 @@ import { LanguageComponent } from '@gitroom/frontend/components/layout/language.
 import { ChromeExtensionComponent } from '@gitroom/frontend/components/layout/chrome.extension.component';
 import NotificationComponent from '@gitroom/frontend/components/notifications/notification.component';
 import { OrganizationSelector } from '@gitroom/frontend/components/layout/organization.selector';
+import { InvoicesComponent } from '@gitroom/frontend/components/layout/invoices.component';
 import { StreakComponent } from '@gitroom/frontend/components/layout/streak.component';
 import { PreConditionComponent } from '@gitroom/frontend/components/layout/pre-condition.component';
 import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/sentry.feedback.component';
@@ -48,6 +49,7 @@ import { FirstBillingComponent } from '@gitroom/frontend/components/billing/firs
 import { TrialTracker } from '@gitroom/frontend/components/layout/gtm.component';
 import { PostHogIdentify } from '@gitroom/react/helpers/posthog';
 import { setSentryUser } from '@gitroom/react/sentry/initialize.sentry.client';
+import { setUserTimezone } from '@gitroom/frontend/components/layout/set.timezone';
 
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();
@@ -61,6 +63,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
     return await (await fetch(path)).json();
   }, []);
   const { data: user, mutate } = useSWR('/user/self', load, {
+    // set before anything renders a date in the user's timezone
+    onSuccess: (data) => setUserTimezone(data?.timezoneName),
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,
@@ -204,6 +208,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                           </div>
                           <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
                           <OrganizationSelector />
+                          <InvoicesComponent />
                           <div className="hover:text-newTextColor">
                             <ModeComponent />
                           </div>

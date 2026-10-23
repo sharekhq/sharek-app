@@ -80,7 +80,7 @@ export const initializeSentryBasic = (environment: string, dsn: string, extensio
       environment: environment || 'development',
       spotlight: process.env.SENTRY_SPOTLIGHT === '1',
       dsn,
-      sendDefaultPii: true,
+      sendDefaultPii: false,
       // Browser-extension errors are not ours. This runs before the SDK rewrites every frame
       // origin to `app://`, which hides them from Sentry's own extension filter.
       denyUrls: [

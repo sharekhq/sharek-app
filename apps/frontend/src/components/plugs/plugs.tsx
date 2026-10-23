@@ -14,16 +14,7 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { PlugsContext } from '@gitroom/frontend/components/plugs/plugs.context';
 import { Plug } from '@gitroom/frontend/components/plugs/plug';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import useCookie from 'react-use-cookie';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
-import {
-  SplitPanel,
-  SplitPanelToggle,
-} from '@gitroom/frontend/components/ui/split.panel';
-import {
-  useMediaQuery,
-  PHONE_QUERY,
-} from '@gitroom/react/helpers/use.media.query';
 const PlugsEmptyIllustration = () => (
   <svg
     width="132"
@@ -78,13 +69,6 @@ export const Plugs = () => {
     fallbackData: [],
   });
 
-  const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-  // Phone: the channels rail becomes an off-canvas sheet behind a toggle, and is
-  // always fully expanded there (never the desktop icon-collapsed rail).
-  const isPhone = useMediaQuery(PHONE_QUERY);
-  const [channelsOpen, setChannelsOpen] = useState(false);
-  const railCollapsed = collapseMenu === '1' && !isPhone;
-
   const t = useT();
 
   const sortedIntegrations = useMemo(() => {
@@ -117,15 +101,18 @@ export const Plugs = () => {
 
   if (isLoading || plugLoading) {
     return (
-      <div className="bg-newBgColorInner p-[20px] flex flex-1 flex-col gap-[15px] transition-all items-center justify-center">
+      <div className="flex flex-col items-center justify-center">
         <LoadingComponent />
       </div>
     );
   }
 
-  if (!sortedIntegrations.length && !isLoading) {
-    return (
-      <div className="bg-newBgColorInner flex flex-1">
+  return (
+    <div className="flex flex-col gap-[20px]">
+      <div className="flex flex-col">
+        <h3 className="text-[20px]">{t('plugs', 'Plugs')}</h3>
+      </div>
+      {!sortedIntegrations.length ? (
         <EmptyState
           illustration={<PlugsEmptyIllustration />}
           title={t('plugs_empty_title', 'Put your channels on autopilot')}
@@ -136,101 +123,83 @@ export const Plugs = () => {
           actionLabel={t('connect_a_channel', 'Connect a channel')}
           onAction={() => router.push('/launches')}
         />
-      </div>
-    );
-  }
-  return (
-    <>
-      <SplitPanel
-        open={channelsOpen}
-        onClose={() => setChannelsOpen(false)}
-        collapsed={railCollapsed}
-        onToggleCollapse={() =>
-          setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-        }
-        title={t('channels')}
-      >
-        <div className="flex gap-[12px] flex-col">
-          {sortedIntegrations.map((integration, index) => (
-            <div
-              key={integration.id}
-              onClick={() => {
-                if (integration.refreshNeeded) {
-                  toaster.show(
-                    t(
-                      'please_refresh_the_integration_from_the_calendar',
-                      'Please refresh the integration from the calendar'
-                    ),
-                    'warning'
-                  );
-                  return;
-                }
-                setRefresh(true);
-                setTimeout(() => {
-                  setRefresh(false);
-                }, 10);
-                setCurrent(index);
-              }}
-              className={clsx(
-                'flex gap-[8px] items-center justify-center hover:bg-boxHover rounded-e-[8px] coarse:min-h-[44px]',
-                currentIntegration.id !== integration.id &&
-                  'opacity-20 hover:opacity-100 cursor-pointer'
-              )}
-            >
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-[8px]">
+            {sortedIntegrations.map((integration, index) => (
               <div
+                key={integration.id}
+                onClick={() => {
+                  if (integration.refreshNeeded) {
+                    toaster.show(
+                      t(
+                        'please_refresh_the_integration_from_the_calendar',
+                        'Please refresh the integration from the calendar'
+                      ),
+                      'warning'
+                    );
+                    return;
+                  }
+                  setRefresh(true);
+                  setTimeout(() => {
+                    setRefresh(false);
+                  }, 10);
+                  setCurrent(index);
+                }}
                 className={clsx(
-                  'relative rounded-full flex justify-center items-center gap-[8px]',
-                  integration.disabled && 'opacity-50'
+                  'flex gap-[8px] items-center px-[12px] py-[8px] rounded-[8px] hover:bg-boxHover cursor-pointer',
+                  currentIntegration.id === integration.id
+                    ? 'bg-boxHover'
+                    : 'opacity-40 hover:opacity-100'
                 )}
               >
-                {(integration.inBetweenSteps || integration.refreshNeeded) && (
-                  <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                    <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                      !
+                <div
+                  className={clsx(
+                    'relative rounded-full flex justify-center items-center',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {(integration.inBetweenSteps ||
+                    integration.refreshNeeded) && (
+                    <div className="absolute start-0 top-0 w-[36px] h-[36px] cursor-pointer">
+                      <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
+                        !
+                      </div>
+                      <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[36px] h-[36px] start-0 top-0 absolute rounded-full z-[199]" />
                     </div>
-                    <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
-                  </div>
-                )}
-                <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
-                  src={integration.picture}
-                  className="rounded-[8px]"
-                  alt={integration.identifier}
-                  width={36}
-                  height={36}
-                />
-                <SafeImage
-                  src={`/icons/platforms/${integration.identifier}.png`}
-                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                  alt={integration.identifier}
-                  width={18.41}
-                  height={18.41}
-                />
+                  )}
+                  <ImageWithFallback
+                    fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                    src={integration.picture}
+                    className="rounded-[8px]"
+                    alt={integration.identifier}
+                    width={36}
+                    height={36}
+                  />
+                  <SafeImage
+                    src={`/icons/platforms/${integration.identifier}.png`}
+                    className="rounded-[8px] absolute z-10 bottom-[-5px] -end-[5px] border border-fifth"
+                    alt={integration.identifier}
+                    width={18.41}
+                    height={18.41}
+                  />
+                </div>
+                <div
+                  className={clsx(
+                    'max-w-[160px] whitespace-nowrap text-ellipsis overflow-hidden',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {integration.name}
+                </div>
               </div>
-              <div
-                className={clsx(
-                  'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {integration.name}
-              </div>
-            </div>
-          ))}
-        </div>
-      </SplitPanel>
-      {/* min-w-0: the rail is `shrink-0` now that it is a SplitPanel, so this
-          column is what has to shrink. Without it, min-width:auto pins it to the
-          plug form's min-content and the row overflows instead. Same reason as
-          `launches.component.tsx:532`. */}
-      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
-        <SplitPanelToggle onClick={() => setChannelsOpen(true)}>
-          {t('channels', 'Channels')}
-        </SplitPanelToggle>
-        <PlugsContext.Provider value={currentIntegrationPlug}>
-          <Plug />
-        </PlugsContext.Provider>
-      </div>
-    </>
+            ))}
+          </div>
+          <PlugsContext.Provider value={currentIntegrationPlug}>
+            <Plug />
+          </PlugsContext.Provider>
+        </>
+      )}
+    </div>
   );
 };

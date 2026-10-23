@@ -1,6 +1,5 @@
 'use client';
 
-import clsx from 'clsx';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyListComponent } from '@gitroom/frontend/components/third-parties/third-party.list.component';
@@ -9,15 +8,6 @@ import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
-import useCookie from 'react-use-cookie';
-import {
-  SplitPanel,
-  SplitPanelToggle,
-} from '@gitroom/frontend/components/ui/split.panel';
-import {
-  useMediaQuery,
-  PHONE_QUERY,
-} from '@gitroom/react/helpers/use.media.query';
 
 export const ThirdPartyMenuComponent: FC<{
   reload: () => void;
@@ -78,7 +68,7 @@ export const ThirdPartyMenuComponent: FC<{
       {show && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`absolute top-[100%] start-0 p-[8px] px-[20px] bg-fifth flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
+          className={`absolute top-[100%] end-0 p-[8px] px-[20px] bg-fifth flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
         >
           <div
             className="flex gap-[12px] items-center"
@@ -124,84 +114,47 @@ export const ThirdPartyComponent = () => {
     refreshWhenHidden: false,
     refreshWhenOffline: false,
   });
-  const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-  // Phone: the integrations rail becomes an off-canvas sheet behind a toggle,
-  // and is always fully expanded there (never the desktop icon-collapsed rail).
-  // It stacked under `phone:` before; the drawer replaces that stacking, which
-  // is why the row no longer needs `phone:flex-col`.
-  const isPhone = useMediaQuery(PHONE_QUERY);
-  const [integrationsOpen, setIntegrationsOpen] = useState(false);
-  const railCollapsed = collapseMenu === '1' && !isPhone;
-
   return (
-    <div className="flex flex-1 min-w-0 gap-[1px]">
-      <SplitPanel
-        open={integrationsOpen}
-        onClose={() => setIntegrationsOpen(false)}
-        collapsed={railCollapsed}
-        onToggleCollapse={() =>
-          setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-        }
-        title={t('integrations')}
-      >
-        <div className="flex flex-col gap-[10px]">
-            <div className="flex-1 flex flex-col gap-[14px]">
-              <div
-                className={clsx(
-                  'gap-[16px] flex flex-col relative justify-center rounded-e-[8px]'
-                )}
-              >
-                {!isLoading && !data?.length ? (
-                  <div>No Integrations Yet</div>
-                ) : (
-                  data?.map((p: any) => (
-                    <div
-                      key={p.id}
-                      className={clsx('flex gap-[8px] items-center hover:bg-boxHover')}
-                    >
-                      <div
-                        className={clsx(
-                          'relative rounded-full flex justify-center items-center'
-                        )}
-                        data-tooltip-id="tooltip"
-                        data-tooltip-content={p.title}
-                      >
-                        <ImageWithFallback
-                          fallbackSrc={`/icons/third-party/${p.identifier}.png`}
-                          src={`/icons/third-party/${p.identifier}.png`}
-                          className="rounded-full"
-                          alt={p.title}
-                          width={32}
-                          height={32}
-                        />
-                      </div>
-                      <div
-                        // @ts-ignore
-                        role="Handle"
-                        className={clsx(
-                          'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden'
-                        )}
-                        data-tooltip-id="tooltip"
-                        data-tooltip-content={p.title}
-                      >
-                        {p.name}
-                      </div>
-                      <ThirdPartyMenuComponent reload={mutate} tParty={p} />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-      </SplitPanel>
-      {/* min-w-0: the rail is `shrink-0` now that it is a SplitPanel, so this
-          column is what has to shrink. Same reason as `launches.component.tsx:532`. */}
-      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
-        <SplitPanelToggle onClick={() => setIntegrationsOpen(true)}>
-          {t('integrations', 'Integrations')}
-        </SplitPanelToggle>
-        <ThirdPartyListComponent reload={mutate} />
+    <div className="flex flex-col gap-[20px]">
+      <div className="flex flex-col">
+        <h3 className="text-[20px]">{t('integrations', 'Integrations')}</h3>
       </div>
+      {!isLoading && (
+        <div className="bg-sixth border-fifth border rounded-[4px] p-[24px]">
+          {!data?.length ? (
+            <div className="text-muted">No Integrations Yet</div>
+          ) : (
+            <div className="flex flex-col gap-[16px]">
+              {data?.map((p: any) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-[12px] p-[12px] border border-fifth rounded-[4px]"
+                >
+                  <div className="flex items-center gap-[12px] min-w-0">
+                    <ImageWithFallback
+                      fallbackSrc={`/icons/third-party/${p.identifier}.png`}
+                      src={`/icons/third-party/${p.identifier}.png`}
+                      className="rounded-full"
+                      alt={p.title}
+                      width={32}
+                      height={32}
+                    />
+                    <div
+                      className="text-[14px] whitespace-nowrap text-ellipsis overflow-hidden"
+                      data-tooltip-id="tooltip"
+                      data-tooltip-content={p.title}
+                    >
+                      {p.name}
+                    </div>
+                  </div>
+                  <ThirdPartyMenuComponent reload={mutate} tParty={p} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <ThirdPartyListComponent reload={mutate} />
     </div>
   );
 };

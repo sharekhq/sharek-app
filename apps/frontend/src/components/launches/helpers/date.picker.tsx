@@ -5,7 +5,10 @@ import { useClickOutside } from '@mantine/hooks';
 import { Button } from '@gitroom/react/form/button';
 import { isUSCitizen } from './isuscitizen.utils';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import {
+  newDayjs,
+  toPickerDate,
+} from '@gitroom/frontend/components/layout/set.timezone';
 import { CalendarIcon } from '@gitroom/frontend/components/ui/icons';
 
 export const DatePicker: FC<{
@@ -22,13 +25,15 @@ export const DatePicker: FC<{
   const ref = useClickOutside<HTMLDivElement>(() => {
     setOpen(false);
   });
+  // the pickers give machine-local dates, so their wall clock is read with
+  // plain dayjs and then placed in the user's timezone
   const changeDate = useCallback(
     (type: 'date' | 'time') => (day: Date) => {
       onChange(
         newDayjs(
           type === 'time'
-            ? date.format('YYYY-MM-DD') + ' ' + newDayjs(day).format('HH:mm:ss')
-            : newDayjs(day).format('YYYY-MM-DD') + ' ' + date.format('HH:mm:ss')
+            ? date.format('YYYY-MM-DD') + ' ' + dayjs(day).format('HH:mm:ss')
+            : dayjs(day).format('YYYY-MM-DD') + ' ' + date.format('HH:mm:ss')
         )
       );
     },
@@ -63,7 +68,7 @@ export const DatePicker: FC<{
         >
           <Calendar
             onChange={changeDate('date')}
-            value={date.toDate()}
+            value={toPickerDate(date)}
             dayClassName={(date, modifiers) => {
               if (modifiers.selected) {
                 return '!text-white !bg-brand !outline-none';
@@ -100,7 +105,7 @@ export const DatePicker: FC<{
                 'bg-sixth h-[40px] border border-tableBorder text-textColor rounded-[4px] outline-none',
               controls: '[direction:ltr]',
             }}
-            defaultValue={date.toDate()}
+            defaultValue={toPickerDate(date)}
           />
           <Button className="mt-[12px]" onClick={changeShow}>
             {t('close', 'Close')}

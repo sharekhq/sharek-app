@@ -8,7 +8,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
-import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { isUSCitizen } from './helpers/isuscitizen.utils';
 
 export type CalendarPost = Post & {
@@ -149,7 +149,7 @@ export const CalendarPostCard = forwardRef<
         </div>
         {showTime && (
           <div className="text-muted text-[12px] whitespace-nowrap flex items-center">
-            {newDayjs(post.publishDate).local().format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
+            {fromUtc(post.publishDate).format(isUSCitizen() ? 'hh:mm A' : 'HH:mm')}
           </div>
         )}
       </div>

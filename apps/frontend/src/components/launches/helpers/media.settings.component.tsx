@@ -15,6 +15,8 @@ import {
   DesignMediaIcon,
   InsertMediaIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 const postUrlEmitter = new EventEmitter();
 
 // The frame being picked should be as large as the modal allows; the stage is
@@ -340,6 +342,7 @@ export const MediaComponentInner: FC<{
   const t = useT();
   const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
   const newFetch = useFetch();
+  const modals = useModals();
   const [newThumbnail, setNewThumbnail] = useState<string | null>(null);
   const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
   const [altText, setAltText] = useState<string>(media?.alt || '');
@@ -443,6 +446,38 @@ export const MediaComponentInner: FC<{
                       {t('create_thumbnail', 'Create thumbnail')}
                     </>
                   )}
+                </Button>
+                <Button
+                  variant="quiet"
+                  disabled={loading}
+                  innerClassName="gap-[8px]"
+                  onClick={() =>
+                    modals.openModal({
+                      title: t('media_library', 'Media Library'),
+                      askClose: false,
+                      closeOnEscape: true,
+                      fullScreen: true,
+                      size: 'calc(100% - 80px)',
+                      height: 'calc(100% - 80px)',
+                      children: (close) => (
+                        <MediaBox
+                          type="image-static"
+                          closeModal={close}
+                          setMedia={(picked) => {
+                            const [first] = picked || [];
+                            if (first) {
+                              setNewThumbnail(null);
+                              setThumbnail(first.path);
+                              setThumbnailTimestamp(null);
+                            }
+                          }}
+                        />
+                      ),
+                    })
+                  }
+                >
+                  <InsertMediaIcon />
+                  {t('thumbnail_from_gallery', 'From gallery')}
                 </Button>
                 {(thumbnail || newThumbnail) && (
                   <Button

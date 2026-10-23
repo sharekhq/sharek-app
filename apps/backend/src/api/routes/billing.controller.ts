@@ -20,6 +20,11 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { PaymentService } from '@gitroom/nestjs-libraries/services/payment/payment.service';
 import { BillingSyncDto } from '@gitroom/nestjs-libraries/dtos/billing/billing.sync.dto';
+import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Billing')
 @Controller('/billing')
@@ -73,11 +78,15 @@ export class BillingController {
   async finishTrial(@GetOrgFromRequest() org: Organization) {
     const provider = await this.provider(org);
     try {
-      await provider.finishTrial(org);
-    } catch (err) {}
-    return {
-      finish: true,
-    };
+      const action = await provider.finishTrial(org);
+      if (action.requiresAction) {
+        return { finish: false, ...action };
+      }
+      return { finish: true };
+    } catch (err) {
+      console.error('finishTrial failed', err);
+      return { finish: false };
+    }
   }
 
   @Get('/is-trial-finished')
@@ -156,6 +165,17 @@ export class BillingController {
     return {
       portal: url,
     };
+  }
+
+  @Get('/invoices')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async getInvoices(@GetOrgFromRequest() org: Organization) {
+    return (await this.provider(org)).getInvoices(org.id);
+  }
+
+  @Get('/renewal')
+  async getRenewal(@GetOrgFromRequest() org: Organization) {
+    return (await this.provider(org)).getRenewalDate(org.id);
   }
 
   @Get('/')

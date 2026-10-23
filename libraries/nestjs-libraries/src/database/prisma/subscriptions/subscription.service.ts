@@ -370,6 +370,33 @@ export class SubscriptionService {
     return this._subscriptionRepository.getSubscription(organizationId);
   }
 
+  private currentPeriodStart(subscriptionCreatedAt: Date) {
+    let date = dayjs(subscriptionCreatedAt);
+    while (date.isBefore(dayjs())) {
+      date = date.add(1, 'month');
+    }
+
+    return date.subtract(1, 'month');
+  }
+
+  async resetCredits(organizationId: string, type: string) {
+    const subscription = await this._subscriptionRepository.getSubscription(
+      organizationId
+    );
+
+    if (!subscription) {
+      return null;
+    }
+
+    const { count } = await this._subscriptionRepository.deleteCreditsFrom(
+      organizationId,
+      this.currentPeriodStart(subscription.createdAt),
+      type
+    );
+
+    return { deleted: count };
+  }
+
   async checkCredits(
     organization: Organization,
     checkType = 'ai_images'
@@ -381,13 +408,10 @@ export class SubscriptionService {
       return { credits: 0 };
     }
 
-    // @ts-ignore
-    let date = dayjs(organization.subscription.createdAt);
-    while (date.isBefore(dayjs())) {
-      date = date.add(1, 'month');
-    }
-
-    const checkFromMonth = date.subtract(1, 'month');
+    const checkFromMonth = this.currentPeriodStart(
+      // @ts-ignore
+      organization.subscription.createdAt
+    );
     const imageGenerationCount =
       checkType === 'ai_images'
         ? pricing[type].image_generation_count
@@ -405,7 +429,7 @@ export class SubscriptionService {
       credits: imageGenerationCount - totalUse,
       // The far end of the window the usage above was counted over, so a
       // refusal and the date it quotes can never disagree.
-      resetsAt: date.toISOString(),
+      resetsAt: checkFromMonth.add(1, 'month').toISOString(),
     };
   }
 
