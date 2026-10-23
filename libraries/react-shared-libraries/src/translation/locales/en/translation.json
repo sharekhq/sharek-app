@@ -86,6 +86,8 @@
   "connect_your_accounts": "Connect your social accounts to start scheduling, publishing, and analyzing — all in one place.",
   "notifications": "Notifications",
   "no_notifications": "No notifications",
+  "new_notifications_count_one": "{{count}} new notification",
+  "new_notifications_count_other": "{{count}} new notifications",
   "send_message": "Send Message",
   "mar_28": "Mar 28",
   "there_are_no_messages_yet": "There are no messages yet.",

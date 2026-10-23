@@ -3,7 +3,6 @@
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { FC, useCallback, useState } from 'react';
-import clsx from 'clsx';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { useClickAway } from '@uidotdev/usehooks';
 import ReactLoading from '@gitroom/frontend/components/layout/loading';
@@ -41,20 +40,23 @@ export const ShowNotification: FC<{
   const isWithin24h = newDayjs().diff(createdAt, 'hour') < 24;
   const fullDate = createdAt.format('MMM D, YYYY h:mm A');
   return (
-    <div
-      className={clsx(
-        `text-textColor px-[16px] py-[10px] border-b border-tableBorder last:border-b-0 transition-colors`,
-        newNotification &&
-          'font-bold bg-brandSoft border-s-2 border-s-brand animate-newMessages'
-      )}
-    >
-      <div className="break-words">{replaceLinks(notification.content)}</div>
-      <div
-        className="text-[11px] mt-[4px] opacity-60 font-normal"
-        title={isWithin24h ? fullDate : undefined}
-      >
-        {isWithin24h ? createdAt.fromNow() : fullDate}
+    <div className="flex gap-[12px] text-textColor px-[16px] py-[10px] border-b border-tableBorder last:border-b-0">
+      <div className="flex-1 min-w-0">
+        <div className="break-words">{replaceLinks(notification.content)}</div>
+        <div
+          className="text-[11px] mt-[4px] opacity-60 font-normal"
+          title={isWithin24h ? fullDate : undefined}
+        >
+          {isWithin24h ? createdAt.fromNow() : fullDate}
+        </div>
       </div>
+      {newNotification && (
+        // the ring is the bell icon's own: brand on --bg keeps 3:1 in dark
+        <span
+          aria-hidden="true"
+          className="w-[8px] h-[8px] mt-[6px] rounded-full bg-brand ring-2 ring-newBgColor shrink-0"
+        />
+      )}
     </div>
   );
 };
@@ -82,15 +84,29 @@ export const NotificationOpenComponent = () => {
   const isNew = (createdAt: string) =>
     !isValidating &&
     new Date(createdAt) > new Date(data?.lastReadNotifications);
+  const newCount = notifications.filter((p) => isNew(p.createdAt)).length;
   return (
     <div
       id="notification-popup"
       className="opacity-0 animate-normalFadeDown mt-[10px] absolute w-[420px] phone:w-[min(420px,calc(100vw-24px))] min-h-[200px] top-[100%] end-0 bg-third text-textColor rounded-[16px] flex flex-col border border-tableBorder shadow-card z-[600]"
     >
-      <div
-        className={`p-[16px] border-b border-tableBorder font-bold bg-newBgColor rounded-t-[16px]`}
-      >
-        {t('notifications', 'Notifications')}
+      <div className="flex items-center gap-[8px] p-[16px] border-b border-tableBorder font-bold bg-newBgColor rounded-t-[16px]">
+        <div className="flex-1">{t('notifications', 'Notifications')}</div>
+        {!!newCount && (
+          <>
+            <span
+              aria-hidden="true"
+              className="h-[20px] min-w-[20px] px-[6px] rounded-full bg-brand text-white text-[12px] font-[600] flex items-center justify-center tabular-nums"
+            >
+              {newCount}
+            </span>
+            <span className="sr-only">
+              {t('new_notifications_count', '{{count}} new notifications', {
+                count: newCount,
+              })}
+            </span>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col max-h-[400px] overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">

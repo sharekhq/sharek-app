@@ -1,6 +1,7 @@
 // The bell's popup: a notification's text is never markup, its date follows
 // the account's zone and the interface language, and the list is read fresh on
-// each opening, with nothing marked new while it reloads.
+// each opening, with nothing marked new while it reloads. The header counts the
+// new ones and each new row carries a dot, both in the brand colour.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -105,6 +106,11 @@ const brandMarks = (host: HTMLElement) =>
   Array.from(host.querySelectorAll<HTMLElement>('[class]')).filter((el) =>
     /(^|\s)(bg|border-s)-brand/.test(el.className)
   );
+// a row's dot, and the header's count
+const dots = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('span.rounded-full'));
+const count = (host: HTMLElement) =>
+  host.querySelector<HTMLElement>('#notification-popup span.min-w-\\[20px\\]');
 
 // A notification's text embeds channel names and the networks' error
 // messages, so it is never markup.
@@ -252,5 +258,63 @@ describe('the list', () => {
     const host = await render(<NotificationOpenComponent />);
 
     expect(brandMarks(host)).toEqual([]);
+  });
+
+  // the count and the dots, in the brand colour
+  it('counts the new ones in the header, white on the brand colour', async () => {
+    mockList = { data: list, isLoading: false, isValidating: false };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(count(host)!.textContent).toBe('3');
+    expect(count(host)!.className).toContain('bg-brand');
+    expect(count(host)!.className).toContain('text-white');
+    expect(host.querySelector('.sr-only')!.textContent).toBe(
+      '3 new notifications'
+    );
+  });
+
+  it('puts a brand dot on each new row and none on a read one', async () => {
+    mockList = { data: list, isLoading: false, isValidating: false };
+    const host = await render(<NotificationOpenComponent />);
+
+    const rows = Array.from(host.querySelectorAll('.break-words')).map(
+      (text) => text.parentElement!.parentElement!
+    );
+    expect(rows.map((r) => dots(r).length)).toEqual([1, 1, 1, 0]);
+    dots(host).forEach((dot) => {
+      expect(dot.className).toContain('bg-brand');
+      expect(dot.getAttribute('aria-hidden')).toBe('true');
+    });
+  });
+
+  it('shows no count and no dots when nothing is new', async () => {
+    mockList = {
+      data: { ...list, lastReadNotifications: '2026-10-22T00:00:00.000Z' },
+      isLoading: false,
+      isValidating: false,
+    };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(count(host)).toBeNull();
+    expect(dots(host)).toHaveLength(0);
+  });
+
+  // The count follows the title and the dot follows the text, so both sit on
+  // the end side in either direction; nothing in the popup is placed left or
+  // right, and no colour is written as a hex code (upstream's pink and purple
+  // were).
+  it('places the count and the dots on the logical end, in no pink', async () => {
+    mockList = { data: list, isLoading: false, isValidating: false };
+    const host = await render(<NotificationOpenComponent />);
+
+    const header = count(host)!.parentElement!;
+    expect(header.firstElementChild!.textContent).toBe('Notifications');
+    expect(header.lastElementChild!.className).toBe('sr-only');
+    const firstRow =
+      host.querySelector('.break-words')!.parentElement!.parentElement!;
+    expect(firstRow.lastElementChild).toBe(dots(firstRow)[0]);
+    expect(host.innerHTML).not.toMatch(
+      /(^|[\s"])(ml|mr|pl|pr|left|right)-|#[0-9a-f]{6}/i
+    );
   });
 });
