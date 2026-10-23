@@ -139,6 +139,16 @@ describe('the cover of a video', () => {
     expect(box.props.type).toBe('image-static');
   });
 
+  // A second pick gets the library's own one-image message
+  // (media.component.limit.spec.tsx), instead of being dropped in silence.
+  it('takes one picture from the library', async () => {
+    const { container } = render();
+
+    await openLibrary(container);
+
+    expect(box.props.max).toBe(1);
+  });
+
   it('saves the picked picture as the cover and drops the picked frame', async () => {
     const { container, onSelect, onClose } = render();
     await openLibrary(container);
@@ -181,6 +191,26 @@ describe('the cover of a video', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'https://media/old.png'
     );
+  });
+
+  // Three actions do not fit one line on a phone.
+  it('lets the cover actions wrap', () => {
+    const { container } = render();
+
+    expect(
+      button(container, 'From gallery')!.parentElement!.className
+    ).toContain('flex-wrap');
+  });
+
+  it('marks the frame actions with the frame icon and the library with its own', () => {
+    const { container } = render();
+    const icons = (text: string) =>
+      button(container, text)!
+        .querySelector('[data-icon]')!
+        .getAttribute('data-icon');
+
+    expect(icons('Create thumbnail')).toBe('design');
+    expect(icons('From gallery')).toBe('insert');
   });
 
   it('offers no cover for a picture', () => {

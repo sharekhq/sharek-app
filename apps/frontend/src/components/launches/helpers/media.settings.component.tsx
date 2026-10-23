@@ -428,7 +428,7 @@ export const MediaComponentInner: FC<{
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-[12px] mt-[6px]">
+              <div className="flex flex-wrap gap-[12px] mt-[6px]">
                 <Button
                   variant="quiet"
                   disabled={loading}
@@ -442,7 +442,7 @@ export const MediaComponentInner: FC<{
                     </>
                   ) : (
                     <>
-                      <InsertMediaIcon />
+                      <DesignMediaIcon />
                       {t('create_thumbnail', 'Create thumbnail')}
                     </>
                   )}
@@ -462,6 +462,7 @@ export const MediaComponentInner: FC<{
                       children: (close) => (
                         <MediaBox
                           type="image-static"
+                          max={1}
                           closeModal={close}
                           setMedia={(picked) => {
                             const [first] = picked || [];
