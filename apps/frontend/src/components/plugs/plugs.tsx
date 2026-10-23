@@ -127,8 +127,10 @@ export const Plugs = () => {
         <>
           <div className="flex flex-wrap gap-[8px]">
             {sortedIntegrations.map((integration, index) => (
-              <div
+              <button
+                type="button"
                 key={integration.id}
+                aria-pressed={currentIntegration.id === integration.id}
                 onClick={() => {
                   if (integration.refreshNeeded) {
                     toaster.show(
@@ -146,11 +148,13 @@ export const Plugs = () => {
                   }, 10);
                   setCurrent(index);
                 }}
+                // Selection is the fill and the border, like the selected
+                // Settings tab; the ring is keyboard focus alone.
                 className={clsx(
-                  'flex gap-[8px] items-center px-[12px] py-[8px] rounded-[8px] hover:bg-boxHover cursor-pointer',
+                  'flex gap-[10px] items-center ps-[6px] pe-[12px] h-[48px] rounded-[10px] border transition-colors focus-visible:ring-2 focus-visible:ring-brand',
                   currentIntegration.id === integration.id
-                    ? 'bg-boxHover'
-                    : 'opacity-40 hover:opacity-100'
+                    ? 'bg-brandSoft border-brand text-brandText font-[600]'
+                    : 'border-line text-textColor hover:bg-boxHover'
                 )}
               >
                 <div
@@ -192,7 +196,7 @@ export const Plugs = () => {
                 >
                   {integration.name}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           <PlugsContext.Provider value={currentIntegrationPlug}>

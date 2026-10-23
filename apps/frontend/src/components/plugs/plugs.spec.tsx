@@ -200,3 +200,34 @@ describe('the Plugs tab', () => {
     expect(html).not.toMatch(/bg-red-\d|bg-primary\/\d/);
   });
 });
+
+describe('the channel chips', () => {
+  it('are buttons a keyboard reaches, with a focus ring, that say which channel is open', async () => {
+    const all = chips(await plugs());
+
+    for (const one of all) {
+      expect(one.tagName).toBe('BUTTON');
+      expect(one.getAttribute('type')).toBe('button');
+      expect(one.className).toContain('focus-visible:ring-2');
+      expect(one.className).toContain('focus-visible:ring-brand');
+    }
+    expect(all.map((one) => one.getAttribute('aria-pressed'))).toEqual([
+      'true',
+      'false',
+    ]);
+  });
+
+  // Selection is a fill and a border, never a ring: the focus ring is brand too,
+  // so a ring for selection would hide focus on the selected chip.
+  it('mark the open channel with the brand fill, border and text, and fade none of the others', async () => {
+    const [open, other] = chips(await plugs());
+
+    for (const token of ['bg-brandSoft', 'border-brand', 'text-brandText']) {
+      expect(open.className).toContain(token);
+      expect(other.className).not.toContain(token);
+    }
+    expect(other.className).toContain('border-line');
+    expect(open.className).not.toMatch(/(^|\s)ring-/);
+    expect(other.className).not.toMatch(/opacity-\d/);
+  });
+});

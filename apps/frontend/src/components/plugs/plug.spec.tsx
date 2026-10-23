@@ -141,9 +141,9 @@ describe('the plug modal', () => {
       'plug_when_a_post_reached_a_certain_number_of_likes_add_another_post_to_it_so_you_followers_get_a_notification_about_your_promotion'
     );
     // Placeholders are attributes, not text — read off the elements themselves.
-    const placeholders = [
-      ...container.querySelectorAll('input, textarea'),
-    ].map((element) => element.getAttribute('placeholder'));
+    const placeholders = Array.from(
+      container.querySelectorAll('input, textarea')
+    ).map((element) => element.getAttribute('placeholder'));
     expect(placeholders).toContain('placeholder_amount_of_likes');
     expect(placeholders).toContain('placeholder_post_to_plug');
 
@@ -171,5 +171,24 @@ describe('a translated card still finds its saved data', () => {
     // Only a card that found its row says edit_plug; an unmatched one says set_plug.
     expect(container.textContent).toContain('edit_plug');
     expect(container.textContent).not.toContain('set_plug');
+  });
+});
+
+// The cards moved from their own page into Settings' pane, beside its tab
+// column: two tracks there, one on phones, and no step at Sharek's 1025px
+// screen, where iPads keep the side column.
+describe('the plug grid inside Settings', () => {
+  it('lays the cards out in two columns, one on phones', () => {
+    const container = mount(
+      <PlugsContext.Provider value={{ ...SETTINGS, plugs: [PLUG] }}>
+        <Plug />
+      </PlugsContext.Provider>
+    );
+    const grid = container.querySelector('.grid') as HTMLElement;
+
+    expect(grid.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['grid-cols-2', 'phone:grid-cols-1'])
+    );
+    expect(grid.className).not.toMatch(/grid-cols-4|\bmobile:/);
   });
 });
