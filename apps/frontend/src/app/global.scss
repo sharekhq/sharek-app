@@ -656,12 +656,12 @@ html[dir='rtl'] .lbox {
 .ProseMirror ul,
 .preview ul {
   list-style: disc;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 
 .preview ul,
 .preview li {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .ProseMirror h1,
