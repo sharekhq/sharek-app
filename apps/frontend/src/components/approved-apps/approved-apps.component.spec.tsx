@@ -19,10 +19,6 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: async () => false,
 }));
-// The timezone helper, read by the authorization date.
-jest.mock('@gitroom/frontend/components/layout/set.timezone', () => ({
-  getTimezone: () => 'UTC',
-}));
 
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
 

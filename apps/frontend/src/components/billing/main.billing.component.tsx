@@ -576,6 +576,17 @@ export const MainBillingComponent: FC<{
     }
     return subscription?.subscriptionTier;
   }, [subscription, initialChannels, monthlyOrYearly, period]);
+  // A refused cancel, reactivation or plan change: the page stays as it was.
+  const changeFailed = useCallback(() => {
+    toast.show(
+      t(
+        'subscription_change_failed',
+        'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
+      ),
+      'warning'
+    );
+    setLoading(false);
+  }, [t, toast]);
   const moveToCheckout = useCallback(
     (billing: 'STANDARD' | 'PRO' | 'FREE', reactivate = false) =>
       async () => {
@@ -591,14 +602,7 @@ export const MainBillingComponent: FC<{
             },
           });
           if (!response.ok) {
-            toast.show(
-              t(
-                'subscription_change_failed',
-                'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
-              ),
-              'warning'
-            );
-            setLoading(false);
+            changeFailed();
             return;
           }
           const { cancel_at } = await response.json();
@@ -704,14 +708,7 @@ export const MainBillingComponent: FC<{
               },
             });
             if (!response.ok) {
-              toast.show(
-                t(
-                  'subscription_change_failed',
-                  'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
-                ),
-                'warning'
-              );
-              setLoading(false);
+              changeFailed();
               return;
             }
             const { cancel_at } = await response.json();
@@ -757,14 +754,7 @@ export const MainBillingComponent: FC<{
           }),
         });
         if (!response.ok) {
-          toast.show(
-            t(
-              'subscription_change_failed',
-              'Your subscription could not be changed. Please try again, or contact support if this keeps happening.'
-            ),
-            'warning'
-          );
-          setLoading(false);
+          changeFailed();
           return;
         }
         const { url, portal, blocked, requiresAction, clientSecret } =
@@ -842,7 +832,7 @@ export const MainBillingComponent: FC<{
         }
         setLoading(false);
       },
-    [monthlyOrYearly, subscription, user, utm, paymentAction]
+    [monthlyOrYearly, subscription, user, utm, paymentAction, changeFailed]
   );
   if (user?.isLifetime) {
     router.replace('/');
