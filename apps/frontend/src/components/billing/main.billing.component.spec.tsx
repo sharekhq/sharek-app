@@ -703,17 +703,21 @@ describe("Sharek's style", () => {
     );
   });
 
-  // On an iPad in portrait the trial's payment card holds three buttons beside its text; they
-  // wrap to the end of the row instead of squeezing the text.
-  it("wraps the payment card's buttons to the end of their row", async () => {
+  // On an iPad the trial's payment card holds three buttons. Beside the text they squeezed it to a
+  // word per line, since the text column shrinks to its longest word and the row never wraps, so
+  // from the iPad breakpoint the card wraps and the buttons take a line of their own, at its end.
+  it("puts the payment card's buttons under its text on an iPad", async () => {
     mockUser = { ...mockUser, isTrailing: true };
     const host = await render(subscription('TEAM'));
     const row = Array.from(host.querySelectorAll('button')).find(
       (b) => b.textContent === 'Update payment method'
     )!.parentElement!;
 
+    expect(row.parentElement!.className.split(/\s+/)).toContain(
+      'mobile:flex-wrap'
+    );
     expect(row.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['flex-wrap', 'justify-end'])
+      expect.arrayContaining(['mobile:basis-full', 'flex-wrap', 'justify-end'])
     );
   });
 });

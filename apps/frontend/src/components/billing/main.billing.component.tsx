@@ -1030,7 +1030,7 @@ export const MainBillingComponent: FC<{
         />
       )}
       {!!subscription?.id && (
-        <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
+        <div className="flex items-center gap-[16px] mobile:flex-wrap rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
           <div className="w-[48px] h-[48px] rounded-full bg-brandSoft text-brandText flex items-center justify-center shrink-0 phone:hidden">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -1058,7 +1058,7 @@ export const MainBillingComponent: FC<{
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-[8px] phone:flex-col-reverse phone:items-stretch">
+          <div className="flex flex-wrap items-center justify-end gap-[8px] mobile:basis-full phone:flex-col-reverse phone:items-stretch">
             {isGeneral && !subscription?.cancelAt && (
               <button
                 type="button"
