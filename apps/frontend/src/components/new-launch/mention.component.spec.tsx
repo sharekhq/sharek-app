@@ -118,4 +118,15 @@ describe('the mention list', () => {
     expect(menu.className).toContain('border-line');
     expect(host.querySelector('button div')!.className).toContain('text-ink');
   });
+
+  // The picked row's fill follows the arrow keys, not the focus, so a row
+  // reached with Tab needs a ring of its own.
+  it('rings a row that takes the keyboard focus', () => {
+    const { host } = renderList();
+
+    for (const row of rows(host)) {
+      expect(row.className).toContain('focus-visible:ring-2');
+      expect(row.className).toContain('focus-visible:ring-brand');
+    }
+  });
 });

@@ -101,7 +101,7 @@ const MentionList: FC = (props: any) => {
         ) : (
           props?.items?.map((item: any, index: any) => (
             <button
-              className={`flex gap-[10px] w-full p-2 text-start rounded ${
+              className={`flex gap-[10px] w-full p-2 text-start rounded focus-visible:ring-2 focus-visible:ring-brand ${
                 index === selectedIndex ? '!bg-newBgLineColor' : ''
               }`}
               key={item.id || index}
