@@ -1566,7 +1566,7 @@
   "aria_next_page": "Go to next page",
   "aria_previous_page": "Go to previous page",
   "aria_verified_account": "Verified account",
-  "finishing_trial": "Finishing Trial",
+  "finishing_trial": "Ending trial",
   "gmb_ensure_business_verified": "Please ensure your business is verified on Google My Business.",
   "gmb_event_details": "Event Details",
   "gmb_no_locations_found": "We couldn't find any business locations connected to your account.",
@@ -1926,9 +1926,9 @@
   "timezone": "Timezone",
   "automatic_timezone": "Automatic ({{timezone}})",
   "could_not_save_timezone": "Could not save the timezone",
-  "finish_trial_failed": "We could not finish your trial",
+  "finish_trial_failed": "We could not end your trial",
   "finish_trial_failed_description": "We could not charge your card. Please try again.",
-  "finish_trial": "Finish trial",
+  "finish_trial": "End trial",
   "finish_trial_confirmation": "Ending the trial charges your plan's first payment today instead of at the end of the trial. Nothing extra is added. Continue?",
   "finish_trial_charge_me_now": "End trial and pay now"
 }

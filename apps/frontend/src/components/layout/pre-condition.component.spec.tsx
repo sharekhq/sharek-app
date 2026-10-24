@@ -79,7 +79,7 @@ describe('a channel already connected to another account, during a trial', () =>
     expect(keyOf(sentence)).toBe('channel_connected_to_another_account');
   });
 
-  // The button reads as the billing page's own Finish trial confirmation.
+  // The button reads as the billing page's own End trial confirmation.
   it('offers to end the trial and pay now', async () => {
     Object.defineProperty(window, 'location', {
       configurable: true,

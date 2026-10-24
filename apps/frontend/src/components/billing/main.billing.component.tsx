@@ -1094,7 +1094,7 @@ export const MainBillingComponent: FC<{
                 onClick={finishTrialNow}
                 className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
               >
-                {t('finish_trial', 'Finish trial')}
+                {t('finish_trial', 'End trial')}
               </button>
             )}
           </div>

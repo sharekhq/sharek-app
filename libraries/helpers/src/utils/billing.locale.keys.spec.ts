@@ -99,6 +99,17 @@ describe('billing Arabic, in Sharek style', () => {
     );
   });
 
+  // One verb for one action: the button, its question and the window all end the trial, as the
+  // Arabic says إنهاء throughout.
+  it('ends a trial in English, never finishes it', () => {
+    const trial = Object.entries(en).filter(([key]) =>
+      /^finish(ing)?_trial/.test(key)
+    );
+
+    expect(trial.length).toBeGreaterThan(4);
+    expect(trial.filter(([, value]) => /finish/i.test(value))).toEqual([]);
+  });
+
   // upstream's ar side declares a second billing_unlimited_team_members; JSON keeps the last one
   it("keeps one billing_unlimited_team_members, the marketing site's", () => {
     const raw = fs.readFileSync(

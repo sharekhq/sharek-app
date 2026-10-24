@@ -640,7 +640,7 @@ describe('ending the trial early', () => {
     mockDeleteDialog.mockResolvedValue(false);
     const host = await render(subscription('TEAM'));
 
-    await click(host, 'Finish trial');
+    await click(host, 'End trial');
 
     expect(mockDeleteDialog).toHaveBeenCalledWith(
       "Ending the trial charges your plan's first payment today instead of at the end of the trial. Nothing extra is added. Continue?",
@@ -652,7 +652,7 @@ describe('ending the trial early', () => {
   it('is offered only during a trial', async () => {
     const host = await render(subscription('TEAM'));
 
-    expect(host.textContent).not.toContain('Finish trial');
+    expect(host.textContent).not.toContain('End trial');
   });
 });
 

@@ -32,7 +32,7 @@ export const FinishTrial: FC<{ close: () => void }> = (props) => {
       }
     } else if (!finish) {
       toaster.show(
-        t('finish_trial_failed', 'We could not finish your trial'),
+        t('finish_trial_failed', 'We could not end your trial'),
         'warning'
       );
       setFailed(true);
@@ -71,7 +71,7 @@ export const FinishTrial: FC<{ close: () => void }> = (props) => {
         <div className="flex gap-[10px] flex-col w-[500px] max-w-full h-auto bg-sixth border-tableBorder border-2 rounded-xl pb-[20px] px-[20px] relative">
           <div className="flex">
             <div className="flex-1">
-              <TopTitle title={t('finishing_trial', 'Finishing Trial')} />
+              <TopTitle title={t('finishing_trial', 'Ending trial')} />
             </div>
             <button
               onClick={props.close}
