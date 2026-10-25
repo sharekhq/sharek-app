@@ -262,9 +262,11 @@ const PriceBreakdown: FC = () => {
               </span>
             </div>
             <span className="font-[500]">
-              {discountDisplay.amount !== '$0.00'
-                ? `-${discountDisplay.amount}`
-                : t('billing_applied', 'Applied')}
+              {discountDisplay.amount !== '$0.00' ? (
+                <bdi dir="ltr">-{discountDisplay.amount}</bdi>
+              ) : (
+                t('billing_applied', 'Applied')
+              )}
             </span>
           </div>
         )}
@@ -286,8 +288,9 @@ const PriceBreakdown: FC = () => {
         {nextBillingTotal && nextBillingDate && (
           <div className="flex justify-between items-center text-[13px] text-muted">
             <span>
-              {t('billing_then', 'Then')} {nextBillingTotal}{' '}
-              {t('billing_on', 'on')} {nextBillingDate}
+              {t('billing_then', 'Then')}{' '}
+              <bdi dir="ltr">{nextBillingTotal}</bdi> {t('billing_on', 'on')}{' '}
+              {nextBillingDate}
             </span>
           </div>
         )}
@@ -398,7 +401,12 @@ const AppliedCouponDisplay: FC<{
             <span className="font-[600] text-brand">{appliedCode}</span>
             <span className="text-[14px] text-muted">
               {t('billing_discount_applied', 'applied')}
-              {discountDisplay && ` (${discountDisplay})`}
+              {discountDisplay && (
+                <>
+                  {' '}
+                  <bdi dir="ltr">({discountDisplay})</bdi>
+                </>
+              )}
             </span>
           </div>
         </div>
