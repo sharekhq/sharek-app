@@ -54,7 +54,7 @@ jest.mock('@stripe/react-stripe-js/checkout', () => {
   return {
     CheckoutProvider: ({ children }: { children: unknown }) => children,
     PaymentElement: ({ onReady }: { onReady: () => void }) => {
-      useEffect(() => onReady(), []);
+      useEffect(() => onReady(), [onReady]);
       return null;
     },
     BillingAddressElement: () => null,
@@ -89,6 +89,7 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  jest.clearAllMocks();
 });
 
 describe('the checkout amounts', () => {

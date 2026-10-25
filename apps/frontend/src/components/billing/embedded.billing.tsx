@@ -400,13 +400,8 @@ const AppliedCouponDisplay: FC<{
             </svg>
             <span className="font-[600] text-brand">{appliedCode}</span>
             <span className="text-[14px] text-muted">
-              {t('billing_discount_applied', 'applied')}
-              {discountDisplay && (
-                <>
-                  {' '}
-                  <bdi dir="ltr">({discountDisplay})</bdi>
-                </>
-              )}
+              {t('billing_discount_applied', 'applied')}{' '}
+              {discountDisplay && <bdi dir="ltr">({discountDisplay})</bdi>}
             </span>
           </div>
         </div>

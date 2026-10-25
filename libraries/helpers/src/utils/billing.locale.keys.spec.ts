@@ -87,10 +87,11 @@ describe('billing Arabic, in Sharek style', () => {
 
   it('finds the percentages at all', () => {
     expect(PERCENT_KEYS).toContain('billing_20_percent_off');
+    expect(PERCENT_KEYS).toContain('off');
   });
 
   it.each(PERCENT_KEYS)('%s keeps its percentage in reading order', (key) => {
-    expect(ar[key]).not.toMatch(/(?<![\d‎])(\d+|{{\s*\w+\s*}})%/);
+    expect(ar[key]).not.toMatch(/(?<![\d\u200e])(\d+|{{\s*\w+\s*}})%/);
   });
 
   it.each(STEP_KEYS)('%s carries no mark but tanween fath', (key) => {
