@@ -1,5 +1,5 @@
-// The invoice history icon in the header and the paywall: it opens the history in a window, for
-// the people who manage billing on a hosted install.
+// The invoice history icon on the paywall: it opens the history in a window, for the people who
+// manage billing on a hosted install.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -53,7 +53,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-describe('the invoice history icon in the header and the paywall', () => {
+describe('the invoice history icon on the paywall', () => {
   // The DeveloperIconComponent shape: a named button, a focus ring, 44px under a finger.
   it('is a named button with a focus ring', async () => {
     const host = await render();
