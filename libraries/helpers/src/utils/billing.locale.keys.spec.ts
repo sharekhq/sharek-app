@@ -78,10 +78,19 @@ describe('billing Arabic, in Sharek style', () => {
     expect(STEP_KEYS.length).toBe(52);
   });
 
-  // The 20% sits at the end of the badge, where a percent sign takes the paragraph's direction;
-  // a left-to-right mark before the number keeps "20%". Invisible in the JSON, so pinned here.
-  it('keeps "20%" in reading order in the discount badge', () => {
-    expect(ar.billing_20_percent_off).toBe('خصم ‎20%');
+  // A percent sign beside a number takes the paragraph's direction, at the end of a value and in
+  // the middle of a sentence alike, so "50%" is drawn "%50"; a left-to-right mark before the number
+  // keeps it in reading order. Invisible in the JSON, so pinned here for every value that has one.
+  const PERCENT_KEYS = Object.keys(ar).filter((key) =>
+    /(\d+|{{\s*\w+\s*}})%/.test(ar[key])
+  );
+
+  it('finds the percentages at all', () => {
+    expect(PERCENT_KEYS).toContain('billing_20_percent_off');
+  });
+
+  it.each(PERCENT_KEYS)('%s keeps its percentage in reading order', (key) => {
+    expect(ar[key]).not.toMatch(/(?<![\d‎])(\d+|{{\s*\w+\s*}})%/);
   });
 
   it.each(STEP_KEYS)('%s carries no mark but tanween fath', (key) => {
