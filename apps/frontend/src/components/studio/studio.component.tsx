@@ -163,7 +163,7 @@ export const StudioComponent: FC = () => {
   const t = useT();
   const user = useUser();
   const goToBilling = useGoToBilling();
-  const { billingEnabled } = useVariables();
+  const { billingEnabled, showImageEditor } = useVariables();
   const modals = useModals();
   const toaster = useToaster();
   const { data: videoOptions } = useAiVideoTypes();
@@ -177,8 +177,9 @@ export const StudioComponent: FC = () => {
         videoOptions,
         user,
         billingEnabled,
+        showImageEditor,
       }),
-    [videoOptions, user, billingEnabled]
+    [videoOptions, user, billingEnabled, showImageEditor]
   );
 
   // The tool has already put its output in the Media library; here it is only

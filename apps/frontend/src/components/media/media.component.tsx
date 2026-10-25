@@ -18,6 +18,7 @@ import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { formatDuration } from '@gitroom/helpers/utils/format.duration';
 import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import EventEmitter from 'events';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -883,6 +884,7 @@ export const MultiMediaComponent: FC<{
     insertInContent,
   } = props;
   const user = useUser();
+  const { showImageEditor } = useVariables();
   const modals = useModals();
   const t = useT();
   useEffect(() => {
@@ -1110,7 +1112,7 @@ export const MultiMediaComponent: FC<{
                   )}
                 </div>
               </div>
-              {!designNotAvailable && (
+              {!designNotAvailable && showImageEditor && (
                 <div
                   onClick={designMedia}
                   data-tooltip-id="tooltip"
@@ -1203,6 +1205,7 @@ export const MediaComponent: FC<{
     props;
   const { getValues } = useSettings();
   const user = useUser();
+  const { showImageEditor } = useVariables();
   useEffect(() => {
     const settings = getValues()[props.name];
     if (settings) {
@@ -1277,9 +1280,11 @@ export const MediaComponent: FC<{
       )}
       <div className="flex gap-[5px]">
         <Button onClick={showModal}>{t('select', 'Select')}</Button>
-        <Button onClick={showDesignModal} className="!bg-brand">
-          {t('editor', 'Editor')}
-        </Button>
+        {showImageEditor && (
+          <Button onClick={showDesignModal} className="!bg-brand">
+            {t('editor', 'Editor')}
+          </Button>
+        )}
         <Button secondary={true} onClick={clearMedia}>
           {t('clear', 'Clear')}
         </Button>

@@ -239,16 +239,21 @@ export const videoTool = (type: VideoType): StudioToolEntry => {
 /**
  * Availability first, entitlement second: a tool the platform does not offer
  * is absent, and only what remains can be locked. With billing disabled nothing
- * is locked, since there is no plan to upgrade to.
+ * is locked, since there is no plan to upgrade to. The image editor is offered
+ * only where SHOW_IMAGE_EDITOR is set.
  */
 export const buildStudioCatalog = (params: {
   tools: StudioToolEntry[];
   videoOptions: VideoType[] | undefined;
   user: StudioUser;
   billingEnabled: boolean;
+  showImageEditor: boolean;
 }): StudioCatalog => {
-  const { tools, videoOptions, user, billingEnabled } = params;
-  const listed = [...tools, ...(videoOptions ?? []).map(videoTool)];
+  const { tools, videoOptions, user, billingEnabled, showImageEditor } = params;
+  const listed = [
+    ...tools.filter((entry) => showImageEditor || entry.id !== 'image-editor'),
+    ...(videoOptions ?? []).map(videoTool),
+  ];
 
   const categories = CATEGORIES.map((category) => ({
     ...category,
