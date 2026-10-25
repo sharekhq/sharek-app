@@ -1,4 +1,4 @@
-// The invoice history, on the billing page and in the header's window: which invoices it lists,
+// The invoice history, on the billing page and in the paywall's window: which invoices it lists,
 // what a row says, the search and the CSV export.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -114,7 +114,7 @@ describe('which invoices are listed', () => {
     expect(host.textContent).not.toContain('$0.00');
   });
 
-  it("says there are none yet in the header's window", async () => {
+  it("says there are none yet in the paywall's window", async () => {
     mockInvoices = [invoice(0)];
     const host = await render(<BillingHistory modal={true} />);
 
