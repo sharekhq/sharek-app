@@ -44,6 +44,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           billingEnabled={!!process.env.STRIPE_PUBLISHABLE_KEY}
           showUpstreamExtras={!!process.env.SHOW_UPSTREAM_EXTRAS}
           showThirdParty={!!process.env.SHOW_THIRD_PARTY}
+          showImageEditor={!!process.env.SHOW_IMAGE_EDITOR}
           supportEnabled={isSupportConfigured()}
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}

@@ -19,6 +19,7 @@ let providersLoading = false;
 let integrations: Array<{ id: string; name: string }> = [];
 let user: { tier: { ai: boolean } };
 let billingEnabled = true;
+let showImageEditor = true;
 let emptyCatalog = false;
 const videoTriggers: Trigger[] = [];
 const imageTriggers: Trigger[] = [];
@@ -34,7 +35,7 @@ jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => user,
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
-  useVariables: () => ({ billingEnabled }),
+  useVariables: () => ({ billingEnabled, showImageEditor }),
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
@@ -181,6 +182,7 @@ beforeEach(() => {
   integrations = [{ id: 'ig-1', name: 'Instagram' }];
   user = { tier: { ai: true } };
   billingEnabled = true;
+  showImageEditor = true;
   providersLoading = false;
   emptyCatalog = false;
   videoTriggers.length = 0;
@@ -307,6 +309,29 @@ describe('when a creation finishes', () => {
 
     expect(toast).toHaveBeenCalledWith('Saved to your Media library', 'success');
     expect(button('Create a post')).toBeUndefined();
+  });
+});
+
+// SHOW_IMAGE_EDITOR unset: this deployment does not offer the editor, so it is
+// absent rather than locked, and Design, left with nothing, goes with it.
+describe('while the image editor is switched off', () => {
+  beforeEach(() => {
+    showImageEditor = false;
+  });
+
+  it('lists neither the image editor nor its Design category', async () => {
+    await mount();
+
+    expect(card('Image editor')).toBeUndefined();
+    expect(headings()).toEqual(['AI images', 'AI video']);
+  });
+
+  it('does not show it locked to a plan that excludes the tools either', async () => {
+    user = { tier: { ai: false } };
+    await mount();
+
+    expect(card('Image editor')).toBeUndefined();
+    expect(lockedCards()).toHaveLength(3);
   });
 });
 

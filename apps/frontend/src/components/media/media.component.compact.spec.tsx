@@ -16,7 +16,8 @@ import { createRoot } from 'react-dom/client';
 // The AI pair render their own triggers, so what this file can say about them
 // is that the flag reaches them — their own specs assert what they do with it.
 // The mock list is media.component.uploader.spec.tsx's, which mounts the same
-// component; only the AI stubs differ, because those props are the assertion.
+// component; only the AI stubs, whose props are the assertion, and the image
+// editor's switch differ.
 const aiImageProps: any[] = [];
 const aiVideoProps: any[] = [];
 
@@ -68,6 +69,11 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { ai: true }, totalChannels: 1 }),
+}));
+// The image editor is switched on so Design Media is in the row and its label
+// can be seen to go.
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  useVariables: () => ({ showImageEditor: true }),
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ closeAll: () => undefined, openModal: () => undefined }),

@@ -6,6 +6,7 @@ interface VariableContextInterface {
   billingEnabled: boolean;
   showUpstreamExtras: boolean;
   showThirdParty: boolean;
+  showImageEditor: boolean;
   supportEnabled: boolean;
   isChatBase: boolean;
   isGeneral: boolean;
@@ -44,6 +45,7 @@ const VariableContext = createContext({
   billingEnabled: false,
   showUpstreamExtras: false,
   showThirdParty: false,
+  showImageEditor: false,
   supportEnabled: false,
   isGeneral: true,
   genericOauth: false,

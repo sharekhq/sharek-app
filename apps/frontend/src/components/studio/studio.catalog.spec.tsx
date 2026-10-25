@@ -63,6 +63,7 @@ const catalog = (overrides: Partial<CatalogInput> = {}) =>
     videoOptions: [veo3, slides],
     user: withAi,
     billingEnabled: true,
+    showImageEditor: true,
     ...overrides,
   });
 
@@ -115,6 +116,14 @@ describe('availability', () => {
     expect(toolsIn(built, 'ai_video').map((t) => t.entry.id)).toEqual([
       'video:veo3',
     ]);
+  });
+
+  // SHOW_IMAGE_EDITOR unset: the deployment does not offer the editor, so it
+  // is absent like an unoffered provider, and Design goes with it.
+  it('leaves out the image editor where the deployment does not offer it, even for a plan that could not use it', () => {
+    const built = catalog({ showImageEditor: false, user: withoutAi });
+
+    expect(ids(built)).toEqual(['ai_images', 'ai_video']);
   });
 
   it('omits the AI video category when no provider is offered', () => {
