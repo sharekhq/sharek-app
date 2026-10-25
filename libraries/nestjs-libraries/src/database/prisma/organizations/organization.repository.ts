@@ -200,6 +200,11 @@ export class OrganizationRepository {
           },
         ],
       },
+      orderBy: {
+        user: {
+          createdAt: 'desc',
+        },
+      },
       select: {
         id: true,
         role: true,
