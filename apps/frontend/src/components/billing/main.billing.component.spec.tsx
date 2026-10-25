@@ -121,6 +121,10 @@ jest.mock(
     };
   }
 );
+// Leaves a mark, so a case can tell whether the page shows the FAQ.
+jest.mock('@gitroom/frontend/components/billing/faq.component', () => ({
+  FAQComponent: () => <div data-faq />,
+}));
 // Scenery: none of these take part in a plan change, a cancel or a reactivation.
 jest.mock(
   '@gitroom/frontend/components/billing/billing.history.component',
@@ -128,9 +132,6 @@ jest.mock(
     BillingHistory: () => null,
   })
 );
-jest.mock('@gitroom/frontend/components/billing/faq.component', () => ({
-  FAQComponent: () => null,
-}));
 jest.mock('@gitroom/frontend/components/billing/finish.trial', () => ({
   FinishTrial: () => null,
 }));
@@ -653,6 +654,17 @@ describe('ending the trial early', () => {
     const host = await render(subscription('TEAM'));
 
     expect(host.textContent).not.toContain('End trial');
+  });
+});
+
+describe('the FAQ', () => {
+  it.each([
+    ['paid on the web', SUB],
+    ['managed by the app store', subscription('TEAM', { platform: 'mobile' })],
+  ])('is not on the billing page (%s)', async (_state, sub) => {
+    const host = await render(sub);
+
+    expect(host.querySelector('[data-faq]')).toBeNull();
   });
 });
 

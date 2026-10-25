@@ -11,7 +11,6 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import clsx from 'clsx';
 import { capitalize } from 'lodash';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
-import { FAQComponent } from '@gitroom/frontend/components/billing/faq.component';
 import { useBillingFeatures } from '@gitroom/frontend/components/billing/first.billing.component';
 import { BillingHistory } from '@gitroom/frontend/components/billing/billing.history.component';
 import useSWR, { useSWRConfig } from 'swr';
@@ -855,7 +854,6 @@ export const MainBillingComponent: FC<{
             )}
           </div>
         </div>
-        <FAQComponent />
         <div className="flex justify-center mt-[20px]">
           <LogoutComponent />
         </div>
@@ -1101,7 +1099,6 @@ export const MainBillingComponent: FC<{
         </div>
       )}
       {!!subscription?.id && <BillingHistory />}
-      <FAQComponent />
       <div className="flex justify-center mt-[20px]">
         <LogoutComponent />
       </div>
