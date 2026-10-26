@@ -69,6 +69,7 @@ const makeService = () => {
       await Promise.resolve();
       order.push('db');
     }),
+    updatePassword: jest.fn().mockResolvedValue(undefined),
   };
   const organizations = {
     createOrgAndUser: jest.fn(async () => {
@@ -439,5 +440,71 @@ describe('AuthService account emails', () => {
       'Reset your password',
       expect.stringContaining('/auth/forgot/')
     );
+  });
+});
+
+// The team invite link carries this token; whoever opens it joins the invite's
+// organization in the invite's role. One secret signs every kind of token, so
+// it reads only an outstanding invite.
+describe('AuthService.getOrgFromCookie', () => {
+  // Invites signed the whole request body until now, so the ones still
+  // outstanding carry sendEmail too.
+  const invite = {
+    email: 'new@example.com',
+    role: 'USER',
+    sendEmail: true,
+    orgId: 'org-1',
+    timeLimit: '2026-09-26 09:00:00',
+    id: 'a1b2c',
+  };
+
+  it('still reads an outstanding invite signed with the whole request body', () => {
+    const { service } = makeService();
+
+    expect(service.getOrgFromCookie(AuthChecker.signJWT(invite))).toMatchObject(
+      invite
+    );
+  });
+
+  it.each([
+    ['an organization that is not a string', { ...invite, orgId: { not: '' } }],
+    ['an id that is not a string', { ...invite, id: { not: '' } }],
+    ['a role other than USER or ADMIN', { ...invite, role: 'SUPERADMIN' }],
+    ['a login token', { ...USER, providerName: Provider.LOCAL }],
+    ['an expired invite', { ...invite, timeLimit: '2026-09-23 09:00:00' }],
+  ])('refuses %s', (_label, payload) => {
+    const { service } = makeService();
+
+    expect(service.getOrgFromCookie(AuthChecker.signJWT(payload))).toBe(false);
+  });
+});
+
+// The password reset link carries this token.
+describe('AuthService.forgotReturn', () => {
+  const reset = (token: object) => ({
+    token: AuthChecker.signJWT(token),
+    password: PASSWORD,
+    repeatPassword: PASSWORD,
+  });
+
+  it('sets the password of the user the link was made for', async () => {
+    const { service, users } = makeService();
+
+    await service.forgotReturn(
+      reset({ id: 'user-1', expires: '2026-09-25 09:00:00' })
+    );
+
+    expect(users.updatePassword).toHaveBeenCalledWith('user-1', PASSWORD);
+  });
+
+  it('refuses a token whose id is not a string', async () => {
+    const { service, users } = makeService();
+
+    expect(
+      await service.forgotReturn(
+        reset({ id: { not: '' }, expires: '2026-09-25 09:00:00' })
+      )
+    ).toBe(false);
+    expect(users.updatePassword).not.toHaveBeenCalled();
   });
 });

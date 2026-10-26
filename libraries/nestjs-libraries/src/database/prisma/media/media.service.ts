@@ -21,7 +21,7 @@ import {
 import {
   MediaTooLargeError,
   readOrFetch,
-} from '@gitroom/helpers/utils/read.or.fetch';
+} from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
 import sharp from 'sharp';
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import {

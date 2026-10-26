@@ -95,3 +95,97 @@ describe('IntegrationManager catalog filters', () => {
     );
   });
 });
+
+// POST /integrations/function runs a provider method by name with the
+// channel's stored token as its first argument (CVE-2026-115931), so only @Tool
+// methods and the ones marked @DashboardFunction may run that way.
+describe('IntegrationManager.isDashboardCallable', () => {
+  const manager = new IntegrationManager();
+  const callable = (identifier: string, method: string) =>
+    manager.isDashboardCallable(
+      manager.getSocialIntegration(identifier),
+      method
+    );
+
+  it.each([
+    // reads a local file when its first argument is not a URL
+    ['lemmy', 'readOrFetch'],
+    ['lemmy', 'mediaSize'],
+    ['lemmy', 'constructor'],
+    ['lemmy', 'doesNotExist'],
+    // a field, not a method
+    ['lemmy', 'identifier'],
+    // a plain method, neither a tool nor marked
+    ['x', 'post'],
+  ])('refuses %s %s', (identifier, method) => {
+    expect(callable(identifier, method)).toBe(false);
+  });
+
+  it('refuses the media readers on every provider', () => {
+    const offenders = socialIntegrationList.flatMap((provider) =>
+      ['readOrFetch', 'mediaSize', 'mediaChunk', 'mediaStream']
+        .filter((method) => manager.isDashboardCallable(provider, method))
+        .map((method) => `${provider.identifier} ${method}`)
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  // Every function the frontend calls through the route, re-derived on
+  // 2026-10-26 from the useCustomProviderFunction callers, the continue
+  // providers' endpoints, the LinkedIn company lookup and the TikTok panel. A
+  // sync that drops a mark fails here before the picker answers "Function not
+  // found" in the composer.
+  it.each([
+    ['devto', 'tags'],
+    ['devto', 'organizations'],
+    ['discord', 'channels'],
+    ['dribbble', 'teams'],
+    ['hashnode', 'publications'],
+    ['hashnode', 'tags'],
+    ['instagram', 'audioSearch'],
+    ['instagram', 'pages'],
+    ['lemmy', 'subreddits'],
+    ['listmonk', 'list'],
+    ['listmonk', 'templates'],
+    ['medium', 'publications'],
+    ['mewe', 'groups'],
+    // a @Tool
+    ['pinterest', 'boards'],
+    ['reddit', 'restrictions'],
+    ['reddit', 'subreddits'],
+    ['skool', 'groups'],
+    ['skool', 'label'],
+    ['slack', 'channels'],
+    ['tiktok-business', 'locationSearch'],
+    ['tiktok-business', 'musicSearch'],
+    ['wrapcast', 'subreddits'],
+    ['whop', 'companies'],
+    ['whop', 'experiences'],
+    ['wordpress', 'postTypes'],
+    ['wordpress', 'categoriesList'],
+    ['wordpress', 'tagsList'],
+    // marked
+    ['facebook', 'pages'],
+    ['gmb', 'pages'],
+    ['tumblr', 'pages'],
+    ['youtube', 'pages'],
+    ['linkedin-page', 'companies'],
+    ['linkedin', 'company'],
+    // LinkedinProvider's mark, inherited
+    ['linkedin-page', 'company'],
+    // the fork's TikTok panel
+    ['tiktok', 'creatorInfo'],
+  ])('lets the dashboard run %s %s', (identifier, method) => {
+    expect(callable(identifier, method)).toBe(true);
+  });
+
+  // /integrations/mentions always runs mention, which SocialAbstract marks.
+  it('lets the dashboard run mention on every provider', () => {
+    const refused = socialIntegrationList
+      .filter((provider) => !manager.isDashboardCallable(provider, 'mention'))
+      .map((provider) => provider.identifier);
+
+    expect(refused).toEqual([]);
+  });
+});

@@ -1,4 +1,8 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { YoutubeProvider } from './youtube.provider';
+import { BadBody } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
 import { PostDetails } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 
@@ -102,5 +106,54 @@ describe('YoutubeProvider.postPending, the thumbnail', () => {
     const { postDbId } = await pendingData({}, video);
 
     expect(postDbId).toBe('post-1');
+  });
+});
+
+// A video that is not a URL is sized and read from the worker's disk for the
+// resumable upload, and the stored path is user-influenced, so only a file of
+// the upload directory may be opened.
+describe('YoutubeProvider, a video stored on disk', () => {
+  const uploadDirectory = process.env.UPLOAD_DIRECTORY;
+  let uploads: string;
+
+  beforeAll(() => {
+    uploads = mkdtempSync(join(tmpdir(), 'sharek-youtube-'));
+    writeFileSync(join(uploads, 'video.mp4'), 'video');
+    process.env.UPLOAD_DIRECTORY = uploads;
+  });
+
+  afterAll(() => {
+    rmSync(uploads, { recursive: true, force: true });
+    if (uploadDirectory === undefined) {
+      delete process.env.UPLOAD_DIRECTORY;
+    } else {
+      process.env.UPLOAD_DIRECTORY = uploadDirectory;
+    }
+  });
+
+  // both readers are private
+  const provider = new YoutubeProvider() as any;
+
+  it('refuses to size a file outside the upload directory', async () => {
+    await expect(
+      provider.youtubeMediaSize('/etc/passwd')
+    ).rejects.toBeInstanceOf(BadBody);
+  });
+
+  it('refuses to read a file outside the upload directory', async () => {
+    await expect(
+      provider.youtubeChunkStream('/etc/passwd', 0, 2)
+    ).rejects.toBeInstanceOf(BadBody);
+  });
+
+  it('sizes and reads a file inside it', async () => {
+    const video = join(uploads, 'video.mp4');
+    const read: Buffer[] = [];
+    for await (const part of await provider.youtubeChunkStream(video, 0, 2)) {
+      read.push(part as Buffer);
+    }
+
+    await expect(provider.youtubeMediaSize(video)).resolves.toBe(5);
+    expect(Buffer.concat(read).toString()).toBe('vid');
   });
 });

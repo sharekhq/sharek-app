@@ -22,6 +22,7 @@ import { createReadStream } from 'fs';
 import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import { DashboardFunction } from '@gitroom/nestjs-libraries/integrations/dashboard.function.decorator';
 
 @Rules(
   [
@@ -439,6 +440,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
   // A refusal ("this account cannot publish right now") arrives as HTTP 200
   // with an error code rather than an error status, so the code is passed
   // through untranslated and every other field may be absent.
+  @DashboardFunction()
   async creatorInfo(accessToken: string) {
     const { data, error } = await (
       await this.fetch(
@@ -798,7 +800,10 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       return response.body;
     }
 
-    return createReadStream(path, { start, end });
+    return createReadStream(this.localMediaPath(path, 'tiktok-error-upload'), {
+      start,
+      end,
+    });
   }
 
   // Streams the video bytes to the upload_url returned by the init call.

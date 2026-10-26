@@ -38,6 +38,8 @@ jest.mock('isomorphic-dompurify', () => ({
   default: { sanitize: jest.fn(), addHook: jest.fn() },
 }));
 
+import { createServer, Server } from 'http';
+import { AddressInfo } from 'net';
 import { PostsService } from './posts.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 
@@ -594,5 +596,92 @@ describe('PostsService.getReleaseURL', () => {
     });
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(resolveReleaseId).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A PNG is converted to JPEG before it publishes, and its url is the user's
+// input, so the download goes through the same SSRF-safe client as the
+// providers' media reads.
+describe('PostsService.updateMedia, a PNG converted before publishing', () => {
+  const ssrfSetting = process.env.DISABLE_SSRF_PROTECTION;
+  let server: Server;
+  let requests = 0;
+  let url = '';
+
+  beforeAll(async () => {
+    delete process.env.DISABLE_SSRF_PROTECTION;
+    server = createServer((_req, res) => {
+      requests++;
+      res.end('not a picture');
+    });
+    // every address, so localhost answers whichever family it resolves to
+    await new Promise<void>((done) => server.listen(0, done));
+    url = `http://localhost:${(server.address() as AddressInfo).port}/a.png`;
+  });
+
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise((done) => server.close(done));
+    if (ssrfSetting === undefined) {
+      delete process.env.DISABLE_SSRF_PROTECTION;
+    } else {
+      process.env.DISABLE_SSRF_PROTECTION = ssrfSetting;
+    }
+  });
+
+  it('never downloads it from a host that resolves to a private address', async () => {
+    const { service } = makeService();
+
+    await service.updateMedia('post-1', [{ path: url }], true);
+
+    expect(requests).toBe(0);
+  });
+});
+
+// A post can link to an earlier one with (post:<id>), replaced by the link the
+// network gave that post when it published. The link is whatever the network
+// answered, so it only goes where a tag is written.
+describe('PostsService.updateTags', () => {
+  const post = {
+    id: 'post-2',
+    content: '<p>Read the first part: (post:post-1)</p>',
+    settings: JSON.stringify({ title: 'Part 2, after (post:post-1)' }),
+    image: JSON.stringify([
+      { id: 'media-1', path: 'https://media.example/(post:post-1).png' },
+    ]),
+  };
+
+  const withLink = (releaseURL: string) =>
+    makeService({
+      repository: {
+        getPostUrls: jest
+          .fn()
+          .mockResolvedValue([{ id: 'post-1', releaseURL }]),
+      },
+    }).service;
+
+  it('writes the link into the content and the settings, never into the media', async () => {
+    const [updated] = await withLink(
+      'https://x.com/sharek/status/1,https://x.com/sharek/status/2'
+    ).updateTags('org-1', [post] as any);
+
+    expect(updated.content).toBe(
+      '<p>Read the first part: https://x.com/sharek/status/1</p>'
+    );
+    expect(JSON.parse(updated.settings as string)).toEqual({
+      title: 'Part 2, after https://x.com/sharek/status/1',
+    });
+    expect(updated.image).toBe(post.image);
+  });
+
+  it('keeps the settings valid JSON whatever the link holds', async () => {
+    const link = 'https://example.com/p?q="x"\\y';
+
+    const [updated] = await withLink(link).updateTags('org-1', [post] as any);
+
+    expect(updated.content).toBe(`<p>Read the first part: ${link}</p>`);
+    expect(JSON.parse(updated.settings as string)).toEqual({
+      title: `Part 2, after ${link}`,
+    });
   });
 });

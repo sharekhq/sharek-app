@@ -55,7 +55,9 @@ const loginToken: Omit<User, 'password'> = {
   sendStreakEmails: true,
 };
 
-const makeController = () => {
+const makeController = (
+  over: { organizations?: object; integrations?: object } = {}
+) => {
   const createMaxUser = jest
     .fn()
     .mockResolvedValue({ id: 'org-2', apiKey: 'encrypted-key' });
@@ -63,8 +65,8 @@ const makeController = () => {
   return {
     controller: new EnterpriseController(
       {} as any,
-      { createMaxUser } as any,
-      {} as any,
+      { createMaxUser, ...over.organizations } as any,
+      (over.integrations ?? {}) as any,
       {} as any
     ),
     createMaxUser,
@@ -131,5 +133,55 @@ describe('EnterpriseController.createUser', () => {
       controller.createUser(AuthService.signJWT(payload))
     ).resolves.toEqual({ success: false });
     expect(createMaxUser).not.toHaveBeenCalled();
+  });
+});
+
+// Both routes look the organization up by the token's api key and act on the
+// channel it names; a findFirst on a value that is not a string matches
+// whichever row comes first.
+describe('EnterpriseController.redirectParams', () => {
+  it('refuses an api key that is not a string', async () => {
+    const getOrgByApiKey = jest.fn();
+    const { controller } = makeController({
+      organizations: { getOrgByApiKey },
+    });
+
+    await expect(
+      controller.redirectParams(
+        AuthService.signJWT({
+          redirectUrl: 'https://acme.test/back',
+          apiKey: { not: '' },
+          provider: 'x',
+          webhookUrl: 'https://acme.test/hook',
+        })
+      )
+    ).resolves.toBeUndefined();
+    expect(getOrgByApiKey).not.toHaveBeenCalled();
+  });
+});
+
+describe('EnterpriseController.deleteChannel', () => {
+  it.each([
+    [
+      'an api key that is not a string',
+      { apiKey: { not: '' }, id: 'channel-1' },
+    ],
+    ['a channel id that is not a string', { apiKey: 'key-1', id: { not: '' } }],
+  ])('refuses %s', async (_label, payload) => {
+    const deleteChannel = jest.fn();
+    const { controller } = makeController({
+      organizations: {
+        getOrgByApiKey: jest.fn().mockResolvedValue({ id: 'org-1' }),
+      },
+      integrations: {
+        getPostsForChannel: jest.fn().mockResolvedValue([]),
+        deleteChannel,
+      },
+    });
+
+    await expect(
+      controller.deleteChannel(AuthService.signJWT(payload))
+    ).resolves.toEqual({ success: false });
+    expect(deleteChannel).not.toHaveBeenCalled();
   });
 });

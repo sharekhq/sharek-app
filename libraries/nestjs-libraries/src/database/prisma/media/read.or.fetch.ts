@@ -1,6 +1,11 @@
 import { readFileSync, statSync } from 'fs';
-import axios from 'axios';
+import { resolve, sep } from 'path';
 import type { AxiosError } from 'axios';
+import { getSsrfSafeAxios } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+
+// The deadline SocialAbstract's media reads use: a healthy read finishes in
+// seconds, so it only ever ends a stalled transfer.
+const MEDIA_READ_TIMEOUT = 120_000;
 
 /**
  * A file over the bound a caller passed to readOrFetch. `size` is unknown when
@@ -13,15 +18,32 @@ export class MediaTooLargeError extends Error {
   }
 }
 
+// The stored path is user-influenced, so a local file is opened only inside
+// UPLOAD_DIRECTORY: resolve() collapses any `..` segments before the
+// comparison, the check SocialAbstract.localMediaPath makes.
+const localMediaPath = (path: string) => {
+  const base = process.env.UPLOAD_DIRECTORY
+    ? resolve(process.env.UPLOAD_DIRECTORY)
+    : '';
+  const filePath = resolve(path);
+  if (!base || !filePath.startsWith(base + sep)) {
+    throw new Error('The media is not in the upload directory');
+  }
+
+  return filePath;
+};
+
 // With `maxBytes`, the size is learned before any body is read, the way
 // SocialAbstract.mediaSize learns it: a HEAD in identity encoding (so the
 // length is that of the bytes a GET returns), or a stat for a local file. The
-// GET still carries the bound, in case a header is missing or wrong.
+// GET still carries the bound, in case a header is missing or wrong. A URL is
+// read through the same SSRF-safe client as the providers' media reads.
 export const readOrFetch = async (path: string, maxBytes?: number) => {
   if (path.indexOf('http') === 0) {
     if (maxBytes !== undefined) {
-      const head = await axios.head(path, {
+      const head = await getSsrfSafeAxios().head(path, {
         headers: { 'accept-encoding': 'identity' },
+        signal: AbortSignal.timeout(MEDIA_READ_TIMEOUT),
       });
       const size = Number(head.headers['content-length']);
       if (size > maxBytes) {
@@ -31,11 +53,12 @@ export const readOrFetch = async (path: string, maxBytes?: number) => {
 
     try {
       return (
-        await axios({
+        await getSsrfSafeAxios()({
           url: path,
           method: 'GET',
           responseType: 'arraybuffer',
           ...(maxBytes !== undefined && { maxContentLength: maxBytes }),
+          signal: AbortSignal.timeout(MEDIA_READ_TIMEOUT),
         })
       ).data;
     } catch (err) {
@@ -52,12 +75,13 @@ export const readOrFetch = async (path: string, maxBytes?: number) => {
     }
   }
 
+  const filePath = localMediaPath(path);
   if (maxBytes !== undefined) {
-    const { size } = statSync(path);
+    const { size } = statSync(filePath);
     if (size > maxBytes) {
       throw new MediaTooLargeError(maxBytes, size);
     }
   }
 
-  return readFileSync(path);
+  return readFileSync(filePath);
 };
