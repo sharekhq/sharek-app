@@ -1,9 +1,10 @@
 // AuthService signs the invite with this secret.
 process.env.JWT_SECRET = 'test';
 
-// The service's constructor takes the repository and the notification
-// service, whose real modules open a database client at import; neither runs
-// here (same pattern as organization.repository.spec).
+// The service's imports pull in Prisma through the repository, the
+// notification service and the autopost service; none of that code runs here,
+// so the modules are swapped for shells (same pattern as
+// enterprise.controller.spec).
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository',
   () => ({ OrganizationRepository: class {} })

@@ -11,10 +11,9 @@ jest.mock(
 jest.mock('@gitroom/nestjs-libraries/track/track.service', () => ({
   TrackService: class {},
 }));
-jest.mock(
-  '@gitroom/nestjs-libraries/agent/agent.graph.insert.service',
-  () => ({ AgentGraphInsertService: class {} })
-);
+jest.mock('@gitroom/nestjs-libraries/agent/agent.graph.insert.service', () => ({
+  AgentGraphInsertService: class {},
+}));
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service',
   () => ({ SubscriptionService: class {} })

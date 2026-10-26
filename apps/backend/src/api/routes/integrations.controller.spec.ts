@@ -64,7 +64,8 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('POST /integrations/function', () => {
+// POST /integrations/function
+describe('IntegrationsController.functionIntegration', () => {
   it('never runs a provider method the dashboard may not call', async () => {
     const { controller, provider } = makeController();
     const readOrFetch = jest
@@ -104,7 +105,8 @@ describe('POST /integrations/function', () => {
   });
 });
 
-describe('POST /integrations/mentions', () => {
+// POST /integrations/mentions
+describe('IntegrationsController.mentions', () => {
   it('runs mention whatever name the request carries', async () => {
     const { controller, provider } = makeController();
     const readOrFetch = jest

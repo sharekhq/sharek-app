@@ -135,9 +135,9 @@ describe('YoutubeProvider, a video stored on disk', () => {
   const provider = new YoutubeProvider() as any;
 
   it('refuses to size a file outside the upload directory', async () => {
-    await expect(provider.youtubeMediaSize('/etc/passwd')).rejects.toBeInstanceOf(
-      BadBody
-    );
+    await expect(
+      provider.youtubeMediaSize('/etc/passwd')
+    ).rejects.toBeInstanceOf(BadBody);
   });
 
   it('refuses to read a file outside the upload directory', async () => {

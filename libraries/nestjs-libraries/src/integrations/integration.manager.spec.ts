@@ -174,7 +174,7 @@ describe('IntegrationManager.isDashboardCallable', () => {
     ['linkedin', 'company'],
     // LinkedinProvider's mark, inherited
     ['linkedin-page', 'company'],
-    // the fork's TikTok panel (D-66)
+    // the fork's TikTok panel
     ['tiktok', 'creatorInfo'],
   ])('lets the dashboard run %s %s', (identifier, method) => {
     expect(callable(identifier, method)).toBe(true);

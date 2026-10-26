@@ -8,7 +8,6 @@
 // research R5). The stored path is user-influenced, so it is read under
 // SocialAbstract's rules too: a local file only inside UPLOAD_DIRECTORY, a URL
 // only through the SSRF-safe client and with a deadline.
-const mockClient = Object.assign(jest.fn(), { head: jest.fn() });
 jest.mock(
   '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher',
   () => ({ getSsrfSafeAxios: jest.fn() })
@@ -16,14 +15,14 @@ jest.mock(
 jest.mock('fs', () => ({ readFileSync: jest.fn(), statSync: jest.fn() }));
 
 import { readFileSync, statSync } from 'fs';
-import { createServer } from 'http';
+import { createServer, Server } from 'http';
 import { AddressInfo } from 'net';
 import { getSsrfSafeAxios } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { MediaTooLargeError, readOrFetch } from './read.or.fetch';
 
 const ssrfSafeAxios = getSsrfSafeAxios as unknown as jest.Mock;
-const get = mockClient;
-const head = mockClient.head;
+const get = Object.assign(jest.fn(), { head: jest.fn() });
+const head = get.head;
 const readFile = readFileSync as unknown as jest.Mock;
 const stat = statSync as unknown as jest.Mock;
 
@@ -36,7 +35,7 @@ const uploadDirectory = process.env.UPLOAD_DIRECTORY;
 
 beforeEach(() => {
   jest.resetAllMocks();
-  ssrfSafeAxios.mockReturnValue(mockClient);
+  ssrfSafeAxios.mockReturnValue(get);
   get.mockResolvedValue({ data: Buffer.from('BYTES') });
   readFile.mockReturnValue(Buffer.from('LOCAL-BYTES'));
   process.env.UPLOAD_DIRECTORY = '/uploads';
@@ -178,7 +177,9 @@ describe('a local path outside UPLOAD_DIRECTORY', () => {
     ['a path that climbs out of it', '/uploads/../etc/passwd'],
     ['a sibling folder that shares its name', '/uploads-other/x.png'],
   ])('refuses %s without opening it', async (_label, path) => {
-    await expect(readOrFetch(path, BOUND)).rejects.toThrow();
+    await expect(readOrFetch(path, BOUND)).rejects.toThrow(
+      'The media is not in the upload directory'
+    );
 
     expect(stat).not.toHaveBeenCalled();
     expect(readFile).not.toHaveBeenCalled();
@@ -187,7 +188,9 @@ describe('a local path outside UPLOAD_DIRECTORY', () => {
   it('refuses every local file while UPLOAD_DIRECTORY is unset', async () => {
     delete process.env.UPLOAD_DIRECTORY;
 
-    await expect(readOrFetch(LOCAL)).rejects.toThrow();
+    await expect(readOrFetch(LOCAL)).rejects.toThrow(
+      'The media is not in the upload directory'
+    );
     expect(readFile).not.toHaveBeenCalled();
   });
 });
@@ -195,8 +198,24 @@ describe('a local path outside UPLOAD_DIRECTORY', () => {
 // The real client, against a server on this machine.
 describe('a URL whose host resolves to a private address', () => {
   const ssrfSetting = process.env.DISABLE_SSRF_PROTECTION;
+  let server: Server;
+  let requests = 0;
+  let url = '';
 
-  afterEach(() => {
+  beforeAll(async () => {
+    delete process.env.DISABLE_SSRF_PROTECTION;
+    server = createServer((_req, res) => {
+      requests++;
+      res.end('BYTES');
+    });
+    // every address, so localhost answers whichever family it resolves to
+    await new Promise<void>((done) => server.listen(0, done));
+    url = `http://localhost:${(server.address() as AddressInfo).port}/x.png`;
+  });
+
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise((done) => server.close(done));
     if (ssrfSetting === undefined) {
       delete process.env.DISABLE_SSRF_PROTECTION;
     } else {
@@ -205,30 +224,13 @@ describe('a URL whose host resolves to a private address', () => {
   });
 
   it('is refused before any request leaves', async () => {
-    delete process.env.DISABLE_SSRF_PROTECTION;
     ssrfSafeAxios.mockImplementation(
       jest.requireActual(
         '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher'
       ).getSsrfSafeAxios
     );
-    let requests = 0;
-    const server = createServer((_req, res) => {
-      requests++;
-      res.end('BYTES');
-    });
-    // every address, so localhost answers whichever family it resolves to
-    await new Promise<void>((done) => server.listen(0, done));
 
-    try {
-      await expect(
-        readOrFetch(
-          `http://localhost:${(server.address() as AddressInfo).port}/x.png`
-        )
-      ).rejects.toThrow();
-      expect(requests).toBe(0);
-    } finally {
-      server.closeAllConnections();
-      await new Promise((done) => server.close(done));
-    }
+    await expect(readOrFetch(url)).rejects.toThrow();
+    expect(requests).toBe(0);
   });
 });

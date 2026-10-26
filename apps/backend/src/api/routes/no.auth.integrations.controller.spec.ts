@@ -68,10 +68,7 @@ const makeController = () => {
   };
 };
 
-const refresh = (
-  controller: NoAuthIntegrationsController,
-  payload: object
-) =>
+const refresh = (controller: NoAuthIntegrationsController, payload: object) =>
   controller.extensionRefreshCookies({
     jwt: AuthService.signJWT(payload),
     cookies: Buffer.from(JSON.stringify(cookies)).toString('base64'),
@@ -92,7 +89,8 @@ describe('NoAuthIntegrationsController.extensionRefreshCookies', () => {
   });
 
   it.each([
-    // the invite used to sign the whole request body, any field included
+    // The invite used to sign the whole request body, so it could carry the
+    // extension's fields.
     [
       'a team invite token',
       { ...extensionToken, timeLimit: '2026-10-28 12:00:00' },

@@ -8,9 +8,10 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service',
   () => ({ OrganizationService: class {} })
 );
-jest.mock('@gitroom/nestjs-libraries/database/prisma/users/users.service', () => ({
-  UsersService: class {},
-}));
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/users/users.service',
+  () => ({ UsersService: class {} })
+);
 jest.mock('@gitroom/nestjs-libraries/chat/mastra.service', () => ({
   MastraService: class {},
 }));
@@ -19,8 +20,8 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { HttpForbiddenException } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { AuthMiddleware } from './auth.middleware';
 
-// What the auth cookie carries: the whole User row without its password, as
-// the backend's AuthService signs it at sign-in.
+// What the auth cookie carries: the User row without its password, as the
+// backend's AuthService signs it at sign-in (the fields this test reads).
 const loginToken = {
   id: 'user-1',
   email: 'someone@example.com',
@@ -50,10 +51,7 @@ const run = async (token: string) => {
   const req: any = { headers: { auth: token }, cookies: {} };
   const next = jest.fn();
 
-  const outcome = await new AuthMiddleware(
-    organizations as any,
-    users as any
-  )
+  const outcome = await new AuthMiddleware(organizations as any, users as any)
     .use(req, {} as any, next)
     .catch((err) => err);
 
@@ -61,7 +59,7 @@ const run = async (token: string) => {
 };
 
 describe('AuthMiddleware', () => {
-  it('lets a login token signed before the token checks through', async () => {
+  it('lets a login token through', async () => {
     const { outcome, req, next, users } = await run(
       AuthService.signJWT(loginToken)
     );

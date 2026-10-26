@@ -447,8 +447,8 @@ describe('AuthService account emails', () => {
 // organization in the invite's role. One secret signs every kind of token, so
 // it reads only an outstanding invite.
 describe('AuthService.getOrgFromCookie', () => {
-  // An invite sent before the token checks: it signed the whole request body,
-  // so it carries sendEmail too.
+  // Invites signed the whole request body until now, so the ones still
+  // outstanding carry sendEmail too.
   const invite = {
     email: 'new@example.com',
     role: 'USER',
@@ -458,7 +458,7 @@ describe('AuthService.getOrgFromCookie', () => {
     id: 'a1b2c',
   };
 
-  it('reads an outstanding invite sent before the token checks', () => {
+  it('still reads an outstanding invite signed with the whole request body', () => {
     const { service } = makeService();
 
     expect(service.getOrgFromCookie(AuthChecker.signJWT(invite))).toMatchObject(
