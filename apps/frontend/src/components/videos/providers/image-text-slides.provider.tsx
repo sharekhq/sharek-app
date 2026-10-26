@@ -330,6 +330,17 @@ const estimateSeconds = (text: string) => text.length / CHARS_PER_SECOND;
  */
 const MAX_CHARS_PER_SLIDE = 280;
 
+/**
+ * The backend's ARABIC_SCRIPT: embedRtl burns a slide's captions right to left
+ * when it matches, so the slide's field reads right to left too. Changing it in
+ * images.slides.ts means changing it here. Other text takes its direction from
+ * its first letter, and an empty field keeps the interface's.
+ */
+const ARABIC_SCRIPT =
+  /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const slideDir = (text: string) =>
+  ARABIC_SCRIPT.test(text) ? 'rtl' : text.trim() ? 'auto' : undefined;
+
 const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
   onPlanned,
 }) => {
@@ -616,6 +627,7 @@ const ReviewScreen: FC<{
             <textarea
               value={slide.text}
               onChange={(e) => setText(index, e.target.value)}
+              dir={slideDir(slide.text)}
               // 16px, the app's own default: this is the text the user came
               // here to edit, so it cannot be the smallest input in the flow.
               className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[16px] outline-none text-textColor resize-y"
