@@ -133,3 +133,53 @@ describe('EnterpriseController.createUser', () => {
     expect(createMaxUser).not.toHaveBeenCalled();
   });
 });
+
+// Both routes look the organization up by the token's api key and act on the
+// channel it names; a findFirst on a value that is not a string matches
+// whichever row comes first.
+describe('EnterpriseController.redirectParams', () => {
+  it('refuses an api key that is not a string', async () => {
+    const getOrgByApiKey = jest.fn();
+    const controller = new EnterpriseController(
+      {} as any,
+      { getOrgByApiKey } as any,
+      {} as any,
+      {} as any
+    );
+
+    await expect(
+      controller.redirectParams(
+        AuthService.signJWT({
+          redirectUrl: 'https://acme.test/back',
+          apiKey: { not: '' },
+          provider: 'x',
+          webhookUrl: 'https://acme.test/hook',
+        })
+      )
+    ).resolves.toBeUndefined();
+    expect(getOrgByApiKey).not.toHaveBeenCalled();
+  });
+});
+
+describe('EnterpriseController.deleteChannel', () => {
+  it.each([
+    ['an api key that is not a string', { apiKey: { not: '' }, id: 'channel-1' }],
+    ['a channel id that is not a string', { apiKey: 'key-1', id: { not: '' } }],
+  ])('refuses %s', async (_label, payload) => {
+    const deleteChannel = jest.fn();
+    const controller = new EnterpriseController(
+      {} as any,
+      { getOrgByApiKey: jest.fn().mockResolvedValue({ id: 'org-1' }) } as any,
+      {
+        getPostsForChannel: jest.fn().mockResolvedValue([]),
+        deleteChannel,
+      } as any,
+      {} as any
+    );
+
+    await expect(
+      controller.deleteChannel(AuthService.signJWT(payload))
+    ).resolves.toEqual({ success: false });
+    expect(deleteChannel).not.toHaveBeenCalled();
+  });
+});
