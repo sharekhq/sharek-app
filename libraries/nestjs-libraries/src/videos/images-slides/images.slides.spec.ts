@@ -24,6 +24,7 @@ jest.mock('music-metadata', () => ({
 }));
 
 import {
+  defuseAudioTags,
   FRAME,
   GEN_SIZE,
   ImagesSlides,
@@ -294,7 +295,60 @@ describe('ImagesSlides.create', () => {
       expect(String(call[0])).not.toContain('elevenlabs');
     }
   });
+
+  // Multilingual v2 misreads Arabic numbers such as "40%" and "2026"; v4 reads
+  // them correctly without a language hint (spec 040, G1).
+  it('narrates with Eleven v4', async () => {
+    await drain(provider.create('vertical', storyboard, params)).catch(
+      () => undefined
+    );
+
+    const call = (global.fetch as jest.Mock).mock.calls.find((c) =>
+      String(c[0]).includes('text-to-speech')
+    );
+    expect(JSON.parse(call[1].body).model_id).toBe('eleven_v4');
+  });
+
+  // The swap is the same length, so the alignment still indexes the caption,
+  // which shows the slide as the user approved it.
+  it('speaks bracketed words but captions them as written', async () => {
+    const bracketed = {
+      styleGuide: 'warm cinematic, brass palette',
+      slides: [{ text: 'احجز الآن [عرض محدود] واحصل على خصم 40%.' }],
+    };
+    await drain(provider.create('vertical', bracketed, params));
+
+    const call = (global.fetch as jest.Mock).mock.calls.find((c) =>
+      String(c[0]).includes('text-to-speech')
+    );
+    const { text } = JSON.parse(call[1].body);
+    expect(text).toBe('احجز الآن (عرض محدود) واحصل على خصم 40%.');
+    expect(text).toHaveLength(bracketed.slides[0].text.length);
+
+    const srt = mockCreateAssembly.mock.calls[0][0].uploads['subtitles.srt'];
+    expect(srt).toContain('[عرض محدود]');
+  });
 });
+
+// Eleven v4 reads square brackets as an audio tag and leaves the Arabic words
+// inside unspoken, so narration gets parentheses in their place (spec 040, G1).
+describe('defuseAudioTags', () => {
+  it('swaps square brackets for parentheses, character for character', () => {
+    const text =
+      'احجز الآن [عرض محدود] واحصل على خصم 40% حتى نهاية 2026 عبر Instagram.';
+    const defused = defuseAudioTags(text);
+    expect(defused).toBe(
+      'احجز الآن (عرض محدود) واحصل على خصم 40% حتى نهاية 2026 عبر Instagram.'
+    );
+    expect(defused).toHaveLength(text.length);
+  });
+
+  it('leaves text without square brackets untouched', () => {
+    const text = 'مرحبًا، (هذا) اختبار قصير للصوت.';
+    expect(defuseAudioTags(text)).toBe(text);
+  });
+});
+
 // ElevenLabs answers a spent quota or a revoked key with a 401 carrying the
 // reason in the body. Without it the user only ever sees the status code, and
 // without a timeout a hung request holds the render open to the poll deadline.

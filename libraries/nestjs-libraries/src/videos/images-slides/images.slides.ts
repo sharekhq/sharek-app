@@ -148,6 +148,20 @@ export function embedRtl(text: string): string {
   return ARABIC_SCRIPT.test(text) ? `\u202B${text}\u202C` : text;
 }
 
+/**
+ * Eleven v4 reads square brackets as an audio tag — a cue to perform, not words
+ * to say — so the words inside go unspoken while the caption still shows them.
+ *
+ * Measured on production rather than reasoned about (spec 040, G1): on an
+ * Arabic slide «[عرض محدود]» got 0.05 s of speech, against 0.72 s in
+ * parentheses, and Multilingual v2 spoke it. The swap is character for
+ * character, so the returned alignment still indexes the caption text, which
+ * keeps the brackets as written.
+ */
+export function defuseAudioTags(text: string): string {
+  return text.replace(/\[/g, '(').replace(/\]/g, ')');
+}
+
 const transloadit = new Transloadit({
   authKey: process.env.TRANSLOADIT_AUTH || 'just empty text',
   authSecret: process.env.TRANSLOADIT_SECRET || 'just empty text',
@@ -494,7 +508,10 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams, Storyboard> 
             'Content-Type': 'application/json',
             'xi-api-key': process.env.ELEVENSLABS_API_KEY || '',
           },
-          body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
+          body: JSON.stringify({
+            text: defuseAudioTags(text),
+            model_id: 'eleven_v4',
+          }),
           signal: AbortSignal.timeout(60000),
         }
       )
