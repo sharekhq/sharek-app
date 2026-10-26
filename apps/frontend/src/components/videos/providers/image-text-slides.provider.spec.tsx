@@ -124,16 +124,19 @@ const created = () =>
 
 /**
  * Renders the provider in a form, with the bar its actions are portalled into,
- * and plans a script so the review screen and its Create video are showing.
+ * and plans `planned` so the review screen and its Create video are showing.
  * Every create answers with `create`.
  */
-const review = async (create: () => Promise<unknown>) => {
+const review = async (
+  create: () => Promise<unknown>,
+  planned: typeof storyboard = storyboard
+) => {
   request.mockImplementation((url: string) => {
     if (url.endsWith('/allowed')) {
       return Promise.resolve(answer(200, true));
     }
     if (url === '/media/generate-video/plan') {
-      return Promise.resolve(answer(200, storyboard));
+      return Promise.resolve(answer(200, planned));
     }
     return create();
   });
@@ -218,5 +221,39 @@ describe('the render it starts', () => {
     await settle();
 
     expect(failRender).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Inheriting the interface's direction, an Arabic slide such as «… بنسبة 40%.»
+// in an English interface was laid out left to right: its full stop sat at the
+// sentence's start and the percentage at the far left. A field now reads the
+// way the slide's captions burn.
+describe("a slide's text field", () => {
+  const directionOf = async (text: string) => {
+    await review(() => Promise.resolve(rendered()), {
+      ...storyboard,
+      slides: [{ text }],
+    });
+    return document.querySelector('textarea')?.getAttribute('dir');
+  };
+
+  it('reads an Arabic slide right to left', async () => {
+    expect(await directionOf('احجز الآن واحصل على خصم حصري بنسبة 40%.')).toBe(
+      'rtl'
+    );
+  });
+
+  it('keeps an Arabic slide that opens with a brand name right to left', async () => {
+    expect(
+      await directionOf('Instagram هو المكان الأنسب لعرضنا المحدود.')
+    ).toBe('rtl');
+  });
+
+  it('lets a slide without Arabic take its direction from its text', async () => {
+    expect(await directionOf('Fresh bread every morning')).toBe('auto');
+  });
+
+  it("leaves an empty slide in the interface's direction", async () => {
+    expect(await directionOf('')).toBeNull();
   });
 });
