@@ -13,7 +13,7 @@ jest.mock(
   () => ({ MediaService: class {} })
 );
 
-import { HttpException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { MediaController } from './media.controller';
 import {
   AuthorizationActions,
@@ -266,5 +266,65 @@ describe.each([
 
     expect(res.frames).toEqual([]);
     expect(res.ended).toBe(true);
+  });
+});
+
+// The Transloadit uploader saves what it put in the bucket by the bare object
+// name the upload returned, and the stored path is the bucket URL plus that
+// name, so any other name would point the media outside the bucket.
+describe('saveMedia', () => {
+  const bucketUrl = process.env.CLOUDFLARE_BUCKET_URL;
+
+  beforeEach(() => {
+    process.env.CLOUDFLARE_BUCKET_URL = 'https://media.example';
+  });
+
+  afterEach(() => {
+    if (bucketUrl === undefined) {
+      delete process.env.CLOUDFLARE_BUCKET_URL;
+    } else {
+      process.env.CLOUDFLARE_BUCKET_URL = bucketUrl;
+    }
+  });
+
+  it.each(['a/b.png', 'a\\b.png', '.', '..'])(
+    'refuses the name %s',
+    async (name) => {
+      const saveFile = jest.fn();
+
+      await expect(
+        makeController({ saveFile }).saveMedia(org, {} as any, name, '')
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(saveFile).not.toHaveBeenCalled();
+    }
+  );
+
+  it('refuses any name while no bucket is configured', async () => {
+    delete process.env.CLOUDFLARE_BUCKET_URL;
+    const saveFile = jest.fn();
+
+    await expect(
+      makeController({ saveFile }).saveMedia(org, {} as any, 'a.png', '')
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it('saves a bare name under the bucket URL', async () => {
+    const saveFile = jest.fn().mockResolvedValue({ id: 'media-1' });
+
+    await expect(
+      makeController({ saveFile }).saveMedia(
+        org,
+        {} as any,
+        'a.png',
+        'photo.png'
+      )
+    ).resolves.toEqual({ id: 'media-1' });
+    expect(saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'a.png',
+      'https://media.example/a.png',
+      'photo.png'
+    );
   });
 });

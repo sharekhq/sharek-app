@@ -4,8 +4,10 @@
 // composer builds its visibility list from it, so the field names are a
 // contract rather than an implementation detail.
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { TiktokProvider } from './tiktok.provider';
+import { BadBody } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
 
 // The `@gitroom/react/*` alias is not mapped in this Jest config, so the
@@ -355,5 +357,45 @@ describe('TiktokProvider.releaseUrl, a post connected by hand', () => {
     await expect(provider.releaseUrl('token-123', '7123')).resolves.toBe(
       'https://www.tiktok.com/@sharek.cafe/video/7123'
     );
+  });
+});
+
+// A video that is not a URL is read from the worker's disk for the upload, and
+// the stored path is user-influenced, so only a file of the upload directory
+// may be opened.
+describe('TiktokProvider, a video stored on disk', () => {
+  const uploadDirectory = process.env.UPLOAD_DIRECTORY;
+  let uploads: string;
+
+  beforeAll(() => {
+    uploads = fs.mkdtempSync(path.join(os.tmpdir(), 'sharek-tiktok-'));
+    fs.writeFileSync(path.join(uploads, 'video.mp4'), 'video');
+    process.env.UPLOAD_DIRECTORY = uploads;
+  });
+
+  afterAll(() => {
+    fs.rmSync(uploads, { recursive: true, force: true });
+    if (uploadDirectory === undefined) {
+      delete process.env.UPLOAD_DIRECTORY;
+    } else {
+      process.env.UPLOAD_DIRECTORY = uploadDirectory;
+    }
+  });
+
+  // the chunk reader is private
+  const chunk = (file: string) =>
+    (provider as any).tiktokChunkStream(file, 0, 2);
+
+  it('refuses a file outside the upload directory', async () => {
+    await expect(chunk('/etc/passwd')).rejects.toBeInstanceOf(BadBody);
+  });
+
+  it('reads a chunk of a file inside it', async () => {
+    const read: Buffer[] = [];
+    for await (const part of await chunk(path.join(uploads, 'video.mp4'))) {
+      read.push(part as Buffer);
+    }
+
+    expect(Buffer.concat(read).toString()).toBe('vid');
   });
 });
