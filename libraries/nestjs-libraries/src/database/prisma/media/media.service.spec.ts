@@ -20,10 +20,13 @@ jest.mock('@gitroom/nestjs-libraries/videos/video.manager', () => ({
 }));
 // A reference's bytes come from storage; each test says what the stored file
 // holds, and the error class stays a class so the service can tell it apart.
-jest.mock('@gitroom/helpers/utils/read.or.fetch', () => ({
-  readOrFetch: jest.fn(),
-  MediaTooLargeError: class MediaTooLargeError extends Error {},
-}));
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch',
+  () => ({
+    readOrFetch: jest.fn(),
+    MediaTooLargeError: class MediaTooLargeError extends Error {},
+  })
+);
 
 import { HttpException } from '@nestjs/common';
 import sharp from 'sharp';
@@ -32,7 +35,7 @@ import { SubscriptionException } from '@gitroom/backend/services/auth/permission
 import {
   MediaTooLargeError,
   readOrFetch,
-} from '@gitroom/helpers/utils/read.or.fetch';
+} from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
 import { IMAGE_REFERENCE_MAX } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 const org = { id: 'org-1', isTrailing: false } as any;
