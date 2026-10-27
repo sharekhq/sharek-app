@@ -2,9 +2,8 @@ import { act, FC, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // The seven previews that render their text as HTML, through the real
-// sanitizer: jest.config.ts maps isomorphic-dompurify to its browser build on
-// happy-dom's window. Each preview reads its post and channel from the real
-// IntegrationContext.
+// sanitizer: jest.config.ts loads isomorphic-dompurify's Node build, on jsdom.
+// Each preview reads its post and channel from the real IntegrationContext.
 
 // Scenery: the previews read only which editor tab is open.
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
