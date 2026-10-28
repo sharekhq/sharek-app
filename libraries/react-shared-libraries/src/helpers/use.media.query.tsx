@@ -12,6 +12,15 @@ import { useEffect, useState } from 'react';
 export const PHONE_QUERY = '(max-width: 768px)';
 
 /**
+ * The small-screen width query — the JavaScript mirror of Tailwind's `mobile`
+ * screen (`max-width: 1025px`): phones and iPads held upright, where the app
+ * shell, the composer and the calendar take their small-screen layout. Stated
+ * once in `apps/frontend/DESIGN.md` and once per layer, as `PHONE_QUERY` is.
+ * Change one, change the other.
+ */
+export const MOBILE_QUERY = '(max-width: 1025px)';
+
+/**
  * SSR-safe media-query hook. Returns false on the server and on the first
  * client render (so it matches the desktop-first SSR markup), then syncs to the
  * real match after mount — avoiding hydration mismatches. Use for render-time
