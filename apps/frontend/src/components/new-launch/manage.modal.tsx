@@ -17,10 +17,17 @@ import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.label
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
-import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
+import {
+  Providers,
+  ShowAllProviders,
+} from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
+import { getProviderSettingsMeta } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
 import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
-import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
+import {
+  DatePicker,
+  DatePickerPanel,
+} from '@gitroom/frontend/components/launches/helpers/date.picker';
 import { useShallow } from 'zustand/react/shallow';
 import { RepeatComponent } from '@gitroom/frontend/components/launches/repeat.component';
 import { TagsComponent } from '@gitroom/frontend/components/launches/tags.component';
@@ -42,8 +49,20 @@ import {
   DropdownArrowSmallIcon,
   EyeIcon,
   PlusIcon,
+  SettingsOutlineIcon,
+  TagIcon,
+  RepeatIcon,
 } from '@gitroom/frontend/components/ui/icons';
-import { BottomSheet } from '@gitroom/frontend/components/ui/bottom.sheet.component';
+import {
+  BottomSheet,
+  BottomSheetButton,
+  BottomSheetHeader,
+  BottomSheetRow,
+} from '@gitroom/frontend/components/ui/bottom.sheet.component';
+import {
+  MOBILE_QUERY,
+  useMediaQuery,
+} from '@gitroom/react/helpers/use.media.query';
 import {
   MobileTopBar,
   MobileTopBarAction,
@@ -78,7 +97,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   // at 1025px and below the preview takes the editor's place
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   // the sheets that hold the rest of the composer at 1025px and below
-  const [mobileSheet, setMobileSheet] = useState<'channels' | null>(null);
+  const [mobileSheet, setMobileSheet] = useState<
+    'channels' | 'settings' | 'tags' | 'repeat' | 'date' | null
+  >(null);
+  // the date sheet's choice, applied to the post on Save only
+  const [dateDraft, setDateDraft] = useState<dayjs.Dayjs>(dayjs());
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
   const { addEditSets, mutate, customClose, dummy } = props;
@@ -135,6 +158,19 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     },
     [channelDate, current, setChannelDate, setDate]
   );
+
+  // At 1025px and below the channel settings pane opens as a sheet over the
+  // editor: it takes the focus and closes on its own Escape. It stays the one
+  // element the providers portal their settings into, so it is not a
+  // BottomSheet, and from 1026px up it is the inline panel it always was.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const settingsSheet = showSettings && isMobile;
+  const settingsPane = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (settingsSheet) {
+      settingsPane.current?.focus();
+    }
+  }, [settingsSheet]);
 
   // the channels the post already has, each with its own post
   const existingPosts = [existingData, ...(existingData.siblings || [])];
@@ -870,6 +906,33 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         },
       ];
 
+  // the Settings sheet offers the channel settings only when there are any
+  const hasChannelSettings = useMemo(() => {
+    const identifiers =
+      current === 'global'
+        ? selectedIntegrations.map((p) => p.integration.identifier)
+        : [integrations.find((p) => p.id === current)?.identifier];
+
+    return identifiers.some(
+      (identifier) =>
+        !!getProviderSettingsMeta(
+          Providers.find((p) => p.identifier === identifier)?.component
+        )?.SettingsComponent
+    );
+  }, [current, selectedIntegrations, integrations]);
+
+  // at 1025px and below the settings, tags, repeat and delete live in a sheet
+  const settingsButton = !dummy && (
+    <button
+      type="button"
+      onClick={() => setMobileSheet('settings')}
+      aria-label={t('settings', 'Settings')}
+      className="hidden mobile:flex shrink-0 w-[44px] h-[44px] justify-center items-center rounded-[8px] text-muted focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <SettingsOutlineIcon />
+    </button>
+  );
+
   // at 1025px and below there is no room for the preview column, it replaces
   // the editor instead
   const previewButton = (
@@ -897,7 +960,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           loading={loading}
           reasons={blockedReasons}
         >
-          <DatePicker onChange={setPickerDate} date={pickerDate} />
+          <DatePicker
+            onChange={setPickerDate}
+            date={pickerDate}
+            onOpen={() => {
+              setDateDraft(pickerDate);
+              setMobileSheet('date');
+            }}
+          />
         </MobileTopBar>
         <div className="flex-1 flex min-h-0 mobile:contents">
           <div
@@ -918,7 +988,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px] bg-panel mobile:bg-transparent">
+            <div className="flex-1 flex flex-col gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
               <div
                 className={clsx(
                   // at 1025px and below the page scrolls, not this box
@@ -964,6 +1034,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                           />
                         </div>
                         {previewButton}
+                        {settingsButton}
                       </>
                     )}
                   </div>
@@ -983,6 +1054,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                           </button>
                           <div className="hidden mobile:block flex-1" />
                           {previewButton}
+                          {settingsButton}
                         </>
                       )}
                     </div>
@@ -1006,19 +1078,56 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   </div>
                 </div>
               </div>
+              {showSettings && (
+                <div
+                  onClick={() => setShowSettings(false)}
+                  className="hidden mobile:block fixed inset-0 z-[599] bg-popup backdrop-blur-[8px] animate-fadeIn touch-none"
+                />
+              )}
+              {/* At 1025px and below this is hidden through its card, not
+                  itself: a provider with settings shows it in global mode with
+                  `display: flex !important` on this id. */}
               <div
                 id="wrapper-settings"
+                ref={settingsPane}
+                tabIndex={settingsSheet ? -1 : undefined}
+                onKeyDown={
+                  settingsSheet
+                    ? (e) => {
+                        if (e.key !== 'Escape') {
+                          return;
+                        }
+                        // the composer's own Escape listens on the same node
+                        // as React (Next hydrates the document)
+                        e.stopPropagation();
+                        e.nativeEvent.stopImmediatePropagation();
+                        setShowSettings(false);
+                      }
+                    : undefined
+                }
                 className={clsx(
-                  'pb-[20px] px-[20px] select-none',
-                  showSettings && 'flex-1 flex pt-[20px]',
+                  'pb-[20px] px-[20px] select-none mobile:p-0',
+                  showSettings &&
+                    'flex-1 flex pt-[20px] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[600] mobile:max-h-[90%]',
                   current === 'global' && 'hidden'
                 )}
               >
-                <div className="flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings">
+                <div
+                  className={clsx(
+                    'flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings mobile:rounded-none mobile:rounded-t-[24px] mobile:gap-0 mobile:pt-[8px] mobile:pb-[24px] mobile:bg-newBgColorInner mobile:animate-fade',
+                    !showSettings && 'mobile:hidden'
+                  )}
+                >
+                  <div className="hidden mobile:contents">
+                    <BottomSheetHeader
+                      title={currentIntegrationText}
+                      onClose={() => setShowSettings(false)}
+                    />
+                  </div>
                   <div
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(
-                      'bg-brandSoft2 border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px]',
+                      'bg-brandSoft2 border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px] mobile:hidden',
                       showSettings ? '!rounded-b-none' : ''
                     )}
                   >
@@ -1035,15 +1144,21 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div
                     className={clsx(
                       !showSettings ? 'hidden' : 'flex-1',
-                      'text-[14px] text-textColor font-[500] relative'
+                      'text-[14px] text-textColor font-[500] relative mobile:min-h-0 mobile:overflow-y-auto mobile:overscroll-contain'
                     )}
                   >
-                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+                    <div className="absolute mobile:static left-0 top-0 w-full h-full mobile:h-auto flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
                       <div
                         id="social-settings"
-                        className="flex flex-col gap-[20px] bg-newBgColor"
+                        className="flex flex-col gap-[20px] bg-newBgColor mobile:bg-transparent"
                       />
                     </div>
+                  </div>
+                  <div className="hidden mobile:contents">
+                    <BottomSheetButton
+                      label={t('done', 'Done')}
+                      onClick={() => setShowSettings(false)}
+                    />
                   </div>
                   <style>
                     {`#social-settings [data-id="${current}"] {display: block !important;}`}
@@ -1087,7 +1202,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         {/* the top bar and the sheets take its place at 1025px and below */}
         <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center mobile:hidden">
           <div className="flex-1 flex ps-[20px] gap-[8px]">
-            {!dummy && (
+            {/* one tags control at a time: the Add Tag sheet has its own */}
+            {!dummy && mobileSheet !== 'tags' && (
               <TagsComponent
                 name="tags"
                 label={t('tags', 'Tags')}
@@ -1235,6 +1351,123 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             </div>
           )}
           <PicksSocialsComponent list={true} />
+        </BottomSheet>
+      )}
+      {/* A locked composer keeps the sheets' controls inert, as it does the
+          channel grid: a disabled fieldset disables every control in it. */}
+      {mobileSheet === 'settings' && (
+        <BottomSheet
+          title={t('settings', 'Settings')}
+          onClose={() => setMobileSheet(null)}
+        >
+          <fieldset
+            disabled={locked}
+            className="min-w-0 flex flex-col gap-[12px] pb-[30px]"
+          >
+            {hasChannelSettings && (
+              <BottomSheetRow
+                icon={<SettingsOutlineIcon size={24} />}
+                label={
+                  current === 'global'
+                    ? t('channels_settings', 'Channel Settings')
+                    : t('channel_name_settings', '{{name}} Settings', {
+                        name: isolate(
+                          integrations.find((p) => p.id === current)?.name
+                        ),
+                        interpolation: { escapeValue: false },
+                      })
+                }
+                onClick={() => {
+                  setMobileSheet(null);
+                  setShowSettings(true);
+                }}
+              />
+            )}
+            <BottomSheetRow
+              icon={<TagIcon width={24} height={24} />}
+              label={t('add_tag', 'Add Tag')}
+              onClick={() => setMobileSheet('tags')}
+            />
+            <BottomSheetRow
+              icon={<RepeatIcon size={24} />}
+              label={t('repeat_post', 'Repeat Post')}
+              onClick={() => setMobileSheet('repeat')}
+            />
+            {existingData?.integration && (
+              <button
+                type="button"
+                onClick={deletePost}
+                className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start text-error rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <TrashIcon size={24} />
+                <span className="text-[15px] font-[600]">
+                  {t('delete_post', 'Delete Post')}
+                </span>
+              </button>
+            )}
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'tags' && (
+        <BottomSheet
+          title={t('add_tag', 'Add Tag')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <TagsComponent
+              name="tags"
+              label={t('tags', 'Tags')}
+              initial={tags}
+              onChange={(e) => {
+                setTags(e.target.value);
+              }}
+              list={true}
+            />
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'repeat' && (
+        <BottomSheet
+          title={t('repeat_post', 'Repeat Post')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <RepeatComponent
+              repeat={repeater}
+              onChange={setRepeater}
+              list={true}
+            />
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'date' && (
+        <BottomSheet
+          title={t('change_date_or_time', 'Change Date or Time')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('save', 'Save'),
+            onClick: () => {
+              setPickerDate(dateDraft);
+              setMobileSheet(null);
+            },
+            disabled: locked,
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <DatePickerPanel
+              date={dateDraft}
+              onChange={setDateDraft}
+              sheet={true}
+            />
+          </fieldset>
         </BottomSheet>
       )}
       <CopilotPopup

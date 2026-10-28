@@ -65,6 +65,7 @@ jest.mock(
   () => {
     const { forwardRef, useImperativeHandle } = require('react');
     return {
+      Providers: [],
       ShowAllProviders: forwardRef((_props: any, ref: any): null => {
         useImperativeHandle(ref, () => ({
           getAllValues: async () => [
@@ -108,6 +109,16 @@ jest.mock('@gitroom/frontend/components/new-launch/dummy.code.component', () => 
 jest.mock('@gitroom/frontend/components/launches/creation.method.badge', () => ({
   CreationMethodBadge: () => null,
 }));
+// The settings sheet reads the providers' settings through their module,
+// which brings the channel previews; scenery, as in
+// high.order.provider.spec.tsx.
+jest.mock(
+  '@gitroom/frontend/components/launches/general.preview.component',
+  () => ({ GeneralPreviewComponent: () => null })
+);
+jest.mock('@gitroom/frontend/components/launches/internal.channels', () => ({
+  InternalChannels: () => null,
+}));
 jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   SettingsIcon: () => null,
   ChevronDownIcon: () => null,
@@ -119,6 +130,9 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   DropdownArrowIcon: () => null,
   EyeIcon: () => null,
   PlusIcon: () => null,
+  SettingsOutlineIcon: () => null,
+  TagIcon: () => null,
+  RepeatIcon: () => null,
 }));
 jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,

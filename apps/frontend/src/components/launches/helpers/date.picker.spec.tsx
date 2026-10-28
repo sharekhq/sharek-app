@@ -15,16 +15,28 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 // Scenery: the month grid above the time field. It keeps the props it was
 // rendered with, for the cases that pick a day as Mantine hands it over.
-let mockCalendarProps: { value?: Date; onChange?: (day: Date) => void } = {};
+type CalendarProps = {
+  value?: Date;
+  month?: Date;
+  onChange?: (day: Date) => void;
+  dayClassName?: (
+    day: Date,
+    modifiers: { selected?: boolean; outside?: boolean; weekend?: boolean }
+  ) => string;
+};
+let mockCalendarProps: CalendarProps = {};
 jest.mock('@mantine/dates', () => ({
   ...jest.requireActual('@mantine/dates'),
-  Calendar: (props: { value?: Date; onChange?: (day: Date) => void }): null => {
+  Calendar: (props: CalendarProps): null => {
     mockCalendarProps = props;
     return null;
   },
 }));
 
-import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
+import {
+  DatePicker,
+  DatePickerPanel,
+} from '@gitroom/frontend/components/launches/helpers/date.picker';
 import {
   browserTimezone,
   newDayjs,
@@ -244,5 +256,220 @@ describe('the date picker with a zone chosen', () => {
     const host = await open('12', jest.fn(), newDayjs('2026-10-21 12:30:00'));
 
     expect(line(host)).toMatch(/12:30 م$/);
+  });
+});
+
+// The date sheet at 1025px and below (spec 044, US3): a month grid, and the
+// time typed or stepped, in the date the sheet was opened with. Nothing reaches
+// the post until the sheet's Save (manage.modal.phone.spec.tsx).
+describe('the date sheet', () => {
+  const sheet = async (hours: '12' | '24', onChange = jest.fn(), date = at) => {
+    localStorage.setItem('isUS', hours === '12' ? 'US' : 'GLOBAL');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePickerPanel date={date} onChange={onChange} sheet={true} />
+      );
+    });
+    return host;
+  };
+
+  const button = (host: HTMLElement, name: string) =>
+    host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`)!;
+
+  const click = async (node: Element) => {
+    await act(async () => {
+      node.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  };
+
+  // React reads focus and blur from focusin and focusout, which bubble.
+  const focus = async (
+    input: HTMLInputElement,
+    name: 'focusin' | 'focusout'
+  ) => {
+    const { FocusEvent: DomFocusEvent } = window as unknown as {
+      FocusEvent: typeof FocusEvent;
+    };
+    await act(async () => {
+      input.dispatchEvent(new DomFocusEvent(name, { bubbles: true }));
+    });
+  };
+
+  const type = async (input: HTMLInputElement, text: string) => {
+    await focus(input, 'focusin');
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(input),
+        'value'
+      )!.set!;
+      setter.call(input, text);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await focus(input, 'focusout');
+  };
+
+  const changedTo = (onChange: jest.Mock) =>
+    onChange.mock.calls.at(-1)[0].format('YYYY-MM-DD HH:mm');
+
+  it('puts the chosen day on the tinted tile and today in brand text', async () => {
+    await sheet('24');
+    const { dayClassName } = mockCalendarProps;
+
+    expect(dayClassName!(new Date(2026, 9, 21), { selected: true })).toEqual(
+      expect.stringContaining('!bg-brandSoft2')
+    );
+    expect(dayClassName!(new Date(2026, 9, 21), { selected: true })).toEqual(
+      expect.stringContaining('!text-brandText')
+    );
+    expect(dayClassName!(new Date(), {})).toEqual(
+      expect.stringContaining('!text-brandText')
+    );
+    expect(dayClassName!(new Date(2026, 9, 1), { outside: true })).toEqual(
+      expect.stringContaining('!text-muted')
+    );
+  });
+
+  it('draws 44px days', async () => {
+    await sheet('24');
+
+    expect(
+      mockCalendarProps.dayClassName!(new Date(2026, 9, 21), {}).split(' ')
+    ).toEqual(expect.arrayContaining(['!h-[44px]', '!leading-[44px]']));
+  });
+
+  it('steps the month with two named 44px buttons, mirrored right to left', async () => {
+    const host = await sheet('24');
+
+    for (const name of ['Previous month', 'Next month']) {
+      const arrow = button(host, name);
+      expect(arrow.getAttribute('type')).toBe('button');
+      expect(arrow.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          'w-[44px]',
+          'h-[44px]',
+          'focus-visible:ring-brand',
+        ])
+      );
+      expect(arrow.querySelector('svg')!.getAttribute('class')).toContain(
+        'rtl:rotate-180'
+      );
+    }
+    await click(button(host, 'Next month'));
+
+    expect(dayjs(mockCalendarProps.month).format('YYYY-MM')).toBe('2026-11');
+  });
+
+  it('wraps the hours and the minutes past the ends of their range', async () => {
+    const onChange = jest.fn();
+    const host = await sheet('24', onChange, dayjs('2026-10-21 23:59'));
+
+    await click(button(host, 'Increase hours'));
+    expect(changedTo(onChange)).toBe('2026-10-21 00:59');
+
+    await click(button(host, 'Increase minutes'));
+    expect(changedTo(onChange)).toBe('2026-10-21 23:00');
+
+    await click(button(host, 'Decrease minutes'));
+    expect(changedTo(onChange)).toBe('2026-10-21 23:58');
+  });
+
+  it('names each stepper and makes it a 44px button', async () => {
+    const host = await sheet('24');
+
+    for (const name of [
+      'Increase hours',
+      'Decrease hours',
+      'Increase minutes',
+      'Decrease minutes',
+    ]) {
+      expect(button(host, name).className.split(' ')).toEqual(
+        expect.arrayContaining(['w-[44px]', 'h-[44px]'])
+      );
+    }
+  });
+
+  it('keeps a typed time inside its range', async () => {
+    const onChange = jest.fn();
+    const host = await sheet('24', onChange);
+    const [hours, minutes] = Array.from(host.querySelectorAll('input'));
+
+    await type(hours, '99');
+    expect(changedTo(onChange)).toBe('2026-10-21 23:30');
+
+    await type(minutes, '75');
+    expect(changedTo(onChange)).toBe('2026-10-21 21:59');
+  });
+
+  it('names the two halves of the day in the interface language and moves between them', async () => {
+    words = { am: 'ص', pm: 'م' };
+    const onChange = jest.fn();
+    const host = await sheet('12', onChange);
+    const halves = Array.from(host.querySelectorAll('button')).filter((node) =>
+      node.hasAttribute('aria-pressed')
+    );
+
+    expect(halves.map((half) => half.textContent)).toEqual(['ص', 'م']);
+    expect(halves.map((half) => half.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'true',
+    ]);
+    await click(halves[0]);
+
+    expect(changedTo(onChange)).toBe('2026-10-21 09:30');
+  });
+
+  it("keeps the time in the account's zone", async () => {
+    setUserTimezone('Asia/Tokyo');
+    const onChange = jest.fn();
+    const host = await sheet('24', onChange, newDayjs('2026-10-21 21:30:00'));
+
+    await click(button(host, 'Increase minutes'));
+
+    // 21:31 in Tokyo
+    expect(onChange.mock.calls[0][0].utc().format()).toBe(
+      '2026-10-21T12:31:00Z'
+    );
+  });
+});
+
+describe('the date picker opening somewhere else', () => {
+  it('calls onOpen instead of opening its popover', async () => {
+    const onOpen = jest.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePicker date={at} onChange={jest.fn()} onOpen={onOpen} />
+      );
+    });
+
+    await act(async () => {
+      host.firstElementChild!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('input')).toBeNull();
+  });
+
+  it('is 44px tall in the top bar', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(<DatePicker date={at} onChange={jest.fn()} />);
+    });
+
+    const classes = host.firstElementChild!.className.split(' ');
+    expect(classes).toContain('h-[44px]');
+    expect(classes.filter((name) => name.startsWith('mobile:h-'))).toEqual([]);
   });
 });

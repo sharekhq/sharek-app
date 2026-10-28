@@ -34,6 +34,15 @@ let postsValid: Check[] = [];
 let existing = {} as Existing;
 let inPost: string[] = [];
 let assistant: { className?: string } = {};
+// The channels whose provider has settings of its own, as the providers'
+// registry reports them.
+const mockProviders: Array<{ identifier: string; component: unknown }> = [];
+// What the date sheet's panel was handed last.
+let mockPanel: {
+  date: dayjs.Dayjs;
+  onChange: (date: dayjs.Dayjs) => void;
+  sheet?: boolean;
+} = { date: dayjs(), onChange: () => undefined };
 
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => undefined }),
@@ -74,7 +83,7 @@ jest.mock(
     const { forwardRef, useImperativeHandle } =
       jest.requireActual<typeof import('react')>('react');
     return {
-      Providers: [],
+      Providers: mockProviders,
       ShowAllProviders: forwardRef((_props, ref) => {
         useImperativeHandle(ref, () => ({
           getAllValues: async () =>
@@ -107,16 +116,35 @@ jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/helpers/date.picker', () => ({
-  DatePicker: (props: { date: dayjs.Dayjs }) => (
-    <span data-date="">{props.date.format('DD/MM/YYYY')}</span>
+  DatePicker: (props: { date: dayjs.Dayjs; onOpen?: () => void }) => (
+    <button type="button" data-date="" onClick={props.onOpen}>
+      {props.date.format('DD/MM/YYYY')}
+    </button>
   ),
+  DatePickerPanel: (props: typeof mockPanel) => {
+    mockPanel = props;
+    return <i data-panel="" />;
+  },
 }));
 jest.mock('@gitroom/frontend/components/launches/repeat.component', () => ({
-  RepeatComponent: () => null,
+  RepeatComponent: (props: { list?: boolean }) => (
+    <button type="button" data-repeat={props.list ? 'list' : 'dropdown'} />
+  ),
 }));
 jest.mock('@gitroom/frontend/components/launches/tags.component', () => ({
-  TagsComponent: () => null,
+  TagsComponent: (props: { list?: boolean }) => (
+    <button type="button" data-tags={props.list ? 'list' : 'dropdown'} />
+  ),
   Check: () => null,
+}));
+// The providers' module brings the channel previews; scenery, as in
+// high.order.provider.spec.tsx.
+jest.mock(
+  '@gitroom/frontend/components/launches/general.preview.component',
+  () => ({ GeneralPreviewComponent: () => null })
+);
+jest.mock('@gitroom/frontend/components/launches/internal.channels', () => ({
+  InternalChannels: () => null,
 }));
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/platform-label',
@@ -166,6 +194,7 @@ beforeAll(async () => {
 beforeEach(() => {
   requests.length = 0;
   assistant = {};
+  mockProviders.length = 0;
   existing = {} as Existing;
   postsValid = [instagram, tiktok].map((p) => ({
     ...p,
@@ -481,5 +510,293 @@ describe('a post that already exists', () => {
     ).toBeNull();
     expect(row.className.split(' ')).not.toContain('mobile:hidden');
     expect(row.querySelector('button[aria-label="Preview"]')).toBeTruthy();
+  });
+});
+
+// US3: the gear's Settings sheet, the tags, repeat and date sheets, and the
+// channel settings pane, each closed by Escape without closing the post.
+const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const sheetTitle = () =>
+  document.getElementById(sheet()!.getAttribute('aria-labelledby')!)!
+    .textContent;
+const gear = (host: HTMLElement) =>
+  host.querySelector<HTMLButtonElement>('button[aria-label="Settings"]');
+// A row's or a button's text, with the isolation marks around a name taken out.
+const label = (node: Element) =>
+  (node.textContent || '').replace(/[⁨⁩]/g, '').trim();
+const rowNamed = (text: string) =>
+  Array.from(sheet()!.querySelectorAll('button')).find(
+    (button) => label(button) === text
+  );
+const withSettings = (identifier: string) =>
+  mockProviders.push({
+    identifier,
+    component: { __settings: { SettingsComponent: () => null } },
+  });
+const keydown = async (target: Element, key: string) => {
+  await act(async () => {
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key, code: key, bubbles: true })
+    );
+  });
+};
+// At 1025px and below, as the media query reports it.
+const smallScreen = (matches: boolean) => {
+  window.matchMedia = ((query: string) => ({
+    matches,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  })) as unknown as typeof window.matchMedia;
+};
+const openExistingPost = async (props: Partial<AddEditModalProps> = {}) => {
+  existing = {
+    integration: 'int-1',
+    group: 'g-1',
+    posts: [{ id: 'p-1', state: 'DRAFT' }],
+  } as unknown as Existing;
+  const host = await open(props);
+  await act(async () => {
+    useLaunchStore.setState({ current: 'int-1' });
+  });
+  return host;
+};
+
+describe('the gear', () => {
+  it('is a named 44px button with a focus ring beside the eye', async () => {
+    const host = await open();
+
+    expect(gear(host)!.getAttribute('type')).toBe('button');
+    expect(gear(host)!.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'w-[44px]',
+        'h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
+
+  it('is not there when the composer only builds an output', async () => {
+    const host = await open({ dummy: true });
+
+    expect(gear(host)).toBeNull();
+  });
+
+  it('sits on the circle row of a post that already exists', async () => {
+    const host = await openExistingPost();
+    const row =
+      host.querySelector('[data-badge]')!.parentElement!.parentElement!;
+
+    expect(row.querySelector('button[aria-label="Settings"]')).toBeTruthy();
+  });
+});
+
+describe('the Settings sheet', () => {
+  it('offers Add Tag and Repeat Post, and no channel settings when no channel has any', async () => {
+    const host = await open();
+    await press(gear(host));
+
+    expect(sheetTitle()).toBe('Settings');
+    expect(rowNamed('Add Tag')).toBeTruthy();
+    expect(rowNamed('Repeat Post')).toBeTruthy();
+    expect(rowNamed('Channel Settings')).toBeUndefined();
+    expect(rowNamed('Delete Post')).toBeUndefined();
+  });
+
+  it('offers the channels’ settings when one of the picked channels has some', async () => {
+    withSettings('tiktok');
+    const host = await open();
+    await press(gear(host));
+
+    expect(rowNamed('Channel Settings')).toBeTruthy();
+  });
+
+  it('names the channel in view, and offers Delete Post, on a post that already exists', async () => {
+    withSettings('instagram');
+    const host = await openExistingPost();
+    await press(gear(host));
+
+    expect(rowNamed('Acme Inc. Settings')).toBeTruthy();
+    const remove = rowNamed('Delete Post')!;
+    expect(remove.className.split(' ')).toEqual(
+      expect.arrayContaining(['min-h-[44px]', 'text-error'])
+    );
+  });
+
+  it('opens the channel settings pane from its row and closes itself', async () => {
+    withSettings('tiktok');
+    const host = await open();
+    await press(gear(host));
+
+    await press(rowNamed('Channel Settings'));
+
+    expect(sheet()).toBeNull();
+    expect(host.querySelector('#wrapper-settings')!.className).toContain(
+      'flex-1'
+    );
+  });
+
+  it('opens the Add Tag sheet, the only tags control mounted while it is open', async () => {
+    const host = await open();
+    await press(gear(host));
+
+    await press(rowNamed('Add Tag'));
+
+    expect(sheetTitle()).toBe('Add Tag');
+    expect(
+      Array.from(document.querySelectorAll('[data-tags]')).map((node) =>
+        node.getAttribute('data-tags')
+      )
+    ).toEqual(['list']);
+  });
+
+  it('opens the Repeat Post sheet with the list of choices', async () => {
+    const host = await open();
+    await press(gear(host));
+
+    await press(rowNamed('Repeat Post'));
+
+    expect(sheetTitle()).toBe('Repeat Post');
+    expect(sheet()!.querySelector('[data-repeat="list"]')).toBeTruthy();
+  });
+});
+
+describe('the date sheet', () => {
+  const openDate = async () => {
+    const host = await open();
+    await press(host.querySelector('.sticky [data-date]'));
+    return host;
+  };
+  const moved = dayjs().add(9, 'day');
+
+  it('opens from the date in the top bar, on the post’s date', async () => {
+    await openDate();
+
+    expect(sheetTitle()).toBe('Change Date or Time');
+    expect(mockPanel.sheet).toBe(true);
+    expect(mockPanel.date.isSame(useLaunchStore.getState().date)).toBe(true);
+  });
+
+  it('changes the post’s date on Save', async () => {
+    await openDate();
+    await act(async () => mockPanel.onChange(moved));
+
+    expect(useLaunchStore.getState().date.isSame(moved)).toBe(false);
+    await press(rowNamed('Save'));
+
+    expect(useLaunchStore.getState().date.isSame(moved)).toBe(true);
+    expect(sheet()).toBeNull();
+  });
+
+  it('leaves the date alone when it is closed instead', async () => {
+    await openDate();
+    const date = useLaunchStore.getState().date;
+    await act(async () => mockPanel.onChange(moved));
+
+    await press(sheet()!.querySelector('button[aria-label="Close"]'));
+
+    expect(useLaunchStore.getState().date).toBe(date);
+  });
+});
+
+describe('Escape', () => {
+  // The composer's own Escape (new-modal's useHotkeys) asks to close the post;
+  // it listens on the node React listens on, modelled here on React's root.
+  const composerEscape = jest.fn();
+  beforeEach(() => composerEscape.mockClear());
+  const listen = (host: HTMLElement) =>
+    host.parentElement!.addEventListener('keydown', composerEscape);
+
+  it('closes a sheet and leaves the composer open', async () => {
+    const host = await open();
+    listen(host);
+    await press(gear(host));
+
+    await keydown(sheet()!, 'Escape');
+
+    expect(sheet()).toBeNull();
+    expect(host.querySelector('[data-editor]')).toBeTruthy();
+    expect(composerEscape).not.toHaveBeenCalled();
+  });
+
+  describe('in the channel settings pane', () => {
+    const openPane = async () => {
+      withSettings('tiktok');
+      const host = await open();
+      listen(host);
+      await press(gear(host));
+      await press(rowNamed('Channel Settings'));
+      return host;
+    };
+    const pane = (host: HTMLElement) =>
+      host.querySelector<HTMLElement>('#wrapper-settings')!;
+
+    afterEach(() => smallScreen(false));
+
+    it('takes the focus at 1025px and below, and closes on Escape alone', async () => {
+      smallScreen(true);
+      const host = await openPane();
+
+      expect(document.activeElement).toBe(pane(host));
+      await keydown(pane(host), 'Escape');
+
+      expect(pane(host).className).not.toContain('flex-1');
+      expect(composerEscape).not.toHaveBeenCalled();
+    });
+
+    it('leaves Escape to the composer from 1026px up, where it is the inline panel', async () => {
+      smallScreen(false);
+      const host = await openPane();
+
+      expect(pane(host).hasAttribute('tabindex')).toBe(false);
+      await keydown(pane(host), 'Escape');
+
+      expect(pane(host).className).toContain('flex-1');
+      expect(composerEscape).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe('a locked composer', () => {
+  const lock = async () => {
+    await act(async () => {
+      useLaunchStore.setState({ locked: true });
+    });
+  };
+  const fieldset = () => sheet()!.querySelector('fieldset');
+
+  it.each(['Add Tag', 'Repeat Post'])(
+    'keeps the controls of the %s sheet inert',
+    async (row) => {
+      const host = await open();
+      await press(gear(host));
+      await press(rowNamed(row));
+      await lock();
+
+      expect(fieldset()!.disabled).toBe(true);
+      expect(
+        fieldset()!.querySelector('[data-tags], [data-repeat]')
+      ).toBeTruthy();
+    }
+  );
+
+  it('keeps the Settings sheet’s rows inert', async () => {
+    const host = await open();
+    await press(gear(host));
+    await lock();
+
+    expect(fieldset()!.disabled).toBe(true);
+    expect(fieldset()!.contains(rowNamed('Add Tag')!)).toBe(true);
+  });
+
+  it('keeps the date sheet’s controls inert and its Save disabled', async () => {
+    const host = await open();
+    await press(host.querySelector('.sticky [data-date]'));
+    await lock();
+
+    expect(fieldset()!.disabled).toBe(true);
+    expect(fieldset()!.querySelector('[data-panel]')).toBeTruthy();
+    expect(rowNamed('Save')!.disabled).toBe(true);
   });
 });
