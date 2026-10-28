@@ -429,25 +429,26 @@ export const EditorWrapper: FC<{
         )}
       </div>
       {!!internal && !existingData?.integration && (
-        <div
-          className="mt-[12px] flex gap-[20px] items-center cursor-pointer select-none mobile:mt-0 mobile:w-[44px] mobile:h-[44px] mobile:justify-center mobile:rounded-[8px] mobile:bg-btnSimple"
+        <button
+          type="button"
+          className="mt-[12px] flex gap-[20px] items-center cursor-pointer select-none rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand mobile:mt-0 mobile:w-[44px] mobile:h-[44px] mobile:justify-center mobile:bg-btnSimple"
           onClick={goBackToGlobal}
         >
-          <div className="flex gap-[6px] items-center mobile:hidden">
-            <div className="w-[8px] h-[8px] rounded-full bg-brand" />
-            <div className="text-[14px] font-[600]">
+          <span className="flex gap-[6px] items-center mobile:hidden">
+            <span className="w-[8px] h-[8px] rounded-full bg-brand" />
+            <span className="text-[14px] font-[600]">
               {t('editing_a_specific_network', 'Editing a Specific Network')}
-            </div>
-          </div>
-          <div className="flex gap-[6px] items-center">
-            <div>
-              <ResetIcon />
-            </div>
-            <div className="text-[13px] font-[600] mobile:hidden">
+            </span>
+          </span>
+          <span className="flex gap-[6px] items-center">
+            <ResetIcon />
+            {/* icon only at 1025px and below; the name stays for screen
+                readers */}
+            <span className="text-[13px] font-[600] mobile:sr-only">
               {t('back_to_global', 'Back to global')}
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </button>
       )}
     </div>
   );
@@ -584,7 +585,7 @@ export const EditorWrapper: FC<{
                   'flex flex-col items-center gap-[10px] pe-[12px]',
                   // at 1025px and below the icons sit in the corner, beside
                   // the first line
-                  'mobile:absolute mobile:top-[24px] mobile:end-0 mobile:z-[100] mobile:flex-row-reverse mobile:gap-[12px] mobile:pe-0',
+                  'mobile:absolute mobile:top-[12px] mobile:end-0 mobile:z-[100] mobile:flex-row-reverse mobile:gap-0 mobile:pe-0',
                   // the first post cannot be deleted there
                   index === 0 && 'mobile:hidden'
                 )}
@@ -597,15 +598,19 @@ export const EditorWrapper: FC<{
                   />
                 </div>
                 {items.length > 1 && (
-                  <TrashIcon
+                  <button
+                    type="button"
                     onClick={deletePost(index)}
+                    aria-label={t('delete_post_tooltip', 'Delete Post')}
                     data-tooltip-id="tooltip"
                     data-tooltip-content={t(
                       'delete_post_tooltip',
                       'Delete Post'
                     )}
-                    className="cursor-pointer text-error"
-                  />
+                    className="flex items-center justify-center cursor-pointer text-error rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px]"
+                  >
+                    <TrashIcon />
+                  </button>
                 )}
                 {index > 0 && (
                   <DelayComponent currentIndex={index} currentDelay={g.delay} />
@@ -917,9 +922,16 @@ export const Editor: FC<{
     if (!flat || !active || !viewport) {
       return;
     }
+    // From 1026px up a shrunken visual viewport is a pinch zoom, not a
+    // keyboard, and nothing there is pinned.
     const update = () => {
       setKeyboard(
-        Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        window.matchMedia(MOBILE_QUERY).matches
+          ? Math.max(
+              0,
+              window.innerHeight - viewport.height - viewport.offsetTop
+            )
+          : 0
       );
     };
     update();
@@ -984,8 +996,8 @@ export const Editor: FC<{
                   'px-[10px] pt-[10px] bg-newBgColorInner rounded-t-[5px] relative z-[99]',
                   flat && 'mobile:px-0 mobile:pt-0',
                   flat && !active && 'mobile:text-textItemBlur',
-                  // room for the delay and delete icons of a comment
-                  flat && !!num && 'mobile:pe-[68px]'
+                  // room for a comment's 44px delete and delay buttons
+                  flat && !!num && 'mobile:pe-[92px]'
                 )}
               >
                 <OnlyEditor
@@ -1137,9 +1149,15 @@ export const Editor: FC<{
                                 ? 'top-[35px]'
                                 : 'bottom-[35px]',
                               // the tool bar scrolls at 1025px and below and would
-                              // cut the picker off
-                              'mobile:fixed mobile:inset-x-0 mobile:top-auto mobile:bottom-[72px] mobile:flex mobile:justify-center mobile:pointer-events-none mobile:child:pointer-events-auto'
+                              // cut the picker off: it opens 4px above the bar,
+                              // which rides on the keyboard
+                              'mobile:fixed mobile:inset-x-0 mobile:top-auto mobile:bottom-[calc(72px+env(safe-area-inset-bottom))] mobile:flex mobile:justify-center mobile:pointer-events-none mobile:child:pointer-events-auto'
                             )}
+                            style={
+                              flat && active && keyboard
+                                ? { bottom: keyboard + 72 }
+                                : undefined
+                            }
                           >
                             <EmojiPicker
                               height={400}
@@ -1161,7 +1179,7 @@ export const Editor: FC<{
                       flat
                         ? active
                           ? clsx(
-                              'post-toolbar mobile:fixed mobile:bottom-0 mobile:inset-x-0 mobile:items-center mobile:px-[16px] mobile:py-[12px] mobile:bg-newBgColorInner',
+                              'post-toolbar mobile:fixed mobile:bottom-0 mobile:inset-x-0 mobile:items-center mobile:px-[16px] mobile:pt-[12px] mobile:pb-[calc(12px+env(safe-area-inset-bottom))] mobile:bg-newBgColorInner',
                               // the picker opens from the bar and has to cover
                               // the top bar
                               emojiPickerOpen
@@ -1172,8 +1190,9 @@ export const Editor: FC<{
                         : undefined
                     }
                     toolsStyle={
+                      // above the keyboard there is no home indicator to clear
                       flat && active && keyboard
-                        ? { bottom: keyboard }
+                        ? { bottom: keyboard, paddingBottom: 12 }
                         : undefined
                     }
                     toolBarEnd={

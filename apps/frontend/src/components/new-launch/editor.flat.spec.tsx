@@ -34,14 +34,17 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
 jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   MultiMediaComponent: (props: {
     toolsClassName?: string;
-    toolsStyle?: { bottom?: number };
+    toolsStyle?: { bottom?: number; paddingBottom?: number };
+    toolBar?: ReactElement;
     toolBarEnd?: ReactElement;
   }) => (
     <div
       data-tools=""
       className={props.toolsClassName}
       data-bottom={props.toolsStyle?.bottom}
+      data-pad={props.toolsStyle?.paddingBottom}
     >
+      {props.toolBar}
       {props.toolBarEnd}
     </div>
   ),
@@ -180,7 +183,9 @@ describe('the tool bar of the post being written', () => {
         'mobile:bottom-0',
         'mobile:inset-x-0',
         'mobile:px-[16px]',
-        'mobile:py-[12px]',
+        'mobile:pt-[12px]',
+        // the home indicator's room under the bar, until the keyboard covers it
+        'mobile:pb-[calc(12px+env(safe-area-inset-bottom))]',
         'mobile:z-[440]',
       ])
     );
@@ -193,11 +198,43 @@ describe('the tool bar of the post being written', () => {
 
     await move('resize', 360);
     expect(tools(host)[0].getAttribute('data-bottom')).toBe('300');
+    // no home-indicator room above the keyboard
+    expect(tools(host)[0].getAttribute('data-pad')).toBe('12');
 
     await move('scroll', 360, 40);
     expect(tools(host)[0].getAttribute('data-bottom')).toBe('260');
 
     await move('resize', 660);
+    expect(tools(host)[0].hasAttribute('data-bottom')).toBe(false);
+    expect(tools(host)[0].hasAttribute('data-pad')).toBe(false);
+  });
+
+  // The emoji picker opens from the bar, so it rides with it.
+  it('opens the emoji picker just above the bar, the keyboard included', async () => {
+    const { host } = await render(post());
+    const picker = () =>
+      Array.from(host.querySelectorAll<HTMLElement>('div')).find((node) =>
+        node.className.includes('mobile:fixed mobile:inset-x-0')
+      )!;
+
+    expect(picker().className).toContain(
+      'mobile:bottom-[calc(72px+env(safe-area-inset-bottom))]'
+    );
+    expect(picker().style.bottom).toBe('');
+
+    await move('resize', 360);
+
+    expect(picker().style.bottom).toBe('372px');
+  });
+
+  // From 1026px up a shrunken visual viewport is a pinch zoom, not a keyboard:
+  // nothing moves.
+  it('ignores the visual viewport from 1026px up', async () => {
+    mobile = false;
+    const { host } = await render(post());
+
+    await move('resize', 360);
+
     expect(tools(host)[0].hasAttribute('data-bottom')).toBe(false);
   });
 
@@ -263,6 +300,27 @@ describe('a post with comments', () => {
     return render(<EditorWrapper totalPosts={2} value="" />);
   };
 
+  // A comment's corner controls at 1025px and below: real buttons, named,
+  // 44px each, reachable from the keyboard.
+  it('makes a comment’s delete and delay named 44px buttons', async () => {
+    const { host } = await thread();
+
+    for (const name of ['Delete Post', 'Delay comment']) {
+      const control = host.querySelector<HTMLButtonElement>(
+        `button[aria-label="${name}"]`
+      )!;
+      expect(control.getAttribute('type')).toBe('button');
+      expect(control.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          'mobile:w-[44px]',
+          'mobile:h-[44px]',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+    }
+  });
+
   it('pins the last post’s bar and hides the first one’s', async () => {
     const { host } = await thread();
     const [first, last] = tools(host);
@@ -327,5 +385,40 @@ describe('a tap on an empty part of the post', () => {
     });
 
     expect(editorOf(host).isFocused).toBe(false);
+  });
+});
+
+// A channel edited on its own, at the end of the pinned bar at 1025px and
+// below: icon only, still a named button.
+describe('back to global', () => {
+  it('is a button whose name stays for screen readers when the label hides', async () => {
+    const integration = { id: 'int-1', identifier: 'instagram', name: 'Acme' };
+    await act(async () => {
+      useLaunchStore.getState().reset();
+      useLaunchStore.setState({
+        current: 'int-1',
+        comments: true,
+        integrations: [integration] as unknown as Store['integrations'],
+        internal: [
+          {
+            integration,
+            integrationValue: [
+              { id: 'p-1', content: '<p>First</p>', delay: 0, media: [] },
+            ],
+          },
+        ] as unknown as Store['internal'],
+      });
+    });
+    const { host } = await render(<EditorWrapper totalPosts={1} value="" />);
+    const back = Array.from(host.querySelectorAll('button')).find((button) =>
+      (button.textContent || '').includes('Back to global')
+    )!;
+    const text = Array.from(back.querySelectorAll('span'))
+      .filter((span) => span.textContent === 'Back to global')
+      .at(-1)!;
+
+    expect(back.getAttribute('type')).toBe('button');
+    expect(back.className).toContain('focus-visible:ring-brand');
+    expect(text.className.split(' ')).toContain('mobile:sr-only');
   });
 });
