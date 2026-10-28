@@ -86,10 +86,11 @@ const makeService = (paymentId: string | null) => {
   return { service, subscriptionService };
 };
 
-// The super-admin "add subscription" dropdown comps a plan with no Stripe object
-// at all: addSubscription writes the granting user's id into org.paymentId. Handing
-// that to Stripe throws "No such customer", which the admin modal swallows — it
-// closes and reloads either way — so the plan silently stayed put.
+// The super-admin "add subscription" dropdown comps a plan with no Stripe
+// subscription behind it. It used to also write the comped user's id into
+// org.paymentId, and orgs comped that way still hold it. Handing that to Stripe
+// throws "No such customer", which the admin modal swallows — it closes and
+// reloads either way — so the plan silently stayed put.
 const COMPED_PAYMENT_ID = '4f2d9c1a-6b7e-4d3f-8a15-683a352586c4';
 
 describe('cancelSubscription', () => {
@@ -124,13 +125,34 @@ describe('cancelSubscription', () => {
     );
   });
 
+  // A comp now leaves paymentId alone, so the org keeps the customer its paywall
+  // opened before the comp. With no Stripe subscription behind the plan, it is
+  // still a comp.
+  it('drops a comp on an org that kept its real customer, and keeps the customer for a later checkout', async () => {
+    const { service, subscriptionService } = makeService('cus_123');
+    mockSubscriptionsList.mockResolvedValue({ data: [] });
+
+    await expect(service.cancelSubscription('org-1')).resolves.toEqual({
+      cancelled: true,
+    });
+
+    expect(subscriptionService.deleteSubscriptionByOrgId).toHaveBeenCalledWith(
+      'org-1',
+      'stripe'
+    );
+    expect(mockSubscriptionsCancel).not.toHaveBeenCalled();
+    expect(subscriptionService.updateCustomerId).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['a comped org', COMPED_PAYMENT_ID],
     ['an org that never had a payment id', null],
+    ['an org with a real customer and no Stripe subscription', 'cus_123'],
   ])(
     'throws when %s has no subscription row to remove',
     async (_name, paymentId) => {
       const { service, subscriptionService } = makeService(paymentId);
+      mockSubscriptionsList.mockResolvedValue({ data: [] });
       subscriptionService.deleteSubscriptionByOrgId.mockResolvedValue(false);
 
       await expect(service.cancelSubscription('org-1')).rejects.toThrow(

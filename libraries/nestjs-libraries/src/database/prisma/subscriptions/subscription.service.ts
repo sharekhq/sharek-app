@@ -433,24 +433,18 @@ export class SubscriptionService {
     };
   }
 
-  async addSubscription(
-    orgId: string,
-    userId: string,
-    subscription: any,
-    provider: string
-  ) {
-    await this._subscriptionRepository.setCustomerId(orgId, userId);
-    return this.createOrUpdateSubscription(
-      provider,
+  // A comp has no Stripe subscription, so it is stored by organization and
+  // paymentId keeps the customer the paywall opened, if any.
+  async addSubscription(orgId: string, subscription: any, provider: string) {
+    return this.createOrUpdateSubscriptionByOrg(
       false,
+      orgId,
+      provider,
       makeId(5),
-      userId,
       pricing[subscription].channel!,
       subscription,
       'MONTHLY',
-      null,
-      undefined,
-      orgId
+      null
     );
   }
 }

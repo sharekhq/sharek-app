@@ -558,6 +558,7 @@
   "billing_channels_more": "{{count}}+",
   "billing_capability_line": "نصوص وصور وفيديو وصوت، تنشأ داخل التطبيق",
   "billing_stripe_load_failed": "تعذر تحميل نموذج الدفع. يرجى تعطيل أدوات حظر الإعلانات أو إضافات الخصوصية لهذه الصفحة وإعادة تحميلها.",
+  "billing_checkout_failed": "تعذر تحميل نموذج الدفع. يرجى المحاولة مرة أخرى بعد قليل.",
   "billing_no_risk_trial": "تجربة مجانية بدون أي مخاطرة ‎100%",
   "billing_pay_nothing_7_days": "لا تدفع شيئًا لأول 7 أيام",
   "billing_cancel_anytime": "يمكنك الإلغاء في أي وقت من الإعدادات",
