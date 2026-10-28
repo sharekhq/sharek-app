@@ -621,3 +621,138 @@ test('138: the wrapper variant reaches the control inside it', async () => {
   assert.match(css, /@media \(max-width: 1025px\)/);
   assert.match(css, /justify-content: center !important/);
 });
+
+// ---------------------------------------------------------------------------
+// 047 — small-screen pages. Analytics, Samy, Settings, Webhooks and Signatures
+// move layout from `phone:` to `mobile:`, so the iPad held upright gets the
+// strips, the tab row and the cards too. Every form below changes a layout
+// that would otherwise simply not change. This block holds the forms two
+// stories share and the helpers the stories' own blocks use; each story's
+// forms follow in a block of their own, so any story can be reverted alone.
+// ---------------------------------------------------------------------------
+const unescape = (sel) =>
+  sel.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) =>
+    hex ? String.fromCodePoint(parseInt(hex, 16)) : ch
+  );
+
+// Like `emitted`, but with every at-rule around the rule, outermost first: a
+// stacked `mobile:coarse:` variant nests one media query inside the other, and
+// `emitted` reads only the nearest.
+function emittedNested(css, className) {
+  const found = [];
+  postcss.parse(css).walkRules((rule) => {
+    const classes = rule.selector
+      .split(',')
+      .map((sel) => sel.trim())
+      .filter((sel) => sel.startsWith('.'))
+      .map((sel) => unescape(sel.slice(1)));
+    if (!classes.includes(className)) return;
+    const atRules = [];
+    for (
+      let node = rule.parent;
+      node && node.type === 'atrule';
+      node = node.parent
+    ) {
+      atRules.unshift(collapse(node.params));
+    }
+    rule.walkDecls((decl) =>
+      found.push({ atRules, prop: decl.prop, value: collapse(decl.value) })
+    );
+  });
+  return found;
+}
+
+async function assertFormsEmit(forms) {
+  const css = await emit(forms.map((f) => f.className));
+
+  for (const form of forms) {
+    const decls = emitted(css, form.className);
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some(
+        (d) =>
+          d.atRule === form.atRule &&
+          d.prop === form.prop &&
+          d.value === form.value
+      ),
+      `${form.className} did not emit ${form.prop}: ${
+        form.value
+      } inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+}
+
+const PAGES_SHARED_FORMS = [
+  {
+    // Both strips (Analytics, Samy) and the Signatures panel pad 12px on a
+    // phone or an iPad, where the desktop column pads 20px.
+    className: 'mobile:p-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding',
+    value: '12px',
+  },
+  {
+    // The strips' leading inset, logical so it sits at the right in Arabic.
+    className: 'mobile:ps-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-inline-start',
+    value: '12px',
+  },
+  {
+    className: 'mobile:pt-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '6px',
+  },
+  {
+    className: 'mobile:pb-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-bottom',
+    value: '6px',
+  },
+  {
+    // The Settings tab row and Samy's chat strip space their items 8px apart.
+    className: 'mobile:gap-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '8px',
+  },
+];
+
+test('047: every class form two small-screen stories share emits CSS', async () => {
+  await assertFormsEmit(PAGES_SHARED_FORMS);
+});
+
+test('047: the avatar tap box gives back its growth only on a touch screen up to 1025px', async () => {
+  // An avatar item is `coarse:min-w-[44px]` (and min-h) so it is a 44px tap
+  // box, and `mobile:coarse:-m-[4px]` hands the growth back to the strip so the
+  // avatars sit where they sit on a fine pointer. The margin has to be inside
+  // BOTH media queries: on a desktop touch screen the column must not lose 4px
+  // a side, and on a phone with a mouse there is no growth to give back.
+  const css = await emit(['coarse:min-w-[44px]', 'mobile:coarse:-m-[4px]']);
+
+  assert.deepEqual(emittedNested(css, 'mobile:coarse:-m-[4px]'), [
+    {
+      atRules: ['(max-width: 1025px)', '(pointer: coarse)'],
+      prop: 'margin',
+      value: '-4px',
+    },
+  ]);
+
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  assert.ok(
+    order.indexOf('coarse:min-w-[44px]') <
+      order.indexOf('mobile:coarse:-m-[4px]'),
+    `the stacked margin must follow the floor it compensates, got ${JSON.stringify(
+      order
+    )}`
+  );
+});
