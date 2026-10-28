@@ -80,7 +80,11 @@ export const Webhooks: FC = () => {
               {data?.map((p: any) => (
                 <div key={p.id} className="contents phone:flex phone:flex-col phone:gap-[10px] phone:p-[14px] phone:border phone:border-fifth phone:rounded-[8px]">
                   <div className="flex flex-col justify-center">{p.name}</div>
-                  <div className="flex flex-col justify-center">{p.url}</div>
+                  <div className="flex flex-col justify-center min-w-0 [overflow-wrap:anywhere]">
+                    <span>
+                      <bdi dir="ltr">{p.url}</bdi>
+                    </span>
+                  </div>
                   <div className="flex flex-col justify-center">
                     <div>
                       <Button onClick={addWebhook(p)}>
