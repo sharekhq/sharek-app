@@ -854,3 +854,51 @@ const SAMY_STRIP_FORMS = [
 test('047 US2: the Samy strip and chat-fit forms emit CSS', async () => {
   await assertFormsEmit(SAMY_STRIP_FORMS);
 });
+
+// 047 US6 — Signatures as cards up to 1025px. Sharek's card skin (14px
+// padding, 8px corners, 10px between lines, 12px between cards), the muted
+// 12px "Auto Add?" line, and the 12px side padding of a button that fills
+// its line.
+const SIGNATURE_CARD_FORMS = [
+  {
+    className: 'mobile:gap-y-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'row-gap',
+    value: '12px',
+  },
+  {
+    className: 'mobile:gap-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '10px',
+  },
+  {
+    className: 'mobile:p-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding',
+    value: '14px',
+  },
+  {
+    className: 'mobile:rounded-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-radius',
+    value: '8px',
+  },
+  {
+    className: 'mobile:text-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'font-size',
+    value: '12px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '12px',
+  },
+];
+
+test('047 US6: the signature card forms emit CSS', async () => {
+  await assertFormsEmit(SIGNATURE_CARD_FORMS);
+});
