@@ -170,7 +170,7 @@ export const TimeTable: FC<{
           <button
             type="button"
             onClick={addHour}
-            className="h-[42px] px-[16px] bg-quiet border border-line hover:bg-surface2 transition-colors rounded-[8px] flex items-center gap-[6px] text-ink text-[14px] font-medium"
+            className="h-[42px] coarse:h-[44px] px-[16px] bg-quiet border border-line hover:bg-surface2 transition-colors rounded-[8px] flex items-center gap-[6px] text-ink text-[14px] font-medium"
           >
             <PlusIcon size={14} />
             {t('add', 'Add')}
@@ -209,7 +209,7 @@ export const TimeTable: FC<{
                 <button
                   type="button"
                   onClick={removeSlot(index)}
-                  className="opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity p-[8px] rounded-[6px] text-error hover:opacity-80"
+                  className="opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity p-[8px] rounded-[6px] text-error hover:opacity-80 coarse:min-w-[44px] coarse:min-h-[44px] coarse:-me-[6px] coarse:flex coarse:items-center coarse:justify-center"
                 >
                   <TrashIcon size={16} />
                 </button>
