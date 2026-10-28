@@ -37,7 +37,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 
 import dayjs from 'dayjs';
 import i18next from 'i18next';
-import {
+import NotificationComponent, {
   NotificationOpenComponent,
   ShowNotification,
 } from '@gitroom/frontend/components/notifications/notification.component';
@@ -316,5 +316,62 @@ describe('the list', () => {
     expect(host.innerHTML).not.toMatch(
       /(^|[\s"])(ml|mr|pl|pr|left|right)-|#[0-9a-f]{6}/i
     );
+  });
+});
+
+// On small screens (≤1025px) the popup spans the header, flush under it and
+// 8px in from its sides; on desktop it hangs 10px under the bell, 420px wide,
+// as before. The header is the popup's containing block there, so the bell
+// gives up its own positioning.
+describe('where the popup sits', () => {
+  const classesOf = (el: Element) => el.className.split(/\s+/);
+
+  it('spans the header on small screens and keeps its desktop size and look', async () => {
+    const host = await render(<NotificationOpenComponent />);
+    const popup = classesOf(host.querySelector('#notification-popup')!);
+
+    expect(popup).toEqual(
+      expect.arrayContaining([
+        'mobile:mt-0',
+        'mobile:w-auto',
+        'mobile:start-[8px]',
+        'mobile:!end-[8px]',
+        'w-[420px]',
+        'rounded-[16px]',
+        'shadow-card',
+      ])
+    );
+    expect(popup.filter((c) => c.startsWith('phone:w-'))).toEqual([]);
+  });
+
+  it('lets the header place it on small screens, the bell on desktop', async () => {
+    mockList = { isLoading: false, isValidating: false };
+    const host = await render(<NotificationComponent />);
+
+    expect(classesOf(host.firstElementChild!)).toEqual(
+      expect.arrayContaining(['relative', 'mobile:static'])
+    );
+  });
+
+  it('sets a row in 14px on a 20px line, under a bold header, with 11px times', async () => {
+    mockList = {
+      data: {
+        lastReadNotifications: '2026-10-20T10:00:00.000Z',
+        notifications: [
+          { createdAt: '2026-10-21T09:00:00.000Z', content: 'Posted' },
+        ],
+      },
+      isLoading: false,
+      isValidating: false,
+    };
+    const host = await render(<NotificationOpenComponent />);
+
+    expect(classesOf(body(host))).toEqual(
+      expect.arrayContaining(['text-[14px]', 'leading-[20px]'])
+    );
+    expect(classesOf(time(host))).toContain('text-[11px]');
+    expect(
+      classesOf(host.querySelector('#notification-popup')!.firstElementChild!)
+    ).toContain('font-bold');
   });
 });
