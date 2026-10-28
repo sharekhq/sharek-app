@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { fontVariables } from '@gitroom/frontend/app/fonts';
 import dynamic from 'next/dynamic';
@@ -78,27 +79,31 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   });
 
   // Small-screen nav drawer (≤1025px): the icon rail is hidden on small
-  // screens and revealed as an off-canvas drawer via the header hamburger. The
-  // open state only drives small-screen styles, so it's visually inert on
-  // desktop and needs no reset on resize — only the scroll lock below must be
-  // released.
+  // screens and revealed as an off-canvas drawer via the header hamburger.
   const t = useT();
   const isSmallScreen = useMediaQuery(MOBILE_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
+  // The drawer is only ever open on a small screen: growing past 1025px closes
+  // it, so a window that narrows again (an iPad turned back to portrait) finds
+  // it closed rather than locking the page and pulling focus out of whatever
+  // the user went on to do. Set during render, so no commit sees it open wide.
+  if (drawerOpen && !isSmallScreen) setDrawerOpen(false);
+
   // Escape and the scrim hand focus back to the button that opened the
-  // drawer; an item tap navigates, so it only closes.
+  // drawer; an item tap navigates, so it only closes. The close is flushed
+  // first: until it commits, the button sits in the inert page card and a
+  // browser refuses it focus.
   const closeDrawer = useCallback(() => {
-    setDrawerOpen(false);
+    flushSync(() => setDrawerOpen(false));
     menuButtonRef.current?.focus();
   }, []);
 
   // Lock background scroll, close on Escape and move focus into the drawer
-  // while it is open on small screens (≤1025px). Re-runs on resize so the
-  // lock is released if the viewport grows.
+  // while it is open.
   useEffect(() => {
-    if (!drawerOpen || !isSmallScreen) return;
+    if (!drawerOpen) return;
     (
       document.querySelector<HTMLElement>('#left-menu [aria-current="page"]') ??
       document.querySelector<HTMLElement>('#left-menu a, #left-menu button')
@@ -113,7 +118,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [drawerOpen, isSmallScreen, closeDrawer]);
+  }, [drawerOpen, closeDrawer]);
 
   useEffect(() => {
     setSentryUser(
@@ -178,7 +183,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
                         // Small screens: off-canvas drawer anchored to the inline-start edge.
                         'mobile:start-0 mobile:w-[100px] mobile:px-[8px] mobile:z-[190] mobile:bg-newBgColor',
-                        'mobile:transition-transform mobile:duration-300 mobile:ease-out motion-reduce:transition-none',
+                        'mobile:transition-transform mobile:duration-300 mobile:ease-out',
                         drawerOpen
                           ? 'mobile:translate-x-0'
                           : 'mobile:-translate-x-full mobile:rtl:translate-x-full',
@@ -196,7 +201,12 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         <TopMenu />
                       </div>
                     </div>
-                    <div className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe">
+                    <div
+                      // Open on a small screen, the drawer holds focus: Tab
+                      // cannot reach the menu button or the page under the scrim.
+                      inert={drawerOpen}
+                      className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe"
+                    >
                       {/* relative: the notifications popup spans this bar on small screens */}
                       <div className="relative flex bg-newBgColorInner h-[80px] mobile:h-[64px] px-[20px] mobile:px-[12px] mobile:gap-[12px] items-center">
                         <button

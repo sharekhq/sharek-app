@@ -197,7 +197,9 @@ const mount = async () => {
   await act(async () => {
     root.render(
       <LayoutComponent>
-        <div data-testid="page" />
+        <div data-testid="page">
+          <input data-testid="field" />
+        </div>
       </LayoutComponent>
     );
   });
@@ -216,6 +218,9 @@ const mount = async () => {
     drawer,
     button,
     header: button.parentElement as HTMLElement,
+    // the page card: header and page, everything but the rail/drawer and scrim
+    card: (button.parentElement as HTMLElement).parentElement as HTMLElement,
+    field: byTestId('field') as HTMLInputElement,
     title: byTestId('title').parentElement as HTMLElement,
     iconGroup: streakWrapper.parentElement as HTMLElement,
     streakWrapper,
@@ -400,6 +405,68 @@ describe('the drawer on a small screen (820px, iPad portrait)', () => {
 
     expect(document.body.style.overflow).toBe('');
   });
+
+  // An iPad opened in portrait and turned to landscape: the drawer closes
+  // there, so turning back neither locks the page nor pulls focus out of the
+  // field the user went on to type in.
+  it('closes when the window grows past 1025px, and stays closed when it narrows again', async () => {
+    const shell = await mount();
+    await shell.open();
+
+    await resizeTo(1440);
+    expect(shell.button.getAttribute('aria-expanded')).toBe('false');
+
+    shell.field.focus();
+    await resizeTo(820);
+
+    expect(shell.button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(shell.field);
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  // The mirror of FR-028: while the drawer is open, Tab cannot leave it for
+  // the menu button or the page behind the scrim.
+  it('makes the page card inert while open, and only then', async () => {
+    const shell = await mount();
+    expect(shell.card.contains(shell.button)).toBe(true);
+    expect(shell.card.hasAttribute('inert')).toBe(false);
+
+    await shell.open();
+    expect(shell.card.hasAttribute('inert')).toBe(true);
+
+    await shell.escape();
+    expect(shell.card.hasAttribute('inert')).toBe(false);
+  });
+
+  // happy-dom focuses inert elements, so the spy records what a browser
+  // would refuse: focus handed to a button that is still inside the inert card.
+  it.each([
+    ['Escape', (shell: Awaited<ReturnType<typeof mount>>) => shell.escape()],
+    [
+      'a scrim tap',
+      (shell: Awaited<ReturnType<typeof mount>>) =>
+        act(async () => {
+          shell.scrim()?.click();
+        }),
+    ],
+  ])(
+    'hands focus back to a menu button that is no longer inert, on %s',
+    async (_way, close) => {
+      const shell = await mount();
+      await shell.open();
+      const inertAtFocus: boolean[] = [];
+      const focus = shell.button.focus.bind(shell.button);
+      jest.spyOn(shell.button, 'focus').mockImplementation(() => {
+        inertAtFocus.push(!!shell.button.closest('[inert]'));
+        focus();
+      });
+
+      await close(shell);
+
+      expect(inertAtFocus).toEqual([false]);
+      expect(document.activeElement).toBe(shell.button);
+    }
+  );
 });
 
 describe('the rail on desktop (1440px)', () => {
@@ -407,19 +474,25 @@ describe('the rail on desktop (1440px)', () => {
     width = 1440;
   });
 
-  it('sets no lock and ignores Escape', async () => {
+  // The menu button is hidden here; if it is pressed anyway the drawer does
+  // not stay open, so nothing locks the page or listens for Escape.
+  it('sets no lock, and the drawer does not stay open', async () => {
     const shell = await mount();
     await shell.open();
+
+    expect(shell.button.getAttribute('aria-expanded')).toBe('false');
     expect(document.body.style.overflow).toBe('');
-
-    await shell.escape();
-
-    expect(shell.button.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('is never inert (FR-028)', async () => {
     const shell = await mount();
     expect(shell.drawer.hasAttribute('inert')).toBe(false);
+  });
+
+  it('never makes the page card inert', async () => {
+    const shell = await mount();
+    await shell.open();
+    expect(shell.card.hasAttribute('inert')).toBe(false);
   });
 });
 
@@ -481,6 +554,16 @@ describe('the shell gives way at the mobile screen (≤1025px)', () => {
   it('leaves page content in its own layout (FR-008)', async () => {
     const shell = await mount();
     expect(classesOf(shell.contentWrapper)).not.toContain('flex-col');
+  });
+
+  // `motion-reduce:transition-none` is emitted before `mobile:transition-transform`
+  // at the same specificity, so it never reached the drawer; global.scss's
+  // prefers-reduced-motion rule is what stills the slide.
+  it('carries no motion-reduce: class on the drawer', async () => {
+    const shell = await mount();
+    expect(
+      classesOf(shell.drawer).filter((c) => c.startsWith('motion-reduce:'))
+    ).toEqual([]);
   });
 
   it('keeps no phone: class on the parts that now give way at mobile:', async () => {
