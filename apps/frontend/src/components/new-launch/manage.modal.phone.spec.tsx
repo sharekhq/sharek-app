@@ -424,7 +424,10 @@ describe('the + sheet', () => {
     host.querySelector<HTMLButtonElement>(
       'button[aria-label="Select Channels"]'
     );
-  const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
+  const sheet = () =>
+    document.querySelector<HTMLElement>(
+      '[role="dialog"]:not(#wrapper-settings)'
+    );
   const rows = () =>
     Array.from(
       sheet()!.querySelectorAll<HTMLButtonElement>('[role="checkbox"]')
@@ -547,7 +550,8 @@ describe('a post that already exists', () => {
 
 // US3: the gear's Settings sheet, the tags, repeat and date sheets, and the
 // channel settings pane, each closed by Escape without closing the post.
-const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const sheet = () =>
+  document.querySelector<HTMLElement>('[role="dialog"]:not(#wrapper-settings)');
 const sheetTitle = () =>
   document.getElementById(sheet()!.getAttribute('aria-labelledby')!)!
     .textContent;
@@ -643,7 +647,11 @@ describe('the Settings sheet', () => {
     expect(rowNamed('Acme Inc. Settings')).toBeTruthy();
     const remove = rowNamed('Delete Post')!;
     expect(remove.className.split(' ')).toEqual(
-      expect.arrayContaining(['min-h-[44px]', 'text-error'])
+      expect.arrayContaining([
+        'min-h-[44px]',
+        'text-error',
+        'disabled:opacity-50',
+      ])
     );
   });
 
@@ -746,10 +754,12 @@ describe('Escape', () => {
   });
 
   describe('in the channel settings pane', () => {
+    // From the keyboard: the gear has the focus when it is pressed.
     const openPane = async () => {
       withSettings('tiktok');
       const host = await open();
       listen(host);
+      gear(host)!.focus();
       await press(gear(host));
       await press(rowNamed('Channel Settings'));
       return host;
@@ -767,11 +777,38 @@ describe('Escape', () => {
       expect(composerEscape).not.toHaveBeenCalled();
     });
 
+    it('is a modal dialog named by its header at 1025px and below', async () => {
+      const host = await openPane();
+      const title = document.getElementById(
+        pane(host).getAttribute('aria-labelledby')!
+      )!;
+
+      expect(pane(host).getAttribute('role')).toBe('dialog');
+      expect(pane(host).getAttribute('aria-modal')).toBe('true');
+      expect(label(title)).toBe('Settings');
+    });
+
+    it('keeps Tab inside, and gives the focus back to the gear on Done', async () => {
+      const host = await openPane();
+      const controls = Array.from(
+        pane(host).querySelectorAll<HTMLButtonElement>('button')
+      );
+      const [cross, done] = [controls[0], controls.at(-1)!];
+      done.focus();
+
+      await keydown(done, 'Tab');
+      expect(document.activeElement).toBe(cross);
+
+      await press(done);
+      expect(document.activeElement).toBe(gear(host));
+    });
+
     it('leaves Escape to the composer from 1026px up, where it is the inline panel', async () => {
       const host = await openPane();
       await resize(false);
 
       expect(pane(host).hasAttribute('tabindex')).toBe(false);
+      expect(pane(host).hasAttribute('role')).toBe(false);
       await keydown(pane(host), 'Escape');
 
       expect(pane(host).className).toContain('flex-1');

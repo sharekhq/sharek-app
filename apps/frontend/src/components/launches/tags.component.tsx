@@ -245,7 +245,7 @@ export const TagsComponentInner: FC<{
             aria-checked={!!tagValue.find((a) => a.id === p.id)}
             onClick={toggleTag(p)}
             key={p.name}
-            className="w-full min-h-[44px] flex gap-[8px] items-center text-start rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="w-full min-h-[44px] flex gap-[8px] items-center text-start rounded-[8px] select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
           >
             <span className="flex-1 flex">
               <span
@@ -265,7 +265,7 @@ export const TagsComponentInner: FC<{
         <button
           type="button"
           onClick={addTag}
-          className="gap-[8px] flex w-full h-[44px] rounded-[8px] px-[16px] justify-center items-center bg-quiet border border-line text-ink select-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="gap-[8px] flex w-full h-[44px] rounded-[8px] px-[16px] justify-center items-center bg-quiet border border-line text-ink select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
         >
           <PlusIcon size={20} />
           <span className="text-[15px] font-[600]">

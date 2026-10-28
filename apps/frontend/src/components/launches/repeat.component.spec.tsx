@@ -92,6 +92,8 @@ describe('the repeat list', () => {
           'min-h-[44px]',
           'focus-visible:ring-2',
           'focus-visible:ring-brand',
+          // greyed while a locked composer's fieldset disables it
+          'disabled:opacity-50',
         ])
       );
     });

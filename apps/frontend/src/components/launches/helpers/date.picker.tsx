@@ -45,7 +45,7 @@ const TimeField: FC<{
     onChange(((value - min + delta + range) % range) + min);
   };
   const stepper =
-    'w-[44px] h-[44px] flex justify-center items-center rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand';
+    'w-[44px] h-[44px] flex justify-center items-center rounded-[8px] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand';
 
   return (
     <div className="w-[74px] min-w-[56px] flex flex-col items-center gap-[4px] text-muted">
@@ -72,7 +72,7 @@ const TimeField: FC<{
           }
           setText(null);
         }}
-        className="w-full h-[52px] rounded-[10px] border border-line focus:border-brand bg-newBgColorInner text-center text-[14px] text-textColor outline-none"
+        className="w-full h-[52px] rounded-[10px] border border-line focus:border-brand bg-newBgColorInner text-center text-[14px] text-textColor outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       />
       <button
         type="button"
@@ -129,7 +129,7 @@ export const DatePickerPanel: FC<{
     const twelveHours = isUSCitizen();
     const pm = date.hour() >= 12;
     const arrow =
-      'w-[44px] h-[44px] flex justify-center items-center rounded-[8px] text-muted focus-visible:ring-2 focus-visible:ring-brand';
+      'w-[44px] h-[44px] flex justify-center items-center rounded-[8px] text-muted disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand';
     return (
       <div className="flex flex-col">
         <div className="flex items-center gap-[16px] mb-[12px]">
@@ -266,7 +266,7 @@ export const DatePickerPanel: FC<{
                       )
                     }
                     className={clsx(
-                      'w-[44px] h-[44px] flex justify-center items-center rounded-[6px] text-[14px] select-none focus-visible:ring-2 focus-visible:ring-brand',
+                      'w-[44px] h-[44px] flex justify-center items-center rounded-[6px] text-[14px] select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand',
                       isPm === pm
                         ? 'bg-selectedBg text-selectedText'
                         : 'text-muted'

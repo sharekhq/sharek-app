@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -58,6 +59,7 @@ import {
   BottomSheetButton,
   BottomSheetHeader,
   BottomSheetRow,
+  useDialogFocus,
 } from '@gitroom/frontend/components/ui/bottom.sheet.component';
 import {
   MOBILE_QUERY,
@@ -170,12 +172,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   // drawer is, so no commit shows a sheet over the wide layout.
   if (mobileSheet && !isMobile) setMobileSheet(null);
   const settingsSheet = showSettings && isMobile;
-  const settingsPane = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (settingsSheet) {
-      settingsPane.current?.focus();
-    }
-  }, [settingsSheet]);
+  const { container: settingsPane, keepTabInside: keepPaneTabInside } =
+    useDialogFocus<HTMLDivElement>(settingsSheet);
+  const paneTitleId = useId();
 
   // the channels the post already has, each with its own post
   const existingPosts = [existingData, ...(existingData.siblings || [])];
@@ -1097,11 +1096,17 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               <div
                 id="wrapper-settings"
                 ref={settingsPane}
+                // a modal dialog only while it is the sheet; from 1026px up it
+                // is the inline panel
+                role={settingsSheet ? 'dialog' : undefined}
+                aria-modal={settingsSheet ? true : undefined}
+                aria-labelledby={settingsSheet ? paneTitleId : undefined}
                 tabIndex={settingsSheet ? -1 : undefined}
                 onKeyDown={
                   settingsSheet
                     ? (e) => {
                         if (e.key !== 'Escape') {
+                          keepPaneTabInside(e);
                           return;
                         }
                         // the composer's own Escape listens on the same node
@@ -1128,6 +1133,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div className="hidden mobile:contents">
                     <BottomSheetHeader
                       title={currentIntegrationText}
+                      titleId={paneTitleId}
                       onClose={() => setShowSettings(false)}
                     />
                   </div>
@@ -1404,7 +1410,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               <button
                 type="button"
                 onClick={deletePost}
-                className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start text-error rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand"
+                className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start text-error rounded-[8px] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
               >
                 <TrashIcon size={24} />
                 <span className="text-[15px] font-[600]">

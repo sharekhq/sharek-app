@@ -208,7 +208,12 @@ describe('the tag list', () => {
     rows(host).forEach((row) => {
       expect(row.getAttribute('type')).toBe('button');
       expect(row.className.split(' ')).toEqual(
-        expect.arrayContaining(['min-h-[44px]', 'focus-visible:ring-brand'])
+        expect.arrayContaining([
+          'min-h-[44px]',
+          'focus-visible:ring-brand',
+          // greyed while a locked composer's fieldset disables it
+          'disabled:opacity-50',
+        ])
       );
     });
   });

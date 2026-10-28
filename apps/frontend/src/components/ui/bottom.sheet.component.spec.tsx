@@ -138,17 +138,32 @@ describe('a bottom sheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('marks the page and stops it scrolling while open, and gives both back', async () => {
-    document.body.style.overflow = 'scroll';
+  it('marks the page while open, for the support chat bubble to hide', async () => {
     await render(sheet());
 
     expect(document.body.classList.contains('bottomSheetOpen')).toBe(true);
-    expect(document.body.style.overflow).toBe('hidden');
 
     await act(async () => root.render(<></>));
 
     expect(document.body.classList.contains('bottomSheetOpen')).toBe(false);
-    expect(document.body.style.overflow).toBe('scroll');
+  });
+
+  // What scrolls behind a sheet is the composer's full-screen overlay
+  // (new-modal's removeLayout path, overflow-y auto), not the body, which the
+  // modal manager already holds still.
+  it('stops the scroller it sits in while open, and gives it back', async () => {
+    const scroller = document.createElement('div');
+    scroller.style.overflowY = 'auto';
+    host.replaceWith(scroller);
+    scroller.appendChild(host);
+
+    await render(sheet());
+
+    expect(scroller.style.overflowY).toBe('hidden');
+
+    await act(async () => root.render(<></>));
+
+    expect(scroller.style.overflowY).toBe('auto');
   });
 
   it('takes the focus when it opens and gives it back when it closes', async () => {
@@ -200,6 +215,31 @@ describe('a bottom sheet', () => {
       await press(dialog(), 'Tab', { shiftKey: true });
 
       expect(document.activeElement).toBe(controls().at(-1));
+    });
+
+    // A locked composer disables a sheet's rows through a disabled fieldset:
+    // the cross is then the only stop, and Tab must not leave through them.
+    it('around the one control a locked sheet leaves enabled', async () => {
+      await render(
+        <BottomSheet title="Settings" onClose={jest.fn()}>
+          <fieldset disabled>
+            <button type="button">Add Tag</button>
+            <button type="button">Repeat Post</button>
+          </fieldset>
+        </BottomSheet>
+      );
+      const cross = dialog().querySelector<HTMLElement>(
+        'button[aria-label="Close"]'
+      )!;
+      cross.focus();
+
+      const forward = await press(cross, 'Tab');
+      expect(forward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(cross);
+
+      const back = await press(cross, 'Tab', { shiftKey: true });
+      expect(back.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(cross);
     });
 
     it('leaves Tab alone between two controls', async () => {
@@ -270,6 +310,9 @@ describe('a bottom sheet row', () => {
         'min-h-[44px]',
         'focus-visible:ring-2',
         'focus-visible:ring-brand',
+        // greyed while a locked composer's fieldset disables it
+        'disabled:opacity-50',
+        'disabled:cursor-not-allowed',
       ])
     );
     expect(row.querySelector('svg')!.getAttribute('class')).toContain(

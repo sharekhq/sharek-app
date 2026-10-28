@@ -91,7 +91,7 @@ export const RepeatComponent: FC<{
               aria-checked={selected}
               onClick={() => props.onChange(Number(p.value))}
               key={p.label}
-              className="w-full min-h-[44px] px-[12px] flex items-center justify-between gap-[12px] text-start rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="w-full min-h-[44px] px-[12px] flex items-center justify-between gap-[12px] text-start rounded-[8px] select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
             >
               <span className="text-[14px] font-[400]">
                 {p.value ? p.label : t('do_not_repeat', 'Do Not Repeat')}

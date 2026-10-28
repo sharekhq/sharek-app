@@ -4,6 +4,7 @@ import React, {
   FC,
   KeyboardEvent,
   ReactNode,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -14,9 +15,56 @@ import {
   CloseIcon,
 } from '@gitroom/frontend/components/ui/icons';
 
-// What Tab can land on inside a sheet.
+// What Tab can land on inside a sheet: a control, unless it is disabled by
+// itself or by a disabled fieldset around it (a locked composer's sheets).
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const enabled = (control: HTMLElement) =>
+  !control.matches(':disabled') && !control.closest('fieldset[disabled]');
+
+// A modal surface's focus: while `active`, the container (tabIndex -1) takes
+// the focus, Tab and Shift+Tab wrap among its enabled controls, and on
+// deactivation the focus goes back to whatever had it before. Shared by the
+// bottom sheets and the composer's channel settings pane at 1025px and below.
+export const useDialogFocus = <T extends HTMLElement>(active: boolean) => {
+  const container = useRef<T>(null);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    const opener = document.activeElement as HTMLElement | null;
+    container.current?.focus();
+    return () => {
+      opener?.focus();
+    };
+  }, [active]);
+
+  const keepTabInside = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Tab' || !container.current) {
+      return;
+    }
+    const controls = Array.from(
+      container.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+    ).filter(enabled);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    const focused = document.activeElement;
+    if (!first) {
+      e.preventDefault();
+      return;
+    }
+    if (e.shiftKey && (focused === first || focused === container.current)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && focused === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  return { container, keepTabInside };
+};
 
 export const BottomSheetHeader: FC<{
   title: ReactNode;
@@ -74,20 +122,32 @@ export const BottomSheet: FC<{
   button?: { label: string; onClick: () => void; disabled?: boolean };
 }> = ({ title, onClose, children, button }) => {
   const titleId = useId();
-  const dialog = useRef<HTMLDivElement>(null);
+  const { container: dialog, keepTabInside } =
+    useDialogFocus<HTMLDivElement>(true);
+  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    const body = document.body;
-    const overflow = body.style.overflow;
     // the support chat bubble would cover the sheet's button
-    body.classList.add('bottomSheetOpen');
-    body.style.overflow = 'hidden';
-    dialog.current?.focus();
+    document.body.classList.add('bottomSheetOpen');
+    // What scrolls behind the sheet is whatever scroller it sits in (the
+    // composer's full-screen overlay at 1025px and below): each one is held
+    // still while the sheet is open.
+    const held: Array<[HTMLElement, string]> = [];
+    for (
+      let node = root.current?.parentElement;
+      node;
+      node = node.parentElement
+    ) {
+      if (['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) {
+        held.push([node, node.style.overflowY]);
+        node.style.overflowY = 'hidden';
+      }
+    }
     return () => {
-      body.classList.remove('bottomSheetOpen');
-      body.style.overflow = overflow;
-      opener?.focus();
+      document.body.classList.remove('bottomSheetOpen');
+      held.forEach(([node, overflowY]) => {
+        node.style.overflowY = overflowY;
+      });
     };
   }, []);
 
@@ -102,30 +162,11 @@ export const BottomSheet: FC<{
       onClose();
       return;
     }
-    if (e.key !== 'Tab' || !dialog.current) {
-      return;
-    }
-    const controls = Array.from(
-      dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE)
-    );
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    const active = document.activeElement;
-    if (!first) {
-      e.preventDefault();
-      return;
-    }
-    if (e.shiftKey && (active === first || active === dialog.current)) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && active === last) {
-      e.preventDefault();
-      first.focus();
-    }
+    keepTabInside(e);
   };
 
   return (
-    <div className="fixed inset-0 z-[600] flex flex-col justify-end">
+    <div ref={root} className="fixed inset-0 z-[600] flex flex-col justify-end">
       <div
         onClick={onClose}
         aria-hidden="true"
@@ -159,7 +200,7 @@ export const BottomSheetRow: FC<{
     <button
       type="button"
       onClick={onClick}
-      className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+      className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start rounded-[8px] select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
     >
       <span className="text-muted">{icon}</span>
       <span className="flex-1 text-[15px] font-[600]">{label}</span>
