@@ -118,6 +118,7 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   ChevronLeftIcon: () => null,
   DropdownArrowIcon: () => null,
   EyeIcon: () => null,
+  PlusIcon: () => null,
 }));
 jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,

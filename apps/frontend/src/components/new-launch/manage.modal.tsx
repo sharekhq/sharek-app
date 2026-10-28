@@ -41,7 +41,9 @@ import {
   TrashIcon,
   DropdownArrowSmallIcon,
   EyeIcon,
+  PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import { BottomSheet } from '@gitroom/frontend/components/ui/bottom.sheet.component';
 import {
   MobileTopBar,
   MobileTopBarAction,
@@ -75,6 +77,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   const [showSettings, setShowSettings] = useState(false);
   // at 1025px and below the preview takes the editor's place
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
+  // the sheets that hold the rest of the composer at 1025px and below
+  const [mobileSheet, setMobileSheet] = useState<'channels' | null>(null);
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
   const { addEditSets, mutate, customClose, dummy } = props;
@@ -929,11 +933,18 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   id="social-content"
                   className="gap-[32px] mobile:gap-[16px] flex flex-col pe-[8px] pt-[20px] ps-[20px] mobile:px-[16px] mobile:pt-[12px] mobile:static mobile:flex-1 absolute top-0 left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
                 >
-                  <div className="flex w-full">
+                  {/* at 1025px and below a new post picks its channels in
+                      the + sheet */}
+                  <div
+                    className={clsx(
+                      'flex w-full',
+                      !existingData.integration && 'mobile:hidden'
+                    )}
+                  >
                     <div className="flex flex-1">
                       <PicksSocialsComponent toolTip={true} />
                     </div>
-                    <div>
+                    <div className="mobile:hidden">
                       {/* an existing post keeps its channels */}
                       {!dummy && !existingData.integration && (
                         <SelectCustomer
@@ -962,6 +973,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                         !!existingData.siblings?.length) && <SelectCurrent />}
                       {!existingData.integration && (
                         <>
+                          <button
+                            type="button"
+                            onClick={() => setMobileSheet('channels')}
+                            aria-label={t('select_channels', 'Select Channels')}
+                            className="hidden mobile:flex shrink-0 w-[44px] h-[44px] rounded-[8px] bg-btnSimple justify-center items-center focus-visible:ring-2 focus-visible:ring-brand"
+                          >
+                            <PlusIcon size={24} />
+                          </button>
                           <div className="hidden mobile:block flex-1" />
                           {previewButton}
                         </>
@@ -1197,6 +1216,27 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
         </div>
       </div>
+      {mobileSheet === 'channels' && (
+        <BottomSheet
+          title={t('select_channels', 'Select Channels')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+            disabled: selectedIntegrations.length === 0,
+          }}
+        >
+          {!dummy && (
+            <div className="flex pb-[8px] empty:hidden">
+              <SelectCustomer
+                onChange={changeCustomer}
+                integrations={integrations}
+              />
+            </div>
+          )}
+          <PicksSocialsComponent list={true} />
+        </BottomSheet>
+      )}
       <CopilotPopup
         // clear of the pinned tool bar and of the Post menu at 1025px and below
         className="mobile:!z-[460] mobile:!bottom-[112px]"

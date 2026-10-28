@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // The composer's channel picker. A post that already exists shows the
@@ -20,7 +20,10 @@ jest.mock(
   () => ({ useExistingData: () => existing })
 );
 
-import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
+import {
+  IntegrationListRow,
+  PicksSocialsComponent,
+} from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
 type Store = ReturnType<typeof useLaunchStore.getState>;
@@ -46,7 +49,10 @@ const channels = [
 // answer the next case's reset with its own effects.
 const mounted: Array<{ unmount: () => void }> = [];
 
-const render = async () => {
+const render = async (
+  element: ReactElement = <PicksSocialsComponent toolTip={true} />,
+  store: Partial<Store> = {}
+) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -58,8 +64,9 @@ const render = async () => {
       selectedIntegrations: [
         { integration: channels[0], settings: {} },
       ] as unknown as Store['selectedIntegrations'],
+      ...store,
     });
-    root.render(<PicksSocialsComponent toolTip={true} />);
+    root.render(element);
   });
   return host;
 };
@@ -117,5 +124,104 @@ describe('the channel picker of a new post', () => {
       'Sharek Café',
       'Sharek Café (Facebook)',
     ]);
+  });
+});
+
+// The list the + sheet shows at 1025px and below (spec 044, US2): one row per
+// channel, with its picture, its name and a checkbox.
+describe('the channel list', () => {
+  const list = (store: Partial<Store> = {}) =>
+    render(<PicksSocialsComponent list={true} />, store);
+  const rows = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll<HTMLButtonElement>('[role="checkbox"]'));
+  const picked = () =>
+    useLaunchStore.getState().selectedIntegrations.map((p) => p.integration.id);
+
+  beforeEach(() => {
+    existing = {};
+  });
+
+  it('names each channel that can publish, on a checkbox that says whether it is picked', async () => {
+    const host = await list();
+
+    expect(rows(host).map((row) => row.textContent)).toEqual([
+      'Sharek Café',
+      'Sharek Café (Facebook)',
+    ]);
+    expect(rows(host).map((row) => row.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'false',
+    ]);
+  });
+
+  it('draws each row as a 44px button with a focus ring', async () => {
+    const host = await list();
+
+    expect(rows(host)).toHaveLength(2);
+    rows(host).forEach((row) => {
+      expect(row.tagName).toBe('BUTTON');
+      expect(row.getAttribute('type')).toBe('button');
+      expect(row.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          'min-h-[44px]',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+    });
+  });
+
+  it('adds a channel on a tap, and takes it off on another', async () => {
+    const host = await list();
+
+    await click(rows(host)[1]);
+    expect(picked()).toEqual(['int-1', 'int-4']);
+
+    await click(rows(host)[1]);
+    expect(picked()).toEqual(['int-1']);
+  });
+
+  it('shows a post that already exists its own channels only, and keeps them', async () => {
+    existing = { integration: 'int-1', siblings: [{ integration: 'int-2' }] };
+    const host = await list();
+
+    expect(rows(host).map((row) => row.textContent)).toEqual([
+      'Sharek Café',
+      'Sharek Café (LinkedIn)',
+    ]);
+    await click(rows(host)[1]);
+
+    expect(picked()).toEqual(['int-1']);
+  });
+
+  it('is inert while the composer is locked', async () => {
+    const host = await list({ locked: true });
+
+    expect(rows(host)).toHaveLength(2);
+    rows(host).forEach((row) => expect(row.disabled).toBe(true));
+    await click(rows(host)[1]);
+
+    expect(picked()).toEqual(['int-1']);
+  });
+});
+
+// The calendar's channel sheet (spec 046) reuses the row on its own.
+describe('a channel row on its own', () => {
+  it('renders from the channel, whether it is picked and what a tap does', async () => {
+    const onClick = jest.fn();
+    const host = await render(
+      <IntegrationListRow
+        integration={channels[0] as unknown as Store['integrations'][number]}
+        selected={false}
+        onClick={onClick}
+      />
+    );
+    const row = host.querySelector('[role="checkbox"]')!;
+
+    expect(row.getAttribute('aria-checked')).toBe('false');
+    expect(row.textContent).toBe('Sharek Café');
+    await click(row);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

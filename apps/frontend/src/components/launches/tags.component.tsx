@@ -334,10 +334,10 @@ export const TagsComponentInner: FC<{
   );
 };
 
-const Check: FC<{ value: boolean; onChange: (value: boolean) => void }> = ({
-  value,
-  onChange,
-}) => {
+export const Check: FC<{
+  value: boolean;
+  onChange: (value: boolean) => void;
+}> = ({ value, onChange }) => {
   return (
     <div
       onClick={() => onChange(!value)}

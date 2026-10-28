@@ -99,11 +99,13 @@ export const SelectCurrent: FC = () => {
 
   return (
     <>
-      <div className="select-none left-0 absolute w-full z-[100] px-[20px]">
+      {/* At 1025px and below the tabs share a row with the + button and the
+          eye, so they shrink to fit it and scroll */}
+      <div className="select-none left-0 absolute w-full z-[100] px-[20px] mobile:static mobile:px-0 mobile:w-auto mobile:min-w-0">
         <div
           ref={contentRef}
           className={clsx(
-            'flex gap-[6px] w-full overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary',
+            'flex gap-[6px] mobile:gap-[4px] w-full overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary mobile:scrollbar-none',
             locked && 'opacity-50 pointer-events-none'
           )}
         >
@@ -115,14 +117,14 @@ export const SelectCurrent: FC = () => {
                 setCurrent('global');
               }}
               className={clsx(
-                'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] justify-center items-center border bg-surface',
+                'cursor-pointer flex gap-[8px] rounded-[8px] w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] mobile:w-[44px] mobile:h-[44px] mobile:shrink-0 justify-center items-center border mobile:border-[1.5px] bg-surface',
                 current !== 'global'
                   ? 'text-muted border-line'
                   : 'border-brand text-brand'
               )}
             >
               <div>
-                <GlobalIcon />
+                <GlobalIcon className="mobile:w-[24px] mobile:h-[24px]" />
               </div>
             </div>
           )}
@@ -134,7 +136,7 @@ export const SelectCurrent: FC = () => {
               }}
               key={integration.id}
               className={clsx(
-                'border cursor-pointer relative flex gap-[8px] w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] items-center bg-surface justify-center',
+                'border mobile:border-[1.5px] cursor-pointer relative flex gap-[8px] w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] mobile:w-[44px] mobile:h-[44px] mobile:shrink-0 rounded-[8px] items-center bg-surface justify-center',
                 current === integration.id
                   ? 'border-brand text-brand'
                   : 'border-line'
@@ -145,7 +147,7 @@ export const SelectCurrent: FC = () => {
                 <>
                   <div
                     onClick={removeSocial(integration)}
-                    className="absolute justify-center items-center flex w-[8px] h-[8px] -top-[1px] -start-[3px] bg-error rounded-full text-white text-[8px]"
+                    className="absolute justify-center items-center flex mobile:hidden w-[8px] h-[8px] -top-[1px] -start-[3px] bg-error rounded-full text-white text-[8px]"
                   >
                     X
                   </div>
@@ -192,7 +194,9 @@ export const SelectCurrent: FC = () => {
           ))}
         </div>
       </div>
-      <div className={clsx(hasScroll ? 'h-[55px]' : 'h-[40px]')} />
+      <div
+        className={clsx(hasScroll ? 'h-[55px]' : 'h-[40px]', 'mobile:hidden')}
+      />
     </>
   );
 };

@@ -89,12 +89,17 @@ jest.mock(
     };
   }
 );
-// Scenery, as in manage.modal.channels.spec.tsx.
+// Scenery, as in manage.modal.channels.spec.tsx. The channel picker is the
+// real one, for the + sheet's list; its pictures are scenery.
 jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => ({}));
-jest.mock(
-  '@gitroom/frontend/components/new-launch/picks.socials.component',
-  () => ({ PicksSocialsComponent: () => null })
-);
+jest.mock('@gitroom/react/helpers/safe.image', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
+  __esModule: true,
+  default: () => null,
+}));
 jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
   EditorWrapper: () => <div data-editor="" />,
 }));
@@ -111,13 +116,14 @@ jest.mock('@gitroom/frontend/components/launches/repeat.component', () => ({
 }));
 jest.mock('@gitroom/frontend/components/launches/tags.component', () => ({
   TagsComponent: () => null,
+  Check: () => null,
 }));
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/platform-label',
   () => ({ platformLabel: (identifier: string) => identifier })
 );
 jest.mock('@gitroom/frontend/components/launches/select.customer', () => ({
-  SelectCustomer: () => null,
+  SelectCustomer: () => <i data-customer="" />,
 }));
 jest.mock('@copilotkit/react-ui', () => ({
   CopilotPopup: (props: { className?: string }) => {
@@ -131,7 +137,7 @@ jest.mock(
 );
 jest.mock(
   '@gitroom/frontend/components/launches/creation.method.badge',
-  () => ({ CreationMethodBadge: () => null })
+  () => ({ CreationMethodBadge: () => <i data-badge="" /> })
 );
 jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,
@@ -148,6 +154,7 @@ type LaunchState = ReturnType<typeof useLaunchStore.getState>;
 
 const instagram = { id: 'int-1', identifier: 'instagram', name: 'Acme Inc.' };
 const tiktok = { id: 'int-2', identifier: 'tiktok', name: 'Tom & Jerry' };
+const linkedin = { id: 'int-3', identifier: 'linkedin', name: 'مطعم الريف' };
 
 const en = createInstance();
 const mounted: Array<{ unmount: () => void }> = [];
@@ -187,6 +194,7 @@ const open = async (props: Partial<AddEditModalProps> = {}) => {
       integrations: [
         instagram,
         tiktok,
+        linkedin,
       ] as unknown as LaunchState['integrations'],
       selectedIntegrations: [instagram, tiktok].map((integration) => ({
         integration,
@@ -347,5 +355,131 @@ describe('the assistant', () => {
     await open();
 
     expect(assistant.className).toBe('mobile:!z-[460] mobile:!bottom-[112px]');
+  });
+});
+
+describe('the + sheet', () => {
+  const plus = (host: HTMLElement) =>
+    host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Select Channels"]'
+    );
+  const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
+  const rows = () =>
+    Array.from(
+      sheet()!.querySelectorAll<HTMLButtonElement>('[role="checkbox"]')
+    );
+  const picked = () =>
+    useLaunchStore.getState().selectedIntegrations.map((p) => p.integration.id);
+
+  it('is a named 44px button beside the channel tabs that opens Select Channels', async () => {
+    const host = await open();
+
+    expect(plus(host)!.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'w-[44px]',
+        'h-[44px]',
+        'bg-btnSimple',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(sheet()).toBeNull();
+    await press(plus(host));
+
+    const title = sheet()!.getAttribute('aria-labelledby')!;
+    expect(document.getElementById(title)!.textContent).toBe('Select Channels');
+  });
+
+  it('lists every channel that can publish, the picked ones checked', async () => {
+    const host = await open();
+    await press(plus(host));
+
+    expect(rows().map((row) => row.textContent)).toEqual([
+      'Acme Inc.',
+      'Tom & Jerry',
+      'مطعم الريف',
+    ]);
+    expect(rows().map((row) => row.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'true',
+      'false',
+    ]);
+  });
+
+  it('adds and takes off a channel on a tap', async () => {
+    const host = await open();
+    await press(plus(host));
+
+    await press(rows()[2]);
+    expect(picked()).toEqual(['int-1', 'int-2', 'int-3']);
+
+    await press(rows()[0]);
+    expect(picked()).toEqual(['int-2', 'int-3']);
+  });
+
+  it('keeps Done disabled while no channel is picked', async () => {
+    const host = await open();
+    await press(plus(host));
+
+    expect(byText(sheet()!, 'Done')!.disabled).toBe(false);
+    await press(rows()[0]);
+    await press(rows()[1]);
+
+    expect(byText(sheet()!, 'Done')!.disabled).toBe(true);
+  });
+
+  it('holds the customer selector, which the page no longer shows', async () => {
+    const host = await open();
+
+    expect(
+      host.querySelector('[data-customer]')!.parentElement!.className
+    ).toContain('mobile:hidden');
+    await press(plus(host));
+
+    expect(sheet()!.querySelector('[data-customer]')).toBeTruthy();
+  });
+
+  it('closes on Done', async () => {
+    const host = await open();
+    await press(plus(host));
+
+    await press(byText(sheet()!, 'Done'));
+
+    expect(sheet()).toBeNull();
+  });
+
+  it('replaces the circle grid of a new post', async () => {
+    const host = await open();
+    const grid =
+      host.querySelector('[data-customer]')!.parentElement!.parentElement!;
+
+    expect(grid.className.split(' ')).toContain('mobile:hidden');
+  });
+});
+
+describe('a post that already exists', () => {
+  const openExisting = async () => {
+    existing = {
+      integration: 'int-1',
+      group: 'g-1',
+      posts: [{ id: 'p-1', state: 'DRAFT' }],
+    } as unknown as Existing;
+    const host = await open();
+    await act(async () => {
+      useLaunchStore.setState({ current: 'int-1' });
+    });
+    return host;
+  };
+
+  it('has no + button, and keeps its circle row with the badge and the eye', async () => {
+    const host = await openExisting();
+    const row =
+      host.querySelector('[data-badge]')!.parentElement!.parentElement!;
+
+    expect(
+      host.querySelector('button[aria-label="Select Channels"]')
+    ).toBeNull();
+    expect(row.className.split(' ')).not.toContain('mobile:hidden');
+    expect(row.querySelector('button[aria-label="Preview"]')).toBeTruthy();
   });
 });
