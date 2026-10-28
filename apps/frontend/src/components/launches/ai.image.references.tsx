@@ -6,7 +6,10 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
 // media.component renders AiImage, which renders this row: a render-time cycle,
 // the one veo3.provider.tsx already closes through ai.video.
-import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import {
+  MediaBox,
+  mediaLibrarySize,
+} from '@gitroom/frontend/components/media/media.component';
 
 type Reference = { id: string; path: string };
 
@@ -43,8 +46,8 @@ export const ReferenceImages: FC<{
       askClose: false,
       closeOnEscape: true,
       fullScreen: true,
-      size: 'calc(100% - 80px)',
-      height: 'calc(100% - 80px)',
+      size: mediaLibrarySize(),
+      height: mediaLibrarySize(),
       children: (close) => (
         <MediaBox
           type="image"

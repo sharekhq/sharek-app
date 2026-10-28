@@ -16,7 +16,10 @@ import {
   InsertMediaIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import {
+  MediaBox,
+  mediaLibrarySize,
+} from '@gitroom/frontend/components/media/media.component';
 const postUrlEmitter = new EventEmitter();
 
 // The frame being picked should be as large as the modal allows; the stage is
@@ -457,8 +460,8 @@ export const MediaComponentInner: FC<{
                       askClose: false,
                       closeOnEscape: true,
                       fullScreen: true,
-                      size: 'calc(100% - 80px)',
-                      height: 'calc(100% - 80px)',
+                      size: mediaLibrarySize(),
+                      height: mediaLibrarySize(),
                       children: (close) => (
                         <MediaBox
                           type="image-static"
