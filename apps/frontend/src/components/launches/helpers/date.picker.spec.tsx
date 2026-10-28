@@ -464,6 +464,45 @@ describe('the date picker opening somewhere else', () => {
     expect(host.querySelector('input')).toBeNull();
   });
 
+  // The top bar's date is a control of its own there: a real button, named by
+  // the date it shows, saying it opens a dialog.
+  it('is a named button that says it opens a dialog', async () => {
+    localStorage.setItem('isUS', 'GLOBAL');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePicker date={at} onChange={jest.fn()} onOpen={jest.fn()} />
+      );
+    });
+    const trigger = host.firstElementChild!;
+
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(trigger.getAttribute('type')).toBe('button');
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger.textContent).toContain('21 Oct, 21:30');
+    expect(trigger.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
+
+  it('stays the popover row it was without onOpen', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(<DatePicker date={at} onChange={jest.fn()} />);
+    });
+
+    expect(host.firstElementChild!.tagName).toBe('DIV');
+  });
+
   it('is 44px tall in the top bar', async () => {
     const host = document.createElement('div');
     document.body.appendChild(host);

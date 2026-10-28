@@ -116,11 +116,11 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => null,
 }));
+// The real date trigger (the top bar's is a button of its own); the sheet's
+// panel stands in, keeping what it was handed.
 jest.mock('@gitroom/frontend/components/launches/helpers/date.picker', () => ({
-  DatePicker: (props: { date: dayjs.Dayjs; onOpen?: () => void }) => (
-    <button type="button" data-date="" onClick={props.onOpen}>
-      {props.date.format('DD/MM/YYYY')}
-    </button>
+  ...jest.requireActual(
+    '@gitroom/frontend/components/launches/helpers/date.picker'
   ),
   DatePickerPanel: (props: typeof mockPanel) => {
     mockPanel = props;
@@ -195,6 +195,8 @@ beforeAll(async () => {
 // The window, as the media query reports it: 1025px or narrower unless a case
 // grows it, telling the listeners as a browser does.
 const realMatchMedia = window.matchMedia;
+// The date line reads the 12- or 24-hour setting from here.
+globalThis.localStorage = window.localStorage;
 let smallWindow = true;
 const mediaListeners = new Set<() => void>();
 const resize = async (small: boolean) => {
@@ -686,7 +688,7 @@ describe('the Settings sheet', () => {
 describe('the date sheet', () => {
   const openDate = async () => {
     const host = await open();
-    await press(host.querySelector('.sticky [data-date]'));
+    await press(host.querySelector('.sticky button[aria-haspopup="dialog"]'));
     return host;
   };
   const moved = dayjs().add(9, 'day');
@@ -812,7 +814,7 @@ describe('a locked composer', () => {
 
   it('keeps the date sheet’s controls inert and its Save disabled', async () => {
     const host = await open();
-    await press(host.querySelector('.sticky [data-date]'));
+    await press(host.querySelector('.sticky button[aria-haspopup="dialog"]'));
     await lock();
 
     expect(fieldset()!.disabled).toBe(true);

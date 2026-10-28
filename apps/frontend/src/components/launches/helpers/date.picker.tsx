@@ -348,18 +348,17 @@ export const DatePicker: FC<{
   const ref = useClickOutside<HTMLDivElement>(() => {
     setOpen(false);
   });
-  return (
-    <div
-      // Same move as tags and repeat, minus the sizing: this row *is* the
-      // control one level shallower (manage.modal.tsx:712 records the
-      // asymmetry) and its h-[44px] already clears the floor, so it only needs
-      // the cursor its two children were carrying for it. At 1025px and below
-      // it is the top bar's date: still 44px (upstream draws 34), no outer
-      // margin, and a shorter date line that truncates.
-      className="px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ml-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0"
-      onClick={onOpen || changeShow}
-      ref={ref}
-    >
+
+  // Same move as tags and repeat, minus the sizing: this row *is* the control
+  // one level shallower (manage.modal.tsx:712 records the asymmetry) and its
+  // h-[44px] already clears the floor, so it only needs the cursor its two
+  // children were carrying for it. At 1025px and below it is the top bar's
+  // date: still 44px (upstream draws 34), no outer margin, and a shorter date
+  // line that truncates.
+  const row =
+    'px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ml-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0';
+  const lines = (
+    <>
       <div>
         <CalendarIcon />
       </div>
@@ -369,6 +368,27 @@ export const DatePicker: FC<{
       <div className="hidden mobile:block truncate">
         {date.format(isUSCitizen() ? 'MMM D, h:mm A' : 'D MMM, HH:mm')}
       </div>
+    </>
+  );
+
+  // Opening somewhere else (the top bar's date sheet), the row is a control of
+  // its own: a real button, named by the date it shows.
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-haspopup="dialog"
+        className={clsx(row, 'focus-visible:ring-2 focus-visible:ring-brand')}
+      >
+        {lines}
+      </button>
+    );
+  }
+
+  return (
+    <div className={row} onClick={changeShow} ref={ref}>
+      {lines}
       {open && (
         <div
           onClick={(e) => e.stopPropagation()}
