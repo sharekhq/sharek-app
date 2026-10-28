@@ -1130,7 +1130,7 @@ export const AiImage: FC<{
         data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         aria-label={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         className={clsx(
-          'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-ai text-aiAccent px-[8px]'
+          'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-ai text-aiAccent px-[8px]'
         )}
       >
         {loading && (
@@ -1149,6 +1149,7 @@ export const AiImage: FC<{
               xmlns="http://www.w3.org/2000/svg"
               width="16"
               height="16"
+              className="mobile:w-[20px] mobile:h-[20px]"
               viewBox="0 0 16 16"
               fill="none"
             >

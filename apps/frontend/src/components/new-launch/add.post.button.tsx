@@ -16,7 +16,7 @@ export const AddPostButton: FC<{
     <div className="flex">
       <div
         onClick={onClick}
-        className="select-none cursor-pointer h-[34px] coarse:min-h-[44px] rounded-[6px] flex bg-quiet border border-line text-ink gap-[8px] justify-center items-center pl-[16px] pr-[20px] text-[13px] font-[600] mt-[12px]"
+        className="select-none cursor-pointer h-[34px] coarse:min-h-[44px] rounded-[6px] flex bg-quiet border border-line text-ink gap-[8px] justify-center items-center pl-[16px] pr-[20px] text-[13px] font-[600] mt-[12px] mobile:w-[44px] mobile:h-[44px] mobile:p-0 mobile:mt-0 mobile:rounded-[8px]"
       >
         <div>
           <svg
@@ -35,7 +35,9 @@ export const AddPostButton: FC<{
             />
           </svg>
         </div>
-        <div>
+        {/* icon only at 1025px and below, at the end of the pinned tool bar;
+            the label stays for screen readers */}
+        <div className="mobile:sr-only">
           {t(
             ...(props.postComment === PostComment.ALL
               ? ['add_comment_or_post', 'Add comment or post']

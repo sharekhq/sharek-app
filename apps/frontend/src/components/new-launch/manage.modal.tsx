@@ -19,11 +19,7 @@ import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
 import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
-import {
-  useLaunchStore,
-  NarrowView,
-} from '@gitroom/frontend/components/new-launch/store';
-import { SegmentedControl } from '@gitroom/frontend/components/ui/segmented.control';
+import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
 import { useShallow } from 'zustand/react/shallow';
 import { RepeatComponent } from '@gitroom/frontend/components/launches/repeat.component';
@@ -44,7 +40,12 @@ import {
   CloseIcon,
   TrashIcon,
   DropdownArrowSmallIcon,
+  EyeIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import {
+  MobileTopBar,
+  MobileTopBarAction,
+} from '@gitroom/frontend/components/new-launch/mobile.top.bar';
 import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
@@ -72,6 +73,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   const toaster = useToaster();
   const modal = useModals();
   const [showSettings, setShowSettings] = useState(false);
+  // at 1025px and below the preview takes the editor's place
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
   const { addEditSets, mutate, customClose, dummy } = props;
@@ -94,8 +97,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     channelDates,
     setChannelDate,
     publishBlockers,
-    narrowView,
-    setNarrowView,
   } = useLaunchStore(
     useShallow((state) => ({
       hide: state.hide,
@@ -115,8 +116,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       locked: state.locked,
       activateExitButton: state.activateExitButton,
       publishBlockers: state.publishBlockers,
-      narrowView: state.narrowView,
-      setNarrowView: state.setNarrowView,
     }))
   );
   // the other channels of an existing post show and move only their own date
@@ -654,7 +653,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'fix');
             setLoading(false);
             setShowSettings(true);
-            setNarrowView('settings');
             return;
           }
 
@@ -669,7 +667,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'preview');
             setLoading(false);
             setShowSettings(false);
-            setNarrowView('editor');
+            setMobileTab('edit');
             return;
           }
 
@@ -824,77 +822,91 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       addEditSets,
       dummy,
       shortlinkPreferenceData,
-      setNarrowView,
     ]
   );
 
-  return (
-    <div className="w-full h-full flex-1 p-[40px] mobile:p-[12px] flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] flex-col">
-        {/*
-          Shape A. Below `mobile` the two panes take turns instead of sitting
-          side by side, because side by side needs 769px — 891 over an existing
-          post — and the widest phone this has to serve is 430.
+  const scheduleLabel = dummy
+    ? t('create_output', 'Create output')
+    : !existingData?.integration
+    ? t('add_to_calendar', 'Add to calendar')
+    : existingData?.posts?.[0]?.state === 'DRAFT'
+    ? t('schedule', 'Schedule')
+    : t('update', 'Update');
 
-          Which pane shows is CSS, not a media-query hook: the view state and
-          the width compose in the class list, so at 1026 and above both panes
-          render whatever the view happens to be and C3 holds by construction.
-          A `useMediaQuery` swap would also flash the wide layout on first
-          render, since it reports false on the server and on first paint.
-
-          The close control is here because it lives in the preview pane's
-          header, and this layout can hide that pane — it was the only way out
-          of the modal.
-        */}
-        <div className="hidden mobile:flex items-center gap-[8px] p-[8px] border-b border-newBorder">
-          <SegmentedControl
-            label={t('compose_view', 'Compose view')}
-            value={narrowView}
-            onChange={(view) => {
-              setNarrowView(view as NarrowView);
-              // One mechanism, not two: `showSettings` already swaps the editor
-              // pane between its content view and its per-channel settings, so
-              // the Settings segment drives that rather than introducing a
-              // second thing that hides the same pane.
-              setShowSettings(view === 'settings');
-            }}
-            options={[
-              // `editor`, `settings` and `preview` already exist as keys with
-              // exactly these values in both languages — new near-duplicates
-              // would be three more strings to keep in step for nothing.
-              { value: 'editor', label: t('editor', 'Editor') },
+  // the Post menu at 1025px and below: the desktop buttons, in their order
+  const mobileActions: MobileTopBarAction[] = addEditSets
+    ? [
+        {
+          label: t('save_set', 'Save Set'),
+          variant: 'primary',
+          onClick: schedule('draft'),
+        },
+      ]
+    : [
+        {
+          label: scheduleLabel,
+          variant: 'primary',
+          onClick: schedule('schedule'),
+          disabled: publishBlocked,
+        },
+        ...(!dummy
+          ? [
               {
-                value: 'settings',
-                label: t('settings', 'Settings'),
-                // There are no per-channel settings until a channel is picked;
-                // `#wrapper-settings` is hidden outright while current is
-                // global, so the segment would open an empty pane.
-                disabled: current === 'global',
+                label: t('post_now', 'Post Now'),
+                variant: 'secondary' as const,
+                onClick: schedule('now'),
+                disabled: publishBlocked,
               },
-              { value: 'preview', label: t('preview', 'Preview') },
-            ]}
-          />
-          <button
-            type="button"
-            onClick={askClose}
-            aria-label={t('close', 'Close')}
-            className="flex-none w-[44px] h-[44px] flex items-center justify-center rounded-[8px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-        <div className="flex-1 flex min-h-0">
+            ]
+          : []),
+        {
+          label: t('save_as_draft', 'Save as Draft'),
+          variant: 'tertiary',
+          onClick: schedule('draft'),
+        },
+      ];
+
+  // at 1025px and below there is no room for the preview column, it replaces
+  // the editor instead
+  const previewButton = (
+    <button
+      type="button"
+      onClick={() => setMobileTab(mobileTab === 'preview' ? 'edit' : 'preview')}
+      aria-pressed={mobileTab === 'preview'}
+      aria-label={t('preview', 'Preview')}
+      className={clsx(
+        'hidden mobile:flex shrink-0 w-[44px] h-[44px] justify-center items-center rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand',
+        mobileTab === 'preview' ? 'text-brandText' : 'text-muted'
+      )}
+    >
+      <EyeIcon />
+    </button>
+  );
+
+  return (
+    <div className="w-full h-full flex-1 p-[40px] mobile:p-0 mobile:h-auto mobile:min-h-full flex relative">
+      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] mobile:rounded-none flex-col">
+        <MobileTopBar
+          onBack={askClose}
+          actions={mobileActions}
+          disabled={selectedIntegrations.length === 0 || loading || locked}
+          loading={loading}
+          reasons={blockedReasons}
+        >
+          <DatePicker onChange={setPickerDate} date={pickerDate} />
+        </MobileTopBar>
+        <div className="flex-1 flex min-h-0 mobile:contents">
           <div
             className={clsx(
               'flex flex-col flex-1 border-e border-newBorder',
               // A single pane has no divider to draw, and nothing to its start
               // edge to be floored against.
               'mobile:border-e-0 mobile:min-w-0',
-              narrowView === 'preview' && 'mobile:hidden'
+              mobileTab === 'preview' && 'mobile:flex-none'
             )}
           >
-            {/* The segment bar carries the title at narrow widths, so this
-                65px header would be the second one saying the same thing. */}
+            {/* The top bar carries the post at 1025px and below, so this
+                65px header would be a second one. */}
             <div className="mobile:hidden bg-newBgColor h-[65px] rounded-s-[20px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] text-[20px] font-[600]">
               {t('create_post_title', 'Create Post')}
               <CreationMethodBadge
@@ -902,10 +914,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px] bg-panel">
+            <div className="flex-1 flex flex-col gap-[16px] bg-panel mobile:bg-transparent">
               <div
                 className={clsx(
-                  'flex-1 relative',
+                  // at 1025px and below the page scrolls, not this box
+                  'flex-1 relative mobile:flex mobile:flex-col',
                   // `current === 'global'` hides the settings pane below, so
                   // without this half of the condition the editor could be
                   // hidden for a pane that is not showing — a blank column.
@@ -914,20 +927,13 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               >
                 <div
                   id="social-content"
-                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
+                  className="gap-[32px] mobile:gap-[16px] flex flex-col pe-[8px] pt-[20px] ps-[20px] mobile:px-[16px] mobile:pt-[12px] mobile:static mobile:flex-1 absolute top-0 left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
                 >
-                  {/* A flex-1 channel picker beside a shrink-to-fit customer
-                      control: at 390 that squeezes the picker against something
-                      unrelated to it, so the two stack. Reversed, because
-                      picking a customer filters which channels are worth
-                      choosing and the control belongs above the list it
-                      governs — visual order only; the picker stays first in
-                      the document, so tab order and reading order do not move. */}
-                  <div className="flex w-full mobile:flex-col-reverse mobile:gap-[12px]">
-                    <div className="flex flex-1 mobile:min-w-0">
+                  <div className="flex w-full">
+                    <div className="flex flex-1">
                       <PicksSocialsComponent toolTip={true} />
                     </div>
-                    <div className="mobile:w-full mobile:[&>*]:w-full">
+                    <div>
                       {/* an existing post keeps its channels */}
                       {!dummy && !existingData.integration && (
                         <SelectCustomer
@@ -936,21 +942,45 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                         />
                       )}
                     </div>
+                    {!!existingData.integration && (
+                      <>
+                        <div className="hidden mobile:flex items-center">
+                          <CreationMethodBadge
+                            creationMethod={
+                              existingData?.posts?.[0]?.creationMethod
+                            }
+                            size="sm"
+                          />
+                        </div>
+                        {previewButton}
+                      </>
+                    )}
                   </div>
-                  <div className="flex flex-1 gap-[6px] flex-col">
-                    <div>
+                  <div className="flex flex-1 gap-[6px] mobile:gap-[16px] flex-col">
+                    <div className="mobile:flex mobile:items-center mobile:gap-[4px]">
                       {(!existingData.integration ||
                         !!existingData.siblings?.length) && <SelectCurrent />}
+                      {!existingData.integration && (
+                        <>
+                          <div className="hidden mobile:block flex-1" />
+                          {previewButton}
+                        </>
+                      )}
                     </div>
                     {/* min-w-0: the outermost item of the editor's flex chain.
                         The rest are in editor.tsx — see the note at its :363. */}
-                    <div className="flex-1 flex min-w-0">
+                    <div
+                      className={clsx(
+                        'flex-1 flex min-w-0',
+                        mobileTab === 'preview' && 'mobile:hidden'
+                      )}
+                    >
                       {!hide && <EditorWrapper totalPosts={1} value="" />}
                     </div>
                     <div
                       id="social-empty"
                       className={clsx(
-                        'pb-[16px]'
+                        'pb-[16px] mobile:pb-0'
                         // current !== 'global' && 'hidden'
                       )}
                     />
@@ -1005,11 +1035,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
           <div
             className={clsx(
-              // 580 fixed is the single biggest term in compose's width. It
-              // becomes the pane rather than a column beside one.
+              // 580 fixed is the single biggest term in compose's width. At
+              // 1025px and below the preview replaces the editor instead.
               'w-[580px] flex flex-col',
-              'mobile:w-auto mobile:flex-1 mobile:min-w-0',
-              narrowView !== 'preview' && 'mobile:hidden'
+              'mobile:!w-full mobile:flex-1',
+              mobileTab === 'edit' && 'mobile:hidden'
             )}
           >
             <div className="mobile:hidden bg-newBgColor h-[65px] rounded-e-[20px] !rounded-b-[0] flex items-center px-[20px] text-[20px] font-[600]">
@@ -1025,26 +1055,19 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 <CloseIcon className="text-muted" />
               </div>
             </div>
-            <div className="flex-1 relative bg-panel">
+            <div className="flex-1 relative bg-panel mobile:bg-transparent">
               <Scrollable
                 scrollClasses="!pe-[20px]"
-                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
+                className="absolute mobile:static top-0 p-[20px] pe-[8px] mobile:p-[16px] left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
               >
                 <ShowAllProviders ref={ref} />
               </Scrollable>
             </div>
           </div>
         </div>
-        {/*
-          Measured, not assumed: this bar's min-content is 729 — the highest
-          term in the modal, above the two-pane row's 682 — because h-[84px] is
-          a fixed height and neither group wraps. Fixing only the panes lands at
-          729 and still does not fit. So the height becomes a floor and the two
-          groups dissolve into the bar's own wrap, which lets tag, repeat and
-          date take one row each and the two commit buttons share the last.
-        */}
-        <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center mobile:h-auto mobile:min-h-[84px] mobile:flex-wrap mobile:gap-[8px] mobile:p-[12px]">
-          <div className="flex-1 flex ps-[20px] gap-[8px] mobile:contents mobile:[&>*]:basis-full">
+        {/* the top bar and the sheets take its place at 1025px and below */}
+        <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center mobile:hidden">
+          <div className="flex-1 flex ps-[20px] gap-[8px]">
             {!dummy && (
               <TagsComponent
                 name="tags"
@@ -1060,11 +1083,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               <RepeatComponent repeat={repeater} onChange={setRepeater} />
             )}
           </div>
-          <div className="pe-[20px] flex items-center justify-end gap-[8px] mobile:contents">
+          <div className="pe-[20px] flex items-center justify-end gap-[8px]">
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600] mobile:basis-full mobile:justify-center"
+                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
               >
                 <div>
                   <TrashIcon />
@@ -1072,11 +1095,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 <div>{t('delete_post', 'Delete Post')}</div>
               </button>
             )}
-            {/* Tag and repeat are a control inside a wrapper; the date
-                picker *is* the control, one level shallower — so without this
-                wrapper no single rule can size or align all three. Centred to
-                match the two above it, which centre themselves. */}
-            <div className="mobile:basis-full mobile:[&>*]:!justify-center mobile:[&>*]:!ml-0">
+            {/* The date picker's row carries flex-1; inside this wrapper it
+                does not grow, which is how the bar has laid out since the
+                wrapper came in. */}
+            <div>
               <DatePicker onChange={setPickerDate} date={pickerDate} />
             </div>
             {!addEditSets && (
@@ -1085,7 +1107,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   selectedIntegrations.length === 0 || loading || locked
                 }
                 onClick={schedule('draft')}
-                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] h-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] text-[15px] font-[600] mobile:flex-1"
+                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] h-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] text-[15px] font-[600]"
               >
                 {loading && (
                   <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -1113,7 +1135,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               // button emits no pointer events, so an anchor on it would never
               // fire.
               <div
-                className="group cursor-pointer relative mobile:flex-1 mobile:[&>*]:w-full"
+                className="group cursor-pointer relative"
                 data-tooltip-id={publishBlocked ? 'tooltip' : undefined}
                 data-tooltip-content={
                   publishBlocked ? blockedReasons.join('\n') : undefined
@@ -1145,13 +1167,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   >
                     {selectedIntegrations.length === 0
                       ? t('check_circles_above', 'Check the circles above')
-                      : dummy
-                      ? t('create_output', 'Create output')
-                      : !existingData?.integration
-                      ? t('add_to_calendar', 'Add to calendar')
-                      : existingData?.posts?.[0]?.state === 'DRAFT'
-                      ? t('schedule', 'Schedule')
-                      : t('update', 'Update')}
+                      : scheduleLabel}
                   </div>
                   {!dummy && (
                     <div className="flex justify-center items-center h-[20px] w-[20px] pt-[4px] arrow-change">
@@ -1182,6 +1198,8 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         </div>
       </div>
       <CopilotPopup
+        // clear of the pinned tool bar and of the Post menu at 1025px and below
+        className="mobile:!z-[460] mobile:!bottom-[112px]"
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`

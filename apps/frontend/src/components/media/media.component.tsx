@@ -850,6 +850,11 @@ export const MultiMediaComponent: FC<{
   onOpen?: () => void;
   onClose?: () => void;
   toolBar?: React.ReactNode;
+  // at 1025px and below: what stays at the end of the tool bar, and the
+  // composer's pinned-bar classes and keyboard offset
+  toolBarEnd?: React.ReactNode;
+  toolsClassName?: string;
+  toolsStyle?: React.CSSProperties;
   information?: React.ReactNode;
   insertInContent?: (media: Array<{ id: string; path: string }>) => void;
   onChange: (event: {
@@ -874,6 +879,9 @@ export const MultiMediaComponent: FC<{
     allData,
     dummy,
     toolBar,
+    toolBarEnd,
+    toolsClassName,
+    toolsStyle,
     information,
     mediaNotAvailable,
     designNotAvailable,
@@ -1051,9 +1059,14 @@ export const MultiMediaComponent: FC<{
             </ReactSortable>
         </div>
         )}
+        {/* at 1025px and below the counter stays with the post, the tools
+            can move to the bottom of the screen */}
+        {information && (
+          <div className="hidden mobile:flex justify-end">{information}</div>
+        )}
         <div
           className={clsx(
-            'flex gap-[8px] w-full b1 text-textColor',
+            'flex gap-[8px] mobile:gap-[4px] w-full b1 text-textColor',
             // A scroller below `mobile`, not a wrap — and the reason is now
             // measured twice rather than argued. Spec 017 R11 found that
             // wrapping this row spilled through `overflow: visible` onto the
@@ -1089,21 +1102,23 @@ export const MultiMediaComponent: FC<{
             // the control below it.
             'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
             'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
-            !flush && 'px-[12px] border-t border-newColColor'
+            !flush && 'px-[12px] border-t border-newColColor',
+            toolsClassName
           )}
+          style={toolsStyle}
         >
           {!mediaNotAvailable && (
-            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] mobile:py-0 b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
                 data-tooltip-id="tooltip"
                 data-tooltip-content={t('insert_media', 'Insert Media')}
                 aria-label={t('insert_media', 'Insert Media')}
-                className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-surface border border-line px-[8px]"
               >
                 <div className="flex gap-[8px] items-center">
                   <div>
-                    <InsertMediaIcon />
+                    <InsertMediaIcon className="mobile:w-[20px] mobile:h-[20px]" />
                   </div>
                   {!compact && (
                     <div className="text-[12px] font-[600] mobile:hidden block">
@@ -1118,7 +1133,7 @@ export const MultiMediaComponent: FC<{
                   data-tooltip-id="tooltip"
                   data-tooltip-content={t('design_media', 'Design Media')}
                   aria-label={t('design_media', 'Design Media')}
-                  className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                  className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px] mobile:hidden"
                 >
                   <div className="flex gap-[5px] items-center">
                     <div>
@@ -1158,17 +1173,32 @@ export const MultiMediaComponent: FC<{
             </div>
           )}
           {!mediaNotAvailable && !!toolBar && (
-            <div className="text-newColColor h-full flex items-center">
+            <div className="text-newColColor h-full flex items-center mobile:px-[4px]">
               <VerticalDividerIcon />
             </div>
           )}
           {!!toolBar && (
-            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] mobile:py-0 b2 items-center gap-[4px]">
               {toolBar}
             </div>
           )}
+          {/* the end of the bar at 1025px and below, kept in view while the
+              tools scroll under it: a fade over the tools, then what stays
+              at the end (the composer's Add comment) */}
+          {(!!toolBar || !!toolBarEnd) && (
+            <div className="hidden mobile:flex sticky end-0 ms-auto items-center">
+              {!!toolBar && (
+                <div className="self-stretch w-[40px] pointer-events-none bg-gradient-to-l rtl:bg-gradient-to-r from-newBgColorInner" />
+              )}
+              {toolBarEnd && (
+                <div className="flex items-center bg-newBgColorInner">
+                  {toolBarEnd}
+                </div>
+              )}
+            </div>
+          )}
           {information && (
-            <div className="flex-1 justify-end flex py-[10px] b2 items-center gap-[4px]">
+            <div className="flex-1 justify-end flex py-[10px] b2 items-center gap-[4px] mobile:hidden">
               {information}
             </div>
           )}

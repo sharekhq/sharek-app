@@ -16,9 +16,10 @@ export const HeadingComponent: FC<{
 
   return (
     // Focusable so the levels have a way open that is not hovering — a tap
-    // focuses it, a tap elsewhere blurs it.
+    // focuses it, a tap elsewhere blurs it. At 1025px and below the levels
+    // sit inline instead, each a 44px tile of its own.
     <div
-      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-surface border border-line flex justify-center items-center group relative focus-visible:ring-2 focus-visible:ring-brand"
+      className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-surface border border-line flex justify-center items-center group relative focus-visible:ring-2 focus-visible:ring-brand mobile:w-auto mobile:h-auto mobile:bg-transparent mobile:border-0"
       tabIndex={0}
     >
       <svg
@@ -27,6 +28,7 @@ export const HeadingComponent: FC<{
         height="16"
         viewBox="0 0 16 16"
         fill="none"
+        className="mobile:hidden"
       >
         <path
           d="M3.9974 2.66602V13.3327M11.9974 2.66602V13.3327M5.33073 2.66602H2.66406M11.9974 7.99935L3.9974 7.99935M5.33073 13.3327H2.66406M13.3307 13.3327H10.6641M13.3307 2.66602H10.6641"
@@ -39,12 +41,16 @@ export const HeadingComponent: FC<{
       <div
         data-tooltip-id="tooltip"
         data-tooltip-content={t('announcement_title', 'Title')}
-        className="flex p-[10px] gap-[5px] -left-[50%] rounded-[6px] bottom-[100%] opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 bg-surface border border-line shadow-soft z-[100] absolute transition-all"
+        className="flex p-[10px] gap-[5px] -left-[50%] rounded-[6px] bottom-[100%] opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 bg-surface border border-line shadow-soft z-[100] absolute transition-all mobile:static mobile:p-0 mobile:gap-[4px] mobile:opacity-100 mobile:pointer-events-auto mobile:bg-transparent mobile:border-0 mobile:shadow-none"
       >
-        <div onClick={setHeading(1)}>
+        <div
+          onClick={setHeading(1)}
+          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+        >
           <svg
             width="20"
             height="16"
+            className="mobile:w-[20px] mobile:h-[20px]"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -55,10 +61,14 @@ export const HeadingComponent: FC<{
             />
           </svg>
         </div>
-        <div onClick={setHeading(2)}>
+        <div
+          onClick={setHeading(2)}
+          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+        >
           <svg
             width="20"
             height="16"
+            className="mobile:w-[20px] mobile:h-[20px]"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -69,10 +79,14 @@ export const HeadingComponent: FC<{
             />
           </svg>
         </div>
-        <div onClick={setHeading(3)}>
+        <div
+          onClick={setHeading(3)}
+          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+        >
           <svg
             width="20"
             height="16"
+            className="mobile:w-[20px] mobile:h-[20px]"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

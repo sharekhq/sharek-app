@@ -28,12 +28,13 @@ export const SignatureBox: FC<{
         onClick={addSignature}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('top_title_add_signature', 'Add Signature')}
-        className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] bg-newColColor flex justify-center items-center"
+        className="select-none cursor-pointer rounded-[6px] mobile:rounded-[8px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] mobile:w-[44px] mobile:h-[44px] bg-newColColor flex justify-center items-center"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
           height="16"
+          className="mobile:w-[20px] mobile:h-[20px]"
           viewBox="0 0 16 16"
           fill="none"
         >

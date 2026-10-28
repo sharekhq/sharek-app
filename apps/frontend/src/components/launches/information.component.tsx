@@ -186,9 +186,13 @@ export const InformationComponent: FC<{
   return (
     <div
       className={clsx(
-        'group rounded-[6px] gap-[4px] h-[30px] px-[6px] flex justify-center items-center relative focus-visible:ring-2 focus-visible:ring-brand',
-        isValid || isEmpty ? 'border border-newColColor' : 'bg-error text-white',
-        isEmpty && 'text-muted'
+        'group rounded-[6px] gap-[4px] mobile:gap-[6px] h-[30px] px-[6px] mobile:px-0 flex justify-center items-center relative focus-visible:ring-2 focus-visible:ring-brand',
+        // at 1025px and below a plain count beside the post, no box
+        isValid || isEmpty
+          ? 'border border-newColColor mobile:border-0 mobile:text-muted'
+          : 'bg-error text-white mobile:bg-transparent mobile:text-error',
+        isEmpty && 'text-muted',
+        !selectedIntegrations.length && 'mobile:hidden'
       )}
       // A tab stop only when there is a panel to open — a tap focuses this and
       // reveals what a hover reveals, and the count on its own is not something
@@ -200,12 +204,12 @@ export const InformationComponent: FC<{
       {isValid ? <Valid /> : <Invalid />}
 
       {!isGlobal && (
-        <div className="text-[10px] font-[600] flex justify-center items-center">
+        <div className="text-[10px] mobile:text-[12px] font-[600] mobile:font-[500] flex justify-center items-center">
           {currentChars}/{totalAllowedChars}
         </div>
       )}
       {isGlobal && globalDisplayLimit !== null && (
-        <div className="text-[10px] font-[600] flex justify-center items-center">
+        <div className="text-[10px] mobile:text-[12px] font-[600] mobile:font-[500] flex justify-center items-center">
           {globalDisplayLimit.count}/{globalDisplayLimit.limit}
         </div>
       )}

@@ -80,9 +80,6 @@ jest.mock(
   '@gitroom/frontend/components/launches/helpers/use.existing.data',
   () => ({ useExistingData: () => ({}) })
 );
-jest.mock('@gitroom/frontend/components/ui/segmented.control', () => ({
-  SegmentedControl: () => null,
-}));
 jest.mock('@gitroom/frontend/components/launches/helpers/date.picker', () => ({
   DatePicker: () => null,
 }));
@@ -117,6 +114,10 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   CloseIcon: () => null,
   TrashIcon: () => null,
   DropdownArrowSmallIcon: () => null,
+  // the top bar and the preview button at 1025px and below
+  ChevronLeftIcon: () => null,
+  DropdownArrowIcon: () => null,
+  EyeIcon: () => null,
 }));
 jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,
