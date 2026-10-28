@@ -802,3 +802,55 @@ const SETTINGS_ROW_FORMS = [
 test('047 US3: the Settings tab row forms emit CSS', async () => {
   await assertFormsEmit(SETTINGS_ROW_FORMS);
 });
+
+// 047 US2 — Samy's channel and chat strips. `mobile:min-h-0` and
+// `mobile:order-3` are the chat-fit rule: the chat comes after both strips
+// and takes exactly what they leave, with no floor (upstream's 500px floor
+// is what pushed the message box off a phone). If either emitted nothing,
+// the box would be cut off again with nothing failing.
+const SAMY_STRIP_FORMS = [
+  {
+    className: 'mobile:min-h-0',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '0px',
+  },
+  {
+    className: 'mobile:order-3',
+    atRule: '(max-width: 1025px)',
+    prop: 'order',
+    value: '3',
+  },
+  {
+    // The avatars' spacing in the channel strip.
+    className: 'mobile:gap-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '12px',
+  },
+  {
+    // The chips' spacing in the chat strip.
+    className: 'mobile:gap-[4px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '4px',
+  },
+  {
+    // A chip's ceiling, past which its title ends in an ellipsis.
+    className: 'mobile:max-w-[180px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'max-width',
+    value: '180px',
+  },
+  {
+    // The rail's collapse button, now drawn in agent.tsx itself.
+    className: 'coarse:w-[44px]',
+    atRule: '(pointer: coarse)',
+    prop: 'width',
+    value: '44px',
+  },
+];
+
+test('047 US2: the Samy strip and chat-fit forms emit CSS', async () => {
+  await assertFormsEmit(SAMY_STRIP_FORMS);
+});
