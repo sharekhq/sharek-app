@@ -548,6 +548,7 @@
   "billing_channels_more": "+{{count}} more",
   "billing_capability_line": "Text, images, video and voice, all made in the app",
   "billing_stripe_load_failed": "The payment form could not be loaded. Please disable ad blockers or privacy extensions for this page and reload.",
+  "billing_checkout_failed": "The payment form could not be loaded. Please try again in a moment.",
   "billing_no_risk_trial": "100% No-Risk Free Trial",
   "billing_pay_nothing_7_days": "Pay NOTHING for the first 7-days",
   "billing_cancel_anytime": "Cancel anytime, from settings",

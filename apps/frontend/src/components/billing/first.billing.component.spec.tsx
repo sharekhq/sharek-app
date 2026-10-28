@@ -10,10 +10,17 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 
 // What /billing/embedded answers is the whole question here, and SWR is where
 // the component reads it.
-let mockEmbedded: Record<string, unknown> = {};
+let mockEmbedded: Record<string, unknown> | undefined = {};
+let mockEmbeddedError: unknown;
+const mockMutateCheckout = jest.fn();
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({ data: mockEmbedded, isLoading: false }),
+  default: () => ({
+    data: mockEmbedded,
+    error: mockEmbeddedError,
+    isLoading: false,
+    mutate: mockMutateCheckout,
+  }),
   useSWRConfig: () => ({ mutate: jest.fn() }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
@@ -35,9 +42,14 @@ jest.mock('i18next', () => ({
     },
   },
 }));
+// The checkout is the only dynamic component given a secret, so it stands in
+// as a marker that shows whether Stripe was mounted, and with which secret.
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: () => () => null,
+  default: () => (props: { secret?: string }) =>
+    'secret' in props ? (
+      <span data-testid="checkout" data-secret={props.secret} />
+    ) : null,
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ stripeClient: 'pk_test' }),
@@ -142,6 +154,58 @@ describe('a refused checkout', () => {
 
     expect(host.textContent).toContain('Another account with this email');
     expect(host.textContent).not.toContain('already active');
+  });
+});
+
+// /billing/embedded answers a failed Stripe call with an error body and no
+// client_secret. Stripe throws when its checkout is mounted without one, which
+// left the payment column blank with nothing to act on.
+describe('a checkout the server could not prepare', () => {
+  afterEach(() => {
+    mockEmbeddedError = undefined;
+    mockMutateCheckout.mockClear();
+  });
+
+  it('says so and offers a retry, without mounting Stripe', async () => {
+    mockEmbedded = { statusCode: 400, message: "No such customer: 'x'" };
+    const host = await render();
+
+    expect(host.textContent).toContain(
+      'The payment form could not be loaded. Please try again in a moment.'
+    );
+    expect(host.querySelector('[data-testid="checkout"]')).toBeNull();
+
+    const retry = Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Try Again'
+    );
+    expect(retry).toBeDefined();
+    await act(async () => {
+      retry?.click();
+    });
+    expect(mockMutateCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the same when the request itself failed', async () => {
+    mockEmbedded = undefined;
+    mockEmbeddedError = new Error('Failed to fetch');
+    const host = await render();
+
+    expect(host.textContent).toContain(
+      'The payment form could not be loaded. Please try again in a moment.'
+    );
+    expect(host.querySelector('[data-testid="checkout"]')).toBeNull();
+  });
+
+  it('mounts the checkout with the secret once the server returns one', async () => {
+    mockEmbedded = { client_secret: 'cs_test_secret' };
+    const host = await render();
+
+    expect(
+      host
+        .querySelector('[data-testid="checkout"]')
+        ?.getAttribute('data-secret')
+    ).toBe('cs_test_secret');
+    expect(host.textContent).not.toContain('Please try again in a moment');
   });
 });
 

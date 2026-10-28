@@ -26,6 +26,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useDubClickId } from '@gitroom/frontend/components/layout/dubAnalytics';
 import SafeImage from '@gitroom/react/helpers/safe.image';
+import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import useCookie from 'react-use-cookie';
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
@@ -133,17 +134,19 @@ export const FirstBillingComponent = () => {
     });
   };
 
-  const { data, isLoading } = useSWR(
-    `/billing-${tier}-${period}`,
-    loadCheckout,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      revalidateIfStale: false,
-      refreshWhenOffline: false,
-      refreshWhenHidden: false,
-    }
-  );
+  const {
+    data,
+    error,
+    isLoading,
+    isValidating,
+    mutate: mutateCheckout,
+  } = useSWR(`/billing-${tier}-${period}`, loadCheckout, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    revalidateIfStale: false,
+    refreshWhenOffline: false,
+    refreshWhenHidden: false,
+  });
 
   useEffect(() => {
     if (data?.blocked) {
@@ -307,6 +310,20 @@ export const FirstBillingComponent = () => {
                 'billing_stripe_load_failed',
                 'The payment form could not be loaded. Please disable ad blockers or privacy extensions for this page and reload.'
               )}
+            </div>
+          ) : !isLoading && (error || (data && !data.client_secret)) ? (
+            // A failed Stripe call comes back as an error body without a
+            // client_secret, and Stripe throws when it is mounted without one.
+            <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500] flex flex-col items-start gap-[16px]">
+              <div>
+                {t(
+                  'billing_checkout_failed',
+                  'The payment form could not be loaded. Please try again in a moment.'
+                )}
+              </div>
+              <Button loading={isValidating} onClick={() => mutateCheckout()}>
+                {t('try_again', 'Try Again')}
+              </Button>
             </div>
           ) : !isLoading && data && stripe ? (
             <EmbeddedBilling
