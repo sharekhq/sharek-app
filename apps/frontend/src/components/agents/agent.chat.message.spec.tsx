@@ -4,8 +4,8 @@ import { createRoot, Root } from 'react-dom/client';
 // The user's own bubble in Samy's chat. Threads belong to the organization, so
 // a teammate who opens one sees these messages too. Module shells as in
 // agent.chat.language.spec; the chat shell renders the bubble slot with the
-// message each case sets. The real sanitizer runs: jest.config.ts maps
-// isomorphic-dompurify to its browser build on happy-dom's window.
+// message each case sets. The real sanitizer runs: jest.config.ts loads
+// isomorphic-dompurify's Node build, on jsdom.
 let message: { id: string; role: string; content: string };
 
 jest.mock('@copilotkit/react-ui', () => ({

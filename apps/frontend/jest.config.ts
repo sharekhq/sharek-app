@@ -21,17 +21,18 @@ const config: Config = {
     '^@gitroom/helpers/(.*)$': '<rootDir>/libraries/helpers/src/$1',
     '^@gitroom/nestjs-libraries/(.*)$':
       '<rootDir>/libraries/nestjs-libraries/src/$1',
-    // The client bundle takes isomorphic-dompurify's browser build, dompurify on the page's
-    // window. Its Node build requires jsdom, whose ESM tree Jest cannot load; here the window is
-    // happy-dom's (jest.setup.js).
-    '^isomorphic-dompurify$':
-      '<rootDir>/node_modules/isomorphic-dompurify/dist/browser.js',
   },
   // react-hotkeys-hook (the modal manager's Escape handling) ships ESM only, so it has to go
-  // through the transform rather than be required as-is.
-  transformIgnorePatterns: ['node_modules/(?!react-hotkeys-hook/)'],
+  // through the transform rather than be required as-is. isomorphic-dompurify resolves to its
+  // Node build, the server's, on jsdom: DOMPurify 3.4.8+ reads Node getters that happy-dom
+  // leaves empty, so it does not sanitize on happy-dom's window. jsdom's CSS, selector and
+  // encoding packages and isomorphic-dompurify's own parse5 and entities ship ESM only (some as
+  // .mjs) too; isomorphic-dompurify is listed so the pattern reaches its nested node_modules.
+  transformIgnorePatterns: [
+    'node_modules/(?!react-hotkeys-hook/|isomorphic-dompurify/|parse5/|entities/|@exodus/bytes/|@asamuzakjp/css-color/|@asamuzakjp/dom-selector/|@asamuzakjp/generational-cache/|@csstools/css-calc/|@csstools/css-color-parser/|@csstools/color-helpers/|@csstools/css-parser-algorithms/|@csstools/css-tokenizer/)',
+  ],
   transform: {
-    '^.+\\.[tj]sx?$': [
+    '^.+\\.[mc]?[tj]sx?$': [
       'ts-jest',
       {
         // isolatedModules = transpile each file alone, no whole-program type-check.

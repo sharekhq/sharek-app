@@ -2,7 +2,7 @@
 // These cannot run under the plain config: @mastra/core's execution path uses a
 // dynamic import(), which jest's VM rejects unless Node is started with
 // --experimental-vm-modules — and once that flag is on, jest refuses to require
-// `tokenx`, `@sindresorhus/slugify` or `p-map` (ESM only, pulled in by
+// `tokenx`, `@sindresorhus/slugify`, `p-map` or `jose` (ESM only, pulled in by
 // @mastra/core), so they are mapped to stubs.
 //
 // Both conditions come from upstream's dependency set; neither is reachable from
@@ -22,6 +22,7 @@ const config: Config = {
     '^tokenx$': '<rootDir>/../test/tokenx.stub.ts',
     '^@sindresorhus/slugify$': '<rootDir>/../test/slugify.stub.ts',
     '^p-map$': '<rootDir>/../test/p-map.stub.ts',
+    '^jose$': '<rootDir>/../test/jose.stub.ts',
   },
   transform: {
     '^.+\\.[mc]?[tj]s$': [

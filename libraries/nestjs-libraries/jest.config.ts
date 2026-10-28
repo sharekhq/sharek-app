@@ -52,9 +52,10 @@ const config: Config = {
   // does not, so custom.upload.validation's require('file-type') needs them —
   // and their ESM dependencies — transformed as well. @mastra/core 1.67 adds
   // @sindresorhus/slugify (with transliterate and escape-string-regexp 5) and
-  // p-map, ESM-only too.
+  // p-map, ESM-only too. @mastra/client-js 1.46 (through @ag-ui/mastra) loads
+  // @mastra/core's A2A build, whose @a2a-js/sdk requires jose 6, ESM-only.
   transformIgnorePatterns: [
-    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/)',
+    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/|jose/)',
   ],
 };
 

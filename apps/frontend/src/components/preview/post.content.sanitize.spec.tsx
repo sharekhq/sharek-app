@@ -1,6 +1,6 @@
 // sanitizePostContent lives in libraries/helpers, but this spec runs here: the
 // helpers config has no DOM and stubs DOMPurify (sanitize.post.content.spec),
-// while this config maps it to the browser build on happy-dom's window, so the
+// while this config loads its Node build on jsdom, as the server does, so the
 // real sanitizer runs. It cleans a post on save and again on the public
 // preview page, which mounts the app's tooltip.
 import { sanitizePostContent } from '@gitroom/helpers/utils/sanitize.post.content';
