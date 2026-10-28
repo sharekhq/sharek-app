@@ -773,3 +773,32 @@ const WEBHOOK_URL_FORMS = [
 test('047 US5: the webhook URL wrap emits CSS', async () => {
   await assertFormsEmit(WEBHOOK_URL_FORMS);
 });
+
+// 047 US3 — the Settings tab row reaches 1025px. The row itself is
+// `mobile:flex-row` and the shared forms above; these are the tab's own
+// padding and the 8px under the row before "Logout".
+const SETTINGS_ROW_FORMS = [
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '14px',
+  },
+  {
+    className: 'mobile:py-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '10px',
+  },
+  {
+    className: 'mobile:mt-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-top',
+    value: '8px',
+  },
+];
+
+test('047 US3: the Settings tab row forms emit CSS', async () => {
+  await assertFormsEmit(SETTINGS_ROW_FORMS);
+});

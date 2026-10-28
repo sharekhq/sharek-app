@@ -122,10 +122,10 @@ export const SettingsPopup: FC<{
       : 'global_settings';
   });
 
-  // Phones draw the tab list as one sideways strip, where a tab named in the
-  // address can open past the screen's edge, so the strip starts scrolled to
-  // it. Only when the strip overflows: the iPad and desktop column has
-  // nothing to scroll.
+  // Screens up to 1025px (phones and iPads held upright) draw the tab list as
+  // one sideways strip, where a tab named in the address can open past the
+  // screen's edge, so the strip starts scrolled to it. Only when the strip
+  // overflows: the desktop column has nothing to scroll.
   const activeTab = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const strip = activeTab.current?.parentElement;
@@ -143,9 +143,9 @@ export const SettingsPopup: FC<{
        container, so min-width:auto floors it at its 382.61px min-content
        against a 355px overflow-hidden clipper — 28px of the panel off the
        right edge at 390. Measured on the live app. */
-    <div className="flex flex-1 min-w-0 gap-[1px] phone:flex-col">
-      <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] phone:w-full phone:p-[12px]">
-        <div className="flex flex-1 flex-col gap-[15px] phone:flex-row phone:gap-[8px] phone:overflow-x-auto phone:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+    <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
+      <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] mobile:w-full mobile:p-[12px]">
+        <div className="flex flex-1 flex-col gap-[15px] mobile:flex-row mobile:gap-[8px] mobile:overflow-x-auto mobile:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
           {list.map(({ tab: tabKey, label }) => (
             <button
               type="button"
@@ -153,7 +153,7 @@ export const SettingsPopup: FC<{
               ref={tabKey === tab ? activeTab : undefined}
               aria-pressed={tabKey === tab}
               className={clsx(
-                'cursor-pointer flex items-center gap-[12px] rounded-[10px] px-[16px] py-[11px] text-start transition-colors focus-visible:ring-2 focus-visible:ring-brand coarse:min-h-[44px] phone:shrink-0 phone:whitespace-nowrap phone:px-[14px] phone:py-[10px]',
+                'cursor-pointer flex items-center gap-[12px] rounded-[10px] px-[16px] py-[11px] text-start transition-colors focus-visible:ring-2 focus-visible:ring-brand coarse:min-h-[44px] mobile:shrink-0 mobile:whitespace-nowrap mobile:px-[14px] mobile:py-[10px]',
                 tabKey === tab
                   ? 'bg-brandSoft text-brandText font-[600]'
                   : 'hover:bg-boxHover'
@@ -166,7 +166,7 @@ export const SettingsPopup: FC<{
         </div>
         <div>
           {showLogout && (
-            <div className="mt-4 phone:mt-[8px]">
+            <div className="mt-4 mobile:mt-[8px]">
               <LogoutComponent />
             </div>
           )}
