@@ -1428,13 +1428,15 @@ export class StripeService extends PaymentProviderAbstract {
 
   async cancelSubscription(organizationId: string) {
     const org = await this._organizationService.getOrgById(organizationId);
+    const customer = org?.paymentId;
+    const subscriptions = await this.getLiveSubscriptions(customer);
 
-    // A comped plan has no Stripe object behind it — the super-admin dropdown
-    // writes the granting user's id into paymentId — so it is dropped by
-    // organization instead. Handing that id to Stripe is what threw "No such
-    // customer" here. Clearing it leaves the org looking like any unsubscribed
-    // one, so a later checkout can open a real customer.
-    if (!org?.paymentId?.startsWith('cus_')) {
+    // A comped plan has no Stripe subscription behind it, so it is dropped by
+    // organization, and the customer the paywall opened stays for a later
+    // checkout. Older comps also wrote a user id into paymentId; handing that
+    // to Stripe is what threw "No such customer" here, so it is cleared and a
+    // later checkout can open a real customer.
+    if (!subscriptions.length) {
       const cancelled =
         await this._subscriptionService.deleteSubscriptionByOrgId(
           organizationId,
@@ -1445,24 +1447,18 @@ export class StripeService extends PaymentProviderAbstract {
         throw new Error('No active subscription found');
       }
 
-      await this._subscriptionService.updateCustomerId(organizationId, null);
+      if (!customer?.startsWith('cus_')) {
+        await this._subscriptionService.updateCustomerId(organizationId, null);
+      }
 
       return { cancelled: true };
-    }
-
-    const customer = org.paymentId;
-
-    const subscriptions = await this.getLiveSubscriptions(customer);
-
-    if (!subscriptions.length) {
-      throw new Error('No active subscription found');
     }
 
     for (const subscription of subscriptions) {
       await stripe.subscriptions.cancel(subscription.id);
     }
     await this._subscriptionService.deleteSubscription(
-      customer,
+      customer!,
       STRIPE_PROVIDER
     );
 

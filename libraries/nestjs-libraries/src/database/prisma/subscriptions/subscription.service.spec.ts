@@ -171,7 +171,10 @@ const makeModifyService = (over: {
     getSubscriptionByCustomerId: jest
       .fn()
       .mockResolvedValue(over.current ?? null),
+    getSubscriptionByOrgId: jest.fn().mockResolvedValue(over.current ?? null),
     deleteSubscriptionByCustomerId: jest.fn().mockResolvedValue({ count: 0 }),
+    createOrUpdateSubscription: jest.fn().mockResolvedValue(undefined),
+    updateCustomerId: jest.fn(),
   };
   const integrations = {
     getIntegrationsList: jest.fn().mockResolvedValue(over.channels),
@@ -194,7 +197,7 @@ const makeModifyService = (over: {
       typeof SubscriptionService
     >[2]
   );
-  return { service, integrations, organizations };
+  return { service, repository, integrations, organizations };
 };
 
 const channels = (enabled: number, disabled: number) => [
@@ -301,5 +304,33 @@ describe('a cancellation that follows an account deletion', () => {
     await expect(
       service.deleteSubscription('cus_1', 'stripe')
     ).resolves.toEqual({ count: 0 });
+  });
+});
+
+// A comp has no Stripe subscription. It used to write the comped user's id
+// into paymentId so the customer-keyed path could find the org, and every
+// later Stripe call for that org then failed with "No such customer".
+describe('comping a plan', () => {
+  it("stores the plan by organization and leaves the org's Stripe customer alone", async () => {
+    const { service, repository } = makeModifyService({
+      current: null,
+      channels: [],
+    });
+
+    await service.addSubscription('org-1', 'TEAM', 'stripe');
+
+    expect(repository.createOrUpdateSubscription).toHaveBeenCalledWith(
+      'stripe',
+      false,
+      expect.any(String),
+      '',
+      pricing.TEAM.channel,
+      'TEAM',
+      'MONTHLY',
+      null,
+      undefined,
+      { id: 'org-1' }
+    );
+    expect(repository.updateCustomerId).not.toHaveBeenCalled();
   });
 });
