@@ -200,6 +200,17 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     }
   }, [hide]);
 
+  // "{{name}} Settings" as one translated sentence, so a language can put the
+  // name where its grammar wants it, the name isolated in its own direction
+  const channelSettings = useCallback(
+    (name?: string) =>
+      t('channel_name_settings', '{{name}} Settings', {
+        name: isolate(name),
+        interpolation: { escapeValue: false },
+      }),
+    [t]
+  );
+
   // t is a dependency because the labels are translated: a language switch
   // re-creates it, and never changes the pick this is otherwise keyed on.
   const currentIntegrationText = useMemo(() => {
@@ -223,12 +234,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           className="w-[20px] h-[20px] rounded-[4px]"
           alt={currentIntegration.identifier}
         />
-        <div>
-          {currentIntegration.name} {t('channel_settings', 'Settings')}
-        </div>
+        <div>{channelSettings(currentIntegration.name)}</div>
       </div>
     );
-  }, [current, t]);
+  }, [current, t, channelSettings]);
 
   const changeCustomer = useCallback(
     (customer: string) => {
@@ -673,6 +682,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           );
           setLoading(false);
           focus(item.id, 'preview');
+          setMobileTab('edit');
           return;
         }
 
@@ -725,6 +735,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             );
             focus(item.id, 'preview');
             setLoading(false);
+            setMobileTab('edit');
             return;
           }
         }
@@ -1126,7 +1137,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               >
                 <div
                   className={clsx(
-                    'flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings mobile:rounded-none mobile:rounded-t-[24px] mobile:gap-0 mobile:pt-[8px] mobile:pb-[24px] mobile:bg-newBgColorInner mobile:animate-fade',
+                    'flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings mobile:rounded-none mobile:rounded-t-[24px] mobile:gap-0 mobile:pt-[8px] mobile:pb-[calc(24px+env(safe-area-inset-bottom))] mobile:bg-newBgColorInner mobile:animate-fade',
                     !showSettings && 'mobile:hidden'
                   )}
                 >
@@ -1383,12 +1394,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 label={
                   current === 'global'
                     ? t('channels_settings', 'Channel Settings')
-                    : t('channel_name_settings', '{{name}} Settings', {
-                        name: isolate(
-                          integrations.find((p) => p.id === current)?.name
-                        ),
-                        interpolation: { escapeValue: false },
-                      })
+                    : channelSettings(
+                        integrations.find((p) => p.id === current)?.name
+                      )
                 }
                 onClick={() => {
                   setMobileSheet(null);

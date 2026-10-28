@@ -643,6 +643,18 @@ describe('a failed check on a small screen', () => {
 
     expect(eye(host).getAttribute('aria-pressed')).toBe('false');
   });
+
+  it.each([
+    ['an empty post', { emptyContent: true }],
+    ['a post over its length', { tooLong: true }],
+  ])('goes back to the editor for %s', async (_name, failure) => {
+    postsValid[0] = { ...postsValid[0], ...failure } as Check;
+    const host = await onPreview();
+
+    await schedule(host);
+
+    expect(eye(host).getAttribute('aria-pressed')).toBe('false');
+  });
 });
 
 describe('the date of the channel in view', () => {

@@ -239,7 +239,10 @@ afterEach(() => {
 });
 
 // A new post for Acme and Tom & Jerry, tomorrow.
-const open = async (props: Partial<AddEditModalProps> = {}) => {
+const open = async (
+  props: Partial<AddEditModalProps> = {},
+  i18n: typeof en = en
+) => {
   inPost = ['int-1', 'int-2'];
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -262,7 +265,7 @@ const open = async (props: Partial<AddEditModalProps> = {}) => {
       date: dayjs().add(1, 'day'),
     });
     root.render(
-      <I18nextProvider i18n={en}>
+      <I18nextProvider i18n={i18n}>
         <ManageModal
           {...({ mutate: jest.fn(), ...props } as unknown as AddEditModalProps)}
         />
@@ -576,13 +579,16 @@ const keydown = async (target: Element, key: string) => {
     );
   });
 };
-const openExistingPost = async (props: Partial<AddEditModalProps> = {}) => {
+const openExistingPost = async (
+  props: Partial<AddEditModalProps> = {},
+  i18n: typeof en = en
+) => {
   existing = {
     integration: 'int-1',
     group: 'g-1',
     posts: [{ id: 'p-1', state: 'DRAFT' }],
   } as unknown as Existing;
-  const host = await open(props);
+  const host = await open(props, i18n);
   await act(async () => {
     useLaunchStore.setState({ current: 'int-1' });
   });
@@ -775,6 +781,41 @@ describe('Escape', () => {
 
       expect(pane(host).className).not.toContain('flex-1');
       expect(composerEscape).not.toHaveBeenCalled();
+    });
+
+    // One translated sentence, so a language can put the name where its
+    // grammar wants it (Arabic: إعدادات first), never the name glued to a word.
+    it('names a channel’s pane in one translated sentence', async () => {
+      const ar = createInstance();
+      await ar.init({
+        lng: 'ar',
+        resources: {
+          ar: {
+            translation: {
+              channel_name_settings: 'إعدادات {{name}}',
+              channel_settings: 'الإعدادات',
+            },
+          },
+        },
+      });
+      withSettings('instagram');
+      const host = await openExistingPost({}, ar);
+      gear(host)!.focus();
+      await press(gear(host));
+      await press(rowNamed('إعدادات Acme Inc.'));
+      const title = document.getElementById(
+        pane(host).getAttribute('aria-labelledby')!
+      )!;
+
+      expect(label(title)).toBe('إعدادات Acme Inc.');
+    });
+
+    it('leaves room for the home indicator under Done', async () => {
+      const host = await openPane();
+
+      expect(
+        (pane(host).firstElementChild as HTMLElement).className.split(' ')
+      ).toContain('mobile:pb-[calc(24px+env(safe-area-inset-bottom))]');
     });
 
     it('is a modal dialog named by its header at 1025px and below', async () => {
