@@ -39,9 +39,16 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   }, [label]);
 
   const className = clsx(
-    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] hover:text-textItemFocused hover:bg-boxFocused transition-colors',
-    isActive ? 'text-textItemFocused bg-boxFocused' : 'text-textItemBlur'
+    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
+    // The hover pair lives on the inactive branch only: `hover:bg-boxFocused`
+    // outranks a plain `bg-*`, so on the current item it would grey the tile.
+    // The current tile's ring has its own token: in dark the tile is
+    // pomegranate, and a pomegranate ring beside it would vanish.
+    isActive
+      ? 'bg-navCurrentBg text-navCurrentText focus-visible:ring-navCurrentRing'
+      : 'text-textItemBlur hover:text-textItemFocused hover:bg-boxFocused focus-visible:ring-brand'
   );
+  const current = isActive ? 'page' : undefined;
 
   const inner = (
     <>
@@ -57,7 +64,12 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
 
   if (onClick) {
     return (
-      <button onClick={onClick} title={label} className={className}>
+      <button
+        onClick={onClick}
+        title={label}
+        aria-current={current}
+        className={className}
+      >
         {inner}
       </button>
     );
@@ -69,6 +81,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
       href={path}
       title={label}
       {...path.indexOf('http') === 0 && { target: '_blank' }}
+      aria-current={current}
       className={className}
     >
       {inner}

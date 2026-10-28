@@ -42,7 +42,9 @@ export const ShowNotification: FC<{
   return (
     <div className="flex gap-[12px] text-textColor px-[16px] py-[10px] border-b border-tableBorder last:border-b-0">
       <div className="flex-1 min-w-0">
-        <div className="break-words">{replaceLinks(notification.content)}</div>
+        <div className="text-[14px] leading-[20px] break-words">
+          {replaceLinks(notification.content)}
+        </div>
         <div
           className="text-[11px] mt-[4px] opacity-60 font-normal"
           title={isWithin24h ? fullDate : undefined}
@@ -85,10 +87,11 @@ export const NotificationOpenComponent = () => {
     !isValidating &&
     new Date(createdAt) > new Date(data?.lastReadNotifications);
   const newCount = notifications.filter((p) => isNew(p.createdAt)).length;
+  // on small screens it spans the header; the ! beats tailwindcss-rtl's [dir] .end-0
   return (
     <div
       id="notification-popup"
-      className="opacity-0 animate-normalFadeDown mt-[10px] absolute w-[420px] phone:w-[min(420px,calc(100vw-24px))] min-h-[200px] top-[100%] end-0 bg-third text-textColor rounded-[16px] flex flex-col border border-tableBorder shadow-card z-[600]"
+      className="opacity-0 animate-normalFadeDown mt-[10px] mobile:mt-0 absolute w-[420px] mobile:w-auto min-h-[200px] top-[100%] end-0 mobile:start-[8px] mobile:!end-[8px] bg-third text-textColor rounded-[16px] flex flex-col border border-tableBorder shadow-card z-[600]"
     >
       <div className="flex items-center gap-[8px] p-[16px] border-b border-tableBorder font-bold bg-newBgColor rounded-t-[16px]">
         <div className="flex-1">{t('notifications', 'Notifications')}</div>
@@ -154,7 +157,7 @@ const NotificationComponent = () => {
   const ref = useClickAway<HTMLDivElement>(() => setShow(false));
   return (
     <div
-      className="relative cursor-pointer select-none coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
+      className="relative mobile:static cursor-pointer select-none coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
       ref={ref}
     >
       <div onClick={changeShow}>
