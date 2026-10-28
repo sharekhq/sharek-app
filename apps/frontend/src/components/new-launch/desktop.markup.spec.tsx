@@ -26,7 +26,11 @@ import dayjs from 'dayjs';
 //   differently at any width;
 // - the channel settings header reads "{{name}} Settings" as one translated
 //   sentence with the name isolated, instead of the name glued to the word:
-//   the same English text, and Arabic puts the name where its grammar wants it.
+//   the same English text, and Arabic puts the name where its grammar wants it;
+// - Add comment / post and the heading levels are <button>s (the levels named
+//   "Heading N") with focus rings, and the media pagination's chevrons carry
+//   rtl:rotate-180: the same look from 1026px up, now reachable from the
+//   keyboard and pointing the right way in Arabic.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,

@@ -823,6 +823,7 @@
   "decrease_hours": "Decrease hours",
   "increase_minutes": "Increase minutes",
   "decrease_minutes": "Decrease minutes",
+  "heading_level": "Heading {{level}}",
   "add_tag": "Add Tag",
   "repeat_post": "Repeat Post",
   "change_date_or_time": "Change Date or Time",

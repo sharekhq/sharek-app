@@ -40,6 +40,16 @@ describe('the repeat list', () => {
   const radios = (host: HTMLElement) =>
     Array.from(host.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
 
+  it('is a radio group named Repeat Post', async () => {
+    const host = await render(
+      <RepeatComponent repeat={null} onChange={jest.fn()} list={true} />
+    );
+    const group = host.querySelector('[role="radiogroup"]')!;
+
+    expect(group.getAttribute('aria-label')).toBe('Repeat Post');
+    expect(group.querySelectorAll('[role="radio"]')).toHaveLength(10);
+  });
+
   it('starts with Do Not Repeat, then every interval', async () => {
     const host = await render(
       <RepeatComponent repeat={null} onChange={jest.fn()} list={true} />

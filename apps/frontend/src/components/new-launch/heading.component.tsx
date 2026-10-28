@@ -43,9 +43,11 @@ export const HeadingComponent: FC<{
         data-tooltip-content={t('announcement_title', 'Title')}
         className="flex p-[10px] gap-[5px] -left-[50%] rounded-[6px] bottom-[100%] opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 bg-surface border border-line shadow-soft z-[100] absolute transition-all mobile:static mobile:p-0 mobile:gap-[4px] mobile:opacity-100 mobile:pointer-events-auto mobile:bg-transparent mobile:border-0 mobile:shadow-none"
       >
-        <div
+        <button
+          type="button"
           onClick={setHeading(1)}
-          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+          aria-label={t('heading_level', 'Heading {{level}}', { level: 1 })}
+          className="rounded-[4px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
         >
           <svg
             width="20"
@@ -60,10 +62,12 @@ export const HeadingComponent: FC<{
               fill="currentColor"
             />
           </svg>
-        </div>
-        <div
+        </button>
+        <button
+          type="button"
           onClick={setHeading(2)}
-          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+          aria-label={t('heading_level', 'Heading {{level}}', { level: 2 })}
+          className="rounded-[4px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
         >
           <svg
             width="20"
@@ -78,10 +82,12 @@ export const HeadingComponent: FC<{
               fill="currentColor"
             />
           </svg>
-        </div>
-        <div
+        </button>
+        <button
+          type="button"
           onClick={setHeading(3)}
-          className="mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
+          aria-label={t('heading_level', 'Heading {{level}}', { level: 3 })}
+          className="rounded-[4px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px] mobile:rounded-[8px] mobile:bg-surface mobile:border mobile:border-line mobile:flex mobile:justify-center mobile:items-center"
         >
           <svg
             width="20"
@@ -96,7 +102,7 @@ export const HeadingComponent: FC<{
               fill="currentColor"
             />
           </svg>
-        </div>
+        </button>
       </div>
     </div>
   );

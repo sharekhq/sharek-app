@@ -444,6 +444,10 @@ describe('the pagination at 1025px and below', () => {
       expect.arrayContaining(['hidden', 'mobile:flex'])
     );
     for (const name of ['Go to previous page', 'Go to next page']) {
+      // the chevrons point the way the pages go, right to left in Arabic
+      expect(
+        classes(host.querySelector(`button[aria-label="${name}"] svg`))
+      ).toContain('rtl:rotate-180');
       expect(
         classes(host.querySelector(`button[aria-label="${name}"]`))
       ).toEqual(

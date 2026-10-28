@@ -81,7 +81,11 @@ export const RepeatComponent: FC<{
       ...list.filter((p) => p.value),
     ];
     return (
-      <div className="flex flex-col gap-[8px]">
+      <div
+        role="radiogroup"
+        aria-label={t('repeat_post', 'Repeat Post')}
+        className="flex flex-col gap-[8px]"
+      >
         {options.map((p) => {
           const selected = p.value ? repeat === p.value : !repeat;
           return (

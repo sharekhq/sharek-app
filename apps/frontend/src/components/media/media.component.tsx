@@ -180,7 +180,7 @@ export const Pagination: FC<{
           aria-label={t('aria_previous_page', 'Go to previous page')}
           onClick={() => setPage(current - 1)}
         >
-          <ChevronLeftIcon className="lucide lucide-chevron-left h-4 w-4" />
+          <ChevronLeftIcon className="lucide lucide-chevron-left h-4 w-4 rtl:rotate-180" />
           <span className="mobile:hidden">{t('previous', 'Previous')}</span>
         </button>
       </li>
@@ -223,7 +223,7 @@ export const Pagination: FC<{
           onClick={() => setPage(current + 1)}
         >
           <span className="mobile:hidden">{t('next', 'Next')}</span>
-          <ChevronRightIcon className="lucide lucide-chevron-right h-4 w-4" />
+          <ChevronRightIcon className="lucide lucide-chevron-right h-4 w-4 rtl:rotate-180" />
         </button>
       </li>
     </ul>
