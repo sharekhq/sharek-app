@@ -271,7 +271,7 @@ const Threads: FC = () => {
           {data?.threads?.map((p: any) => (
             <Link
               className={clsx(
-                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer mobile:shrink-0 mobile:max-w-[180px] mobile:border mobile:border-newTableBorder',
+                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand mobile:shrink-0 mobile:max-w-[180px] mobile:border mobile:border-newTableBorder',
                 p.id === id && 'bg-newBgColor'
               )}
               href={`/agents/${p.id}`}

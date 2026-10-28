@@ -218,8 +218,14 @@ describe('Samy up to 1025px', () => {
     );
     expect(chips(host)).toHaveLength(2);
     for (const chip of chips(host)) {
+      // Outlines are off app-wide, so a chip shows keyboard focus as a ring.
       expect(classes(chip)).toEqual(
-        expect.arrayContaining(['coarse:min-h-[44px]', 'mobile:max-w-[180px]'])
+        expect.arrayContaining([
+          'coarse:min-h-[44px]',
+          'mobile:max-w-[180px]',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
       );
       // A `coarse:flex` box drops text-overflow on its own text, so the title
       // carries the ellipsis.
