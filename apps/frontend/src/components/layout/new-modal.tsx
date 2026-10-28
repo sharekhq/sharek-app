@@ -279,8 +279,8 @@ export const Component: FC<{
               !modal.fullScreen
                 ? modal.top
                   ? ''
-                  : 'min-h-full pt-[100px] pb-[100px]'
-                : 'h-screen',
+                  : 'min-h-full pt-[100px] pb-[100px] mobile:pt-[24px] mobile:pb-[24px] mobile:px-[8px]'
+                : 'h-screen mobile:h-dvh',
               modal.size && modal.height
                 ? 'flex justify-center items-center'
                 : 'top-0 left-0'
@@ -288,13 +288,13 @@ export const Component: FC<{
           >
             <div
               className={clsx(
-                !modal.removeLayout && 'gap-[24px] p-[32px]',
-                'bg-newBgColorInner mx-auto flex flex-col w-fit max-w-full rounded-[24px] relative shadow-card',
+                !modal.removeLayout && 'gap-[24px] p-[32px] mobile:p-[16px]',
+                'bg-newBgColorInner mx-auto flex flex-col w-fit max-w-full rounded-[24px] mobile:rounded-[16px] relative shadow-card',
                 // 600px is the measure this modal reads best at, not a floor it
                 // must keep: a minimum is the last clamp CSS applies, so a plain
                 // `min-w-[600px]` cannot yield to a 390px phone and 52 call
                 // sites overflowed it by 210px. Yielding happens in the value.
-                width ? '' : 'min-w-[min(600px,100%)]',
+                width ? '' : 'min-w-[min(600px,100%)] mobile:w-full',
                 modal.fullScreen && 'h-full',
                 modal.cardClassName
               )}
@@ -308,7 +308,7 @@ export const Component: FC<{
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center">
-                <div className="text-[24px] font-[600] flex-1">
+                <div className="text-[24px] mobile:text-[20px] mobile:pe-[28px] font-[600] flex-1">
                   {modal.title}
                 </div>
                 {typeof modal.withCloseButton === 'undefined' ||
@@ -325,7 +325,9 @@ export const Component: FC<{
                         // inset shrinks by exactly what the box grew, so the
                         // cross stays where a mouse user last saw it.
                         'coarse:min-w-[44px] coarse:min-h-[44px] coarse:end-[6px] coarse:top-[6px]',
-                        'coarse:flex coarse:items-center coarse:justify-center'
+                        'coarse:flex coarse:items-center coarse:justify-center',
+                        // Small screens: a flush 44px box in the corner, for any pointer.
+                        'mobile:end-0 mobile:top-0 mobile:min-w-[44px] mobile:min-h-[44px] mobile:flex mobile:items-center mobile:justify-center'
                       )}
                       type="button"
                       onClick={closeModalFunction}

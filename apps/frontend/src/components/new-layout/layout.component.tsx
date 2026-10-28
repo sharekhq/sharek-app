@@ -1,8 +1,16 @@
 'use client';
 
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { flushSync } from 'react-dom';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { fontVariables } from '@gitroom/frontend/app/fonts';
+import dynamic from 'next/dynamic';
 const ModeComponent = dynamic(
   () => import('@gitroom/frontend/components/layout/mode.component'),
   {
@@ -11,14 +19,13 @@ const ModeComponent = dynamic(
 );
 
 import clsx from 'clsx';
-import dynamic from 'next/dynamic';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import {
   useMediaQuery,
-  PHONE_QUERY,
+  MOBILE_QUERY,
 } from '@gitroom/react/helpers/use.media.query';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { CheckPayment } from '@gitroom/frontend/components/layout/check.payment';
@@ -71,20 +78,38 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
     refreshWhenHidden: false,
   });
 
-  // Phone nav drawer: the icon rail is hidden on phone and revealed as an
-  // off-canvas drawer via the header hamburger. The open state only drives
-  // phone-scoped styles, so it's visually inert on desktop and needs no reset
-  // on resize — only the scroll lock below must be released.
+  // Small-screen nav drawer (≤1025px): the icon rail is hidden on small
+  // screens and revealed as an off-canvas drawer via the header hamburger.
   const t = useT();
-  const isPhone = useMediaQuery(PHONE_QUERY);
+  const isSmallScreen = useMediaQuery(MOBILE_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Lock background scroll and close on Escape while the drawer is open on
-  // phone. Re-runs on resize so the lock is released if the viewport grows.
+  // The drawer is only ever open on a small screen: growing past 1025px closes
+  // it, so a window that narrows again (an iPad turned back to portrait) finds
+  // it closed rather than locking the page and pulling focus out of whatever
+  // the user went on to do. Set during render, so no commit sees it open wide.
+  if (drawerOpen && !isSmallScreen) setDrawerOpen(false);
+
+  // Escape and the scrim hand focus back to the button that opened the
+  // drawer; an item tap navigates, so it only closes. The close is flushed
+  // first: until it commits, the button sits in the inert page card and a
+  // browser refuses it focus.
+  const closeDrawer = useCallback(() => {
+    flushSync(() => setDrawerOpen(false));
+    menuButtonRef.current?.focus();
+  }, []);
+
+  // Lock background scroll, close on Escape and move focus into the drawer
+  // while it is open.
   useEffect(() => {
-    if (!drawerOpen || !isPhone) return;
+    if (!drawerOpen) return;
+    (
+      document.querySelector<HTMLElement>('#left-menu [aria-current="page"]') ??
+      document.querySelector<HTMLElement>('#left-menu a, #left-menu button')
+    )?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDrawerOpen(false);
+      if (e.key === 'Escape') closeDrawer();
     };
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
@@ -93,7 +118,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [drawerOpen, isPhone]);
+  }, [drawerOpen, closeDrawer]);
 
   useEffect(() => {
     setSentryUser(
@@ -125,7 +150,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen text-newTextColor py-[12px] pe-[12px] ps-[8px]',
+                'flex flex-col min-h-screen mobile:min-h-dvh text-newTextColor py-[12px] pe-[12px] ps-[8px] mobile:py-[8px] mobile:pe-[8px]',
                 fontVariables,
                 'font-sans'
               )}
@@ -139,26 +164,29 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                   <div className="flex-1 flex gap-[8px]">
                     <Support />
                     {/* Rail background card — reserves the 80px fixed-rail
-                        column on desktop. On phone the rail becomes the
-                        off-canvas drawer below, so the reserve is dropped. */}
-                    <div className="flex flex-col bg-newBgColor w-[84px] rounded-[12px] phone:hidden" />
+                        column on desktop. On small screens the rail becomes
+                        the off-canvas drawer below, so the reserve is dropped. */}
+                    <div className="flex flex-col bg-newBgColor w-[84px] rounded-[12px] mobile:hidden" />
                     {drawerOpen && (
                       <div
-                        className="hidden phone:block fixed inset-0 z-[180] bg-black/50"
-                        onClick={() => setDrawerOpen(false)}
+                        className="hidden mobile:block fixed inset-0 z-[180] bg-black/50"
+                        onClick={closeDrawer}
                         aria-hidden="true"
                       />
                     )}
                     <div
                       id="left-menu"
+                      // Closed on a small screen it is off-screen: keep its
+                      // items out of the Tab order and the accessibility tree.
+                      inert={isSmallScreen && !drawerOpen}
                       className={clsx(
                         'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
-                        // Phone: off-canvas drawer anchored to the inline-start edge.
-                        'phone:start-0 phone:w-[84px] phone:z-[190] phone:bg-newBgColor',
-                        'phone:transition-transform phone:duration-300 phone:ease-out motion-reduce:transition-none',
+                        // Small screens: off-canvas drawer anchored to the inline-start edge.
+                        'mobile:start-0 mobile:w-[100px] mobile:px-[8px] mobile:z-[190] mobile:bg-newBgColor',
+                        'mobile:transition-transform mobile:duration-300 mobile:ease-out',
                         drawerOpen
-                          ? 'phone:translate-x-0'
-                          : 'phone:-translate-x-full phone:rtl:translate-x-full',
+                          ? 'mobile:translate-x-0'
+                          : 'mobile:-translate-x-full mobile:rtl:translate-x-full',
                         user?.admin && 'pt-[60px] max-h-[1000px]:w-[500px]'
                       )}
                       onClick={() => setDrawerOpen(false)}
@@ -173,15 +201,22 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         <TopMenu />
                       </div>
                     </div>
-                    <div className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe">
-                      <div className="flex bg-newBgColorInner h-[80px] px-[20px] phone:px-[12px] items-center">
+                    <div
+                      // Open on a small screen, the drawer holds focus: Tab
+                      // cannot reach the menu button or the page under the scrim.
+                      inert={drawerOpen}
+                      className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe"
+                    >
+                      {/* relative: the notifications popup spans this bar on small screens */}
+                      <div className="relative flex bg-newBgColorInner h-[80px] mobile:h-[64px] px-[20px] mobile:px-[12px] mobile:gap-[12px] items-center">
                         <button
+                          ref={menuButtonRef}
                           type="button"
                           onClick={() => setDrawerOpen(true)}
                           aria-label={t('open_menu', 'Open menu')}
                           aria-expanded={drawerOpen}
                           aria-controls="left-menu"
-                          className="hidden phone:flex me-[12px] -ms-[6px] h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+                          className="hidden mobile:flex -ms-[6px] h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand"
                         >
                           <svg
                             width="22"
@@ -198,10 +233,10 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                             />
                           </svg>
                         </button>
-                        <div className="text-[24px] phone:text-[18px] font-[600] flex flex-1 min-w-0">
+                        <div className="text-[24px] mobile:text-[18px] font-[600] flex flex-1 min-w-0">
                           <Title />
                         </div>
-                        <div className="flex gap-[20px] phone:gap-[14px] text-textItemBlur">
+                        <div className="flex gap-[20px] mobile:gap-[14px] mobile:items-center text-textItemBlur">
                           <div className="phone:hidden">
                             <StreakComponent />
                           </div>
@@ -213,12 +248,12 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
                           <LanguageComponent />
                           {showUpstreamExtras && (
-                            <div className="phone:hidden">
+                            <div className="mobile:hidden">
                               <ChromeExtensionComponent />
                             </div>
                           )}
                           <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <div className="phone:hidden">
+                          <div className="mobile:hidden">
                             <AttachToFeedbackIcon />
                           </div>
                           <NotificationComponent />

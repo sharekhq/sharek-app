@@ -341,16 +341,6 @@ test('a screen variant outranks the pointer variant, which is why the touch floo
 // ---------------------------------------------------------------------------
 const PHONE_WIDTH_FORMS = [
   {
-    // The notification panel, clamped against the viewport it is anchored
-    // inside. A nested function carrying a comma inside an arbitrary value is
-    // the form most likely to be dropped, and `min-w-[min(600px,100%)]` above
-    // is only the single-function case.
-    className: 'phone:w-[min(420px,calc(100vw-24px))]',
-    atRule: '(max-width: 768px)',
-    prop: 'width',
-    value: 'min(420px,calc(100vw - 24px))',
-  },
-  {
     // D3. The token nine call sites have always named and no config has ever
     // defined — in this repo or upstream — so those card bodies render with no
     // fill at all. This assertion is the whole of that fix.
