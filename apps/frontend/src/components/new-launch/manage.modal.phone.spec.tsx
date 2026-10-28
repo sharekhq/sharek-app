@@ -357,6 +357,10 @@ describe('the preview', () => {
 
     expect(eye.getAttribute('aria-pressed')).toBe('true');
     expect(editorColumn().className).toContain('mobile:hidden');
+    // pressed on the selected tile, never the rose brandText
+    expect(eye.className.split(' ')).toEqual(
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    );
 
     await press(eye);
 

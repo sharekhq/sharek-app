@@ -315,19 +315,21 @@ describe('the date sheet', () => {
   const changedTo = (onChange: jest.Mock) =>
     onChange.mock.calls.at(-1)[0].format('YYYY-MM-DD HH:mm');
 
-  it('puts the chosen day on the tinted tile and today in brand text', async () => {
+  // The selected pair is the current menu item's: the soft tint in light, a
+  // pomegranate tile with white in dark. Nothing here is the rose brandText.
+  it('puts the chosen day on the selected tile and rings today, never in rose', async () => {
     await sheet('24');
     const { dayClassName } = mockCalendarProps;
+    const chosen = dayClassName!(new Date(2026, 9, 21), { selected: true });
+    const today = dayClassName!(new Date(), {});
 
-    expect(dayClassName!(new Date(2026, 9, 21), { selected: true })).toEqual(
-      expect.stringContaining('!bg-brandSoft2')
+    expect(chosen.split(' ')).toEqual(
+      expect.arrayContaining(['!bg-selectedBg', '!text-selectedText'])
     );
-    expect(dayClassName!(new Date(2026, 9, 21), { selected: true })).toEqual(
-      expect.stringContaining('!text-brandText')
+    expect(today.split(' ')).toEqual(
+      expect.arrayContaining(['!ring-1', '!ring-inset', '!ring-selectedRing'])
     );
-    expect(dayClassName!(new Date(), {})).toEqual(
-      expect.stringContaining('!text-brandText')
-    );
+    expect(`${chosen} ${today}`).not.toMatch(/brandText|brandSoft2/);
     expect(dayClassName!(new Date(2026, 9, 1), { outside: true })).toEqual(
       expect.stringContaining('!text-muted')
     );
@@ -417,6 +419,9 @@ describe('the date sheet', () => {
       'false',
       'true',
     ]);
+    expect(halves[1].className.split(' ')).toEqual(
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    );
     await click(halves[0]);
 
     expect(changedTo(onChange)).toBe('2026-10-21 09:30');

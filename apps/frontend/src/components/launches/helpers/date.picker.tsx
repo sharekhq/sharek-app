@@ -185,14 +185,16 @@ export const DatePickerPanel: FC<{
             dayClassName={(day, modifiers) =>
               clsx(
                 '!w-full !max-w-[44px] !h-[44px] !leading-[44px] !rounded-[8px] !text-[14px]',
-                // the chosen day sits on the same tinted tile as the current
-                // menu item
+                // the chosen day sits on the selected tile, as the current
+                // menu item does; today is ringed (selected-ring: pomegranate
+                // in light, ink in dark), since pomegranate text on the dark
+                // panel measures 2.98:1 and the rose brandText is not used
                 modifiers.selected
-                  ? '!bg-brandSoft2 !text-brandText !font-[600] !outline-none'
+                  ? '!bg-selectedBg !text-selectedText !font-[600] !outline-none'
                   : modifiers.outside
                   ? '!text-muted !font-[400]'
                   : dayjs(day).isSame(toPickerDate(newDayjs()), 'day')
-                  ? '!text-brandText !font-[600]'
+                  ? '!ring-1 !ring-inset !ring-selectedRing !text-ink !font-[600]'
                   : '!text-inkSoft !font-[400]'
               )
             }
@@ -266,7 +268,7 @@ export const DatePickerPanel: FC<{
                     className={clsx(
                       'w-[44px] h-[44px] flex justify-center items-center rounded-[6px] text-[14px] select-none focus-visible:ring-2 focus-visible:ring-brand',
                       isPm === pm
-                        ? 'bg-brandSoft2 text-brandText'
+                        ? 'bg-selectedBg text-selectedText'
                         : 'text-muted'
                     )}
                   >

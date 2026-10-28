@@ -943,7 +943,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       aria-label={t('preview', 'Preview')}
       className={clsx(
         'hidden mobile:flex shrink-0 w-[44px] h-[44px] justify-center items-center rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand',
-        mobileTab === 'preview' ? 'text-brandText' : 'text-muted'
+        mobileTab === 'preview'
+          ? 'bg-selectedBg text-selectedText'
+          : 'text-muted'
       )}
     >
       <EyeIcon />
