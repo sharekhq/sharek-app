@@ -39,12 +39,14 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   }, [label]);
 
   const className = clsx(
-    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2 focus-visible:ring-brand',
+    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
     // The hover pair lives on the inactive branch only: `hover:bg-boxFocused`
     // outranks a plain `bg-*`, so on the current item it would grey the tile.
+    // The current tile's ring has its own token: in dark the tile is
+    // pomegranate, and a pomegranate ring beside it would vanish.
     isActive
-      ? 'bg-brandSoft2 text-brandText'
-      : 'text-textItemBlur hover:text-textItemFocused hover:bg-boxFocused'
+      ? 'bg-navCurrentBg text-navCurrentText focus-visible:ring-navCurrentRing'
+      : 'text-textItemBlur hover:text-textItemFocused hover:bg-boxFocused focus-visible:ring-brand'
   );
   const current = isActive ? 'page' : undefined;
 

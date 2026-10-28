@@ -1,8 +1,11 @@
 // A menu item, in the drawer and on the desktop rail alike: the current page
-// sits on a tinted brand tile and says so to assistive tech (FR-013), keeps
-// that look on hover, and every item shows the brand ring when it has keyboard
-// focus (FR-029). The ring is focus only; the current item is marked by its
-// fill, so a focused current item still changes visibly.
+// sits on its own tile and says so to assistive tech (FR-013), keeps that look
+// on hover, and every item shows a ring when it has keyboard focus (FR-029).
+// The tile's colours are the nav-current tokens (colors.scss): the soft brand
+// tint with pomegranate text in light, a solid pomegranate tile with white in
+// dark. The ring is focus only; on the current tile it takes its own token,
+// pomegranate in light and the light ink in dark, where a pomegranate ring on
+// the pomegranate tile would vanish.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -59,13 +62,16 @@ describe.each([
   ['link', undefined],
   ['button', () => undefined],
 ])('a menu item rendered as a %s', (_kind, onClick) => {
-  it('marks the current page with aria-current and the tinted tile, and keeps it on hover', async () => {
+  it('marks the current page with aria-current and the nav-current tile, and keeps it on hover', async () => {
     const item = await render('/launches', onClick);
 
     expect(item.getAttribute('aria-current')).toBe('page');
     expect(classesOf(item)).toEqual(
-      expect.arrayContaining(['bg-brandSoft2', 'text-brandText'])
+      expect.arrayContaining(['bg-navCurrentBg', 'text-navCurrentText'])
     );
+    // dark's --brand-text is the rose the brand rules out
+    expect(classesOf(item)).not.toContain('text-brandText');
+    expect(classesOf(item)).not.toContain('bg-brandSoft2');
     expect(classesOf(item)).not.toContain('hover:bg-boxFocused');
     expect(classesOf(item)).not.toContain('hover:text-textItemFocused');
   });
@@ -74,7 +80,7 @@ describe.each([
     const item = await render('/media', onClick);
 
     expect(item.hasAttribute('aria-current')).toBe(false);
-    expect(classesOf(item)).not.toContain('bg-brandSoft2');
+    expect(classesOf(item)).not.toContain('bg-navCurrentBg');
     expect(classesOf(item)).toEqual(
       expect.arrayContaining([
         'hover:bg-boxFocused',
@@ -84,20 +90,28 @@ describe.each([
   });
 
   it.each([
-    ['current', '/launches'],
-    ['other', '/media'],
+    [
+      'current',
+      '/launches',
+      'focus-visible:ring-navCurrentRing',
+      'focus-visible:ring-brand',
+    ],
+    [
+      'other',
+      '/media',
+      'focus-visible:ring-brand',
+      'focus-visible:ring-navCurrentRing',
+    ],
   ])(
-    'shows the brand ring on keyboard focus only, %s item',
-    async (_state, path) => {
+    'shows a ring on keyboard focus only, %s item',
+    async (_state, path, ring, otherRing) => {
       const item = await render(path, onClick);
       const classes = classesOf(item);
 
       expect(classes).toEqual(
-        expect.arrayContaining([
-          'focus-visible:ring-2',
-          'focus-visible:ring-brand',
-        ])
+        expect.arrayContaining(['focus-visible:ring-2', ring])
       );
+      expect(classes).not.toContain(otherRing);
       expect(classes.filter((c) => c.includes('ring-offset-'))).toEqual([]);
       expect(
         classes.filter(

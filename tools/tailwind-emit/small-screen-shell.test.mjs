@@ -10,9 +10,11 @@
 // The facts here are the plan's "Verified Tailwind behaviour"
 // (specs/045-small-screen-shell/plan.md); they are what the class strings in
 // layout.component.tsx, notification.component.tsx, new-modal.tsx and
-// time.table.tsx rely on.
+// time.table.tsx rely on. The last section pins the current menu item's
+// colour tokens (colors.scss) that menu-item.tsx uses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import postcss from 'postcss';
 
@@ -286,4 +288,89 @@ test('mobile:end-0 emits the [dir] physical rules too, inside the mobile screen'
       ['[dir="rtl"] .mobile:end-0', MOBILE, 'left'],
     ]
   );
+});
+
+// ---------------------------------------------------------------------------
+// The current menu item (FR-013; maintainer's decision 2026-10-28). Light keeps
+// the soft brand tint with pomegranate text; dark is a solid pomegranate tile
+// with white on it, because dark's --brand-text (#F0708A) is the rose the brand
+// rules out. Its focus ring is pomegranate in light and the light ink in dark,
+// where a pomegranate ring beside a pomegranate fill would vanish.
+// ---------------------------------------------------------------------------
+const COLORS = new URL(
+  '../../apps/frontend/src/app/colors.scss',
+  import.meta.url
+);
+
+// Each theme's custom properties, as colors.scss declares them under `.dark`
+// and `.light`, and a value with its var() references followed to the end.
+function themes() {
+  const tokens = { '.dark': {}, '.light': {} };
+  postcss.parse(readFileSync(COLORS, 'utf8')).walkRules((rule) => {
+    if (rule.selector in tokens)
+      rule.walkDecls((d) => {
+        tokens[rule.selector][d.prop] = d.value;
+      });
+  });
+  const resolve = (theme, value) =>
+    value.replace(/var\((--[\w-]+)\)/g, (_, name) =>
+      resolve(theme, tokens[theme][name] ?? `<${name} undefined>`)
+    );
+  return (theme, name) => resolve(theme, `var(${name})`);
+}
+
+test('the current menu item is a pomegranate tile with white in dark, the soft tint in light', () => {
+  const value = themes();
+
+  assert.equal(value('.dark', '--nav-current-bg'), value('.dark', '--brand'));
+  assert.equal(value('.dark', '--nav-current-text').toLowerCase(), '#ffffff');
+  assert.equal(value('.dark', '--nav-current-ring'), value('.dark', '--ink'));
+
+  assert.equal(
+    value('.light', '--nav-current-bg'),
+    value('.light', '--brand-soft-2')
+  );
+  assert.equal(
+    value('.light', '--nav-current-text'),
+    value('.light', '--brand-text')
+  );
+  assert.equal(
+    value('.light', '--nav-current-ring'),
+    value('.light', '--brand')
+  );
+
+  // No rose: nothing on the dark tile resolves to dark's --brand-text.
+  for (const name of [
+    '--nav-current-bg',
+    '--nav-current-text',
+    '--nav-current-ring',
+  ])
+    assert.notEqual(value('.dark', name), value('.dark', '--brand-text'), name);
+});
+
+test('the nav-current tokens map to Tailwind classes', async () => {
+  const css = await emit([
+    'bg-navCurrentBg',
+    'text-navCurrentText',
+    'focus-visible:ring-navCurrentRing',
+  ]);
+  const decls = (className) => rules(css, className).flatMap((r) => r.decls);
+
+  assert.deepEqual(decls('bg-navCurrentBg'), [
+    {
+      prop: 'background-color',
+      value: 'var(--nav-current-bg)',
+      important: false,
+    },
+  ]);
+  assert.deepEqual(decls('text-navCurrentText'), [
+    { prop: 'color', value: 'var(--nav-current-text)', important: false },
+  ]);
+  assert.deepEqual(decls('focus-visible:ring-navCurrentRing'), [
+    {
+      prop: '--tw-ring-color',
+      value: 'var(--nav-current-ring)',
+      important: false,
+    },
+  ]);
 });
