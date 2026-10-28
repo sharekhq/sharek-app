@@ -756,3 +756,20 @@ test('047: the avatar tap box gives back its growth only on a touch screen up to
     )}`
   );
 });
+
+// 047 US5 — a long webhook URL wraps. `anywhere`, not `break-word`: only
+// `anywhere` lowers min-content, so it is the one that stops a 1fr track (and
+// the card on a phone) flooring at the URL's full width. Tailwind 3.4 has no
+// utility for it, so it is an arbitrary property.
+const WEBHOOK_URL_FORMS = [
+  {
+    className: '[overflow-wrap:anywhere]',
+    atRule: null,
+    prop: 'overflow-wrap',
+    value: 'anywhere',
+  },
+];
+
+test('047 US5: the webhook URL wrap emits CSS', async () => {
+  await assertFormsEmit(WEBHOOK_URL_FORMS);
+});
