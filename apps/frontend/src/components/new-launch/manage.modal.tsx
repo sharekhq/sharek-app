@@ -164,6 +164,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   // element the providers portal their settings into, so it is not a
   // BottomSheet, and from 1026px up it is the inline panel it always was.
   const isMobile = useMediaQuery(MOBILE_QUERY);
+  // The sheets belong to 1025px and below: growing past it (an iPad turned to
+  // landscape) closes the one open, so no sheet sits over the wide composer and
+  // the footer's tags control comes back. Set during render, as the app shell's
+  // drawer is, so no commit shows a sheet over the wide layout.
+  if (mobileSheet && !isMobile) setMobileSheet(null);
   const settingsSheet = showSettings && isMobile;
   const settingsPane = useRef<HTMLDivElement>(null);
   useEffect(() => {

@@ -15,6 +15,7 @@ import { I18nextProvider } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import type { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 
 type Existing = ReturnType<typeof useExistingData>;
 interface Save {
@@ -191,7 +192,31 @@ beforeAll(async () => {
   await en.init({ lng: 'en', resources: { en: { translation: {} } } });
 });
 
+// The window, as the media query reports it: 1025px or narrower unless a case
+// grows it, telling the listeners as a browser does.
+const realMatchMedia = window.matchMedia;
+let smallWindow = true;
+const mediaListeners = new Set<() => void>();
+const resize = async (small: boolean) => {
+  smallWindow = small;
+  await act(async () => {
+    mediaListeners.forEach((listener) => listener());
+  });
+};
+
 beforeEach(() => {
+  smallWindow = true;
+  mediaListeners.clear();
+  window.matchMedia = ((query: string) => ({
+    get matches() {
+      return smallWindow && query === MOBILE_QUERY;
+    },
+    media: query,
+    addEventListener: (_: string, listener: () => void) =>
+      mediaListeners.add(listener),
+    removeEventListener: (_: string, listener: () => void) =>
+      mediaListeners.delete(listener),
+  })) as unknown as typeof window.matchMedia;
   requests.length = 0;
   assistant = {};
   mockProviders.length = 0;
@@ -208,6 +233,7 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  window.matchMedia = realMatchMedia;
 });
 
 // A new post for Acme and Tom & Jerry, tomorrow.
@@ -544,15 +570,6 @@ const keydown = async (target: Element, key: string) => {
     );
   });
 };
-// At 1025px and below, as the media query reports it.
-const smallScreen = (matches: boolean) => {
-  window.matchMedia = ((query: string) => ({
-    matches,
-    media: query,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  })) as unknown as typeof window.matchMedia;
-};
 const openExistingPost = async (props: Partial<AddEditModalProps> = {}) => {
   existing = {
     integration: 'int-1',
@@ -705,12 +722,14 @@ describe('the date sheet', () => {
 });
 
 describe('Escape', () => {
-  // The composer's own Escape (new-modal's useHotkeys) asks to close the post;
-  // it listens on the node React listens on, modelled here on React's root.
+  // The composer's own Escape (new-modal's useHotkeys) asks to close the post.
+  // In the app it listens on the document, the node React listens on (Next
+  // hydrates the document); here that node is React's root, and the listener
+  // is added after React's, as the hook's is.
   const composerEscape = jest.fn();
   beforeEach(() => composerEscape.mockClear());
   const listen = (host: HTMLElement) =>
-    host.parentElement!.addEventListener('keydown', composerEscape);
+    host.addEventListener('keydown', composerEscape);
 
   it('closes a sheet and leaves the composer open', async () => {
     const host = await open();
@@ -736,10 +755,7 @@ describe('Escape', () => {
     const pane = (host: HTMLElement) =>
       host.querySelector<HTMLElement>('#wrapper-settings')!;
 
-    afterEach(() => smallScreen(false));
-
     it('takes the focus at 1025px and below, and closes on Escape alone', async () => {
-      smallScreen(true);
       const host = await openPane();
 
       expect(document.activeElement).toBe(pane(host));
@@ -750,8 +766,8 @@ describe('Escape', () => {
     });
 
     it('leaves Escape to the composer from 1026px up, where it is the inline panel', async () => {
-      smallScreen(false);
       const host = await openPane();
+      await resize(false);
 
       expect(pane(host).hasAttribute('tabindex')).toBe(false);
       await keydown(pane(host), 'Escape');
@@ -802,5 +818,32 @@ describe('a locked composer', () => {
     expect(fieldset()!.disabled).toBe(true);
     expect(fieldset()!.querySelector('[data-panel]')).toBeTruthy();
     expect(rowNamed('Save')!.disabled).toBe(true);
+  });
+});
+
+// An iPad turned to landscape (820 to 1180) with a sheet open.
+describe('the window growing past 1025px', () => {
+  it('closes the sheet that was open', async () => {
+    const host = await open();
+    await press(host.querySelector('button[aria-label="Select Channels"]'));
+    expect(sheet()).toBeTruthy();
+
+    await resize(false);
+
+    expect(sheet()).toBeNull();
+  });
+
+  it('puts the footer’s tags control back when Add Tag was open', async () => {
+    const host = await open();
+    await press(gear(host));
+    await press(rowNamed('Add Tag'));
+
+    await resize(false);
+
+    expect(
+      Array.from(document.querySelectorAll('[data-tags]')).map((node) =>
+        node.getAttribute('data-tags')
+      )
+    ).toEqual(['dropdown']);
   });
 });
