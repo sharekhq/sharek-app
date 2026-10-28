@@ -793,6 +793,37 @@ test('047 US3: the Settings tab row forms emit CSS', async () => {
   await assertFormsEmit(SETTINGS_ROW_FORMS);
 });
 
+// 047 US1 — the Analytics avatar strip scrolls sideways only. `overflow-x:
+// auto` turns the other axis to auto too, and the 46px refresh overlay on a
+// 36px avatar then overflows the strip, which wobbles vertically on touch.
+// The y reset has to come after the x rule it corrects.
+const ANALYTICS_STRIP_FORMS = [
+  {
+    className: 'mobile:overflow-y-hidden',
+    atRule: '(max-width: 1025px)',
+    prop: 'overflow-y',
+    value: 'hidden',
+  },
+];
+
+test('047 US1: the Analytics strip scrolls sideways only', async () => {
+  await assertFormsEmit(ANALYTICS_STRIP_FORMS);
+
+  const css = await emit([
+    'mobile:overflow-x-auto',
+    'mobile:overflow-y-hidden',
+  ]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  assert.ok(
+    order.indexOf('mobile:overflow-x-auto') <
+      order.indexOf('mobile:overflow-y-hidden'),
+    `the y reset must follow the x rule, got ${JSON.stringify(order)}`
+  );
+});
+
 // 047 US2 — Samy's channel and chat strips. `mobile:min-h-0` and
 // `mobile:order-3` are the chat-fit rule: the chat comes after both strips
 // and takes exactly what they leave, with no floor (upstream's 500px floor

@@ -228,7 +228,7 @@ export const PlatformAnalytics = () => {
               </svg>
             </div>
           </div>
-          <div className="flex flex-col gap-[12px] mobile:flex-row mobile:overflow-x-auto mobile:ps-[12px] mobile:pt-[6px] mobile:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+          <div className="flex flex-col gap-[12px] mobile:flex-row mobile:overflow-x-auto mobile:overflow-y-hidden mobile:ps-[12px] mobile:pt-[6px] mobile:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
             {sortedIntegrations.map((integration, index) => (
               <div
                 key={integration.id}

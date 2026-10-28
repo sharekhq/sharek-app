@@ -177,8 +177,15 @@ describe('the channel strip up to 1025px', () => {
     const host = await render();
     const row = avatars(host)[0].parentElement!;
 
+    // Scrolling sideways only: `overflow-x: auto` turns the other axis to
+    // auto as well, and the 46px refresh overlay on a 36px avatar would then
+    // let the strip wobble up and down under a finger.
     expect(classes(row)).toEqual(
-      expect.arrayContaining(['mobile:flex-row', 'mobile:overflow-x-auto'])
+      expect.arrayContaining([
+        'mobile:flex-row',
+        'mobile:overflow-x-auto',
+        'mobile:overflow-y-hidden',
+      ])
     );
     for (const avatar of avatars(host)) {
       expect(classes(avatar)).toEqual(
