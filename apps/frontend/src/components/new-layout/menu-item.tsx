@@ -45,7 +45,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
     // The current tile's ring has its own token: in dark the tile is
     // pomegranate, and a pomegranate ring beside it would vanish.
     isActive
-      ? 'bg-navCurrentBg text-navCurrentText focus-visible:ring-navCurrentRing'
+      ? 'bg-selectedBg text-selectedText focus-visible:ring-selectedRing'
       : 'text-textItemBlur hover:text-textItemFocused hover:bg-boxFocused focus-visible:ring-brand'
   );
   const current = isActive ? 'page' : undefined;

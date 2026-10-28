@@ -1,7 +1,7 @@
 // A menu item, in the drawer and on the desktop rail alike: the current page
 // sits on its own tile and says so to assistive tech (FR-013), keeps that look
 // on hover, and every item shows a ring when it has keyboard focus (FR-029).
-// The tile's colours are the nav-current tokens (colors.scss): the soft brand
+// The tile's colours are the selected tokens (colors.scss): the soft brand
 // tint with pomegranate text in light, a solid pomegranate tile with white in
 // dark. The ring is focus only; on the current tile it takes its own token,
 // pomegranate in light and the light ink in dark, where a pomegranate ring on
@@ -62,12 +62,12 @@ describe.each([
   ['link', undefined],
   ['button', () => undefined],
 ])('a menu item rendered as a %s', (_kind, onClick) => {
-  it('marks the current page with aria-current and the nav-current tile, and keeps it on hover', async () => {
+  it('marks the current page with aria-current and the selected tile, and keeps it on hover', async () => {
     const item = await render('/launches', onClick);
 
     expect(item.getAttribute('aria-current')).toBe('page');
     expect(classesOf(item)).toEqual(
-      expect.arrayContaining(['bg-navCurrentBg', 'text-navCurrentText'])
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
     );
     // dark's --brand-text is the rose the brand rules out
     expect(classesOf(item)).not.toContain('text-brandText');
@@ -80,7 +80,7 @@ describe.each([
     const item = await render('/media', onClick);
 
     expect(item.hasAttribute('aria-current')).toBe(false);
-    expect(classesOf(item)).not.toContain('bg-navCurrentBg');
+    expect(classesOf(item)).not.toContain('bg-selectedBg');
     expect(classesOf(item)).toEqual(
       expect.arrayContaining([
         'hover:bg-boxFocused',
@@ -93,14 +93,14 @@ describe.each([
     [
       'current',
       '/launches',
-      'focus-visible:ring-navCurrentRing',
+      'focus-visible:ring-selectedRing',
       'focus-visible:ring-brand',
     ],
     [
       'other',
       '/media',
       'focus-visible:ring-brand',
-      'focus-visible:ring-navCurrentRing',
+      'focus-visible:ring-selectedRing',
     ],
   ])(
     'shows a ring on keyboard focus only, %s item',
