@@ -82,9 +82,10 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
                       className={clsx(
                         'w-[32px] h-[32px] rounded-full flex items-center justify-center text-[14px] font-semibold transition-colors',
                         step === index + 1
-                          ? 'bg-boxFocused text-textItemFocused'
+                          ? 'bg-brand text-white'
                           : 'bg-newTableHeader'
                       )}
+                      aria-current={step === index + 1 ? 'step' : undefined}
                     >
                       {index + 1}
                     </div>
