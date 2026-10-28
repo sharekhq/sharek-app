@@ -20,6 +20,8 @@ import {
   PencilIcon,
 } from '@gitroom/frontend/components/ui/icons';
 
+type Tag = { id: string; name: string; color: string };
+
 export const TagsComponent: FC<{
   name: string;
   label: string;
@@ -110,7 +112,7 @@ export const TagsComponentInner: FC<{
   }, [tagValue, name, onChange, mutate, modals, t]);
 
   const toggleTag = useCallback(
-    (tag: any) => () => {
+    (tag: Tag) => () => {
       const exists = !!tagValue.find((a) => a.id === tag.id);
       let modify = [];
       if (exists) {
@@ -236,7 +238,7 @@ export const TagsComponentInner: FC<{
   if (list) {
     return (
       <div className="flex flex-col gap-[12px]">
-        {(data?.tags || []).map((p: any) => (
+        {(data?.tags || []).map((p: Tag) => (
           <button
             type="button"
             role="checkbox"

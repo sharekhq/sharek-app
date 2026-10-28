@@ -561,7 +561,7 @@ export const MediaBox: FC<{
     setSelected([]);
     try {
       await Promise.all(
-        toDelete.map((media: any) =>
+        toDelete.map((media: { id: string }) =>
           fetch(`/media/${media.id}`, {
             method: 'DELETE',
           })
@@ -574,7 +574,7 @@ export const MediaBox: FC<{
         setPage(Math.max(0, (result?.pages || 1) - 1));
       }
     }
-  }, [selected, mutate, page, t]);
+  }, [selected, mutate, page, t, fetch]);
 
   const btn = useMemo(() => {
     return (
