@@ -18,6 +18,11 @@ import dayjs from 'dayjs';
 //   one placeholder, since their number counts every useId call rendered
 //   before them in this file.
 // What is left is snapshotted: tags, every attribute, and the text.
+//
+// One deliberate update since the recording: the media library's search box
+// and tile grid dropped `phone:basis-full` and `phone:grid-cols-2`, made
+// redundant by the same classes at `mobile:` (which covers every phone width
+// with the same value). Nothing renders differently at any width.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,

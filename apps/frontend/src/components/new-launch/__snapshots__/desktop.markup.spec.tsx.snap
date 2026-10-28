@@ -1805,7 +1805,7 @@ exports[`the media library from 1026px up the Media page 1`] = `
 "<div data-mock="DropFiles">
   <div class="flex flex-1 flex-col">
     <div class="flex flex-wrap gap-[12px] items-center">
-      <div class="flex-1 phone:basis-full">
+      <div class="flex-1">
         <input class="bg-newBgColorInner border border-newColColor focus:border-brand h-[44px] outline-none px-[14px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
@@ -1825,7 +1825,7 @@ exports[`the media library from 1026px up the Media page 1`] = `
       <div class="h-[46px] uppyChange w-full" />
     </div>
     <div class="flex-1 relative">
-      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto phone:grid-cols-2 scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
         <div class="aspect-square group rounded-[6px]">
           <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
             <button aria-label="Delete photo-1.png" class="absolute coarse:h-[44px] coarse:opacity-100 coarse:pointer-events-auto coarse:w-[44px] cursor-pointer end-[4px] flex focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:ring-2 focus-visible:ring-brand group-hover:opacity-100 group-hover:pointer-events-auto h-[36px] items-center justify-center opacity-0 pointer-events-none rounded-full top-[4px] transition-opacity w-[36px] z-[100]" type="button">
@@ -1952,7 +1952,7 @@ exports[`the media library from 1026px up the picker 1`] = `
 "<div data-mock="DropFiles">
   <div class="flex flex-1 flex-col">
     <div class="flex flex-wrap gap-[12px] items-center">
-      <div class="flex-1 phone:basis-full">
+      <div class="flex-1">
         <input class="bg-newBgColorInner border border-newColColor focus:border-brand h-[44px] outline-none px-[14px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
@@ -1972,7 +1972,7 @@ exports[`the media library from 1026px up the picker 1`] = `
       <div class="h-[46px] uppyChange w-full" />
     </div>
     <div class="flex-1 relative">
-      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto phone:grid-cols-2 scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
         <div class="aspect-square cursor-pointer group rounded-[6px]">
           <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
             <button aria-label="Delete photo-1.png" class="absolute coarse:h-[44px] coarse:w-[44px] cursor-pointer end-[4px] flex focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:ring-2 focus-visible:ring-brand group-hover:opacity-100 group-hover:pointer-events-auto h-[36px] items-center justify-center opacity-0 pointer-events-none rounded-full top-[4px] transition-opacity w-[36px] z-[100]" type="button">
@@ -2107,7 +2107,7 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
 "<div data-mock="DropFiles">
   <div class="flex flex-1 flex-col">
     <div class="flex flex-wrap gap-[12px] items-center">
-      <div class="flex-1 phone:basis-full">
+      <div class="flex-1">
         <input class="bg-newBgColorInner border border-newColColor focus:border-brand h-[44px] outline-none px-[14px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
@@ -2127,7 +2127,7 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
       <div class="h-[46px] uppyChange w-full" />
     </div>
     <div class="flex-1 relative">
-      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto phone:grid-cols-2 scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+      <div class="2xl:grid-cols-8 absolute content-start gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
         <div class="aspect-square cursor-pointer group rounded-[6px]">
           <div class="border-[4px] border-brand h-full relative rounded-[6px] w-full">
             <div class="-bottom-[10px] -end-[10px] absolute bg-brand flex font-[500] h-[24px] items-center justify-center rounded-full text-[14px] text-white w-[24px] z-[101]">

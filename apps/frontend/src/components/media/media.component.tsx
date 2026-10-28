@@ -609,7 +609,7 @@ export const MediaBox: FC<{
         >
           {/* The search takes its own line at 1025px and below, so Upload
               and Import wrap below it instead of off the edge. */}
-          <div className="flex-1 phone:basis-full mobile:basis-full">
+          <div className="flex-1 mobile:basis-full">
             <input
               type="text"
               value={search}
@@ -692,7 +692,7 @@ export const MediaBox: FC<{
                   // would otherwise keep adding 150px columns, so a wide screen
                   // gets denser rather than bigger and 32 items stop filling
                   // whole rows. Below 2xl this changes nothing.
-                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 phone:grid-cols-2 mobile:grid-cols-2 gap-[6px] mobile:gap-0 content-start'
+                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0 content-start'
             )}
           >
             {!isLoading && !data?.results?.length && (
