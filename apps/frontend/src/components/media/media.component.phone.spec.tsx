@@ -477,3 +477,28 @@ describe('the search under a finger', () => {
     }
   );
 });
+
+// 044 T071 F-4: at 1025px and below the tiles' scroll box reached 6px past its
+// slot on every side, the top too, where nothing absorbs it: the progress band
+// that sits between them from 1026px up is hidden there, so the box lay over
+// the last 6px of the toolbar and a scrolled tile covered the bottom of the
+// hint in the picker and of Upload on the Media page.
+describe('the tiles under the toolbar at 1025px and below', () => {
+  it.each([
+    ['the picker', picker],
+    ['the Media page', page],
+  ])(
+    'scroll beneath the toolbar in %s, reaching 6px past the sides and the bottom only',
+    async (_name, open) => {
+      const host = await open();
+      const grid = tile(host, 1)!.closest('.group')!.parentElement;
+
+      expect(classes(grid)).toContain('inset-0');
+      expect(
+        classes(grid).filter((name) =>
+          /^mobile:-?(inset|top|bottom)/.test(name)
+        )
+      ).toEqual(['mobile:-inset-x-[6px]', 'mobile:-bottom-[6px]']);
+    }
+  );
+});

@@ -1531,3 +1531,49 @@ test('044 F-1: the phone forms are emitted after the desktop padding they replac
     `mobile:ps-[28px] must follow mobile:px-0, got ${JSON.stringify(order)}`
   );
 });
+
+// 044 T071 F-4 — at 1025px and below the media library's tile grid
+// (media/media.component.tsx) reaches 6px past its slot at the sides and the
+// bottom, to line the tiles' 6px pad up with the edges, but not at the top,
+// where it lay over the toolbar's last line and a scrolled tile hid its bottom.
+const MEDIA_GRID_FORMS = [
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:-inset-x-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'left',
+    value: '-6px',
+  },
+  {
+    className: 'mobile:-bottom-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'bottom',
+    value: '-6px',
+  },
+];
+
+test('044 T071 F-4: the media grid reaches past its sides and bottom at 1025px and below', async () => {
+  await assertFormsEmit(MEDIA_GRID_FORMS);
+});
+
+test('044 T071 F-4: the media grid offsets are emitted after the inset-0 they replace', async () => {
+  const css = await emit([
+    'inset-0',
+    'mobile:-inset-x-[6px]',
+    'mobile:-bottom-[6px]',
+  ]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const small of ['mobile:-inset-x-[6px]', 'mobile:-bottom-[6px]']) {
+    assert.ok(
+      order.indexOf('inset-0') !== -1 &&
+        order.indexOf('inset-0') < order.indexOf(small),
+      `${small} must follow inset-0 to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});

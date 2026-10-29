@@ -684,8 +684,9 @@ export const MediaBox: FC<{
           <div
             className={clsx(
               // at 1025px and below the tiles carry a 6px pad, which this
-              // offset lines up with the edges
-              'absolute inset-0 mobile:-inset-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
+              // offset lines up with the sides and the bottom; not the top,
+              // where it would lie over the toolbar's last line
+              'absolute inset-0 mobile:-inset-x-[6px] mobile:-bottom-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
               !isLoading && !data?.results?.length
                 ? 'w-full flex justify-center items-center flex-col'
                 : // Capped at eight columns past the target width: auto-fill
