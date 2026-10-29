@@ -26,7 +26,13 @@ export const SelectCustomer: FC<{
   );
   const toaster = useToaster();
   const t = useT();
-  const [customer, setCustomer] = useState(currentCustomer || '');
+  // The calendar hands its customer in, and both of its selectors (the inline
+  // one and the Select Channels sheet's) show that one value, so a pick in
+  // either shows in the other; the composer hands none, and the selector keeps
+  // the one picked in it.
+  const [pickedCustomer, setCustomer] = useState('');
+  const customer =
+    currentCustomer === undefined ? pickedCustomer : currentCustomer || '';
   const [pos, setPos] = useState<any>({});
   const [open, setOpen] = useState(false);
   const ref = useClickOutside(() => {

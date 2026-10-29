@@ -71,6 +71,19 @@ jest.mock(
 
 import { CalendarContext } from '@gitroom/frontend/components/launches/calendar.context';
 import { Filters } from '@gitroom/frontend/components/launches/filters';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+
+// The window, as the media query reports it: 1025px or narrower unless a case
+// grows it, telling the listeners as a browser does (044's phone spec).
+const realMatchMedia = window.matchMedia;
+let smallWindow = true;
+const mediaListeners = new Set<() => void>();
+const resize = async (small: boolean) => {
+  smallWindow = small;
+  await act(async () => {
+    mediaListeners.forEach((listener) => listener());
+  });
+};
 
 const ACME: Customer = { id: 'c1', name: 'Acme' };
 const OTHER: Customer = { id: 'c2', name: 'Other' };
@@ -109,12 +122,14 @@ const Harness: FC<{ start: Start }> = ({ start }) => {
   const [selectedChannels, setSelectedChannels] = useState<string[] | null>(
     start.selectedChannels ?? null
   );
+  const [customer, setCustomer] = useState<string | null>(
+    start.customer ?? null
+  );
   const calendar = {
     // a week in the past, so no view button is already on its own range
     display: 'week',
     startDate: '2020-01-06',
     endDate: '2020-01-12',
-    customer: null as string | null,
     integrations: FIVE,
     listPage: 0,
     listTotalPages: 1,
@@ -122,12 +137,16 @@ const Harness: FC<{ start: Start }> = ({ start }) => {
     setListState: jest.fn(),
     setListPage: jest.fn(),
     ...start,
+    customer,
     selectedChannels,
     setSelectedChannels: (next: string[] | null) => {
       picks.push(next);
       setSelectedChannels(next);
     },
-    setFilters: mockSetFilters,
+    setFilters: (filters: { customer: string | null }) => {
+      mockSetFilters(filters);
+      setCustomer(filters.customer);
+    },
   };
   return (
     <CalendarContext.Provider
@@ -202,6 +221,18 @@ beforeEach(() => {
   mockSetFilters.mockClear();
   mockToast.mockClear();
   picks.length = 0;
+  smallWindow = true;
+  mediaListeners.clear();
+  window.matchMedia = ((query: string) => ({
+    get matches() {
+      return smallWindow && query === MOBILE_QUERY;
+    },
+    media: query,
+    addEventListener: (_: string, listener: () => void) =>
+      mediaListeners.add(listener),
+    removeEventListener: (_: string, listener: () => void) =>
+      mediaListeners.delete(listener),
+  })) as unknown as typeof window.matchMedia;
 });
 
 afterEach(() => {
@@ -209,6 +240,7 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  window.matchMedia = realMatchMedia;
 });
 
 describe('the view switcher at 1025px and below', () => {
@@ -510,5 +542,45 @@ describe('the Select Channels sheet', () => {
       'Customer socials selected',
       'success'
     );
+  });
+});
+
+describe('the Select Channels sheet and the wide layout', () => {
+  const open = async (start: Start = {}) => {
+    const host = await mount(start);
+    expect(filterButton(host)).toBeDefined();
+    await click(filterButton(host)!);
+    return host;
+  };
+  // The inline customer selector above 1025px, always in the page.
+  const inlineCustomer = (host: HTMLElement) =>
+    host.querySelector<HTMLElement>(
+      '[data-tooltip-content="Select Customer"]'
+    )!;
+
+  // An iPad turned to landscape (820 to 1180) with the sheet open.
+  it('closes when the window grows past 1025px', async () => {
+    const host = await open();
+    expect(sheet(host)).not.toBeNull();
+
+    await resize(false);
+
+    expect(sheet(host)).toBeNull();
+    expect(filterButton(host)!.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('shows the customer picked in the sheet on the inline selector too', async () => {
+    const host = await open({ customer: 'c1' });
+    expect(inlineCustomer(host).textContent).toContain('Acme');
+
+    await click(
+      Array.from(host.querySelectorAll('[role="radio"]')).find(
+        (radio) => radio.textContent === 'Other'
+      )!
+    );
+    await click(byText(host, 'Done')!);
+    await resize(false);
+
+    expect(inlineCustomer(host).textContent).toContain('Other');
   });
 });

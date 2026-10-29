@@ -11,6 +11,10 @@ import i18next from 'i18next';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { BottomSheet } from '@gitroom/frontend/components/ui/bottom.sheet.component';
 import { FilterIcon } from '@gitroom/frontend/components/ui/icons';
+import {
+  MOBILE_QUERY,
+  useMediaQuery,
+} from '@gitroom/react/helpers/use.media.query';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -58,6 +62,11 @@ export const Filters = () => {
   const calendar = useCalendar();
   const t = useT();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // The sheet belongs to 1025px and below: growing past it (an iPad turned to
+  // landscape) closes it, as the composer's sheets close, so no sheet sits over
+  // the inline pickers. Set during render, as the app shell's drawer is.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  if (filtersOpen && !isMobile) setFiltersOpen(false);
 
   // Set dayjs locale based on current language
   const currentLanguage = i18next.resolvedLanguage || 'en';
