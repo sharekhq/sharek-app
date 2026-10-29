@@ -65,6 +65,7 @@
   "you_have_to_add_x_linkedin_page_threads_or_bluesky": "يجب عليك إضافة: إكس أو صفحة لينكدإن أو ثريدز أو بلوسكاي",
   "go_to_the_calendar_to_add_channels": "اذهب إلى التقويم لإضافة القنوات",
   "channels": "القنوات",
+  "channel_list_with_count": "القنوات: {{count}}",
   "activate": "تفعيل",
   "this_channel_needs_to_be_refreshed": "يجب تحديث هذه القناة،",
   "click_here_to_refresh": "انقر هنا للتحديث",

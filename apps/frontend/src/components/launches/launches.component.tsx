@@ -12,10 +12,7 @@ import { CalendarWeekProvider } from '@gitroom/frontend/components/launches/cale
 import { Filters } from '@gitroom/frontend/components/launches/filters';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
-import {
-  SplitPanel,
-  SplitPanelToggle,
-} from '@gitroom/frontend/components/ui/split.panel';
+import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import clsx from 'clsx';
 import { useUser } from '../layout/user.context';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
@@ -30,10 +27,6 @@ import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.p
 import { CalendarDragLayer } from '@gitroom/frontend/components/launches/calendar.drag.layer';
 import { GeneratorComponent } from './generator/generator';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
-import {
-  useMediaQuery,
-  PHONE_QUERY,
-} from '@gitroom/react/helpers/use.media.query';
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
@@ -440,11 +433,8 @@ export const LaunchesComponent = () => {
   const modal = useModals();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-  // Phone: the channels panel becomes an off-canvas sheet behind a toggle, and
-  // is always fully expanded there (never the desktop icon-collapsed rail).
-  const isPhone = useMediaQuery(PHONE_QUERY);
   const [channelsOpen, setChannelsOpen] = useState(false);
-  const railCollapsed = collapseMenu === '1' && !isPhone;
+  const railCollapsed = collapseMenu === '1' && !channelsOpen;
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
   const totalNonDisabledChannels = useMemo(() => {
@@ -616,7 +606,7 @@ export const LaunchesComponent = () => {
         >
           <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
             <AddProviderButton update={() => update(true)} />
-            <div className="flex gap-[8px] group-[.sidebar]:flex-col">
+            <div className="flex gap-[8px] group-[.sidebar]:flex-col mobile:hidden">
               {sortedIntegrations?.length > 0 && <NewPost />}
               {sortedIntegrations?.length > 0 &&
                 user?.tier?.ai &&
@@ -652,7 +642,7 @@ export const LaunchesComponent = () => {
               />
             ))}
           </div>
-          <div className="mt-[5px] text-center flex flex-col">
+          <div className="mt-[5px] text-center flex flex-col mobile:hidden">
             {billingEnabled && user?.isLifetime && (
               <div>{capitalize(user?.tier?.current || '')} tier</div>
             )}
@@ -666,10 +656,51 @@ export const LaunchesComponent = () => {
         {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
             pinned to the filter bar's min-content (847px), which starves the
             channels rail at every width below ~1220. */}
-        <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
-          <SplitPanelToggle onClick={() => setChannelsOpen(true)}>
-            {t('channels', 'Channels')}
-          </SplitPanelToggle>
+        <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px] mobile:min-h-[600px]">
+          <div className="hidden mobile:flex gap-[8px]">
+            <button
+              type="button"
+              onClick={() => setChannelsOpen(true)}
+              aria-expanded={channelsOpen}
+              aria-label={t('channel_list_with_count', 'Channels: {{count}}', {
+                count: sortedIntegrations.length,
+              })}
+              className="cursor-pointer h-[44px] px-[12px] bg-btnSimple text-btnText rounded-[8px] flex items-center gap-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {/* overlapped from the start edge, the right in Arabic */}
+              <span className="flex">
+                {sortedIntegrations.slice(0, 3).map((integration, index) => (
+                  <ImageWithFallback
+                    key={integration.id}
+                    fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                    src={integration.picture}
+                    className={clsx(
+                      'rounded-full border-2 border-btnSimple',
+                      index > 0 && '-ms-[10px]'
+                    )}
+                    alt=""
+                    width={24}
+                    height={24}
+                  />
+                ))}
+              </span>
+              <span className="text-[14px] font-[500]">
+                {sortedIntegrations.length || t('channels', 'Channels')}
+              </span>
+            </button>
+            {sortedIntegrations?.length > 0 ? (
+              <>
+                <NewPost />
+                {user?.tier?.ai && billingEnabled && showUpstreamExtras && (
+                  <GeneratorComponent />
+                )}
+              </>
+            ) : (
+              <div className="flex-1">
+                <AddProviderButton update={() => update(true)} />
+              </div>
+            )}
+          </div>
           <Filters />
           <div className="flex-1 flex">
             <Calendar />

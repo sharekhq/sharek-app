@@ -30,7 +30,11 @@ jest.mock('@gitroom/frontend/components/launches/generator/generator', () => ({
 // Everything below is scenery: the screen has to mount for its channels panel to
 // render. None of it is asserted on.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback?: string) => fallback ?? _key,
+  useT:
+    () => (_key: string, fallback?: string, values?: Record<string, unknown>) =>
+      (fallback ?? _key).replace(/{{(\w+)}}/g, (_, name) =>
+        String(values?.[name])
+      ),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { ai: true }, totalChannels: 10 }),
