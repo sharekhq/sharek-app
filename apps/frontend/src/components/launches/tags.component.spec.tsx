@@ -48,7 +48,10 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   }),
 }));
 
-import { TagsComponent } from '@gitroom/frontend/components/launches/tags.component';
+import {
+  Check,
+  TagsComponent,
+} from '@gitroom/frontend/components/launches/tags.component';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -162,5 +165,105 @@ describe('creating a tag from the list', () => {
         ],
       },
     });
+  });
+});
+
+// The Add Tag sheet at 1025px and below (spec 044, US3): every tag a row that
+// ticks it, and Add New Tag under them.
+describe('the tag list', () => {
+  const list = async (onChange: jest.Mock, initial: unknown[] = []) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <TagsComponent
+          name="tags"
+          label=""
+          initial={initial}
+          onChange={onChange}
+          list={true}
+        />
+      );
+    });
+    return host;
+  };
+  const rows = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll<HTMLButtonElement>('[role="checkbox"]'));
+
+  it('shows every tag as a 44px checkbox button that says whether it is ticked', async () => {
+    const host = await list(jest.fn(), [
+      { label: 'Ramadan', value: 'Ramadan' },
+    ]);
+
+    expect(rows(host).map((row) => row.textContent)).toEqual([
+      'Launch',
+      'Ramadan',
+    ]);
+    expect(rows(host).map((row) => row.getAttribute('aria-checked'))).toEqual([
+      'false',
+      'true',
+    ]);
+    rows(host).forEach((row) => {
+      expect(row.getAttribute('type')).toBe('button');
+      expect(row.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          'min-h-[44px]',
+          'focus-visible:ring-brand',
+          // greyed while a locked composer's fieldset disables it
+          'disabled:opacity-50',
+        ])
+      );
+    });
+  });
+
+  it('ticks and unticks a tag on a tap, handing over the names', async () => {
+    const onChange = jest.fn();
+    const host = await list(onChange);
+
+    await click(rows(host)[1]);
+    expect(onChange).toHaveBeenLastCalledWith({
+      target: { name: 'tags', value: [{ label: 'Ramadan', value: 'Ramadan' }] },
+    });
+
+    await click(rows(host)[1]);
+    expect(onChange).toHaveBeenLastCalledWith({
+      target: { name: 'tags', value: [] },
+    });
+  });
+
+  it('opens the tag editor from Add New Tag, a quiet button under the tags', async () => {
+    const host = await list(jest.fn());
+    const add = Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Add New Tag'
+    )!;
+
+    expect(add.className.split(' ')).toEqual(
+      expect.arrayContaining(['bg-quiet', 'h-[44px]', 'rounded-[8px]'])
+    );
+    await click(add);
+
+    expect(opened).toEqual(['Add New Tag']);
+  });
+});
+
+// The calendar's sheets (spec 046) reuse the box.
+describe('the tick box on its own', () => {
+  it('shows its value and hands back the other one', async () => {
+    const onChange = jest.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(<Check value={true} onChange={onChange} />);
+    });
+    const box = host.firstElementChild!;
+
+    expect(box.className).toContain('bg-brand');
+    await click(box);
+
+    expect(onChange).toHaveBeenCalledWith(false);
   });
 });

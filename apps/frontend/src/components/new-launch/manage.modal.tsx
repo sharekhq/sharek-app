@@ -5,6 +5,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -17,14 +18,17 @@ import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.label
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
-import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
-import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import {
-  useLaunchStore,
-  NarrowView,
-} from '@gitroom/frontend/components/new-launch/store';
-import { SegmentedControl } from '@gitroom/frontend/components/ui/segmented.control';
-import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.picker';
+  Providers,
+  ShowAllProviders,
+} from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
+import { getProviderSettingsMeta } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
+import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
+import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
+import {
+  DatePicker,
+  DatePickerPanel,
+} from '@gitroom/frontend/components/launches/helpers/date.picker';
 import { useShallow } from 'zustand/react/shallow';
 import { RepeatComponent } from '@gitroom/frontend/components/launches/repeat.component';
 import { TagsComponent } from '@gitroom/frontend/components/launches/tags.component';
@@ -44,7 +48,27 @@ import {
   CloseIcon,
   TrashIcon,
   DropdownArrowSmallIcon,
+  EyeIcon,
+  PlusIcon,
+  SettingsOutlineIcon,
+  TagIcon,
+  RepeatIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import {
+  BottomSheet,
+  BottomSheetButton,
+  BottomSheetHeader,
+  BottomSheetRow,
+  useDialogFocus,
+} from '@gitroom/frontend/components/ui/bottom.sheet.component';
+import {
+  MOBILE_QUERY,
+  useMediaQuery,
+} from '@gitroom/react/helpers/use.media.query';
+import {
+  MobileTopBar,
+  MobileTopBarAction,
+} from '@gitroom/frontend/components/new-launch/mobile.top.bar';
 import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
@@ -72,6 +96,14 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   const toaster = useToaster();
   const modal = useModals();
   const [showSettings, setShowSettings] = useState(false);
+  // at 1025px and below the preview takes the editor's place
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
+  // the sheets that hold the rest of the composer at 1025px and below
+  const [mobileSheet, setMobileSheet] = useState<
+    'channels' | 'settings' | 'tags' | 'repeat' | 'date' | null
+  >(null);
+  // the date sheet's choice, applied to the post on Save only
+  const [dateDraft, setDateDraft] = useState<dayjs.Dayjs>(dayjs());
   const { data: shortlinkPreferenceData } = useShortlinkPreference();
 
   const { addEditSets, mutate, customClose, dummy } = props;
@@ -94,8 +126,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     channelDates,
     setChannelDate,
     publishBlockers,
-    narrowView,
-    setNarrowView,
   } = useLaunchStore(
     useShallow((state) => ({
       hide: state.hide,
@@ -115,8 +145,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       locked: state.locked,
       activateExitButton: state.activateExitButton,
       publishBlockers: state.publishBlockers,
-      narrowView: state.narrowView,
-      setNarrowView: state.setNarrowView,
     }))
   );
   // the other channels of an existing post show and move only their own date
@@ -132,6 +160,21 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     },
     [channelDate, current, setChannelDate, setDate]
   );
+
+  // At 1025px and below the channel settings pane opens as a sheet over the
+  // editor: it takes the focus and closes on its own Escape. It stays the one
+  // element the providers portal their settings into, so it is not a
+  // BottomSheet, and from 1026px up it is the inline panel it always was.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  // The sheets belong to 1025px and below: growing past it (an iPad turned to
+  // landscape) closes the one open, so no sheet sits over the wide composer and
+  // the footer's tags control comes back. Set during render, as the app shell's
+  // drawer is, so no commit shows a sheet over the wide layout.
+  if (mobileSheet && !isMobile) setMobileSheet(null);
+  const settingsSheet = showSettings && isMobile;
+  const { container: settingsPane, keepTabInside: keepPaneTabInside } =
+    useDialogFocus<HTMLDivElement>(settingsSheet);
+  const paneTitleId = useId();
 
   // the channels the post already has, each with its own post
   const existingPosts = [existingData, ...(existingData.siblings || [])];
@@ -157,6 +200,17 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     }
   }, [hide]);
 
+  // "{{name}} Settings" as one translated sentence, so a language can put the
+  // name where its grammar wants it, the name isolated in its own direction
+  const channelSettings = useCallback(
+    (name?: string) =>
+      t('channel_name_settings', '{{name}} Settings', {
+        name: isolate(name),
+        interpolation: { escapeValue: false },
+      }),
+    [t]
+  );
+
   // t is a dependency because the labels are translated: a language switch
   // re-creates it, and never changes the pick this is otherwise keyed on.
   const currentIntegrationText = useMemo(() => {
@@ -180,12 +234,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           className="w-[20px] h-[20px] rounded-[4px]"
           alt={currentIntegration.identifier}
         />
-        <div>
-          {currentIntegration.name} {t('channel_settings', 'Settings')}
-        </div>
+        <div>{channelSettings(currentIntegration.name)}</div>
       </div>
     );
-  }, [current, t]);
+  }, [current, t, channelSettings]);
 
   const changeCustomer = useCallback(
     (customer: string) => {
@@ -630,6 +682,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           );
           setLoading(false);
           focus(item.id, 'preview');
+          setMobileTab('edit');
           return;
         }
 
@@ -654,7 +707,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'fix');
             setLoading(false);
             setShowSettings(true);
-            setNarrowView('settings');
             return;
           }
 
@@ -669,7 +721,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             focus(item.id, 'preview');
             setLoading(false);
             setShowSettings(false);
-            setNarrowView('editor');
+            setMobileTab('edit');
             return;
           }
 
@@ -683,6 +735,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             );
             focus(item.id, 'preview');
             setLoading(false);
+            setMobileTab('edit');
             return;
           }
         }
@@ -824,77 +877,127 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       addEditSets,
       dummy,
       shortlinkPreferenceData,
-      setNarrowView,
     ]
   );
 
-  return (
-    <div className="w-full h-full flex-1 p-[40px] mobile:p-[12px] flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] flex-col">
-        {/*
-          Shape A. Below `mobile` the two panes take turns instead of sitting
-          side by side, because side by side needs 769px — 891 over an existing
-          post — and the widest phone this has to serve is 430.
+  const scheduleLabel = dummy
+    ? t('create_output', 'Create output')
+    : !existingData?.integration
+    ? t('add_to_calendar', 'Add to calendar')
+    : existingData?.posts?.[0]?.state === 'DRAFT'
+    ? t('schedule', 'Schedule')
+    : t('update', 'Update');
 
-          Which pane shows is CSS, not a media-query hook: the view state and
-          the width compose in the class list, so at 1026 and above both panes
-          render whatever the view happens to be and C3 holds by construction.
-          A `useMediaQuery` swap would also flash the wide layout on first
-          render, since it reports false on the server and on first paint.
-
-          The close control is here because it lives in the preview pane's
-          header, and this layout can hide that pane — it was the only way out
-          of the modal.
-        */}
-        <div className="hidden mobile:flex items-center gap-[8px] p-[8px] border-b border-newBorder">
-          <SegmentedControl
-            label={t('compose_view', 'Compose view')}
-            value={narrowView}
-            onChange={(view) => {
-              setNarrowView(view as NarrowView);
-              // One mechanism, not two: `showSettings` already swaps the editor
-              // pane between its content view and its per-channel settings, so
-              // the Settings segment drives that rather than introducing a
-              // second thing that hides the same pane.
-              setShowSettings(view === 'settings');
-            }}
-            options={[
-              // `editor`, `settings` and `preview` already exist as keys with
-              // exactly these values in both languages — new near-duplicates
-              // would be three more strings to keep in step for nothing.
-              { value: 'editor', label: t('editor', 'Editor') },
+  // the Post menu at 1025px and below: the desktop buttons, in their order
+  const mobileActions: MobileTopBarAction[] = addEditSets
+    ? [
+        {
+          label: t('save_set', 'Save Set'),
+          variant: 'primary',
+          onClick: schedule('draft'),
+        },
+      ]
+    : [
+        {
+          label: scheduleLabel,
+          variant: 'primary',
+          onClick: schedule('schedule'),
+          disabled: publishBlocked,
+        },
+        ...(!dummy
+          ? [
               {
-                value: 'settings',
-                label: t('settings', 'Settings'),
-                // There are no per-channel settings until a channel is picked;
-                // `#wrapper-settings` is hidden outright while current is
-                // global, so the segment would open an empty pane.
-                disabled: current === 'global',
+                label: t('post_now', 'Post Now'),
+                variant: 'secondary' as const,
+                onClick: schedule('now'),
+                disabled: publishBlocked,
               },
-              { value: 'preview', label: t('preview', 'Preview') },
-            ]}
+            ]
+          : []),
+        {
+          label: t('save_as_draft', 'Save as Draft'),
+          variant: 'tertiary',
+          onClick: schedule('draft'),
+        },
+      ];
+
+  // the Settings sheet offers the channel settings only when there are any
+  const hasChannelSettings = useMemo(() => {
+    const identifiers =
+      current === 'global'
+        ? selectedIntegrations.map((p) => p.integration.identifier)
+        : [integrations.find((p) => p.id === current)?.identifier];
+
+    return identifiers.some(
+      (identifier) =>
+        !!getProviderSettingsMeta(
+          Providers.find((p) => p.identifier === identifier)?.component
+        )?.SettingsComponent
+    );
+  }, [current, selectedIntegrations, integrations]);
+
+  // at 1025px and below the settings, tags, repeat and delete live in a sheet
+  const settingsButton = !dummy && (
+    <button
+      type="button"
+      onClick={() => setMobileSheet('settings')}
+      aria-label={t('settings', 'Settings')}
+      className="hidden mobile:flex shrink-0 w-[44px] h-[44px] justify-center items-center rounded-[8px] text-muted focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <SettingsOutlineIcon />
+    </button>
+  );
+
+  // at 1025px and below there is no room for the preview column, it replaces
+  // the editor instead
+  const previewButton = (
+    <button
+      type="button"
+      onClick={() => setMobileTab(mobileTab === 'preview' ? 'edit' : 'preview')}
+      aria-pressed={mobileTab === 'preview'}
+      aria-label={t('preview', 'Preview')}
+      className={clsx(
+        'hidden mobile:flex shrink-0 w-[44px] h-[44px] justify-center items-center rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand',
+        mobileTab === 'preview'
+          ? 'bg-selectedBg text-selectedText'
+          : 'text-muted'
+      )}
+    >
+      <EyeIcon />
+    </button>
+  );
+
+  return (
+    <div className="w-full h-full flex-1 p-[40px] mobile:p-0 mobile:h-auto mobile:min-h-full flex relative">
+      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] mobile:rounded-none flex-col">
+        <MobileTopBar
+          onBack={askClose}
+          actions={mobileActions}
+          disabled={selectedIntegrations.length === 0 || loading || locked}
+          loading={loading}
+          reasons={blockedReasons}
+        >
+          <DatePicker
+            onChange={setPickerDate}
+            date={pickerDate}
+            onOpen={() => {
+              setDateDraft(pickerDate);
+              setMobileSheet('date');
+            }}
           />
-          <button
-            type="button"
-            onClick={askClose}
-            aria-label={t('close', 'Close')}
-            className="flex-none w-[44px] h-[44px] flex items-center justify-center rounded-[8px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-        <div className="flex-1 flex min-h-0">
+        </MobileTopBar>
+        <div className="flex-1 flex min-h-0 mobile:contents">
           <div
             className={clsx(
               'flex flex-col flex-1 border-e border-newBorder',
               // A single pane has no divider to draw, and nothing to its start
               // edge to be floored against.
               'mobile:border-e-0 mobile:min-w-0',
-              narrowView === 'preview' && 'mobile:hidden'
+              mobileTab === 'preview' && 'mobile:flex-none'
             )}
           >
-            {/* The segment bar carries the title at narrow widths, so this
-                65px header would be the second one saying the same thing. */}
+            {/* The top bar carries the post at 1025px and below, so this
+                65px header would be a second one. */}
             <div className="mobile:hidden bg-newBgColor h-[65px] rounded-s-[20px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] text-[20px] font-[600]">
               {t('create_post_title', 'Create Post')}
               <CreationMethodBadge
@@ -902,10 +1005,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px] bg-panel">
+            <div className="flex-1 flex flex-col gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
               <div
                 className={clsx(
-                  'flex-1 relative',
+                  // at 1025px and below the page scrolls, not this box
+                  'flex-1 relative mobile:flex mobile:flex-col',
                   // `current === 'global'` hides the settings pane below, so
                   // without this half of the condition the editor could be
                   // hidden for a pane that is not showing — a blank column.
@@ -914,20 +1018,20 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               >
                 <div
                   id="social-content"
-                  className="gap-[32px] flex flex-col pe-[8px] pt-[20px] ps-[20px] absolute top-0 left-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
+                  className="gap-[32px] mobile:gap-[16px] flex flex-col pe-[8px] pt-[20px] ps-[20px] mobile:px-[16px] mobile:pt-[12px] mobile:static mobile:flex-1 absolute top-0 left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
                 >
-                  {/* A flex-1 channel picker beside a shrink-to-fit customer
-                      control: at 390 that squeezes the picker against something
-                      unrelated to it, so the two stack. Reversed, because
-                      picking a customer filters which channels are worth
-                      choosing and the control belongs above the list it
-                      governs — visual order only; the picker stays first in
-                      the document, so tab order and reading order do not move. */}
-                  <div className="flex w-full mobile:flex-col-reverse mobile:gap-[12px]">
-                    <div className="flex flex-1 mobile:min-w-0">
+                  {/* at 1025px and below a new post picks its channels in
+                      the + sheet */}
+                  <div
+                    className={clsx(
+                      'flex w-full',
+                      !existingData.integration && 'mobile:hidden'
+                    )}
+                  >
+                    <div className="flex flex-1">
                       <PicksSocialsComponent toolTip={true} />
                     </div>
-                    <div className="mobile:w-full mobile:[&>*]:w-full">
+                    <div className="mobile:hidden">
                       {/* an existing post keeps its channels */}
                       {!dummy && !existingData.integration && (
                         <SelectCustomer
@@ -936,40 +1040,118 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                         />
                       )}
                     </div>
+                    {!!existingData.integration && (
+                      <>
+                        <div className="hidden mobile:flex items-center">
+                          <CreationMethodBadge
+                            creationMethod={
+                              existingData?.posts?.[0]?.creationMethod
+                            }
+                            size="sm"
+                          />
+                        </div>
+                        {previewButton}
+                        {settingsButton}
+                      </>
+                    )}
                   </div>
-                  <div className="flex flex-1 gap-[6px] flex-col">
-                    <div>
+                  <div className="flex flex-1 gap-[6px] mobile:gap-[16px] flex-col">
+                    <div className="mobile:flex mobile:items-center mobile:gap-[4px]">
                       {(!existingData.integration ||
                         !!existingData.siblings?.length) && <SelectCurrent />}
+                      {!existingData.integration && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setMobileSheet('channels')}
+                            aria-label={t('select_channels', 'Select Channels')}
+                            className="hidden mobile:flex shrink-0 w-[44px] h-[44px] rounded-[8px] bg-btnSimple justify-center items-center focus-visible:ring-2 focus-visible:ring-brand"
+                          >
+                            <PlusIcon size={24} />
+                          </button>
+                          <div className="hidden mobile:block flex-1" />
+                          {previewButton}
+                          {settingsButton}
+                        </>
+                      )}
                     </div>
                     {/* min-w-0: the outermost item of the editor's flex chain.
                         The rest are in editor.tsx — see the note at its :363. */}
-                    <div className="flex-1 flex min-w-0">
+                    <div
+                      className={clsx(
+                        'flex-1 flex min-w-0',
+                        mobileTab === 'preview' && 'mobile:hidden'
+                      )}
+                    >
                       {!hide && <EditorWrapper totalPosts={1} value="" />}
                     </div>
                     <div
                       id="social-empty"
                       className={clsx(
-                        'pb-[16px]'
+                        'pb-[16px] mobile:pb-0'
                         // current !== 'global' && 'hidden'
                       )}
                     />
                   </div>
                 </div>
               </div>
+              {showSettings && (
+                <div
+                  onClick={() => setShowSettings(false)}
+                  className="hidden mobile:block fixed inset-0 z-[599] bg-popup backdrop-blur-[8px] animate-fadeIn touch-none"
+                />
+              )}
+              {/* At 1025px and below this is hidden through its card, not
+                  itself: a provider with settings shows it in global mode with
+                  `display: flex !important` on this id. */}
               <div
                 id="wrapper-settings"
+                ref={settingsPane}
+                // a modal dialog only while it is the sheet; from 1026px up it
+                // is the inline panel
+                role={settingsSheet ? 'dialog' : undefined}
+                aria-modal={settingsSheet ? true : undefined}
+                aria-labelledby={settingsSheet ? paneTitleId : undefined}
+                tabIndex={settingsSheet ? -1 : undefined}
+                onKeyDown={
+                  settingsSheet
+                    ? (e) => {
+                        if (e.key !== 'Escape') {
+                          keepPaneTabInside(e);
+                          return;
+                        }
+                        // the composer's own Escape listens on the same node
+                        // as React (Next hydrates the document)
+                        e.stopPropagation();
+                        e.nativeEvent.stopImmediatePropagation();
+                        setShowSettings(false);
+                      }
+                    : undefined
+                }
                 className={clsx(
-                  'pb-[20px] px-[20px] select-none',
-                  showSettings && 'flex-1 flex pt-[20px]',
+                  'pb-[20px] px-[20px] select-none mobile:p-0',
+                  showSettings &&
+                    'flex-1 flex pt-[20px] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[600] mobile:max-h-[90%]',
                   current === 'global' && 'hidden'
                 )}
               >
-                <div className="flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings">
+                <div
+                  className={clsx(
+                    'flex-1 flex flex-col rounded-[12px] gap-[12px] overflow-hidden bg-newSettings mobile:rounded-none mobile:rounded-t-[24px] mobile:gap-0 mobile:pt-[8px] mobile:pb-[calc(24px+env(safe-area-inset-bottom))] mobile:bg-newBgColorInner mobile:animate-fade',
+                    !showSettings && 'mobile:hidden'
+                  )}
+                >
+                  <div className="hidden mobile:contents">
+                    <BottomSheetHeader
+                      title={currentIntegrationText}
+                      titleId={paneTitleId}
+                      onClose={() => setShowSettings(false)}
+                    />
+                  </div>
                   <div
                     onClick={() => setShowSettings(!showSettings)}
                     className={clsx(
-                      'bg-brandSoft2 border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px]',
+                      'bg-brandSoft2 border border-transparent rounded-[12px] flex items-center gap-[8px] cursor-pointer p-[12px] mobile:hidden',
                       showSettings ? '!rounded-b-none' : ''
                     )}
                   >
@@ -986,15 +1168,21 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div
                     className={clsx(
                       !showSettings ? 'hidden' : 'flex-1',
-                      'text-[14px] text-textColor font-[500] relative'
+                      'text-[14px] text-textColor font-[500] relative mobile:min-h-0 mobile:overflow-y-auto mobile:overscroll-contain'
                     )}
                   >
-                    <div className="absolute left-0 top-0 w-full h-full flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
+                    <div className="absolute mobile:static left-0 top-0 w-full h-full mobile:h-auto flex flex-col overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
                       <div
                         id="social-settings"
-                        className="flex flex-col gap-[20px] bg-newBgColor"
+                        className="flex flex-col gap-[20px] bg-newBgColor mobile:bg-transparent"
                       />
                     </div>
+                  </div>
+                  <div className="hidden mobile:contents">
+                    <BottomSheetButton
+                      label={t('done', 'Done')}
+                      onClick={() => setShowSettings(false)}
+                    />
                   </div>
                   <style>
                     {`#social-settings [data-id="${current}"] {display: block !important;}`}
@@ -1005,11 +1193,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
           <div
             className={clsx(
-              // 580 fixed is the single biggest term in compose's width. It
-              // becomes the pane rather than a column beside one.
+              // 580 fixed is the single biggest term in compose's width. At
+              // 1025px and below the preview replaces the editor instead.
               'w-[580px] flex flex-col',
-              'mobile:w-auto mobile:flex-1 mobile:min-w-0',
-              narrowView !== 'preview' && 'mobile:hidden'
+              'mobile:!w-full mobile:flex-1',
+              mobileTab === 'edit' && 'mobile:hidden'
             )}
           >
             <div className="mobile:hidden bg-newBgColor h-[65px] rounded-e-[20px] !rounded-b-[0] flex items-center px-[20px] text-[20px] font-[600]">
@@ -1025,27 +1213,21 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 <CloseIcon className="text-muted" />
               </div>
             </div>
-            <div className="flex-1 relative bg-panel">
+            <div className="flex-1 relative bg-panel mobile:bg-transparent">
               <Scrollable
                 scrollClasses="!pe-[20px]"
-                className="absolute top-0 p-[20px] pe-[8px] left-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
+                className="absolute mobile:static top-0 p-[20px] pe-[8px] mobile:p-[16px] left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
               >
                 <ShowAllProviders ref={ref} />
               </Scrollable>
             </div>
           </div>
         </div>
-        {/*
-          Measured, not assumed: this bar's min-content is 729 — the highest
-          term in the modal, above the two-pane row's 682 — because h-[84px] is
-          a fixed height and neither group wraps. Fixing only the panes lands at
-          729 and still does not fit. So the height becomes a floor and the two
-          groups dissolve into the bar's own wrap, which lets tag, repeat and
-          date take one row each and the two commit buttons share the last.
-        */}
-        <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center mobile:h-auto mobile:min-h-[84px] mobile:flex-wrap mobile:gap-[8px] mobile:p-[12px]">
-          <div className="flex-1 flex ps-[20px] gap-[8px] mobile:contents mobile:[&>*]:basis-full">
-            {!dummy && (
+        {/* the top bar and the sheets take its place at 1025px and below */}
+        <div className="select-none h-[84px] py-[20px] border-t border-newBorder flex items-center mobile:hidden">
+          <div className="flex-1 flex ps-[20px] gap-[8px]">
+            {/* one tags control at a time: the Add Tag sheet has its own */}
+            {!dummy && mobileSheet !== 'tags' && (
               <TagsComponent
                 name="tags"
                 label={t('tags', 'Tags')}
@@ -1060,11 +1242,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               <RepeatComponent repeat={repeater} onChange={setRepeater} />
             )}
           </div>
-          <div className="pe-[20px] flex items-center justify-end gap-[8px] mobile:contents">
+          <div className="pe-[20px] flex items-center justify-end gap-[8px]">
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600] mobile:basis-full mobile:justify-center"
+                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
               >
                 <div>
                   <TrashIcon />
@@ -1072,11 +1254,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 <div>{t('delete_post', 'Delete Post')}</div>
               </button>
             )}
-            {/* Tag and repeat are a control inside a wrapper; the date
-                picker *is* the control, one level shallower — so without this
-                wrapper no single rule can size or align all three. Centred to
-                match the two above it, which centre themselves. */}
-            <div className="mobile:basis-full mobile:[&>*]:!justify-center mobile:[&>*]:!ml-0">
+            {/* The date picker's row carries flex-1; inside this wrapper it
+                does not grow, which is how the bar has laid out since the
+                wrapper came in. */}
+            <div>
               <DatePicker onChange={setPickerDate} date={pickerDate} />
             </div>
             {!addEditSets && (
@@ -1085,7 +1266,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   selectedIntegrations.length === 0 || loading || locked
                 }
                 onClick={schedule('draft')}
-                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] h-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] text-[15px] font-[600] mobile:flex-1"
+                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] h-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] text-[15px] font-[600]"
               >
                 {loading && (
                   <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -1113,7 +1294,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               // button emits no pointer events, so an anchor on it would never
               // fire.
               <div
-                className="group cursor-pointer relative mobile:flex-1 mobile:[&>*]:w-full"
+                className="group cursor-pointer relative"
                 data-tooltip-id={publishBlocked ? 'tooltip' : undefined}
                 data-tooltip-content={
                   publishBlocked ? blockedReasons.join('\n') : undefined
@@ -1145,13 +1326,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   >
                     {selectedIntegrations.length === 0
                       ? t('check_circles_above', 'Check the circles above')
-                      : dummy
-                      ? t('create_output', 'Create output')
-                      : !existingData?.integration
-                      ? t('add_to_calendar', 'Add to calendar')
-                      : existingData?.posts?.[0]?.state === 'DRAFT'
-                      ? t('schedule', 'Schedule')
-                      : t('update', 'Update')}
+                      : scheduleLabel}
                   </div>
                   {!dummy && (
                     <div className="flex justify-center items-center h-[20px] w-[20px] pt-[4px] arrow-change">
@@ -1181,7 +1356,144 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
         </div>
       </div>
+      {mobileSheet === 'channels' && (
+        <BottomSheet
+          title={t('select_channels', 'Select Channels')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+            disabled: selectedIntegrations.length === 0,
+          }}
+        >
+          {!dummy && (
+            <div className="flex pb-[8px] empty:hidden">
+              <SelectCustomer
+                onChange={changeCustomer}
+                integrations={integrations}
+              />
+            </div>
+          )}
+          <PicksSocialsComponent list={true} />
+        </BottomSheet>
+      )}
+      {/* A locked composer keeps the sheets' controls inert, as it does the
+          channel grid: a disabled fieldset disables every control in it. */}
+      {mobileSheet === 'settings' && (
+        <BottomSheet
+          title={t('settings', 'Settings')}
+          onClose={() => setMobileSheet(null)}
+        >
+          <fieldset
+            disabled={locked}
+            className="min-w-0 flex flex-col gap-[12px] pb-[30px]"
+          >
+            {hasChannelSettings && (
+              <BottomSheetRow
+                icon={<SettingsOutlineIcon size={24} />}
+                label={
+                  current === 'global'
+                    ? t('channels_settings', 'Channel Settings')
+                    : channelSettings(
+                        integrations.find((p) => p.id === current)?.name
+                      )
+                }
+                onClick={() => {
+                  setMobileSheet(null);
+                  setShowSettings(true);
+                }}
+              />
+            )}
+            <BottomSheetRow
+              icon={<TagIcon width={24} height={24} />}
+              label={t('add_tag', 'Add Tag')}
+              onClick={() => setMobileSheet('tags')}
+            />
+            <BottomSheetRow
+              icon={<RepeatIcon size={24} />}
+              label={t('repeat_post', 'Repeat Post')}
+              onClick={() => setMobileSheet('repeat')}
+            />
+            {existingData?.integration && (
+              <button
+                type="button"
+                onClick={deletePost}
+                className="w-full min-h-[44px] flex items-center gap-[12px] py-[8px] text-start text-error rounded-[8px] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <TrashIcon size={24} />
+                <span className="text-[15px] font-[600]">
+                  {t('delete_post', 'Delete Post')}
+                </span>
+              </button>
+            )}
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'tags' && (
+        <BottomSheet
+          title={t('add_tag', 'Add Tag')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <TagsComponent
+              name="tags"
+              label={t('tags', 'Tags')}
+              initial={tags}
+              onChange={(e) => {
+                setTags(e.target.value);
+              }}
+              list={true}
+            />
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'repeat' && (
+        <BottomSheet
+          title={t('repeat_post', 'Repeat Post')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setMobileSheet(null),
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <RepeatComponent
+              repeat={repeater}
+              onChange={setRepeater}
+              list={true}
+            />
+          </fieldset>
+        </BottomSheet>
+      )}
+      {mobileSheet === 'date' && (
+        <BottomSheet
+          title={t('change_date_or_time', 'Change Date or Time')}
+          onClose={() => setMobileSheet(null)}
+          button={{
+            label: t('save', 'Save'),
+            onClick: () => {
+              setPickerDate(dateDraft);
+              setMobileSheet(null);
+            },
+            disabled: locked,
+          }}
+        >
+          <fieldset disabled={locked} className="min-w-0">
+            <DatePickerPanel
+              date={dateDraft}
+              onChange={setDateDraft}
+              sheet={true}
+            />
+          </fieldset>
+        </BottomSheet>
+      )}
       <CopilotPopup
+        // clear of the pinned tool bar and of the Post menu at 1025px and below
+        className="mobile:!z-[460] mobile:!bottom-[112px]"
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`

@@ -52,6 +52,8 @@ const getList = (t: (key: string, fallback: string) => string) => [
 export const RepeatComponent: FC<{
   repeat: number | null;
   onChange: (newVal: number) => void;
+  // the Repeat Post sheet's list at 1025px and below, instead of the dropdown
+  list?: boolean;
 }> = (props) => {
   const { repeat } = props;
   const t = useT();
@@ -71,6 +73,49 @@ export const RepeatComponent: FC<{
     }
     return list.find((p) => p.value === repeat)?.label;
   }, [repeat, list]);
+
+  if (props.list) {
+    // the radio list starts with "do not repeat", the dropdown ends with cancel
+    const options = [
+      ...list.filter((p) => !p.value),
+      ...list.filter((p) => p.value),
+    ];
+    return (
+      <div
+        role="radiogroup"
+        aria-label={t('repeat_post', 'Repeat Post')}
+        className="flex flex-col gap-[8px]"
+      >
+        {options.map((p) => {
+          const selected = p.value ? repeat === p.value : !repeat;
+          return (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => props.onChange(Number(p.value))}
+              key={p.label}
+              className="w-full min-h-[44px] px-[12px] flex items-center justify-between gap-[12px] text-start rounded-[8px] select-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <span className="text-[14px] font-[400]">
+                {p.value ? p.label : t('do_not_repeat', 'Do Not Repeat')}
+              </span>
+              <span
+                className={clsx(
+                  'w-[24px] h-[24px] rounded-full border-[1.5px] flex justify-center items-center',
+                  selected ? 'border-brand' : 'border-line'
+                )}
+              >
+                {selected && (
+                  <span className="w-[12px] h-[12px] rounded-full bg-brand" />
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div

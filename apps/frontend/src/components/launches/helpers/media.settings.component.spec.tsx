@@ -40,6 +40,7 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
     box.props = props;
     return null;
   },
+  mediaLibrarySize: () => 'calc(100% - 80px)',
 }));
 jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   DesignMediaIcon: () => <i data-icon="design" />,

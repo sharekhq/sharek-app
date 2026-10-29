@@ -77,23 +77,31 @@ export const DelayComponent: FC<{
     return option?.label || `${currentDelay} min`;
   };
 
+  const label = !currentDelay
+    ? t('delay_comment', 'Delay comment')
+    : `${t('delay_comment_by', 'Comment delayed by')} ${getCurrentDelayLabel()}`;
+
   return (
     <div ref={ref} className="relative">
-      <div
+      {/* A named button: 44px at 1025px and below, where it sits in a
+          comment's corner; the brand dot stays the icon's size. */}
+      <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={label}
         data-tooltip-id="tooltip"
-        data-tooltip-content={
-          !currentDelay
-            ? t('delay_comment', 'Delay comment')
-            : `${t('delay_comment_by', 'Comment delayed by')} ${getCurrentDelayLabel()}`
-        }
-        className={clsx(
-          'cursor-pointer flex items-center gap-[4px]',
-          currentDelay > 0 && 'bg-brand text-white rounded-full'
-        )}
+        data-tooltip-content={label}
+        className="cursor-pointer flex items-center justify-center rounded-[8px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px]"
       >
-        <DelayIcon />
-      </div>
+        <span
+          className={clsx(
+            'flex items-center gap-[4px]',
+            currentDelay > 0 && 'bg-brand text-white rounded-full'
+          )}
+        >
+          <DelayIcon />
+        </span>
+      </button>
       {isOpen && (
         <div className="z-[300] absolute end-0 top-[100%] w-[200px] bg-newBgColorInner p-[8px] menu-shadow translate-y-[10px] flex flex-col rounded-[8px]">
           <div className="grid grid-cols-4 gap-[4px]">

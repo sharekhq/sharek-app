@@ -204,7 +204,7 @@ export const Component: FC<{
         className={clsx(
           !modal.fullScreen
             ? 'pb-[50px] min-w-full min-h-full'
-            : 'w-full h-full',
+            : 'w-full h-full mobile:block',
           'fixed flex left-0 top-0 bg-popup transition-all animate-fadeIn overflow-y-auto text-newTextColor',
           !isLast && '!overflow-hidden'
         )}
@@ -216,7 +216,7 @@ export const Component: FC<{
             to. Fixing only the card leaves two floors above it. */}
         <div
           className={clsx(
-            modal.fullScreen && 'flex',
+            modal.fullScreen && 'flex mobile:min-h-full',
             'relative flex-1 min-w-0'
           )}
         >
@@ -230,7 +230,7 @@ export const Component: FC<{
             <div
               className={clsx(
                 modal.fullScreen
-                  ? 'w-full h-full flex-1 min-w-0'
+                  ? 'w-full h-full flex-1 min-w-0 mobile:h-auto'
                   : 'mx-auto py-[48px]'
               )}
               // Full screen, the card is `flex: 1 1 0%`, and flex-basis

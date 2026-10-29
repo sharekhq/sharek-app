@@ -322,54 +322,47 @@ function themes() {
 test('the current menu item is a pomegranate tile with white in dark, the soft tint in light', () => {
   const value = themes();
 
-  assert.equal(value('.dark', '--nav-current-bg'), value('.dark', '--brand'));
-  assert.equal(value('.dark', '--nav-current-text').toLowerCase(), '#ffffff');
-  assert.equal(value('.dark', '--nav-current-ring'), value('.dark', '--ink'));
+  assert.equal(value('.dark', '--selected-bg'), value('.dark', '--brand'));
+  assert.equal(value('.dark', '--selected-text').toLowerCase(), '#ffffff');
+  assert.equal(value('.dark', '--selected-ring'), value('.dark', '--ink'));
 
   assert.equal(
-    value('.light', '--nav-current-bg'),
+    value('.light', '--selected-bg'),
     value('.light', '--brand-soft-2')
   );
   assert.equal(
-    value('.light', '--nav-current-text'),
+    value('.light', '--selected-text'),
     value('.light', '--brand-text')
   );
-  assert.equal(
-    value('.light', '--nav-current-ring'),
-    value('.light', '--brand')
-  );
+  assert.equal(value('.light', '--selected-ring'), value('.light', '--brand'));
 
   // No rose: nothing on the dark tile resolves to dark's --brand-text.
-  for (const name of [
-    '--nav-current-bg',
-    '--nav-current-text',
-    '--nav-current-ring',
-  ])
+  for (const name of ['--selected-bg', '--selected-text', '--selected-ring'])
     assert.notEqual(value('.dark', name), value('.dark', '--brand-text'), name);
 });
 
-test('the nav-current tokens map to Tailwind classes', async () => {
+test('the selected tokens map to Tailwind classes', async () => {
   const css = await emit([
-    'bg-navCurrentBg',
-    'text-navCurrentText',
-    'focus-visible:ring-navCurrentRing',
+    'bg-selectedBg',
+    'text-selectedText',
+    'focus-visible:ring-selectedRing',
   ]);
   const decls = (className) => rules(css, className).flatMap((r) => r.decls);
 
-  assert.deepEqual(decls('bg-navCurrentBg'), [
+  assert.deepEqual(decls('bg-selectedBg'), [
     {
       prop: 'background-color',
-      value: 'var(--nav-current-bg)',
+      value: 'var(--selected-bg)',
       important: false,
     },
   ]);
-  assert.deepEqual(decls('text-navCurrentText'), [
-    { prop: 'color', value: 'var(--nav-current-text)', important: false },
+  assert.deepEqual(decls('text-selectedText'), [
+    { prop: 'color', value: 'var(--selected-text)', important: false },
   ]);
-  assert.deepEqual(decls('focus-visible:ring-navCurrentRing'), [
+  assert.deepEqual(decls('focus-visible:ring-selectedRing'), [
     {
       prop: '--tw-ring-color',
-      value: 'var(--nav-current-ring)',
+      value: 'var(--selected-ring)',
       important: false,
     },
   ]);

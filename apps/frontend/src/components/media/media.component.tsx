@@ -55,7 +55,9 @@ import {
   InsertMediaIcon,
   DesignMediaIcon,
   VerticalDividerIcon,
+  TrashIcon,
 } from '@gitroom/frontend/components/ui/icons';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
@@ -65,6 +67,9 @@ const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
 const showModalEmitter = new EventEmitter();
+// at 1025px and below every media library takes the whole screen
+export const mediaLibrarySize = () =>
+  window.matchMedia(MOBILE_QUERY).matches ? '100%' : 'calc(100% - 80px)';
 const MediaEmptyIllustration = () => (
   <svg
     width="132"
@@ -171,16 +176,17 @@ export const Pagination: FC<{
       <li className={clsx(current === 0 && 'opacity-20 pointer-events-none')}>
         <button
           type="button"
-          className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 ps-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
+          className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 mobile:h-[44px] mobile:min-w-[44px] px-4 py-2 gap-1 ps-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
           aria-label={t('aria_previous_page', 'Go to previous page')}
           onClick={() => setPage(current - 1)}
         >
-          <ChevronLeftIcon className="lucide lucide-chevron-left h-4 w-4" />
-          <span>{t('previous', 'Previous')}</span>
+          <ChevronLeftIcon className="lucide lucide-chevron-left h-4 w-4 rtl:rotate-180" />
+          <span className="mobile:hidden">{t('previous', 'Previous')}</span>
         </button>
       </li>
       {paginationItems.map((item, index) => (
-        <li key={index}>
+        // at 1025px and below "2 / 6" stands in for the page numbers
+        <li key={index} className="mobile:hidden">
           {item === '...' ? (
             <span className="inline-flex items-center justify-center h-10 w-10 text-textColor select-none">
               ...
@@ -202,6 +208,9 @@ export const Pagination: FC<{
           )}
         </li>
       ))}
+      <li className="hidden mobile:flex h-10 items-center px-[8px] text-[14px] text-textColor">
+        {current + 1} / {totalPages}
+      </li>
       <li
         className={clsx(
           current + 1 === totalPages && 'opacity-20 pointer-events-none'
@@ -209,12 +218,12 @@ export const Pagination: FC<{
       >
         <button
           type="button"
-          className="group cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 px-4 py-2 gap-1 pe-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
+          className="group cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-10 mobile:h-[44px] mobile:min-w-[44px] px-4 py-2 gap-1 pe-2.5 text-muted hover:text-newTextColor hover:bg-boxHover"
           aria-label={t('aria_next_page', 'Go to next page')}
           onClick={() => setPage(current + 1)}
         >
-          <span>{t('next', 'Next')}</span>
-          <ChevronRightIcon className="lucide lucide-chevron-right h-4 w-4" />
+          <span className="mobile:hidden">{t('next', 'Next')}</span>
+          <ChevronRightIcon className="lucide lucide-chevron-right h-4 w-4 rtl:rotate-180" />
         </button>
       </li>
     </ul>
@@ -230,8 +239,8 @@ export const ShowMediaBoxModal: FC = () => {
         askClose: false,
         closeOnEscape: true,
         fullScreen: true,
-        size: 'calc(100% - 80px)',
-        height: 'calc(100% - 80px)',
+        size: mediaLibrarySize(),
+        height: mediaLibrarySize(),
         children: (close) => (
           <MediaBox
             setMedia={(media) => cCallback(media[0])}
@@ -385,6 +394,19 @@ export const MediaBox: FC<{
     onEnd: () => setLoading(false),
   });
 
+  // uploader messages (errors, processing warnings) stay after the upload ends
+  const [uploadInfo, setUploadInfo] = useState(false);
+  useEffect(() => {
+    const show = () => setUploadInfo(true);
+    const hide = () => setUploadInfo(false);
+    uppy.on('info-visible', show);
+    uppy.on('info-hidden', hide);
+    return () => {
+      uppy.off('info-visible', show);
+      uppy.off('info-hidden', hide);
+    };
+  }, [uppy]);
+
   const addRemoveSelected = useCallback(
     (media: any) => () => {
       if (standalone) {
@@ -523,12 +545,43 @@ export const MediaBox: FC<{
     [mutate]
   );
 
+  // at 1025px and below there is no hover, so the picks are deleted together
+  const deleteSelected = useCallback(async () => {
+    if (
+      !(await deleteDialog(
+        t(
+          'are_you_sure_you_want_to_delete_selected_media',
+          'Are you sure you want to delete the selected media?'
+        )
+      ))
+    ) {
+      return;
+    }
+    const toDelete = selected;
+    setSelected([]);
+    try {
+      await Promise.all(
+        toDelete.map((media: { id: string }) =>
+          fetch(`/media/${media.id}`, {
+            method: 'DELETE',
+          })
+        )
+      );
+    } finally {
+      const result = await mutate();
+      // deleting a whole last page leaves nothing to show there
+      if (page >= (result?.pages || 1)) {
+        setPage(Math.max(0, (result?.pages || 1) - 1));
+      }
+    }
+  }, [selected, mutate, page, t, fetch]);
+
   const btn = useMemo(() => {
     return (
       <button
         disabled={loading}
         onClick={() => uploaderRef?.current?.click()}
-        className="relative cursor-pointer bg-btnPrimary text-white changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
+        className="relative cursor-pointer bg-btnPrimary text-white mobile:bg-btnSimple mobile:text-ink changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
       >
         {loading ? (
           <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -554,9 +607,9 @@ export const MediaBox: FC<{
               'hidden'
           )}
         >
-          {/* The search takes its own line on a phone, so Upload and Import
-              wrap below it instead of off the edge. */}
-          <div className="flex-1 phone:basis-full">
+          {/* The search takes its own line at 1025px and below, so Upload
+              and Import wrap below it instead of off the edge. */}
+          <div className="flex-1 mobile:basis-full">
             <input
               type="text"
               value={search}
@@ -572,12 +625,44 @@ export const MediaBox: FC<{
             className="hidden"
             multiple={true}
           />
-          <div className="flex flex-wrap gap-[8px]">
+          {/* the picker moves these to its footer at 1025px and below */}
+          <div
+            className={clsx(
+              'flex flex-wrap gap-[8px]',
+              !standalone && 'mobile:hidden'
+            )}
+          >
             {btn}
             <ThirdPartyMediaLibrary onImported={() => mutate()} />
           </div>
+          {!standalone && !!data?.results?.length && (
+            <div className="hidden mobile:block basis-full text-[14px] font-[600]">
+              {t(
+                'select_or_upload_pictures_max_1gb',
+                'Select or upload pictures (maximum 1 GB per upload).'
+              )}
+            </div>
+          )}
+          {!!selected.length && (
+            <button
+              type="button"
+              onClick={deleteSelected}
+              className="hidden mobile:flex basis-full justify-center items-center gap-[8px] min-h-[44px] text-[15px] font-[600] text-error rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <TrashIcon size={18} />
+              {t('delete_selected_count', 'Delete Selected ({{count}})', {
+                count: selected.length,
+              })}
+            </button>
+          )}
         </div>
-        <div className="w-full pointer-events-none relative mt-[5px] mb-[5px]">
+        <div
+          className={clsx(
+            'w-full pointer-events-none relative mt-[5px] mb-[5px]',
+            // at 1025px and below only while there is something to show
+            !loading && !uploadInfo && 'mobile:hidden'
+          )}
+        >
           <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
             <Dashboard
               height={46}
@@ -598,14 +683,16 @@ export const MediaBox: FC<{
         <div className="flex-1 relative">
           <div
             className={clsx(
-              'absolute inset-0 overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
+              // at 1025px and below the tiles carry a 6px pad, which this
+              // offset lines up with the edges
+              'absolute inset-0 mobile:-inset-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
               !isLoading && !data?.results?.length
                 ? 'w-full flex justify-center items-center flex-col'
                 : // Capped at eight columns past the target width: auto-fill
                   // would otherwise keep adding 150px columns, so a wide screen
                   // gets denser rather than bigger and 32 items stop filling
                   // whole rows. Below 2xl this changes nothing.
-                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 phone:grid-cols-2 gap-[6px] content-start'
+                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0 content-start'
             )}
           >
             {!isLoading && !data?.results?.length && (
@@ -646,7 +733,7 @@ export const MediaBox: FC<{
                     in media.repository.ts. */}
                 {[...new Array(32)].map((_, i) => (
                   <div
-                    className="rounded-[6px] cursor-pointer aspect-square"
+                    className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
                     key={i}
                   >
                     <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
@@ -662,7 +749,7 @@ export const MediaBox: FC<{
               return (
                 <div
                   className={clsx(
-                    'group rounded-[6px] aspect-square',
+                    'group rounded-[6px] aspect-square mobile:p-[6px]',
                     !standalone && 'cursor-pointer'
                   )}
                   key={media.id}
@@ -704,7 +791,9 @@ export const MediaBox: FC<{
                         className={clsx(
                           'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
                           standalone &&
-                            'coarse:opacity-100 coarse:pointer-events-auto'
+                            'coarse:opacity-100 coarse:pointer-events-auto',
+                          // the picker deletes its picks together there
+                          !standalone && 'mobile:hidden'
                         )}
                       >
                         <DeleteCircleIcon size={28} />
@@ -764,7 +853,10 @@ export const MediaBox: FC<{
                           with a neighbouring tile structurally impossible. */}
                       <div
                         dir="ltr"
-                        className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none"
+                        className={clsx(
+                          'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
+                          !standalone && 'mobile:hidden'
+                        )}
                       >
                         {displayName}
                       </div>
@@ -783,10 +875,17 @@ export const MediaBox: FC<{
           />
         )}
         {!standalone && (
-          <div className="flex justify-end mt-[32px] gap-[8px]">
+          <div className="flex justify-end mt-[32px] gap-[8px] mobile:flex-col mobile:mt-[16px] mobile:gap-[12px]">
+            {!isLoading && !!data?.results?.length && (
+              <div className="hidden mobile:flex gap-[8px] mobile:child:flex-1">
+                {btn}
+                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              </div>
+            )}
+            {/* the cross closes it at 1025px and below */}
             <button
               onClick={() => modals.closeCurrent()}
-              className="cursor-pointer h-[52px] px-[20px] items-center justify-center border border-newTextColor/10 flex rounded-[10px]"
+              className="cursor-pointer h-[52px] px-[20px] items-center justify-center border border-newTextColor/10 flex rounded-[10px] mobile:hidden"
             >
               {t('cancel', 'Cancel')}
             </button>
@@ -794,7 +893,7 @@ export const MediaBox: FC<{
               <button
                 onClick={standalone ? () => {} : addMedia}
                 disabled={selected.length === 0}
-                className="cursor-pointer text-white disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-brand flex rounded-[10px]"
+                className="cursor-pointer text-white disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-brand flex rounded-[10px] mobile:h-[44px] mobile:rounded-[8px] mobile:font-[600] mobile:disabled:opacity-100 mobile:disabled:bg-btnSimple mobile:disabled:text-muted"
               >
                 {t('add_selected_media', 'Add selected media')}
               </button>
@@ -850,6 +949,11 @@ export const MultiMediaComponent: FC<{
   onOpen?: () => void;
   onClose?: () => void;
   toolBar?: React.ReactNode;
+  // at 1025px and below: what stays at the end of the tool bar, and the
+  // composer's pinned-bar classes and keyboard offset
+  toolBarEnd?: React.ReactNode;
+  toolsClassName?: string;
+  toolsStyle?: React.CSSProperties;
   information?: React.ReactNode;
   insertInContent?: (media: Array<{ id: string; path: string }>) => void;
   onChange: (event: {
@@ -874,6 +978,9 @@ export const MultiMediaComponent: FC<{
     allData,
     dummy,
     toolBar,
+    toolBarEnd,
+    toolsClassName,
+    toolsStyle,
     information,
     mediaNotAvailable,
     designNotAvailable,
@@ -930,8 +1037,8 @@ export const MultiMediaComponent: FC<{
       askClose: false,
       closeOnEscape: true,
       fullScreen: true,
-      size: 'calc(100% - 80px)',
-      height: 'calc(100% - 80px)',
+      size: mediaLibrarySize(),
+      height: mediaLibrarySize(),
       children: (close) => (
         <MediaBox
           setMedia={changeMedia}
@@ -1051,9 +1158,14 @@ export const MultiMediaComponent: FC<{
             </ReactSortable>
         </div>
         )}
+        {/* at 1025px and below the counter stays with the post, the tools
+            can move to the bottom of the screen */}
+        {information && (
+          <div className="hidden mobile:flex justify-end">{information}</div>
+        )}
         <div
           className={clsx(
-            'flex gap-[8px] w-full b1 text-textColor',
+            'flex gap-[8px] mobile:gap-[4px] w-full b1 text-textColor',
             // A scroller below `mobile`, not a wrap — and the reason is now
             // measured twice rather than argued. Spec 017 R11 found that
             // wrapping this row spilled through `overflow: visible` onto the
@@ -1089,21 +1201,23 @@ export const MultiMediaComponent: FC<{
             // the control below it.
             'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
             'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
-            !flush && 'px-[12px] border-t border-newColColor'
+            !flush && 'px-[12px] border-t border-newColColor',
+            toolsClassName
           )}
+          style={toolsStyle}
         >
           {!mediaNotAvailable && (
-            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] mobile:py-0 b2 items-center gap-[4px]">
               <div
                 onClick={showModal}
                 data-tooltip-id="tooltip"
                 data-tooltip-content={t('insert_media', 'Insert Media')}
                 aria-label={t('insert_media', 'Insert Media')}
-                className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-surface border border-line px-[8px]"
               >
                 <div className="flex gap-[8px] items-center">
                   <div>
-                    <InsertMediaIcon />
+                    <InsertMediaIcon className="mobile:w-[20px] mobile:h-[20px]" />
                   </div>
                   {!compact && (
                     <div className="text-[12px] font-[600] mobile:hidden block">
@@ -1118,7 +1232,7 @@ export const MultiMediaComponent: FC<{
                   data-tooltip-id="tooltip"
                   data-tooltip-content={t('design_media', 'Design Media')}
                   aria-label={t('design_media', 'Design Media')}
-                  className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                  className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px] mobile:hidden"
                 >
                   <div className="flex gap-[5px] items-center">
                     <div>
@@ -1158,17 +1272,32 @@ export const MultiMediaComponent: FC<{
             </div>
           )}
           {!mediaNotAvailable && !!toolBar && (
-            <div className="text-newColColor h-full flex items-center">
+            <div className="text-newColColor h-full flex items-center mobile:px-[4px]">
               <VerticalDividerIcon />
             </div>
           )}
           {!!toolBar && (
-            <div className="flex flex-wrap py-[10px] b2 items-center gap-[4px]">
+            <div className="flex flex-wrap py-[10px] mobile:py-0 b2 items-center gap-[4px]">
               {toolBar}
             </div>
           )}
+          {/* the end of the bar at 1025px and below, kept in view while the
+              tools scroll under it: a fade over the tools, then what stays
+              at the end (the composer's Add comment) */}
+          {(!!toolBar || !!toolBarEnd) && (
+            <div className="hidden mobile:flex sticky end-0 ms-auto items-center">
+              {!!toolBar && (
+                <div className="self-stretch w-[40px] pointer-events-none bg-gradient-to-l rtl:bg-gradient-to-r from-newBgColorInner" />
+              )}
+              {toolBarEnd && (
+                <div className="flex items-center bg-newBgColorInner">
+                  {toolBarEnd}
+                </div>
+              )}
+            </div>
+          )}
           {information && (
-            <div className="flex-1 justify-end flex py-[10px] b2 items-center gap-[4px]">
+            <div className="flex-1 justify-end flex py-[10px] b2 items-center gap-[4px] mobile:hidden">
               {information}
             </div>
           )}
@@ -1249,8 +1378,8 @@ export const MediaComponent: FC<{
       askClose: false,
       closeOnEscape: true,
       fullScreen: true,
-      size: 'calc(100% - 80px)',
-      height: 'calc(100% - 80px)',
+      size: mediaLibrarySize(),
+      height: mediaLibrarySize(),
       children: (close) => (
         <MediaBox setMedia={changeMedia} closeModal={close} type={type} />
       ),

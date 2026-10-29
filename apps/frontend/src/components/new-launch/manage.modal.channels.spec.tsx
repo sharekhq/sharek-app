@@ -99,6 +99,7 @@ jest.mock(
     const { forwardRef, useImperativeHandle } =
       jest.requireActual<typeof import('react')>('react');
     return {
+      Providers: [],
       ShowAllProviders: forwardRef((_props, ref) => {
         useImperativeHandle(ref, () => ({
           getAllValues: async () =>
@@ -124,9 +125,6 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
 }));
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => null,
-}));
-jest.mock('@gitroom/frontend/components/ui/segmented.control', () => ({
-  SegmentedControl: () => null,
 }));
 // The footer's date picker: what it is shown and what its onChange moves.
 let datePicker: ComponentProps<typeof DatePicker> | undefined;
@@ -164,12 +162,30 @@ jest.mock(
     CreationMethodBadge: () => null,
   })
 );
+// The settings sheet reads the providers' settings through their module,
+// which brings the channel previews; scenery, as in
+// high.order.provider.spec.tsx.
+jest.mock(
+  '@gitroom/frontend/components/launches/general.preview.component',
+  () => ({ GeneralPreviewComponent: () => null })
+);
+jest.mock('@gitroom/frontend/components/launches/internal.channels', () => ({
+  InternalChannels: () => null,
+}));
 jest.mock('@gitroom/frontend/components/ui/icons', () => ({
   SettingsIcon: () => null,
   ChevronDownIcon: () => null,
   CloseIcon: () => null,
   TrashIcon: () => null,
   DropdownArrowSmallIcon: () => null,
+  // the top bar and the preview button at 1025px and below
+  ChevronLeftIcon: () => null,
+  DropdownArrowIcon: () => null,
+  EyeIcon: () => null,
+  PlusIcon: () => null,
+  SettingsOutlineIcon: () => null,
+  TagIcon: () => null,
+  RepeatIcon: () => null,
 }));
 jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,
@@ -597,28 +613,47 @@ describe('the publishing checks of a linked post', () => {
   });
 });
 
-// Below 1026px the composer shows one pane at a time, so the pane follows the channel to fix.
-describe('a failed check on a narrow screen', () => {
+// At 1025px and below the preview takes the editor's place, so a failed check
+// goes back to what needs fixing.
+describe('a failed check on a small screen', () => {
+  const eye = (host: HTMLElement) =>
+    host.querySelector<HTMLButtonElement>('button[aria-label="Preview"]')!;
   const onPreview = async () => {
     const host = await openLinked('QUEUE', []);
-    await act(async () => {
-      useLaunchStore.getState().setNarrowView('preview');
-    });
+    await press(eye(host));
     return host;
   };
 
-  it("opens the Settings pane for a channel's settings", async () => {
+  it("opens the channel's settings for its settings", async () => {
     postsValid[0] = { ...postsValid[0], valid: false };
-    await schedule(await onPreview());
+    const host = await onPreview();
+    await schedule(host);
 
-    expect(useLaunchStore.getState().narrowView).toBe('settings');
+    expect(host.querySelector('#wrapper-settings')!.className).toContain(
+      'flex-1'
+    );
   });
 
-  it('opens the Editor pane for its content', async () => {
+  it('goes back to the editor for its content', async () => {
     postsValid[0] = { ...postsValid[0], errors: 'Too many hashtags' };
-    await schedule(await onPreview());
+    const host = await onPreview();
+    expect(eye(host).getAttribute('aria-pressed')).toBe('true');
 
-    expect(useLaunchStore.getState().narrowView).toBe('editor');
+    await schedule(host);
+
+    expect(eye(host).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it.each([
+    ['an empty post', { emptyContent: true }],
+    ['a post over its length', { tooLong: true }],
+  ])('goes back to the editor for %s', async (_name, failure) => {
+    postsValid[0] = { ...postsValid[0], ...failure } as Check;
+    const host = await onPreview();
+
+    await schedule(host);
+
+    expect(eye(host).getAttribute('aria-pressed')).toBe('false');
   });
 });
 

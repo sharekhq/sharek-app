@@ -4,11 +4,20 @@ import { createRoot } from 'react-dom/client';
 // The composer's channel tabs. A post that already exists opens on its own
 // channels, each with its own content: there is no global mode to go back to,
 // and a channel can't be taken off it from here. A new post keeps both.
+// The interface's words; empty = the English fallbacks.
+let words: Record<string, string> = {};
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback?: string) => fallback ?? _key,
+  useT: () => (key: string, fallback?: string) => words[key] ?? fallback ?? key,
 }));
+// What the remove dot asks, and the answer: keep the channel.
+const asked: Array<{ title: string; description: string }> = [];
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useDecisionModal: () => ({ open: async () => false }),
+  useDecisionModal: () => ({
+    open: async (question: { title: string; description: string }) => {
+      asked.push(question);
+      return false;
+    },
+  }),
   useModals: () => ({}),
 }));
 jest.mock('@gitroom/react/helpers/safe.image', () => ({
@@ -78,6 +87,8 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  words = {};
+  asked.length = 0;
 });
 
 const click = async (node: Element) => {
@@ -131,5 +142,63 @@ describe('the channel tabs of a new post', () => {
     expect(host.querySelector('[data-global]')).toBeTruthy();
     expect(removeDots(host)).toHaveLength(1);
     expect(notGlobalMark(host)).toBeTruthy();
+  });
+});
+
+// At 1025px and below the tabs sit in one row with the + button (spec 044,
+// US2): 44px each on every pointer there, and a channel comes off in the +
+// sheet, not through the small dot.
+describe('the channel tabs at 1025px and below', () => {
+  beforeEach(() => {
+    existing = {};
+  });
+
+  const tabs = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('[data-global]'))
+      .map((icon) => icon.closest('.cursor-pointer')!)
+      .concat(
+        Array.from(
+          host.querySelectorAll('[data-tooltip-content="Sharek Café"]')
+        ).map((node) => node.parentElement!)
+      );
+
+  it('are 44px on every pointer there, and on a coarse pointer at every width', async () => {
+    const host = await render();
+
+    expect(tabs(host)).toHaveLength(2);
+    tabs(host).forEach((tab) => {
+      expect(tab.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          'mobile:w-[44px]',
+          'mobile:h-[44px]',
+          'coarse:w-[44px]',
+          'coarse:h-[44px]',
+        ])
+      );
+    });
+  });
+
+  it('hide the remove dot', async () => {
+    const [dot] = removeDots(await render());
+
+    expect(dot.className.split(' ')).toContain('mobile:hidden');
+  });
+
+  it('still ask, in the interface language, before the dot takes a channel off', async () => {
+    words = {
+      remove_social_account: 'إزالة الحساب',
+      are_you_sure_you_want_to_remove_this_social_from_scheduling:
+        'هل تريد إزالة هذا الحساب من الجدولة؟',
+    };
+    const [dot] = removeDots(await render());
+
+    await click(dot);
+
+    expect(asked).toEqual([
+      {
+        title: 'إزالة الحساب',
+        description: 'هل تريد إزالة هذا الحساب من الجدولة؟',
+      },
+    ]);
   });
 });

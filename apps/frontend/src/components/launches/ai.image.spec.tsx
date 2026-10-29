@@ -42,6 +42,7 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
     picker.push(props);
     return null;
   },
+  mediaLibrarySize: () => 'calc(100% - 80px)',
 }));
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),

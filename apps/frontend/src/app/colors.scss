@@ -21,12 +21,13 @@
     /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
     --brand-soft: rgba(240, 112, 138, 0.10); /* selection tint (Tailwind /NN broken on var colors) */
     --brand-soft-2: rgba(240, 112, 138, 0.16); /* stronger tint tier (contract --brand-soft2) */
-    /* current menu item (rail and drawer): a solid pomegranate tile with white on
-       it, never --brand-text (#F0708A is rose); the focus ring is the light ink,
-       since a pomegranate ring beside the pomegranate tile would vanish */
-    --nav-current-bg: var(--brand);
-    --nav-current-text: #ffffff;
-    --nav-current-ring: var(--ink);
+    /* selected / pressed / current (the menu's current item, a picked day, a
+       pressed toggle): a solid pomegranate tile with white on it, never
+       --brand-text (#F0708A is rose); the focus ring is the light ink, since a
+       pomegranate ring beside the pomegranate tile would vanish */
+    --selected-bg: var(--brand);
+    --selected-text: #ffffff;
+    --selected-ring: var(--ink);
     --panel: #1D1518;
     --quiet: #3E3138; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
     --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px -6px rgba(0, 0, 0, 0.45);
@@ -66,10 +67,11 @@
     /* v3 supporting tier (2026-07-18) — second neutral layer + elevation */
     --brand-soft: rgba(185, 45, 67, 0.09); /* selection tint (Tailwind /NN broken on var colors) */
     --brand-soft-2: rgba(185, 45, 67, 0.14); /* stronger tint tier (contract --brand-soft2) */
-    /* current menu item: the soft tint with pomegranate text (see the dark block) */
-    --nav-current-bg: var(--brand-soft-2);
-    --nav-current-text: var(--brand-text);
-    --nav-current-ring: var(--brand);
+    /* selected / pressed / current: the soft tint with pomegranate text (see the
+       dark block) */
+    --selected-bg: var(--brand-soft-2);
+    --selected-text: var(--brand-text);
+    --selected-ring: var(--brand);
     --panel: #F7F5F4;
     --quiet: #E9E6E4; /* quiet-button fill; must never alias --surface-2 (buttons vanish on cards) */
     --shadow-soft: 0 1px 2px rgba(26, 20, 19, 0.05), 0 3px 10px -5px rgba(26, 20, 19, 0.09);
