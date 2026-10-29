@@ -1169,3 +1169,43 @@ test('044 T071 F-2: coarse:text-[16px] is emitted after the 13px and 14px it rep
     );
   }
 });
+
+// 044 T071 — Image Text Slides' six counts at 1025px and below share the row
+// as the voice sets do (videos/providers/image-text-slides.provider.tsx):
+// still at the shared Button's 24px sides and min-content width, they ran
+// 398px in a 342px column at 390px and the sixth was cut off.
+const SLIDES_ROW_FORMS = [
+  {
+    className: 'mobile:min-w-0',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-width',
+    value: '0px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '8px',
+  },
+];
+
+test("044 T071: Image Text Slides' counts share the row at 1025px and below", async () => {
+  await assertFormsEmit(SLIDES_ROW_FORMS);
+});
+
+test("044 T071: the counts' 8px sides are emitted after the Button's 24px they replace", async () => {
+  const css = await emit(['px-[24px]', 'mobile:px-[8px]']);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  assert.ok(
+    order.indexOf('px-[24px]') !== -1 &&
+      order.indexOf('px-[24px]') < order.indexOf('mobile:px-[8px]'),
+    `mobile:px-[8px] must follow px-[24px] to win at equal specificity, got ${JSON.stringify(
+      order
+    )}`
+  );
+});

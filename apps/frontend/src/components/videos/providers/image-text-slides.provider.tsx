@@ -422,7 +422,9 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
               type="button"
               variant="ghost"
               className={clsx(
-                '!flex-1',
+                // at 1025px and below the six share the row, as the voice
+                // sets do: at the Button's 24px sides they ran past a phone
+                '!flex-1 mobile:min-w-0 mobile:px-[8px]',
                 slides === count && '!bg-brandSoft !text-brandText !border-brand'
               )}
               onClick={() => setValue('slides', count)}
