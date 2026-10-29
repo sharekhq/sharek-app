@@ -1011,3 +1011,77 @@ test("047 US2 (T078): up to 768px a Samy reply's controls sit in the flow, outra
   );
   assert.ok(classCount(ours) > classCount(CONTROLS));
 });
+
+// 044 T071 F-3 — the modal action bar (ui/modal.action.bar.tsx) bleeds to the
+// card edges by the card's padding. At 1025px and below the card pads 16px with
+// 16px corners (new-modal.tsx), so the bar's margins, padding, corners and
+// fade take a `mobile:` tier of 16px; still at 32px, it ran 8px past a 390px
+// screen and the AI image and video modals scrolled sideways.
+const ACTION_BAR_FORMS = [
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:-mx-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-left',
+    value: '-16px',
+  },
+  {
+    className: 'mobile:-mb-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-bottom',
+    value: '-16px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '16px',
+  },
+  {
+    // Both bottom corners, so the side asserted does not matter.
+    className: 'mobile:rounded-b-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-bottom-left-radius',
+    value: '16px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:inset-x-[-16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'left',
+    value: '-16px',
+  },
+];
+
+test('044 T071 F-3: the modal action bar takes the 16px card padding at 1025px and below', async () => {
+  await assertFormsEmit(ACTION_BAR_FORMS);
+});
+
+test('044 T071 F-3: each small-screen tier of the action bar is emitted after the desktop one it replaces', async () => {
+  // The desktop and small-screen classes sit on the same element at equal
+  // specificity, so the later rule wins inside the media query: the `mobile:`
+  // tier has to be emitted after the desktop class or the bar keeps its 32px.
+  const pairs = [
+    ['-mx-[32px]', 'mobile:-mx-[16px]'],
+    ['-mb-[32px]', 'mobile:-mb-[16px]'],
+    ['px-[32px]', 'mobile:px-[16px]'],
+    ['rounded-b-[24px]', 'mobile:rounded-b-[16px]'],
+    ['inset-x-[-32px]', 'mobile:inset-x-[-16px]'],
+  ];
+  const css = await emit(pairs.flat());
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const [desktop, small] of pairs) {
+    assert.ok(
+      order.indexOf(desktop) !== -1 &&
+        order.indexOf(desktop) < order.indexOf(small),
+      `${small} must follow ${desktop} to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});
