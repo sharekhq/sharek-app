@@ -60,6 +60,7 @@ import {
   CalendarDragLayer,
   usePostCardDrag,
 } from '@gitroom/frontend/components/launches/calendar.drag.layer';
+import { CalendarPostCard } from '@gitroom/frontend/components/launches/calendar.post.card';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 
 const post = {
@@ -219,5 +220,22 @@ describe('a post card hands its preview over', () => {
     expect(connected).toContain(source);
     expect(dragSpecs[0].item().width).toBe(210);
     expect(dragSpecs[0].item().id).toBe('p1');
+  });
+});
+
+// On a touch screen a card is picked up by holding it (dnd.provider.tsx). Held
+// that long, iOS would select the card's text or open the picture's menu, so
+// under a coarse pointer the card turns both off.
+describe('a card a finger holds', () => {
+  it('selects no text and opens no callout on a touch screen', () => {
+    const host = mount(
+      <CalendarPostCard post={post} state="DRAFT" isBeforeNow={false} />
+    );
+    const classes = (host.firstElementChild as HTMLElement).className.split(
+      ' '
+    );
+
+    expect(classes).toContain('coarse:select-none');
+    expect(classes).toContain('coarse:[-webkit-touch-callout:none]');
   });
 });

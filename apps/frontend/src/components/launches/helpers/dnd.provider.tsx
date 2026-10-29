@@ -45,13 +45,34 @@ const CalendarBackend: typeof HTML5Backend = (manager, context, options) => {
   return backend;
 };
 
+// A finger picks a channel or a post up only after resting on it this long.
+// A swipe moves sooner, which cancels the hold, so the sheet or the week
+// scrolls instead of the row being dragged and dropped somewhere else.
+const TOUCH_HOLD_MS = 400;
+
 // Upstream hands DndProvider CalendarBackend alone. Sharek keeps the
 // HTML5toTouch pipeline, so a finger can still drag a post, and puts the
 // editor filter on its html5 step only: the touch step never sees native drags.
+// The hold goes on the touch step only (`delayTouchStart`, not `delay`), so a
+// mouse picks things up at once.
 const CALENDAR_PIPELINE: MultiBackendOptions = {
-  backends: HTML5toTouch.backends.map((step) =>
-    step.id === 'html5' ? { ...step, backend: CalendarBackend } : step
-  ),
+  backends: HTML5toTouch.backends.map((step) => {
+    if (step.id === 'html5') {
+      return { ...step, backend: CalendarBackend };
+    }
+
+    if (step.id === 'touch') {
+      return {
+        ...step,
+        options: {
+          ...(step.options as object),
+          delayTouchStart: TOUCH_HOLD_MS,
+        },
+      };
+    }
+
+    return step;
+  }),
 };
 
 export const DNDProvider: FC<{

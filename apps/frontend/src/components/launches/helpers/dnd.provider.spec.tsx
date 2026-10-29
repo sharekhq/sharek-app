@@ -7,6 +7,12 @@
 // What is pinned here is that graft: both steps survive, the touch step is the
 // library's own, and the html5 step drops a drag from inside an editable node
 // and passes every other one through.
+//
+// The touch step also waits for a hold before it picks anything up. Without
+// it, a swipe that started on a channel in the Channels sheet dragged the
+// channel, and letting go over a customer moved it there on the server; a
+// swipe across Week could do the same to a post. The library's real pipeline
+// and touch backend run here, so the hold is pinned as a finger meets it.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type {
@@ -38,25 +44,6 @@ jest.mock('react-dnd-html5-backend', () => ({
       handleTopDrop: jest.fn(),
     };
     return { ...original };
-  },
-}));
-
-jest.mock('rdndmb-html5-to-touch', () => ({
-  HTML5toTouch: {
-    backends: [
-      {
-        id: 'html5',
-        backend: (): null => null,
-        transition: { event: 'pointerdown', check: (): boolean => false },
-      },
-      {
-        id: 'touch',
-        backend: (): null => null,
-        options: { enableMouseEvents: true },
-        preview: true,
-        transition: { event: 'touchstart', check: (): boolean => true },
-      },
-    ],
   },
 }));
 
@@ -99,7 +86,19 @@ describe('DNDProvider', () => {
       'html5',
       'touch',
     ]);
-    expect(options.backends[1]).toBe(HTML5toTouch.backends[1]);
+    const [touch, library] = [options.backends[1], HTML5toTouch.backends[1]];
+    expect(touch.backend).toBe(library.backend);
+    expect(touch.transition).toBe(library.transition);
+    expect(touch.preview).toBe(library.preview);
+  });
+
+  it('keeps the touch step’s mouse events and adds a 400ms hold for a finger only', async () => {
+    const options = await pipeline();
+    // `delay` or `delayMouseStart` would hold a mouse up too
+    expect(options.backends[1].options).toEqual({
+      enableMouseEvents: true,
+      delayTouchStart: 400,
+    });
   });
 
   it('keeps the html5 step’s transition', async () => {
@@ -125,5 +124,74 @@ describe('DNDProvider', () => {
     backend.handleTopDragOver(event);
     expect(original.handleTopDragOver).toHaveBeenCalledTimes(1);
     expect(original.handleTopDragOver).toHaveBeenCalledWith(event);
+  });
+});
+
+// The touch step's backend, built the way the multi-backend builds it, with a
+// manager that records whether a drag began.
+const touchBackend = (options: MultiBackendOptions) => {
+  const beginDrag = jest.fn();
+  const manager = {
+    getActions: () => ({ beginDrag }),
+    getMonitor: () => ({ isDragging: () => false }),
+  } as unknown as Parameters<MultiBackendPipelineStep['backend']>[0];
+  const step = options.backends[1];
+  const backend = step.backend(manager, window, step.options);
+  backend.setup();
+  mounted.push({ unmount: () => backend.teardown() });
+  const source = document.createElement('div');
+  document.body.appendChild(source);
+  backend.connectDragSource('channel', source);
+  return { beginDrag, source };
+};
+
+const touch = (
+  type: 'touchstart' | 'touchmove',
+  target: HTMLElement,
+  clientY: number
+) => {
+  const point = new window.Touch({
+    identifier: 1,
+    target,
+    clientX: 20,
+    clientY,
+  });
+  target.dispatchEvent(
+    new window.TouchEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      touches: [point],
+      targetTouches: [point],
+      changedTouches: [point],
+    })
+  );
+};
+
+describe('a finger on a draggable row or card', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('scrolls when it moves before the hold ends, and never starts a drag', async () => {
+    const { beginDrag, source } = touchBackend(await pipeline());
+    touch('touchstart', source, 100);
+    jest.advanceTimersByTime(50);
+    touch('touchmove', source, 140);
+    jest.advanceTimersByTime(1000);
+    touch('touchmove', source, 260);
+    expect(beginDrag).not.toHaveBeenCalled();
+  });
+
+  it('picks the row up when it is held for 400ms, then moves', async () => {
+    const { beginDrag, source } = touchBackend(await pipeline());
+    touch('touchstart', source, 100);
+    jest.advanceTimersByTime(400);
+    touch('touchmove', source, 140);
+    expect(beginDrag).toHaveBeenCalledTimes(1);
+    expect(beginDrag.mock.calls[0][0]).toEqual(['channel']);
   });
 });

@@ -1531,3 +1531,27 @@ test('044 F-1: the phone forms are emitted after the desktop padding they replac
     `mobile:ps-[28px] must follow mobile:px-0, got ${JSON.stringify(order)}`
   );
 });
+
+// 046 T069 — on a touch screen a post card is picked up by holding it
+// (dnd.provider.tsx), so under a coarse pointer the card selects no text and
+// opens no callout (calendar.post.card.tsx). The callout has no Tailwind
+// utility: it is an arbitrary vendor-prefixed property, the form most likely
+// to be dropped.
+const HELD_CARD_FORMS = [
+  {
+    className: 'coarse:select-none',
+    atRule: '(pointer: coarse)',
+    prop: 'user-select',
+    value: 'none',
+  },
+  {
+    className: 'coarse:[-webkit-touch-callout:none]',
+    atRule: '(pointer: coarse)',
+    prop: '-webkit-touch-callout',
+    value: 'none',
+  },
+];
+
+test('046 T069: a held post card selects no text and opens no callout under a coarse pointer', async () => {
+  await assertFormsEmit(HELD_CARD_FORMS);
+});
