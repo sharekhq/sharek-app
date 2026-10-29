@@ -22,10 +22,12 @@ export interface PostCardDrag {
   state: State;
   isBeforeNow: boolean;
   showTime?: boolean;
+  // a month chip, drawn as the same compact chip under the pointer
+  compact?: boolean;
 }
 
 // Measured off the card when the drag begins: a preview that sizes itself to
-// its content is a different card in a 58px month cell than in the day view.
+// its content is a different card in a narrow month cell than in the day view.
 type HeldCard = PostCardDrag & { width?: number };
 
 // Makes a post card draggable, and takes the preview off the browser.
@@ -101,6 +103,7 @@ export const CalendarDragLayer: FC = () => {
           state={held.state}
           isBeforeNow={held.isBeforeNow}
           showTime={held.showTime}
+          compact={held.compact}
           lifted
         />
       </div>

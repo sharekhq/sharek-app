@@ -54,6 +54,7 @@ import {
   CalendarPostCard,
 } from '@gitroom/frontend/components/launches/calendar.post.card';
 import { usePostCardDrag } from '@gitroom/frontend/components/launches/calendar.drag.layer';
+import { ChevronUpIcon } from '@gitroom/frontend/components/ui/icons';
 
 // Extend dayjs with necessary plugins
 extend(isSameOrAfter);
@@ -78,16 +79,8 @@ export const hours = Array.from(
 );
 
 // The current time badge at the start of the now line
-const NowTime: FC<{ time: string; className?: string }> = ({
-  time,
-  className,
-}) => (
-  <div
-    className={clsx(
-      'rounded-[6px] bg-brand px-[6px] text-[12px] leading-[20px] font-[500] text-white whitespace-nowrap',
-      className
-    )}
-  >
+const NowTime: FC<{ time: string }> = ({ time }) => (
+  <div className="rounded-[6px] bg-brand px-[6px] text-[12px] leading-[20px] font-[500] text-white whitespace-nowrap">
     {time}
   </div>
 );
@@ -114,17 +107,14 @@ const WeekNowLine: FC<{ days: dayjs.Dayjs[] }> = ({ days }) => {
         style={{ gridColumn: '1 / -1', gridRow }}
       >
         {/* covers this hour's label with the calendar background, the time
-            takes its place. As wide as the grid's hour column (136px, 44px
+            takes its place. As wide as the grid's hour column (136px, 72px
             below 1025px). Below 1025px it sits over the sticky labels (17) and
             under the sticky day headers (20) and the corner (30). */}
-        <div className="sticky start-0 h-full w-[136px] mobile:w-[44px] bg-newBgColorInner mobile:z-[18]">
+        <div className="sticky start-0 h-full w-[136px] mobile:w-[72px] bg-newBgColorInner mobile:z-[18]">
           <div className="absolute end-0 -translate-y-1/2" style={{ top }}>
-            {/* same format as the hour labels; a 12-hour time is wider than
-                the 44px column, so there it wraps as the labels do */}
-            <NowTime
-              time={now.format(isUSCitizen() ? 'h:mm A' : 'H:mm')}
-              className="mobile:px-[3px] mobile:whitespace-normal mobile:text-center mobile:leading-[16px]"
-            />
+            {/* same format as the hour labels; a 12-hour time fits the 72px
+                column on one line, as the labels do */}
+            <NowTime time={now.format(isUSCitizen() ? 'h:mm A' : 'H:mm')} />
           </div>
         </div>
       </div>
@@ -521,11 +511,6 @@ export const WeekView = () => {
       days.push({
         name: day.format('dddd'),
         day: day.format('L'),
-        // Short forms for the narrow columns below 1025px: a day column is 64px
-        // at 1024 and 35px at 820, where the full name and date print over their
-        // neighbours. dayjs localizes both forms.
-        shortName: day.format('ddd'),
-        shortDay: day.format('D'),
         date: day,
       });
     }
@@ -535,7 +520,7 @@ export const WeekView = () => {
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 relative">
-        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:44px_repeat(7,_minmax(58px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
           <div className="z-10 mobile:z-30 mobile:start-0 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
             <div
@@ -547,8 +532,7 @@ export const WeekView = () => {
               )}
             >
               <div className="text-[14px] font-[600] text-brandText">
-                <span className="mobile:hidden">{day.name}</span>
-                <span className="hidden mobile:inline">{day.shortName}</span>
+                {day.name}
               </div>
               <div
                 className={clsx(
@@ -560,8 +544,7 @@ export const WeekView = () => {
                 {day.day === newDayjs().format('L') && (
                   <div className="w-[6px] h-[6px] bg-newTableTextFocused rounded-full" />
                 )}
-                <span className="mobile:hidden">{day.day}</span>
-                <span className="hidden mobile:inline">{day.shortDay}</span>
+                {day.day}
               </div>
             </div>
           ))}
@@ -570,7 +553,7 @@ export const WeekView = () => {
               {/* below 1025px the labels stick while the days scroll under
                   them, so they sit over the add buttons (z-[16]) and the now
                   line (z-[15]) passing beneath */}
-              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:ps-[2px] mobile:pe-[2px] mobile:text-[12px]">
+              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap">
                 {convertTimeFormatBasedOnLocality(hour)}
               </div>
               {localizedDays.map((day, indexDay) => (
@@ -645,22 +628,25 @@ export const MonthView = () => {
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 flex relative">
-        <div className="grid grid-cols-7 grid-rows-[62px_auto] gap-[4px] rounded-[10px] absolute start-0 top-0 overflow-auto w-full h-full scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary">
+        {/* on phones the whole month fits the width, posts show as channel avatars */}
+        <div className="grid grid-cols-7 grid-rows-[62px_auto] mobile:grid-rows-[36px_auto] gap-[4px] mobile:gap-[2px] rounded-[10px] absolute start-0 top-0 overflow-auto w-full h-full scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary">
           {localizedDays.map((day) => (
             <div
               key={day.name}
-              className="z-[20] p-2 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"
+              className="z-[20] p-2 mobile:p-0 cal-weekday flex justify-center items-center flex-col h-[62px] mobile:h-[36px] rounded-[8px] sticky top-0"
             >
               <div className="text-[14px] font-[600] text-brandText">
                 <span className="mobile:hidden">{day.name}</span>
-                <span className="hidden mobile:inline">{day.shortName}</span>
+                <span className="hidden mobile:inline mobile:text-[13px]">
+                  {day.shortName}
+                </span>
               </div>
             </div>
           ))}
           {calendarDays.map((date, index) => (
             <div
               key={index}
-              className="text-center items-center justify-center flex"
+              className="text-center items-center justify-center flex mobile:min-w-0"
             >
               <CalendarColumn
                 getDate={newDayjs(date.day).endOf('day')}
@@ -1018,11 +1004,15 @@ export const CalendarColumn: FC<{
       ref={drop as any}
     >
       {display === 'month' && (
-        <div className={clsx('pt-[3px] text-[14px] flex justify-center')}>
+        <div
+          className={clsx(
+            'pt-[3px] text-[14px] mobile:pt-[2px] mobile:text-[12px] flex justify-center'
+          )}
+        >
           {/* every day number gets the same box so only today's is filled */}
           <div
             className={clsx(
-              'h-[24px] min-w-[24px] px-[5px] rounded-[6px] flex items-center justify-center',
+              'h-[24px] min-w-[24px] px-[5px] mobile:h-[20px] mobile:min-w-[20px] mobile:px-[4px] rounded-[6px] flex items-center justify-center',
               getDate.isSame(currentHour, 'day') &&
                 'bg-brand text-white font-[600]',
               isBeforeNow && 'line-through text-muted'
@@ -1035,6 +1025,7 @@ export const CalendarColumn: FC<{
       <div
         className={clsx(
           'relative flex flex-col flex-1 text-white rounded-[8px] min-h-[70px]',
+          display === 'month' && 'mobile:min-h-[44px]',
           canDrop && 'border border-brand'
         )}
       >
@@ -1042,7 +1033,9 @@ export const CalendarColumn: FC<{
           className={clsx(
             'flex-col text-[12px] pointer w-full flex scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary',
             isBeforeNow ? 'flex-1' : 'cursor-pointer',
-            isBeforeNow && postList.length === 0 && 'col-calendar'
+            isBeforeNow && postList.length === 0 && 'col-calendar',
+            // the "Date passed" hint is wider than a phone month cell
+            display === 'month' && 'mobile:before:hidden'
           )}
         >
           {loading && (
@@ -1057,7 +1050,12 @@ export const CalendarColumn: FC<{
                 'text-textColor p-[2.5px] relative flex flex-col justify-center items-center'
               )}
             >
-              <div className="relative w-full flex flex-col items-center p-[2.5px]">
+              <div
+                className={clsx(
+                  'relative w-full flex flex-col items-center p-[2.5px]',
+                  display === 'month' && 'mobile:p-0'
+                )}
+              >
                 <CalendarItem
                   display={display as 'day' | 'week' | 'month'}
                   isBeforeNow={isBeforeNow}
@@ -1081,7 +1079,15 @@ export const CalendarColumn: FC<{
               className="text-center hover:underline py-[5px] text-textColor"
               onClick={showAllFunc}
             >
-              {t('show_more', '+ Show more')} ({postList.length - 3})
+              <span className={clsx(display === 'month' && 'mobile:hidden')}>
+                {t('show_more', '+ Show more')} ({postList.length - 3})
+              </span>
+              {/* isolated, or Arabic paints the leading + after the number */}
+              {display === 'month' && (
+                <bdi dir="ltr" className="hidden mobile:inline">
+                  +{postList.length - 3}
+                </bdi>
+              )}
             </div>
           )}
           {showAll && postList.length > 3 && (
@@ -1089,7 +1095,12 @@ export const CalendarColumn: FC<{
               className="text-center hover:underline py-[5px]"
               onClick={showLessFunc}
             >
-              {t('show_less', '- Show less')}
+              <span className={clsx(display === 'month' && 'mobile:hidden')}>
+                {t('show_less', '- Show less')}
+              </span>
+              {display === 'month' && (
+                <ChevronUpIcon size={16} className="hidden mobile:inline" />
+              )}
             </div>
           )}
         </div>
@@ -1122,7 +1133,7 @@ export const CalendarColumn: FC<{
               )}
               {display === 'day' && (
                 <div
-                  className={`w-full h-full rounded-[10px] py-[10px] flex-wrap hover:border hover:border-brand flex justify-center items-center gap-[20px] opacity-30 grayscale hover:grayscale-0 hover:opacity-100`}
+                  className={`w-full h-full rounded-[10px] py-[10px] flex-wrap hover:border hover:border-brand flex justify-center items-center gap-[20px] mobile:gap-[12px] opacity-30 grayscale hover:grayscale-0 hover:opacity-100`}
                 >
                   {integrations.map((selectedIntegrations) => (
                     <div
@@ -1207,10 +1218,9 @@ const CalendarItem: FC<{
     window.open(`/p/` + post.id + '?share=true', '_blank');
   }, [post]);
 
-  // A week or month cell is a 58px grid column (`minmax(58px, 1fr)` at :358),
-  // and these actions have never fitted it — laid out in the strip they painted
-  // over the days on either side, which is finding 69 of the 2026-08 responsive
-  // audit. They are data rather than markup because the strip hands them to a
+  // A week or month cell is a narrow grid column, and these actions have never
+  // fitted it — laid out in the strip they painted over the days on either
+  // side, which is finding 69 of the 2026-08 responsive audit. They are data rather than markup because the strip hands them to a
   // panel that opens against the viewport instead of inside the column.
   const statisticsAction = useMemo(() => {
     if (
@@ -1310,6 +1320,7 @@ const CalendarItem: FC<{
     state,
     isBeforeNow,
     showTime,
+    compact: display === 'month',
   });
   return (
     <CalendarPostCard
@@ -1318,6 +1329,7 @@ const CalendarItem: FC<{
       state={state}
       isBeforeNow={isBeforeNow}
       showTime={showTime}
+      compact={display === 'month'}
       onClick={editPost}
       style={{ opacity }}
       actions={
