@@ -5,7 +5,9 @@ import React, {
   Fragment,
   memo,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -48,6 +50,7 @@ import { Button } from '@gitroom/react/form/button';
 import {
   PostAction,
   PostActionsMenu,
+  PostActionsMenuHandle,
 } from '@gitroom/frontend/components/launches/post.actions.menu';
 import {
   CalendarPost,
@@ -1313,7 +1316,7 @@ const CalendarItem: FC<{
   // The card hands the drop its three fields and the layer everything it needs
   // to draw the card itself, since neither backend draws a usable preview on
   // its own (calendar.drag.layer.tsx).
-  const { attach, opacity } = usePostCardDrag({
+  const { attach, opacity, isDragging } = usePostCardDrag({
     id: post.id,
     interval: !!post.intervalInDays,
     date,
@@ -1323,6 +1326,16 @@ const CalendarItem: FC<{
     showTime,
     compact: display === 'month',
   });
+  // A month chip at 1025px and below has no room for the menu's button, so a
+  // finger held still on it opens the same menu (calendar.post.card.tsx); a
+  // drag that begins from the hold takes it away again.
+  const heldMenu = useRef<PostActionsMenuHandle>(null);
+  const openHeldMenu = useCallback(() => heldMenu.current?.open(), []);
+  useEffect(() => {
+    if (isDragging) {
+      heldMenu.current?.close();
+    }
+  }, [isDragging]);
   return (
     <CalendarPostCard
       ref={attach}
@@ -1332,6 +1345,17 @@ const CalendarItem: FC<{
       showTime={showTime}
       compact={display === 'month'}
       onClick={editPost}
+      onHold={display === 'month' ? openHeldMenu : undefined}
+      heldActions={
+        display === 'month' && (
+          <PostActionsMenu
+            ref={heldMenu}
+            held
+            actions={actions}
+            label={t('post_actions', 'Post actions')}
+          />
+        )
+      }
       style={{ opacity }}
       actions={
         <PostActionsMenu

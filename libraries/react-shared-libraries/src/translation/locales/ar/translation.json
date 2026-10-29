@@ -9,6 +9,7 @@
   "calendar_state_published": "تم النشر",
   "calendar_state_scheduled": "مجدول",
   "calendar_state_failed": "فشل",
+  "calendar_post_status_channel": "{{status}}: {{channel}}",
   "webhooks": "روابط الويب (Webhooks)",
   "webhooks_are_a_way_to_get_notified_when_something_happens_in_postiz_via_an_http_request": "روابط الويب هي وسيلة لتلقي الإشعارات عند حدوث شيء ما في شارك عبر طلب HTTP.",
   "name": "الاسم",

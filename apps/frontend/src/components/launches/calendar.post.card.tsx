@@ -1,15 +1,29 @@
 'use client';
 
-import { CSSProperties, forwardRef, ReactNode } from 'react';
+import {
+  CSSProperties,
+  forwardRef,
+  ReactNode,
+  TouchEvent as ReactTouchEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
 import { Integration, Post, State, Tags } from '@prisma/client';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { isUSCitizen } from './helpers/isuscitizen.utils';
+
+// A finger held still this long on a month chip opens its menu: past the touch
+// backend's 400ms pickup (dnd.provider.tsx), so holding and then moving still
+// drags, and about when Android would open its own long-press menu.
+const HOLD_MENU_MS = 500;
 
 export type CalendarPost = Post & {
   integration: Integration;
@@ -35,12 +49,18 @@ export const CalendarPostCard = forwardRef<
     // carries no controls, since nothing on it can be pressed mid-drag.
     actions?: ReactNode;
     onClick?: () => void;
+    // A month chip at 1025px and below has no room for the actions button: a
+    // finger held still on it calls `onHold`, which opens `heldActions`
+    // (calendar.tsx). Moving, lifting or a second finger first cancels it, and
+    // the lift that ends a hold is not a tap.
+    onHold?: () => void;
+    heldActions?: ReactNode;
     // Held above the grid rather than sitting in it. One shadow token or the
     // other — never both, since they are the same property.
     lifted?: boolean;
     // A month chip: at 1025px and below only the channel avatar shows, as
     // upstream draws it (no status chip, tags, text, menu or "!" badge); the
-    // failed ring and the past grey stay.
+    // status rings it instead, in its chip's colour, and the past grey stays.
     compact?: boolean;
     style?: CSSProperties;
   }
@@ -52,6 +72,8 @@ export const CalendarPostCard = forwardRef<
     showTime,
     actions,
     onClick,
+    onHold,
+    heldActions,
     lifted,
     compact,
     style,
@@ -62,6 +84,61 @@ export const CalendarPostCard = forwardRef<
     user?.impersonate &&
     post.creationMethod &&
     post.creationMethod !== 'UNKNOWN';
+  // One reading of the status for the chip that names it and for the month
+  // chip's ring: a post past its time reads as published.
+  const status =
+    state === 'ERROR'
+      ? 'failed'
+      : state === 'DRAFT'
+      ? 'draft'
+      : state === 'PUBLISHED' || dayjs().isAfter(dayjs.utc(post.publishDate))
+      ? 'published'
+      : 'scheduled';
+  const statusLabel = {
+    failed: t('calendar_state_failed', 'Failed'),
+    draft: t('draft', 'Draft'),
+    published: t('calendar_state_published', 'Published'),
+    scheduled: t('calendar_state_scheduled', 'Scheduled'),
+  }[status];
+
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  // the hold opened the menu during this touch
+  const holdOpened = useRef(false);
+  const cancelHold = useCallback(() => clearTimeout(holdTimer.current), []);
+  useEffect(() => cancelHold, [cancelHold]);
+
+  const startHold = useCallback(
+    (e: ReactTouchEvent) => {
+      cancelHold();
+      holdOpened.current = false;
+      if (
+        !onHold ||
+        e.touches.length > 1 ||
+        !window.matchMedia(MOBILE_QUERY).matches
+      ) {
+        return;
+      }
+      holdTimer.current = setTimeout(() => {
+        holdOpened.current = true;
+        onHold();
+      }, HOLD_MENU_MS);
+    },
+    [cancelHold, onHold]
+  );
+
+  // the browser clicks after a touch that ends unless the touchend is
+  // cancelled, and that click would open the post under the menu
+  const endHold = useCallback(
+    (e: ReactTouchEvent) => {
+      cancelHold();
+      if (holdOpened.current) {
+        e.preventDefault();
+      }
+    },
+    [cancelHold]
+  );
 
   return (
     <div
@@ -73,7 +150,15 @@ export const CalendarPostCard = forwardRef<
         // long, iOS would select its text or open the picture's menu
         'coarse:select-none coarse:[-webkit-touch-callout:none]',
         lifted ? 'shadow-card scale-[1.04]' : 'shadow-soft',
-        state === 'ERROR' && 'ring-2 ring-error'
+        state === 'ERROR' && 'ring-2 ring-error',
+        compact && status === 'scheduled' && 'mobile:ring-2 mobile:ring-info',
+        compact &&
+          status === 'published' &&
+          'mobile:ring-2 mobile:ring-success',
+        // dashed like the draft chip, and a ring cannot be dashed
+        compact &&
+          status === 'draft' &&
+          'mobile:border-2 mobile:border-dashed mobile:border-muted'
       )}
       style={style}
     >
@@ -114,21 +199,14 @@ export const CalendarPostCard = forwardRef<
           backgroundColor: post?.tags?.[0]?.tag?.color,
         }}
       >
-        {state === 'ERROR' ? (
-          <span className="cal-chip cal-chip-error">
-            ! {t('calendar_state_failed', 'Failed')}
-          </span>
-        ) : state === 'DRAFT' ? (
-          <span className="cal-chip cal-chip-draft">{t('draft', 'Draft')}</span>
-        ) : state === 'PUBLISHED' ||
-          dayjs().isAfter(dayjs.utc(post.publishDate)) ? (
-          <span className="cal-chip cal-chip-success">
-            ✓ {t('calendar_state_published', 'Published')}
-          </span>
+        {status === 'failed' ? (
+          <span className="cal-chip cal-chip-error">! {statusLabel}</span>
+        ) : status === 'draft' ? (
+          <span className="cal-chip cal-chip-draft">{statusLabel}</span>
+        ) : status === 'published' ? (
+          <span className="cal-chip cal-chip-success">✓ {statusLabel}</span>
         ) : (
-          <span className="cal-chip cal-chip-info">
-            {t('calendar_state_scheduled', 'Scheduled')}
-          </span>
+          <span className="cal-chip cal-chip-info">{statusLabel}</span>
         )}
         <div
           className={clsx(
@@ -142,6 +220,10 @@ export const CalendarPostCard = forwardRef<
       </div>
       <div
         onClick={onClick}
+        onTouchStart={startHold}
+        onTouchMove={cancelHold}
+        onTouchEnd={endHold}
+        onTouchCancel={cancelHold}
         className={clsx(
           'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
           'relative',
@@ -150,6 +232,17 @@ export const CalendarPostCard = forwardRef<
           isBeforeNow && '!grayscale'
         )}
       >
+        {/* the status chip is hidden on a month chip, so its name says it;
+            React escapes the text, so i18next must not escape it first */}
+        {compact && (
+          <span className="hidden mobile:inline mobile:sr-only">
+            {t('calendar_post_status_channel', '{{status}}: {{channel}}', {
+              status: statusLabel,
+              channel: post.integration.name,
+              interpolation: { escapeValue: false },
+            })}
+          </span>
+        )}
         <div className={clsx('relative min-w-[20px]')}>
           <img
             className="w-[20px] h-[20px] rounded-[8px]"
@@ -180,6 +273,9 @@ export const CalendarPostCard = forwardRef<
           </div>
         )}
       </div>
+      {/* outside the body: a past post's grey is a filter, which would grey
+          the list and place it against the body instead of the screen */}
+      {heldActions}
     </div>
   );
 });
