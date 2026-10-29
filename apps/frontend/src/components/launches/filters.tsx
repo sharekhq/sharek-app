@@ -41,6 +41,17 @@ function getDateRange(
   }
 }
 
+// A view or list-state segment. At 1025px and below it takes taps across the
+// whole 44px row, and its tinted pill is the span inside it; above, it draws no
+// box of its own, and the pill is the segment it has always been.
+const segment =
+  'mobile:flex mobile:flex-1 mobile:min-w-fit mobile:h-full mobile:items-stretch mobile:py-[4px] cursor-pointer';
+const viewPill =
+  'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:w-auto mobile:min-w-fit mobile:py-0 mobile:px-[6px] mobile:whitespace-nowrap';
+const statePill =
+  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:min-w-fit mobile:py-0 mobile:px-[8px] mobile:whitespace-nowrap';
+const selectedPill = 'text-brandText bg-brandSoft font-[600]';
+
 export const Filters = () => {
   const calendar = useCalendar();
   const t = useT();
@@ -49,14 +60,14 @@ export const Filters = () => {
   const currentLanguage = i18next.resolvedLanguage || 'en';
   dayjs.locale();
 
-  // Calculate display date range text
-  const getDisplayText = () => {
+  // Calculate display date range text, short is the phone version
+  const getDisplayText = (short?: boolean) => {
     const startDate = newDayjs(calendar.startDate);
     const endDate = newDayjs(calendar.endDate);
 
     switch (calendar.display) {
       case 'day':
-        return startDate.format('dddd (L)');
+        return startDate.format(short ? 'ddd (L)' : 'dddd (L)');
       case 'week':
         return `${startDate.format('L')} - ${endDate.format('L')}`;
       case 'month':
@@ -288,13 +299,14 @@ export const Filters = () => {
   }, [calendar]);
 
   return (
-    <div className="text-textColor flex flex-row flex-wrap phone:flex-col gap-[8px] items-center select-none">
+    <div className="text-textColor flex flex-row flex-wrap gap-[8px] items-center select-none">
+      {/* phones: view switcher and filter first, then the date or list row */}
       {!isListView && (
-        <div className="flex flex-grow flex-row items-center gap-[10px]">
-          <div className="border h-[42px] coarse:h-[54px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
+        <div className="flex flex-grow flex-row items-center gap-[10px] mobile:order-3 mobile:basis-full mobile:min-w-0 mobile:gap-[8px]">
+          <div className="border h-[42px] coarse:h-[54px] mobile:h-[44px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden mobile:flex-1 mobile:min-w-0">
             <div
               onClick={previous}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -312,14 +324,17 @@ export const Filters = () => {
                 />
               </svg>
             </div>
-            <div className="min-w-[200px] text-center bg-newBgColorInner h-full flex items-center justify-center">
-              <div className="py-[3px] px-[9px] rounded-[5px] transition-all text-[14px]">
-                {getDisplayText()}
+            <div className="min-w-[200px] mobile:min-w-0 mobile:flex-1 text-center bg-newBgColorInner h-full flex items-center justify-center">
+              <div className="py-[3px] px-[9px] mobile:px-[4px] rounded-[5px] transition-all text-[14px] mobile:truncate">
+                <span className="mobile:hidden">{getDisplayText()}</span>
+                <span className="hidden mobile:inline">
+                  {getDisplayText(true)}
+                </span>
               </div>
             </div>
             <div
               onClick={next}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -338,8 +353,8 @@ export const Filters = () => {
               </svg>
             </div>
           </div>
-          <div className="flex-1 text-[14px] font-[500]">
-            <div className="text-center flex h-[42px] coarse:h-[54px]">
+          <div className="flex-1 mobile:flex-none text-[14px] font-[500]">
+            <div className="text-center flex h-[42px] coarse:h-[54px] mobile:h-[44px]">
               <div
                 onClick={setToday}
                 className="hover:text-textItemFocused hover:bg-boxFocused py-[3px] px-[9px] flex justify-center items-center rounded-[8px] transition-all cursor-pointer text-[14px] bg-newBgColorInner border border-newTableBorder"
@@ -351,12 +366,17 @@ export const Filters = () => {
         </div>
       )}
       {isListView && (
-        <div className="flex flex-grow flex-row flex-wrap items-center gap-[10px] phone:w-full phone:justify-center">
-          <div className="border h-[42px] coarse:h-[54px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden">
+        <div className="flex flex-grow flex-row flex-wrap items-center gap-[10px] mobile:order-3 mobile:basis-full mobile:min-w-0 mobile:gap-[8px]">
+          <div
+            className={clsx(
+              'border h-[42px] coarse:h-[54px] mobile:h-[44px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden mobile:order-2 mobile:w-full',
+              calendar.listTotalPages <= 1 && 'mobile:hidden'
+            )}
+          >
             <div
               onClick={previousPage}
               className={clsx(
-                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
+                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
                 calendar.listPage > 0
                   ? 'cursor-pointer hover:text-textItemFocused hover:bg-boxFocused'
                   : 'opacity-50 cursor-not-allowed'
@@ -378,7 +398,7 @@ export const Filters = () => {
                 />
               </svg>
             </div>
-            <div className="min-w-[200px] text-center bg-newBgColorInner h-full flex items-center justify-center">
+            <div className="min-w-[200px] mobile:min-w-0 mobile:flex-1 text-center bg-newBgColorInner h-full flex items-center justify-center">
               <div className="py-[3px] px-[9px] rounded-[5px] transition-all text-[14px]">
                 {t('page', 'Page')} {calendar.listPage + 1} {t('of', 'of')} {Math.max(1, calendar.listTotalPages)}
               </div>
@@ -386,7 +406,7 @@ export const Filters = () => {
             <div
               onClick={nextPage}
               className={clsx(
-                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
+                'text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center',
                 calendar.listPage < calendar.listTotalPages - 1
                   ? 'cursor-pointer hover:text-textItemFocused hover:bg-boxFocused'
                   : 'opacity-50 cursor-not-allowed'
@@ -409,26 +429,25 @@ export const Filters = () => {
               </svg>
             </div>
           </div>
-          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px]">
+          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:w-full mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]">
             {listStateOptions.map((option) => (
               <div
                 key={option.value}
                 onClick={setListStateFilter(option.value)}
-                className={clsx(
-                  // `phone:coarse:`, not `coarse:` — Tailwind emits the
-                  // pointer variant *before* the screen ones, so a plain
-                  // `coarse:min-w` would lose to `phone:min-w-0` on the one
-                  // width where the segment is too narrow to hit.
-                  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] phone:min-w-0 phone:coarse:min-w-[44px] px-[12px] phone:px-[8px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
-                  calendar.listState === option.value &&
-                    'text-brandText bg-brandSoft font-[600]'
-                )}
+                className={clsx('contents', segment)}
               >
-                {option.label}
+                <span
+                  className={clsx(
+                    statePill,
+                    calendar.listState === option.value && selectedPill
+                  )}
+                >
+                  {option.label}
+                </span>
               </div>
             ))}
           </div>
-          <div className="flex-1 phone:hidden" />
+          <div className="flex-1 mobile:hidden" />
         </div>
       )}
       <SelectCustomer
@@ -437,43 +456,55 @@ export const Filters = () => {
         integrations={calendar.integrations}
       />
       <SelectChannels />
-      {!isListView && (
-        <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px]">
-          <div
+      <div
+        className={clsx(
+          'flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]',
+          isListView && 'hidden mobile:flex'
+        )}
+      >
+        <div className={clsx('contents', segment)} onClick={setDay}>
+          <span
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
-              calendar.display === 'day' && 'text-brandText bg-brandSoft font-[600]'
+              viewPill,
+              calendar.display === 'day' && selectedPill
             )}
-            onClick={setDay}
           >
             {t('day', 'Day')}
-          </div>
-          <div
+          </span>
+        </div>
+        <div className={clsx('contents', segment)} onClick={setWeek}>
+          <span
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
-              calendar.display === 'week' && 'text-brandText bg-brandSoft font-[600]'
+              viewPill,
+              calendar.display === 'week' && selectedPill
             )}
-            onClick={setWeek}
           >
             {t('week', 'Week')}
-          </div>
-          <div
+          </span>
+        </div>
+        <div className={clsx('contents', segment)} onClick={setMonth}>
+          <span
             className={clsx(
-              'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center',
-              calendar.display === 'month' && 'text-brandText bg-brandSoft font-[600]'
+              viewPill,
+              calendar.display === 'month' && selectedPill
             )}
-            onClick={setMonth}
           >
             {t('month', 'Month')}
-          </div>
+          </span>
         </div>
-      )}
-      <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px]">
+        {/* the list toggle joins the view switcher on phones */}
+        <div className={clsx('hidden', segment)} onClick={setList}>
+          <span className={clsx(viewPill, isListView && selectedPill)}>
+            {t('list', 'List')}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:hidden">
         <div
           onClick={setCalendarView}
           className={clsx(
             'pt-[6px] pb-[5px] cursor-pointer flex justify-center items-center w-[34px] coarse:w-[44px] text-center rounded-[6px]',
-            !isListView && 'text-brandText bg-brandSoft font-[600]'
+            !isListView && selectedPill
           )}
         >
           {/*calendar*/}
@@ -497,7 +528,7 @@ export const Filters = () => {
           onClick={setList}
           className={clsx(
             'pt-[6px] pb-[5px] flex justify-center items-center cursor-pointer w-[34px] coarse:w-[44px] text-center rounded-[6px]',
-            isListView && 'text-brandText bg-brandSoft font-[600]'
+            isListView && selectedPill
           )}
         >
           {/*list*/}
