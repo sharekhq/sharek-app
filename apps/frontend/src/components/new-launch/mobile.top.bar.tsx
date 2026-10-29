@@ -16,10 +16,12 @@ export interface MobileTopBarAction {
   disabled?: boolean;
 }
 
-// The desktop buttons' styles: Add to calendar, Post Now, Save as Draft.
+// The desktop buttons' styles: Add to calendar, Post Now, Save as Draft. Post
+// Now keeps the outline in pomegranate with the normal text colour, never
+// brandText (rose in dark).
 const actionColors = {
   primary: 'bg-brand text-white',
-  secondary: 'bg-surface border border-brandText text-brandText',
+  secondary: 'bg-surface border border-brand text-ink',
   tertiary: 'bg-btnSimple',
 };
 

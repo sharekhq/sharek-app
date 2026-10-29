@@ -3,7 +3,8 @@ import { createRoot, Root } from 'react-dom/client';
 
 // The composer's top bar at 1025px and below (spec 044, FR-003 to FR-005):
 // back, the post's date, and one Post button. A single way to save runs
-// directly; several open a menu, each in the style of its desktop button.
+// directly; several open a menu, each in the style of its desktop button but
+// Post Now, outlined in pomegranate.
 // Post Now opens on a tap here: nothing on a phone depends on hover.
 
 // The interface's words; empty = the English fallbacks.
@@ -194,7 +195,7 @@ describe('the Post menu', () => {
     ]);
   });
 
-  it('draws each in the style of its desktop button, 44px tall and rounded', async () => {
+  it('draws each 44px tall and rounded, Add to calendar and Save as Draft in the style of their desktop buttons', async () => {
     await open();
     const common = ['h-[44px]', 'rounded-[8px]', 'focus-visible:ring-brand'];
 
@@ -202,17 +203,26 @@ describe('the Post menu', () => {
       expect.arrayContaining([...common, 'bg-brand', 'text-white'])
     );
     expect(classes(byText('Post Now')!)).toEqual(
-      expect.arrayContaining([
-        ...common,
-        'bg-surface',
-        'border',
-        'border-brandText',
-        'text-brandText',
-      ])
+      expect.arrayContaining(common)
     );
     expect(classes(byText('Save as Draft')!)).toEqual(
       expect.arrayContaining([...common, 'bg-btnSimple'])
     );
+  });
+
+  it('outlines Post Now in pomegranate with the normal text colour, never brandText (rose in dark)', async () => {
+    await open();
+    const postNow = classes(byText('Post Now')!);
+
+    expect(postNow).toEqual(
+      expect.arrayContaining([
+        'bg-surface',
+        'border',
+        'border-brand',
+        'text-ink',
+      ])
+    );
+    expect(postNow.filter((name) => name.includes('brandText'))).toEqual([]);
   });
 
   it('runs the action tapped and closes', async () => {
