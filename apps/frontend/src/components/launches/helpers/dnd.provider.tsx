@@ -54,6 +54,31 @@ const CalendarBackend: typeof HTML5Backend = (manager, context, options) => {
 // scrolls instead of the row being dragged and dropped somewhere else.
 const TOUCH_HOLD_MS = 400;
 
+// Even a finger held still wanders a few pixels, and the touch backend took
+// any of that for a move. Past the hold it began a drag (its `touchSlop` is
+// 0): a month post's held menu (calendar.post.card.tsx) closed as it opened,
+// and the lift dropped the post on its own cell, saving it again at the cell's
+// time (23:59 in Month). Before the hold ended it dropped the hold, so that
+// touch could not drag at all. A move past this is a move. It stays under the
+// slop a browser allows before it scrolls, so the drag takes a real move
+// before the page can.
+const TOUCH_SLOP_PX = 5;
+
+type Point = { x: number; y: number };
+
+// the finger has moved from where it landed, rather than wandered
+export const pastTouchSlop = (from: Point, to: Point) =>
+  Math.hypot(to.x - from.x, to.y - from.y) > TOUCH_SLOP_PX;
+
+// the one finger on the element, as the backend reads it (offsets.ts:15-17);
+// a mouse has none
+const touchPoint = (event: Event): Point | undefined => {
+  const touches = (event as TouchEvent).targetTouches;
+  return touches?.length === 1
+    ? { x: touches[0].clientX, y: touches[0].clientY }
+    : undefined;
+};
+
 // react-dnd-touch-backend 16.0.1 arms one timer per touchstart and keeps a
 // single handle to it (TouchBackendImpl.ts:382-396); only a move clears it
 // (:411-416). A tap leaves its timer pending, the next touchstart overwrites
@@ -75,10 +100,11 @@ const HOLD_HANDLERS = [
 ] as const;
 
 type TouchBackendInternals = Record<
-  (typeof HOLD_HANDLERS)[number],
+  (typeof HOLD_HANDLERS)[number] | 'handleTopMove',
   (event: Event) => void
 > & {
   timeout?: ReturnType<typeof setTimeout>;
+  waitingForDelay?: boolean;
   moveStartSourceIds?: unknown[];
   monitor: { isDragging: () => boolean };
   options: { rootElement?: Node };
@@ -105,6 +131,27 @@ const withTouchHold =
         handler(event);
       };
     }
+
+    // Before the hold ends the backend drops it on any move (:411-416); a
+    // finger that stays within the slop of where it landed keeps it.
+    let landed: Point | undefined;
+    const { handleTopMoveStartDelay, handleTopMove } = backend;
+    backend.handleTopMoveStartDelay = (event: Event) => {
+      landed = touchPoint(event);
+      handleTopMoveStartDelay(event);
+    };
+    backend.handleTopMove = (event: Event) => {
+      const point = touchPoint(event);
+      if (
+        backend.waitingForDelay &&
+        landed &&
+        point &&
+        !pastTouchSlop(landed, point)
+      ) {
+        return;
+      }
+      handleTopMove(event);
+    };
 
     const holdMenu = (event: Event) => {
       if (backend.monitor.isDragging() || backend.moveStartSourceIds?.length) {
@@ -152,6 +199,7 @@ const CALENDAR_PIPELINE: MultiBackendOptions = {
           ...(step.options as object),
           delayTouchStart: TOUCH_HOLD_MS,
           ignoreContextMenu: true,
+          touchSlop: TOUCH_SLOP_PX,
         },
       };
     }
