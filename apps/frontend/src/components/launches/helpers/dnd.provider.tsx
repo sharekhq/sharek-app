@@ -3,7 +3,11 @@
 import { FC, ReactNode } from 'react';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { HTML5toTouch } from 'rdndmb-html5-to-touch';
-import { DndProvider, MultiBackendOptions } from 'react-dnd-multi-backend';
+import {
+  DndProvider,
+  MultiBackendOptions,
+  MultiBackendPipelineStep,
+} from 'react-dnd-multi-backend';
 
 const DRAG_HANDLERS = [
   'handleTopDragStart',
@@ -50,6 +54,69 @@ const CalendarBackend: typeof HTML5Backend = (manager, context, options) => {
 // scrolls instead of the row being dragged and dropped somewhere else.
 const TOUCH_HOLD_MS = 400;
 
+// react-dnd-touch-backend 16.0.1 arms one timer per touchstart and keeps a
+// single handle to it (TouchBackendImpl.ts:382-396); only a move clears it
+// (:411-416). A tap leaves its timer pending, the next touchstart overwrites
+// the handle (:391), and when the tap's timer fires mid-swipe the swipe drags:
+// flick, tap to stop, flick again. So the timer is cleared before a touchstart
+// arms its own, when a touch ends (:562), and on touchcancel, which the
+// backend never listens for (:35-39).
+const HOLD_HANDLERS = [
+  'handleTopMoveStartDelay',
+  'handleTopMoveEndCapture',
+] as const;
+
+type TouchBackendInternals = Record<
+  (typeof HOLD_HANDLERS)[number],
+  (event: Event) => void
+> & {
+  timeout?: ReturnType<typeof setTimeout>;
+  options: { rootElement?: Node };
+  setup: () => void;
+  teardown: () => void;
+};
+
+type BackendFactory = MultiBackendPipelineStep['backend'];
+
+const withTouchHold =
+  (touchBackend: BackendFactory): BackendFactory =>
+  (manager, context, options) => {
+    const instance = touchBackend(manager, context, options);
+    const backend = instance as unknown as TouchBackendInternals;
+    const clearHold = () => clearTimeout(backend.timeout);
+    for (const name of HOLD_HANDLERS) {
+      const handler = backend[name];
+      if (typeof handler !== 'function') {
+        continue;
+      }
+
+      backend[name] = (event: Event) => {
+        clearHold();
+        handler(event);
+      };
+    }
+
+    const { setup, teardown } = backend;
+    backend.setup = () => {
+      setup.call(backend);
+      backend.options.rootElement?.addEventListener(
+        'touchcancel',
+        clearHold,
+        true
+      );
+    };
+    backend.teardown = () => {
+      teardown.call(backend);
+      backend.options.rootElement?.removeEventListener(
+        'touchcancel',
+        clearHold,
+        true
+      );
+    };
+
+    return instance;
+  };
+
 // Upstream hands DndProvider CalendarBackend alone. Sharek keeps the
 // HTML5toTouch pipeline, so a finger can still drag a post, and puts the
 // editor filter on its html5 step only: the touch step never sees native drags.
@@ -64,6 +131,7 @@ const CALENDAR_PIPELINE: MultiBackendOptions = {
     if (step.id === 'touch') {
       return {
         ...step,
+        backend: withTouchHold(step.backend),
         options: {
           ...(step.options as object),
           delayTouchStart: TOUCH_HOLD_MS,
