@@ -1,8 +1,16 @@
 'use client';
 
-import { FC, ReactNode, useEffect, useRef } from 'react';
+import { FC, ReactNode, useEffect, useId, useRef } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  MOBILE_QUERY,
+  useMediaQuery,
+} from '@gitroom/react/helpers/use.media.query';
+import {
+  useDialogFocus,
+  useSheetBackdrop,
+} from '@gitroom/frontend/components/ui/bottom.sheet.component';
 
 /**
  * A side rail on a wide screen, a bottom sheet at 1025px and below.
@@ -11,7 +19,10 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
  * and opens as upstream's channel sheet: full width from the bottom of the
  * screen, at most 80% of it tall, with 16px rounded top corners and room
  * under its last row, over a scrim. Its close button, the scrim and Escape
- * close it. The calendar's channel list is its user.
+ * close it. While open there it is a modal dialog, as 044's sheets are (and as
+ * the composer's settings pane is, which is not a BottomSheet either): it takes
+ * the focus and keeps Tab inside, holds the page behind it still and hides the
+ * support chat bubble. The calendar's channel list is its user.
  *
  * The open state stays with the caller. It has to: the control that opens the
  * sheet sits in the *content* column, a sibling of this panel, and hoisting
@@ -40,6 +51,13 @@ export const SplitPanel: FC<{
   title,
 }) => {
   const t = useT();
+  // Only the open sheet at 1025px and below is a dialog; the rail is not.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const sheet = open && isMobile;
+  const { container: dialog, keepTabInside } =
+    useDialogFocus<HTMLDivElement>(sheet);
+  const backdrop = useSheetBackdrop<HTMLDivElement>(sheet);
+  const titleId = useId();
 
   // Read through a ref, so the listener below depends on `open` alone. Callers
   // pass an inline arrow, which is a new identity every render — and the
@@ -64,6 +82,12 @@ export const SplitPanel: FC<{
   return (
     <>
       <div
+        ref={dialog}
+        role={sheet ? 'dialog' : undefined}
+        aria-modal={sheet ? true : undefined}
+        aria-labelledby={sheet && title ? titleId : undefined}
+        tabIndex={sheet ? -1 : undefined}
+        onKeyDown={sheet ? keepTabInside : undefined}
         className={clsx(
           // shrink-0: the rail's only child is absolutely positioned, so its
           // min-content is 0 and a greedy sibling can shrink it to nothing —
@@ -78,6 +102,7 @@ export const SplitPanel: FC<{
         )}
       >
         <div
+          ref={backdrop}
           className={clsx(
             'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full mobile:static mobile:h-auto mobile:max-h-[80vh] mobile:pb-[80px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor'
           )}
@@ -96,7 +121,10 @@ export const SplitPanel: FC<{
             )}
           >
             {!!title && (
-              <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
+              <h2
+                id={sheet ? titleId : undefined}
+                className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]"
+              >
                 {title}
               </h2>
             )}
