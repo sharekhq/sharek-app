@@ -341,7 +341,7 @@ describe('the picker at 1025px and below', () => {
     expect(add.disabled).toBe(false);
   });
 
-  it('has no Cancel there (the cross closes it), and Upload at the bottom, grey', async () => {
+  it('has no Cancel there (the cross closes it), and Upload at the bottom', async () => {
     const host = await picker();
     const [top, bottom] = Array.from(host.querySelectorAll('button')).filter(
       (button) => (button.textContent || '').trim() === 'Upload'
@@ -352,7 +352,6 @@ describe('the picker at 1025px and below', () => {
     expect(classes(bottom.parentElement)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:flex'])
     );
-    expect(classes(bottom)).toContain('mobile:bg-btnSimple');
   });
 });
 
@@ -501,4 +500,28 @@ describe('the tiles under the toolbar at 1025px and below', () => {
       ).toEqual(['mobile:-inset-x-[6px]', 'mobile:-bottom-[6px]']);
     }
   );
+});
+
+// 044 T071 F-5: Upload is the brand button at every width, as it is from
+// 1026px up; it read grey at 1025px and below.
+describe('Upload at 1025px and below', () => {
+  it.each([
+    ['the picker', picker],
+    ['the Media page', page],
+  ])('is the brand button in %s, as from 1026px up', async (_name, open) => {
+    const host = await open();
+    const uploads = Array.from(host.querySelectorAll('button')).filter(
+      (button) => (button.textContent || '').trim() === 'Upload'
+    );
+
+    expect(uploads.length).toBeGreaterThan(0);
+    for (const upload of uploads) {
+      expect(classes(upload)).toEqual(
+        expect.arrayContaining(['bg-btnPrimary', 'text-white'])
+      );
+      expect(
+        classes(upload).filter((name) => /^mobile:(bg|text)-/.test(name))
+      ).toEqual([]);
+    }
+  });
 });
