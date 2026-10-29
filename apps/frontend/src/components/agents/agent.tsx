@@ -42,7 +42,11 @@ export const MediaPortal: FC<{
   const t = useT();
   if (!waitForClass) return null;
   return (
-    <div className="flex-1 min-w-0 whitespace-nowrap editor rm-bg">
+    // As wide as its buttons: the input's row ends in a growing spacer before
+    // the send button, and a growing toolbar split the free space with it,
+    // which on a phone cut the last button off. min-w-0 lets it scroll when
+    // the row is narrower still.
+    <div className="min-w-0 whitespace-nowrap editor rm-bg">
       <MultiMediaComponent
         allData={[{ content: value }]}
         text={value}

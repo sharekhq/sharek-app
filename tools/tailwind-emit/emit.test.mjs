@@ -15,11 +15,16 @@
 // dropped. Asserting the emitted CSS is the only way to see any of that.
 //
 // The expectations below are specs/016-responsive-primitives/quickstart.md
-// step 1, which is R4's assertion promoted to a checked-in fixture.
+// step 1, which is R4's assertion promoted to a checked-in fixture. The last
+// test reads global.scss itself, for a CopilotKit override that is no class.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -922,4 +927,87 @@ const SIGNATURE_CARD_FORMS = [
 
 test('047 US6: the signature card forms emit CSS', async () => {
   await assertFormsEmit(SIGNATURE_CARD_FORMS);
+});
+
+// 047 US2 (T078) — a Samy reply's controls on a phone. CopilotKit hangs
+// regenerate, copy and the two thumbs under a reply with `position: absolute`
+// and shows them all the time at 768px and below. The room under the reply is
+// its `.copilotKitAssistantMessage + .copilotKitUserMessage` margin, but
+// Samy's Reply wraps each reply in a dir="auto" div, so that rule never
+// matches and only 16px is left, and under a coarse pointer the buttons are
+// 44px tall (global.scss's touch floor): the glyphs painted over the next
+// message's text. In the flow, the controls take the room they need at either
+// size.
+const require = createRequire(import.meta.url);
+const GLOBAL_SCSS = new URL(
+  '../../apps/frontend/src/app/global.scss',
+  import.meta.url
+);
+const CONTROLS =
+  '.copilotKitMessage.copilotKitAssistantMessage .copilotKitMessageControls';
+const PHONE = '(max-width: 768px)';
+
+const ruleDecls = (rule) => {
+  const decls = {};
+  rule.walkDecls((d) => {
+    decls[d.prop] = d.value;
+  });
+  return decls;
+};
+const classCount = (selector) => (selector.match(/\./g) || []).length;
+
+test("047 US2 (T078): up to 768px a Samy reply's controls sit in the flow, outranking CopilotKit's absolute rule", () => {
+  // CopilotKit's own rules, as the app loads them (after global.scss): the
+  // controls are absolute everywhere and always shown at 768px and below.
+  const vendor = postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+  const vendorRules = [];
+  vendor.walkRules((rule) => {
+    if (rule.selector === CONTROLS) vendorRules.push(rule);
+  });
+  assert.ok(
+    vendorRules.some(
+      (r) => r.parent.type === 'root' && ruleDecls(r).position === 'absolute'
+    ),
+    `CopilotKit no longer positions ${CONTROLS} absolutely; re-check 047 US2 (T078)`
+  );
+  assert.ok(
+    vendorRules.some(
+      (r) =>
+        r.parent.type === 'atrule' &&
+        collapse(r.parent.params) === PHONE &&
+        ruleDecls(r).opacity === '1'
+    ),
+    `CopilotKit no longer always shows ${CONTROLS} at ${PHONE}; re-check 047 US2 (T078)`
+  );
+
+  const app = postcss.parse(
+    sass.compile(fileURLToPath(GLOBAL_SCSS), {
+      loadPaths: [
+        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+      ],
+    }).css
+  );
+  const inFlow = [];
+  app.walkRules((rule) => {
+    if (
+      rule.parent.type === 'atrule' &&
+      collapse(rule.parent.params) === PHONE &&
+      ruleDecls(rule).position === 'static'
+    )
+      inFlow.push(...rule.selector.split(',').map((sel) => collapse(sel)));
+  });
+
+  // Scoped to Samy's chat, the surface that wraps its replies, and carrying
+  // an ancestor: CopilotKit's stylesheet loads after global.scss, so a tie on
+  // specificity would lose the cascade.
+  const ours = inFlow.find((sel) => sel === `.agent ${CONTROLS}`);
+  assert.ok(
+    ours,
+    `no rule at ${PHONE} puts ${CONTROLS} in the flow inside .agent — they stay absolute and paint over the next message; got ${JSON.stringify(
+      inFlow
+    )}`
+  );
+  assert.ok(classCount(ours) > classCount(CONTROLS));
 });
