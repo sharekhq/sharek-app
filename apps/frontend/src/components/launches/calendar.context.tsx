@@ -150,6 +150,13 @@ function getDateRange(display: string, referenceDate?: string) {
   }
 }
 
+// Month shows six whole weeks from the Monday on or before the 1st (MonthView,
+// calendar.tsx), so the end of the month before and the start of the one after
+// are on screen too, and its posts are fetched for every day it shows.
+export const MONTH_GRID_DAYS = 42;
+export const monthGridStart = (startDate: string) =>
+  newDayjs(startDate).startOf('month').startOf('isoWeek');
+
 // The current time rounded down to the unit. It checks on every minute, so it
 // also catches up within a minute after the computer wakes up from sleep.
 export const useNow = (unit: 'minute' | 'hour' = 'minute') => {
@@ -232,11 +239,18 @@ export const CalendarWeekProvider: FC<{
 
   // Calendar view data fetcher
   const loadData = useCallback(async () => {
+    const month = filters.display === 'month';
+    const start = month
+      ? monthGridStart(filters.startDate)
+      : newDayjs(filters.startDate);
+    const end = month
+      ? start.add(MONTH_GRID_DAYS - 1, 'day')
+      : newDayjs(filters.endDate);
     const modifiedParams = new URLSearchParams({
       display: filters.display,
       customer: filters?.customer?.toString() || '',
-      startDate: newDayjs(filters.startDate).startOf('day').utc().format(),
-      endDate: newDayjs(filters.endDate).endOf('day').utc().format(),
+      startDate: start.startOf('day').utc().format(),
+      endDate: end.endOf('day').utc().format(),
     }).toString();
 
     const data = await (await fetch(`/posts?${modifiedParams}`)).json();

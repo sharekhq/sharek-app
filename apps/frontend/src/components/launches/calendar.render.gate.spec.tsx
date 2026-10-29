@@ -278,6 +278,10 @@ describe('the calendar with a zone chosen', () => {
     jest.useFakeTimers({ now: new Date(Date.UTC(2026, 9, 21, 4, 37)) });
   });
 
+  afterEach(() => {
+    savedView = 'week';
+  });
+
   it('runs on a machine outside the chosen zone', () => {
     expect(browserTimezone()).not.toBe(ZONE);
   });
@@ -309,5 +313,24 @@ describe('the calendar with a zone chosen', () => {
     // Monday 19 to Sunday 25 October, midnight to midnight in Tokyo
     expect(asked.get('startDate')).toBe('2026-10-18T15:00:00Z');
     expect(asked.get('endDate')).toBe('2026-10-25T14:59:59Z');
+  });
+
+  // Month shows six whole weeks, the end of September and the start of
+  // November included. Asking for October alone left those days empty, and a
+  // post dropped on one of them vanished when the calendar reloaded.
+  it("asks the server for every day the zone's month shows", async () => {
+    savedView = 'month';
+    mockFetched.length = 0;
+    await mountAt(1440);
+
+    await mockGridFetcher!();
+
+    const asked = new URL(
+      mockFetched.find((url) => url.startsWith('/posts?'))!,
+      'http://localhost'
+    ).searchParams;
+    // Monday 28 September to Sunday 8 November, midnight to midnight in Tokyo
+    expect(asked.get('startDate')).toBe('2026-09-27T15:00:00Z');
+    expect(asked.get('endDate')).toBe('2026-11-08T14:59:59Z');
   });
 });

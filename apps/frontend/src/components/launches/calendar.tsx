@@ -13,6 +13,8 @@ import React, {
 import {
   CalendarContext,
   Integrations,
+  MONTH_GRID_DAYS,
+  monthGridStart,
   useCalendar,
   useNow,
 } from '@gitroom/frontend/components/launches/calendar.context';
@@ -598,22 +600,12 @@ export const MonthView = () => {
   }, [i18next.resolvedLanguage]);
 
   const calendarDays = useMemo(() => {
-    const monthStart = newDayjs(startDate);
-    const currentMonth = monthStart.month();
+    const currentMonth = newDayjs(startDate).month();
 
-    const startOfMonth = monthStart.startOf('month');
-
-    // Calculate the day offset for Monday (isoWeekday() returns 1 for Monday)
-    const startDayOfWeek = startOfMonth.isoWeekday(); // 1 for Monday, 7 for Sunday
-    const daysBeforeMonth = startDayOfWeek - 1; // Days to show from the previous month
-
-    // Get the start date (Monday of the first week that includes this month)
-    const calendarStartDate = startOfMonth.subtract(daysBeforeMonth, 'day');
-
-    // Create an array to hold the calendar days (6 weeks * 7 days = 42 days max)
+    // the same six weeks the calendar fetches posts for (calendar.context.tsx)
     const calendarDays = [];
-    let currentDay = calendarStartDate;
-    for (let i = 0; i < 42; i++) {
+    let currentDay = monthGridStart(startDate);
+    for (let i = 0; i < MONTH_GRID_DAYS; i++) {
       let label = 'current-month';
       if (currentDay.month() < currentMonth) label = 'previous-month';
       if (currentDay.month() > currentMonth) label = 'next-month';
