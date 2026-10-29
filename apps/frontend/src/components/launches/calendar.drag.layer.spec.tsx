@@ -158,6 +158,29 @@ describe('the calendar draws its own drag preview', () => {
     expect(held.className).toContain('scale-[1.04]');
   });
 
+  // At 1025px and below a month chip is the channel avatar alone, and the
+  // preview under the pointer is that same chip, not a full card.
+  it('draws a compact chip for a chip picked up from the month', () => {
+    const strip = (host: HTMLElement) =>
+      Array.from(host.querySelectorAll('div')).find((el) =>
+        el.className.split(' ').includes('bg-surface2')
+      )!;
+
+    drag = {
+      isDragging: true,
+      item: { ...card(), compact: true },
+      offset: { x: 0, y: 0 },
+    };
+    expect(strip(mount(<CalendarDragLayer />)).className).toContain(
+      'mobile:hidden'
+    );
+
+    drag = { isDragging: true, item: card(), offset: { x: 0, y: 0 } };
+    expect(strip(mount(<CalendarDragLayer />)).className).not.toContain(
+      'mobile:hidden'
+    );
+  });
+
   it('never stands between the pointer and the day underneath', () => {
     drag = { isDragging: true, item: card(), offset: { x: 0, y: 0 } };
     const host = mount(<CalendarDragLayer />);

@@ -6,11 +6,14 @@ import { createRoot } from 'react-dom/client';
 // the trigger; its border was upstream's purple; the trigger was a div no
 // keyboard could reach; a filtered calendar showed itself by border colour
 // alone; and a second untick re-ticked the first channel, because the shared
-// Checkbox kept the click handler of its first render.
+// Checkbox kept the click handler of its first render. Its list mode, the
+// checklist in the calendar's Select Channels sheet at 1025px and below, came
+// with spec 046.
 type Channel = {
   id: string;
   name: string;
   picture: string;
+  identifier?: string;
   customer: { id: string } | null;
 };
 type CalendarDouble = {
@@ -33,6 +36,19 @@ jest.mock('@gitroom/frontend/components/launches/calendar.context', () => {
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
 }));
+// the list mode's rows are the composer's channel rows (044), as scenery
+jest.mock('@gitroom/react/helpers/safe.image', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+jest.mock(
+  '@gitroom/frontend/components/launches/helpers/use.existing.data',
+  () => ({ useExistingData: () => ({}) })
+);
 
 import { CalendarContext } from '@gitroom/frontend/components/launches/calendar.context';
 import { SelectChannels } from '@gitroom/frontend/components/launches/select.channels';
@@ -47,10 +63,11 @@ const channel = (id: string, customer: string | null = null): Channel => ({
 // Every selection the filter hands the calendar, in order.
 const picks: Array<string[] | null> = [];
 
-const Harness: FC<{ integrations: Channel[]; customer: string | null }> = ({
-  integrations,
-  customer,
-}) => {
+const Harness: FC<{
+  integrations: Channel[];
+  customer: string | null;
+  list?: boolean;
+}> = ({ integrations, customer, list }) => {
   const [selectedChannels, setSelectedChannels] = useState<string[] | null>(
     null
   );
@@ -71,7 +88,7 @@ const Harness: FC<{ integrations: Channel[]; customer: string | null }> = ({
         >['value']
       }
     >
-      <SelectChannels />
+      <SelectChannels list={list} />
     </CalendarContext.Provider>
   );
 };
@@ -80,7 +97,8 @@ const mounted: Array<{ unmount: () => void }> = [];
 
 const mount = async (
   integrations: Channel[] = ['a', 'b', 'c'].map((id) => channel(id)),
-  customer: string | null = null
+  customer: string | null = null,
+  list?: boolean
 ) => {
   picks.length = 0;
   const host = document.createElement('div');
@@ -88,7 +106,9 @@ const mount = async (
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(<Harness integrations={integrations} customer={customer} />);
+    root.render(
+      <Harness integrations={integrations} customer={customer} list={list} />
+    );
   });
   // happy-dom has no layout: the trigger is placed 600px in, 42px square.
   const anchor = host.firstElementChild;
@@ -285,5 +305,94 @@ describe('the channel filter', () => {
     expect(list(host).textContent).toContain('channel a');
     expect(list(host).textContent).toContain('channel b');
     expect(list(host).textContent).not.toContain('channel c');
+  });
+});
+
+// At 1025px and below the filter lives in the calendar's Select Channels
+// sheet as a checklist: a heading when there are customers above it, Select
+// all, and one row per channel of the current customer.
+describe('the channel filter as a list', () => {
+  const rows = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll<HTMLElement>('[role="checkbox"]'));
+  const selectAll = (host: HTMLElement) =>
+    rows(host).find((row) => row.textContent === 'Select all');
+  const checked = (host: HTMLElement) =>
+    rows(host).map((row) => row.getAttribute('aria-checked'));
+
+  it('lists one row per channel of the current customer', async () => {
+    const host = await mount(
+      [channel('a', 'acme'), channel('b', 'acme'), channel('c', 'other')],
+      'acme',
+      true
+    );
+
+    expect(host.textContent).toContain('channel a');
+    expect(host.textContent).toContain('channel b');
+    expect(host.textContent).not.toContain('channel c');
+    // no trigger and no dropdown: the sheet is the list's frame
+    expect(trigger(host)).toBeNull();
+    expect(list(host)).toBeNull();
+  });
+
+  it('heads the channels only when there are customers above them', async () => {
+    const plain = await mount(undefined, null, true);
+    expect(plain.textContent).not.toContain('Channels');
+
+    const grouped = await mount(
+      [channel('a', 'acme'), channel('b', 'other')],
+      null,
+      true
+    );
+    expect(grouped.textContent).toContain('Channels');
+  });
+
+  it('ticks every channel or none from Select all', async () => {
+    const host = await mount(undefined, null, true);
+    // its label, wherever the row puts it
+    const label = () =>
+      Array.from(host.querySelectorAll<HTMLElement>('*')).find(
+        (el) => el.children.length === 0 && el.textContent === 'Select all'
+      );
+    expect(label()).toBeDefined();
+
+    await click(label()!);
+    expect(picks).toEqual([[]]);
+
+    await click(label()!);
+    expect(picks).toEqual([[], null]);
+  });
+
+  // A keyboard reaches Select all, and Space or Enter ticks it: a browser
+  // turns both keys on a native button into its click, which happy-dom does
+  // not emulate, so the click stands in for them here and the keys are walked
+  // on a device (W-15).
+  it('makes Select all a checkbox button a keyboard can tick', async () => {
+    const host = await mount(undefined, null, true);
+    const all = selectAll(host);
+
+    expect(all).toBeDefined();
+    expect(all!.tagName).toBe('BUTTON');
+    expect(all!.getAttribute('type')).toBe('button');
+    expect(all!.hasAttribute('disabled')).toBe(false);
+    expect(all!.hasAttribute('tabindex')).toBe(false);
+    expect(all!.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'min-h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(checked(host)).toEqual(['true', 'true', 'true', 'true']);
+
+    await click(all!);
+    expect(checked(host)).toEqual(['false', 'false', 'false', 'false']);
+    expect(picks).toEqual([[]]);
+
+    await click(selectAll(host)!);
+    expect(checked(host)).toEqual(['true', 'true', 'true', 'true']);
+    expect(picks).toEqual([[], null]);
+
+    await click(rows(host)[2]);
+    expect(selectAll(host)!.getAttribute('aria-checked')).toBe('false');
   });
 });

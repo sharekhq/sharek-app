@@ -1,15 +1,14 @@
-// Finding 60 (spec 021, US7): at 390 the calendar painted a frame of the
-// seven-column week grid before the width answer arrived, then replaced it with
-// the agenda list — and because `effectiveDisplay` picks the SWR key as well as
-// the component, that wrong first frame also fired the calendar request the
-// phone never uses. Both halves are one defect: the width is read in an effect,
-// which runs after the first render, so the first render answers "not a phone"
-// on every device.
+// The view the calendar opens on, and the request it makes for it. A first
+// visit opens on Day at 1025px and below (phones and iPads held upright) and
+// on Week above, and a view picked once is kept at every width. Until spec 046
+// a phone turned Week and Month into the list, which is why its calendar-view
+// button did nothing: it saved Week, and the provider turned Week back into
+// the list (finding 60 of spec 021 was the first frame of that forcing).
 //
-// This file pins the gate, not the grid: the provider is rendered for real with
-// its four data-layer modules stubbed, and a probe records the context value at
-// every render. What it asserts is the sequence, because a fix that only settles
-// on the right answer eventually is the bug.
+// The provider is rendered for real with its data-layer modules stubbed, and a
+// probe records the context value at every render. What it asserts is the
+// sequence, so a view that only settles on the right answer after a wrong
+// first frame (and a wrong first request) fails.
 import { ContextType, FC, act, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -68,12 +67,8 @@ import {
   setUserTimezone,
 } from '@gitroom/frontend/components/layout/set.timezone';
 
-// One entry per render of the consumer: what the calendar would have drawn, and
-// whether the width had been asked for yet when it drew it.
-const frames: Array<{ display: string | undefined; matchMediaCalls: number }> =
-  [];
-
-let matchMediaCalls = 0;
+// One entry per render of the consumer: what the calendar would have drawn.
+const frames: Array<{ display: string | undefined }> = [];
 
 // The context at every render, for the cases that act on it.
 const contexts: Array<ContextType<typeof CalendarContext>> = [];
@@ -82,7 +77,7 @@ const latest = () => contexts[contexts.length - 1];
 const Probe: FC = () => {
   const context = useContext(CalendarContext);
   contexts.push(context);
-  frames.push({ display: context.display, matchMediaCalls });
+  frames.push({ display: context.display });
   return null;
 };
 
@@ -96,12 +91,10 @@ const matchesAt = (width: number, query: string) => {
 };
 
 const mountAt = async (width: number) => {
-  matchMediaCalls = 0;
   frames.length = 0;
   contexts.length = 0;
   swrKeys.length = 0;
   window.matchMedia = (query: string) => {
-    matchMediaCalls++;
     return {
       media: query,
       matches: matchesAt(width, query),
@@ -135,32 +128,68 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe('calendar render gate', () => {
-  it('never draws a grid arrangement on a narrow viewport, at any render', async () => {
-    await mountAt(390);
-
-    expect(frames.length).toBeGreaterThan(0);
-    expect(frames.map((f) => f.display)).not.toContain('week');
-    expect(frames.map((f) => f.display)).not.toContain('month');
-    // And it does settle — a gate that never resolves is not a fix.
-    expect(frames[frames.length - 1].display).toBe('list');
+describe('the view the calendar opens on', () => {
+  afterEach(() => {
+    savedView = 'week';
   });
 
-  it('never requests the calendar key on a narrow viewport', async () => {
-    await mountAt(390);
+  // The request a view makes from its first render: the grid's for Day, Week
+  // and Month, the list's for List, never both.
+  const gridKeys = () =>
+    postKeys().filter((k) => !k.startsWith('/posts-list-'));
+  const listKeys = () => postKeys().filter((k) => k.startsWith('/posts-list-'));
 
-    expect(postKeys().some((k) => k.startsWith('/posts-list-'))).toBe(true);
-    expect(postKeys().filter((k) => !k.startsWith('/posts-list-'))).toEqual([]);
+  describe('a first visit with no saved view', () => {
+    beforeEach(() => {
+      savedView = undefined;
+    });
+
+    it.each([390, 820])(
+      'opens on Day at %ipx, from the first render',
+      async (width) => {
+        await mountAt(width);
+
+        expect(frames.length).toBeGreaterThan(0);
+        expect(frames.map((f) => f.display)).toEqual(frames.map(() => 'day'));
+      }
+    );
+
+    it('opens on Week at 1280px', async () => {
+      await mountAt(1280);
+
+      expect(frames.length).toBeGreaterThan(0);
+      expect(frames.map((f) => f.display)).toEqual(frames.map(() => 'week'));
+    });
+
+    it("asks only for the day's grid, never the list", async () => {
+      await mountAt(390);
+
+      expect(gridKeys().length).toBeGreaterThan(0);
+      expect(gridKeys().every((k) => k.includes('display=day'))).toBe(true);
+      expect(listKeys()).toEqual([]);
+    });
   });
 
-  it('asks nothing until the width is known, rather than guessing', async () => {
+  it.each(['week', 'month'])(
+    'keeps a saved %s at 390px and asks only for its grid',
+    async (view) => {
+      savedView = view;
+      await mountAt(390);
+
+      expect(frames.map((f) => f.display)).toEqual(frames.map(() => view));
+      expect(gridKeys().length).toBeGreaterThan(0);
+      expect(gridKeys().every((k) => k.includes(`display=${view}`))).toBe(true);
+      expect(listKeys()).toEqual([]);
+    }
+  );
+
+  it('keeps a saved List at 390px and asks only for the list', async () => {
+    savedView = 'list';
     await mountAt(390);
 
-    // The width is not read during the first render — that is the hydration
-    // mismatch use.media.query.tsx documents avoiding — so the first frame
-    // cannot be a guess, and it must not spend a request on one either.
-    expect(frames[0].matchMediaCalls).toBe(0);
-    expect(frames[0].display).toBeUndefined();
+    expect(frames.map((f) => f.display)).toEqual(frames.map(() => 'list'));
+    expect(listKeys().length).toBeGreaterThan(0);
+    expect(gridKeys()).toEqual([]);
   });
 
   it('leaves the wide viewport on its saved grid, fetching only its own key', async () => {
@@ -168,33 +197,30 @@ describe('calendar render gate', () => {
 
     expect(frames[frames.length - 1].display).toBe('week');
     expect(frames.map((f) => f.display)).not.toContain('list');
-    expect(postKeys().some((k) => k.startsWith('/posts-list-'))).toBe(false);
-    expect(postKeys().some((k) => !k.startsWith('/posts-list-'))).toBe(true);
+    expect(listKeys()).toEqual([]);
+    expect(gridKeys().length).toBeGreaterThan(0);
   });
 
-  describe('a first visit with no saved view', () => {
-    beforeEach(() => {
-      savedView = undefined;
-    });
-    afterEach(() => {
-      savedView = 'week';
-    });
+  // The calendar-view button on a phone: it saved Week, and the provider
+  // turned Week back into the list, so nothing happened.
+  it('opens the week grid when Week is picked from the list at 390px', async () => {
+    savedView = 'list';
+    await mountAt(390);
+    swrKeys.length = 0;
 
-    it('opens the list on a phone', async () => {
-      await mountAt(390);
-
-      expect(frames[frames.length - 1].display).toBe('list');
+    const { startDate, endDate, customer } = latest();
+    await act(async () => {
+      latest().setFilters({ startDate, endDate, customer, display: 'week' });
     });
 
-    it('opens the week grid on an iPad', async () => {
-      await mountAt(1024);
-
-      expect(frames[frames.length - 1].display).toBe('week');
-    });
+    expect(latest().display).toBe('week');
+    expect(gridKeys().some((k) => k.includes('display=week'))).toBe(true);
   });
+});
 
+describe('the calendar render gate', () => {
   // The channel filter picks the channels the calendar shows, on the
-  // grid and in the phone's list alike.
+  // grid and in the list alike.
   describe('the channel filter', () => {
     beforeEach(() => {
       gridPosts = [
@@ -212,6 +238,7 @@ describe('calendar render gate', () => {
     });
     afterEach(() => {
       gridPosts = undefined;
+      savedView = 'week';
     });
 
     it('shows only the picked channels on the grid', async () => {
@@ -225,7 +252,8 @@ describe('calendar render gate', () => {
       expect(latest().posts.map((post) => post.id)).toEqual(['p2']);
     });
 
-    it('asks the list for the picked channels on a phone', async () => {
+    it('asks the list for the picked channels', async () => {
+      savedView = 'list';
       await mountAt(390);
 
       await act(async () => {
