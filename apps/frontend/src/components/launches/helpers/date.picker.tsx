@@ -72,7 +72,7 @@ const TimeField: FC<{
           }
           setText(null);
         }}
-        className="w-full h-[52px] rounded-[10px] border border-line focus:border-brand bg-newBgColorInner text-center text-[14px] text-textColor outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-[52px] rounded-[10px] border border-line focus:border-brand bg-newBgColorInner text-center text-[14px] coarse:text-[16px] text-textColor outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       />
       <button
         type="button"

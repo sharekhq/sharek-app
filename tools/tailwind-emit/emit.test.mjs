@@ -1085,3 +1085,87 @@ test('044 T071 F-3: each small-screen tier of the action bar is emitted after th
     );
   }
 });
+
+// 044 T071 F-2 — iOS Safari zooms the page when a field under 16px takes the
+// focus, and leaves it zoomed: on an iPhone the composer then read as too wide
+// and panned sideways. Under a coarse pointer the composer's fields type at
+// 16px; a mouse keeps the 13px and 14px they had.
+const compiledGlobal = () =>
+  postcss.parse(
+    sass.compile(fileURLToPath(GLOBAL_SCSS), {
+      loadPaths: [
+        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+      ],
+    }).css
+  );
+
+// Each rule for `selector` that sets a font size, in source order, with the
+// media query around it: at equal specificity the later one wins.
+const fontSizes = (root, selector) => {
+  const found = [];
+  root.walkRules((rule) => {
+    const decls = ruleDecls(rule);
+    if (
+      decls['font-size'] &&
+      rule.selector.split(',').map(collapse).includes(selector)
+    )
+      found.push({
+        atRule:
+          rule.parent.type === 'atrule' ? collapse(rule.parent.params) : null,
+        fontSize: decls['font-size'],
+        lineHeight: decls['line-height'],
+      });
+  });
+  return found;
+};
+
+test('044 T071 F-2: under a coarse pointer the post and its comments type at 16px at 1025px and below', () => {
+  // 044's graft sets the flat editor to 14px at 1025px and below; a mouse
+  // keeps it, a finger gets the 16px the editor had before 044.
+  assert.deepEqual(fontSizes(compiledGlobal(), '.flat-editor .ProseMirror'), [
+    { atRule: '(max-width: 1025px)', fontSize: '14px', lineHeight: '20px' },
+    {
+      atRule: '(max-width: 1025px) and (pointer: coarse)',
+      fontSize: '16px',
+      lineHeight: '24px',
+    },
+  ]);
+});
+
+test('044 T071 F-2: under a coarse pointer a tag field types at 16px', () => {
+  // The settings' tag fields (YouTube, Medium, dev.to, Hashnode, Instagram
+  // collaborators): `.react-tags input` outranks the combobox input's own
+  // 16px, so the coarse rule has to name the same selector, after it.
+  assert.deepEqual(
+    fontSizes(compiledGlobal(), '.react-tags input').map(
+      ({ atRule, fontSize }) => ({ atRule, fontSize })
+    ),
+    [
+      { atRule: null, fontSize: '14px' },
+      { atRule: '(pointer: coarse)', fontSize: '16px' },
+    ]
+  );
+});
+
+test('044 T071 F-2: coarse:text-[16px] is emitted after the 13px and 14px it replaces', async () => {
+  // The two sit on one element at equal specificity, so the later rule wins
+  // under a coarse pointer.
+  const pairs = [
+    ['text-[13px]', 'coarse:text-[16px]'],
+    ['text-[14px]', 'coarse:text-[16px]'],
+  ];
+  const css = await emit([...new Set(pairs.flat())]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const [fine, coarse] of pairs) {
+    assert.ok(
+      order.indexOf(fine) !== -1 && order.indexOf(fine) < order.indexOf(coarse),
+      `${coarse} must follow ${fine} to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});
