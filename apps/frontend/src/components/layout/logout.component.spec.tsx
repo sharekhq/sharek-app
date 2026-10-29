@@ -81,6 +81,20 @@ describe('LogoutComponent touch target', () => {
   });
 });
 
+// The app's tooltip does not show on a touch screen, so the icon variant
+// carries the name the tooltip used to give it; the text variant reads its own.
+describe('LogoutComponent name', () => {
+  it('names the icon variant', () => {
+    expect(target(render(true)).getAttribute('aria-label')).toBe(
+      'Logout from Sharek'
+    );
+  });
+
+  it('leaves the text variant to its text', () => {
+    expect(target(render(false)).getAttribute('aria-label')).toBeNull();
+  });
+});
+
 describe('LogoutComponent direction', () => {
   const glyph = (host: HTMLElement) => {
     const svg = host.querySelector('svg');

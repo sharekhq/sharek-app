@@ -85,6 +85,7 @@ export const BoldText: FC<{
     <div
       data-tooltip-id="tooltip"
       data-tooltip-content={t('bold_text', 'Bold Text')}
+      aria-label={t('bold_text', 'Bold Text')}
       onClick={mark}
       className="select-none cursor-pointer rounded-[6px] mobile:rounded-[8px] w-[30px] h-[30px] coarse:w-[44px] coarse:h-[44px] mobile:w-[44px] mobile:h-[44px] bg-surface border border-line flex justify-center items-center"
     >

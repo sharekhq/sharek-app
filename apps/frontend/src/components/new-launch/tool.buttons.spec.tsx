@@ -21,9 +21,19 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/launches/internal.channels', () => ({
   InternalChannels: () => null,
 }));
+// The signature tool's modal lists the saved signatures through CopilotKit's
+// textarea, which ships ESM only; scenery here.
+jest.mock('@gitroom/frontend/components/settings/signatures.component', () => ({
+  SignaturesComponent: () => null,
+}));
 
 import { AddPostButton } from '@gitroom/frontend/components/new-launch/add.post.button';
 import { HeadingComponent } from '@gitroom/frontend/components/new-launch/heading.component';
+import { SignatureBox } from '@gitroom/frontend/components/signature';
+import { UText } from '@gitroom/frontend/components/new-launch/u.text';
+import { BoldText } from '@gitroom/frontend/components/new-launch/bold.text';
+import { AComponent } from '@gitroom/frontend/components/new-launch/a.component';
+import { Bullets } from '@gitroom/frontend/components/new-launch/bullets.component';
 import { PostComment } from '@gitroom/frontend/components/new-launch/providers/post-comment.enum';
 
 const mounted: Array<{ unmount: () => void }> = [];
@@ -100,5 +110,32 @@ describe('the heading levels', () => {
     });
 
     expect(editor.commands.toggleHeading).toHaveBeenCalledWith({ level: 2 });
+  });
+});
+
+// The app's tooltip does not show on a touch screen, so each icon-only tool
+// carries the name its tooltip gave it.
+describe('the formatting tools', () => {
+  it('are named by their tooltip', async () => {
+    const names: string[] = [];
+    for (const tool of [
+      <SignatureBox key="signature" editor={undefined} />,
+      <UText key="underline" editor={undefined} currentValue="" />,
+      <BoldText key="bold" editor={undefined} currentValue="" />,
+      <AComponent key="link" editor={undefined} currentValue="" />,
+      <Bullets key="bullets" editor={undefined} currentValue="" />,
+    ]) {
+      const host = await render(tool);
+      const control = host.querySelector('[data-tooltip-id="tooltip"]')!;
+      names.push(control.getAttribute('aria-label')!);
+    }
+
+    expect(names).toEqual([
+      'Add Signature',
+      'Underline',
+      'Bold Text',
+      'Link',
+      'Bullets',
+    ]);
   });
 });
