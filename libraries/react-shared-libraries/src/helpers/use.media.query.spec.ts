@@ -9,7 +9,7 @@ import {
 const tailwind = require('../../../../apps/frontend/tailwind.config.cjs');
 
 // MOBILE_QUERY is the JavaScript half of the `mobile:` breakpoint: the shell,
-// the composer and the calendar decide in JS what their `mobile:` classes
+// the composer and the media picker decide in JS what their `mobile:` classes
 // already draw. If the two drift, they disagree about which screens are small.
 describe('the small-screen query mirrors Tailwind', () => {
   it('MOBILE_QUERY matches the mobile screen', () => {
