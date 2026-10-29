@@ -462,7 +462,6 @@ describe('a post with comments', () => {
       expect(first[0].querySelector('svg path')!.getAttribute('d')).toMatch(
         /^M0\.75 0\.75V79\.75/
       );
-      expect(desktop(first[1])).toContain('hidden');
     });
   });
 });

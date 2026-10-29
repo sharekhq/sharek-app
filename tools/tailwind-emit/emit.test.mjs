@@ -1118,6 +1118,7 @@ test('044 F-1: the phone forms are emitted after the desktop padding they replac
     .parse(css)
     .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
 
+  assert.ok(order.indexOf('pl-[12px]') !== -1, 'pl-[12px] must emit');
   assert.ok(
     order.indexOf('pl-[12px]') < order.lastIndexOf('mobile:p-0'),
     `mobile:p-0 must follow pl-[12px], got ${JSON.stringify(order)}`
