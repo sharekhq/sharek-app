@@ -1,12 +1,13 @@
 'use client';
 
 import {
-  FC,
+  forwardRef,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   ReactNode,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
@@ -22,6 +23,12 @@ export interface PostAction {
   danger?: boolean;
 }
 
+// What owns a `held` menu opens and closes it with.
+export interface PostActionsMenuHandle {
+  open: () => void;
+  close: () => void;
+}
+
 // The week grid gives a day a 58px column (`minmax(58px, 1fr)`, calendar.tsx:358),
 // and the post card's actions have never fitted it: finding 69 of the 2026-08
 // responsive audit measured ~200px of unshrinkable controls under a coarse
@@ -30,21 +37,43 @@ export interface PostAction {
 // that — so the actions leave it. The strip becomes the button and the list
 // opens as a `fixed` panel measured against the viewport, which is the shape
 // the channel menu already uses (menu/menu.tsx:347).
-export const PostActionsMenu: FC<{
-  actions: PostAction[];
-  label: string;
-}> = (props) => {
-  const { actions, label } = props;
+//
+// A month chip at 1025px and below has no room for the button, so it holds a
+// `held` menu instead: no button, opened and closed through the ref by what
+// owns it (a finger held still on the chip opens it, a drag closes it,
+// calendar.tsx). It covers the chip, hangs the list from it, and lets every
+// touch and click through to it.
+export const PostActionsMenu = forwardRef<
+  PostActionsMenuHandle,
+  {
+    actions: PostAction[];
+    label: string;
+    held?: boolean;
+  }
+>(function PostActionsMenu(props, handle) {
+  const { actions, label, held } = props;
   const [show, setShow] = useState<false | { x: number; y: number }>(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const ref = useClickOutside<HTMLDivElement>(() => setShow(false));
 
-  const open = useCallback(() => {
+  // under the trigger, from its start edge; the layout effect below corrects it
+  const below = useCallback(() => {
     const box = ref.current?.getBoundingClientRect();
-    setShow((current) =>
-      current ? false : { x: box?.left || 0, y: (box?.bottom || 0) + 4 }
-    );
+    return { x: box?.left || 0, y: (box?.bottom || 0) + 4 };
   }, [ref]);
+
+  const open = useCallback(() => {
+    setShow((current) => (current ? false : below()));
+  }, [below]);
+
+  useImperativeHandle(
+    handle,
+    () => ({
+      open: () => setShow(below()),
+      close: () => setShow(false),
+    }),
+    [below]
+  );
 
   const toggle = useCallback(
     (e: ReactMouseEvent) => {
@@ -108,6 +137,54 @@ export const PostActionsMenu: FC<{
     };
   }, [show]);
 
+  const panel = show && (
+    <div
+      ref={panelRef}
+      role="menu"
+      aria-label={held ? label : undefined}
+      onClick={(e) => e.stopPropagation()}
+      style={{ left: show.x, top: show.y }}
+      // The panel is a child of the card's strip (of the card, when held),
+      // which calendar.tsx:1172 paints `text-white` for a tag colour — and
+      // `fixed` moves it on screen, not in the tree, so that colour still
+      // inherits. It names its own foreground so the list reads as app chrome
+      // wherever it opens.
+      className={clsx(
+        'fixed p-[12px] bg-newBgColorInner text-textColor shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
+        held && 'pointer-events-auto'
+      )}
+    >
+      {actions.map((action) => (
+        <div
+          key={action.key}
+          role="menuitem"
+          tabIndex={0}
+          className="flex gap-[12px] items-center py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors"
+          onClick={() => {
+            setShow(false);
+            action.onClick();
+          }}
+        >
+          <div className={clsx('flex', action.danger && 'text-error')}>
+            {action.icon}
+          </div>
+          <div className="text-[14px]">{action.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (held) {
+    return (
+      <div
+        ref={ref}
+        className="hidden mobile:block absolute inset-0 pointer-events-none"
+      >
+        {panel}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={ref}
@@ -138,37 +215,7 @@ export const PostActionsMenu: FC<{
           fill="currentColor"
         />
       </svg>
-      {show && (
-        <div
-          ref={panelRef}
-          role="menu"
-          onClick={(e) => e.stopPropagation()}
-          style={{ left: show.x, top: show.y }}
-          // The panel is a child of the card's strip, which calendar.tsx:1172
-          // paints `text-white` for a tag colour — and `fixed` moves it on
-          // screen, not in the tree, so that colour still inherits. It names its
-          // own foreground so the list reads as app chrome wherever it opens.
-          className="fixed p-[12px] bg-newBgColorInner text-textColor shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default"
-        >
-          {actions.map((action) => (
-            <div
-              key={action.key}
-              role="menuitem"
-              tabIndex={0}
-              className="flex gap-[12px] items-center py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors"
-              onClick={() => {
-                setShow(false);
-                action.onClick();
-              }}
-            >
-              <div className={clsx('flex', action.danger && 'text-error')}>
-                {action.icon}
-              </div>
-              <div className="text-[14px]">{action.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      {panel}
     </div>
   );
-};
+});

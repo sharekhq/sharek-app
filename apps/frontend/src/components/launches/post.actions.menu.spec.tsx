@@ -9,7 +9,7 @@
 // rather than laid out in the column. The pixel geometry is the probe's job —
 // happy-dom has no layout — so these assert the structure that makes the
 // geometry impossible to get wrong.
-import { act } from 'react';
+import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -19,6 +19,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 import {
   PostAction,
   PostActionsMenu,
+  PostActionsMenuHandle,
 } from '@gitroom/frontend/components/launches/post.actions.menu';
 
 const calls: string[] = [];
@@ -244,6 +245,46 @@ describe('post actions menu', () => {
     [...document.querySelectorAll('[role="menuitem"]')].forEach((item) => {
       expect(item.className).toContain('hover:bg-boxHover');
     });
+  });
+
+  // A month chip at 1025px and below has no room for the button: what owns the
+  // chip opens the list through the ref when a finger holds it still
+  // (calendar.tsx). The menu covers the chip without taking its touches, and
+  // its list takes them back.
+  it('opens a held menu through its ref, with no button and touches let through', async () => {
+    const menu = createRef<PostActionsMenuHandle>();
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <PostActionsMenu
+          ref={menu}
+          held
+          actions={actions()}
+          label="Post actions"
+        />
+      );
+    });
+
+    expect(trigger()).toBeNull();
+    expect(host.querySelector('svg')).toBeNull();
+    expect(
+      (host.firstElementChild as HTMLElement).className.split(' ')
+    ).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:block', 'pointer-events-none'])
+    );
+
+    act(() => menu.current!.open());
+
+    expect(labels()).toEqual(['Duplicate Post', 'Preview Post', 'Delete Post']);
+    expect(panel()!.className.split(' ')).toContain('pointer-events-auto');
+    expect(panel()!.getAttribute('aria-label')).toBe('Post actions');
+
+    act(() => menu.current!.close());
+
+    expect(panel()).toBeNull();
   });
 
   it('drops an action the post does not have', async () => {

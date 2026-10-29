@@ -29,9 +29,12 @@ const config: Config = {
   // encoding packages and isomorphic-dompurify's own parse5 and entities ship ESM only (some as
   // .mjs) too; isomorphic-dompurify is listed so the pattern reaches its nested node_modules.
   // The calendar's drag pipeline (rdndmb-html5-to-touch, its transitions in dnd-multi-backend,
-  // and the touch backend with its invariant helper) ships ESM only as well.
+  // and the touch backend with its invariant helper) ships ESM only as well, and so does
+  // react-dnd itself, which a spec runs whole to drag a month chip with a finger
+  // (calendar.month.hold.spec.tsx): react-dnd, dnd-core and its helpers, the multi-backend
+  // provider with its preview, and the html5 backend.
   transformIgnorePatterns: [
-    'node_modules/(?!react-hotkeys-hook/|isomorphic-dompurify/|parse5/|entities/|@exodus/bytes/|@asamuzakjp/css-color/|@asamuzakjp/dom-selector/|@asamuzakjp/generational-cache/|@csstools/css-calc/|@csstools/css-color-parser/|@csstools/color-helpers/|@csstools/css-parser-algorithms/|@csstools/css-tokenizer/|rdndmb-html5-to-touch/|dnd-multi-backend/|react-dnd-touch-backend/|@react-dnd/invariant/)',
+    'node_modules/(?!react-hotkeys-hook/|isomorphic-dompurify/|parse5/|entities/|@exodus/bytes/|@asamuzakjp/css-color/|@asamuzakjp/dom-selector/|@asamuzakjp/generational-cache/|@csstools/css-calc/|@csstools/css-color-parser/|@csstools/color-helpers/|@csstools/css-parser-algorithms/|@csstools/css-tokenizer/|rdndmb-html5-to-touch/|dnd-multi-backend/|react-dnd-touch-backend/|@react-dnd/invariant/|react-dnd/|dnd-core/|@react-dnd/asap/|@react-dnd/shallowequal/|react-dnd-multi-backend/|react-dnd-preview/|react-dnd-html5-backend/)',
   ],
   transform: {
     '^.+\\.[mc]?[tj]sx?$': [

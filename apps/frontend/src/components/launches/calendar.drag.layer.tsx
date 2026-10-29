@@ -46,7 +46,7 @@ export const usePostCardDrag = (card: PostCardDrag) => {
   const latest = useRef(card);
   latest.current = card;
 
-  const [{ opacity }, connectDrag, connectPreview] = useDrag(
+  const [{ isDragging }, connectDrag, connectPreview] = useDrag(
     () => ({
       type: 'post',
       item: (): HeldCard => ({
@@ -54,7 +54,7 @@ export const usePostCardDrag = (card: PostCardDrag) => {
         width: node.current?.offsetWidth,
       }),
       collect: (monitor) => ({
-        opacity: monitor.isDragging() ? 0 : 1,
+        isDragging: monitor.isDragging(),
       }),
     }),
     []
@@ -72,7 +72,7 @@ export const usePostCardDrag = (card: PostCardDrag) => {
     [connectDrag]
   );
 
-  return { attach, opacity };
+  return { attach, opacity: isDragging ? 0 : 1, isDragging };
 };
 
 // The card under the pointer, for the length of the drag. Rendered once, inside

@@ -1688,3 +1688,44 @@ test('046 T069: the month chip status rules follow the rules they replace', asyn
     );
   }
 });
+
+// 046 T069 — a month chip held still at 1025px and below opens the post's menu
+// (post.actions.menu.tsx `held`): it covers the chip there only, lets every
+// touch through to it, and its list takes the taps again.
+const HELD_MENU_FORMS = [
+  {
+    className: 'mobile:block',
+    atRule: '(max-width: 1025px)',
+    prop: 'display',
+    value: 'block',
+  },
+  {
+    className: 'pointer-events-none',
+    atRule: null,
+    prop: 'pointer-events',
+    value: 'none',
+  },
+  {
+    className: 'pointer-events-auto',
+    atRule: null,
+    prop: 'pointer-events',
+    value: 'auto',
+  },
+];
+
+test('046 T069: the held menu covers a month chip at 1025px and below only', async () => {
+  await assertFormsEmit(HELD_MENU_FORMS);
+
+  const css = await emit(['hidden', 'mobile:block']);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  assert.ok(
+    order.indexOf('hidden') !== -1 &&
+      order.indexOf('hidden') < order.indexOf('mobile:block'),
+    `mobile:block must follow hidden to win at equal specificity, got ${JSON.stringify(
+      order
+    )}`
+  );
+});
