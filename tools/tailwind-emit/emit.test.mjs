@@ -1601,3 +1601,90 @@ const HELD_CARD_FORMS = [
 test('046 T069: a held post card selects no text and opens no callout under a coarse pointer', async () => {
   await assertFormsEmit(HELD_CARD_FORMS);
 });
+
+// 046 T069 — a month chip at 1025px and below hides its status chip, so the
+// status rings the avatar in the chip's colour (calendar.post.card.tsx). A
+// ring is a box-shadow and cannot be dashed, so a draft's dashed edge is the
+// card's border, widened to the ring's 2px. The status is also written out for
+// a screen reader, in a span that shows only at 1025px and below.
+const MONTH_STATUS_FORMS = [
+  {
+    className: 'mobile:ring-2',
+    atRule: '(max-width: 1025px)',
+    prop: '--tw-ring-shadow',
+    value:
+      'var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color)',
+  },
+  {
+    className: 'mobile:ring-info',
+    atRule: '(max-width: 1025px)',
+    prop: '--tw-ring-color',
+    value: 'var(--info)',
+  },
+  {
+    className: 'mobile:ring-success',
+    atRule: '(max-width: 1025px)',
+    prop: '--tw-ring-color',
+    value: 'var(--success)',
+  },
+  {
+    className: 'mobile:border-2',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-width',
+    value: '2px',
+  },
+  {
+    className: 'mobile:border-dashed',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-style',
+    value: 'dashed',
+  },
+  {
+    className: 'mobile:border-muted',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-color',
+    value: 'var(--muted)',
+  },
+  {
+    className: 'mobile:inline',
+    atRule: '(max-width: 1025px)',
+    prop: 'display',
+    value: 'inline',
+  },
+  {
+    className: 'mobile:sr-only',
+    atRule: '(max-width: 1025px)',
+    prop: 'clip',
+    value: 'rect(0, 0, 0, 0)',
+  },
+];
+
+test('046 T069: a month chip rings its status at 1025px and below', async () => {
+  await assertFormsEmit(MONTH_STATUS_FORMS);
+});
+
+test('046 T069: the month chip status rules follow the rules they replace', async () => {
+  // The draft's border replaces the card's 1px line, the ring keeps the soft
+  // shadow it is composed with, and the status name shows over `hidden`: each
+  // at equal specificity, so the 1025px rule has to come later.
+  const pairs = [
+    ['border', 'mobile:border-2'],
+    ['border-line', 'mobile:border-muted'],
+    ['shadow-soft', 'mobile:ring-2'],
+    ['hidden', 'mobile:inline'],
+  ];
+  const css = await emit(pairs.flat());
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const [base, small] of pairs) {
+    assert.ok(
+      order.indexOf(base) !== -1 && order.indexOf(base) < order.indexOf(small),
+      `${small} must follow ${base} to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});

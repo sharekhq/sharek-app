@@ -56,7 +56,9 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({ json: async () => ({}) }),
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback: string) => fallback,
+  useT:
+    () => (_key: string, fallback: string, values?: Record<string, string>) =>
+      fallback.replace(/{{(\w+)}}/g, (_, name) => String(values?.[name])),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({}),
@@ -134,12 +136,14 @@ beforeAll(async () => {
 const WEDNESDAY = new Date(2026, 9, 21, 13, 37);
 // Friday 23 October 2026 at 10:00, local time: a day still to come
 const FRIDAY_TEN = new Date(2026, 9, 23, 10, 0);
+// Monday 19 October 2026 at 10:00, local time: a day gone by
+const MONDAY_TEN = new Date(2026, 9, 19, 10, 0);
 
-const post = (id: string, state = 'QUEUE') => ({
+const post = (id: string, state = 'QUEUE', when = FRIDAY_TEN) => ({
   id,
   group: `g-${id}`,
   content: `<p>post ${id}</p>`,
-  publishDate: dayjs(FRIDAY_TEN).utc().format(),
+  publishDate: dayjs(when).utc().format(),
   state,
   error: null as string | null,
   releaseURL: null as string | null,
@@ -208,6 +212,18 @@ const badge = (card: HTMLElement) =>
     | undefined;
 const byText = (host: HTMLElement, text: string) =>
   all(host).find((el) => el.children.length === 0 && el.textContent === text);
+// the post's status in words, read out at 1025px and below and hidden above
+const statusName = (card: HTMLElement) =>
+  withClass(body(card), 'mobile:sr-only')[0];
+// every class a month chip's status adds at 1025px and below
+const STATUS_CLASSES = [
+  'mobile:ring-2',
+  'mobile:ring-info',
+  'mobile:ring-success',
+  'mobile:border-2',
+  'mobile:border-dashed',
+  'mobile:border-muted',
+];
 
 beforeEach(() => {
   jest.useFakeTimers({ now: WEDNESDAY });
@@ -312,6 +328,26 @@ describe('the week at 1025px and below', () => {
     expect(classes(body(card))).not.toContain('mobile:p-[4px]');
     expect(mockDragged.every((dragged) => !dragged.compact)).toBe(true);
   });
+
+  it('adds no status ring and no hidden status name to a week card', async () => {
+    // an hour each, since an hour shows three posts before "+N"
+    withPosts([
+      post('p1'),
+      post('p2', 'PUBLISHED', new Date(2026, 9, 23, 11, 0)),
+      post('p3', 'DRAFT', new Date(2026, 9, 23, 12, 0)),
+      post('p4', 'ERROR', new Date(2026, 9, 23, 13, 0)),
+      post('p5', 'QUEUE', MONDAY_TEN),
+    ]);
+    const host = await render(<WeekView />);
+
+    expect(cards(host)).toHaveLength(5);
+    cards(host).forEach((card) => {
+      STATUS_CLASSES.forEach((name) =>
+        expect(classes(card)).not.toContain(name)
+      );
+      expect(statusName(card)).toBeUndefined();
+    });
+  });
 });
 
 describe('the month at 1025px and below', () => {
@@ -413,5 +449,77 @@ describe('the month at 1025px and below', () => {
     // the preview of a dragged chip is the same compact chip
     expect(mockDragged.length).toBeGreaterThan(0);
     expect(mockDragged.every((dragged) => dragged.compact === true)).toBe(true);
+  });
+
+  // The status chip is hidden on a month chip, so the status rings the avatar
+  // in the chip's colour: info, success, error, and a dashed muted edge for a
+  // draft like the draft chip's. A post past its time reads as published, as
+  // its chip does.
+  it.each([
+    ['a scheduled post', post('p1'), ['mobile:ring-2', 'mobile:ring-info']],
+    [
+      'a published post',
+      post('p1', 'PUBLISHED'),
+      ['mobile:ring-2', 'mobile:ring-success'],
+    ],
+    [
+      'a post past its time',
+      post('p1', 'QUEUE', MONDAY_TEN),
+      ['mobile:ring-2', 'mobile:ring-success'],
+    ],
+    [
+      'a draft',
+      post('p1', 'DRAFT'),
+      ['mobile:border-2', 'mobile:border-dashed', 'mobile:border-muted'],
+    ],
+    ['a failed post', post('p1', 'ERROR'), [] as string[]],
+  ])('rings %s in its status colour', async (_name, item, ring) => {
+    asMonth();
+    withPosts([item]);
+    const host = await render(<MonthView />);
+    const [card] = cards(host);
+
+    expect(card).toBeDefined();
+    STATUS_CLASSES.forEach((name) =>
+      ring.includes(name)
+        ? expect(classes(card)).toContain(name)
+        : expect(classes(card)).not.toContain(name)
+    );
+  });
+
+  it('keeps a past post grey inside a ring in colour', async () => {
+    asMonth();
+    withPosts([post('p1', 'QUEUE', MONDAY_TEN)]);
+    const host = await render(<MonthView />);
+    const [card] = cards(host);
+
+    expect(classes(body(card))).toContain('!grayscale');
+    expect(classes(card)).not.toContain('!grayscale');
+    expect(classes(card)).toEqual(
+      expect.arrayContaining(['mobile:ring-2', 'mobile:ring-success'])
+    );
+  });
+
+  // Colour alone does not say the status: the chip's name says it in words,
+  // read out at 1025px and below, where the status chip is hidden, and absent
+  // above, where the chip shows it.
+  it.each([
+    ['Scheduled', post('p1')],
+    ['Published', post('p1', 'PUBLISHED')],
+    ['Published', post('p1', 'QUEUE', MONDAY_TEN)],
+    ['Draft', post('p1', 'DRAFT')],
+    ['Failed', post('p1', 'ERROR')],
+  ])('names a %s post by its status and channel', async (status, item) => {
+    asMonth();
+    withPosts([item]);
+    const host = await render(<MonthView />);
+    const [card] = cards(host);
+    const name = statusName(card);
+
+    expect(name).toBeDefined();
+    expect(name.textContent).toBe(`${status}: X`);
+    expect(classes(name)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:inline', 'mobile:sr-only'])
+    );
   });
 });

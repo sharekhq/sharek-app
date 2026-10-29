@@ -40,7 +40,7 @@ export const CalendarPostCard = forwardRef<
     lifted?: boolean;
     // A month chip: at 1025px and below only the channel avatar shows, as
     // upstream draws it (no status chip, tags, text, menu or "!" badge); the
-    // failed ring and the past grey stay.
+    // status rings it instead, in its chip's colour, and the past grey stays.
     compact?: boolean;
     style?: CSSProperties;
   }
@@ -62,6 +62,22 @@ export const CalendarPostCard = forwardRef<
     user?.impersonate &&
     post.creationMethod &&
     post.creationMethod !== 'UNKNOWN';
+  // One reading of the status for the chip that names it and for the month
+  // chip's ring: a post past its time reads as published.
+  const status =
+    state === 'ERROR'
+      ? 'failed'
+      : state === 'DRAFT'
+      ? 'draft'
+      : state === 'PUBLISHED' || dayjs().isAfter(dayjs.utc(post.publishDate))
+      ? 'published'
+      : 'scheduled';
+  const statusLabel = {
+    failed: t('calendar_state_failed', 'Failed'),
+    draft: t('draft', 'Draft'),
+    published: t('calendar_state_published', 'Published'),
+    scheduled: t('calendar_state_scheduled', 'Scheduled'),
+  }[status];
 
   return (
     <div
@@ -73,7 +89,15 @@ export const CalendarPostCard = forwardRef<
         // long, iOS would select its text or open the picture's menu
         'coarse:select-none coarse:[-webkit-touch-callout:none]',
         lifted ? 'shadow-card scale-[1.04]' : 'shadow-soft',
-        state === 'ERROR' && 'ring-2 ring-error'
+        state === 'ERROR' && 'ring-2 ring-error',
+        compact && status === 'scheduled' && 'mobile:ring-2 mobile:ring-info',
+        compact &&
+          status === 'published' &&
+          'mobile:ring-2 mobile:ring-success',
+        // dashed like the draft chip, and a ring cannot be dashed
+        compact &&
+          status === 'draft' &&
+          'mobile:border-2 mobile:border-dashed mobile:border-muted'
       )}
       style={style}
     >
@@ -114,21 +138,14 @@ export const CalendarPostCard = forwardRef<
           backgroundColor: post?.tags?.[0]?.tag?.color,
         }}
       >
-        {state === 'ERROR' ? (
-          <span className="cal-chip cal-chip-error">
-            ! {t('calendar_state_failed', 'Failed')}
-          </span>
-        ) : state === 'DRAFT' ? (
-          <span className="cal-chip cal-chip-draft">{t('draft', 'Draft')}</span>
-        ) : state === 'PUBLISHED' ||
-          dayjs().isAfter(dayjs.utc(post.publishDate)) ? (
-          <span className="cal-chip cal-chip-success">
-            ✓ {t('calendar_state_published', 'Published')}
-          </span>
+        {status === 'failed' ? (
+          <span className="cal-chip cal-chip-error">! {statusLabel}</span>
+        ) : status === 'draft' ? (
+          <span className="cal-chip cal-chip-draft">{statusLabel}</span>
+        ) : status === 'published' ? (
+          <span className="cal-chip cal-chip-success">✓ {statusLabel}</span>
         ) : (
-          <span className="cal-chip cal-chip-info">
-            {t('calendar_state_scheduled', 'Scheduled')}
-          </span>
+          <span className="cal-chip cal-chip-info">{statusLabel}</span>
         )}
         <div
           className={clsx(
@@ -150,6 +167,17 @@ export const CalendarPostCard = forwardRef<
           isBeforeNow && '!grayscale'
         )}
       >
+        {/* the status chip is hidden on a month chip, so its name says it;
+            React escapes the text, so i18next must not escape it first */}
+        {compact && (
+          <span className="hidden mobile:inline mobile:sr-only">
+            {t('calendar_post_status_channel', '{{status}}: {{channel}}', {
+              status: statusLabel,
+              channel: post.integration.name,
+              interpolation: { escapeValue: false },
+            })}
+          </span>
+        )}
         <div className={clsx('relative min-w-[20px]')}>
           <img
             className="w-[20px] h-[20px] rounded-[8px]"
