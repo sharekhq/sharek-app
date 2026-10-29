@@ -1209,3 +1209,120 @@ test("044 T071: the counts' 8px sides are emitted after the Button's 24px they r
     )}`
   );
 });
+
+// 044 F-1 — a comment on the phone composer hangs off the post on desktop's
+// thread line. At 1025px and below, ConnectionLineIcon's wrapper becomes a
+// bordered L (editor.tsx), a phone-only line runs on to the next comment, and
+// the comment's box steps in 28px. Every side is logical, so in Arabic the
+// line hangs down the right; a form dropped here would simply leave the
+// comment running on from the post, as before.
+const THREAD_LINE_FORMS = [
+  {
+    className: 'mobile:start-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'inset-inline-start',
+    value: '8px',
+  },
+  {
+    // the comment's 24px top padding, half its 20px first line, and half the
+    // 2px line
+    className: 'mobile:h-[35px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'height',
+    value: '35px',
+  },
+  {
+    className: 'mobile:w-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'width',
+    value: '14px',
+  },
+  {
+    className: 'mobile:border-s-2',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-inline-start-width',
+    value: '2px',
+  },
+  {
+    className: 'mobile:border-newSep',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-color',
+    value: 'var(--new-sep)',
+  },
+  {
+    className: 'mobile:rounded-es-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-end-start-radius',
+    value: '10px',
+  },
+  {
+    className: 'mobile:ps-[28px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-inline-start',
+    value: '28px',
+  },
+  // the line running on, phone-only through `hidden mobile:block`
+  {
+    className: 'start-[8px]',
+    atRule: null,
+    prop: 'inset-inline-start',
+    value: '8px',
+  },
+  {
+    // where the L turns: its 35px less its 10px corner
+    className: 'top-[25px]',
+    atRule: null,
+    prop: 'top',
+    value: '25px',
+  },
+  {
+    className: 'border-s-2',
+    atRule: null,
+    prop: 'border-inline-start-width',
+    value: '2px',
+  },
+  {
+    className: 'border-newSep',
+    atRule: null,
+    prop: 'border-color',
+    value: 'var(--new-sep)',
+  },
+];
+
+test('044 F-1: the thread line forms emit CSS, and none of them names a physical side', async () => {
+  await assertFormsEmit(THREAD_LINE_FORMS);
+
+  const css = await emit(THREAD_LINE_FORMS.map((f) => f.className));
+  assert.ok(
+    !/(^|[\s;{])(left|right|padding-(left|right)|border-(left|right)[\w-]*|border-(top|bottom)-(left|right)-radius)\s*:/.test(
+      css
+    ),
+    `a thread line form emitted a physical side, which would not mirror in Arabic:\n${css}`
+  );
+});
+
+test('044 F-1: the phone forms are emitted after the desktop padding they replace', async () => {
+  // The wrapper keeps desktop's `pl-[12px]` and drops it with `mobile:p-0`;
+  // the comment's box keeps the editor's `mobile:px-0` and steps in with
+  // `mobile:ps-[28px]`. Same specificity each time, so order decides.
+  const css = await emit([
+    'pl-[12px]',
+    'mobile:p-0',
+    'mobile:px-0',
+    'mobile:ps-[28px]',
+  ]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  assert.ok(order.indexOf('pl-[12px]') !== -1, 'pl-[12px] must emit');
+  assert.ok(
+    order.indexOf('pl-[12px]') < order.lastIndexOf('mobile:p-0'),
+    `mobile:p-0 must follow pl-[12px], got ${JSON.stringify(order)}`
+  );
+  assert.ok(
+    order.lastIndexOf('mobile:px-0') < order.indexOf('mobile:ps-[28px]'),
+    `mobile:ps-[28px] must follow mobile:px-0, got ${JSON.stringify(order)}`
+  );
+});
