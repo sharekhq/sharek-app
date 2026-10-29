@@ -285,19 +285,21 @@ describe('the tool bar of the post being written', () => {
 });
 
 describe('a post with comments', () => {
-  const thread = async () => {
+  const thread = async (texts = ['First', 'Second']) => {
     await act(async () => {
       useLaunchStore.getState().reset();
       useLaunchStore.setState({
         current: 'global',
         comments: true,
-        global: [
-          { id: 'p-1', content: '<p>First</p>', delay: 0, media: [] },
-          { id: 'p-2', content: '<p>Second</p>', delay: 0, media: [] },
-        ] as unknown as Store['global'],
+        global: texts.map((text, n) => ({
+          id: `p-${n + 1}`,
+          content: `<p>${text}</p>`,
+          delay: 0,
+          media: [],
+        })) as unknown as Store['global'],
       });
     });
-    return render(<EditorWrapper totalPosts={2} value="" />);
+    return render(<EditorWrapper totalPosts={texts.length} value="" />);
   };
 
   // A comment's corner controls at 1025px and below: real buttons, named,
@@ -353,6 +355,115 @@ describe('a post with comments', () => {
 
     expect(first.className).toContain('post-toolbar');
     expect(last.className).toBe('mobile:hidden');
+  });
+
+  // On a phone the page is one flat sheet, so a comment hangs off the post on
+  // desktop's thread line instead of running on from it (spec 044, F-1).
+  describe('the thread line', () => {
+    // What each post draws beside its editor: nothing for the post, the L
+    // (and the line running on) for a comment.
+    const lines = (host: HTMLElement) =>
+      Array.from(host.querySelectorAll('.flat-editor')).map((editor) =>
+        Array.from(editor.parentElement!.children).filter(
+          (child) => child !== editor
+        )
+      );
+    const classes = (node: Element) =>
+      (node.getAttribute('class') || '').split(' ').filter(Boolean);
+    const phoneOnly = (tokens: string[]) =>
+      tokens.filter((token) => token.startsWith('mobile:'));
+
+    it('hangs every comment off the post on an L at 1025px and below, and draws none on the post', async () => {
+      const { host } = await thread(['First', 'Second', 'Third']);
+      const [post, ...comments] = lines(host);
+
+      expect(post).toEqual([]);
+      for (const [corner] of comments) {
+        expect(classes(corner)).not.toContain('mobile:hidden');
+        expect(classes(corner)).toEqual(
+          expect.arrayContaining([
+            'mobile:absolute',
+            'mobile:start-[8px]',
+            'mobile:top-0',
+            'mobile:h-[35px]',
+            'mobile:w-[14px]',
+            'mobile:border-s-2',
+            'mobile:border-b-2',
+            'mobile:border-newSep',
+            'mobile:rounded-es-[10px]',
+          ])
+        );
+        // desktop's drawing gives way to the border there
+        expect(classes(corner.querySelector('svg')!)).toContain(
+          'mobile:hidden'
+        );
+      }
+    });
+
+    it('runs the line on to the next comment at 1025px and below, and stops at the last', async () => {
+      const { host } = await thread(['First', 'Second', 'Third']);
+      const [, first, last] = lines(host);
+
+      expect(first).toHaveLength(2);
+      expect(classes(first[1])).toEqual(
+        expect.arrayContaining([
+          'hidden',
+          'mobile:block',
+          'absolute',
+          'start-[8px]',
+          'top-[25px]',
+          'bottom-0',
+          'border-s-2',
+          'border-newSep',
+        ])
+      );
+      expect(last).toHaveLength(1);
+    });
+
+    it('steps a comment in 28px at 1025px and below, so its text starts after the line', async () => {
+      const { host } = await thread();
+      const [post, comment] = Array.from(
+        host.querySelectorAll('.flat-editor')
+      ).map((editor) => classes(editor.firstElementChild!));
+
+      expect(post).not.toContain('mobile:ps-[28px]');
+      expect(comment).toContain('mobile:ps-[28px]');
+    });
+
+    it('names no physical side, so it hangs down the right in Arabic', async () => {
+      const { host } = await thread(['First', 'Second', 'Third']);
+      const [, first] = lines(host);
+      const comment = host.querySelectorAll('.flat-editor')[1];
+      const tokens = [
+        ...phoneOnly(classes(first[0])),
+        ...classes(first[1]),
+        ...phoneOnly(classes(comment.firstElementChild!)),
+      ];
+
+      expect(
+        tokens.filter((token) =>
+          /^(\w+:)*-?(p[lr]|m[lr]|left|right|border-[lr]|rounded-([lr]|[tb][lr]))(-|$)/.test(
+            token
+          )
+        )
+      ).toEqual([]);
+    });
+
+    // A guard, true before F-1 as after: desktop keeps its own drawing.
+    it('keeps desktop’s ConnectionLineIcon from 1026px up', async () => {
+      const { host } = await thread(['First', 'Second', 'Third']);
+      const [, first] = lines(host);
+      const desktop = (node: Element) =>
+        classes(node).filter((token) => !token.startsWith('mobile:'));
+
+      expect(desktop(first[0]).sort()).toEqual(
+        ['flex', 'justify-center', 'pl-[12px]', 'text-newSep'].sort()
+      );
+      expect(first[0].querySelector('svg path')!.getAttribute('d')).toMatch(
+        /^M0\.75 0\.75V79\.75/
+      );
+      expect(desktop(first[1])).toContain('hidden');
+    });
   });
 });
 
