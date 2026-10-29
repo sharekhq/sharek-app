@@ -333,19 +333,20 @@ describe('the tab list on a phone', () => {
     ).toEqual(['Plugs']);
   });
 
-  it('turns the column into one sideways strip on phones only', async () => {
+  it('turns the column into one sideways row up to 1025px', async () => {
     const host = await settings();
     const list = tabs(host)[0].parentElement!;
 
     expect(list.className).toContain('flex-col');
-    expect(list.className).toContain('phone:flex-row');
-    expect(list.className).toContain('phone:overflow-x-auto');
+    expect(list.className).toContain('mobile:flex-row');
+    expect(list.className).toContain('mobile:overflow-x-auto');
     for (const tab of tabs(host)) {
-      expect(tab.className).toContain('phone:shrink-0');
-      expect(tab.className).toContain('phone:whitespace-nowrap');
+      expect(tab.className).toContain('mobile:shrink-0');
+      expect(tab.className).toContain('mobile:whitespace-nowrap');
     }
-    // iPads keep the side column: nothing here answers to Sharek's 1025px screen.
-    expect(host.innerHTML).not.toMatch(/\bmobile:/);
+    // An iPad held upright gets the row too: nothing in the tab panel stops at
+    // the 768px phone screen any more.
+    expect(list.parentElement!.outerHTML).not.toMatch(/\bphone:/);
   });
 
   it('opens with the tab the address names scrolled into view when the strip overflows', async () => {
@@ -363,7 +364,7 @@ describe('the tab list on a phone', () => {
     );
   });
 
-  it('leaves the page alone where the tabs fit, as in the iPad and desktop column', async () => {
+  it('leaves the page alone where the tabs fit, as in the desktop column', async () => {
     strip(260, 260);
     mockParams = new URLSearchParams('tab=apps');
     await settings();

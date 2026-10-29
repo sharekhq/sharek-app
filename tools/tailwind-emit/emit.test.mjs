@@ -611,3 +611,315 @@ test('138: the wrapper variant reaches the control inside it', async () => {
   assert.match(css, /@media \(max-width: 1025px\)/);
   assert.match(css, /justify-content: center !important/);
 });
+
+// ---------------------------------------------------------------------------
+// 047 — small-screen pages. Analytics, Samy, Settings, Webhooks and Signatures
+// move layout from `phone:` to `mobile:`, so the iPad held upright gets the
+// strips, the tab row and the cards too. Every form below changes a layout
+// that would otherwise simply not change. This block holds the forms two
+// stories share and the helpers the stories' own blocks use; each story's
+// forms follow in a block of their own, so any story can be reverted alone.
+// ---------------------------------------------------------------------------
+const unescape = (sel) =>
+  sel.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) =>
+    hex ? String.fromCodePoint(parseInt(hex, 16)) : ch
+  );
+
+// Like `emitted`, but with every at-rule around the rule, outermost first: a
+// stacked `mobile:coarse:` variant nests one media query inside the other, and
+// `emitted` reads only the nearest.
+function emittedNested(css, className) {
+  const found = [];
+  postcss.parse(css).walkRules((rule) => {
+    const classes = rule.selector
+      .split(',')
+      .map((sel) => sel.trim())
+      .filter((sel) => sel.startsWith('.'))
+      .map((sel) => unescape(sel.slice(1)));
+    if (!classes.includes(className)) return;
+    const atRules = [];
+    for (
+      let node = rule.parent;
+      node && node.type === 'atrule';
+      node = node.parent
+    ) {
+      atRules.unshift(collapse(node.params));
+    }
+    rule.walkDecls((decl) =>
+      found.push({ atRules, prop: decl.prop, value: collapse(decl.value) })
+    );
+  });
+  return found;
+}
+
+async function assertFormsEmit(forms) {
+  const css = await emit(forms.map((f) => f.className));
+
+  for (const form of forms) {
+    const decls = emitted(css, form.className);
+
+    assert.ok(
+      decls.length > 0,
+      `${form.className} emitted no CSS — the variant or the arbitrary value was dropped, not applied`
+    );
+
+    assert.ok(
+      decls.some(
+        (d) =>
+          d.atRule === form.atRule &&
+          d.prop === form.prop &&
+          d.value === form.value
+      ),
+      `${form.className} did not emit ${form.prop}: ${
+        form.value
+      } inside @media ${form.atRule} — got ${JSON.stringify(decls)}`
+    );
+  }
+}
+
+const PAGES_SHARED_FORMS = [
+  {
+    // Both strips (Analytics, Samy) and the Signatures panel pad 12px on a
+    // phone or an iPad, where the desktop column pads 20px.
+    className: 'mobile:p-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding',
+    value: '12px',
+  },
+  {
+    // The strips' leading inset, logical so it sits at the right in Arabic.
+    className: 'mobile:ps-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-inline-start',
+    value: '12px',
+  },
+  {
+    className: 'mobile:pt-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '6px',
+  },
+  {
+    className: 'mobile:pb-[6px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-bottom',
+    value: '6px',
+  },
+  {
+    // The Settings tab row and Samy's chat strip space their items 8px apart.
+    className: 'mobile:gap-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '8px',
+  },
+];
+
+test('047: every class form two small-screen stories share emits CSS', async () => {
+  await assertFormsEmit(PAGES_SHARED_FORMS);
+});
+
+test('047: the avatar tap box gives back its growth only on a touch screen up to 1025px', async () => {
+  // An avatar item is `coarse:min-w-[44px]` (and min-h) so it is a 44px tap
+  // box, and `mobile:coarse:-m-[4px]` hands the growth back to the strip so the
+  // avatars sit where they sit on a fine pointer. The margin has to be inside
+  // BOTH media queries: on a desktop touch screen the column must not lose 4px
+  // a side, and on a phone with a mouse there is no growth to give back.
+  const css = await emit(['coarse:min-w-[44px]', 'mobile:coarse:-m-[4px]']);
+
+  assert.deepEqual(emittedNested(css, 'mobile:coarse:-m-[4px]'), [
+    {
+      atRules: ['(max-width: 1025px)', '(pointer: coarse)'],
+      prop: 'margin',
+      value: '-4px',
+    },
+  ]);
+
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  assert.ok(
+    order.indexOf('coarse:min-w-[44px]') <
+      order.indexOf('mobile:coarse:-m-[4px]'),
+    `the stacked margin must follow the floor it compensates, got ${JSON.stringify(
+      order
+    )}`
+  );
+});
+
+// 047 US5 — a long webhook URL wraps. `anywhere`, not `break-word`: only
+// `anywhere` lowers min-content, so it is the one that stops a 1fr track (and
+// the card on a phone) flooring at the URL's full width. Tailwind 3.4 has no
+// utility for it, so it is an arbitrary property.
+const WEBHOOK_URL_FORMS = [
+  {
+    className: '[overflow-wrap:anywhere]',
+    atRule: null,
+    prop: 'overflow-wrap',
+    value: 'anywhere',
+  },
+];
+
+test('047 US5: the webhook URL wrap emits CSS', async () => {
+  await assertFormsEmit(WEBHOOK_URL_FORMS);
+});
+
+// 047 US3 — the Settings tab row reaches 1025px. The row itself is
+// `mobile:flex-row` and the shared forms above; these are the tab's own
+// padding and the 8px under the row before "Logout".
+const SETTINGS_ROW_FORMS = [
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '14px',
+  },
+  {
+    className: 'mobile:py-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '10px',
+  },
+  {
+    className: 'mobile:mt-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-top',
+    value: '8px',
+  },
+];
+
+test('047 US3: the Settings tab row forms emit CSS', async () => {
+  await assertFormsEmit(SETTINGS_ROW_FORMS);
+});
+
+// 047 US1 — the Analytics avatar strip scrolls sideways only. `overflow-x:
+// auto` turns the other axis to auto too, and the 46px refresh overlay on a
+// 36px avatar then overflows the strip, which wobbles vertically on touch.
+// The y reset has to come after the x rule it corrects.
+const ANALYTICS_STRIP_FORMS = [
+  {
+    className: 'mobile:overflow-y-hidden',
+    atRule: '(max-width: 1025px)',
+    prop: 'overflow-y',
+    value: 'hidden',
+  },
+];
+
+test('047 US1: the Analytics strip scrolls sideways only', async () => {
+  await assertFormsEmit(ANALYTICS_STRIP_FORMS);
+
+  const css = await emit([
+    'mobile:overflow-x-auto',
+    'mobile:overflow-y-hidden',
+  ]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  assert.ok(
+    order.indexOf('mobile:overflow-x-auto') <
+      order.indexOf('mobile:overflow-y-hidden'),
+    `the y reset must follow the x rule, got ${JSON.stringify(order)}`
+  );
+});
+
+// 047 US2 — Samy's channel and chat strips. `mobile:min-h-0` and
+// `mobile:order-3` are the chat-fit rule: the chat comes after both strips
+// and takes exactly what they leave, with no floor (upstream's 500px floor
+// is what pushed the message box off a phone). If either emitted nothing,
+// the box would be cut off again with nothing failing.
+const SAMY_STRIP_FORMS = [
+  {
+    className: 'mobile:min-h-0',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '0px',
+  },
+  {
+    className: 'mobile:order-3',
+    atRule: '(max-width: 1025px)',
+    prop: 'order',
+    value: '3',
+  },
+  {
+    // The avatars' spacing in the channel strip.
+    className: 'mobile:gap-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '12px',
+  },
+  {
+    // The chips' spacing in the chat strip.
+    className: 'mobile:gap-[4px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '4px',
+  },
+  {
+    // A chip's ceiling, past which its title ends in an ellipsis.
+    className: 'mobile:max-w-[180px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'max-width',
+    value: '180px',
+  },
+  {
+    // The rail's collapse button, now drawn in agent.tsx itself.
+    className: 'coarse:w-[44px]',
+    atRule: '(pointer: coarse)',
+    prop: 'width',
+    value: '44px',
+  },
+];
+
+test('047 US2: the Samy strip and chat-fit forms emit CSS', async () => {
+  await assertFormsEmit(SAMY_STRIP_FORMS);
+});
+
+// 047 US6 — Signatures as cards up to 1025px. Sharek's card skin (14px
+// padding, 8px corners, 10px between lines, 12px between cards), the muted
+// 12px "Auto Add?" line, and the 12px side padding of a button that fills
+// its line.
+const SIGNATURE_CARD_FORMS = [
+  {
+    className: 'mobile:gap-y-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'row-gap',
+    value: '12px',
+  },
+  {
+    className: 'mobile:gap-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '10px',
+  },
+  {
+    className: 'mobile:p-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding',
+    value: '14px',
+  },
+  {
+    className: 'mobile:rounded-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-radius',
+    value: '8px',
+  },
+  {
+    className: 'mobile:text-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'font-size',
+    value: '12px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[12px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '12px',
+  },
+];
+
+test('047 US6: the signature card forms emit CSS', async () => {
+  await assertFormsEmit(SIGNATURE_CARD_FORMS);
+});

@@ -93,7 +93,7 @@ export const Autopost: FC = () => {
                       unbreakable URL sets its own min-content as the floor and
                       pushes Delete and Active past the pane at 390. */}
                   <div className="flex flex-col justify-center min-w-0">
-                    <div className="truncate" title={p.url}>
+                    <div className="truncate" dir="ltr" title={p.url}>
                       {p.url}
                     </div>
                   </div>

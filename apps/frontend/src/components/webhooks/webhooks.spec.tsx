@@ -19,17 +19,22 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ closeAll: jest.fn() }),
 }));
 // The channel list and its picker only appear for "Specific integrations"; the
-// test keeps "All".
+// test keeps "All", so Send Test leaves `swrData` undefined. The list tests set
+// it to the hooks the page draws.
+let swrData: unknown;
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({ data: undefined, isLoading: false }),
+  default: () => ({ data: swrData, isLoading: false, mutate: jest.fn() }),
 }));
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/pick.platform.component',
   () => ({ PickPlatforms: () => null })
 );
 
-import { AddOrEditWebhook } from '@gitroom/frontend/components/webhooks/webhooks';
+import {
+  AddOrEditWebhook,
+  Webhooks,
+} from '@gitroom/frontend/components/webhooks/webhooks';
 
 /**
  * Send Test posts two sample posts to the address the customer typed, so the
@@ -70,6 +75,7 @@ const click = async (element: HTMLElement) => {
 };
 
 beforeEach(() => {
+  swrData = undefined;
   request.mockReset();
   request.mockResolvedValue({ ok: true, json: async () => ({}) });
 });
@@ -118,5 +124,46 @@ describe('Send Test', () => {
       return `${picture.protocol}//${picture.hostname}`;
     });
     expect(origins).toEqual(posts.map(() => 'https://example.com'));
+  });
+});
+
+describe('a long webhook URL', () => {
+  // Two hooks to one service differ only at the end of the address, so the
+  // URL wraps rather than truncates. Unbroken, it ran out of its card at 390
+  // and widened its column at 1440.
+  const url = `https://hooks.example.org/${'a'.repeat(160 - 26)}`;
+
+  const renderList = async () => {
+    swrData = [{ id: 'hook-1', name: 'Orders', url, integrations: [] }];
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+
+    await act(async () => {
+      root.render(<Webhooks />);
+    });
+
+    return host;
+  };
+
+  it('wraps inside its cell instead of setting the column width', async () => {
+    const host = await renderList();
+    expect(url).toHaveLength(160);
+
+    // The row is `contents` on desktop and a card on a phone; its second cell
+    // is the URL's, under the URL header.
+    const cell = host.querySelector('.contents')!.children[1];
+    expect(cell.textContent).toBe(url);
+    expect(cell.className.split(' ')).toEqual(
+      expect.arrayContaining(['min-w-0', '[overflow-wrap:anywhere]'])
+    );
+  });
+
+  it('reads left to right in an inline isolate, keeping the page alignment', async () => {
+    const host = await renderList();
+
+    const bdi = host.querySelector('span > bdi[dir="ltr"]');
+    expect(bdi?.textContent).toBe(url);
   });
 });

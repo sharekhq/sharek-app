@@ -198,3 +198,35 @@ describe('the tutorial video stops deriving its width from its height', () => {
     expect(container.querySelector('iframe')!.className.split(/\s+/)).toContain('phone:w-full');
   });
 });
+
+// The current dot and the others were both `--surface-2` (bg-boxFocused and
+// bg-newTableHeader resolve to it), so with the labels hidden on a phone
+// nothing said which step the reader was on.
+describe('the onboarding marks the step the reader is on', () => {
+  const dots = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('div')).filter((n) => {
+      const classes = n.className.split(/\s+/);
+      return classes.includes('w-[32px]') && classes.includes('h-[32px]');
+    });
+
+  const marks = (dot: Element) => ({
+    fill: dot.className.split(/\s+/).includes('bg-brand'),
+    number: dot.className.split(/\s+/).includes('text-white'),
+    current: dot.getAttribute('aria-current') === 'step',
+  });
+
+  const MARKED = { fill: true, number: true, current: true };
+  const UNMARKED = { fill: false, number: false, current: false };
+
+  it('fills the first dot pomegranate with a white number, and only that one', () => {
+    const all = dots(mount());
+    expect(all).toHaveLength(3);
+    expect(all.map(marks)).toEqual([MARKED, UNMARKED, UNMARKED]);
+  });
+
+  it('moves the mark to the second dot on Continue', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(dots(container).map(marks)).toEqual([UNMARKED, MARKED, UNMARKED]);
+  });
+});
