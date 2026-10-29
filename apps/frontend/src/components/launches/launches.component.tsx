@@ -27,6 +27,10 @@ import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.p
 import { CalendarDragLayer } from '@gitroom/frontend/components/launches/calendar.drag.layer';
 import { GeneratorComponent } from './generator/generator';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import {
+  MOBILE_QUERY,
+  useMediaQuery,
+} from '@gitroom/react/helpers/use.media.query';
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
@@ -434,6 +438,11 @@ export const LaunchesComponent = () => {
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [channelsOpen, setChannelsOpen] = useState(false);
+  // The channel sheet belongs to 1025px and below: growing past it (an iPad
+  // turned to landscape) closes it, so the rail comes back as it was. Set
+  // during render, as the app shell's drawer is.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  if (channelsOpen && !isMobile) setChannelsOpen(false);
   const railCollapsed = collapseMenu === '1' && !channelsOpen;
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 

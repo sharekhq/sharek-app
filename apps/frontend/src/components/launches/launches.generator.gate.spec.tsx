@@ -133,6 +133,19 @@ jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
 }));
 
 import { LaunchesComponent } from '@gitroom/frontend/components/launches/launches.component';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+
+// The window, as the media query reports it: 1025px or narrower unless a case
+// grows it, telling the listeners as a browser does (044's phone spec).
+const realMatchMedia = window.matchMedia;
+let smallWindow = true;
+const mediaListeners = new Set<() => void>();
+const resize = async (small: boolean) => {
+  smallWindow = small;
+  await act(async () => {
+    mediaListeners.forEach((listener) => listener());
+  });
+};
 
 // happy-dom has a localStorage; jest.setup.js lifts a fixed list of globals onto
 // globalThis and that is not one of them, so the channel groups' open/closed memory
@@ -162,6 +175,22 @@ const classes = (node: Element | null | undefined) =>
 
 beforeEach(() => {
   mockChannels = [mockChannel(1)];
+  smallWindow = true;
+  mediaListeners.clear();
+  window.matchMedia = ((query: string) => ({
+    get matches() {
+      return smallWindow && query === MOBILE_QUERY;
+    },
+    media: query,
+    addEventListener: (_: string, listener: () => void) =>
+      mediaListeners.add(listener),
+    removeEventListener: (_: string, listener: () => void) =>
+      mediaListeners.delete(listener),
+  })) as unknown as typeof window.matchMedia;
+});
+
+afterEach(() => {
+  window.matchMedia = realMatchMedia;
 });
 
 describe('the Generate Posts trigger', () => {
@@ -250,6 +279,23 @@ describe('the small-screen toolbar', () => {
 
     expect(panel(container).getAttribute('data-open')).toBe('true');
     expect(chip(container)!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  // An iPad turned to landscape (820 to 1180) with the sheet open: the rail
+  // comes back as it was, collapsible again.
+  it('closes the channel sheet when the window grows past 1025px', async () => {
+    const container = await channelsPanel();
+    await act(async () => {
+      chip(container)!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+    expect(panel(container).getAttribute('data-open')).toBe('true');
+
+    await resize(false);
+
+    expect(panel(container).getAttribute('data-open')).toBe('false');
+    expect(chip(container)!.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('offers Add Channel instead of Create Post with no channel yet', async () => {
