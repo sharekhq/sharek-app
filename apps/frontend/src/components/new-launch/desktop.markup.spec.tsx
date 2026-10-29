@@ -34,7 +34,10 @@ import dayjs from 'dayjs';
 // - the media library's search box carries `coarse:text-[16px]` (044 T071
 //   F-2): 14px with a mouse as before, 16px on a touch screen, an iPad held
 //   sideways included, where iOS zoomed the page when a field under 16px took
-//   the focus.
+//   the focus;
+// - the link, bold, underline, bullets and signature tools carry an aria-label
+//   with their tooltip's text: the app's tooltip no longer shows on a touch
+//   screen, and it was their only name. Nothing renders differently.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,

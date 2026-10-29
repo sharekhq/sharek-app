@@ -47,6 +47,9 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
           'cursor-pointer coarse:min-h-[44px] coarse:flex coarse:items-center',
           isIcon && 'coarse:min-w-[44px] coarse:justify-center'
         )}
+        aria-label={
+          isIcon ? t('logout_from_sharek', 'Logout from Sharek') : undefined
+        }
         onClick={logout}
       >
         {isIcon ? (

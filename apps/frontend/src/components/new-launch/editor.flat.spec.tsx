@@ -209,6 +209,18 @@ describe('the tool bar of the post being written', () => {
     expect(tools(host)[0].hasAttribute('data-pad')).toBe(false);
   });
 
+  // The app's tooltip does not show on a touch screen, so the emoji tool
+  // carries the name its tooltip gave it.
+  it('names the emoji tool', async () => {
+    const { host } = await render(post());
+
+    expect(
+      host
+        .querySelector('[data-tooltip-content="Insert Emoji"]')
+        ?.getAttribute('aria-label')
+    ).toBe('Insert Emoji');
+  });
+
   // The emoji picker opens from the bar, so it rides with it.
   it('opens the emoji picker just above the bar, the keyboard included', async () => {
     const { host } = await render(post());
