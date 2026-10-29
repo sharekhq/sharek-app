@@ -7,8 +7,8 @@ import i18next from 'i18next';
 // for the post's ⋮ button. A finger held still on it opens the same menu Week
 // and Day open from that button. A tap still opens the post, and holding then
 // moving still drags it: the menu waits past the touch backend's 400ms pickup
-// (dnd.provider.tsx), any move cancels it, and a drag that begins closes it.
-// The release that ends a hold is not a tap.
+// (dnd.provider.tsx), a move past a few pixels cancels it, and a drag that
+// begins closes it. The release that ends a hold is not a tap.
 //
 // The real calendar pipeline runs here (DNDProvider, react-dnd and the touch
 // backend), so a drag is the one a finger starts. The rest is the scenery of
@@ -189,6 +189,7 @@ beforeEach(() => {
     [post, fromUtc(post.publishDate)] as [object, dayjs.Dayjs],
   ]);
   mockFetched.length = 0;
+  mockCalendar.changeDate.mockClear();
   localStorage.setItem('isUS', 'GLOBAL');
   smallWindow = true;
   window.matchMedia = ((query: string) => ({
@@ -291,6 +292,65 @@ describe('a month chip held by a finger at 1025px and below', () => {
     expect(touch('touchend', avatar(host), 100).defaultPrevented).toBe(true);
     expect(menu()).not.toBeNull();
     expect(opened()).toBe(false);
+  });
+
+  // A finger held still is never quite still. Its first pixel of wobble used
+  // to start a drag, which closed the menu as it opened, and the lift dropped
+  // the post on its own day — saving it again at 23:59.
+  it('keeps the menu open while the held finger wanders a few pixels, and the release saves nothing', async () => {
+    const host = await render(<MonthView />);
+    // the finger stays over the post's own day
+    const under = jest
+      .spyOn(document, 'elementsFromPoint')
+      .mockReturnValue([avatar(host)]);
+    const top = jest
+      .spyOn(document, 'elementFromPoint')
+      .mockReturnValue(avatar(host));
+
+    touch('touchstart', avatar(host), 100);
+    wait(500);
+    touch('touchmove', avatar(host), 103);
+    touch('touchmove', avatar(host), 98);
+    await act(async () => {
+      touch('touchend', avatar(host), 98);
+    });
+
+    expect(mockFetched).not.toContain(`/posts/${post.id}/date`);
+    expect(mockCalendar.changeDate).not.toHaveBeenCalled();
+    expect(menu()).not.toBeNull();
+    expect(opened()).toBe(false);
+    under.mockRestore();
+    top.mockRestore();
+  });
+
+  it.each([100, 450])(
+    'opens the menu when the finger wanders a few pixels %dms into the hold, and moving on still drags',
+    async (ms) => {
+      const host = await render(<MonthView />);
+
+      touch('touchstart', avatar(host), 100);
+      wait(ms);
+      touch('touchmove', avatar(host), 97);
+      wait(500 - ms);
+      expect(dragging(host)).toBe(false);
+      expect(menu()).not.toBeNull();
+
+      touch('touchmove', avatar(host), 140);
+      expect(dragging(host)).toBe(true);
+      expect(menu()).toBeNull();
+    }
+  );
+
+  it('opens no menu when the finger moves on before the hold ends', async () => {
+    const host = await render(<MonthView />);
+
+    touch('touchstart', avatar(host), 100);
+    wait(100);
+    touch('touchmove', avatar(host), 140);
+    wait(1000);
+
+    expect(dragging(host)).toBe(false);
+    expect(menu()).toBeNull();
   });
 
   // A past post's chip is drawn grey through a filter, and a filter makes the

@@ -18,6 +18,7 @@ import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creation.method.badge';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
+import { pastTouchSlop } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
 import { isUSCitizen } from './helpers/isuscitizen.utils';
 
 // A finger held still this long on a month chip opens its menu: past the touch
@@ -51,8 +52,8 @@ export const CalendarPostCard = forwardRef<
     onClick?: () => void;
     // A month chip at 1025px and below has no room for the actions button: a
     // finger held still on it calls `onHold`, which opens `heldActions`
-    // (calendar.tsx). Moving, lifting or a second finger first cancels it, and
-    // the lift that ends a hold is not a tap.
+    // (calendar.tsx). Moving more than a few pixels, lifting or a second
+    // finger first cancels it, and the lift that ends a hold is not a tap.
     onHold?: () => void;
     heldActions?: ReactNode;
     // Held above the grid rather than sitting in it. One shadow token or the
@@ -106,6 +107,8 @@ export const CalendarPostCard = forwardRef<
   );
   // the hold opened the menu during this touch
   const holdOpened = useRef(false);
+  // where the finger landed
+  const holdFrom = useRef({ x: 0, y: 0 });
   const cancelHold = useCallback(() => clearTimeout(holdTimer.current), []);
   useEffect(() => cancelHold, [cancelHold]);
 
@@ -120,12 +123,26 @@ export const CalendarPostCard = forwardRef<
       ) {
         return;
       }
+      const { clientX, clientY } = e.targetTouches[0];
+      holdFrom.current = { x: clientX, y: clientY };
       holdTimer.current = setTimeout(() => {
         holdOpened.current = true;
         onHold();
       }, HOLD_MENU_MS);
     },
     [cancelHold, onHold]
+  );
+
+  // even a finger held still wanders a few pixels: only the move the touch
+  // backend takes for a drag (dnd.provider.tsx) cancels the hold
+  const moveHold = useCallback(
+    (e: ReactTouchEvent) => {
+      const { clientX, clientY } = e.targetTouches[0];
+      if (pastTouchSlop(holdFrom.current, { x: clientX, y: clientY })) {
+        cancelHold();
+      }
+    },
+    [cancelHold]
   );
 
   // the browser clicks after a touch that ends unless the touchend is
@@ -221,7 +238,7 @@ export const CalendarPostCard = forwardRef<
       <div
         onClick={onClick}
         onTouchStart={startHold}
-        onTouchMove={cancelHold}
+        onTouchMove={moveHold}
         onTouchEnd={endHold}
         onTouchCancel={cancelHold}
         className={clsx(

@@ -103,6 +103,7 @@ describe('DNDProvider', () => {
       enableMouseEvents: true,
       delayTouchStart: 400,
       ignoreContextMenu: true,
+      touchSlop: 5,
     });
   });
 
@@ -283,6 +284,30 @@ describe('a finger on a draggable row or card', () => {
     touch('touchmove', source, 140);
     expect(beginDrag).toHaveBeenCalledTimes(1);
     expect(beginDrag).toHaveBeenCalledWith(['channel'], expect.anything());
+  });
+
+  // A finger held still is never quite still: past the hold, the library took
+  // its first pixel of wobble for a drag.
+  it('leaves a held row where it is while the finger wanders a few pixels, and picks it up once it moves on', async () => {
+    const { beginDrag, source } = touchBackend(await pipeline());
+    touch('touchstart', source, 100);
+    jest.advanceTimersByTime(400);
+    touch('touchmove', source, 103);
+    touch('touchmove', source, 96);
+    expect(beginDrag).not.toHaveBeenCalled();
+    touch('touchmove', source, 140);
+    expect(beginDrag).toHaveBeenCalledTimes(1);
+  });
+
+  // before the hold ends, the library dropped it on any move at all
+  it('keeps the hold through a few pixels of wobble before it ends, and picks the row up when the finger then moves', async () => {
+    const { beginDrag, source } = touchBackend(await pipeline());
+    touch('touchstart', source, 100);
+    jest.advanceTimersByTime(100);
+    touch('touchmove', source, 103);
+    jest.advanceTimersByTime(300);
+    touch('touchmove', source, 140);
+    expect(beginDrag).toHaveBeenCalledTimes(1);
   });
 
   // Chrome on Android fires contextmenu at its long press, about when the
