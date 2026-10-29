@@ -1012,6 +1012,211 @@ test("047 US2 (T078): up to 768px a Samy reply's controls sit in the flow, outra
   assert.ok(classCount(ours) > classCount(CONTROLS));
 });
 
+// ---------------------------------------------------------------------------
+// 046 — the calendar on small screens. At 1025px and below the calendar takes
+// upstream's layout: the 72px/100px week, the compact month, the 44px filter
+// rows, the toolbar's avatar chip and the channel sheet. Every form below
+// changes a layout that would otherwise simply not change.
+// ---------------------------------------------------------------------------
+const CALENDAR_SMALL_FORMS = [
+  {
+    // The week: a 72px hour column and seven days at least 100px wide.
+    className:
+      'mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))]',
+    atRule: '(max-width: 1025px)',
+    prop: 'grid-template-columns',
+    value: '72px repeat(7, minmax(100px, 1fr))',
+  },
+  {
+    // The now line's cover, as wide as the hour column.
+    className: 'mobile:w-[72px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'width',
+    value: '72px',
+  },
+  {
+    // The toolbar's avatars overlap from the start edge, the right in Arabic.
+    className: '-ms-[10px]',
+    atRule: null,
+    prop: 'margin-inline-start',
+    value: '-10px',
+  },
+  {
+    // The channel sheet: at most 80% of the screen, 16px rounded top corners,
+    // 80px under its last row.
+    className: 'mobile:max-h-[80vh]',
+    atRule: '(max-width: 1025px)',
+    prop: 'max-height',
+    value: '80vh',
+  },
+  {
+    className: 'mobile:rounded-t-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-top-left-radius',
+    value: '16px',
+  },
+  {
+    className: 'mobile:pb-[80px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-bottom',
+    value: '80px',
+  },
+  {
+    className: 'mobile:z-[190]',
+    atRule: '(max-width: 1025px)',
+    prop: 'z-index',
+    value: '190',
+  },
+  {
+    // The calendar column's floor.
+    className: 'mobile:min-h-[600px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '600px',
+  },
+  {
+    // The compact month: 36px headers, 2px gaps, 13px short names, 20px day
+    // numbers and a 44px cell floor.
+    className: 'mobile:grid-rows-[36px_auto]',
+    atRule: '(max-width: 1025px)',
+    prop: 'grid-template-rows',
+    value: '36px auto',
+  },
+  {
+    className: 'mobile:h-[36px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'height',
+    value: '36px',
+  },
+  {
+    className: 'mobile:gap-[2px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'gap',
+    value: '2px',
+  },
+  {
+    className: 'mobile:text-[13px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'font-size',
+    value: '13px',
+  },
+  {
+    className: 'mobile:h-[20px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'height',
+    value: '20px',
+  },
+  {
+    className: 'mobile:min-w-[20px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-width',
+    value: '20px',
+  },
+  {
+    // A month chip: the avatar alone, with 4px around it.
+    className: 'mobile:p-[4px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding',
+    value: '4px',
+  },
+  {
+    className: 'mobile:rounded-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-radius',
+    value: '10px',
+  },
+  {
+    // The filter bar's one control height, and the arrows' width.
+    className: 'mobile:h-[44px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'height',
+    value: '44px',
+  },
+  {
+    className: 'mobile:min-h-[44px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-height',
+    value: '44px',
+  },
+  {
+    className: 'mobile:w-[44px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'width',
+    value: '44px',
+  },
+  {
+    // A segment: the full-height tap target around its pill.
+    className: 'mobile:py-[4px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-top',
+    value: '4px',
+  },
+  {
+    className: 'mobile:min-w-fit',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-width',
+    value: 'fit-content',
+  },
+  {
+    // The hour labels: 4px either side, on one line.
+    className: 'mobile:px-[4px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '4px',
+  },
+  {
+    className: 'mobile:whitespace-nowrap',
+    atRule: '(max-width: 1025px)',
+    prop: 'white-space',
+    value: 'nowrap',
+  },
+];
+
+test('046: the calendar forms emit CSS', async () => {
+  await assertFormsEmit(CALENDAR_SMALL_FORMS);
+
+  // The month drops its "Date passed" hint, a ::before.
+  const css = await emit(['mobile:before:hidden']);
+  assert.ok(
+    emitted(css, 'mobile:before:hidden', { pseudo: '::before' }).some(
+      (d) =>
+        d.atRule === '(max-width: 1025px)' &&
+        d.prop === 'display' &&
+        d.value === 'none'
+    ),
+    `mobile:before:hidden emitted no display: none on ::before — got ${css}`
+  );
+});
+
+// Each 1025px rule has to come after the rule it replaces at the same
+// specificity: the 44px rows after the 54px touch rows (coarse: is emitted
+// before the screens), the hour labels' 4px after their 16px end padding,
+// and a segment's box after the `contents` and `hidden` it has above 1025px.
+test('046: the 1025px rules are emitted after the rules they replace', async () => {
+  const pairs = [
+    ['coarse:h-[54px]', 'mobile:h-[44px]'],
+    ['coarse:min-h-[54px]', 'mobile:min-h-[44px]'],
+    ['pe-4', 'mobile:px-[4px]'],
+    ['contents', 'mobile:flex'],
+    ['hidden', 'mobile:flex'],
+  ];
+  const css = await emit(pairs.flat());
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+  for (const [base, override] of pairs) {
+    assert.ok(
+      order.includes(base) && order.includes(override),
+      `${base} or ${override} emitted nothing`
+    );
+    assert.ok(
+      order.indexOf(base) < order.indexOf(override),
+      `${override} is emitted before ${base}, so ${base} wins at 1025px and below`
+    );
+  }
+});
+
 // 044 T071 F-3 — the modal action bar (ui/modal.action.bar.tsx) bleeds to the
 // card edges by the card's padding. At 1025px and below the card pads 16px with
 // 16px corners (new-modal.tsx), so the bar's margins, padding, corners and

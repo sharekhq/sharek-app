@@ -317,10 +317,11 @@ describe('the week view now line', () => {
     // wide as the row, so a sideways scroll does not carry it away
     expect(cover.className).toContain('start-0');
     expect(cover.parentElement!.style.gridColumn).toBe('1 / -1');
-    // it is as wide as the hour column, and a 12-hour time wraps inside it as
-    // the labels do rather than overhang the first day
-    expect(cover.className).toContain('mobile:w-[44px]');
-    expect(badge(host)!.className).toContain('mobile:whitespace-normal');
+    // it is as wide as the hour column, 72px below 1025px, where a 12-hour
+    // time fits on one line as the labels do
+    expect(cover.className).toContain('mobile:w-[72px]');
+    expect(badge(host)!.className).toContain('whitespace-nowrap');
+    expect(badge(host)!.className).not.toContain('mobile:whitespace-normal');
 
     const label = zOf(hourLabels(host)[13].className);
     const header = zOf(withClass(host, 'cal-weekday', 'z-[20]')[0].className);

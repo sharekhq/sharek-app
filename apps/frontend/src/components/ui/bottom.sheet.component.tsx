@@ -66,6 +66,42 @@ export const useDialogFocus = <T extends HTMLElement>(active: boolean) => {
   return { container, keepTabInside };
 };
 
+// What a sheet does to the page while `active`: the support chat bubble would
+// cover the sheet's button, so the body is marked for global.scss to hide it,
+// and whatever scrolls behind the sheet (the composer's full-screen overlay at
+// 1025px and below) is held still. Attach the ref to the sheet's root: the
+// scrollers are its ancestors. Shared by the bottom sheets and the calendar's
+// channel sheet (ui/split.panel.tsx).
+export const useSheetBackdrop = <T extends HTMLElement>(active: boolean) => {
+  const root = useRef<T>(null);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    document.body.classList.add('bottomSheetOpen');
+    const held: Array<[HTMLElement, string]> = [];
+    for (
+      let node = root.current?.parentElement;
+      node;
+      node = node.parentElement
+    ) {
+      if (['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) {
+        held.push([node, node.style.overflowY]);
+        node.style.overflowY = 'hidden';
+      }
+    }
+    return () => {
+      document.body.classList.remove('bottomSheetOpen');
+      held.forEach(([node, overflowY]) => {
+        node.style.overflowY = overflowY;
+      });
+    };
+  }, [active]);
+
+  return root;
+};
+
 export const BottomSheetHeader: FC<{
   title: ReactNode;
   titleId?: string;
@@ -124,32 +160,7 @@ export const BottomSheet: FC<{
   const titleId = useId();
   const { container: dialog, keepTabInside } =
     useDialogFocus<HTMLDivElement>(true);
-  const root = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // the support chat bubble would cover the sheet's button
-    document.body.classList.add('bottomSheetOpen');
-    // What scrolls behind the sheet is whatever scroller it sits in (the
-    // composer's full-screen overlay at 1025px and below): each one is held
-    // still while the sheet is open.
-    const held: Array<[HTMLElement, string]> = [];
-    for (
-      let node = root.current?.parentElement;
-      node;
-      node = node.parentElement
-    ) {
-      if (['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) {
-        held.push([node, node.style.overflowY]);
-        node.style.overflowY = 'hidden';
-      }
-    }
-    return () => {
-      document.body.classList.remove('bottomSheetOpen');
-      held.forEach(([node, overflowY]) => {
-        node.style.overflowY = overflowY;
-      });
-    };
-  }, []);
+  const root = useSheetBackdrop<HTMLDivElement>(true);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     // The composer behind is a modal whose Escape (useHotkeys) asks to close

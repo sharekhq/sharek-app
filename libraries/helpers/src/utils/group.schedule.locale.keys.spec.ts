@@ -40,10 +40,10 @@ const SENTENCES = {
   only_channel_named: 'only_channel',
 } as const;
 
-// Upstream's glue, its concatenated "Delete Selected" and the phone calendar's
-// `list`: read by nothing Sharek keeps. The phone composer's own texts came in
-// with spec 044 (D-13). `done` is the trunk's own key, so it stays.
-const ABSENT = ['delete_only_from', 'only_channel', 'list', 'delete_selected'];
+// Upstream's glue and its concatenated "Delete Selected": read by nothing
+// Sharek keeps. The phone composer's own texts came in with spec 044 (D-13).
+// `done` is the trunk's own key, so it stays.
+const ABSENT = ['delete_only_from', 'only_channel', 'delete_selected'];
 
 describe('linked post locale keys', () => {
   const locales = Object.fromEntries(

@@ -38,11 +38,24 @@ export const CalendarPostCard = forwardRef<
     // Held above the grid rather than sitting in it. One shadow token or the
     // other — never both, since they are the same property.
     lifted?: boolean;
+    // A month chip: at 1025px and below only the channel avatar shows, as
+    // upstream draws it (no status chip, tags, text, menu or "!" badge); the
+    // failed ring and the past grey stay.
+    compact?: boolean;
     style?: CSSProperties;
   }
 >((props, ref) => {
-  const { post, state, isBeforeNow, showTime, actions, onClick, lifted, style } =
-    props;
+  const {
+    post,
+    state,
+    isBeforeNow,
+    showTime,
+    actions,
+    onClick,
+    lifted,
+    compact,
+    style,
+  } = props;
   const t = useT();
   const user = useUser();
   const showCreationMethodBadge =
@@ -63,7 +76,10 @@ export const CalendarPostCard = forwardRef<
     >
       {state === 'ERROR' && (
         <div
-          className="absolute -top-[6px] -start-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer"
+          className={clsx(
+            'absolute -top-[6px] -start-[6px] z-20 w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold cursor-pointer',
+            compact && 'mobile:hidden'
+          )}
           data-tooltip-id="tooltip"
           data-tooltip-class-name="!max-w-[400px] break-words"
           data-tooltip-content={
@@ -88,7 +104,8 @@ export const CalendarPostCard = forwardRef<
       <div
         className={clsx(
           post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2'
+          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2',
+          compact && 'mobile:hidden'
         )}
         style={{
           backgroundColor: post?.tags?.[0]?.tag?.color,
@@ -125,6 +142,8 @@ export const CalendarPostCard = forwardRef<
         className={clsx(
           'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
           'relative',
+          compact &&
+            'mobile:p-[4px] mobile:rounded-[10px] mobile:justify-center',
           isBeforeNow && '!grayscale'
         )}
       >
@@ -138,7 +157,12 @@ export const CalendarPostCard = forwardRef<
             src={`/icons/platforms/${post.integration?.providerIdentifier}.png`}
           />
         </div>
-        <div className="w-full flex-1 flex flex-col min-h-[40px]">
+        <div
+          className={clsx(
+            'w-full flex-1 flex flex-col min-h-[40px]',
+            compact && 'mobile:hidden'
+          )}
+        >
           <div className="text-start"></div>
             <div className="w-full relative">
               <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start">

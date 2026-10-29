@@ -8,14 +8,13 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
 import dayjs from 'dayjs';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { PHONE_QUERY } from '@gitroom/react/helpers/use.media.query';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { Post, Integration, Tags } from '@prisma/client';
 import { useSearchParams } from 'next/navigation';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -30,11 +29,6 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { expandPostsList, expandPosts } from '@gitroom/helpers/utils/posts.list.minify';
 extend(isoWeek);
 extend(weekOfYear);
-
-// useLayoutEffect warns when it runs during a server render, and on the server
-// there is no paint to be early for, so fall back to useEffect there.
-const useBeforePaintEffect =
-  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export type ListStateFilter = 'all' | 'scheduled' | 'draft' | 'published';
 
@@ -67,7 +61,7 @@ export const CalendarContext = createContext({
   reloadCalendarView: () => {
     /** empty **/
   },
-  display: 'week' as string | undefined,
+  display: 'week',
   setFilters: (filters: {
     startDate: string;
     endDate: string;
@@ -181,7 +175,13 @@ export const CalendarWeekProvider: FC<{
   const [internalData, setInternalData] = useState([] as any[]);
   const [trendings] = useState<string[]>([]);
   const searchParams = useSearchParams();
-  const [displaySaved, setDisplaySaved] = useCookie('calendar-display', 'week');
+  // A 7-column week doesn't fit a phone, so default small screens (tailwind `mobile`) to the day view
+  const [displaySaved, setDisplaySaved] = useCookie(
+    'calendar-display',
+    typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
+      ? 'day'
+      : 'week'
+  );
   const display = searchParams.get('display') || displaySaved;
 
   // List view state
@@ -216,37 +216,6 @@ export const CalendarWeekProvider: FC<{
     customer: initCustomer || null,
     display,
   });
-
-  // Phone can't fit the 7-column week/month grids: show the agenda (list) view
-  // there instead. Derived per-render (never stored), so the user's saved grid
-  // preference is untouched and returns automatically on desktop.
-  //
-  // `undefined` is a third state: the width has not been answered yet. It is
-  // here because this site picks the SWR key as well as the component, so a
-  // first render that guessed "not a phone" both painted the grid and spent the
-  // request a phone never uses. While the answer is undefined neither
-  // arrangement renders and neither key is fetched.
-  //
-  // Read before paint rather than through useMediaQuery, which reads in a
-  // passive effect: passive effects run *after* the browser paints, so the
-  // guess would still be the frame a person sees. This is the one call site
-  // that needs the answer earlier than that — the other five read it after a
-  // paint that does not depend on it, and the hook is right for them.
-  // PHONE_QUERY stays the single source of the width.
-  const [isPhone, setIsPhone] = useState<boolean | undefined>(undefined);
-  useBeforePaintEffect(() => {
-    const mql = window.matchMedia(PHONE_QUERY);
-    const onChange = () => setIsPhone(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
-  const effectiveDisplay =
-    isPhone === undefined
-      ? undefined
-      : isPhone && (filters.display === 'week' || filters.display === 'month')
-      ? 'list'
-      : filters.display;
 
   useEffect(() => {
     setSelectedChannels(null);
@@ -296,7 +265,7 @@ export const CalendarWeekProvider: FC<{
     isLoading: calendarIsLoading,
     mutate: mutateCalendar,
   } = useSWR(
-    effectiveDisplay && effectiveDisplay !== 'list' ? `/posts-${params}` : null,
+    filters.display !== 'list' ? `/posts-${params}` : null,
     loadData,
     {
       refreshInterval: 3600000,
@@ -312,7 +281,7 @@ export const CalendarWeekProvider: FC<{
     isLoading: listIsLoading,
     mutate: mutateList,
   } = useSWR(
-    effectiveDisplay === 'list' ? `/posts-list-${listParams}` : null,
+    filters.display === 'list' ? `/posts-list-${listParams}` : null,
     loadListData,
     {
       refreshInterval: 3600000,
@@ -420,9 +389,7 @@ export const CalendarWeekProvider: FC<{
   }, [mutateCalendar, mutateList]);
 
   // Determine loading state based on current view
-  const loading =
-    !effectiveDisplay ||
-    (effectiveDisplay === 'list' ? listIsLoading : calendarIsLoading);
+  const loading = filters.display === 'list' ? listIsLoading : calendarIsLoading;
 
   // one clock for every calendar cell, instead of a timer per cell
   const currentHour = useNow('hour');
@@ -443,8 +410,6 @@ export const CalendarWeekProvider: FC<{
         trendings,
         reloadCalendarView,
         ...filters,
-        // Phone shows the agenda view even when the saved preference is a grid.
-        display: effectiveDisplay,
         posts: calendarIsLoading ? [] : filterByChannels(internalData),
         postDates,
         loading,

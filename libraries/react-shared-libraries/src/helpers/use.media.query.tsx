@@ -3,20 +3,12 @@
 import { useEffect, useState } from 'react';
 
 /**
- * The phone width query — the JavaScript mirror of Tailwind's `phone` screen
- * (`max-width: 768px`). Every render-time phone swap resolves from here; the
- * value is stated once in `apps/frontend/DESIGN.md` and appears once per layer,
- * because `tailwind.config.cjs` is CommonJS consumed by PostCSS and cannot
- * import from `libraries/`. Change one, change the other.
- */
-export const PHONE_QUERY = '(max-width: 768px)';
-
-/**
  * The small-screen width query — the JavaScript mirror of Tailwind's `mobile`
  * screen (`max-width: 1025px`): phones and iPads held upright, where the app
  * shell, the composer and the calendar take their small-screen layout. Stated
- * once in `apps/frontend/DESIGN.md` and once per layer, as `PHONE_QUERY` is.
- * Change one, change the other.
+ * once in `apps/frontend/DESIGN.md` and appears once per layer, because
+ * `tailwind.config.cjs` is CommonJS consumed by PostCSS and cannot import from
+ * `libraries/`. Change one, change the other.
  */
 export const MOBILE_QUERY = '(max-width: 1025px)';
 

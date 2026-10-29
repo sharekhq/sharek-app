@@ -1,13 +1,14 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// A channel's menu is `fixed` and placed at its trigger. On a phone it opens
-// inside the Channels drawer, whose `transform` (ui/split.panel.tsx) makes the
-// drawer, not the viewport, what `fixed` is measured from. In Arabic the drawer
-// starts 90px in, so the menu paints 90px right of where it was placed, and
-// the right-edge clamp, which worked in viewport numbers, pushed it 80px off a
-// 390px screen (walk W53, 2026-10-13). happy-dom has no layout, so the menu's
-// box is stubbed from its own `left` plus that offset.
+// A channel's menu is `fixed` and placed at its trigger. Inside a parent with
+// a `transform`, that parent, not the viewport, is what `fixed` is measured
+// from. The channel list's side drawer was one (ui/split.panel.tsx, until spec
+// 046 made it a sheet, which has none): in Arabic it started 90px in, so the
+// menu painted 90px right of where it was placed, and the right-edge clamp,
+// which worked in viewport numbers, pushed it 80px off a 390px screen (walk
+// W53, 2026-10-13). happy-dom has no layout, so the menu's box is stubbed from
+// its own `left` plus that offset.
 
 // Everything below is scenery: the menu has to mount. Only the calendar's one
 // channel is read, and none of it is asserted on.
@@ -163,7 +164,7 @@ afterEach(() => {
 });
 
 describe('the channel menu', () => {
-  it('stays on screen inside the phone drawer in Arabic', async () => {
+  it('stays on screen inside a transformed parent in Arabic', async () => {
     containerLeft = 90;
     await open();
 

@@ -16,8 +16,9 @@ export const SelectCustomer: FC<{
   onChange: (value: string) => void;
   integrations: Integrations[];
   customer?: string;
+  list?: boolean;
 }> = (props) => {
-  const { onChange, integrations, customer: currentCustomer } = props;
+  const { onChange, integrations, customer: currentCustomer, list } = props;
   const { setCurrent } = useLaunchStore(
     useShallow((state) => ({
       setCurrent: state.setCurrent,
@@ -25,7 +26,13 @@ export const SelectCustomer: FC<{
   );
   const toaster = useToaster();
   const t = useT();
-  const [customer, setCustomer] = useState(currentCustomer || '');
+  // The calendar hands its customer in, and both of its selectors (the inline
+  // one and the Select Channels sheet's) show that one value, so a pick in
+  // either shows in the other; the composer hands none, and the selector keeps
+  // the one picked in it.
+  const [pickedCustomer, setCustomer] = useState('');
+  const customer =
+    currentCustomer === undefined ? pickedCustomer : currentCustomer || '';
   const [pos, setPos] = useState<any>({});
   const [open, setOpen] = useState(false);
   const ref = useClickOutside(() => {
@@ -53,8 +60,69 @@ export const SelectCustomer: FC<{
     return integrations.find((i) => i?.customer?.id === customer)?.customer;
   }, [integrations, customer]);
 
+  const selectCustomer = useCallback(
+    (id: string) => () => {
+      toaster.show(
+        t('customer_socials_selected', 'Customer socials selected'),
+        'success'
+      );
+      setCustomer(id);
+      onChange(id);
+      setOpen(false);
+      setCurrent('global');
+    },
+    [onChange, toaster, t, setCurrent]
+  );
+
   if (totalCustomers <= 1) {
     return null;
+  }
+
+  const customers = uniqBy(integrations, (u) => u?.customer?.name).filter(
+    (f) => f.customer?.name
+  );
+
+  if (list) {
+    return (
+      <div className="flex flex-col gap-[8px] pb-[16px]">
+        <div className="text-[14px] font-[600] text-textItemBlur">
+          {t('customers', 'Customers')}
+        </div>
+        <div
+          role="radiogroup"
+          aria-label={t('customers', 'Customers')}
+          className="flex flex-col gap-[8px]"
+        >
+          {customers.map((p) => {
+            const selected = customer === p.customer?.id;
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={selectCustomer(p.customer?.id)}
+                key={p.customer?.id}
+                className="w-full min-h-[44px] flex items-center justify-between gap-[12px] py-[8px] text-start rounded-[8px] cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <span className="text-[14px] font-[600] truncate">
+                  {p.customer?.name}
+                </span>
+                <span
+                  className={clsx(
+                    'w-[24px] h-[24px] min-w-[24px] rounded-full border-[1.5px] flex justify-center items-center',
+                    selected ? 'border-brand' : 'border-line'
+                  )}
+                >
+                  {selected && (
+                    <span className="w-[12px] h-[12px] rounded-full bg-brand" />
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -91,32 +159,21 @@ export const SelectCustomer: FC<{
           <div className="text-[11px] font-[600] uppercase tracking-[0.08em] text-muted px-[12px] mb-[5px]">
             {t('customers', 'Customers')}
           </div>
-          {uniqBy(integrations, (u) => u?.customer?.name)
-            .filter((f) => f.customer?.name)
-            .map((p) => (
+          {customers.map((p) => (
+            <div
+              onClick={selectCustomer(p.customer?.id)}
+              key={p.customer?.id}
+              className="p-[12px] cursor-pointer hover:bg-surface2 text-[14px] font-[500] h-[32px] flex items-center gap-[8px]"
+            >
               <div
-                onClick={() => {
-                  toaster.show(
-                    t('customer_socials_selected', 'Customer socials selected'),
-                    'success'
-                  );
-                  setCustomer(p.customer?.id);
-                  onChange(p.customer?.id);
-                  setOpen(false);
-                  setCurrent('global')
-                }}
-                key={p.customer?.id}
-                className="p-[12px] cursor-pointer hover:bg-surface2 text-[14px] font-[500] h-[32px] flex items-center gap-[8px]"
-              >
-                <div
-                  className={clsx(
-                    'w-[8px] h-[8px] rounded-full flex-none',
-                    customerHue(p.customer?.name || '')
-                  )}
-                />
-                {p.customer?.name}
-              </div>
-            ))}
+                className={clsx(
+                  'w-[8px] h-[8px] rounded-full flex-none',
+                  customerHue(p.customer?.name || '')
+                )}
+              />
+              {p.customer?.name}
+            </div>
+          ))}
         </div>
       )}
     </div>
