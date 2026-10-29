@@ -540,9 +540,22 @@ export const EditorWrapper: FC<{
           <div className="flex gap-[5px] mobile:gap-[16px] flex-1 w-full min-w-0">
             <div className="flex-1 flex w-full min-w-0">
               {index > 0 && (
-                <div className="flex justify-center pl-[12px] text-newSep mobile:hidden">
-                  <ConnectionLineIcon />
+                <div
+                  className={clsx(
+                    'flex justify-center pl-[12px] text-newSep',
+                    // at 1025px and below the same line is a border: down from
+                    // the comment's top to the middle of its first line (24px
+                    // above it, 20px tall), then towards the text
+                    'mobile:absolute mobile:start-[8px] mobile:top-0 mobile:h-[35px] mobile:w-[14px] mobile:p-0 mobile:border-s-2 mobile:border-b-2 mobile:border-newSep mobile:rounded-es-[10px]'
+                  )}
+                >
+                  <ConnectionLineIcon className="mobile:hidden" />
                 </div>
+              )}
+              {index > 0 && index !== last && (
+                // and on to the next comment, from where the L turns, so a
+                // translucent line is not drawn twice
+                <div className="hidden mobile:block absolute start-[8px] top-[25px] bottom-0 border-s-2 border-newSep" />
               )}
               <Editor
                 flat={true}
@@ -969,8 +982,9 @@ export const Editor: FC<{
           num > 0 && '!rounded-bs-[0]',
           // no card at 1025px and below, the text lines up with the page
           flat && 'mobile:px-0 mobile:pb-0',
-          // the space above a comment belongs to it, so a tap there types in it
-          flat && (num ? 'mobile:pt-[24px]' : 'mobile:pt-0')
+          // the space above a comment, and before it where the thread line
+          // runs, belongs to it, so a tap there types in it
+          flat && (num ? 'mobile:pt-[24px] mobile:ps-[28px]' : 'mobile:pt-0')
         )}
         id={id}
       >

@@ -48,7 +48,7 @@ export const ThreadFinisher = () => {
         />
       </div>
       {!!slider && (
-        <div className="editor text-textColor">
+        <div className="editor text-textColor coarse:text-[16px]">
           <Editor
             comments={true}
             chars={{}}
