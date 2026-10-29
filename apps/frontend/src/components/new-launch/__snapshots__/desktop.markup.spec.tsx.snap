@@ -2334,7 +2334,7 @@ exports[`the tool buttons from 1026px up add comment or post 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up bold 1`] = `
-"<div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Bold Text" data-tooltip-id="tooltip">
+"<div aria-label="Bold Text" class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Bold Text" data-tooltip-id="tooltip">
   <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 8.00033H9.33333C10.8061 8.00033 12 6.80642 12 5.33366C12 3.8609 10.8061 2.66699 9.33333 2.66699H4V8.00033ZM4 8.00033H10C11.4728 8.00033 12.6667 9.19423 12.6667 10.667C12.6667 12.1398 11.4728 13.3337 10 13.3337H4V8.00033Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="currentColor" />
   </svg>
@@ -2343,7 +2343,7 @@ exports[`the tool buttons from 1026px up bold 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up bullets 1`] = `
-"<div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Bullets" data-tooltip-id="tooltip">
+"<div aria-label="Bullets" class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Bullets" data-tooltip-id="tooltip">
   <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 8.00065L6 8.00065M14 4.00065L6 4.00065M14 12.0007L6 12.0007M3.33333 8.00065C3.33333 8.36884 3.03486 8.66732 2.66667 8.66732C2.29848 8.66732 2 8.36884 2 8.00065C2 7.63246 2.29848 7.33398 2.66667 7.33398C3.03486 7.33398 3.33333 7.63246 3.33333 8.00065ZM3.33333 4.00065C3.33333 4.36884 3.03486 4.66732 2.66667 4.66732C2.29848 4.66732 2 4.36884 2 4.00065C2 3.63246 2.29848 3.33398 2.66667 3.33398C3.03486 3.33398 3.33333 3.63246 3.33333 4.00065ZM3.33333 12.0007C3.33333 12.3688 3.03486 12.6673 2.66667 12.6673C2.29848 12.6673 2 12.3688 2 12.0007C2 11.6325 2.29848 11.334 2.66667 11.334C3.03486 11.334 3.33333 11.6325 3.33333 12.0007Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="currentColor" />
   </svg>
@@ -2378,7 +2378,7 @@ exports[`the tool buttons from 1026px up heading 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up link 1`] = `
-"<div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Link" data-tooltip-id="tooltip">
+"<div aria-label="Link" class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Link" data-tooltip-id="tooltip">
   <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
     <g clip-path="url(#clip0_2452_193804)">
       <path d="M6.6668 8.66599C6.9531 9.04875 7.31837 9.36545 7.73783 9.59462C8.1573 9.82379 8.62114 9.96007 9.0979 9.99422C9.57466 10.0284 10.0532 9.95957 10.501 9.79251C10.9489 9.62546 11.3555 9.36404 11.6935 9.02599L13.6935 7.02599C14.3007 6.39732 14.6366 5.55531 14.629 4.68132C14.6215 3.80733 14.2709 2.97129 13.6529 2.35326C13.0348 1.73524 12.1988 1.38467 11.3248 1.37708C10.4508 1.36948 9.60881 1.70547 8.98013 2.31266L7.83347 3.45266M9.33347 7.33266C9.04716 6.94991 8.68189 6.6332 8.26243 6.40403C7.84297 6.17486 7.37913 6.03858 6.90237 6.00444C6.4256 5.97029 5.94708 6.03908 5.49924 6.20614C5.0514 6.3732 4.64472 6.63461 4.3068 6.97266L2.3068 8.97266C1.69961 9.60133 1.36363 10.4433 1.37122 11.3173C1.37881 12.1913 1.72938 13.0274 2.3474 13.6454C2.96543 14.2634 3.80147 14.614 4.67546 14.6216C5.54945 14.6292 6.39146 14.2932 7.02013 13.686L8.16013 12.546" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="currentColor" />
@@ -2394,7 +2394,7 @@ exports[`the tool buttons from 1026px up link 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up signature 1`] = `
-"<div class="bg-newColColor coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Add Signature" data-tooltip-id="tooltip">
+"<div aria-label="Add Signature" class="bg-newColColor coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Add Signature" data-tooltip-id="tooltip">
   <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
     <g clip-path="url(#clip0_2352_53073)">
       <path d="M1.61528 13.4634C4.98807 11.1708 6.12853 2.72516 2.42576 2.54001C-0.271332 2.40515 1.52719 6.99029 4.04454 11.4405C4.43518 12.1311 5.08312 12.0221 5.35096 11.8873C6.23825 11.4405 6.49355 9.29898 6.95238 8.8935C7.41122 8.48802 7.98909 8.45521 8.49293 9.16322C9.12361 10.0494 9.65463 9.91856 10.0456 9.70264C10.6103 9.39078 11.3197 8.22463 12.1949 9.16322C12.7765 9.78692 12.5068 10.4612 14.9173 10.1915" stroke-linecap="round" stroke-width="1.2" stroke="currentColor" />
@@ -2534,7 +2534,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up underline 1`] = `
-"<div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Underline" data-tooltip-id="tooltip">
+"<div aria-label="Underline" class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[30px] items-center justify-center rounded-[6px] select-none w-[30px]" data-tooltip-content="Underline" data-tooltip-id="tooltip">
   <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
     <path d="M11.9993 2.66699V7.33366C11.9993 9.5428 10.2085 11.3337 7.99935 11.3337C5.79021 11.3337 3.99935 9.5428 3.99935 7.33366V2.66699M2.66602 14.0003H13.3327" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" stroke="currentColor" />
   </svg>

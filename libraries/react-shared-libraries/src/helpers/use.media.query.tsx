@@ -13,6 +13,15 @@ import { useEffect, useState } from 'react';
 export const MOBILE_QUERY = '(max-width: 1025px)';
 
 /**
+ * Screens whose main pointer cannot hover: phones and tablets used by touch.
+ * Hover-only help, the app's tooltip, stays off there. It asks about hover,
+ * not pointer size like the `coarse:` variant, because hovering is what a
+ * tooltip needs; on phones and tablets both answer the same. No Tailwind
+ * variant mirrors it.
+ */
+export const NO_HOVER_QUERY = '(hover: none)';
+
+/**
  * SSR-safe media-query hook. Returns false on the server and on the first
  * client render (so it matches the desktop-first SSR markup), then syncs to the
  * real match after mount — avoiding hydration mismatches. Use for render-time

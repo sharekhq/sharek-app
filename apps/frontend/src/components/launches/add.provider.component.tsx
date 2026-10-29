@@ -74,6 +74,10 @@ export const AddProviderButton: FC<{
       </button>
       <button
         onClick={invite}
+        aria-label={t(
+          'invite_link',
+          'Send Invite Link to a customer to add channel'
+        )}
         data-tooltip-id="tooltip"
         data-tooltip-content={t(
           'invite_link',
