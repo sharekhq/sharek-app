@@ -111,9 +111,16 @@ export const PostActionsMenu = forwardRef<
 
     let x = rtl ? trigger.right - panel.width : trigger.left;
     x = Math.max(padding, Math.min(x, window.innerWidth - panel.width - padding));
+    // Where the list doesn't fit below the post it opens above it, never over
+    // it: a finger holding a month chip is still on the chip, and lit the item
+    // pulled up under it. Only with no room on either side does it overlap.
     let y = show.y;
     if (panel.bottom > window.innerHeight - padding) {
-      y = Math.max(padding, window.innerHeight - panel.height - padding);
+      const above = trigger.top - panel.height - 4;
+      y =
+        above >= padding
+          ? above
+          : Math.max(padding, window.innerHeight - panel.height - padding);
     }
 
     if (Math.abs(show.x - x) > 1 || Math.abs(show.y - y) > 1) {

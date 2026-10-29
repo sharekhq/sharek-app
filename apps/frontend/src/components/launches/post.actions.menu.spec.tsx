@@ -293,4 +293,84 @@ describe('post actions menu', () => {
 
     expect(labels()).toEqual(['Duplicate Post', 'Delete Post']);
   });
+
+  // Near the bottom of the screen the list used to be pulled up over the post
+  // that opened it, so a finger still holding a month chip ended up on a menu
+  // item and lit it. Where nothing fits below, it opens above.
+  describe('placed against the post it opened from', () => {
+    const PANEL_HEIGHT = 150;
+
+    // happy-dom lays nothing out: the trigger answers the box it is given, and
+    // the list a 150px box wherever its `top` puts it.
+    const layout = (box: { top: number; bottom: number }) =>
+      jest
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: HTMLElement) {
+          const top =
+            this.getAttribute('role') === 'menu'
+              ? parseFloat(this.style.top) || 0
+              : box.top;
+          const height =
+            this.getAttribute('role') === 'menu'
+              ? PANEL_HEIGHT
+              : box.bottom - box.top;
+          return {
+            top,
+            bottom: top + height,
+            height,
+            left: 20,
+            right: 220,
+            width: 200,
+            x: 20,
+            y: top,
+            toJSON: () => undefined,
+          };
+        });
+    const panelTop = () => parseFloat((panel() as HTMLElement).style.top);
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('opens below the post when the list fits there', async () => {
+      layout({ top: 100, bottom: 144 });
+      await mount();
+      await click(trigger());
+
+      expect(panelTop()).toBe(148);
+    });
+
+    it('opens above a post near the bottom of the screen, clear of it', async () => {
+      const bottom = window.innerHeight - 20;
+      layout({ top: bottom - 44, bottom });
+      await mount();
+      await click(trigger());
+
+      expect(panelTop() + PANEL_HEIGHT).toBe(bottom - 44 - 4);
+    });
+
+    it('opens a held menu above a month chip near the bottom of the screen', async () => {
+      const bottom = window.innerHeight - 20;
+      layout({ top: bottom - 44, bottom });
+      const menu = createRef<PostActionsMenuHandle>();
+      host = document.createElement('div');
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      mounted.push(root);
+      await act(async () => {
+        root.render(
+          <PostActionsMenu
+            ref={menu}
+            held
+            actions={actions()}
+            label="Post actions"
+          />
+        );
+      });
+
+      act(() => menu.current!.open());
+
+      expect(panelTop() + PANEL_HEIGHT).toBe(bottom - 44 - 4);
+    });
+  });
 });
