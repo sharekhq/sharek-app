@@ -3,12 +3,14 @@
 import { useCalendar, ListStateFilter } from '@gitroom/frontend/components/launches/calendar.context';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { SelectCustomer } from '@gitroom/frontend/components/launches/select.customer';
 import { SelectChannels } from '@gitroom/frontend/components/launches/select.channels';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import i18next from 'i18next';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import { BottomSheet } from '@gitroom/frontend/components/ui/bottom.sheet.component';
+import { FilterIcon } from '@gitroom/frontend/components/ui/icons';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -55,6 +57,7 @@ const selectedPill = 'text-brandText bg-brandSoft font-[600]';
 export const Filters = () => {
   const calendar = useCalendar();
   const t = useT();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Set dayjs locale based on current language
   const currentLanguage = i18next.resolvedLanguage || 'en';
@@ -450,12 +453,41 @@ export const Filters = () => {
           <div className="flex-1 mobile:hidden" />
         </div>
       )}
-      <SelectCustomer
-        customer={calendar.customer as string}
-        onChange={(customer: string) => setCustomer(customer)}
-        integrations={calendar.integrations}
-      />
-      <SelectChannels />
+      {/* phones get a single filter button that opens the filters sheet */}
+      <div className="contents mobile:hidden">
+        <SelectCustomer
+          customer={calendar.customer as string}
+          onChange={(customer: string) => setCustomer(customer)}
+          integrations={calendar.integrations}
+        />
+        <SelectChannels />
+      </div>
+      {calendar.integrations.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          aria-label={
+            calendar.selectedChannels
+              ? t('select_channels_filtered', 'Select Channels (filter on)')
+              : t('select_channels', 'Select Channels')
+          }
+          aria-expanded={filtersOpen}
+          className={clsx(
+            'hidden mobile:flex mobile:order-2 relative w-[44px] h-[44px] rounded-[8px] border justify-center items-center cursor-pointer focus-visible:ring-2 focus-visible:ring-brand',
+            calendar.selectedChannels
+              ? 'border-brand text-brandText'
+              : 'border-newTableBorder'
+          )}
+        >
+          <FilterIcon />
+          {calendar.selectedChannels && (
+            <span
+              aria-hidden="true"
+              className="absolute top-[6px] end-[6px] w-[6px] h-[6px] rounded-full bg-brand"
+            />
+          )}
+        </button>
+      )}
       <div
         className={clsx(
           'flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]',
@@ -549,6 +581,24 @@ export const Filters = () => {
           </svg>
         </div>
       </div>
+      {filtersOpen && (
+        <BottomSheet
+          title={t('select_channels', 'Select Channels')}
+          onClose={() => setFiltersOpen(false)}
+          button={{
+            label: t('done', 'Done'),
+            onClick: () => setFiltersOpen(false),
+          }}
+        >
+          <SelectCustomer
+            list={true}
+            customer={calendar.customer as string}
+            onChange={(customer: string) => setCustomer(customer)}
+            integrations={calendar.integrations}
+          />
+          <SelectChannels list={true} />
+        </BottomSheet>
+      )}
     </div>
   );
 };
