@@ -218,7 +218,7 @@ describe('the view the calendar opens on', () => {
   });
 });
 
-describe('the calendar render gate', () => {
+describe('the posts the calendar shows', () => {
   // The channel filter picks the channels the calendar shows, on the
   // grid and in the list alike.
   describe('the channel filter', () => {

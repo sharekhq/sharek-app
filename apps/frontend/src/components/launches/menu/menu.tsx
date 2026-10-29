@@ -114,9 +114,10 @@ export const Menu: FC<{
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       const padding = 10;
-      // Inside a transformed parent (the phone drawer, ui/split.panel.tsx),
-      // `fixed` is measured from that parent, so the menu paints offset from
-      // show.x; the right-edge clamp is in viewport numbers and takes it off.
+      // Inside a transformed parent (the channel list's side drawer was one
+      // until spec 046 made it a sheet), `fixed` is measured from that parent,
+      // so the menu paints offset from show.x; the right-edge clamp is in
+      // viewport numbers and takes it off.
       const offsetX = menuRect.left - show.x;
 
       // Check if menu overflows bottom of viewport

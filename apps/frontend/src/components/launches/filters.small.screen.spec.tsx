@@ -384,10 +384,12 @@ describe('the 44px rule at 1025px and below', () => {
 });
 
 describe('the filter button at 1025px and below', () => {
-  it('is not shown for a single channel', async () => {
-    const host = await mount({ integrations: [channel('a')] });
+  it('is shown for two channels or more, not for one', async () => {
+    const single = await mount({ integrations: [channel('a')] });
+    const two = await mount({ integrations: [channel('a'), channel('b')] });
 
-    expect(filterButton(host)).toBeUndefined();
+    expect(filterButton(single)).toBeUndefined();
+    expect(filterButton(two)).toBeDefined();
   });
 
   it('is a named button with its state and a focus ring', async () => {
