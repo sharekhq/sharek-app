@@ -341,7 +341,7 @@ describe('the picker at 1025px and below', () => {
     expect(add.disabled).toBe(false);
   });
 
-  it('has no Cancel there (the cross closes it), and Upload at the bottom, grey', async () => {
+  it('has no Cancel there (the cross closes it), and Upload at the bottom', async () => {
     const host = await picker();
     const [top, bottom] = Array.from(host.querySelectorAll('button')).filter(
       (button) => (button.textContent || '').trim() === 'Upload'
@@ -352,7 +352,6 @@ describe('the picker at 1025px and below', () => {
     expect(classes(bottom.parentElement)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:flex'])
     );
-    expect(classes(bottom)).toContain('mobile:bg-btnSimple');
   });
 });
 
@@ -476,4 +475,53 @@ describe('the search under a finger', () => {
       );
     }
   );
+});
+
+// 044 T071 F-4: at 1025px and below the tiles' scroll box reached 6px past its
+// slot on every side, the top too, where nothing absorbs it: the progress band
+// that sits between them from 1026px up is hidden there, so the box lay over
+// the last 6px of the toolbar and a scrolled tile covered the bottom of the
+// hint in the picker and of Upload on the Media page.
+describe('the tiles under the toolbar at 1025px and below', () => {
+  it.each([
+    ['the picker', picker],
+    ['the Media page', page],
+  ])(
+    'scroll beneath the toolbar in %s, reaching 6px past the sides and the bottom only',
+    async (_name, open) => {
+      const host = await open();
+      const grid = tile(host, 1)!.closest('.group')!.parentElement;
+
+      expect(classes(grid)).toContain('inset-0');
+      expect(
+        classes(grid).filter((name) =>
+          /^mobile:-?(inset|top|bottom)/.test(name)
+        )
+      ).toEqual(['mobile:-inset-x-[6px]', 'mobile:-bottom-[6px]']);
+    }
+  );
+});
+
+// 044 T071 F-5: Upload is the brand button at every width, as it is from
+// 1026px up; it read grey at 1025px and below.
+describe('Upload at 1025px and below', () => {
+  it.each([
+    ['the picker', picker],
+    ['the Media page', page],
+  ])('is the brand button in %s, as from 1026px up', async (_name, open) => {
+    const host = await open();
+    const uploads = Array.from(host.querySelectorAll('button')).filter(
+      (button) => (button.textContent || '').trim() === 'Upload'
+    );
+
+    expect(uploads.length).toBeGreaterThan(0);
+    for (const upload of uploads) {
+      expect(classes(upload)).toEqual(
+        expect.arrayContaining(['bg-btnPrimary', 'text-white'])
+      );
+      expect(
+        classes(upload).filter((name) => /^mobile:(bg|text)-/.test(name))
+      ).toEqual([]);
+    }
+  });
 });

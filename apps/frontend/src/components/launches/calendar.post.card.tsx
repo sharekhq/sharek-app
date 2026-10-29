@@ -69,6 +69,9 @@ export const CalendarPostCard = forwardRef<
       className={clsx(
         'w-full flex h-full flex-1 flex-col group',
         'relative rounded-[10px] border border-line',
+        // a finger holds the card to drag it (dnd.provider.tsx); held that
+        // long, iOS would select its text or open the picture's menu
+        'coarse:select-none coarse:[-webkit-touch-callout:none]',
         lifted ? 'shadow-card scale-[1.04]' : 'shadow-soft',
         state === 'ERROR' && 'ring-2 ring-error'
       )}

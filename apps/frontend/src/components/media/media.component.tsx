@@ -581,7 +581,7 @@ export const MediaBox: FC<{
       <button
         disabled={loading}
         onClick={() => uploaderRef?.current?.click()}
-        className="relative cursor-pointer bg-btnPrimary text-white mobile:bg-btnSimple mobile:text-ink changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
+        className="relative cursor-pointer bg-btnPrimary text-white changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
       >
         {loading ? (
           <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -684,8 +684,9 @@ export const MediaBox: FC<{
           <div
             className={clsx(
               // at 1025px and below the tiles carry a 6px pad, which this
-              // offset lines up with the edges
-              'absolute inset-0 mobile:-inset-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
+              // offset lines up with the sides and the bottom; not the top,
+              // where it would lie over the toolbar's last line
+              'absolute inset-0 mobile:-inset-x-[6px] mobile:-bottom-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
               !isLoading && !data?.results?.length
                 ? 'w-full flex justify-center items-center flex-col'
                 : // Capped at eight columns past the target width: auto-fill
