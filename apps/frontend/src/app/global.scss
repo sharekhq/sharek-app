@@ -822,6 +822,19 @@ html[dir='rtl'] .lbox {
     color: var(--ink);
   }
 
+  /* CopilotKit always shows a reply's controls at 768px and below, absolutely
+     under its text, in the room its `.copilotKitAssistantMessage +
+     .copilotKitUserMessage` margin leaves. Samy's replies sit in a dir="auto"
+     div, so that rule never matches, and the touch floor below makes the
+     buttons 44px: they painted over the next message. In the flow, they take
+     the room they need. `.agent` outranks CopilotKit's own rule, which loads
+     after this file. */
+  @media (max-width: 768px) {
+    .copilotKitMessage.copilotKitAssistantMessage .copilotKitMessageControls {
+      position: static;
+    }
+  }
+
   /* v3 round 3 (№9): the chat input adopts the compose editor's language —
      writing surface on top, tools + send on a --panel bar below, one border */
   .copilotKitInput {
