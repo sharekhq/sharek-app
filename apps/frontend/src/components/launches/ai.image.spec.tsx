@@ -1632,3 +1632,20 @@ describe('keyboard visibility', () => {
     expect(box.className).toContain('focus-within:ring-brand');
   });
 });
+
+// 044 T071 F-2: under 16px, iOS Safari zooms the page when a field takes the
+// focus and leaves it zoomed, so the composer read too wide on an iPhone.
+describe('the style search under a finger', () => {
+  it('types at 16px on a touch screen, 14px with a mouse', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await click(button('All styles'));
+    const search = document.querySelector(
+      'input[placeholder="Search styles"]'
+    )!;
+
+    expect(search.className.split(' ')).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+  });
+});

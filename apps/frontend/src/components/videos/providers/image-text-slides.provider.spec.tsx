@@ -257,3 +257,42 @@ describe("a slide's text field", () => {
     expect(await directionOf('')).toBeNull();
   });
 });
+
+// 044 T071: at 390px the six counts kept the shared Button's 24px sides and
+// its min-content width, 398px in a 342px column, so the sixth was cut off.
+// At 1025px and below they share the row as the voice sets do: flex, no
+// min-content floor, 8px sides. From 1026px up they are what they were.
+describe('the Slides row', () => {
+  it('shares the row equally at 1025px and below and keeps the desktop buttons', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    const Harness: FC = () => {
+      const methods = useForm();
+      return (
+        <FormProvider {...methods}>
+          <Slides />
+        </FormProvider>
+      );
+    };
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    const counts = Array.from(host.querySelectorAll('button')).filter(
+      (button) => /^[1-6]$/.test(button.textContent?.trim() || '')
+    );
+
+    expect(counts).toHaveLength(6);
+    for (const count of counts) {
+      expect(count.className.split(' ')).toEqual(
+        expect.arrayContaining([
+          '!flex-1',
+          'px-[24px]',
+          'mobile:min-w-0',
+          'mobile:px-[8px]',
+        ])
+      );
+    }
+  });
+});

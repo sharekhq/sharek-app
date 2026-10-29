@@ -763,7 +763,7 @@ const AiImageModal: FC<{
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('search_styles', 'Search styles')}
-                className="flex-1 bg-transparent border-0 outline-none text-[14px] text-ink"
+                className="flex-1 bg-transparent border-0 outline-none text-[14px] coarse:text-[16px] text-ink"
               />
             </div>
           </div>

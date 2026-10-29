@@ -127,6 +127,14 @@ textarea::placeholder {
   font-size: 14px;
 }
 
+/* Under a finger the tag field types at 16px: below that, iOS Safari zooms
+   the page when it takes the focus and leaves it zoomed. */
+@media (pointer: coarse) {
+  .react-tags input {
+    font-size: 16px;
+  }
+}
+
 .react-tags.is-active {
   @apply border-brand;
 }
@@ -647,6 +655,15 @@ html[dir='rtl'] .lbox {
     font-family: inherit;
     font-size: 14px;
     line-height: 20px;
+  }
+
+  // under a finger it keeps the 16px it had before: below that, iOS Safari
+  // zooms the page when the post takes the focus and leaves it zoomed
+  @media (pointer: coarse) {
+    .flat-editor .ProseMirror {
+      font-size: 16px;
+      line-height: 24px;
+    }
   }
 }
 

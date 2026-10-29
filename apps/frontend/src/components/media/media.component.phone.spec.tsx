@@ -456,3 +456,24 @@ describe('the pagination at 1025px and below', () => {
     }
   });
 });
+
+// 044 T071 F-2: under 16px, iOS Safari zooms the page when the search takes
+// the focus and leaves it zoomed, so the composer read too wide on return.
+describe('the search under a finger', () => {
+  it.each([
+    ['the picker', picker],
+    ['the Media page', page],
+  ])(
+    'types at 16px on a touch screen in %s, 14px with a mouse',
+    async (_name, open) => {
+      const host = await open();
+      const search = host.querySelector(
+        'input[placeholder="Search by file name"]'
+      );
+
+      expect(classes(search)).toEqual(
+        expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+      );
+    }
+  );
+});

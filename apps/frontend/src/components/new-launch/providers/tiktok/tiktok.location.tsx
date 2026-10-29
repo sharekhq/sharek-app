@@ -135,7 +135,7 @@ export const TikTokLocationSelector: FC<{
           <div className="flex gap-[6px]">
             <div className="flex-1 h-[42px] bg-newBgColorInner border-newTableBorder border rounded-[8px] flex items-center">
               <input
-                className="h-full w-full bg-transparent outline-none px-[16px] text-[14px] text-textColor placeholder-textColor"
+                className="h-full w-full bg-transparent outline-none px-[16px] text-[14px] coarse:text-[16px] text-textColor placeholder-textColor"
                 placeholder={t('tiktok_search_location', 'Search location')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

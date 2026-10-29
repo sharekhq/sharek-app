@@ -394,6 +394,20 @@ describe('the date sheet', () => {
     }
   });
 
+  // 044 T071 F-2: under 16px, iOS Safari zooms the page when a field takes
+  // the focus and leaves it zoomed.
+  it('types the hours and the minutes at 16px on a touch screen, 14px with a mouse', async () => {
+    const host = await sheet('24');
+    const fields = Array.from(host.querySelectorAll('input'));
+
+    expect(fields).toHaveLength(2);
+    for (const field of fields) {
+      expect(field.className.split(' ')).toEqual(
+        expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+      );
+    }
+  });
+
   it('keeps a typed time inside its range', async () => {
     const onChange = jest.fn();
     const host = await sheet('24', onChange);

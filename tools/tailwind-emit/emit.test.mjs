@@ -1011,3 +1011,318 @@ test("047 US2 (T078): up to 768px a Samy reply's controls sit in the flow, outra
   );
   assert.ok(classCount(ours) > classCount(CONTROLS));
 });
+
+// 044 T071 F-3 — the modal action bar (ui/modal.action.bar.tsx) bleeds to the
+// card edges by the card's padding. At 1025px and below the card pads 16px with
+// 16px corners (new-modal.tsx), so the bar's margins, padding, corners and
+// fade take a `mobile:` tier of 16px; still at 32px, it ran 8px past a 390px
+// screen and the AI image and video modals scrolled sideways.
+const ACTION_BAR_FORMS = [
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:-mx-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-left',
+    value: '-16px',
+  },
+  {
+    className: 'mobile:-mb-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'margin-bottom',
+    value: '-16px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '16px',
+  },
+  {
+    // Both bottom corners, so the side asserted does not matter.
+    className: 'mobile:rounded-b-[16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-bottom-left-radius',
+    value: '16px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:inset-x-[-16px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'left',
+    value: '-16px',
+  },
+];
+
+test('044 T071 F-3: the modal action bar takes the 16px card padding at 1025px and below', async () => {
+  await assertFormsEmit(ACTION_BAR_FORMS);
+});
+
+test('044 T071 F-3: each small-screen tier of the action bar is emitted after the desktop one it replaces', async () => {
+  // The desktop and small-screen classes sit on the same element at equal
+  // specificity, so the later rule wins inside the media query: the `mobile:`
+  // tier has to be emitted after the desktop class or the bar keeps its 32px.
+  const pairs = [
+    ['-mx-[32px]', 'mobile:-mx-[16px]'],
+    ['-mb-[32px]', 'mobile:-mb-[16px]'],
+    ['px-[32px]', 'mobile:px-[16px]'],
+    ['rounded-b-[24px]', 'mobile:rounded-b-[16px]'],
+    ['inset-x-[-32px]', 'mobile:inset-x-[-16px]'],
+  ];
+  const css = await emit(pairs.flat());
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const [desktop, small] of pairs) {
+    assert.ok(
+      order.indexOf(desktop) !== -1 &&
+        order.indexOf(desktop) < order.indexOf(small),
+      `${small} must follow ${desktop} to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});
+
+// 044 T071 F-2 — iOS Safari zooms the page when a field under 16px takes the
+// focus, and leaves it zoomed: on an iPhone the composer then read as too wide
+// and panned sideways. Under a coarse pointer the composer's fields type at
+// 16px; a mouse keeps the 13px and 14px they had.
+const compiledGlobal = () =>
+  postcss.parse(
+    sass.compile(fileURLToPath(GLOBAL_SCSS), {
+      loadPaths: [
+        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+      ],
+    }).css
+  );
+
+// Each rule for `selector` that sets a font size, in source order, with the
+// media query around it: at equal specificity the later one wins.
+const fontSizes = (root, selector) => {
+  const found = [];
+  root.walkRules((rule) => {
+    const decls = ruleDecls(rule);
+    if (
+      decls['font-size'] &&
+      rule.selector.split(',').map(collapse).includes(selector)
+    )
+      found.push({
+        atRule:
+          rule.parent.type === 'atrule' ? collapse(rule.parent.params) : null,
+        fontSize: decls['font-size'],
+        lineHeight: decls['line-height'],
+      });
+  });
+  return found;
+};
+
+test('044 T071 F-2: under a coarse pointer the post and its comments type at 16px at 1025px and below', () => {
+  // 044's graft sets the flat editor to 14px at 1025px and below; a mouse
+  // keeps it, a finger gets the 16px the editor had before 044.
+  assert.deepEqual(fontSizes(compiledGlobal(), '.flat-editor .ProseMirror'), [
+    { atRule: '(max-width: 1025px)', fontSize: '14px', lineHeight: '20px' },
+    {
+      atRule: '(max-width: 1025px) and (pointer: coarse)',
+      fontSize: '16px',
+      lineHeight: '24px',
+    },
+  ]);
+});
+
+test('044 T071 F-2: under a coarse pointer a tag field types at 16px', () => {
+  // The settings' tag fields (YouTube, Medium, dev.to, Hashnode, Instagram
+  // collaborators): `.react-tags input` outranks the combobox input's own
+  // 16px, so the coarse rule has to name the same selector, after it.
+  assert.deepEqual(
+    fontSizes(compiledGlobal(), '.react-tags input').map(
+      ({ atRule, fontSize }) => ({ atRule, fontSize })
+    ),
+    [
+      { atRule: null, fontSize: '14px' },
+      { atRule: '(pointer: coarse)', fontSize: '16px' },
+    ]
+  );
+});
+
+test('044 T071 F-2: coarse:text-[16px] is emitted after the 13px and 14px it replaces', async () => {
+  // The two sit on one element at equal specificity, so the later rule wins
+  // under a coarse pointer.
+  const pairs = [
+    ['text-[13px]', 'coarse:text-[16px]'],
+    ['text-[14px]', 'coarse:text-[16px]'],
+  ];
+  const css = await emit([...new Set(pairs.flat())]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  for (const [fine, coarse] of pairs) {
+    assert.ok(
+      order.indexOf(fine) !== -1 && order.indexOf(fine) < order.indexOf(coarse),
+      `${coarse} must follow ${fine} to win at equal specificity, got ${JSON.stringify(
+        order
+      )}`
+    );
+  }
+});
+
+// 044 T071 — Image Text Slides' six counts at 1025px and below share the row
+// as the voice sets do (videos/providers/image-text-slides.provider.tsx):
+// still at the shared Button's 24px sides and min-content width, they ran
+// 398px in a 342px column at 390px and the sixth was cut off.
+const SLIDES_ROW_FORMS = [
+  {
+    className: 'mobile:min-w-0',
+    atRule: '(max-width: 1025px)',
+    prop: 'min-width',
+    value: '0px',
+  },
+  {
+    // Symmetric, so the physical pair it emits is the same at either end.
+    className: 'mobile:px-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-left',
+    value: '8px',
+  },
+];
+
+test("044 T071: Image Text Slides' counts share the row at 1025px and below", async () => {
+  await assertFormsEmit(SLIDES_ROW_FORMS);
+});
+
+test("044 T071: the counts' 8px sides are emitted after the Button's 24px they replace", async () => {
+  const css = await emit(['px-[24px]', 'mobile:px-[8px]']);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  assert.ok(
+    order.indexOf('px-[24px]') !== -1 &&
+      order.indexOf('px-[24px]') < order.indexOf('mobile:px-[8px]'),
+    `mobile:px-[8px] must follow px-[24px] to win at equal specificity, got ${JSON.stringify(
+      order
+    )}`
+  );
+});
+
+// 044 F-1 — a comment on the phone composer hangs off the post on desktop's
+// thread line. At 1025px and below, ConnectionLineIcon's wrapper becomes a
+// bordered L (editor.tsx), a phone-only line runs on to the next comment, and
+// the comment's box steps in 28px. Every side is logical, so in Arabic the
+// line hangs down the right; a form dropped here would simply leave the
+// comment running on from the post, as before.
+const THREAD_LINE_FORMS = [
+  {
+    className: 'mobile:start-[8px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'inset-inline-start',
+    value: '8px',
+  },
+  {
+    // the comment's 24px top padding, half its 20px first line, and half the
+    // 2px line
+    className: 'mobile:h-[35px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'height',
+    value: '35px',
+  },
+  {
+    className: 'mobile:w-[14px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'width',
+    value: '14px',
+  },
+  {
+    className: 'mobile:border-s-2',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-inline-start-width',
+    value: '2px',
+  },
+  {
+    className: 'mobile:border-newSep',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-color',
+    value: 'var(--new-sep)',
+  },
+  {
+    className: 'mobile:rounded-es-[10px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'border-end-start-radius',
+    value: '10px',
+  },
+  {
+    className: 'mobile:ps-[28px]',
+    atRule: '(max-width: 1025px)',
+    prop: 'padding-inline-start',
+    value: '28px',
+  },
+  // the line running on, phone-only through `hidden mobile:block`
+  {
+    className: 'start-[8px]',
+    atRule: null,
+    prop: 'inset-inline-start',
+    value: '8px',
+  },
+  {
+    // where the L turns: its 35px less its 10px corner
+    className: 'top-[25px]',
+    atRule: null,
+    prop: 'top',
+    value: '25px',
+  },
+  {
+    className: 'border-s-2',
+    atRule: null,
+    prop: 'border-inline-start-width',
+    value: '2px',
+  },
+  {
+    className: 'border-newSep',
+    atRule: null,
+    prop: 'border-color',
+    value: 'var(--new-sep)',
+  },
+];
+
+test('044 F-1: the thread line forms emit CSS, and none of them names a physical side', async () => {
+  await assertFormsEmit(THREAD_LINE_FORMS);
+
+  const css = await emit(THREAD_LINE_FORMS.map((f) => f.className));
+  assert.ok(
+    !/(^|[\s;{])(left|right|padding-(left|right)|border-(left|right)[\w-]*|border-(top|bottom)-(left|right)-radius)\s*:/.test(
+      css
+    ),
+    `a thread line form emitted a physical side, which would not mirror in Arabic:\n${css}`
+  );
+});
+
+test('044 F-1: the phone forms are emitted after the desktop padding they replace', async () => {
+  // The wrapper keeps desktop's `pl-[12px]` and drops it with `mobile:p-0`;
+  // the comment's box keeps the editor's `mobile:px-0` and steps in with
+  // `mobile:ps-[28px]`. Same specificity each time, so order decides.
+  const css = await emit([
+    'pl-[12px]',
+    'mobile:p-0',
+    'mobile:px-0',
+    'mobile:ps-[28px]',
+  ]);
+  const order = [];
+  postcss
+    .parse(css)
+    .walkRules((rule) => order.push(unescape(rule.selector).slice(1)));
+
+  assert.ok(order.indexOf('pl-[12px]') !== -1, 'pl-[12px] must emit');
+  assert.ok(
+    order.indexOf('pl-[12px]') < order.lastIndexOf('mobile:p-0'),
+    `mobile:p-0 must follow pl-[12px], got ${JSON.stringify(order)}`
+  );
+  assert.ok(
+    order.lastIndexOf('mobile:px-0') < order.indexOf('mobile:ps-[28px]'),
+    `mobile:ps-[28px] must follow mobile:px-0, got ${JSON.stringify(order)}`
+  );
+});
