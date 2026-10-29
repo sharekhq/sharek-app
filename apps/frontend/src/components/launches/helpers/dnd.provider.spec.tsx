@@ -97,10 +97,12 @@ describe('DNDProvider', () => {
 
   it('keeps the touch step’s mouse events and adds a 400ms hold for a finger only', async () => {
     const options = await pipeline();
-    // `delay` or `delayMouseStart` would hold a mouse up too
+    // `delay` or `delayMouseStart` would hold a mouse up too; a context menu
+    // no longer ends the touch (see the finger tests below)
     expect(options.backends[1].options).toEqual({
       enableMouseEvents: true,
       delayTouchStart: 400,
+      ignoreContextMenu: true,
     });
   });
 
@@ -131,12 +133,28 @@ describe('DNDProvider', () => {
 });
 
 // The touch step's backend, built the way the multi-backend builds it, with a
-// manager that records whether a drag began.
-const touchBackend = (options: MultiBackendOptions) => {
-  const beginDrag = jest.fn();
+// manager that records what the drag does: it begins, follows the finger
+// (hover), and ends with or without a drop.
+const touchBackend = (options: MultiBackendOptions, id = 'channel') => {
+  let dragging = false;
+  const actions = {
+    beginDrag: jest.fn(() => {
+      dragging = true;
+    }),
+    publishDragSource: jest.fn(),
+    hover: jest.fn(),
+    drop: jest.fn(),
+    endDrag: jest.fn(() => {
+      dragging = false;
+    }),
+  };
   const manager = {
-    getActions: () => ({ beginDrag }),
-    getMonitor: () => ({ isDragging: () => false }),
+    getActions: () => actions,
+    getMonitor: () => ({
+      isDragging: () => dragging,
+      didDrop: () => false,
+      getSourceId: () => id,
+    }),
   } as unknown as Parameters<MultiBackendPipelineStep['backend']>[0];
   const step = options.backends[1];
   const backend = step.backend(manager, window, step.options);
@@ -144,8 +162,20 @@ const touchBackend = (options: MultiBackendOptions) => {
   mounted.push({ unmount: () => backend.teardown() });
   const source = document.createElement('div');
   document.body.appendChild(source);
-  backend.connectDragSource('channel', source);
-  return { backend, beginDrag, source };
+  backend.connectDragSource(id, source);
+  return { actions, backend, beginDrag: actions.beginDrag, source };
+};
+
+// Chrome on Android fires it on a long press, a right-click anywhere
+const contextMenu = (target: HTMLElement, buttons = 0) => {
+  const event = new window.MouseEvent('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+    button: 2,
+    buttons,
+  });
+  target.dispatchEvent(event);
+  return event;
 };
 
 const touch = (
@@ -173,6 +203,13 @@ const touch = (
 };
 
 describe('a finger on a draggable row or card', () => {
+  beforeAll(() => {
+    // what a drag under way reaches for: happy-dom has no elementsFromPoint,
+    // and Jest's node environment no MutationObserver
+    document.elementsFromPoint = () => [];
+    Object.assign(globalThis, { MutationObserver: window.MutationObserver });
+  });
+
   beforeEach(() => {
     jest.useFakeTimers();
   });
@@ -245,6 +282,59 @@ describe('a finger on a draggable row or card', () => {
     jest.advanceTimersByTime(400);
     touch('touchmove', source, 140);
     expect(beginDrag).toHaveBeenCalledTimes(1);
-    expect(beginDrag.mock.calls[0][0]).toEqual(['channel']);
+    expect(beginDrag).toHaveBeenCalledWith(['channel'], expect.anything());
+  });
+
+  // Chrome on Android fires contextmenu at its long press, about when the
+  // hold completes; the library ended the drag on it, so only a move started
+  // between the two picked anything up.
+  it.each(['channel', 'post'])(
+    'picks a %s up after any hold of 400ms or more, through the long press’s menu',
+    async (id) => {
+      const { actions, source } = touchBackend(await pipeline(), id);
+      touch('touchstart', source, 100);
+      jest.advanceTimersByTime(500);
+      const menu = contextMenu(source);
+      jest.advanceTimersByTime(500);
+      touch('touchmove', source, 140);
+      expect(actions.beginDrag).toHaveBeenCalledTimes(1);
+      expect(actions.beginDrag).toHaveBeenCalledWith([id], expect.anything());
+      expect(actions.hover).toHaveBeenLastCalledWith([], {
+        clientOffset: { x: 20, y: 140 },
+      });
+      // and Android opens no image or text menu over the row or the card
+      expect(menu.defaultPrevented).toBe(true);
+    }
+  );
+
+  it('keeps a drag under way through a context menu, and drops nothing', async () => {
+    const { actions, source } = touchBackend(await pipeline());
+    touch('touchstart', source, 100);
+    jest.advanceTimersByTime(400);
+    touch('touchmove', source, 140);
+    const menu = contextMenu(source);
+    touch('touchmove', source, 200);
+    expect(actions.drop).not.toHaveBeenCalled();
+    expect(actions.endDrag).not.toHaveBeenCalled();
+    expect(actions.hover).toHaveBeenLastCalledWith([], {
+      clientOffset: { x: 20, y: 200 },
+    });
+    expect(menu.defaultPrevented).toBe(true);
+  });
+
+  it('keeps every other context menu: a right-click, a long press on what is not draggable, one after the finger lifts', async () => {
+    const { source } = touchBackend(await pipeline());
+    expect(contextMenu(source, 2).defaultPrevented).toBe(false);
+
+    const picture = document.createElement('img');
+    document.body.appendChild(picture);
+    touch('touchstart', picture, 100);
+    jest.advanceTimersByTime(500);
+    expect(contextMenu(picture).defaultPrevented).toBe(false);
+    touch('touchend', picture, 100);
+
+    touch('touchstart', source, 100);
+    touch('touchend', source, 100);
+    expect(contextMenu(source).defaultPrevented).toBe(false);
   });
 });

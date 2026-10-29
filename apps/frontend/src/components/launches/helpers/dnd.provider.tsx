@@ -61,6 +61,14 @@ const TOUCH_HOLD_MS = 400;
 // flick, tap to stop, flick again. So the timer is cleared before a touchstart
 // arms its own, when a touch ends (:562), and on touchcancel, which the
 // backend never listens for (:35-39).
+//
+// Chrome on Android fires contextmenu at its long press, about when the hold
+// completes, and the backend ends the touch on it (:147-153, :562-582): a held
+// finger forgets its row (:570-572), a drag under way drops where it is
+// (:575-581). So the touch step ignores it (`ignoreContextMenu`), and the menu
+// is cancelled while a finger is on a draggable (:338-352) or dragging, so
+// Android opens no image or text menu over it. A right-click, or a long press
+// on anything else, keeps its menu.
 const HOLD_HANDLERS = [
   'handleTopMoveStartDelay',
   'handleTopMoveEndCapture',
@@ -71,6 +79,8 @@ type TouchBackendInternals = Record<
   (event: Event) => void
 > & {
   timeout?: ReturnType<typeof setTimeout>;
+  moveStartSourceIds?: unknown[];
+  monitor: { isDragging: () => boolean };
   options: { rootElement?: Node };
   setup: () => void;
   teardown: () => void;
@@ -96,22 +106,28 @@ const withTouchHold =
       };
     }
 
+    const holdMenu = (event: Event) => {
+      if (backend.monitor.isDragging() || backend.moveStartSourceIds?.length) {
+        event.preventDefault();
+      }
+    };
+    const listeners: Array<[string, EventListener]> = [
+      ['touchcancel', clearHold],
+      ['contextmenu', holdMenu],
+    ];
+
     const { setup, teardown } = backend;
     backend.setup = () => {
       setup.call(backend);
-      backend.options.rootElement?.addEventListener(
-        'touchcancel',
-        clearHold,
-        true
-      );
+      for (const [type, listener] of listeners) {
+        backend.options.rootElement?.addEventListener(type, listener, true);
+      }
     };
     backend.teardown = () => {
       teardown.call(backend);
-      backend.options.rootElement?.removeEventListener(
-        'touchcancel',
-        clearHold,
-        true
-      );
+      for (const [type, listener] of listeners) {
+        backend.options.rootElement?.removeEventListener(type, listener, true);
+      }
     };
 
     return instance;
@@ -135,6 +151,7 @@ const CALENDAR_PIPELINE: MultiBackendOptions = {
         options: {
           ...(step.options as object),
           delayTouchStart: TOUCH_HOLD_MS,
+          ignoreContextMenu: true,
         },
       };
     }
