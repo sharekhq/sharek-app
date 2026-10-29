@@ -114,7 +114,7 @@ const Harness: FC<{ start: Start }> = ({ start }) => {
     display: 'week',
     startDate: '2020-01-06',
     endDate: '2020-01-12',
-    customer: null,
+    customer: null as string | null,
     integrations: FIVE,
     listPage: 0,
     listTotalPages: 1,

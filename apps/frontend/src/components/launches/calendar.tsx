@@ -1220,8 +1220,9 @@ const CalendarItem: FC<{
 
   // A week or month cell is a narrow grid column, and these actions have never
   // fitted it — laid out in the strip they painted over the days on either
-  // side, which is finding 69 of the 2026-08 responsive audit. They are data rather than markup because the strip hands them to a
-  // panel that opens against the viewport instead of inside the column.
+  // side, which is finding 69 of the 2026-08 responsive audit. They are data
+  // rather than markup because the strip hands them to a panel that opens
+  // against the viewport instead of inside the column.
   const statisticsAction = useMemo(() => {
     if (
       (post.integration.providerIdentifier === 'x' && disableXAnalytics) ||

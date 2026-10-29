@@ -141,17 +141,17 @@ const post = (id: string, state = 'QUEUE') => ({
   content: `<p>post ${id}</p>`,
   publishDate: dayjs(FRIDAY_TEN).utc().format(),
   state,
-  error: null,
-  releaseURL: null,
-  releaseId: null,
-  intervalInDays: null,
+  error: null as string | null,
+  releaseURL: null as string | null,
+  releaseId: null as string | null,
+  intervalInDays: null as number | null,
   integration: {
     id: 'i1',
     picture: '/pic.jpg',
     providerIdentifier: 'x',
     name: 'X',
   },
-  tags: [],
+  tags: [] as unknown[],
 });
 
 const withPosts = (posts: Array<ReturnType<typeof post>>) => {
