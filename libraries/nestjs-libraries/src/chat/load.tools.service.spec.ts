@@ -522,12 +522,39 @@ describe('LoadToolsService post management guidance', () => {
     );
   });
 
-  // The create modal only ever creates, so editing through it duplicates the
+  // The post editor only ever creates, so editing through it duplicates the
   // post.
-  it('forbids editing through the create modal', async () => {
+  it('forbids editing through the post editor', async () => {
     const instructions = await instructionsWith(uiContext());
     expect(instructions).toContain(
-      'Never open the "modal with populated content" to edit an existing post'
+      'Never open the post editor (manualPosting) to edit an existing post'
+    );
+  });
+
+  // Asked to "save them as drafts", Samy opened the editor for all 18 posts
+  // instead of saving them: the editor was described as holding posts back
+  // "without scheduling the post yet", which reads like a draft, and it saves
+  // nothing until the user saves it.
+  it('saves drafts with the schedule tool, in the chat and over MCP', async () => {
+    for (const context of [uiContext(), new RequestContext()]) {
+      expect(await instructionsWith(context)).toContain(
+        'To save posts as drafts, use integrationSchedulePostTool with type "draft"'
+      );
+    }
+  });
+
+  it('opens the editor only when the user asks for it', async () => {
+    const instructions = await instructionsWith(uiContext());
+    expect(instructions).toContain(
+      'Open the post editor (manualPosting) only when the user asks to open the posts in it to review or edit them'
+    );
+    expect(instructions).not.toContain('without scheduling the post yet');
+  });
+
+  // The editor exists only in the chat, so the MCP path has nothing to open.
+  it('leaves the editor out without the chat interface', async () => {
+    expect(await instructionsWith(new RequestContext())).not.toContain(
+      'manualPosting'
     );
   });
 
