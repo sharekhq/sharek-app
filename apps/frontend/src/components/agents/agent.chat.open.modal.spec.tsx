@@ -7,11 +7,15 @@ import type { AddEditModalProps } from '@gitroom/frontend/components/new-launch/
 dayjs.extend(utc);
 
 // agent.chat.tsx pulls the whole chat surface in at module scope. None of it takes part in the
-// manualPosting queue, so it is stubbed out to keep the spec to the modal loop.
+// manualPosting queue, so it is stubbed out to keep the spec to the modal loop. The actions the
+// chat declares are kept, so what the model is told about the editor can be read back.
+const capturedActions: Array<{ name: string; description: string }> = [];
 jest.mock('@copilotkit/react-ui', () => ({ CopilotChat: () => null }));
 jest.mock('@copilotkit/react-core', () => ({
   CopilotKit: () => null,
-  useCopilotAction: () => {},
+  useCopilotAction: (action: { name: string; description: string }) => {
+    capturedActions.push(action);
+  },
   useCopilotChatInternal: () => ({
     messages: [],
     setMessages: () => {},
@@ -93,7 +97,10 @@ jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => {
   };
 });
 
-import { OpenModal } from '@gitroom/frontend/components/agents/agent.chat';
+import {
+  Hooks,
+  OpenModal,
+} from '@gitroom/frontend/components/agents/agent.chat';
 import {
   ModalManagerInner,
   useModals,
@@ -216,6 +223,28 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   setUserTimezone(null);
+});
+
+describe('the editor action Samy is offered', () => {
+  // Asked to "save them as drafts", Samy opened this editor for every post instead of saving
+  // them. The editor saves nothing until the user does, so it must never stand in for saving.
+  it('is for opening the posts on request, never for saving drafts', async () => {
+    capturedActions.length = 0;
+    const root = createRoot(document.createElement('div'));
+    mounted.push(root);
+    await act(async () => {
+      root.render(<Hooks />);
+    });
+
+    const editor = capturedActions.find(
+      (action) => action.name === 'manualPosting'
+    );
+    expect(editor?.description).toContain(
+      'only when the user asks to open the posts in the editor to review or edit them'
+    );
+    expect(editor?.description).toContain('never to save drafts');
+    expect(editor?.description).toContain('with type "draft"');
+  });
 });
 
 describe('manualPosting queue', () => {

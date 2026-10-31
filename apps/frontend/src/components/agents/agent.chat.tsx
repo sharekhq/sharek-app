@@ -250,7 +250,7 @@ export const Hooks: FC = () => {
   useCopilotAction({
     name: 'manualPosting',
     description:
-      'This tool should be triggered when the user wants to manually add the generated post',
+      'Opens the post editor pre-filled with these posts, for the user to review and save themselves; nothing is saved until they do. Use it only when the user asks to open the posts in the editor to review or edit them, never to save drafts or to add posts to the calendar: integrationSchedulePostTool does that, with type "draft" for drafts.',
     parameters: [
       {
         name: 'list',
