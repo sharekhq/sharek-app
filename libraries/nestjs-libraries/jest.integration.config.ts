@@ -19,6 +19,7 @@ const config: Config = {
   setupFiles: ['reflect-metadata'],
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
+    '^@gitroom/helpers/(.*)$': '<rootDir>/../../helpers/src/$1',
     '^tokenx$': '<rootDir>/../test/tokenx.stub.ts',
     '^@sindresorhus/slugify$': '<rootDir>/../test/slugify.stub.ts',
     '^p-map$': '<rootDir>/../test/p-map.stub.ts',

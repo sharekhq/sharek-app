@@ -16,7 +16,10 @@ import { BuiltInAgent } from '@copilotkit/runtime/v2';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
-import { getSharekAgents } from '@gitroom/nestjs-libraries/chat/sharek.agent';
+import {
+  getSharekAgents,
+  logRunError,
+} from '@gitroom/nestjs-libraries/chat/sharek.agent';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { Request, Response } from 'express';
 import { RequestContext } from '@mastra/core/di';
@@ -118,6 +121,8 @@ export class CopilotController {
 
     const runtime = new CopilotRuntime({
       agents,
+      // The chat shows nothing when a run fails; this logs it.
+      onError: (event) => logRunError(event, organization.id),
     });
 
     const copilotRuntimeHandler = copilotRuntimeNodeHttpEndpoint({

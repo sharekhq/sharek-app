@@ -83,6 +83,16 @@ const logUsage = (event: any, org: string) => {
   }
 };
 
+// Mastra ends a turn after five steps unless it is given a limit, and a turn
+// that spends every step on tools ends without a reply: asked for nine posts,
+// Samy scheduled one date per call and went silent after the fifth tool, twice.
+// Twenty fits a request like that with room to spare and still stops a turn
+// that would otherwise keep calling tools.
+const MAX_STEPS = 20;
+
+const LAST_STEP_NOTE =
+  'This is your last step in this turn and your tools are switched off. Tell the user what you did and what is left, so they can ask you to continue.';
+
 const organizationId = (organization?: string) => {
   if (!organization) return undefined;
   try {
@@ -214,6 +224,20 @@ ${channels}
         // has no structured output. Asserting the shape keeps that off the
         // runtime object — setting structuredOutput: undefined would not.
         return {
+          maxSteps: MAX_STEPS,
+          // The last step can only reply, so a turn that runs out of steps
+          // still tells the user where it stopped instead of ending in silence
+          // or reading as finished.
+          prepareStep: ({ stepNumber, systemMessages }) =>
+            stepNumber === MAX_STEPS - 1
+              ? {
+                  toolChoice: 'none',
+                  systemMessages: [
+                    ...systemMessages,
+                    { role: 'system', content: LAST_STEP_NOTE },
+                  ],
+                }
+              : undefined,
           onFinish: (event: any) => logUsage(event, id ?? 'unknown'),
           providerOptions: {
             openai: {
