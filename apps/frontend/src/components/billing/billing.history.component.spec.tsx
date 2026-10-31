@@ -264,6 +264,40 @@ describe("Sharek's style", () => {
     ).toEqual([]);
   });
 
+  it("draws the history on the app's card, with its column header a plain row", async () => {
+    mockInvoices = [invoice(4500)];
+    const host = await render(<BillingHistory />);
+    const header = Array.from(host.querySelectorAll('div')).find(
+      (el) => el.firstElementChild?.textContent === 'Plan'
+    )!;
+    const classes = Array.from(host.querySelectorAll('*')).map(
+      (el) => el.getAttribute('class') || ''
+    );
+
+    expect(
+      (host.firstElementChild as HTMLElement).className.split(/\s+/)
+    ).toEqual(expect.arrayContaining(['rounded-[14px]', 'shadow-soft']));
+    expect(header.className.split(/\s+/)).toContain('border-b');
+    expect(header.className).not.toMatch(/bg-newTableHeader|rounded-/);
+    expect(classes.filter((c) => c.includes('previewShadow'))).toEqual([]);
+  });
+
+  // brandSoft and brandText are rose in dark: an empty search shows a muted icon instead.
+  it('shows a muted icon, not a brand-tinted badge, when a search finds nothing', async () => {
+    mockInvoices = [invoice(4500)];
+    const host = await render(<BillingHistory />);
+
+    await type(host.querySelector('input')!, 'no such invoice');
+    const icon = host.querySelector('path[d^="M4 3h16v18"]')!.parentElement!;
+    const classes = Array.from(host.querySelectorAll('*')).map(
+      (el) => el.getAttribute('class') || ''
+    );
+
+    expect(host.textContent).toContain('No invoices match your search');
+    expect(icon.getAttribute('class')).toBe('text-textItemBlur');
+    expect(classes.filter((c) => /brandSoft|brandText/.test(c))).toEqual([]);
+  });
+
   it('uses no purple, stock palette or opacity-on-variable class, and no upstream mobile: class', async () => {
     mockInvoices = [invoice(4500, 'paid'), invoice(4500, 'failed')];
     const host = await render(<BillingHistory />);

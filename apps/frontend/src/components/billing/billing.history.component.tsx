@@ -203,7 +203,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       className={clsx(
         'flex flex-col gap-[20px]',
         !modal &&
-          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow p-[24px] phone:p-[16px]'
+          'rounded-[14px] border border-newTableBorder bg-newBgColorInner shadow-soft p-[24px] phone:p-[16px]'
       )}
     >
       <div className="flex items-center gap-[12px] phone:flex-col phone:items-stretch">
@@ -292,7 +292,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
         <div
           className={clsx(
             columns,
-            'h-[48px] rounded-[8px] border border-newTableBorder bg-newTableHeader text-[14px] text-newTableText phone:hidden'
+            'h-[40px] border-b border-newTableBorder text-[13px] text-newTableText phone:hidden'
           )}
         >
           <div>{t('billing_plan', 'Plan')}</div>
@@ -305,22 +305,21 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
 
         {!filtered.length ? (
           <div className="flex flex-col items-center justify-center gap-[12px] py-[40px] px-[16px] text-center">
-            <div className="w-[48px] h-[48px] rounded-full bg-brandSoft flex items-center justify-center text-brandText">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 3h16v18l-3-2-3 2-2-2-2 2-3-2-3 2V3z" />
-                <path d="M8 8h8M8 12h8M8 16h5" />
-              </svg>
-            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-textItemBlur"
+            >
+              <path d="M4 3h16v18l-3-2-3 2-2-2-2 2-3-2-3 2V3z" />
+              <path d="M8 8h8M8 12h8M8 16h5" />
+            </svg>
             <div className="text-[15px] text-newTableText">
               {t(
                 'billing_no_matching_invoices',

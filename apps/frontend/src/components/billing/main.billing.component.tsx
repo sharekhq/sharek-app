@@ -153,23 +153,7 @@ const BillingCycle: FC<{
   ].filter((p) => p.total);
 
   return (
-    <div className="flex items-center gap-[16px] rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
-      <div className="w-[48px] h-[48px] rounded-full bg-brandSoft text-brandText flex items-center justify-center shrink-0 phone:hidden">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-      </div>
+    <div className="flex items-center gap-[16px] px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
       <div className="flex-1 flex flex-col gap-[4px]">
         <div className="text-[16px] font-[600]">
           {t('billing_cycle', 'Billing cycle')}
@@ -195,12 +179,9 @@ const BillingCycle: FC<{
           )}
         </div>
       </div>
-      <div className="flex gap-[8px] phone:flex-col">
+      <div className="flex gap-[32px] phone:gap-[24px]">
         {usage.map((p) => (
-          <div
-            key={p.label}
-            className="flex flex-col gap-[2px] min-w-[120px] rounded-[8px] border border-newTableBorder px-[16px] py-[10px]"
-          >
+          <div key={p.label} className="flex flex-col gap-[2px] min-w-[96px]">
             <div className="text-[12px] text-textItemBlur">{p.label}</div>
             <div className="text-[16px] font-[600]">
               {typeof p.left === 'number' ? Math.max(p.left, 0) : '-'}
@@ -225,8 +206,8 @@ type PlanAction = {
 
 const planButton = {
   primary: 'bg-brand text-white hover:opacity-90',
-  simple: 'bg-btnSimple text-btnText hover:opacity-80',
-  current: 'bg-newBgLineColor text-textItemBlur',
+  simple: 'bg-quiet text-ink border border-line hover:opacity-80',
+  current: 'border border-line text-textItemBlur',
   danger: 'bg-error text-white hover:opacity-90',
 };
 
@@ -248,34 +229,16 @@ const PlanCard: FC<{
   return (
     <div
       className={clsx(
-        'relative flex flex-col gap-[20px] rounded-[12px] border p-[24px] phone:p-[20px]',
-        current
-          ? 'border-transparent bg-brand text-white'
-          : 'border-newTableBorder bg-newBgColorInner shadow-previewShadow'
+        'flex flex-col gap-[20px] rounded-[14px] bg-newBgColorInner shadow-soft p-[24px] phone:p-[20px]',
+        // the current plan is outlined, not filled: red stays for the buttons that change the plan
+        current ? 'border-[1.5px] border-brand' : 'border border-newTableBorder'
       )}
     >
-      {[
-        'top-[10px] start-[10px]',
-        'top-[10px] end-[10px]',
-        'bottom-[10px] start-[10px]',
-        'bottom-[10px] end-[10px]',
-      ].map((position) => (
-        <span
-          key={position}
-          className={clsx(
-            'absolute w-[8px] h-[8px] rounded-full border pointer-events-none',
-            position,
-            current
-              ? 'border-white/25 bg-white/10'
-              : 'border-newTableBorder bg-newBgColor'
-          )}
-        />
-      ))}
       <div className="flex items-center justify-between gap-[8px] min-h-[26px]">
         <div className="text-[18px] font-[600]">{capitalize(name)}</div>
         {current && (
-          <div className="flex items-center gap-[6px] h-[26px] px-[10px] rounded-full bg-white/15 text-[12px] font-[600] uppercase whitespace-nowrap">
-            <span className="w-[6px] h-[6px] rounded-full bg-white" />
+          <div className="flex items-center gap-[6px] h-[26px] px-[10px] rounded-full bg-selectedBg text-selectedText text-[12px] font-[600] whitespace-nowrap">
+            <span className="w-[6px] h-[6px] rounded-full bg-current" />
             {t('active', 'Active')}
           </div>
         )}
@@ -284,12 +247,7 @@ const PlanCard: FC<{
         <div className="text-[40px] leading-[48px] font-[600] tracking-tight">
           ${price.toLocaleString('en-US')}
         </div>
-        <div
-          className={clsx(
-            'text-[14px]',
-            current ? 'text-white/75' : 'text-textItemBlur'
-          )}
-        >
+        <div className="text-[14px] text-textItemBlur">
           {yearly
             ? t('billing_per_year', '/ year')
             : t('billing_per_month', '/ month')}
@@ -301,14 +259,8 @@ const PlanCard: FC<{
           onClick={action.onClick}
           disabled={disabled}
           className={clsx(
-            'h-[44px] px-[16px] rounded-[8px] text-[15px] font-[600] flex items-center justify-center transition-all focus-visible:ring-2',
-            // a brand ring would vanish against the current card's brand fill
-            current ? 'focus-visible:ring-white' : 'focus-visible:ring-brand',
-            current
-              ? action.variant === 'current'
-                ? 'bg-white/15 text-white'
-                : 'bg-white text-brand hover:bg-white/90'
-              : planButton[action.variant],
+            'h-[44px] px-[16px] rounded-[8px] text-[15px] font-[600] flex items-center justify-center transition-all focus-visible:ring-2 focus-visible:ring-brand',
+            planButton[action.variant],
             disabled ? 'cursor-default' : 'cursor-pointer',
             disabled && action.variant !== 'current' && 'opacity-50'
           )}
@@ -325,41 +277,22 @@ const PlanCard: FC<{
           )}
         </button>
         {!!note && (
-          <div
-            className={clsx(
-              'absolute top-full inset-x-0 h-[28px] flex items-center justify-center text-[12px]',
-              current ? 'text-white/75' : 'text-textItemBlur'
-            )}
-          >
+          <div className="absolute top-full inset-x-0 h-[28px] flex items-center justify-center text-[12px] text-textItemBlur">
             {note}
           </div>
         )}
       </div>
-      <div
-        className={clsx(
-          'h-[1px]',
-          current ? 'bg-white/15' : 'bg-newTableBorder'
-        )}
-      />
+      <div className="h-[1px] bg-newTableBorder" />
       <div className="flex flex-col gap-[12px] text-[14px] leading-[20px]">
         {features.map((feature) => (
-          <div
-            key={feature.key}
-            className={clsx(
-              'flex gap-[10px]',
-              current ? 'text-white' : 'text-newTextColor'
-            )}
-          >
+          <div key={feature.key} className="flex gap-[10px] text-newTextColor">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
               height="20"
               viewBox="0 0 20 20"
               fill="none"
-              className={clsx(
-                'shrink-0',
-                current ? 'text-white/75' : 'text-success'
-              )}
+              className="shrink-0 text-success"
             >
               <circle
                 cx="10"
@@ -940,8 +873,12 @@ export const MainBillingComponent: FC<{
             aria-pressed={!yearly}
             onClick={() => setMonthlyOrYearly('off')}
             className={clsx(
-              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2 focus-visible:ring-brand',
-              !yearly ? 'bg-boxFocused text-textItemFocused' : 'cursor-pointer'
+              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2',
+              // the menu's selection colours: in dark the chosen half is pomegranate, so its focus
+              // ring is the selection ring (a pomegranate one would vanish against it)
+              !yearly
+                ? 'bg-selectedBg text-selectedText font-[600] focus-visible:ring-selectedRing'
+                : 'cursor-pointer focus-visible:ring-brand'
             )}
           >
             {t('billing_monthly', 'Monthly')}
@@ -951,12 +888,22 @@ export const MainBillingComponent: FC<{
             aria-pressed={yearly}
             onClick={() => setMonthlyOrYearly('on')}
             className={clsx(
-              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2 focus-visible:ring-brand',
-              yearly ? 'bg-boxFocused text-textItemFocused' : 'cursor-pointer'
+              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2',
+              yearly
+                ? 'bg-selectedBg text-selectedText font-[600] focus-visible:ring-selectedRing'
+                : 'cursor-pointer focus-visible:ring-brand'
             )}
           >
             {t('billing_yearly', 'Yearly')}
-            <span className="bg-brand text-white text-[12px] px-[6px] rounded-[4px]">
+            {/* tinted from the label's own colour while Yearly is not chosen; on the chosen
+                half the tint would sit on the selection tint (3.9:1 in light), so it is text */}
+            <span
+              className={clsx(
+                'text-[12px] font-[600] px-[6px] rounded-[4px]',
+                !yearly &&
+                  'bg-[color-mix(in_srgb,currentColor_14%,transparent)]'
+              )}
+            >
               {t('billing_20_percent_off', '20% Off')}
             </span>
           </button>
@@ -1022,79 +969,65 @@ export const MainBillingComponent: FC<{
         })}
       </div>
       {!!subscription?.id && (
-        <BillingCycle
-          tier={sub?.subscriptionTier || subscription.subscriptionTier}
-          canceled={!!subscription.cancelAt}
-        />
-      )}
-      {!!subscription?.id && (
-        <div className="flex items-center gap-[16px] mobile:flex-wrap rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-previewShadow px-[24px] py-[20px] phone:flex-col phone:items-stretch phone:p-[16px]">
-          <div className="w-[48px] h-[48px] rounded-full bg-brandSoft text-brandText flex items-center justify-center shrink-0 phone:hidden">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="2" y="5" width="20" height="14" rx="2" />
-              <path d="M2 10h20M6 15h4" />
-            </svg>
-          </div>
-          <div className="flex-1 flex flex-col gap-[4px]">
-            <div className="text-[16px] font-[600]">
-              {t('billing_payment_method', 'Payment method')}
+        <div className="flex flex-col rounded-[14px] border border-newTableBorder bg-newBgColorInner shadow-soft">
+          <BillingCycle
+            tier={sub?.subscriptionTier || subscription.subscriptionTier}
+            canceled={!!subscription.cancelAt}
+          />
+          {/* On a phone the row is a column, which must not wrap: the iPad's wrap would put the
+              full-basis buttons row in a second column outside the panel, cut off by the page. */}
+          <div className="flex items-center gap-[16px] mobile:flex-wrap border-t border-newTableBorder px-[24px] py-[20px] phone:flex-col phone:flex-nowrap phone:items-stretch phone:p-[16px]">
+            <div className="flex-1 flex flex-col gap-[4px]">
+              <div className="text-[16px] font-[600]">
+                {t('billing_payment_method', 'Payment method')}
+              </div>
+              <div className="text-[14px] text-textItemBlur">
+                {t(
+                  'billing_payment_method_description',
+                  'Update your card, billing address and tax details in the secure billing portal'
+                )}
+              </div>
             </div>
-            <div className="text-[14px] text-textItemBlur">
-              {t(
-                'billing_payment_method_description',
-                'Update your card, billing address and tax details in the secure billing portal'
+            <div className="flex flex-wrap items-center justify-end gap-[8px] mobile:basis-full phone:flex-col-reverse phone:items-stretch">
+              {isGeneral && !subscription?.cancelAt && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setClicked('CANCEL');
+                    moveToCheckout('FREE')();
+                  }}
+                  className="h-[44px] px-[16px] rounded-[8px] border border-line text-error text-[14px] font-[500] flex items-center justify-center hover:bg-boxHover transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {loading && clicked === 'CANCEL' ? (
+                    <ReactLoading
+                      type="spin"
+                      color="currentColor"
+                      width={18}
+                      height={18}
+                    />
+                  ) : (
+                    t('cancel_subscription_1', 'Cancel subscription')
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={updatePayment}
+                className="h-[44px] px-[16px] rounded-[8px] bg-quiet text-ink border border-line text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                {t('billing_update_payment_method', 'Update payment method')}
+              </button>
+              {user?.isTrailing && (
+                <button
+                  type="button"
+                  onClick={finishTrialNow}
+                  className="h-[44px] px-[16px] rounded-[8px] bg-quiet text-ink border border-line text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {t('finish_trial', 'End trial')}
+                </button>
               )}
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-[8px] mobile:basis-full phone:flex-col-reverse phone:items-stretch">
-            {isGeneral && !subscription?.cancelAt && (
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => {
-                  setClicked('CANCEL');
-                  moveToCheckout('FREE')();
-                }}
-                className="h-[44px] px-[16px] rounded-[8px] border border-line text-error text-[14px] font-[500] flex items-center justify-center hover:bg-boxHover transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                {loading && clicked === 'CANCEL' ? (
-                  <ReactLoading
-                    type="spin"
-                    color="currentColor"
-                    width={18}
-                    height={18}
-                  />
-                ) : (
-                  t('cancel_subscription_1', 'Cancel subscription')
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={updatePayment}
-              className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              {t('billing_update_payment_method', 'Update payment method')}
-            </button>
-            {user?.isTrailing && (
-              <button
-                type="button"
-                onClick={finishTrialNow}
-                className="h-[44px] px-[16px] rounded-[8px] bg-btnSimple text-btnText text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                {t('finish_trial', 'End trial')}
-              </button>
-            )}
           </div>
         </div>
       )}
