@@ -1,6 +1,6 @@
 import { initializeSentry } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
 initializeSentry('backend', true);
-import compression from 'compression';
+import { compressResponses } from '@gitroom/nestjs-libraries/services/compress.responses';
 
 import { loadSwagger } from '@gitroom/helpers/swagger/load.swagger';
 import { json } from 'express';
@@ -72,7 +72,7 @@ async function start() {
   });
 
   app.use(cookieParser());
-  app.use(compression());
+  app.use(compressResponses());
   app.useGlobalFilters(new SubscriptionExceptionFilter());
   app.useGlobalFilters(new PostValidationExceptionFilter());
   app.useGlobalFilters(new HttpExceptionFilter());
