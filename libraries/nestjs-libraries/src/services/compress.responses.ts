@@ -1,5 +1,5 @@
 import compression from 'compression';
-import { Request, Response } from 'express';
+import { Request, RequestHandler, Response } from 'express';
 
 // Server-sent events stay uncompressed: Samy's and the post editor's AI replies
 // are written as events while the model produces them, and compression holds
@@ -10,4 +10,5 @@ const shouldCompress = (req: Request, res: Response) =>
     'text/event-stream'
   ) && compression.filter(req, res);
 
-export const compressResponses = () => compression({ filter: shouldCompress });
+export const compressResponses = (): RequestHandler =>
+  compression({ filter: shouldCompress });
