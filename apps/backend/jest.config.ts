@@ -13,12 +13,15 @@ const config: Config = {
   // "require" condition: Node 22.12+ resolves it from require() through
   // "module-sync", and Jest's resolver and CommonJS runtime both have to be
   // told the same — see libraries/nestjs-libraries/jest.config.ts. The same
-  // goes for @remix-run/node-fetch-server, which @copilotkit/runtime/v2 loads.
+  // goes for @remix-run/node-fetch-server, which @copilotkit/runtime/v2 loads,
+  // and for the ESM-only packages @mastra/core requires (tokenx,
+  // @sindresorhus/slugify and its dependencies, p-map), which a spec running a
+  // real Mastra Memory loads.
   testEnvironmentOptions: {
     customExportConditions: ['node', 'node-addons', 'module-sync'],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!file-type/|strtok3/|token-types/|uint8array-extras/|@tokenizer/inflate/|@borewit/text-codec/|@remix-run/node-fetch-server/)',
+    '/node_modules/(?!file-type/|strtok3/|token-types/|uint8array-extras/|@tokenizer/inflate/|@borewit/text-codec/|@remix-run/node-fetch-server/|tokenx/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/)',
   ],
   moduleNameMapper: {
     '^@gitroom/backend/(.*)$': '<rootDir>/$1',

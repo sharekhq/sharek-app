@@ -158,9 +158,9 @@ export class CopilotController {
       return await memory.recall({
         resourceId: organization.id,
         threadId,
-        // recall() defaults perPage to the agent's lastMessages, which is now 1.
-        // 10 is the depth this endpoint served before that changed.
-        perPage: 10,
+        // The whole thread, oldest first. Without perPage, recall() would stop at
+        // the agent's lastMessages window (load.tools.service.ts).
+        perPage: false,
       });
     } catch (err) {
       Logger.warn(`Could not recall messages for thread ${threadId}: ${err}`);
