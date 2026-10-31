@@ -1,4 +1,5 @@
 import { MastraAgent } from '@ag-ui/mastra';
+import type { CopilotRuntime } from '@copilotkit/runtime';
 import type { Mastra } from '@mastra/core';
 import type { RequestContext } from '@mastra/core/request-context';
 
@@ -11,6 +12,15 @@ type VendorRun = MastraAgent['run'];
 type VendorRunInput = Parameters<VendorRun>[0];
 type VendorRunOutput = ReturnType<VendorRun>;
 type VendorConfig = ConstructorParameters<typeof MastraAgent>[0];
+
+// CopilotKit exports its error-handler types only from @copilotkit/shared, which
+// the repo does not depend on directly, so read them off the runtime's own
+// constructor.
+type RunErrorEvent = Parameters<
+  NonNullable<
+    NonNullable<ConstructorParameters<typeof CopilotRuntime>[0]>['onError']
+  >
+>[0];
 
 export type AguiMessage = { id?: string; role?: string; [key: string]: unknown };
 
@@ -98,3 +108,37 @@ export const getSharekAgents = ({
     }) as any;
     return all;
   }, {} as ReturnType<typeof MastraAgent.getLocalAgents>);
+
+/**
+ * One line per Samy run that failed or ended without finishing. CopilotKit
+ * hands these to the browser, where the chat shows nothing, and to onError:
+ * without this, a turn the user saw go silent left nothing in the server logs.
+ * It goes through console.error, unlike the SamyUsage line, so Sentry's console
+ * integration records it too; Nest's Logger writes to stdout directly and never
+ * reaches Sentry. A run the user stops is not a failure and never arrives here.
+ * Logging must never be able to fail the request: everything is swallowed.
+ */
+export const logRunError = (event: RunErrorEvent, organizationId: string) => {
+  try {
+    const context = event?.context;
+    console.error(
+      'SamyRunError',
+      JSON.stringify({
+        org: organizationId,
+        thread: context?.threadId ?? 'unknown',
+        run: context?.runId ?? 'unknown',
+        phase:
+          context?.metadata?.phase ?? context?.request?.operation ?? 'unknown',
+        ms: context?.request?.startTime
+          ? Date.now() - context.request.startTime
+          : undefined,
+        error:
+          event?.error instanceof Error
+            ? event.error.message
+            : String(event?.error),
+      })
+    );
+  } catch {
+    // deliberately silent
+  }
+};

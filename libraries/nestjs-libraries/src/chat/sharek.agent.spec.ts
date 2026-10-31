@@ -1,4 +1,4 @@
-import { messagesToSend, SharekAgent } from './sharek.agent';
+import { logRunError, messagesToSend, SharekAgent } from './sharek.agent';
 
 const u = (id: string) => ({ id, role: 'user', content: 'hi' });
 const a = (id: string) => ({ id, role: 'assistant', content: 'hello' });
@@ -134,8 +134,91 @@ describe('SharekAgent', () => {
   });
 });
 
-// The multi-turn storage proof lives outside jest: Mastra's LLM execution path
-// uses a dynamic import(), which jest's VM rejects without
-// --experimental-vm-modules, and enabling that flag breaks the tokenx CJS
-// transform this config needs. It is verified with a standalone script instead
-// (see documentation/superpowers/plans/2026-07-28-samy-token-cost-tier3.md).
+describe('logRunError', () => {
+  let logged: { context: string; message: string }[];
+  let spy: jest.SpyInstance;
+
+  // console.error, not Nest's Logger: Sentry's console integration records it
+  // as a log, where Nest's Logger writes to stdout directly and never arrives.
+  beforeEach(() => {
+    logged = [];
+    spy = jest
+      .spyOn(console, 'error')
+      .mockImplementation((context?: any, message?: any) =>
+        logged.push({ context, message: String(message) })
+      );
+  });
+
+  afterEach(() => spy.mockRestore());
+
+  const failedRun = (error: unknown) => ({
+    type: 'error' as const,
+    timestamp: Date.now(),
+    context: {
+      source: 'runtime' as const,
+      threadId: 'thread-1',
+      runId: 'run-1',
+      request: { operation: 'agent.run', startTime: Date.now() - 1500 },
+      metadata: { phase: 'sse.subscription' },
+    },
+    error,
+  });
+
+  // A turn the user saw go silent left nothing in the server logs: CopilotKit
+  // hands a run's failure to the browser, and the chat shows nothing.
+  it('logs the organization, thread, run, phase and error of a failed run', () => {
+    logRunError(
+      failedRun(new Error('Run ended without emitting a terminal event')),
+      'org-9'
+    );
+
+    expect(logged).toHaveLength(1);
+    expect(logged[0].context).toBe('SamyRunError');
+    expect(JSON.parse(logged[0].message)).toMatchObject({
+      org: 'org-9',
+      thread: 'thread-1',
+      run: 'run-1',
+      phase: 'sse.subscription',
+      error: 'Run ended without emitting a terminal event',
+    });
+  });
+
+  it('records how long the run had been going', () => {
+    logRunError(failedRun(new Error('x')), 'org-9');
+
+    expect(JSON.parse(logged[0].message).ms).toBeGreaterThanOrEqual(1500);
+  });
+
+  it('logs a failure that is not an Error', () => {
+    logRunError(failedRun('Thread already running'), 'org-9');
+
+    expect(JSON.parse(logged[0].message).error).toBe('Thread already running');
+  });
+
+  it('never throws, whatever it is handed', () => {
+    for (const event of [undefined, null, {}, { context: null }, 'nonsense']) {
+      expect(() => logRunError(event as any, 'org-9')).not.toThrow();
+    }
+  });
+
+  it('still logs the organization when the event carries nothing', () => {
+    logRunError(undefined as any, 'org-9');
+
+    expect(JSON.parse(logged[0].message)).toMatchObject({
+      org: 'org-9',
+      thread: 'unknown',
+      run: 'unknown',
+    });
+  });
+
+  it('survives a logger that throws', () => {
+    spy.mockImplementation(() => {
+      throw new Error('logger down');
+    });
+
+    expect(() => logRunError(failedRun(new Error('x')), 'org-9')).not.toThrow();
+  });
+});
+
+// The multi-turn storage proof drives a real Mastra agent, which jest can only
+// run under jest.integration.config.ts: see sharek.agent.integration.spec.ts.

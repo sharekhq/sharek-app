@@ -8,6 +8,7 @@ process.env.COPILOTKIT_TELEMETRY_DISABLED = 'true';
 // editor's tool in reach of a prompt that names it.
 jest.mock('@gitroom/nestjs-libraries/chat/sharek.agent', () => ({
   getSharekAgents: () => ({}),
+  logRunError: () => undefined,
 }));
 jest.mock('@gitroom/nestjs-libraries/chat/mastra.service', () => ({
   MastraService: class {},

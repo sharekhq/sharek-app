@@ -3,9 +3,15 @@
 // (same pattern as media.controller.spec).
 const capturedContexts: any[] = [];
 const capturedEndpoints: Record<string, unknown>[] = [];
+const capturedRuntimes: Record<string, unknown>[] = [];
+const capturedRunErrors: unknown[][] = [];
 
 jest.mock('@copilotkit/runtime', () => ({
-  CopilotRuntime: class {},
+  CopilotRuntime: class {
+    constructor(params: Record<string, unknown>) {
+      capturedRuntimes.push(params);
+    }
+  },
   copilotRuntimeNodeHttpEndpoint: (options: Record<string, unknown>) => {
     capturedEndpoints.push(options);
     return () => undefined;
@@ -16,6 +22,9 @@ jest.mock('@gitroom/nestjs-libraries/chat/sharek.agent', () => ({
   getSharekAgents: ({ requestContext }: any) => {
     capturedContexts.push(requestContext);
     return {};
+  },
+  logRunError: (...args: unknown[]) => {
+    capturedRunErrors.push(args);
   },
 }));
 jest.mock('@gitroom/nestjs-libraries/chat/mastra.service', () => ({
@@ -123,5 +132,18 @@ describe('CopilotController agent request context', () => {
     expect(capturedEndpoints).toHaveLength(1);
     expect(capturedEndpoints[0].endpoint).toBe('/copilot/agent');
     expect(capturedEndpoints[0]).not.toHaveProperty('serviceAdapter');
+  });
+
+  // A run that fails or ends unfinished shows nothing in the chat; this is what
+  // puts it in the server logs, under the organization it ran for.
+  it('reports failed runs under the request organization', async () => {
+    capturedRuntimes.length = 0;
+    capturedRunErrors.length = 0;
+    await run(undefined);
+    expect(capturedRuntimes).toHaveLength(1);
+
+    const failed = { context: { threadId: 'thread-1' } };
+    (capturedRuntimes[0].onError as (event: unknown) => void)(failed);
+    expect(capturedRunErrors).toEqual([[failed, 'org-1']]);
   });
 });

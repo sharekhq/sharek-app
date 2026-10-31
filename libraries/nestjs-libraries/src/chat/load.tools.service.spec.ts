@@ -155,6 +155,50 @@ describe('LoadToolsService agent provider options', () => {
   });
 });
 
+// load.tools.service.integration.spec.ts runs these through Mastra's loop.
+describe('LoadToolsService step limit', () => {
+  const stepOptions = async () => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const options: any = await agent.getDefaultOptions({
+      requestContext: new RequestContext(),
+    });
+    return options;
+  };
+
+  const instructions = [{ role: 'system', content: 'SYSTEM' }];
+
+  // Mastra's own limit is five steps, which ended Samy's turns before it could
+  // reply once it scheduled one post per call.
+  it('lets a turn run twenty steps', async () => {
+    expect((await stepOptions()).maxSteps).toBe(20);
+  });
+
+  it('switches tools off for the last step and adds the note to the instructions', async () => {
+    const { prepareStep } = await stepOptions();
+
+    expect(
+      prepareStep({ stepNumber: 19, systemMessages: instructions })
+    ).toEqual({
+      toolChoice: 'none',
+      systemMessages: [
+        ...instructions,
+        { role: 'system', content: expect.stringContaining('what is left') },
+      ],
+    });
+  });
+
+  it('leaves every earlier step as it is', async () => {
+    const { prepareStep } = await stepOptions();
+
+    expect(
+      prepareStep({ stepNumber: 0, systemMessages: instructions })
+    ).toBeUndefined();
+    expect(
+      prepareStep({ stepNumber: 18, systemMessages: instructions })
+    ).toBeUndefined();
+  });
+});
+
 const instructionsWith = async (requestContext: RequestContext) => {
   const agent = await new LoadToolsService(moduleRef).agent();
   return String(await agent.getInstructions({ requestContext }));
