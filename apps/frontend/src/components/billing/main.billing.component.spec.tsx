@@ -188,12 +188,12 @@ const click = async (host: HTMLElement, label: string) =>
     )!
   );
 // The plan card whose heading is `name` ("Team"). Walked up by class, since happy-dom's selector
-// engine does not match a bracketed class such as rounded-[12px].
+// engine does not match a bracketed class such as rounded-[14px].
 const card = (host: HTMLElement, name: string) => {
   let el: HTMLElement | null = Array.from(host.querySelectorAll('div')).find(
     (div) => div.textContent === name && div.children.length === 0
   )!;
-  while (el && !el.classList.contains('rounded-[12px]')) {
+  while (el && !el.classList.contains('rounded-[14px]')) {
     el = el.parentElement;
   }
   return el!;
@@ -358,15 +358,34 @@ describe('Cancel subscription', () => {
 });
 
 describe('the plan cards', () => {
-  it('fills the current plan with the brand colour and leaves the others on white cards', async () => {
+  // The current plan is marked, not filled: red stays for the buttons that change the plan.
+  it('outlines the current plan in the brand colour with an Active pill, on a white card like the others', async () => {
+    const host = await render(subscription('TEAM'));
+    const pill = Array.from(card(host, 'Team').querySelectorAll('div')).find(
+      (el) => el.textContent === 'Active'
+    )!;
+
+    expect(card(host, 'Team').className.split(/\s+/)).toContain('border-brand');
+    expect(pill.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    );
+    expect(pill.className).not.toContain('uppercase');
+    for (const name of ['Standard', 'Team', 'Pro', 'Ultimate']) {
+      expect(card(host, name).className).toContain('bg-newBgColorInner');
+      expect(card(host, name).className).not.toMatch(/\bbg-brand\b/);
+    }
+  });
+
+  it("draws every plan on the app's card, without corner dots", async () => {
     const host = await render(subscription('TEAM'));
 
-    expect(card(host, 'Team').className).toContain('bg-brand');
-    expect(card(host, 'Team').textContent).toContain('Active');
-    for (const other of ['Standard', 'Pro', 'Ultimate']) {
-      expect(card(host, other).className).toContain('bg-newBgColorInner');
-      expect(card(host, other).className).not.toContain('bg-brand');
+    for (const name of ['Standard', 'Team', 'Pro', 'Ultimate']) {
+      expect(card(host, name).className.split(/\s+/)).toContain('shadow-soft');
+      expect(card(host, name).querySelectorAll('span.absolute').length).toBe(0);
     }
+    expect(classes(host).filter((c) => c.includes('previewShadow'))).toEqual(
+      []
+    );
   });
 
   it("lists Sharek's features on every card", async () => {
@@ -431,6 +450,32 @@ describe('the billing period', () => {
     await press(yearly);
     expect(yearly.getAttribute('aria-pressed')).toBe('true');
     expect(monthly.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  // The menu's selection colours: a soft tint in light, the solid brand with white in dark. The
+  // discount tints itself from the label's colour while Yearly is not chosen; once it is, the tint
+  // would sit on the selection tint (3.9:1 in light), so the discount is the label's text alone.
+  it("marks the chosen period with the selection colours, and the discount in its label's colour", async () => {
+    const TINT = 'bg-[color-mix(in_srgb,currentColor_14%,transparent)]';
+    const host = await render(SUB);
+    const [monthly, yearly] = Array.from(
+      host.querySelectorAll('button[aria-pressed]')
+    );
+    const discount = Array.from(yearly.querySelectorAll('span')).find(
+      (el) => el.textContent === '20% Off'
+    )!;
+
+    expect(monthly.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    );
+    expect(discount.className.split(/\s+/)).toContain(TINT);
+    expect(discount.className).not.toMatch(/\bbg-brand\b/);
+    await press(yearly);
+    expect(yearly.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    );
+    expect(monthly.className).not.toContain('bg-selectedBg');
+    expect(discount.className.split(/\s+/)).not.toContain(TINT);
   });
 
   it('groups the thousands of a yearly price', async () => {
@@ -715,10 +760,10 @@ describe("Sharek's style", () => {
     );
   });
 
-  // On an iPad the trial's payment card holds three buttons. Beside the text they squeezed it to a
+  // On an iPad the trial's payment row holds three buttons. Beside the text they squeezed it to a
   // word per line, since the text column shrinks to its longest word and the row never wraps, so
-  // from the iPad breakpoint the card wraps and the buttons take a line of their own, at its end.
-  it("puts the payment card's buttons under its text on an iPad", async () => {
+  // from the iPad breakpoint the row wraps and the buttons take a line of their own, at its end.
+  it("puts the payment row's buttons under its text on an iPad", async () => {
     mockUser = { ...mockUser, isTrailing: true };
     const host = await render(subscription('TEAM'));
     const row = Array.from(host.querySelectorAll('button')).find(
@@ -731,5 +776,64 @@ describe("Sharek's style", () => {
     expect(row.className.split(/\s+/)).toEqual(
       expect.arrayContaining(['mobile:basis-full', 'flex-wrap', 'justify-end'])
     );
+  });
+
+  // On a phone the payment row is a column, and the iPad's wrap reached it too: a wrapping column
+  // put the buttons (a full-basis row) in a second column beside the panel, where the page's
+  // overflow cut them off. On a phone the row does not wrap.
+  it("keeps the payment row's buttons inside the panel on a phone", async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    const host = await render(subscription('TEAM'));
+    const paymentRow = Array.from(host.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Update payment method'
+    )!.parentElement!.parentElement!;
+
+    expect(paymentRow.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['phone:flex-col', 'phone:flex-nowrap'])
+    );
+  });
+
+  it("puts the billing cycle and the payment method in one panel on the app's card, without icon badges or boxed counters", async () => {
+    mockSwrData = {
+      '/copilot/credits?type=ai_images': { credits: 112 },
+      '/copilot/credits?type=ai_videos': { credits: 9 },
+    };
+    const host = await render(subscription('TEAM'));
+    const text = (label: string) =>
+      Array.from(host.querySelectorAll('div')).find(
+        (div) => div.textContent === label && div.children.length === 0
+      )!;
+    const panel = (el: HTMLElement | null) => {
+      while (el && !el.classList.contains('shadow-soft')) {
+        el = el.parentElement;
+      }
+      return el;
+    };
+
+    expect(panel(text('Billing cycle'))).not.toBeNull();
+    expect(panel(text('Payment method'))).toBe(panel(text('Billing cycle')));
+    expect(panel(text('Billing cycle'))!.className.split(/\s+/)).toContain(
+      'rounded-[14px]'
+    );
+    expect(classes(host).filter((c) => c.includes('w-[48px]'))).toEqual([]);
+    expect(text('AI images').parentElement!.className).not.toMatch(
+      /\bborder\b/
+    );
+  });
+
+  it('uses the quiet button for Downgrade, Update payment method and End trial', async () => {
+    mockUser = { ...mockUser, isTrailing: true };
+    const host = await render(subscription('TEAM'));
+    const button = (label: string) =>
+      Array.from(host.querySelectorAll('button')).find(
+        (b) => b.textContent === label
+      )!;
+
+    for (const label of ['Downgrade', 'Update payment method', 'End trial']) {
+      expect(button(label).className.split(/\s+/)).toEqual(
+        expect.arrayContaining(['bg-quiet', 'text-ink', 'border-line'])
+      );
+    }
+    expect(classes(host).filter((c) => c.includes('bg-btnSimple'))).toEqual([]);
   });
 });
