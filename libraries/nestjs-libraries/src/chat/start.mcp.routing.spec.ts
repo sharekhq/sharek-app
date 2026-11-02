@@ -48,6 +48,8 @@ describe('the OAuth MCP root routes in the container nginx', () => {
     // The API-key endpoint: the key comes as a Bearer header or in the path
     '/mcp',
     '/mcp/an-api-key',
+    // OpenAI's domain check for the ChatGPT plugin, answered when OPENAI_APP_CHALLANGE is set
+    '/.well-known/openai-apps-challenge',
   ])('sends %s to the backend with its path unchanged', (uri) => {
     // No URI part on proxy_pass, so nginx forwards the request path as it came
     expect(matching(uri)?.proxyPass).toBe('http://localhost:3000');
@@ -60,6 +62,7 @@ describe('the OAuth MCP root routes in the container nginx', () => {
     // /api/ strips its prefix for the backend; a regex match would not
     '/api/mcp/an-api-key',
     '/uploads/x.png',
+    '/.well-known/security.txt',
   ])('leaves %s to its prefix block', (uri) => {
     expect(matching(uri)).toBeUndefined();
   });
