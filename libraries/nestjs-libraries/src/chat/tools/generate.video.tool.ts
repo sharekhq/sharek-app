@@ -91,10 +91,15 @@ export class GenerateVideoTool implements AgentToolInterface {
           // reported "your subscription doesn't include access to video
           // generation", about a plan that does include it. Told this, the
           // model refuses in the conversation's own language.
+          // No upsell: the ChatGPT plugin guidelines forbid one, and Samy reads
+          // the same text. A FREE or lapsed organization has no credit window,
+          // so its refusal carries no reset date.
           if (err instanceof SubscriptionException) {
+            const { resetsAt } = err.getResponse() as { resetsAt?: string };
             return {
-              error:
-                'The monthly AI video credits for this organization are used up, so no video was generated. Tell the user their AI video credits have run out — not that their plan or subscription lacks video generation, which it does not. They can upgrade their plan or wait for their credits to reset next month. Every type of video draws on the same video credits; AI image credits are a separate pool.',
+              error: resetsAt
+                ? `The monthly AI video credits for this organization are used up, so no video was generated. Tell the user their AI video credits have run out — not that their plan or subscription lacks video generation, which it does not — and that they reset on ${resetsAt}. Every type of video draws on the same video credits; AI image credits are a separate pool. Do not suggest upgrading or buying anything.`
+                : "This organization's current plan has no AI video credits, so no video was generated. Tell the user AI video generation is not available on their current plan. Do not suggest upgrading or buying anything.",
             };
           }
 

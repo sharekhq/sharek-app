@@ -44,7 +44,16 @@ const context = () =>
     ]),
   } as any);
 
-const outOfCredits = () =>
+// A paid plan's refusal carries the end of its credit window; a FREE or lapsed
+// organization's has none, because it has no window to reset.
+const outOfCredits = (resetsAt = '2026-12-01T00:00:00.000Z') =>
+  new SubscriptionException({
+    action: AuthorizationActions.Create,
+    section: Sections.IMAGES_PER_MONTH,
+    resetsAt,
+  });
+
+const noPlanCredits = () =>
   new SubscriptionException({
     action: AuthorizationActions.Create,
     section: Sections.IMAGES_PER_MONTH,
@@ -132,6 +141,38 @@ describe('GenerateImageTool', () => {
       expect(error).toMatch(/credits/i);
       expect(error).not.toMatch(/allowance/i);
       expect(tool.description).not.toMatch(/allowance/i);
+    });
+
+    // The ChatGPT plugin guidelines forbid promoting upgrades, and Samy reads
+    // the same text, so the way forward is the date the credits come back.
+    it('names the reset date without an upsell', async () => {
+      const { tool } = makeTool({
+        generateImage: jest.fn().mockRejectedValue(outOfCredits()),
+      });
+
+      const { error } = await tool.execute(
+        { prompt: 'a pomegranate' },
+        context()
+      );
+
+      expect(error).toContain('2026-12-01T00:00:00.000Z');
+      expect(error).toMatch(/run out/i);
+      expect(error).toMatch(/do not suggest upgrading or buying anything/i);
+      expect(error).not.toMatch(/can upgrade|upgrade their plan/i);
+    });
+
+    it('says a plan without image credits has none, without claiming they ran out', async () => {
+      const { tool } = makeTool({
+        generateImage: jest.fn().mockRejectedValue(noPlanCredits()),
+      });
+
+      const { error } = await tool.execute(
+        { prompt: 'a pomegranate' },
+        context()
+      );
+
+      expect(error).toMatch(/current plan has no AI image credits/i);
+      expect(error).not.toMatch(/run out|reset/i);
     });
   });
 

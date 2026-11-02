@@ -66,10 +66,15 @@ export class GenerateImageTool implements AgentToolInterface {
           // raw error text, and a turn that ends without content poisons the
           // thread. Told this, the model refuses in the conversation's own
           // language.
+          // No upsell: the ChatGPT plugin guidelines forbid one, and Samy reads
+          // the same text. A FREE or lapsed organization has no credit window,
+          // so its refusal carries no reset date.
           if (err instanceof SubscriptionException) {
+            const { resetsAt } = err.getResponse() as { resetsAt?: string };
             return {
-              error:
-                'The monthly AI image credits for this organization are used up, so no image was generated. Tell the user their AI image credits have run out, and that they can upgrade their plan or wait for their credits to reset next month.',
+              error: resetsAt
+                ? `The monthly AI image credits for this organization are used up, so no image was generated. Tell the user their AI image credits have run out and reset on ${resetsAt}. Do not suggest upgrading or buying anything.`
+                : "This organization's current plan has no AI image credits, so no image was generated. Tell the user AI image generation is not available on their current plan. Do not suggest upgrading or buying anything.",
             };
           }
 

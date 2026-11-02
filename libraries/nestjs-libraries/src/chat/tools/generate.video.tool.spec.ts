@@ -48,15 +48,24 @@ const input = {
   customParams: [{ key: 'voice', value: 'v-1' }],
 };
 
-const outOfCredits = () =>
+// A paid plan's refusal carries the end of its credit window; a FREE or lapsed
+// organization's has none, because it has no window to reset.
+const outOfCredits = (resetsAt = '2026-12-01T00:00:00.000Z') =>
+  new SubscriptionException({
+    action: AuthorizationActions.Create,
+    section: Sections.VIDEOS_PER_MONTH,
+    resetsAt,
+  });
+
+const noPlanCredits = () =>
   new SubscriptionException({
     action: AuthorizationActions.Create,
     section: Sections.VIDEOS_PER_MONTH,
   });
 
-const refusalFor = async () => {
+const refusalFor = async (refusal = outOfCredits()) => {
   const { tool } = makeTool({
-    startGenerateVideo: jest.fn().mockRejectedValue(outOfCredits()),
+    startGenerateVideo: jest.fn().mockRejectedValue(refusal),
   });
   const result = await tool.execute(input, context());
   return result.error as string;
@@ -133,14 +142,27 @@ describe('GenerateVideoTool', () => {
     });
 
     // The transcript's other three failures: an unnamed pool, a second refusal
-    // that read as an unrelated problem, and no way forward.
-    it('names both ways forward and the pool every video type draws on', async () => {
+    // that read as an unrelated problem, and no way forward. The way forward is
+    // the date the credits come back: the ChatGPT plugin guidelines forbid
+    // promoting upgrades, and Samy reads the same text.
+    it('names the reset date and the pool every video type draws on, without an upsell', async () => {
       const error = await refusalFor();
 
-      expect(error).toMatch(/upgrade/i);
-      expect(error).toMatch(/reset/i);
+      expect(error).toContain('2026-12-01T00:00:00.000Z');
       expect(error).toMatch(/every .*video.*same video credits/i);
       expect(error).toMatch(/image credits are a separate pool/i);
+      expect(error).toMatch(/do not suggest upgrading or buying anything/i);
+      expect(error).not.toMatch(
+        /can upgrade|upgrade their plan|\/billing|finish trial/i
+      );
+    });
+
+    it('says a plan without video credits has none, without claiming they ran out', async () => {
+      const error = await refusalFor(noPlanCredits());
+
+      expect(error).toMatch(/current plan has no AI video credits/i);
+      expect(error).not.toMatch(/run out|reset|not that their plan/i);
+      expect(error).toMatch(/do not suggest upgrading or buying anything/i);
     });
 
     // Mastra validates the return against this schema, so without the widening
