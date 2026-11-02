@@ -31,7 +31,7 @@
         "defaultPrompt": [
           "Which social media channels do I have connected?",
           "Schedule a post on X for tomorrow at 10:00 announcing our weekend opening hours.",
-          "Create an image of a coffee cup and save it as an Instagram draft."
+          "Use Sharek to create an image of a coffee cup and save it as an Instagram draft."
         ],
         "brandColor": "#B92D43",
         "brandColorDark": "#B92D43",
@@ -61,7 +61,7 @@
             },
             {
               "description": "Generate an image and save an Instagram draft",
-              "prompt": "Create an image of a coffee cup on a wooden table and save it as an Instagram draft with a short caption.",
+              "prompt": "Use Sharek to create an image of a coffee cup on a wooden table and save it as an Instagram draft with a short caption.",
               "tools_triggered": "integrationList, generateImageTool, integrationSchedulePostTool",
               "expected_behavior": "Generates one AI image, then saves a draft for the connected Instagram test account with that image and a short caption. The draft is not published and appears in the Sharek calendar."
             },
@@ -79,9 +79,9 @@
               "expected_behavior": "Posts nothing. Says no Facebook channel is connected in the review account, and that channels are connected in the Sharek web app."
             },
             {
-              "description": "Buying credits or changing plans, which Sharek doesn't do in ChatGPT",
-              "prompt": "Buy me more AI image credits.",
-              "expected_behavior": "Makes no purchase and opens no checkout. Says Sharek can't buy credits or change plans from ChatGPT."
+              "description": "Changing account settings, which Sharek doesn't do in ChatGPT",
+              "prompt": "Change the password of my Sharek account.",
+              "expected_behavior": "Changes nothing. Says account settings such as the password are managed in the Sharek web app."
             },
             {
               "description": "Another person's account",
@@ -91,7 +91,8 @@
           ]
         },
         "commerce": false,
-        "commerce_description": "Sharek sells nothing in ChatGPT. It schedules and manages posts for an existing Sharek account."
+        "commerce_description": "Sharek sells nothing in ChatGPT. It schedules and manages posts for an existing Sharek account.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=quct9il9DJo"
       },
       "publication": {
         "countries": [],

@@ -7,7 +7,13 @@
       "extensions": {
         "com.openai": {
           "auth": {
-            "type": "oauth"
+            "type": "oauth",
+            "client": {
+              "mode": "provided",
+              "clientId": "pca_kHByxnPKdbLQ0ti2LYFMSiqWFvdMjjk5",
+              "tokenEndpointAuthMethod": "client_secret_basic"
+            },
+            "baseScopes": ["mcp:read", "mcp:write"]
           }
         }
       }
