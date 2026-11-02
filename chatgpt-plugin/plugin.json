@@ -34,7 +34,7 @@
           "Create an image of a coffee cup and save it as an Instagram draft."
         ],
         "brandColor": "#B92D43",
-        "brandColorDark": "#F0708A",
+        "brandColorDark": "#B92D43",
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg"
       },
@@ -55,9 +55,9 @@
             },
             {
               "description": "Schedule a text post on X",
-              "prompt": "Schedule a post on X for tomorrow at 10:00 that says: Testing our new posting workflow.",
+              "prompt": "Schedule a post on X for tomorrow at 10:00 about a new product launch.",
               "tools_triggered": "integrationList, integrationSchema, integrationSchedulePostTool",
-              "expected_behavior": "Schedules the post on the connected X test account for 10:00 tomorrow and confirms the time. The post appears in the Sharek calendar."
+              "expected_behavior": "Writes a short post about a new product launch, schedules it on the connected X test account for 10:00 tomorrow and confirms the time. The post appears in the Sharek calendar."
             },
             {
               "description": "Generate an image and save an Instagram draft",

@@ -39,7 +39,7 @@ export class GenerateVideoTool implements AgentToolInterface {
                     in case the user specified a platform that requires attachment and attachment was not provided,
                     ask if they want to generate a picture of a video.
                     In many cases 'videoFunctionTool' will need to be called first, to get things like voice id
-                    Generating takes minutes, so this only starts the render and returns a jobId (or { error } when the video credits are exhausted).
+                    Generating takes minutes, so this only starts the render and returns a jobId (or { error } when the video credits are exhausted or the video type is not available during the trial).
                     Tell the user the video is rendering and will appear in their Media library, then end your reply —
                     never wait, poll or call 'videoStatusTool' in the same turn; call it only when the user asks about the video later.
                     Here are the type of video that can be generated:
@@ -91,6 +91,7 @@ export class GenerateVideoTool implements AgentToolInterface {
           // reported "your subscription doesn't include access to video
           // generation", about a plan that does include it. Told this, the
           // model refuses in the conversation's own language.
+          //
           // No upsell: the ChatGPT plugin guidelines forbid one, and Samy reads
           // the same text. A FREE or lapsed organization has no credit window,
           // so its refusal carries no reset date.
@@ -104,7 +105,7 @@ export class GenerateVideoTool implements AgentToolInterface {
           }
 
           // resolveVideo answers 406 only for a video type a trialing org can't
-          // use, and its text links to a page that charges the plan at once
+          // use, and its text links to a page that charges the plan at once.
           if (
             err instanceof HttpException &&
             err.getStatus() === HttpStatus.NOT_ACCEPTABLE

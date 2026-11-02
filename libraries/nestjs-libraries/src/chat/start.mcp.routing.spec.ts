@@ -48,7 +48,8 @@ describe('the OAuth MCP root routes in the container nginx', () => {
     // The API-key endpoint: the key comes as a Bearer header or in the path
     '/mcp',
     '/mcp/an-api-key',
-    // OpenAI's domain check for the ChatGPT plugin, answered when OPENAI_APP_CHALLANGE is set
+    // OpenAI's domain check for the ChatGPT plugin, answered when
+    // OPENAI_APP_CHALLANGE is set
     '/.well-known/openai-apps-challenge',
   ])('sends %s to the backend with its path unchanged', (uri) => {
     // No URI part on proxy_pass, so nginx forwards the request path as it came

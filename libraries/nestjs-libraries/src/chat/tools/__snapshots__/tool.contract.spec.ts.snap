@@ -433,11 +433,11 @@ exports[`the MCP tool contracts generateVideoTool keeps its contract 1`] = `
                     in case the user specified a platform that requires attachment and attachment was not provided,
                     ask if they want to generate a picture of a video.
                     In many cases 'videoFunctionTool' will need to be called first, to get things like voice id
-                    Generating takes minutes, so this only starts the render and returns a jobId (or { error } when the video credits are exhausted).
+                    Generating takes minutes, so this only starts the render and returns a jobId (or { error } when the video credits are exhausted or the video type is not available during the trial).
                     Tell the user the video is rendering and will appear in their Media library, then end your reply —
                     never wait, poll or call 'videoStatusTool' in the same turn; call it only when the user asks about the video later.
                     Here are the type of video that can be generated:
-                    -Example video
+                    -Fake Provider
       ",
   "inputSchema": {
     "additionalProperties": false,
@@ -831,7 +831,7 @@ exports[`the MCP tool contracts integrationSchema keeps its contract 1`] = `
         "type": "boolean",
       },
       "platform": {
-        "description": "platform identifier (example-provider)",
+        "description": "platform identifier (x, linkedin, linkedin-page, reddit, instagram, instagram-standalone, facebook, threads, youtube, gmb, tiktok, tiktok-business, pinterest, dribbble, discord, slack, kick, twitch, mastodon, bluesky, lemmy, wrapcast, telegram, nostr, vk, medium, devto, hashnode, wordpress, listmonk, moltbook, whop, skool, mewe, tumblr)",
         "type": "string",
       },
     },

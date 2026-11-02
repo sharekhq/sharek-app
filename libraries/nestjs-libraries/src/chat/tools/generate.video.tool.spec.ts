@@ -51,11 +51,13 @@ const input = {
 
 // A paid plan's refusal carries the end of its credit window; a FREE or lapsed
 // organization's has none, because it has no window to reset.
-const outOfCredits = (resetsAt = '2026-12-01T00:00:00.000Z') =>
+const RESETS_AT = '2026-12-01T00:00:00.000Z';
+
+const outOfCredits = () =>
   new SubscriptionException({
     action: AuthorizationActions.Create,
     section: Sections.VIDEOS_PER_MONTH,
-    resetsAt,
+    resetsAt: RESETS_AT,
   });
 
 const noPlanCredits = () =>
@@ -149,7 +151,7 @@ describe('GenerateVideoTool', () => {
     it('names the reset date and the pool every video type draws on, without an upsell', async () => {
       const error = await refusalFor();
 
-      expect(error).toContain('2026-12-01T00:00:00.000Z');
+      expect(error).toContain(RESETS_AT);
       expect(error).toMatch(/every .*video.*same video credits/i);
       expect(error).toMatch(/image credits are a separate pool/i);
       expect(error).toMatch(/do not suggest upgrading or buying anything/i);
@@ -221,17 +223,10 @@ describe('GenerateVideoTool', () => {
       expect(result.jobId).toBeUndefined();
     });
 
-    it('still throws other HTTP errors', async () => {
-      const { tool } = makeTool({
-        startGenerateVideo: jest
-          .fn()
-          .mockRejectedValue(
-            new HttpException('Video type fake not found', 404)
-          ),
-      });
-
-      await expect(tool.execute(input, context())).rejects.toThrow(
-        'Video type fake not found'
+    // The description is where the model is standing when it reads the result.
+    it('tells the agent this refusal comes back as an error too', () => {
+      expect(makeTool().tool.description).toMatch(
+        /not available during the trial/i
       );
     });
   });
@@ -246,6 +241,18 @@ describe('GenerateVideoTool', () => {
 
     await expect(tool.execute(input, context())).rejects.toThrow(
       'socket hang up'
+    );
+  });
+
+  it('still throws other HTTP errors', async () => {
+    const { tool } = makeTool({
+      startGenerateVideo: jest
+        .fn()
+        .mockRejectedValue(new HttpException('Video type fake not found', 404)),
+    });
+
+    await expect(tool.execute(input, context())).rejects.toThrow(
+      'Video type fake not found'
     );
   });
 });

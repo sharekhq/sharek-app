@@ -46,11 +46,13 @@ const context = () =>
 
 // A paid plan's refusal carries the end of its credit window; a FREE or lapsed
 // organization's has none, because it has no window to reset.
-const outOfCredits = (resetsAt = '2026-12-01T00:00:00.000Z') =>
+const RESETS_AT = '2026-12-01T00:00:00.000Z';
+
+const outOfCredits = () =>
   new SubscriptionException({
     action: AuthorizationActions.Create,
     section: Sections.IMAGES_PER_MONTH,
-    resetsAt,
+    resetsAt: RESETS_AT,
   });
 
 const noPlanCredits = () =>
@@ -155,7 +157,7 @@ describe('GenerateImageTool', () => {
         context()
       );
 
-      expect(error).toContain('2026-12-01T00:00:00.000Z');
+      expect(error).toContain(RESETS_AT);
       expect(error).toMatch(/run out/i);
       expect(error).toMatch(/do not suggest upgrading or buying anything/i);
       expect(error).not.toMatch(/can upgrade|upgrade their plan/i);

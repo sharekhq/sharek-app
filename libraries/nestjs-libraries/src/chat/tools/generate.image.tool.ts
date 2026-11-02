@@ -66,6 +66,7 @@ export class GenerateImageTool implements AgentToolInterface {
           // raw error text, and a turn that ends without content poisons the
           // thread. Told this, the model refuses in the conversation's own
           // language.
+          //
           // No upsell: the ChatGPT plugin guidelines forbid one, and Samy reads
           // the same text. A FREE or lapsed organization has no credit window,
           // so its refusal carries no reset date.
