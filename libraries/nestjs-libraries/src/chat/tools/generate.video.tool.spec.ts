@@ -6,6 +6,7 @@ jest.mock(
   () => ({ MediaService: class {} })
 );
 
+import { HttpException } from '@nestjs/common';
 import { GenerateVideoTool } from '@gitroom/nestjs-libraries/chat/tools/generate.video.tool';
 import {
   AuthorizationActions,
@@ -48,15 +49,26 @@ const input = {
   customParams: [{ key: 'voice', value: 'v-1' }],
 };
 
+// A paid plan's refusal carries the end of its credit window; a FREE or lapsed
+// organization's has none, because it has no window to reset.
+const RESETS_AT = '2026-12-01T00:00:00.000Z';
+
 const outOfCredits = () =>
+  new SubscriptionException({
+    action: AuthorizationActions.Create,
+    section: Sections.VIDEOS_PER_MONTH,
+    resetsAt: RESETS_AT,
+  });
+
+const noPlanCredits = () =>
   new SubscriptionException({
     action: AuthorizationActions.Create,
     section: Sections.VIDEOS_PER_MONTH,
   });
 
-const refusalFor = async () => {
+const refusalFor = async (refusal = outOfCredits()) => {
   const { tool } = makeTool({
-    startGenerateVideo: jest.fn().mockRejectedValue(outOfCredits()),
+    startGenerateVideo: jest.fn().mockRejectedValue(refusal),
   });
   const result = await tool.execute(input, context());
   return result.error as string;
@@ -133,14 +145,27 @@ describe('GenerateVideoTool', () => {
     });
 
     // The transcript's other three failures: an unnamed pool, a second refusal
-    // that read as an unrelated problem, and no way forward.
-    it('names both ways forward and the pool every video type draws on', async () => {
+    // that read as an unrelated problem, and no way forward. The way forward is
+    // the date the credits come back: the ChatGPT plugin guidelines forbid
+    // promoting upgrades, and Samy reads the same text.
+    it('names the reset date and the pool every video type draws on, without an upsell', async () => {
       const error = await refusalFor();
 
-      expect(error).toMatch(/upgrade/i);
-      expect(error).toMatch(/reset/i);
+      expect(error).toContain(RESETS_AT);
       expect(error).toMatch(/every .*video.*same video credits/i);
       expect(error).toMatch(/image credits are a separate pool/i);
+      expect(error).toMatch(/do not suggest upgrading or buying anything/i);
+      expect(error).not.toMatch(
+        /can upgrade|upgrade their plan|\/billing|finish trial/i
+      );
+    });
+
+    it('says a plan without video credits has none, without claiming they ran out', async () => {
+      const error = await refusalFor(noPlanCredits());
+
+      expect(error).toMatch(/current plan has no AI video credits/i);
+      expect(error).not.toMatch(/run out|reset|not that their plan/i);
+      expect(error).toMatch(/do not suggest upgrading or buying anything/i);
     });
 
     // Mastra validates the return against this schema, so without the widening
@@ -174,6 +199,38 @@ describe('GenerateVideoTool', () => {
     });
   });
 
+  // A trialing organization can't render every video type, and upstream's
+  // refusal sends the user to a billing button that charges the plan at once.
+  // The ChatGPT plugin guidelines forbid linking to a page that starts a
+  // charge, and Samy reads the same text.
+  describe('when the video type is not available during the trial', () => {
+    it('turns the trial refusal into wording without a billing link', async () => {
+      const { tool } = makeTool({
+        startGenerateVideo: jest
+          .fn()
+          .mockRejectedValue(
+            new HttpException(
+              'This video is not available in trial mode. To use it now, open https://dash.sharek.app/billing and click "Finish trial" (this charges the plan immediately)',
+              406
+            )
+          ),
+      });
+
+      const result = await tool.execute(input, context());
+
+      expect(result.error).toMatch(/not available during the trial/i);
+      expect(result.error).not.toMatch(/billing|finish trial|charges/i);
+      expect(result.jobId).toBeUndefined();
+    });
+
+    // The description is where the model is standing when it reads the result.
+    it('tells the agent this refusal comes back as an error too', () => {
+      expect(makeTool().tool.description).toMatch(
+        /not available during the trial/i
+      );
+    });
+  });
+
   // Everything else is a real failure — a safety rejection, an unknown video
   // type, a provider outage — and the existing tool-error handling is what
   // should see it.
@@ -184,6 +241,18 @@ describe('GenerateVideoTool', () => {
 
     await expect(tool.execute(input, context())).rejects.toThrow(
       'socket hang up'
+    );
+  });
+
+  it('still throws other HTTP errors', async () => {
+    const { tool } = makeTool({
+      startGenerateVideo: jest
+        .fn()
+        .mockRejectedValue(new HttpException('Video type fake not found', 404)),
+    });
+
+    await expect(tool.execute(input, context())).rejects.toThrow(
+      'Video type fake not found'
     );
   });
 });
