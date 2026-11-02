@@ -1,7 +1,7 @@
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {
   IntegrationManager,
   socialIntegrationList,
@@ -100,6 +100,18 @@ export class GenerateVideoTool implements AgentToolInterface {
               error: resetsAt
                 ? `The monthly AI video credits for this organization are used up, so no video was generated. Tell the user their AI video credits have run out — not that their plan or subscription lacks video generation, which it does not — and that they reset on ${resetsAt}. Every type of video draws on the same video credits; AI image credits are a separate pool. Do not suggest upgrading or buying anything.`
                 : "This organization's current plan has no AI video credits, so no video was generated. Tell the user AI video generation is not available on their current plan. Do not suggest upgrading or buying anything.",
+            };
+          }
+
+          // resolveVideo answers 406 only for a video type a trialing org can't
+          // use, and its text links to a page that charges the plan at once
+          if (
+            err instanceof HttpException &&
+            err.getStatus() === HttpStatus.NOT_ACCEPTABLE
+          ) {
+            return {
+              error:
+                'This type of video is not available during the trial, so no video was generated. Tell the user it becomes available when their trial ends. Do not suggest ending the trial early, upgrading or buying anything.',
             };
           }
 

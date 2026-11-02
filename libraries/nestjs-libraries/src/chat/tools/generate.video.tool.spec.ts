@@ -6,6 +6,7 @@ jest.mock(
   () => ({ MediaService: class {} })
 );
 
+import { HttpException } from '@nestjs/common';
 import { GenerateVideoTool } from '@gitroom/nestjs-libraries/chat/tools/generate.video.tool';
 import {
   AuthorizationActions,
@@ -193,6 +194,45 @@ describe('GenerateVideoTool', () => {
     // so a return shape it was never told about is one it has to guess at.
     it('tells the agent an error can come back instead of a video', () => {
       expect(makeTool().tool.description).toContain('{ error }');
+    });
+  });
+
+  // A trialing organization can't render every video type, and upstream's
+  // refusal sends the user to a billing button that charges the plan at once.
+  // The ChatGPT plugin guidelines forbid linking to a page that starts a
+  // charge, and Samy reads the same text.
+  describe('when the video type is not available during the trial', () => {
+    it('turns the trial refusal into wording without a billing link', async () => {
+      const { tool } = makeTool({
+        startGenerateVideo: jest
+          .fn()
+          .mockRejectedValue(
+            new HttpException(
+              'This video is not available in trial mode. To use it now, open https://dash.sharek.app/billing and click "Finish trial" (this charges the plan immediately)',
+              406
+            )
+          ),
+      });
+
+      const result = await tool.execute(input, context());
+
+      expect(result.error).toMatch(/not available during the trial/i);
+      expect(result.error).not.toMatch(/billing|finish trial|charges/i);
+      expect(result.jobId).toBeUndefined();
+    });
+
+    it('still throws other HTTP errors', async () => {
+      const { tool } = makeTool({
+        startGenerateVideo: jest
+          .fn()
+          .mockRejectedValue(
+            new HttpException('Video type fake not found', 404)
+          ),
+      });
+
+      await expect(tool.execute(input, context())).rejects.toThrow(
+        'Video type fake not found'
+      );
     });
   });
 
