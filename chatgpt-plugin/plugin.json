@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sharek",
+  "version": "1.0.0",
+  "description": "Schedule and manage social media posts in Sharek from ChatGPT.",
+  "author": {
+    "name": "Allure Ventures Limited",
+    "url": "https://sharek.app"
+  },
+  "homepage": "https://sharek.app",
+  "keywords": [
+    "social media",
+    "scheduling",
+    "instagram",
+    "x",
+    "linkedin",
+    "tiktok"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sharek",
+        "shortDescription": "Schedule social media posts",
+        "longDescription": "Sharek is a social media scheduler for creators, marketers and businesses. Connect your Sharek account to plan, write and schedule posts from ChatGPT for the channels connected in Sharek, such as Instagram, X, LinkedIn and TikTok.\n\nWith Sharek in ChatGPT you can:\n- See your connected channels\n- Check each platform's posting rules, such as length limits and required media\n- Write a post and schedule it, save it as a draft, or publish it now\n- Generate images and videos for your posts with AI, using the AI credits in your Sharek account\n- Add media from a link or from your device, and reuse files from your media library\n- See your scheduled posts and delete the ones you no longer need\n\nChatGPT only reaches the channels and posts in your own Sharek account. Connect new channels and manage your account settings in the Sharek web app.",
+        "developerName": "Allure Ventures Limited",
+        "category": "Productivity",
+        "websiteURL": "https://sharek.app",
+        "supportURL": "https://sharek.app/contact",
+        "privacyPolicyURL": "https://sharek.app/privacy-policy",
+        "termsOfServiceURL": "https://sharek.app/terms-of-service",
+        "defaultPrompt": [
+          "Which social media channels do I have connected?",
+          "Schedule a post on X for tomorrow at 10:00 announcing our weekend opening hours.",
+          "Create an image of a coffee cup and save it as an Instagram draft."
+        ],
+        "brandColor": "#B92D43",
+        "brandColorDark": "#F0708A",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the connected channels",
+              "prompt": "Which social media channels do I have connected in Sharek?",
+              "tools_triggered": "integrationList",
+              "expected_behavior": "Lists the Instagram and X test accounts connected to the review account, by name and platform, without changing anything."
+            },
+            {
+              "description": "Check a platform's posting rules",
+              "prompt": "What does Instagram need from a post before Sharek can publish it?",
+              "tools_triggered": "integrationList, integrationSchema",
+              "expected_behavior": "Explains Instagram's requirements from Sharek's settings for that channel, including that a post needs an image or a video, without creating a post."
+            },
+            {
+              "description": "Schedule a text post on X",
+              "prompt": "Schedule a post on X for tomorrow at 10:00 that says: Testing our new posting workflow.",
+              "tools_triggered": "integrationList, integrationSchema, integrationSchedulePostTool",
+              "expected_behavior": "Schedules the post on the connected X test account for 10:00 tomorrow and confirms the time. The post appears in the Sharek calendar."
+            },
+            {
+              "description": "Generate an image and save an Instagram draft",
+              "prompt": "Create an image of a coffee cup on a wooden table and save it as an Instagram draft with a short caption.",
+              "tools_triggered": "integrationList, generateImageTool, integrationSchedulePostTool",
+              "expected_behavior": "Generates one AI image, then saves a draft for the connected Instagram test account with that image and a short caption. The draft is not published and appears in the Sharek calendar."
+            },
+            {
+              "description": "See scheduled posts",
+              "prompt": "Show me the posts I have scheduled for the next 7 days.",
+              "tools_triggered": "postsListTool",
+              "expected_behavior": "Lists the posts scheduled in the review account for the next 7 days, with each post's channel, date and a short preview of its text."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A platform with no connected channel",
+              "prompt": "Post this to my Facebook page: We're open this Saturday.",
+              "expected_behavior": "Posts nothing. Says no Facebook channel is connected in the review account, and that channels are connected in the Sharek web app."
+            },
+            {
+              "description": "Buying credits or changing plans, which Sharek doesn't do in ChatGPT",
+              "prompt": "Buy me more AI image credits.",
+              "expected_behavior": "Makes no purchase and opens no checkout. Says Sharek can't buy credits or change plans from ChatGPT."
+            },
+            {
+              "description": "Another person's account",
+              "prompt": "Show me the scheduled posts in my colleague's Sharek account.",
+              "expected_behavior": "Accesses no other account. Explains that Sharek only works with the account connected in this conversation."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Sharek sells nothing in ChatGPT. It schedules and manages posts for an existing Sharek account."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "First release: see connected channels, check each platform's posting rules, write, schedule and draft posts, generate AI images and videos for them, add media, and see or delete scheduled posts.",
+        "translations": {
+          "ar": {
+            "subtitle": "جدولة منشورات السوشيال ميديا",
+            "description": "شارك هي أداة لجدولة منشورات السوشيال ميديا لصناع المحتوى والمسوقين والشركات. اربط حسابك في شارك لتخطط منشوراتك وتكتبها وتجدولها من ChatGPT على القنوات المتصلة بحسابك، مثل إنستغرام وإكس ولينكدإن وتيك توك.\n\nمع شارك في ChatGPT يمكنك:\n- عرض قنواتك المتصلة\n- التحقق من شروط النشر في كل منصة، مثل الحد الأقصى للطول والوسائط المطلوبة\n- كتابة منشور وجدولته أو حفظه كمسودة أو نشره فورًا\n- توليد صور وفيديوهات لمنشوراتك بالذكاء الاصطناعي من رصيد الذكاء الاصطناعي في حسابك على شارك\n- إضافة الوسائط من رابط أو من جهازك، وإعادة استخدام ملفات مكتبة الوسائط\n- عرض منشوراتك المجدولة وحذف ما لم تعد بحاجة إليه\n\nلا يصل ChatGPT إلا إلى القنوات والمنشورات في حسابك على شارك. اربط القنوات الجديدة وأدر إعدادات حسابك من تطبيق شارك على الويب."
+          }
+        }
+      }
+    }
+  }
+}
