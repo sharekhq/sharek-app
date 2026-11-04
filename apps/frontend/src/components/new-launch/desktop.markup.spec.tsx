@@ -528,6 +528,10 @@ describe('the channel grid from 1026px up', () => {
 });
 
 describe('the date picker from 1026px up', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('closed', async () => {
     const host = await render(<DatePicker date={at} onChange={jest.fn()} />);
 
@@ -535,6 +539,9 @@ describe('the date picker from 1026px up', () => {
   });
 
   it('open', async () => {
+    // The open calendar shows the clock's month, not the post's, so the clock
+    // stands at the post's date.
+    jest.useFakeTimers({ now: at.toDate() });
     const host = await render(<DatePicker date={at} onChange={jest.fn()} />);
     await click(host.firstElementChild);
 
