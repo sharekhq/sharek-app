@@ -133,3 +133,38 @@ describe('IntegrationRepository.updateNameAndUrl', () => {
     });
   });
 });
+
+// The disconnect notice goes out only for the attempt this answers true to, so
+// parallel failed refreshes of one channel notify once. The answer is that
+// boolean, never the row with the channel's tokens (CLAUDE.md).
+describe('IntegrationRepository.refreshNeeded', () => {
+  // update answers as the plain write would, with the whole row, so going back
+  // to it fails these assertions instead of crashing on a missing spy.
+  const spies = (count: number) => ({
+    updateMany: jest.fn().mockResolvedValue({ count }),
+    update: jest.fn().mockResolvedValue({ id: 'int-1', token: 'token-1' }),
+  });
+
+  it("flags the asking organization's channel only while the flag is still unset", async () => {
+    const integration = spies(1);
+
+    await makeRepository(integration).refreshNeeded('org-1', 'int-1');
+
+    expect(integration.updateMany).toHaveBeenCalledWith({
+      where: { id: 'int-1', organizationId: 'org-1', refreshNeeded: false },
+      data: { refreshNeeded: true },
+    });
+  });
+
+  it('answers true to the attempt that flipped the flag, with no row', async () => {
+    await expect(
+      makeRepository(spies(1)).refreshNeeded('org-1', 'int-1')
+    ).resolves.toBe(true);
+  });
+
+  it('answers false to an attempt on a channel already flagged, with no row', async () => {
+    await expect(
+      makeRepository(spies(0)).refreshNeeded('org-1', 'int-1')
+    ).resolves.toBe(false);
+  });
+});

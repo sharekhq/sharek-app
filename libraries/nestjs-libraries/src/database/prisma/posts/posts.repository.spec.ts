@@ -151,3 +151,29 @@ describe('PostsRepository.updateReleaseId', () => {
     expect(update.mock.calls[0][0].data).toStrictEqual({ releaseId: '7123' });
   });
 });
+
+describe('PostsRepository.getPosts, a recurring post', () => {
+  // The calendar, the public API and the AI tools' list all ask for a range. It
+  // starts between two occurrences and ends exactly on one.
+  it('lists each occurrence inside the range and none before it, each keeping its first date', async () => {
+    const firstDate = new Date('2026-01-05T10:00:00.000Z');
+    const row = { id: 'post-1', publishDate: firstDate, intervalInDays: 7 };
+    const findMany = jest.fn().mockResolvedValue([row]);
+
+    const posts = await repositoryWith({ findMany }).getPosts('org-1', {
+      startDate: '2026-01-20T00:00:00.000Z',
+      endDate: '2026-02-09T10:00:00.000Z',
+    } as Parameters<PostsRepository['getPosts']>[1]);
+
+    expect(posts.map((post) => post.publishDate.toISOString())).toEqual([
+      '2026-01-26T10:00:00.000Z',
+      '2026-02-02T10:00:00.000Z',
+      '2026-02-09T10:00:00.000Z',
+    ]);
+    expect(posts.map((post) => post.actualDate)).toEqual([
+      firstDate,
+      firstDate,
+      firstDate,
+    ]);
+  });
+});
