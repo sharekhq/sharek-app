@@ -483,7 +483,7 @@ describe('AuthService.getOrgFromCookie', () => {
 // The org cookie outlives the click on an invite and nothing clears it, so the
 // next account to sign in on that browser arrives holding it. Logging in joins
 // only the account the invite names. A copy-link invite names none: the form
-// sends an empty email, and its people open the link while signed in.
+// sends an empty email, and its holder opens the link while signed in.
 describe('an invite held at login', () => {
   const JOINED = { organizationId: 'org-2' };
 
@@ -517,7 +517,7 @@ describe('an invite held at login', () => {
 
   // The provider double answers g@b.c, so the OAuth rows also show the claim is
   // compared with the account's email and not the provider's current one.
-  describe.each<
+  const logins: Array<
     [
       string,
       (
@@ -526,7 +526,7 @@ describe('an invite held at login', () => {
         invite: ReturnType<AuthService['getOrgFromCookie']>
       ) => Promise<unknown>
     ]
-  >([
+  > = [
     [
       'a password login',
       ({ service, users }, account, invite) => {
@@ -561,7 +561,9 @@ describe('an invite held at login', () => {
         );
       },
     ],
-  ])('%s', (_, login) => {
+  ];
+
+  describe.each(logins)('%s', (_, login) => {
     it.each([
       ["the account's email", 'a@b.c', 'a@b.c'],
       ["the account's email in another case", 'A@B.C', 'a@b.c'],

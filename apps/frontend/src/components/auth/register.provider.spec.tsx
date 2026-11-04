@@ -122,6 +122,25 @@ describe('/auth with a provider and no code', () => {
   });
 });
 
+// A logged-out return from a channel's OAuth: proxy.ts sends
+// /integrations/social/<x>?code=… to /auth with its query, and adds a provider
+// only if the URL holds google or settings. No provider means no request to
+// wait on.
+describe('/auth with a code and no provider', () => {
+  it('shows the form and its Sign In link, and asks the backend nothing', async () => {
+    search = new URLSearchParams('code=abc');
+
+    const host = await render(<Register />);
+
+    expect(host.textContent).not.toContain('loading');
+    expect(host.querySelector('[name="email"]')).not.toBeNull();
+    expect(host.querySelector('a[href="/auth/login"]')?.textContent).toBe(
+      'Sign In'
+    );
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
 describe('the OAuth callback, a provider with a code', () => {
   it('asks the backend about the code and stays on loading until a token comes back', async () => {
     search = new URLSearchParams('provider=GOOGLE&code=abc&state=xyz');

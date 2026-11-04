@@ -171,7 +171,7 @@ export class AuthService {
 
   // The org cookie outlives the click on the invite and nothing clears it, so
   // the email claim is what ties the invite to the account logging in. A
-  // copy-link invite has no email: its people open the link while signed in.
+  // copy-link invite has no email: its holder opens the link while signed in.
   private inviteIsFor(invite: { email?: string }, accountEmail: string) {
     return (
       !!accountEmail &&
