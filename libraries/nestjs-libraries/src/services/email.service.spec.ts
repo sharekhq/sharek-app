@@ -97,12 +97,17 @@ describe('EmailService.sendEmailSync', () => {
     const { service, send } = makeService();
     delete process.env.FRONTEND_URL;
 
-    // A reply-to fills the position before the header, so an undefined last
-    // argument is the header's own and not a call that stopped at the reply-to.
-    await service.sendEmailSync('a@b.c', 'Subject', '<p>Hi</p>', 'reply@b.c');
+    await service.sendEmailSync('a@b.c', 'Subject', '<p>Hi</p>');
 
-    const args = send.mock.calls[0];
-    expect(args[args.length - 1]).toBeUndefined();
+    expect(send).toHaveBeenCalledWith(
+      'a@b.c',
+      'Subject',
+      expect.any(String),
+      'Sharek',
+      'noreply@updates.sharek.app',
+      undefined,
+      undefined
+    );
   });
 
   it('retries a send the provider rejected, such as a rate limit', async () => {
