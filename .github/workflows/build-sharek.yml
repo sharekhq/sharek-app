@@ -2,9 +2,9 @@
 name: Build Sharek
 
 # Builds the branded Sharek image and pushes it to GHCR for Coolify to pull.
-# - Pushes to `sharek-ar` auto-build the deployed trunk.
+# - Pushes to `main` auto-build the deployed trunk.
 # - `workflow_dispatch` builds whatever branch you pick on demand (e.g. to
-#   smoke-test a feature branch on the server before merging it to sharek-ar).
+#   smoke-test a feature branch on the server before merging it to main).
 #
 # The image is environment-agnostic: NEXT_PUBLIC_BACKEND_URL / MAIN_URL etc.
 # are read at runtime (server components), so the only build-time value is the
@@ -13,7 +13,7 @@ name: Build Sharek
 on:
   push:
     branches:
-      - sharek-ar
+      - main
   workflow_dispatch:
 
 jobs:
