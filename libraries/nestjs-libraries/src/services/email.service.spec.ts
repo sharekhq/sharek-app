@@ -88,6 +88,24 @@ describe('EmailService.sendEmailSync', () => {
       renderBrandedEmail('Subject', '<p>Hi</p>', 'https://dash.sharek.app'),
       'Sharek',
       'noreply@updates.sharek.app',
+      undefined,
+      { 'List-Unsubscribe': '<https://dash.sharek.app/settings>' }
+    );
+  });
+
+  it('sends no List-Unsubscribe header without FRONTEND_URL', async () => {
+    const { service, send } = makeService();
+    delete process.env.FRONTEND_URL;
+
+    await service.sendEmailSync('a@b.c', 'Subject', '<p>Hi</p>');
+
+    expect(send).toHaveBeenCalledWith(
+      'a@b.c',
+      'Subject',
+      expect.any(String),
+      'Sharek',
+      'noreply@updates.sharek.app',
+      undefined,
       undefined
     );
   });
