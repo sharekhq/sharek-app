@@ -1,4 +1,4 @@
-import { Agent } from 'undici';
+import { Agent, buildConnector } from 'undici';
 import axios, { AxiosInstance } from 'axios';
 import dns from 'node:dns';
 import net from 'node:net';
@@ -45,20 +45,56 @@ function ssrfSafeLookup(
   });
 }
 
+// Node's net.connect never calls `lookup` for a host that is already an IP
+// address, so an address in a URL, or in a redirect, is refused at connect time.
+function isBlockedAddress(host?: string | null): boolean {
+  return !!host && !!net.isIP(host) && isBlockedIp(host);
+}
+
+const ssrfSafeConnector = buildConnector({ lookup: ssrfSafeLookup });
+
 export const ssrfSafeDispatcher = new Agent({
-  connect: {
-    lookup: ssrfSafeLookup,
+  connect: (options, callback) => {
+    if (isBlockedAddress(options.hostname)) {
+      return callback(new Error('Blocked IP'), null);
+    }
+    ssrfSafeConnector(options, callback);
   },
 });
+
+// A blocked address carries on as a host name whose lookup fails, so it's refused
+// the way a blocked host name is, and the agent and the request clean up as usual.
+function refuseBlockedAddresses<T extends http.Agent>(agent: T): T {
+  // not in @types/node, but documented as the method an agent can override
+  const createConnection = (agent as any).createConnection;
+  (agent as any).createConnection = (options: any, callback: any) =>
+    createConnection.call(
+      agent,
+      isBlockedAddress(options.host)
+        ? {
+            ...options,
+            host: 'blocked.invalid',
+            lookup: (_hostname: string, _options: any, done: any) =>
+              setImmediate(done, new Error('Blocked IP'), '', 0),
+          }
+        : options,
+      callback
+    );
+  return agent;
+}
 
 // axios can't use an undici dispatcher, but Node's http(s) agents accept the
 // same `lookup` hook, so axios requests (providers that need form-data /
 // stream uploads) get the identical pinned-DNS guard as `this.fetch`.
 const ssrfSafeAxios = axios.create({
-  httpAgent: new http.Agent({ lookup: ssrfSafeLookup } as http.AgentOptions),
-  httpsAgent: new https.Agent({
-    lookup: ssrfSafeLookup,
-  } as https.AgentOptions),
+  httpAgent: refuseBlockedAddresses(
+    new http.Agent({ lookup: ssrfSafeLookup } as http.AgentOptions)
+  ),
+  httpsAgent: refuseBlockedAddresses(
+    new https.Agent({
+      lookup: ssrfSafeLookup,
+    } as https.AgentOptions)
+  ),
 });
 
 // Self-hosters legitimately connect Postiz to WordPress/Mastodon/Lemmy/Listmonk

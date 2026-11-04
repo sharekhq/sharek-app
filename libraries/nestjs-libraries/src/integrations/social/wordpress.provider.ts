@@ -111,7 +111,11 @@ export class WordpressProvider
 
     // Normalize the domain - users often paste it with surrounding whitespace
     // or a trailing slash, which would otherwise build `https://site.com//wp-json/...`.
-    const domain = body.domain.trim().replace(/\/+$/, '');
+    // A loop, because a regex here takes seconds on a long run of slashes.
+    let domain = body.domain.trim();
+    while (domain.endsWith('/')) {
+      domain = domain.slice(0, -1);
+    }
 
     const auth = Buffer.from(`${body.username}:${body.password}`).toString(
       'base64'
