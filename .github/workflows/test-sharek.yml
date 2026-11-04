@@ -1,0 +1,65 @@
+---
+name: Test Sharek
+
+# Runs every Jest suite on every branch push, so a failing test shows up before
+# the manual Redeploy in Coolify. It doesn't block the push: check it first.
+#
+# - All six suites run every time, because the helpers suite scans frontend
+#   files, so a frontend edit can fail it.
+# - `--ci` because outside it Jest writes a snapshot it has never seen and passes.
+# - Each suite runs even if an earlier one failed, so one run shows every failure.
+
+on:
+  push:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+
+jobs:
+  jest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+
+      - name: Helpers
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec jest --ci --config libraries/helpers/jest.config.ts
+
+      - name: Server libraries
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec jest --ci --config libraries/nestjs-libraries/jest.config.ts
+
+      - name: Shared React libraries
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec jest --ci --config libraries/react-shared-libraries/jest.config.ts
+
+      - name: Backend
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec jest --ci --config apps/backend/jest.config.ts
+
+      - name: Frontend
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec jest --ci --config apps/frontend/jest.config.ts
+
+      - name: Integration
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
+        run: pnpm exec jest --ci --config libraries/nestjs-libraries/jest.integration.config.ts
