@@ -1891,7 +1891,7 @@
   "validation_google_my_business_posts_do_not_support_video_attachments": "منشورات الملف التجاري على Google لا تدعم مرفقات الفيديو",
   "validation_if_posting_a_video_you_can_only_have_two_media_items": "عند نشر فيديو، لا يمكن إضافة أكثر من عنصري وسائط",
   "validation_if_posting_a_video_you_have_to_also_include_a_cover_image_as_second_media": "عند نشر فيديو، عليك إضافة صورة غلاف كوسيط ثاني",
-  "validation_instagram_alt_text_can_be_up_to_1000_characters": "يمكن أن يصل النص البديل في إنستغرام إلى 1000 حرف",
+  "validation_instagram_alt_text_can_be_up_to_1000_characters": "لا يدعم إنستغرام أكثر من 1000 حرف في النص البديل",
   "validation_instagram_carousel_only_supports_up_to_10_media_attachments": "لا يدعم دوار إنستغرام أكثر من 10 مرفقات",
   "validation_invalid_image_size_requires_400x300_or_800x600_px_images": "مقاس الصورة غير صالح. المطلوب صور بمقاس 400x300 أو 800x600 بكسل.",
   "validation_invalid_media": "وسائط غير صالحة",
