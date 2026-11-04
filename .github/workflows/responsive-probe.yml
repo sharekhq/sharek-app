@@ -2,23 +2,10 @@
 name: Responsive probe
 
 # ============================================================================
-# THIS WORKFLOW CANNOT RUN TODAY. Run the probe locally instead:
+# Run it by dispatching it. It needs the PROBE_EMAIL / PROBE_PASSWORD secrets
+# described below. Until they are set, run the probe locally:
 #
 #     PROBE_EMAIL=... PROBE_PASSWORD=... node tools/responsive-probe/run.mjs
-#
-# GitHub resolves BOTH `schedule` and `workflow_dispatch` against the workflow
-# file on the repository's DEFAULT branch. This repo's default is `main` — the
-# frozen pre-fork branch, which carries none of the fork's workflows. So
-# dispatching this file returns:
-#
-#     HTTP 404: workflow responsive-probe.yml not found on the default branch
-#
-# Verified 2026-08-15. The same applies to build-sharek.yml, whose entire run
-# history is `push` events and contains no dispatch.
-#
-# It is kept here, inert, because the fix is one command and then it works as
-# written — `gh repo edit --default-branch sharek-ar`. Until someone runs that,
-# treat this file as documentation, not as coverage.
 #
 # Do not "fix" it with a `push` trigger. A push builds the image but the
 # rollout is a manual Coolify click, so the probe would fire early and measure
