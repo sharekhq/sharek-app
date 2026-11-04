@@ -16,6 +16,7 @@ import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permis
 import {
   OnlyURL, UpdateDto, WebhooksDto
 } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
+import { getSsrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Webhooks')
@@ -60,6 +61,8 @@ export class WebhookController {
         method: 'POST',
         body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' },
+        // @ts-ignore — undici option, not in lib.dom fetch types
+        dispatcher: getSsrfSafeDispatcher(),
       });
     } catch (err) {
       /** sent **/

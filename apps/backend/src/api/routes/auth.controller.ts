@@ -114,6 +114,9 @@ export class AuthController {
         register: true,
       });
     } catch (e: any) {
+      // Express serves a bare string as text/html, and this message can carry
+      // what the request sent
+      response.setHeader('Content-Type', 'text/plain; charset=utf-8');
       response.status(400).send(e.message);
     }
   }
@@ -178,6 +181,9 @@ export class AuthController {
         login: true,
       });
     } catch (e: any) {
+      // Express serves a bare string as text/html, and this message can carry
+      // what the request sent
+      response.setHeader('Content-Type', 'text/plain; charset=utf-8');
       response.status(400).send(e.message);
     }
   }

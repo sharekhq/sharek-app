@@ -220,8 +220,10 @@ export class PublicController {
       throw new Error(`Upstream error: ${r.statusText}`);
     }
 
-    const type = r.headers.get('content-type') ?? 'application/octet-stream';
-    res.setHeader('Content-Type', type);
+    // This route only takes mp4 addresses. The remote's own type isn't forwarded:
+    // it could answer with a page, which would then run on this domain.
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
     const contentRange = r.headers.get('content-range');
     if (contentRange) res.setHeader('Content-Range', contentRange);

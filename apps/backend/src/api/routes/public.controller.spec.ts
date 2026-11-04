@@ -18,7 +18,20 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service',
   () => ({ SubscriptionService: class {} })
 );
+// The stream re-checks every hop, which needs DNS; the remote is a double here.
+jest.mock(
+  '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator',
+  () => ({
+    ...jest.requireActual(
+      '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator'
+    ),
+    isSafePublicHttpsUrl: jest.fn().mockResolvedValue(true),
+  })
+);
 
+import express from 'express';
+import { Server } from 'http';
+import { AddressInfo } from 'net';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
 import { PublicController } from './public.controller';
@@ -82,5 +95,69 @@ describe('PublicController.modifySubscription', () => {
       controller.modifySubscription(AuthService.signJWT(payload))
     ).resolves.toEqual({ success: false });
     expect(modifySubscriptionByOrg).not.toHaveBeenCalled();
+  });
+});
+
+// The route needs no login and fetches any public address ending in mp4, so the
+// remote must not get to decide how a browser treats the answer: served as a
+// page, it would run on the app's own domain.
+describe('PublicController.streamFile', () => {
+  const realFetch = global.fetch;
+  const url = 'https://remote.example/video.mp4';
+  let server: Server;
+  let base: string;
+
+  beforeAll(async () => {
+    const { controller } = makeController();
+    const app = express();
+    app.get('/stream', (req, res) => controller.streamFile({ url }, res, req));
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => resolve());
+    });
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise((done) => server.close(done));
+  });
+
+  const stream = async (remote: Response) => {
+    global.fetch = jest.fn().mockResolvedValue(remote);
+    return realFetch(`${base}/stream`);
+  };
+
+  it('answers video whatever type the remote claims', async () => {
+    const response = await stream(
+      new Response('<script>alert(1)</script>', {
+        headers: { 'content-type': 'text/html' },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('video/mp4');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+
+  // Seeking is a Range request: the thumbnail picker needs the partial answer
+  it('keeps a partial answer seekable', async () => {
+    const response = await stream(
+      new Response('bytes', {
+        status: 206,
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-range': 'bytes 0-4/100',
+        },
+      })
+    );
+
+    expect(response.status).toBe(206);
+    expect(response.headers.get('content-type')).toBe('video/mp4');
+    expect(response.headers.get('content-range')).toBe('bytes 0-4/100');
+    expect(await response.text()).toBe('bytes');
   });
 });
