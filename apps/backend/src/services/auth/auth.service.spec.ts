@@ -81,6 +81,7 @@ const makeService = () => {
   };
   const email = { sendEmailSync: jest.fn().mockResolvedValue(undefined) };
   const provider = {
+    getToken: jest.fn().mockResolvedValue('google-token'),
     getUser: jest.fn().mockResolvedValue({ id: 'google-1', email: 'g@b.c' }),
   };
   const providers = { getProvider: jest.fn().mockReturnValue(provider) };
@@ -476,6 +477,213 @@ describe('AuthService.getOrgFromCookie', () => {
     const { service } = makeService();
 
     expect(service.getOrgFromCookie(AuthChecker.signJWT(payload))).toBe(false);
+  });
+});
+
+// The org cookie outlives the click on an invite and nothing clears it, so the
+// next account to sign in on that browser arrives holding it. Logging in joins
+// only the account the invite names. A copy-link invite names none: the form
+// sends an empty email, and its people open the link while signed in.
+describe('an invite held at login', () => {
+  const JOINED = { organizationId: 'org-2' };
+
+  const held = ({ service }: Doubles, claims: object = {}) =>
+    service.getOrgFromCookie(
+      AuthChecker.signJWT({
+        role: 'ADMIN',
+        orgId: 'org-2',
+        timeLimit: '2026-09-26 09:00:00',
+        id: 'a1b2c',
+        ...claims,
+      })
+    );
+
+  const loginBody = () =>
+    Object.assign(new LoginUserDto(), {
+      email: 'a@b.c',
+      password: PASSWORD,
+      provider: Provider.LOCAL,
+    });
+
+  const expectJoined = ({ organizations }: Doubles) => {
+    expect(organizations.addUserToOrg).toHaveBeenCalledTimes(1);
+    expect(organizations.addUserToOrg).toHaveBeenCalledWith(
+      'user-1',
+      'a1b2c',
+      'org-2',
+      'ADMIN'
+    );
+  };
+
+  // The provider double answers g@b.c, so the OAuth rows also show the claim is
+  // compared with the account's email and not the provider's current one.
+  describe.each<
+    [
+      string,
+      (
+        doubles: Doubles,
+        account: object,
+        invite: ReturnType<AuthService['getOrgFromCookie']>
+      ) => Promise<unknown>
+    ]
+  >([
+    [
+      'a password login',
+      ({ service, users }, account, invite) => {
+        users.getUserByEmail.mockResolvedValue({
+          ...account,
+          activated: true,
+          password: AuthChecker.hashPassword(PASSWORD),
+        });
+        return service.routeAuth(
+          Provider.LOCAL,
+          loginBody(),
+          IP,
+          AGENT,
+          invite
+        );
+      },
+    ],
+    [
+      'an OAuth login on an existing account',
+      ({ service, users }, account, invite) => {
+        users.getUserByProvider.mockResolvedValue({
+          ...account,
+          activated: true,
+        });
+        return service.checkExists(
+          Provider.GOOGLE,
+          'code',
+          undefined,
+          'state',
+          'state',
+          invite
+        );
+      },
+    ],
+  ])('%s', (_, login) => {
+    it.each([
+      ["the account's email", 'a@b.c', 'a@b.c'],
+      ["the account's email in another case", 'A@B.C', 'a@b.c'],
+      ['an account stored in another case', 'a@b.c', 'A@B.C'],
+    ])('joins on %s', async (_label, claim, stored) => {
+      const doubles = makeService();
+      doubles.organizations.addUserToOrg.mockResolvedValue(JOINED);
+
+      const result = await login(
+        doubles,
+        { ...USER, email: stored },
+        held(doubles, { email: claim })
+      );
+
+      expectJoined(doubles);
+      expect(result).toEqual({ addedOrg: JOINED, jwt: expect.any(String) });
+    });
+
+    it.each([
+      ['another email', { email: 'other@b.c' }, USER],
+      ['an empty email', { email: '' }, USER],
+      ['no email', {}, USER],
+      ['an email that is not a string', { email: { not: '' } }, USER],
+      [
+        'an empty email, on an account with an empty one',
+        { email: '' },
+        { ...USER, email: '' },
+      ],
+      ['no email, on an account with none', {}, { ...USER, email: undefined }],
+      [
+        'an email, on an account with none',
+        { email: 'a@b.c' },
+        { ...USER, email: undefined },
+      ],
+    ])('logs in without joining on %s', async (_label, claims, account) => {
+      const doubles = makeService();
+
+      const result = await login(doubles, account, held(doubles, claims));
+
+      expect(doubles.organizations.addUserToOrg).not.toHaveBeenCalled();
+      expect(result).toEqual({ addedOrg: false, jwt: expect.any(String) });
+    });
+
+    it('logs in without joining when no invite is held', async () => {
+      const doubles = makeService();
+
+      const result = await login(doubles, USER, false);
+
+      expect(doubles.organizations.addUserToOrg).not.toHaveBeenCalled();
+      expect(result).toEqual({ addedOrg: false, jwt: expect.any(String) });
+    });
+  });
+
+  // Membership is recorded before the activation gate, the same model as a
+  // sign-up through an invite; the gate still keeps the account out.
+  describe('a password login that is not activated', () => {
+    const unactivated = (doubles: Doubles) =>
+      doubles.users.getUserByEmail.mockResolvedValue({
+        ...USER,
+        activated: false,
+        password: AuthChecker.hashPassword(PASSWORD),
+      });
+
+    it('joins before the activation error when the invite is for this account', async () => {
+      const doubles = makeService();
+      unactivated(doubles);
+
+      await expect(
+        doubles.service.routeAuth(
+          Provider.LOCAL,
+          loginBody(),
+          IP,
+          AGENT,
+          held(doubles, { email: 'a@b.c' })
+        )
+      ).rejects.toThrow('User is not activated');
+      expectJoined(doubles);
+    });
+
+    it('answers the activation error without joining when it is for another', async () => {
+      const doubles = makeService();
+      unactivated(doubles);
+
+      await expect(
+        doubles.service.routeAuth(
+          Provider.LOCAL,
+          loginBody(),
+          IP,
+          AGENT,
+          held(doubles, { email: 'other@b.c' })
+        )
+      ).rejects.toThrow('User is not activated');
+      expect(doubles.organizations.addUserToOrg).not.toHaveBeenCalled();
+    });
+  });
+
+  // A sign-up reads no claim: someone who opens a copy-link invite without an
+  // account joins this way.
+  describe.each([
+    ['an email sign-up', () => emailBody()],
+    ['a provider sign-up', () => providerBody()],
+  ])('%s', (_, body) => {
+    it.each([
+      ['another email', { email: 'other@b.c' }],
+      ['an empty email', { email: '' }],
+      ['no email', {}],
+    ])('joins on an invite with %s', async (_label, claims) => {
+      const doubles = makeService();
+      doubles.organizations.addUserToOrg.mockResolvedValue(JOINED);
+      const posted = body();
+
+      const result = await doubles.service.routeAuth(
+        posted.provider,
+        posted,
+        IP,
+        AGENT,
+        held(doubles, claims)
+      );
+
+      expectJoined(doubles);
+      expect(result).toEqual({ addedOrg: JOINED, jwt: expect.any(String) });
+    });
   });
 });
 

@@ -41,7 +41,9 @@ export class AuthService {
     body: CreateOrgUserDto | LoginUserDto,
     ip: string,
     userAgent: string,
-    addToOrg?: boolean | { orgId: string; role: 'USER' | 'ADMIN'; id: string }
+    addToOrg?:
+      | boolean
+      | { email?: string; orgId: string; role: 'USER' | 'ADMIN'; id: string }
   ) {
     if (provider === Provider.LOCAL) {
       if (process.env.DISALLOW_PLUS && body.email.includes('+')) {
@@ -102,7 +104,9 @@ export class AuthService {
       // below (and the auth middleware) keep an unactivated user out until they
       // verify their email.
       const addedOrg =
-        addToOrg && typeof addToOrg !== 'boolean'
+        addToOrg &&
+        typeof addToOrg !== 'boolean' &&
+        this.inviteIsFor(addToOrg, user.email)
           ? await this._organizationService.addUserToOrg(
               user.id,
               addToOrg.id,
@@ -163,6 +167,17 @@ export class AuthService {
     } catch (err) {
       return false;
     }
+  }
+
+  // The org cookie outlives the click on the invite and nothing clears it, so
+  // the email claim is what ties the invite to the account logging in. A
+  // copy-link invite has no email: its people open the link while signed in.
+  private inviteIsFor(invite: { email?: string }, accountEmail: string) {
+    return (
+      !!accountEmail &&
+      typeof invite.email === 'string' &&
+      invite.email.toLowerCase() === accountEmail.toLowerCase()
+    );
   }
 
   private async loginOrRegisterProvider(
@@ -335,7 +350,9 @@ export class AuthService {
     redirectUri?: string,
     state?: string,
     stateCookie?: string,
-    addToOrg?: boolean | { orgId: string; role: 'USER' | 'ADMIN'; id: string }
+    addToOrg?:
+      | boolean
+      | { email?: string; orgId: string; role: 'USER' | 'ADMIN'; id: string }
   ) {
     // the mobile app passes redirect_uri and keeps no cookies, the web flow
     // never passes it, so the state nonce is only enforced for the web flow
@@ -362,7 +379,9 @@ export class AuthService {
       // This path bypasses routeAuth, so join the inviting org here too (OAuth
       // accounts are always activated, so there is no activation gate to clear).
       const addedOrg =
-        addToOrg && typeof addToOrg !== 'boolean'
+        addToOrg &&
+        typeof addToOrg !== 'boolean' &&
+        this.inviteIsFor(addToOrg, checkExists.email)
           ? await this._organizationService.addUserToOrg(
               checkExists.id,
               addToOrg.id,
