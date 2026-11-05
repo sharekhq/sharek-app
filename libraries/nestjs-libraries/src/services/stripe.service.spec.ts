@@ -6,6 +6,7 @@ const mockSubscriptionsCancel = jest.fn();
 const mockSubscriptionsRetrieve = jest.fn();
 const mockSubscriptionsUpdate = jest.fn();
 const mockCheckoutSessionsCreate = jest.fn();
+const mockCheckoutSessionsRetrieve = jest.fn();
 const mockCustomersUpdate = jest.fn();
 const mockProductsList = jest.fn();
 const mockPricesList = jest.fn();
@@ -21,7 +22,12 @@ jest.mock('stripe', () => ({
       update: mockSubscriptionsUpdate,
     };
     invoices = { list: mockInvoicesList };
-    checkout = { sessions: { create: mockCheckoutSessionsCreate } };
+    checkout = {
+      sessions: {
+        create: mockCheckoutSessionsCreate,
+        retrieve: mockCheckoutSessionsRetrieve,
+      },
+    };
     customers = { update: mockCustomersUpdate };
     products = { list: mockProductsList };
     prices = { list: mockPricesList };
@@ -68,6 +74,7 @@ import { BadRequestException } from '@nestjs/common';
 
 const makeService = (paymentId: string | null) => {
   const subscriptionService = {
+    checkSubscription: jest.fn().mockResolvedValue(null),
     deleteSubscription: jest.fn().mockResolvedValue({ count: 1 }),
     deleteSubscriptionByOrgId: jest.fn().mockResolvedValue({ count: 1 }),
     updateCustomerId: jest.fn().mockResolvedValue(undefined),
@@ -807,6 +814,21 @@ describe('billing events', () => {
         );
       }
     );
+
+    // Stripe fills the template in when it sends the customer back, which is
+    // how the return page knows which session to ask about.
+    it('names the session in the return url of the embedded checkout', async () => {
+      mockCheckoutSessionsCreate.mockResolvedValue({
+        client_secret: 'cs_1_secret',
+      });
+      const { service } = makeBillingService();
+
+      await service.embedded('u', 'org-1', USER_ID, body, true);
+
+      expect(mockCheckoutSessionsCreate.mock.calls[0][0].return_url).toMatch(
+        /\/launches\?onboarding=true&trialStart=true&check=[^&]+&session=\{CHECKOUT_SESSION_ID\}$/
+      );
+    });
   });
 
   // A customer keeps one live subscription. The webhooks read the
@@ -1134,5 +1156,118 @@ describe('billing events', () => {
         expect(fetchMock).not.toHaveBeenCalled();
       }
     );
+  });
+});
+
+// After checkout the customer comes back to /launches?check=… and the page polls
+// this until the webhook has stored the subscription. Someone who cancels on, or
+// is refused by, a payment method that redirects (Amazon Pay) comes back the same
+// way with the session still open, and no webhook is coming, so answering "wait"
+// leaves them on a spinner forever.
+describe('checkSubscription', () => {
+  const CUSTOMER = 'cus_buyer';
+  const TOKEN = 'v0R882f9Rs';
+  const SESSION = 'cs_live_a1b2c3';
+  const checkoutSession = (fields: Record<string, unknown>) => ({
+    id: SESSION,
+    object: 'checkout.session',
+    customer: CUSTOMER,
+    mode: 'subscription',
+    payment_status: 'unpaid',
+    status: 'open',
+    ...fields,
+  });
+
+  beforeEach(() => {
+    mockCheckoutSessionsRetrieve.mockReset();
+    mockSubscriptionsList.mockReset().mockResolvedValue({ data: [] });
+  });
+
+  it.each(['open', 'expired'])(
+    'stops the wait when the customer came back with the session %s',
+    async (status) => {
+      mockCheckoutSessionsRetrieve.mockResolvedValue(
+        checkoutSession({ status })
+      );
+      const { service } = makeService(CUSTOMER);
+
+      await expect(
+        service.checkSubscription('org-1', TOKEN, SESSION)
+      ).resolves.toBe(1);
+      expect(mockCheckoutSessionsRetrieve).toHaveBeenCalledWith(SESSION);
+    }
+  );
+
+  it('keeps waiting for the webhook once the session is complete', async () => {
+    mockCheckoutSessionsRetrieve.mockResolvedValue(
+      checkoutSession({ status: 'complete', payment_status: 'paid' })
+    );
+    const { service } = makeService(CUSTOMER);
+
+    await expect(
+      service.checkSubscription('org-1', TOKEN, SESSION)
+    ).resolves.toBe(0);
+  });
+
+  // The card check cancels the subscription it just saw, after a checkout that
+  // completed normally.
+  it('still reports a card that failed the check after a complete session', async () => {
+    mockCheckoutSessionsRetrieve.mockResolvedValue(
+      checkoutSession({ status: 'complete', payment_status: 'paid' })
+    );
+    mockSubscriptionsList.mockResolvedValue({
+      data: [{ metadata: { uniqueId: TOKEN }, canceled_at: 1793800000 }],
+    });
+    const { service } = makeService(CUSTOMER);
+
+    await expect(
+      service.checkSubscription('org-1', TOKEN, SESSION)
+    ).resolves.toBe(1);
+  });
+
+  it('answers from the stored subscription without asking Stripe about the session', async () => {
+    const { service, subscriptionService } = makeService(CUSTOMER);
+    subscriptionService.checkSubscription.mockResolvedValue({ id: 'row-1' });
+
+    await expect(
+      service.checkSubscription('org-1', TOKEN, SESSION)
+    ).resolves.toBe(2);
+    expect(mockCheckoutSessionsRetrieve).not.toHaveBeenCalled();
+  });
+
+  it('ignores a session that belongs to another customer', async () => {
+    mockCheckoutSessionsRetrieve.mockResolvedValue(
+      checkoutSession({ customer: 'cus_someone_else' })
+    );
+    const { service } = makeService(CUSTOMER);
+
+    await expect(
+      service.checkSubscription('org-1', TOKEN, SESSION)
+    ).resolves.toBe(0);
+  });
+
+  // The page polls every second: one failed lookup must not end the wait of a
+  // customer whose payment went through.
+  it('keeps waiting when Stripe cannot answer', async () => {
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    mockCheckoutSessionsRetrieve.mockRejectedValue(
+      new Error('No such checkout.session')
+    );
+    const { service } = makeService(CUSTOMER);
+
+    await expect(
+      service.checkSubscription('org-1', TOKEN, SESSION)
+    ).resolves.toBe(0);
+    consoleError.mockRestore();
+  });
+
+  // A session opened before this shipped comes back with no session in its url.
+  it('keeps waiting on a return url that names no session', async () => {
+    const { service } = makeService(CUSTOMER);
+
+    await expect(service.checkSubscription('org-1', TOKEN)).resolves.toBe(0);
+    expect(mockCheckoutSessionsRetrieve).not.toHaveBeenCalled();
   });
 });

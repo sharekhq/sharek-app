@@ -722,7 +722,7 @@ export class StripeService extends PaymentProviderAbstract {
       customer,
       return_url:
         process.env['FRONTEND_URL'] +
-        `/launches?onboarding=true&trialStart=true&check=${uniqueId}${isUtm}`,
+        `/launches?onboarding=true&trialStart=true&check=${uniqueId}&session={CHECKOUT_SESSION_ID}${isUtm}`,
       mode: 'subscription',
       subscription_data: {
         ...(allowTrial ? { trial_period_days: 7 } : {}),
@@ -1005,7 +1005,37 @@ export class StripeService extends PaymentProviderAbstract {
     return true;
   }
 
-  async checkSubscription(organizationId: string, subscriptionId: string) {
+  // A customer who cancels on, or is refused by, a payment method that redirects
+  // comes back with the session unfinished, and no webhook is coming.
+  private async isCheckoutUnfinished(
+    organizationId: string,
+    checkoutSessionId?: string
+  ) {
+    if (!checkoutSessionId) {
+      return false;
+    }
+
+    try {
+      const { customer, status } = await stripe.checkout.sessions.retrieve(
+        checkoutSessionId
+      );
+      const org = await this._organizationService.getOrgById(organizationId);
+
+      return (
+        customer === org?.paymentId &&
+        (status === 'open' || status === 'expired')
+      );
+    } catch (err) {
+      console.error('Error reading the checkout session:', err);
+      return false;
+    }
+  }
+
+  async checkSubscription(
+    organizationId: string,
+    subscriptionId: string,
+    checkoutSessionId?: string
+  ) {
     const orgValue = await this._subscriptionService.checkSubscription(
       organizationId,
       subscriptionId
@@ -1013,6 +1043,10 @@ export class StripeService extends PaymentProviderAbstract {
 
     if (orgValue) {
       return 2;
+    }
+
+    if (await this.isCheckoutUnfinished(organizationId, checkoutSessionId)) {
+      return 1;
     }
 
     const getCustomerSubscriptions = await this.getCustomerSubscriptions(

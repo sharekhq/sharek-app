@@ -5,6 +5,7 @@ import {
   HttpException,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -53,10 +54,13 @@ export class BillingController {
   @Get('/check/:id')
   async checkId(
     @GetOrgFromRequest() org: Organization,
-    @Param('id') body: string
+    @Param('id') body: string,
+    @Query('session') checkoutSessionId?: string
   ) {
     return {
-      status: await (await this.provider(org)).checkSubscription(org.id, body),
+      status: await (
+        await this.provider(org)
+      ).checkSubscription(org.id, body, checkoutSessionId),
     };
   }
 

@@ -27,6 +27,7 @@ export const CheckPaymentInner: FC<{
   const fetch = useFetch();
   const toaster = useToaster();
   const modal = useDecisionModal();
+  const session = useSearchParams().get('session');
 
   useEffect(() => {
     if (showLoader) {
@@ -44,7 +45,11 @@ export const CheckPaymentInner: FC<{
 
   const checkSubscription = useCallback(async () => {
     const { status } = await (
-      await fetch('/billing/check/' + props.check)
+      await fetch(
+        '/billing/check/' +
+          props.check +
+          (session ? `?session=${encodeURIComponent(session)}` : '')
+      )
     ).json();
     if (status === 0) {
       await timer(1000);
@@ -66,7 +71,7 @@ export const CheckPaymentInner: FC<{
       setShowLoader(false);
       props.mutate();
     }
-  }, [t]);
+  }, [t, session]);
   useEffect(() => {
     checkSubscription();
   }, []);
