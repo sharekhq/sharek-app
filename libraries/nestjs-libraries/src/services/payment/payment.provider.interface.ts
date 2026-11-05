@@ -118,7 +118,8 @@ export abstract class PaymentProviderAbstract {
   // Post-checkout poll: is this subscription id active for the org
   async checkSubscription(
     organizationId: string,
-    subscriptionId: string
+    subscriptionId: string,
+    checkoutSessionId?: string
   ): Promise<any> {
     return this.notSupported();
   }
