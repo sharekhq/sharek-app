@@ -99,10 +99,10 @@ export class SamyImageTool implements AgentToolInterface {
           // The promise and not its answer, so parallel calls share one read. The
           // credit check inside the render can't do this: it passes all of them
           // before the first one's usage is written.
-          if (!run.get(IMAGE_BUDGET)) {
-            run.set(IMAGE_BUDGET, this._mediaService.imageCreditsLeft(org));
+          if (!run?.get(IMAGE_BUDGET)) {
+            run?.set(IMAGE_BUDGET, this._mediaService.imageCreditsLeft(org));
           }
-          const budget: ImageBudget = await run.get(IMAGE_BUDGET);
+          const budget: ImageBudget = await run?.get(IMAGE_BUDGET);
           if (budget.credits <= 0) {
             giveSlotBack();
             return { error: imageCreditRefusal(budget.resetsAt) };
@@ -118,6 +118,9 @@ export class SamyImageTool implements AgentToolInterface {
           giveSlotBack();
           if (creditFrom) {
             creditFrom.credits += 1;
+          } else {
+            // A failed read stays failed if it's kept, and a later call can recover.
+            run?.delete(IMAGE_BUDGET);
           }
 
           if (err instanceof SubscriptionException) {

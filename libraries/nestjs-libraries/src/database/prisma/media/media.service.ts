@@ -158,21 +158,9 @@ export class MediaService {
    * routes were never the only callers — the post generator, autopost and the
    * assistant reach these two methods directly, and each surface that had to
    * remember the check on its own eventually forgot it.
-   *
-   * Gated on a configured payment provider: a self-hosted deployment has no
-   * subscription, which `checkCredits` reads as tier FREE and therefore zero
-   * allowance — without this gate every such install would refuse outright.
-   * Usage is still recorded there, it is simply never enforced.
    */
   private async resolveImage(org: Organization) {
-    if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-      return;
-    }
-
-    const totalCredits = await this._subscriptionService.checkCredits(
-      org,
-      'ai_images'
-    );
+    const totalCredits = await this.imageCreditsLeft(org);
 
     if (totalCredits.credits <= 0) {
       throw new SubscriptionException({
@@ -196,8 +184,13 @@ export class MediaService {
   }
 
   /**
-   * What `resolveImage` would let through, for a caller that makes several images
-   * and has to share them out. No limit where `resolveImage` enforces none.
+   * What `resolveImage` lets through, for a caller that makes several images and
+   * has to share them out.
+   *
+   * Gated on a configured payment provider: a self-hosted deployment has no
+   * subscription, which `checkCredits` reads as tier FREE and therefore zero
+   * allowance — without this gate every such install would refuse outright.
+   * Usage is still recorded there, it is simply never enforced.
    */
   async imageCreditsLeft(
     org: Organization

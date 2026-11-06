@@ -406,6 +406,24 @@ describe('SamyImageTool', () => {
     });
   });
 
+  // One blip reading the credits mustn't fail every image for the rest of the reply.
+  it('reads the credits again on a later call, after a read that failed', async () => {
+    const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const credits = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('database is down'))
+      .mockResolvedValue({ credits: 1, resetsAt: RESETS_AT });
+    const { tool } = makeTool(undefined, credits);
+    const run = context();
+
+    const failed = await tool.execute({ prompt: 'a cat' }, run);
+
+    expect(failed.error).toMatch(/offer to try again/);
+    expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
+    expect(credits).toHaveBeenCalledTimes(2);
+    logged.mockRestore();
+  });
+
   // A throw reaches the user as raw text, and a turn that ends with no content
   // poisons the thread, so every refusal is data the model can put in its own words.
   describe('hands back, and never throws', () => {
