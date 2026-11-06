@@ -107,6 +107,7 @@ const SAMY_LINES = [
   "To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them. Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square. A style they name stays in the description.",
   "Use as references the images in this chat that the request means: up to 4, for one credit. When more than 4 are attached and you can't tell which they mean, ask which 4 before making anything.",
   "To change an image you just made, pass its link as editOf with the aspectRatio it was made at. That's one more credit.",
+  "Ask first when a request would use more than one image credit, and don't ask for a single image. One message can make at most 4 images: asked for more, say you can make up to 4 at a time.",
   'You work only with images in this chat. For an image from the Media library or an outside link, ask the user to attach it with Insert Media, and spend no credit. mediaListTool and uploadFromUrlTool are for post attachments only.',
 ];
 

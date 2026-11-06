@@ -13,6 +13,14 @@ import {
   ImageAspectId,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
+const IMAGES_PER_MESSAGE = 4;
+
+// On the run's request context, which every call in one reply shares.
+const IMAGES_MADE = 'samyImagesMade';
+const IMAGE_BUDGET = 'samyImageBudget';
+
+type ImageBudget = { credits: number; resetsAt?: string };
+
 /**
  * Samy's `generateImageTool`, which LoadToolsService swaps in for its runs only.
  * It stays out of `toolList`, because that is what every outside connection lists,
@@ -65,19 +73,53 @@ export class SamyImageTool implements AgentToolInterface {
         error: z.string().optional(),
       }),
       execute: async (inputData, context) => {
+        const run = context?.requestContext as any;
+
+        // Read and raised before anything awaits, because a step's parallel calls
+        // all start together. Each POST builds a new context, so a regenerate
+        // starts again.
+        const imagesMade: number = run?.get(IMAGES_MADE) ?? 0;
+        if (imagesMade >= IMAGES_PER_MESSAGE) {
+          return {
+            error: `One message can make up to ${IMAGES_PER_MESSAGE} images, so this one wasn't made and no credit was spent. Tell the user you can make up to ${IMAGES_PER_MESSAGE} at a time.`,
+          };
+        }
+        run?.set(IMAGES_MADE, imagesMade + 1);
+
+        const giveSlotBack = () =>
+          run?.set(IMAGES_MADE, run.get(IMAGES_MADE) - 1);
+        let creditFrom: ImageBudget | undefined;
+
         // Every failure is handed back as data: a throw reaches the user as raw
         // error text, and a turn that ends without content poisons the thread.
         try {
           checkAuth(inputData, context);
-          const org = JSON.parse(
-            (context?.requestContext as any)?.get('organization') as string
-          );
+          const org = JSON.parse(run?.get('organization') as string);
+
+          // The promise and not its answer, so parallel calls share one read. The
+          // credit check inside the render can't do this: it passes all of them
+          // before the first one's usage is written.
+          if (!run.get(IMAGE_BUDGET)) {
+            run.set(IMAGE_BUDGET, this._mediaService.imageCreditsLeft(org));
+          }
+          const budget: ImageBudget = await run.get(IMAGE_BUDGET);
+          if (budget.credits <= 0) {
+            giveSlotBack();
+            return { error: imageCreditRefusal(budget.resetsAt) };
+          }
+          budget.credits -= 1;
+          creditFrom = budget;
 
           return await this._mediaService.generateImageFromLinks(
             org,
             inputData
           );
         } catch (err) {
+          giveSlotBack();
+          if (creditFrom) {
+            creditFrom.credits += 1;
+          }
+
           if (err instanceof SubscriptionException) {
             const { resetsAt } = err.getResponse() as { resetsAt?: string };
             return { error: imageCreditRefusal(resetsAt) };

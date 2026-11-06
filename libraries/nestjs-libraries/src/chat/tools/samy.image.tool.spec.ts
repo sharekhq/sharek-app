@@ -25,10 +25,15 @@ const org = { id: 'org-1', name: 'Sharek' };
 
 const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
-const makeTool = (generateImageFromLinks?: jest.Mock) => {
+const makeTool = (
+  generateImageFromLinks?: jest.Mock,
+  imageCreditsLeft?: jest.Mock
+) => {
   const media = {
     generateImageFromLinks:
       generateImageFromLinks ?? jest.fn().mockResolvedValue(made),
+    imageCreditsLeft:
+      imageCreditsLeft ?? jest.fn().mockResolvedValue({ credits: Infinity }),
   };
   return { tool: new SamyImageTool(media as any).run() as any, media };
 };
@@ -159,6 +164,246 @@ describe('SamyImageTool', () => {
     ]);
     expect(tool.outputSchema.safeParse({ error: 'no' }).success).toBe(true);
     expect(tool.outputSchema.safeParse(made).success).toBe(true);
+  });
+
+  // Enforced rather than instructed, because the model can miss a line. Parallel
+  // calls in one step and calls across steps share one request context, and each
+  // POST builds a new one (research R10).
+  describe('makes at most 4 images in one message', () => {
+    const call = { prompt: 'a cat' };
+
+    const isLimit = (result: { error?: string }) =>
+      /up to 4/.test(result.error ?? '');
+
+    it('refuses a fifth parallel call, against a slow service', async () => {
+      const finish: Array<(value: unknown) => void> = [];
+      const slow = jest.fn(
+        () => new Promise((resolve) => finish.push(resolve))
+      );
+      const { tool, media } = makeTool(slow);
+      const run = context();
+
+      const results = [1, 2, 3, 4, 5].map(() => tool.execute(call, run));
+      // The fifth doesn't wait on anything, so it answers while the rest render.
+      expect(isLimit(await results[4])).toBe(true);
+      await new Promise((resolve) => setImmediate(resolve));
+      finish.forEach((done) => done(made));
+
+      expect(await Promise.all(results.slice(0, 4))).toEqual([
+        made,
+        made,
+        made,
+        made,
+      ]);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(4);
+    });
+
+    it('refuses a fifth call in a later step the same way', async () => {
+      const { tool, media } = makeTool();
+      const run = context();
+
+      for (let image = 0; image < 4; image++) {
+        expect(await tool.execute(call, run)).toEqual(made);
+      }
+
+      expect(isLimit(await tool.execute(call, run))).toBe(true);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(4);
+    });
+
+    it('says what the model should tell the user, and that nothing was spent', async () => {
+      const { tool } = makeTool();
+      const run = context();
+
+      for (let image = 0; image < 4; image++) {
+        await tool.execute(call, run);
+      }
+
+      expect(await tool.execute(call, run)).toEqual({
+        error:
+          "One message can make up to 4 images, so this one wasn't made and no credit was spent. Tell the user you can make up to 4 at a time.",
+      });
+    });
+
+    it('asks for no credits once the limit is reached', async () => {
+      const { tool, media } = makeTool();
+      const run = context();
+
+      for (let image = 0; image < 4; image++) {
+        await tool.execute(call, run);
+      }
+      media.imageCreditsLeft.mockClear();
+      await tool.execute(call, run);
+
+      expect(media.imageCreditsLeft).not.toHaveBeenCalled();
+    });
+
+    it('gives a slot back when no image came out, so a later call can run', async () => {
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(
+          new HttpException('Your request was rejected.', 422)
+        )
+        .mockResolvedValue(made);
+      const { tool, media } = makeTool(render);
+      const run = context();
+
+      await tool.execute(call, run);
+      for (let image = 0; image < 4; image++) {
+        expect(await tool.execute(call, run)).toEqual(made);
+      }
+
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(5);
+      expect(isLimit(await tool.execute(call, run))).toBe(true);
+    });
+
+    it('starts again on a new context, as a regenerate does', async () => {
+      const { tool } = makeTool();
+      const run = context();
+
+      for (let image = 0; image < 5; image++) {
+        await tool.execute(call, run);
+      }
+
+      expect(await tool.execute(call, context())).toEqual(made);
+    });
+  });
+
+  // resolveImage checks before useCredit writes its row, and a step's calls run in
+  // parallel, so with 2 credits left 3 calls would all pass and all render (research R29).
+  describe('spends no more credits than the run started with', () => {
+    const call = { prompt: 'a cat' };
+
+    const left = (credits: number, resetsAt?: string) =>
+      jest.fn().mockResolvedValue({ credits, resetsAt });
+
+    it('reads the credits once, and refuses the call past them', async () => {
+      const { tool, media } = makeTool(undefined, left(2, RESETS_AT));
+      const run = context();
+
+      const results = await Promise.all([
+        tool.execute(call, run),
+        tool.execute(call, run),
+        tool.execute(call, run),
+      ]);
+
+      expect(media.imageCreditsLeft).toHaveBeenCalledTimes(1);
+      expect(media.imageCreditsLeft).toHaveBeenCalledWith(org);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(2);
+      expect(results).toEqual([
+        made,
+        made,
+        { error: imageCreditRefusal(RESETS_AT) },
+      ]);
+    });
+
+    it('says the plan has none when there is no reset date', async () => {
+      const { tool, media } = makeTool(undefined, left(0));
+
+      expect(await tool.execute(call, context())).toEqual({
+        error: imageCreditRefusal(),
+      });
+      expect(media.generateImageFromLinks).not.toHaveBeenCalled();
+    });
+
+    // A usage row can pass the allowance when two tabs spend together.
+    it('reads a count already below zero as none', async () => {
+      const { tool, media } = makeTool(undefined, left(-1, RESETS_AT));
+
+      expect(await tool.execute(call, context())).toEqual({
+        error: imageCreditRefusal(RESETS_AT),
+      });
+      expect(media.generateImageFromLinks).not.toHaveBeenCalled();
+    });
+
+    it('sets no limit where the service sets none', async () => {
+      const { tool, media } = makeTool(undefined, left(Infinity));
+      const run = context();
+
+      for (let image = 0; image < 4; image++) {
+        expect(await tool.execute(call, run)).toEqual(made);
+      }
+
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(4);
+    });
+
+    it('gives the slot back after a credit refusal', async () => {
+      const { tool, media } = makeTool(undefined, left(1, RESETS_AT));
+      const run = context();
+
+      await tool.execute(call, run);
+      // Had any of these kept its slot, the last would read as the limit of 4.
+      for (let refused = 0; refused < 4; refused++) {
+        expect(await tool.execute(call, run)).toEqual({
+          error: imageCreditRefusal(RESETS_AT),
+        });
+      }
+
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives the credit back when no image came out, so a later call can use it', async () => {
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(
+          new HttpException('Your request was rejected.', 422)
+        )
+        .mockResolvedValue(made);
+      const { tool, media } = makeTool(render, left(1, RESETS_AT));
+      const run = context();
+
+      await tool.execute(call, run);
+
+      expect(await tool.execute(call, run)).toEqual(made);
+      expect(await tool.execute(call, run)).toEqual({
+        error: imageCreditRefusal(RESETS_AT),
+      });
+      expect(media.imageCreditsLeft).toHaveBeenCalledTimes(1);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(2);
+    });
+
+    it('takes a credit once, however a failed render ended', async () => {
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('socket hang up'))
+        .mockRejectedValueOnce(refusal(RESETS_AT))
+        .mockResolvedValue(made);
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { tool } = makeTool(render, left(1, RESETS_AT));
+      const run = context();
+
+      await tool.execute(call, run);
+      await tool.execute(call, run);
+
+      expect(await tool.execute(call, run)).toEqual(made);
+      expect(await tool.execute(call, run)).toEqual({
+        error: imageCreditRefusal(RESETS_AT),
+      });
+      logged.mockRestore();
+    });
+
+    it('hands back the general words when the credits can’t be read, and gives the slot back', async () => {
+      const failure = new Error('database is down');
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { tool, media } = makeTool(
+        undefined,
+        jest.fn().mockRejectedValue(failure)
+      );
+      const run = context();
+
+      const results = await Promise.all([
+        tool.execute(call, run),
+        tool.execute(call, run),
+      ]);
+
+      for (const result of results) {
+        expect(result.error).toMatch(/offer to try again/);
+        expect(result.error).not.toContain('database is down');
+      }
+      expect(media.imageCreditsLeft).toHaveBeenCalledTimes(1);
+      expect(media.generateImageFromLinks).not.toHaveBeenCalled();
+      expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      logged.mockRestore();
+    });
   });
 
   // A throw reaches the user as raw text, and a turn that ends with no content

@@ -599,6 +599,8 @@ describe('LoadToolsService making images', () => {
     'You work only with images in this chat.',
     'For an image from the Media library or an outside link, ask the user to attach it with Insert Media, and spend no credit.',
     'mediaListTool and uploadFromUrlTool are for post attachments only.',
+    "Ask first when a request would use more than one image credit, and don't ask for a single image.",
+    'One message can make at most 4 images: asked for more, say you can make up to 4 at a time.',
   ];
 
   it.each(LINES)('tells Samy: %s', async (line) => {

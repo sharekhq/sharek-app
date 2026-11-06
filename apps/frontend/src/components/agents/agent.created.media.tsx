@@ -2,6 +2,7 @@
 
 import React, {
   createContext,
+  CSSProperties,
   FC,
   ReactNode,
   SyntheticEvent,
@@ -12,6 +13,10 @@ import { isMediaLink } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  IMAGE_ASPECT_IDS,
+  IMAGE_ASPECT_PRESETS,
+} from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 /**
  * Whether a run is going. A card can't ask `useCopilotChatInternal`, because each
@@ -82,9 +87,22 @@ export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) => {
 export const chatMediaPreview = (url: string) =>
   mediaPreviewModal([{ id: url, path: url, name: url.split('/').pop() }], 0);
 
-export const CreatedImage: FC<{ result?: { path?: string } }> = ({
-  result,
-}) => {
+/**
+ * The shape being made, as one number the card can both take and size itself by.
+ * A row stored before Samy's own tool has none, and a value still streaming in is
+ * part of a word, so both are the tool's default.
+ */
+const cardRatio = (aspectRatio?: string) => {
+  const id =
+    IMAGE_ASPECT_IDS.find((shape) => shape === aspectRatio) ?? 'square';
+  const [width, height] = IMAGE_ASPECT_PRESETS[id].ratio.split(':').map(Number);
+  return width / height;
+};
+
+export const CreatedImage: FC<{
+  result?: { path?: string };
+  args?: { aspectRatio?: string };
+}> = ({ result, args }) => {
   const t = useT();
   const modals = useModals();
   const mayWait = useContext(CardMayWaitContext);
@@ -136,7 +154,12 @@ export const CreatedImage: FC<{ result?: { path?: string } }> = ({
   }
 
   return (
-    <div className="relative overflow-hidden aspect-square w-[190px] phone:w-[150px] only:w-[min(420px,100cqw)] rounded-[16px]">
+    <div
+      // A picture stops at 480px tall, so a tall card alone is only as wide as that
+      // allows, and the picture lands in the room the card kept.
+      className="relative overflow-hidden aspect-[var(--card-ratio)] w-[190px] phone:w-[150px] only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)] rounded-[16px]"
+      style={{ '--card-ratio': cardRatio(args?.aspectRatio) } as CSSProperties}
+    >
       <div className="absolute inset-0 bg-surface2 motion-safe:animate-pulse" />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-[4px] p-[16px] text-center leading-[1.4]">
         <span className="text-[14px] font-[600] text-ink">
@@ -167,9 +190,13 @@ export const CreatedImage: FC<{ result?: { path?: string } }> = ({
 export const createdImageAction = {
   name: 'generateImageTool',
   available: 'disabled' as const,
-  render: ({ result }: { result?: { path?: string } }) => (
-    <CreatedImage result={result} />
-  ),
+  render: ({
+    result,
+    args,
+  }: {
+    result?: { path?: string };
+    args?: { aspectRatio?: string };
+  }) => <CreatedImage result={result} args={args} />,
 };
 
 /** Whether the message's own card says it's working, which the chat's dots would repeat. */

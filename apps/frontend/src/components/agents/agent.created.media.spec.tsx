@@ -36,7 +36,7 @@ import {
 
 const mounted: Root[] = [];
 
-const show = async (result: unknown, mayWait = false) => {
+const show = async (result: unknown, mayWait = false, args?: unknown) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -47,7 +47,9 @@ const show = async (result: unknown, mayWait = false) => {
     </CardMayWaitContext.Provider>
   );
   await act(async () => {
-    root.render(wrap(<CreatedImage result={result as any} />));
+    root.render(
+      wrap(<CreatedImage result={result as any} args={args as any} />)
+    );
   });
   return host;
 };
@@ -75,9 +77,47 @@ describe('a card while the image is being made', () => {
     expect(host.querySelector('svg')).toBeNull();
 
     const card = host.firstElementChild as HTMLElement;
-    expect(classes(card)).toEqual(
-      expect.arrayContaining(['aspect-square', 'rounded-[16px]'])
-    );
+    expect(classes(card)).toContain('rounded-[16px]');
+    expect(card.style.getPropertyValue('--card-ratio')).toBe('1');
+  });
+
+  // The shape the tool was asked for, so the picture lands in the room the card
+  // kept. The catalog is what the AI image window reads too.
+  describe('takes the shape being made', () => {
+    const ratioOf = async (args: unknown) => {
+      const host = await show(undefined, true, args);
+      return (host.firstElementChild as HTMLElement).style.getPropertyValue(
+        '--card-ratio'
+      );
+    };
+
+    it.each([
+      ['square', 1],
+      ['portrait', 4 / 5],
+      ['story', 9 / 16],
+      ['landscape', 16 / 9],
+    ])('for %s', async (aspectRatio, ratio) => {
+      expect(Number(await ratioOf({ aspectRatio }))).toBeCloseTo(ratio, 5);
+    });
+
+    // A row stored before this tool has no aspectRatio, and a value still streaming
+    // in is a part of a word.
+    it.each([
+      ['no arguments', undefined],
+      ['no shape', {}],
+      ['a part of a word', { aspectRatio: 'stor' }],
+      ['a name every object has', { aspectRatio: 'constructor' }],
+    ])('square for %s', async (_name, args) => {
+      expect(await ratioOf(args)).toBe('1');
+    });
+
+    it('draws its ratio from that value', async () => {
+      const host = await show(undefined, true, { aspectRatio: 'story' });
+
+      expect(classes(host.firstElementChild!)).toContain(
+        'aspect-[var(--card-ratio)]'
+      );
+    });
   });
 
   // The fill pulses and the words hold still, so they stay readable, and the
@@ -249,14 +289,16 @@ describe('the size of a card', () => {
     );
   });
 
-  it('does the same for a waiting card', async () => {
+  // The picture stops at 480px tall, so a tall card alone is as wide as that allows,
+  // or a story's card would stand 747px high and shrink when its picture landed.
+  it('does the same for a waiting card, which stops as tall as a picture does', async () => {
     const host = await show(undefined, true);
 
     expect(classes(host.firstElementChild!)).toEqual(
       expect.arrayContaining([
         'w-[190px]',
         'phone:w-[150px]',
-        `only:w-[${ALONE}]`,
+        'only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)]',
       ])
     );
   });

@@ -20,6 +20,8 @@ const config: Config = {
   moduleNameMapper: {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/$1',
     '^@gitroom/helpers/(.*)$': '<rootDir>/../../helpers/src/$1',
+    // The same mapping as the unit config: a tool's refusal is a backend class.
+    '^@gitroom/backend/(.*)$': '<rootDir>/../../../apps/backend/src/$1',
     '^tokenx$': '<rootDir>/../test/tokenx.stub.ts',
     '^@sindresorhus/slugify$': '<rootDir>/../test/slugify.stub.ts',
     '^p-map$': '<rootDir>/../test/p-map.stub.ts',
