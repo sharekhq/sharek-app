@@ -32,6 +32,7 @@ const show = jest.fn();
 const openModal = jest.fn();
 const aiImageProps: Array<Record<string, any>> = [];
 const ai = { loading: false };
+const translator = { prefix: '' };
 const user: { tier: { ai?: boolean } } = { tier: { ai: true } };
 
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
@@ -74,12 +75,16 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
-  useT:
-    () =>
-    (key: string, fallback?: string, params?: Record<string, unknown>) =>
+  // `prefix` is read when the hook runs, as a real translator is bound to the
+  // language of the render it came from.
+  useT: () => {
+    const { prefix } = translator;
+    return (key: string, fallback?: string, params?: Record<string, unknown>) =>
+      prefix +
       (fallback ?? key).replace(/{{(\w+)}}/g, (whole, name) =>
         params && name in params ? String(params[name]) : whole
-      ),
+      );
+  },
 }));
 
 import {
@@ -99,23 +104,25 @@ const Probe = () => {
 
 const mounted: Root[] = [];
 
+const tree = () => (
+  <AttachmentsProvider>
+    <Probe />
+    <div data-tray="">
+      <AttachmentsTray />
+    </div>
+    <div data-tools="">
+      <AttachmentTools value="what was typed" />
+    </div>
+  </AttachmentsProvider>
+);
+
 const render = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(
-      <AttachmentsProvider>
-        <Probe />
-        <div data-tray="">
-          <AttachmentsTray />
-        </div>
-        <div data-tools="">
-          <AttachmentTools value="what was typed" />
-        </div>
-      </AttachmentsProvider>
-    );
+    root.render(tree());
   });
   return { host, root };
 };
@@ -171,6 +178,7 @@ beforeEach(() => {
   uppyState.currentUploads = {};
   user.tier = { ai: true };
   ai.loading = false;
+  translator.prefix = '';
 });
 
 afterEach(() => {
@@ -262,6 +270,25 @@ describe('the upload queue', () => {
     expect(show).toHaveBeenCalledTimes(1);
     expect(show).toHaveBeenCalledWith(
       'Some files failed to upload, please try again',
+      'warning'
+    );
+  });
+
+  // The hook keeps the first render's callbacks, and the error listener outlives
+  // renders too. Neither may keep that render's translator.
+  it('says why in the language of the latest render', async () => {
+    const { root } = await render();
+    await add(file('a.png'));
+    await act(async () => uploader.options!.onStart());
+
+    translator.prefix = 'ar:';
+    await act(async () => {
+      root.render(tree());
+    });
+    await fireError();
+
+    expect(show).toHaveBeenCalledWith(
+      'ar:Some files failed to upload, please try again',
       'warning'
     );
   });
