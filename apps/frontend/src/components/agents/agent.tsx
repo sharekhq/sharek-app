@@ -15,56 +15,10 @@ import { orderBy } from 'lodash';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useWaitForClass } from '@gitroom/helpers/utils/use.wait.for.class';
-import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { Integration } from '@prisma/client';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-
-export const MediaPortal: FC<{
-  media: { path: string; id: string }[];
-  value: string;
-  setMedia: (event: {
-    target: {
-      name: string;
-      value?: {
-        id: string;
-        path: string;
-        alt?: string;
-        thumbnail?: string;
-        thumbnailTimestamp?: number;
-      }[];
-    };
-  }) => void;
-}> = ({ media, setMedia, value }) => {
-  const waitForClass = useWaitForClass('copilotKitMessages');
-  const t = useT();
-  if (!waitForClass) return null;
-  return (
-    // As wide as its buttons: the input's row ends in a growing spacer before
-    // the send button, and a growing toolbar split the free space with it,
-    // which on a phone cut the last button off. min-w-0 lets it scroll when
-    // the row is narrower still.
-    <div className="min-w-0 whitespace-nowrap editor rm-bg">
-      <MultiMediaComponent
-        allData={[{ content: value }]}
-        text={value}
-        label={t('attachments', 'Attachments')}
-        description=""
-        value={media}
-        dummy={false}
-        name="image"
-        // The chat's input is about 470px wide whatever the window is doing, so
-        // the labels would wrap a button onto a second line on any screen.
-        compact={true}
-        onChange={setMedia}
-        onOpen={() => {}}
-        onClose={() => {}}
-      />
-    </div>
-  );
-};
 
 export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
   onChange,

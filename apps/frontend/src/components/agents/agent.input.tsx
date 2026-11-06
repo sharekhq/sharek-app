@@ -17,7 +17,16 @@ export const Input = ({
   hideStopButton = false,
   onChange,
   tools,
-}: InputProps & { onChange: (value: string) => void; tools?: ReactNode }) => {
+  attachments,
+  uploading = false,
+  onPasteFiles,
+}: InputProps & {
+  onChange: (value: string) => void;
+  tools?: ReactNode;
+  attachments?: ReactNode;
+  uploading?: boolean;
+  onPasteFiles?: (files: File[]) => void;
+}) => {
   const context = useChatContext();
   const copilotContext = useCopilotContext();
   const showPoweredBy = !copilotContext.copilotApiConfig?.publicApiKey;
@@ -55,8 +64,8 @@ export const Input = ({
 
   const { interrupt } = useCopilotChatInternal();
   const canSend = useMemo(() => {
-    return !isInProgress && text.trim().length > 0 && !interrupt;
-  }, [interrupt, isInProgress, text]);
+    return !isInProgress && text.trim().length > 0 && !interrupt && !uploading;
+  }, [interrupt, isInProgress, text, uploading]);
 
   const canStop = useMemo(() => {
     return isInProgress && !hideStopButton;
@@ -71,6 +80,7 @@ export const Input = ({
       }`}
     >
       <div className="copilotKitInput" onClick={handleDivClick}>
+        {attachments}
         <AutoResizingTextarea
           ref={textareaRef}
           placeholder={context.labels.placeholder}
@@ -89,6 +99,16 @@ export const Input = ({
               if (canSend) {
                 send();
               }
+            }
+          }}
+          onPaste={(event) => {
+            // A copied picture also arrives as HTML, so the file wins unless
+            // there's real text. A copy from Word carries a picture of the
+            // text along with the text, and stays text.
+            const files = Array.from(event.clipboardData.files);
+            if (files.length && !event.clipboardData.getData('text/plain')) {
+              event.preventDefault();
+              onPasteFiles?.(files);
             }
           }}
         />

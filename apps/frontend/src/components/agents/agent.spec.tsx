@@ -44,15 +44,9 @@ jest.mock('react-use-cookie', () => ({
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback?: string) => fallback ?? key,
 }));
-// The attachments toolbar inside MediaPortal: only MediaPortal's own box is
-// checked here.
-jest.mock('@gitroom/frontend/components/media/media.component', () => ({
-  MultiMediaComponent: () => null,
-}));
 
 import {
   Agent,
-  MediaPortal,
   PropertiesContext,
 } from '@gitroom/frontend/components/agents/agent';
 
@@ -264,31 +258,5 @@ describe('Samy up to 1025px', () => {
       );
       expect(classes(avatar.lastElementChild!)).toContain('mobile:hidden');
     }
-  });
-});
-
-describe("Samy's attachments toolbar", () => {
-  it('is as wide as its buttons, so the spacer before the send button takes the free space alone', async () => {
-    // MediaPortal waits for the chat's message list before it draws.
-    const messages = document.createElement('div');
-    messages.className = 'copilotKitMessages';
-    document.body.appendChild(messages);
-    const host = await render(
-      <MediaPortal media={[]} value="" setMedia={jest.fn()} />
-    );
-    const toolbar = host.firstElementChild!;
-
-    // The input's control row already ends in a flex-grow spacer before the
-    // send button (agent.input.tsx). A toolbar that grows too splits the free
-    // space with it, half each: 135px on a 412px phone, for three 44px tools
-    // that need 140, so the toolbar's scroller cut AI Video off.
-    expect(
-      classes(toolbar).filter((c) =>
-        /^(flex-1|flex-auto|grow|flex-grow)$/.test(c)
-      )
-    ).toEqual([]);
-    // It can still shrink, so on a row too narrow for every tool the toolbar
-    // scrolls rather than pushing the send button out.
-    expect(classes(toolbar)).toContain('min-w-0');
   });
 });

@@ -49,3 +49,40 @@ describe('Samy persona locale keys', () => {
     }
   });
 });
+
+// Samy's box and the message it sends (spec 050, contracts/chat-ui.md). The
+// preview set the first three, and the Arabic of the two "no longer available"
+// strings waits on the maintainer's read at the walk.
+describe("the strings of Samy's message box", () => {
+  const en = readLocale('en');
+  const ar = readLocale('ar');
+
+  it.each([
+    ['samy_ai_image', 'AI Image', 'توليد صورة'],
+    ['samy_drop_title', 'Drop your images here', 'أفلت صورك هنا'],
+    [
+      'samy_drop_subtitle',
+      "They'll be added to your message",
+      'ستضاف إلى رسالتك',
+    ],
+    ['samy_attached_image', 'Attached image {{n}}', 'الصورة المرفقة {{n}}'],
+    ['samy_attached_video', 'Attached video {{n}}', 'الفيديو المرفق {{n}}'],
+    ['samy_remove_attachment', 'Remove attachment {{n}}', 'إزالة المرفق {{n}}'],
+    [
+      'samy_image_unavailable',
+      'This image is no longer available',
+      'هذه الصورة لم تعد متاحة',
+    ],
+    [
+      'samy_video_unavailable',
+      'This video is no longer available',
+      'هذا الفيديو لم يعد متاحًا',
+    ],
+  ])(
+    '%s reads the same in the app as in the contract',
+    (key, english, arabic) => {
+      expect(en[key]).toBe(english);
+      expect(ar[key]).toBe(arabic);
+    }
+  );
+});

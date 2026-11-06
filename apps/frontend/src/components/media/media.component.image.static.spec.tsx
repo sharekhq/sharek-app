@@ -49,9 +49,9 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   },
 }));
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
-  MediaPreview: ({ items }: { items: Array<{ id: string }> }) => {
+  mediaPreviewModal: (items: Array<{ id: string }>) => {
     previewItems.current = items;
-    return null;
+    return {};
   },
 }));
 // Scenery from here down, as in media.component.limit.spec.tsx.
@@ -72,15 +72,8 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
     closeAll: () => {},
     closeCurrent: () => {},
-    // The preview opens through a modal; render its body so MediaPreview sees
-    // the list it would show.
-    openModal: ({ children }: { children: ReactNode }) => {
-      const host = document.createElement('div');
-      document.body.appendChild(host);
-      createRoot(host).render(<>{children}</>);
-    },
+    openModal: () => {},
   }),
-  ModalHeaderSlotTarget: () => null,
 }));
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: async () => false,

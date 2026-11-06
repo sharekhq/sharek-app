@@ -852,6 +852,13 @@ html[dir='rtl'] .lbox {
     color: var(--ink);
   }
 
+  /* A picture in the user's own message keeps its proportions: the rule below
+     stretches every `.copilotKitMessage img` to 200px. Replies' markdown images
+     and the composer's popup keep that rule. */
+  .copilotKitMessage.copilotKitUserMessage img {
+    width: auto;
+  }
+
   /* CopilotKit always shows a reply's controls at 768px and below, absolutely
      under its text, in the room its `.copilotKitAssistantMessage +
      .copilotKitUserMessage` margin leaves. Samy's replies sit in a dir="auto"
@@ -885,15 +892,6 @@ html[dir='rtl'] .lbox {
     padding: 6px 10px;
     align-items: center;
     gap: 6px !important;
-  }
-
-  .copilotKitInputControls .rm-bg .b1 {
-    border-top: 0 !important;
-    padding-inline: 0 !important;
-  }
-
-  .copilotKitInputControls .rm-bg .b2 {
-    padding-block: 4px !important;
   }
 
   /* v3 round 3 (№8): send/stop is a solid pomegranate circle, white glyph —
@@ -930,13 +928,6 @@ html[dir='rtl'] .lbox {
 
 .copilotKitInputContainer .copilotKitInput > textarea::placeholder {
   color: var(--muted);
-}
-.rm-bg .b2 {
-  padding-top: 8px !important;
-}
-.rm-bg .b1 {
-  background: transparent !important;
-  gap: 0 !important;
 }
 
 .copilotKitMessage img {

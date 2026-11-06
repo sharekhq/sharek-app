@@ -1,4 +1,5 @@
 import {
+  extractAgentMessageMedia,
   extractAgentMessageText,
   stripIntegrationsBlock,
 } from './extract.agent.message.text';
@@ -140,5 +141,103 @@ Use the following social media platforms: [{"id":"abc","platform":"x"}]
     expect(stripIntegrationsBlock('text\n[--integrations--]\nhalf')).toBe(
       'text\n[--integrations--]\nhalf'
     );
+  });
+});
+
+describe('extractAgentMessageMedia', () => {
+  it('splits the words from the links of a block, in order', () => {
+    expect(
+      extractAgentMessageMedia(
+        'hello\n[--Media--]Image: https://m/a.png\nVideo: https://m/b.mp4\n[--Media--]'
+      )
+    ).toEqual({
+      text: 'hello',
+      media: [
+        { kind: 'image', url: 'https://m/a.png' },
+        { kind: 'video', url: 'https://m/b.mp4' },
+      ],
+    });
+  });
+
+  it('reads every block, and keeps the words between them', () => {
+    expect(
+      extractAgentMessageMedia(
+        '[--Media--]Image: https://m/a.png\n[--Media--]middle\n[--Media--]Image: https://m/b.png\n[--Media--]'
+      )
+    ).toEqual({
+      text: 'middle',
+      media: [
+        { kind: 'image', url: 'https://m/a.png' },
+        { kind: 'image', url: 'https://m/b.png' },
+      ],
+    });
+  });
+
+  it('leaves text with no block unchanged', () => {
+    expect(extractAgentMessageMedia('just words\n')).toEqual({
+      text: 'just words\n',
+      media: [],
+    });
+  });
+
+  it('gives no words for a block with nothing before it', () => {
+    expect(
+      extractAgentMessageMedia('[--Media--]Image: https://m/a.png\n[--Media--]')
+    ).toEqual({
+      text: '',
+      media: [{ kind: 'image', url: 'https://m/a.png' }],
+    });
+  });
+
+  // These links reach an image source and the viewer's external link.
+  it('ends a link at the first whitespace or quote', () => {
+    expect(
+      extractAgentMessageMedia(
+        '[--Media--]Image: https://m/a.png" onerror="x\n[--Media--]'
+      ).media
+    ).toEqual([{ kind: 'image', url: 'https://m/a.png' }]);
+    expect(
+      extractAgentMessageMedia(
+        "[--Media--]Image: https://m/b.png' onerror='x\nVideo: https://m/c.mp4 and more\n[--Media--]"
+      ).media
+    ).toEqual([
+      { kind: 'image', url: 'https://m/b.png' },
+      { kind: 'video', url: 'https://m/c.mp4' },
+    ]);
+  });
+
+  // A typed link no longer loads a picture for the teammates reading the thread.
+  it('leaves a hand-typed link outside a block in the words', () => {
+    const typed = 'Image: https://m/a.png\nuse this one';
+
+    expect(extractAgentMessageMedia(typed)).toEqual({
+      text: typed,
+      media: [],
+    });
+  });
+
+  it('leaves an unterminated marker in the words', () => {
+    const typed = 'hello\n[--Media--]Image: https://m/a.png\n';
+
+    expect(extractAgentMessageMedia(typed)).toEqual({
+      text: typed,
+      media: [],
+    });
+  });
+
+  it('gives no media for a link that is not http or https', () => {
+    expect(
+      extractAgentMessageMedia(
+        '[--Media--]Image: javascript:alert(1)\nVideo: data:video/mp4;base64,AA\nImage: httpsx://m/a.png\n[--Media--]'
+      ).media
+    ).toEqual([]);
+  });
+
+  it('reads an http link as well as an https one', () => {
+    expect(
+      extractAgentMessageMedia(
+        '[--Media--]Image: http://localhost:4200/uploads/a.png\n[--Media--]'
+      ).media
+    ).toEqual([{ kind: 'image', url: 'http://localhost:4200/uploads/a.png' }]);
   });
 });

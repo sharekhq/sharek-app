@@ -1028,13 +1028,6 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
-  /**
-   * The strip this button sits in is narrower than the labels need — Samy's
-   * chat, at about 470px. Icon-only, with the name moved onto the control as
-   * a tooltip and an aria-label. Set by the strip, never by a breakpoint: the
-   * container is narrow, not the viewport (media.component.tsx).
-   */
-  compact?: boolean;
 }> = (props) => {
   const t = useT();
   const {
@@ -1042,7 +1035,6 @@ export const AiVideo: FC<{
     renderTrigger,
     only,
     destination = 'post',
-    compact,
   } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
@@ -1131,11 +1123,9 @@ export const AiVideo: FC<{
               </defs>
             </svg>
           </div>
-          {!compact && (
-            <div className="text-[10px] font-[600] mobile:hidden block">
-              {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
-            </div>
-          )}
+          <div className="text-[10px] font-[600] mobile:hidden block">
+            {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
+          </div>
         </div>
       </div>
     </div>

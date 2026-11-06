@@ -12,6 +12,7 @@ type UploaderOptions = {
 };
 
 const show = jest.fn();
+const openModal = jest.fn();
 const uploader: { options?: UploaderOptions } = {};
 
 const media = [1, 2, 3].map((n) => ({
@@ -69,8 +70,9 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
     closeAll: () => {},
     closeCurrent: () => {},
-    openModal: () => {},
+    openModal,
   }),
+  ModalHeaderSlot: () => null,
   ModalHeaderSlotTarget: () => null,
 }));
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
@@ -96,9 +98,6 @@ jest.mock(
   '@gitroom/frontend/components/launches/helpers/media.settings.component',
   () => ({ MediaComponentInner: () => null })
 );
-jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
-  MediaPreview: () => null,
-}));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({ VideoFrame: () => null }));
 jest.mock('react-sortablejs', () => ({
   ReactSortable: ({ children }: { children: ReactNode }) => (
@@ -114,6 +113,8 @@ jest.mock('@gitroom/frontend/components/layout/loading', () => ({
 jest.mock('next/dynamic', () => ({ __esModule: true, default: () => () => null }));
 
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import { ModalHeaderSlotTarget } from '@gitroom/frontend/components/layout/new-modal';
+import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
 
 const LIMIT = 'You can choose up to 2 images here.';
 
@@ -214,5 +215,31 @@ describe('MediaBox without a limit', () => {
 
     expect(show).not.toHaveBeenCalled();
     expect(ids(setMedia)).toEqual(['m1', 'm2', 'm3']);
+  });
+});
+
+// The only test of the library's way into its viewer. The options are read back
+// rather than rendered, because a tile's button is all this file can reach.
+describe('Open preview in the Media library', () => {
+  it('opens the viewer on the page of media at the tile clicked, with its options', async () => {
+    render();
+
+    await act(async () => {
+      document
+        .querySelectorAll('button[aria-label="Open preview"]')[1]
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(openModal).toHaveBeenCalledTimes(1);
+    const options = openModal.mock.calls[0][0];
+    expect(options).toMatchObject({
+      top: 20,
+      size: 'min(1120px, calc(100vw - 40px))',
+      height: 'calc(100vh - 40px)',
+      cardClassName: 'phone:!p-[16px]',
+    });
+    expect(options.title.type).toBe(ModalHeaderSlotTarget);
+    expect(options.children.type).toBe(MediaPreview);
+    expect(options.children.props).toEqual({ items: media, index: 1 });
   });
 });

@@ -643,8 +643,9 @@ const isProse = (raw: string) => {
   // so "Auto (based on performance)" stays reportable.
   if (/^[a-z-]+\(/.test(text)) return false;
   // A class list, of one token or many. Every token must look like a utility class,
-  // or a Tailwind arbitrary property such as [direction:ltr], and at least one must
-  // carry the hyphen, colon or bracket that makes it one, so plain English is never
+  // a Tailwind arbitrary property such as [direction:ltr], or an arbitrary media
+  // variant such as [@media(max-width:400px)]:px-[8px], and at least one must carry
+  // the hyphen, colon or bracket that makes it one, so plain English is never
   // mistaken for classes: "1 hour" and "24 hours" carry none and stay reportable,
   // and "Order Online" and "Post / Reel" fail on their capitals.
   const tokens = text.split(' ');
@@ -652,7 +653,8 @@ const isProse = (raw: string) => {
     tokens.every(
       (token) =>
         /^!?-?[a-z0-9][\w./%(),[\]#:!-]*$/.test(token) ||
-        /^!?\[[a-z-]+:[^\s\]]+\]$/.test(token)
+        /^!?\[[a-z-]+:[^\s\]]+\]$/.test(token) ||
+        /^\[@media[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token)
     ) &&
     tokens.some((token) => /[-:[]/.test(token))
   )
@@ -1143,6 +1145,17 @@ describe('the shapes the previous detector could not see', () => {
     expect(
       shapesReportedIn(
         `export const C = () => <TimeInput classNames={{ controls: '[direction:ltr]' }} />;`
+      )
+    ).toEqual([]);
+  });
+
+  // So is an arbitrary media variant, the form a width step has to take here,
+  // because `max-[400px]:` emits nothing. A constant shared by two buttons isn't
+  // in a className until it's used.
+  it('reports nothing for an arbitrary media variant in a class constant', () => {
+    expect(
+      shapesReportedIn(
+        `const BUTTON = 'flex px-[10px] [@media(max-width:400px)]:px-[8px] [@media(max-width:340px)]:hidden';`
       )
     ).toEqual([]);
   });

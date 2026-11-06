@@ -32,6 +32,34 @@ const INTEGRATIONS_BLOCK = /\n?\[--integrations--\][\s\S]*?\[--integrations--\]/
 export const stripIntegrationsBlock = (text: string): string =>
   text.replace(INTEGRATIONS_BLOCK, '').trimEnd();
 
+// What a user message attaches, as the chat's input writes it: one `Image:` or
+// `Video:` line per item between two markers. Only a block counts, so a link
+// typed into a message stays words and loads nothing for teammates reading the
+// thread, and the lazy quantifier leaves an unterminated marker in the words.
+const MEDIA_BLOCK = /\n?\[--Media--\]([\s\S]*?)\[--Media--\]/g;
+// A link ends at the first whitespace or quote. Only http(s) counts, because
+// these reach an image source and the viewer's external link.
+const MEDIA_LINE = /^(Image|Video): (https?:\/\/[^\s"']+)/gm;
+
+export interface AgentMessageMedia {
+  kind: 'image' | 'video';
+  url: string;
+}
+
+export const extractAgentMessageMedia = (
+  text: string
+): { text: string; media: AgentMessageMedia[] } => {
+  const media: AgentMessageMedia[] = [];
+  const words = text.replace(MEDIA_BLOCK, (_block, lines: string) => {
+    for (const [, kind, url] of lines.matchAll(MEDIA_LINE)) {
+      media.push({ kind: kind === 'Video' ? 'video' : 'image', url });
+    }
+    return '';
+  });
+
+  return { text: words, media };
+};
+
 const joinTextParts = (parts: StoredAgentMessagePart[]): string =>
   parts
     .filter(
