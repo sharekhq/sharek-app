@@ -119,7 +119,9 @@ describe('Samy reads each run of text in its own direction', () => {
 
   it("gives Samy's reply its own direction", () => {
     const { AssistantMessage } = chatSlots();
-    const container = mount(<AssistantMessage {...({} as any)} />);
+    const container = mount(
+      <AssistantMessage message={{ id: 'a1', content: 'مرحبا' }} />
+    );
     expect(container.querySelector('[dir="auto"]')).not.toBeNull();
   });
 
@@ -136,6 +138,7 @@ describe('Samy reads each run of text in its own direction', () => {
 // language Samy's words are in, or when there are no words to take a side from.
 describe('what Samy made sits above its words', () => {
   const card = <span data-card="">made</span>;
+  const withWords = { id: 'a1', role: 'assistant', content: 'words' };
 
   afterEach(() => {
     language.dir = 'ltr';
@@ -144,7 +147,9 @@ describe('what Samy made sits above its words', () => {
 
   it('comes before the words, in a row that goes when it holds nothing', () => {
     const { AssistantMessage } = chatSlots();
-    const container = mount(<AssistantMessage subComponent={card} />);
+    const container = mount(
+      <AssistantMessage subComponent={card} message={withWords} />
+    );
 
     const row = container.firstElementChild as HTMLElement;
     expect(row.querySelector('[data-card]')).not.toBeNull();
@@ -166,11 +171,59 @@ describe('what Samy made sits above its words', () => {
   it('stays in the interface’s direction while English words read their own way', () => {
     language.dir = 'rtl';
     const { AssistantMessage } = chatSlots();
-    const container = mount(<AssistantMessage subComponent={card} />);
+    const container = mount(
+      <AssistantMessage subComponent={card} message={withWords} />
+    );
 
     const row = container.firstElementChild as HTMLElement;
     expect(row.getAttribute('dir')).toBe('rtl');
     expect(row.nextElementSibling?.getAttribute('dir')).toBe('auto');
+  });
+
+  // CopilotKit draws its dots in this wrapper until the words come, and dir="auto"
+  // with nothing to read resolves to LTR, so in Arabic they'd cross to the far side
+  // for as long as a tool ran.
+  it('keeps the dots on the interface’s side until there are words', () => {
+    language.dir = 'rtl';
+    const { AssistantMessage } = chatSlots();
+    const container = mount(
+      <AssistantMessage isLoading message={{ id: 'a1', role: 'assistant' }} />
+    );
+
+    const row = container.firstElementChild as HTMLElement;
+    expect(row.nextElementSibling?.getAttribute('dir')).toBe('rtl');
+  });
+
+  // The waiting card says it's working, and the preview shows it with no dots. Any
+  // other tool draws nothing, so the dots are all that says so.
+  describe('and says it is working once', () => {
+    const toolCall = (name: string) => ({
+      id: 'call-1',
+      type: 'function',
+      function: { name, arguments: '{}' },
+    });
+    const dots = (toolCalls?: object[]) => {
+      const { AssistantMessage } = chatSlots();
+      mount(
+        <AssistantMessage
+          isLoading
+          message={{ id: 'a1', role: 'assistant', toolCalls }}
+        />
+      );
+      return capturedReplyProps[capturedReplyProps.length - 1].isLoading;
+    };
+
+    it('with a card, no dots', () => {
+      expect(dots([toolCall('generateImageTool')])).toBe(false);
+    });
+
+    it('with a tool that draws nothing, the dots', () => {
+      expect(dots([toolCall('integrationSchema')])).toBe(true);
+    });
+
+    it('with no tool yet, the dots', () => {
+      expect(dots()).toBe(true);
+    });
   });
 
   // CopilotKit's bubble reads `message.generativeUI?.() ?? subComponent`, so

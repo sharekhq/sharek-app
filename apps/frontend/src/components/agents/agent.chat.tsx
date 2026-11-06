@@ -42,6 +42,7 @@ import {
   chatMediaPreview,
   ChatRunProvider,
   createdImageAction,
+  drawsWaitingCard,
   isInLatestExchange,
   keepChatAtBottom,
   useChatRun,
@@ -352,9 +353,12 @@ const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
           {subComponent}
         </div>
       </CardMayWaitContext.Provider>
-      <div dir="auto">
+      {/* CopilotKit draws its dots in here until the words come, and dir="auto" with
+          nothing to read would put them on the far side in Arabic. */}
+      <div dir={props.message?.content ? 'auto' : i18next.dir()}>
         <AssistantMessage
           {...props}
+          isLoading={props.isLoading && !drawsWaitingCard(props.message)}
           message={props.message && withoutCards(props.message)}
         />
       </div>

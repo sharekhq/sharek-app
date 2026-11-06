@@ -105,6 +105,11 @@ export const getSharekAgents = ({
       agent: agent as any,
       resourceId,
       requestContext,
+      // The vendor otherwise holds a server tool's call until its result, so the
+      // chat's waiting card would have nothing to wait on. What it gives up is
+      // retracting a call that suspends or goes to the background, and no tool here
+      // does either.
+      streamServerToolCalls: true,
     }) as any;
     return all;
   }, {} as ReturnType<typeof MastraAgent.getLocalAgents>);

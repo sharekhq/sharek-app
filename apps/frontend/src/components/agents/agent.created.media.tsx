@@ -171,3 +171,11 @@ export const createdImageAction = {
     <CreatedImage result={result} />
   ),
 };
+
+/** Whether the message's own card says it's working, which the chat's dots would repeat. */
+export const drawsWaitingCard = (message?: {
+  toolCalls?: { function: { name: string } }[];
+}) =>
+  !!message?.toolCalls?.some(
+    (call) => call.function.name === createdImageAction.name
+  );

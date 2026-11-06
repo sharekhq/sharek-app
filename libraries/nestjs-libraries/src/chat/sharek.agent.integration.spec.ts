@@ -4,6 +4,9 @@ import { Agent } from '@mastra/core/agent';
 import { Mastra } from '@mastra/core/mastra';
 import { Memory } from '@mastra/memory';
 import { InMemoryStore } from '@mastra/core/storage';
+import { createTool } from '@mastra/core/tools';
+import { createOpenAI } from '@ai-sdk/openai';
+import { z } from 'zod';
 import {
   CopilotRuntime,
   copilotRuntimeNodeHttpEndpoint,
@@ -193,5 +196,257 @@ describe('Samy run errors', () => {
       run: 'run-1',
     });
     expect(JSON.parse(lines[0].message).error).toContain('model unavailable');
+  }, 30000);
+});
+
+// A body as OpenAI's Responses API streams it, so the real provider turns it into
+// the chunks production gets.
+const responsesBody = (events: object[]) =>
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        [
+          {
+            type: 'response.created',
+            response: { id: 'resp_1', created_at: 0, model: 'gpt-5.6-luna' },
+          },
+          ...events,
+          {
+            type: 'response.completed',
+            response: {
+              incomplete_details: null,
+              usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
+              },
+            },
+          },
+        ].forEach((event) =>
+          controller.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`)
+          )
+        );
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { 'content-type': 'text/event-stream' } }
+  );
+
+const functionCall = (index: number) => {
+  const args = JSON.stringify({ prompt: `picture ${index}` });
+  const item = {
+    type: 'function_call',
+    id: `fc_${index}`,
+    call_id: `call_${index}`,
+    name: 'generateImageTool',
+  };
+  return [
+    {
+      type: 'response.output_item.added',
+      output_index: index,
+      item: { ...item, arguments: '', status: 'in_progress' },
+    },
+    {
+      type: 'response.function_call_arguments.delta',
+      item_id: item.id,
+      output_index: index,
+      delta: args,
+    },
+    {
+      type: 'response.output_item.done',
+      output_index: index,
+      item: { ...item, arguments: args, status: 'completed' },
+    },
+  ];
+};
+
+const words = (text: string) => [
+  {
+    type: 'response.output_item.added',
+    output_index: 0,
+    item: { type: 'message', id: 'msg_1' },
+  },
+  {
+    type: 'response.output_text.delta',
+    item_id: 'msg_1',
+    delta: text,
+  },
+  {
+    type: 'response.output_item.done',
+    output_index: 0,
+    item: { type: 'message', id: 'msg_1' },
+  },
+];
+
+// The AG-UI events of one Samy run, each handed over as it arrives, the way the
+// browser reads them.
+const readRun = async (
+  response: Response,
+  onEvent: (event: { type: string; [key: string]: any }) => void
+) => {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return;
+    }
+    pending += decoder.decode(value, { stream: true });
+    const frames = pending.split('\n\n');
+    pending = frames.pop() ?? '';
+    frames
+      .filter((frame) => frame.startsWith('data: '))
+      .forEach((frame) => onEvent(JSON.parse(frame.slice('data: '.length))));
+  }
+};
+
+// The real provider, loop and CopilotKit endpoint around a tool that runs until
+// it's let go, as a render does. CopilotKit runs a per-request clone of the agent,
+// so this also proves what's set here survives that.
+const startRenders = (calls: number) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let modelCalls = 0;
+
+  const agent = new Agent({
+    id: 'sharek',
+    name: 'Sharek',
+    instructions: () => 'SYSTEM',
+    model: createOpenAI({
+      apiKey: 'sk-test',
+      fetch: (async () =>
+        responsesBody(
+          modelCalls++
+            ? words('Here it is.')
+            : Array.from({ length: calls }, (_, index) =>
+                functionCall(index)
+              ).flat()
+        )) as typeof fetch,
+    })('gpt-5.6-luna'),
+    tools: {
+      generateImageTool: createTool({
+        id: 'generateImageTool',
+        description: 'Make an image',
+        inputSchema: z.object({ prompt: z.string() }),
+        execute: async () => {
+          await held;
+          return { id: 'media-1', path: 'https://media/a.png' };
+        },
+      }),
+    },
+    memory: new Memory({
+      storage: new InMemoryStore(),
+      options: { generateTitle: false, lastMessages: 20 },
+    }),
+  } as any);
+  const mastra = new Mastra({ agents: { postiz: agent }, logger: false });
+  const endpoint = copilotRuntimeNodeHttpEndpoint({
+    endpoint: '/copilot/agent',
+    runtime: new CopilotRuntime({
+      agents: getSharekAgents({ mastra, resourceId: 'org-1' }),
+    }),
+  }) as unknown as (request: Request) => Promise<Response>;
+
+  return {
+    release,
+    response: endpoint(
+      new Request('http://localhost/copilot/agent', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          method: 'agent/run',
+          params: { agentId: 'postiz' },
+          body: {
+            threadId: `thread-${calls}`,
+            runId: 'run-1',
+            messages: [{ id: 'message-1', role: 'user', content: 'a picture' }],
+            state: {},
+            tools: [],
+            context: [],
+            forwardedProps: {},
+          },
+        }),
+      })
+    ),
+  };
+};
+
+// @ag-ui/mastra holds a server tool's call until its result by default, so the
+// page saw nothing until a render had ended, and the waiting card lasted as long
+// as the finished picture took to load. Measured on the live stream: all four
+// events at 38.8 s.
+describe('Samy tells the browser about a tool call while it runs', () => {
+  const eventsOf = async (calls: number) => {
+    const { release, response } = startRenders(calls);
+    const seen: { type: string; [key: string]: any }[] = [];
+    let endsWhileRunning = 0;
+    let released = false;
+    const letGo = () => {
+      released = true;
+      release();
+    };
+    // Only so a failure is a failed assertion rather than a test that never ends.
+    const fallback = setTimeout(letGo, 3000);
+
+    await readRun(await response, (event) => {
+      seen.push(event);
+      if (event.type === 'TOOL_CALL_END' && !released) {
+        endsWhileRunning++;
+        if (endsWhileRunning === calls) {
+          letGo();
+        }
+      }
+    });
+    clearTimeout(fallback);
+
+    return { seen, endsWhileRunning };
+  };
+
+  it('with its arguments, before the tool has finished', async () => {
+    const { seen, endsWhileRunning } = await eventsOf(1);
+
+    expect(endsWhileRunning).toBe(1);
+    const order = seen
+      .map((event) => event.type)
+      .filter((type) => type.startsWith('TOOL_CALL_'));
+    expect(order).toEqual([
+      'TOOL_CALL_START',
+      'TOOL_CALL_ARGS',
+      'TOOL_CALL_END',
+      'TOOL_CALL_RESULT',
+    ]);
+    expect(seen.find((event) => event.type === 'TOOL_CALL_ARGS')?.delta).toBe(
+      JSON.stringify({ prompt: 'picture 0' })
+    );
+  }, 30000);
+
+  // A row of cards is one message, and each shows as soon as the model asks for it.
+  it('for every call of a step, on one message', async () => {
+    const { seen, endsWhileRunning } = await eventsOf(4);
+
+    expect(endsWhileRunning).toBe(4);
+    const starts = seen.filter((event) => event.type === 'TOOL_CALL_START');
+    expect(starts).toHaveLength(4);
+    expect(new Set(starts.map((event) => event.parentMessageId)).size).toBe(1);
+    expect(
+      seen.filter((event) => event.type === 'TOOL_CALL_RESULT')
+    ).toHaveLength(4);
+  }, 30000);
+
+  it('and still gives the words that follow', async () => {
+    const { seen } = await eventsOf(1);
+
+    expect(
+      seen
+        .filter((event) => event.type === 'TEXT_MESSAGE_CONTENT')
+        .map((event) => event.delta)
+        .join('')
+    ).toBe('Here it is.');
+    expect(seen[seen.length - 1].type).toBe('RUN_FINISHED');
   }, 30000);
 });
