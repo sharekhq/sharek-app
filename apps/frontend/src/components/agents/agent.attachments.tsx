@@ -178,7 +178,9 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
 
   // The uploader is created once, so it reads the latest of these from here.
   const signals = useRef({ finish, onError });
-  signals.current = { finish, onError };
+  useEffect(() => {
+    signals.current = { finish, onError };
+  });
 
   useEffect(() => {
     const listener = () => signals.current.onError();
