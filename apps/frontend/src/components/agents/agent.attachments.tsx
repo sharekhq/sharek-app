@@ -376,9 +376,7 @@ export const AttachmentsTray: FC = () => {
   useLayoutEffect(() => {
     if (row.current) {
       followChatBottom(
-        row.current
-          .closest('.copilotKitChatBody')
-          ?.querySelector('.copilotKitMessages'),
+        document.querySelector('.copilotKitMessages'),
         row.current.offsetHeight
       );
     }
