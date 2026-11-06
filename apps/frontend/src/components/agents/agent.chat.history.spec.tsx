@@ -10,14 +10,25 @@ import { createRoot, Root } from 'react-dom/client';
 // agent.chat.language.spec; the chat hook is a stand-in each case drives.
 const chat = {
   isAvailable: true,
-  messages: [] as { id: string; role: string; content: string }[],
+  isLoading: false,
+  messages: [] as Array<Record<string, unknown>>,
   setMessages: jest.fn(),
 };
 const params = { id: 'thread-1' };
 type Row = StoredAgentMessage & { id: string };
 const fetched: Record<string, Array<(rows: Row[]) => void>> = {};
+// What a component inside the chat reads about the run, as a card's parent does.
+const run = { running: undefined as boolean | undefined };
 
-jest.mock('@copilotkit/react-ui', () => ({ CopilotChat: () => null }));
+jest.mock('@copilotkit/react-ui', () => ({
+  CopilotChat: () => {
+    const {
+      ChatRunContext,
+    } = require('@gitroom/frontend/components/agents/agent.created.media');
+    run.running = require('react').useContext(ChatRunContext).running;
+    return null;
+  },
+}));
 jest.mock('@copilotkit/react-core', () => ({
   CopilotKit: ({ children }: { children: ReactNode }) => children,
   useCopilotAction: () => {},
@@ -105,7 +116,9 @@ const answer = async (id: string, rows: Row[]) => {
 
 beforeEach(() => {
   chat.isAvailable = true;
+  chat.isLoading = false;
   chat.messages = [];
+  run.running = undefined;
   chat.setMessages.mockReset();
   params.id = 'thread-1';
   Object.keys(fetched).forEach((id) => delete fetched[id]);
@@ -230,5 +243,74 @@ describe('AgentChat reopened thread', () => {
     expect(chat.setMessages).toHaveBeenLastCalledWith([
       { id: 'm9', role: 'user', content: 'other' },
     ]);
+  });
+
+  // A reopened chat draws what Samy made the way a live one does, and only a real
+  // result comes back, so a turn with no words and one image isn't lost.
+  it('brings back an image with no words, with ids of its own', async () => {
+    await render();
+    await answer('thread-1', [
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: {
+          format: 2,
+          parts: [
+            {
+              type: 'tool-invocation',
+              toolInvocation: {
+                state: 'result',
+                toolCallId: 'c1',
+                toolName: 'generateImageTool',
+                args: { prompt: 'a cat' },
+                result: { id: 'media-1', path: 'https://media/made.png' },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const written = chat.setMessages.mock.calls[0][0];
+    expect(written).toHaveLength(2);
+    expect(written[0]).toMatchObject({
+      id: 'm1',
+      role: 'assistant',
+      toolCalls: [{ id: 'c1' }],
+    });
+    expect(written[1]).toMatchObject({ role: 'tool', toolCallId: 'c1' });
+    expect(new Set(written.map((m: { id: string }) => m.id)).size).toBe(2);
+  });
+
+  // `setMessages` clones with structuredClone, which throws on a function, and
+  // messages carry `generativeUI` functions once a card has rendered.
+  it('puts back messages that survive a real structuredClone after cards rendered', async () => {
+    await render();
+    await answer('thread-1', stored);
+    chat.messages = [
+      shown[0],
+      { ...shown[1], generativeUI: () => null, generativeUIPosition: 'before' },
+    ];
+    await render();
+
+    chat.messages = [];
+    await render();
+
+    const written = chat.setMessages.mock.calls.at(-1)![0];
+    expect(() => structuredClone(written)).not.toThrow();
+    expect(written).toEqual(shown);
+  });
+
+  it('tells the chat whether a run is going, from the hook that stays mounted', async () => {
+    await render();
+    expect(run.running).toBe(false);
+
+    chat.isLoading = true;
+    await render();
+    expect(run.running).toBe(true);
+
+    chat.isLoading = false;
+    await render();
+    expect(run.running).toBe(false);
   });
 });

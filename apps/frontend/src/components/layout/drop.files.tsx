@@ -12,6 +12,11 @@ export const DropFiles: FC<{
   overlay?: ReactNode;
   /** No tab stop on the zone: over a large area it's invisible, as a global rule removes outlines. */
   noKeyboard?: boolean;
+  /**
+   * Hears a drop and a leave on their way down rather than as they bubble, for a zone
+   * whose children stop them. CopilotKit's chat body does, even with attachments off.
+   */
+  capture?: boolean;
 }> = (props) => {
   const t = useT();
   const toaster = useToaster();
@@ -32,8 +37,15 @@ export const DropFiles: FC<{
       props.onDrop(files);
     },
   });
+  const { onDrop, onDragLeave, ...root } = getRootProps();
   return (
-    <div {...getRootProps()} className={clsx("relative", props.className)}>
+    <div
+      {...root}
+      {...(props.capture
+        ? { onDropCapture: onDrop, onDragLeaveCapture: onDragLeave }
+        : { onDrop, onDragLeave })}
+      className={clsx("relative", props.className)}
+    >
       {isDragActive &&
         (props.overlay ?? (
           <div className="absolute start-0 top-0 w-full h-full bg-black/90 flex items-center justify-center z-[200] animate-normalFadeIn">

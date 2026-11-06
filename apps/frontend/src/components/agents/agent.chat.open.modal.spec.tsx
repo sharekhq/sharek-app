@@ -263,6 +263,31 @@ describe('the editor action Samy is offered', () => {
     expect(editor?.description).toContain('never to save drafts');
     expect(editor?.description).toContain('with type "draft"');
   });
+
+  // Registered to draw the server's tool, not to offer the model a second one by
+  // that name. CopilotKit registers a new renderer whenever this object changes, and
+  // a new renderer remounts the card, which would lose what it knows about its picture.
+  it('sits beside a card for the image tool, which it isn’t offered', async () => {
+    const hooks = async () => {
+      capturedActions.length = 0;
+      const root = createRoot(document.createElement('div'));
+      mounted.push(root);
+      await act(async () => {
+        root.render(<Hooks />);
+      });
+      return capturedActions.find(
+        (action) => action.name === 'generateImageTool'
+      ) as unknown as { available: string; render: unknown };
+    };
+
+    const first = await hooks();
+    expect(first.available).toBe('disabled');
+    expect(typeof first.render).toBe('function');
+    expect(await hooks()).toBe(first);
+    expect(
+      capturedActions.some((action) => action.name === 'manualPosting')
+    ).toBe(true);
+  });
 });
 
 describe('manualPosting queue', () => {

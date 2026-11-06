@@ -749,6 +749,7 @@
   "samy_attached_video": "الفيديو المرفق {{n}}",
   "samy_remove_attachment": "إزالة المرفق {{n}}",
   "samy_image_unavailable": "هذه الصورة لم تعد متاحة",
+  "samy_created_image": "صورة أنشأها سامي",
   "samy_video_unavailable": "هذا الفيديو لم يعد متاحًا",
   "last_github_trending": "آخر الترندات على Github",
   "next_predicted_github_trending": "الترند المتوقع القادم على Github",

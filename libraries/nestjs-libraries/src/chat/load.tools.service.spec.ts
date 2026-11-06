@@ -501,6 +501,43 @@ describe('LoadToolsService video guidance', () => {
   });
 });
 
+// The chat draws what Samy makes from the tool's result, so a link in its words
+// only repeats it. Videos keep their link until they have cards of their own.
+describe('LoadToolsService images in the chat', () => {
+  const LINE =
+    'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.';
+
+  const contextWithUi = (ui: string) => {
+    const requestContext = new RequestContext();
+    requestContext.set('ui' as never, ui as never);
+    return requestContext;
+  };
+
+  it('tells Samy not to paste a link to an image the chat shows', async () => {
+    expect(await instructionsWith(uiContext())).toContain(LINE);
+  });
+
+  it('says nothing about it over MCP, where nothing draws the image', async () => {
+    expect(await instructionsWith(new RequestContext())).not.toContain(LINE);
+  });
+
+  // `ui` is a string, so `!!ui` would read 'false' as a chat.
+  it('says nothing about it for a ui of false', async () => {
+    expect(await instructionsWith(contextWithUi('false'))).not.toContain(LINE);
+  });
+
+  it('leaves what it says about videos as it was', async () => {
+    const instructions = await instructionsWith(uiContext());
+
+    expect(instructions).toContain(
+      'Tell the user the video is rendering and will appear in their Media library, then end your reply'
+    );
+    expect(instructions).toContain(
+      'When the user asks about a video later, call videoStatusTool with its jobId'
+    );
+  });
+});
+
 describe('LoadToolsService post management guidance', () => {
   it('advertises the list and update tools as capabilities', async () => {
     const instructions = await instructionsWith(uiContext());

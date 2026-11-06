@@ -13,11 +13,16 @@ const dropzone = {
     | undefined,
 };
 const show = jest.fn();
+const rootDrop = jest.fn();
+const rootDragLeave = jest.fn();
 
 jest.mock('react-dropzone', () => ({
   useDropzone: (options: typeof dropzone.options) => {
     dropzone.options = options;
-    return { getRootProps: () => ({}), isDragActive: dropzone.isDragActive };
+    return {
+      getRootProps: () => ({ onDrop: rootDrop, onDragLeave: rootDragLeave }),
+      isDragActive: dropzone.isDragActive,
+    };
   },
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -34,6 +39,7 @@ const mounted: Root[] = [];
 const render = async (props: {
   overlay?: ReactNode;
   noKeyboard?: boolean;
+  capture?: boolean;
   disabled?: boolean;
   onDrop?: (files: File[]) => void;
 }) => {
@@ -44,11 +50,26 @@ const render = async (props: {
   await act(async () => {
     root.render(
       <DropFiles onDrop={jest.fn()} {...props}>
-        <span>content</span>
+        {/* What CopilotKit's chat body does with both, even with attachments off. */}
+        <span
+          data-child=""
+          onDrop={(event) => event.stopPropagation()}
+          onDragLeave={(event) => event.stopPropagation()}
+        >
+          content
+        </span>
       </DropFiles>
     );
   });
   return host;
+};
+
+const fire = async (host: HTMLElement, type: string) => {
+  await act(async () => {
+    host
+      .querySelector('[data-child]')!
+      .dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+  });
 };
 
 afterEach(() => {
@@ -115,5 +136,29 @@ describe('DropFiles', () => {
     act(() => dropzone.options?.onDrop(files));
 
     expect(onDrop).toHaveBeenCalledWith(files);
+  });
+
+  // With no flag it stays as the composer and the Media library have it, so a child
+  // stopping the event keeps it from the zone, as it always has.
+  it('hears a drop and a leave as they bubble, by default', async () => {
+    const host = await render({});
+
+    await fire(host, 'drop');
+    await fire(host, 'dragleave');
+
+    expect(rootDrop).not.toHaveBeenCalled();
+    expect(rootDragLeave).not.toHaveBeenCalled();
+  });
+
+  // CopilotKit's chat stops both from bubbling, even with its attachments off, so a
+  // zone around it never heard a drop and its overlay stayed up.
+  it('hears them on the way down with capture, whatever its children stop', async () => {
+    const host = await render({ capture: true });
+
+    await fire(host, 'drop');
+    expect(rootDrop).toHaveBeenCalledTimes(1);
+
+    await fire(host, 'dragleave');
+    expect(rootDragLeave).toHaveBeenCalledTimes(1);
   });
 });

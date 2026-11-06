@@ -1,7 +1,7 @@
 // Chat storage rows (mastra_messages) hold either a plain string or a Mastra v2
 // content object; a turn that died mid-stream persists one with no flattened
-// string and no text parts. Callers drop messages that yield '' here rather
-// than restore an empty one into the thread.
+// string and no text parts. Messages that yield '' here are dropped rather than
+// restored empty into the thread, unless they hold media to show.
 export interface StoredAgentMessagePart {
   type: string;
   text?: string;
@@ -40,6 +40,10 @@ const MEDIA_BLOCK = /\n?\[--Media--\]([\s\S]*?)\[--Media--\]/g;
 // A link ends at the first whitespace or quote. Only http(s) counts, because
 // these reach an image source and the viewer's external link.
 const MEDIA_LINE = /^(Image|Video): (https?:\/\/[^\s"']+)/gm;
+
+// The same rule for a link that comes from a tool's result.
+export const isMediaLink = (url: unknown): url is string =>
+  typeof url === 'string' && /^https?:\/\//.test(url);
 
 export interface AgentMessageMedia {
   kind: 'image' | 'video';
@@ -83,4 +87,94 @@ export const extractAgentMessageText = (message: StoredAgentMessage): string => 
     return content.content;
   }
   return joinTextParts(content?.parts || []);
+};
+
+interface StoredToolInvocation {
+  state?: string;
+  toolCallId: string;
+  toolName: string;
+  args?: unknown;
+  result?: { path?: string };
+}
+
+// The tools whose results the chat draws. A restored call with no renderer paints
+// an empty container, so nothing else comes back.
+const RESTORED_TOOLS = ['generateImageTool'];
+
+// Only a result holding media counts, so a refused attempt shows nothing and a
+// row left with nothing stays dropped.
+const restoredInvocations = ({
+  content,
+}: StoredAgentMessage): StoredToolInvocation[] => {
+  const parts =
+    content && typeof content === 'object' && !Array.isArray(content)
+      ? content.parts || []
+      : [];
+
+  return parts
+    .filter((part) => part.type === 'tool-invocation')
+    .map((part) => part.toolInvocation as StoredToolInvocation)
+    .filter(
+      (call) =>
+        call?.state === 'result' &&
+        RESTORED_TOOLS.includes(call.toolName) &&
+        isMediaLink(call.result?.path)
+    );
+};
+
+interface RestoredChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  toolCalls?: {
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }[];
+  toolCallId?: string;
+}
+
+// One stored row as what CopilotKit holds live, so a reopened chat draws what
+// Samy made through the same cards: tool calls on the assistant message, then a
+// tool message per result. CopilotKit matches messages by id in the chat, its
+// runner and the Mastra bridge, so each keeps a stored id or one built from it;
+// without them each one shows twice.
+export const storedAgentRowToChatMessages = (
+  row: StoredAgentMessage & { id: string }
+): RestoredChatMessage[] => {
+  // Threads written before the channel list moved into the system prompt carry
+  // it in the message text. Drop it here so reopening an old thread does not
+  // resend it to the model on every turn.
+  const content = stripIntegrationsBlock(extractAgentMessageText(row));
+  const calls = restoredInvocations(row);
+
+  if (!content && !calls.length) {
+    return [];
+  }
+
+  return [
+    {
+      id: row.id,
+      role: row.role,
+      content,
+      ...(calls.length
+        ? {
+            toolCalls: calls.map((call) => ({
+              id: call.toolCallId,
+              type: 'function' as const,
+              function: {
+                name: call.toolName,
+                arguments: JSON.stringify(call.args ?? {}),
+              },
+            })),
+          }
+        : {}),
+    },
+    ...calls.map((call) => ({
+      id: `${row.id}:${call.toolCallId}`,
+      role: 'tool',
+      toolCallId: call.toolCallId,
+      content: JSON.stringify(call.result),
+    })),
+  ];
 };

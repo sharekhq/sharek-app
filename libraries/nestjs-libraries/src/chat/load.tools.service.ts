@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Agent, AgentExecutionOptions } from '@mastra/core/agent';
+import type { RequestContext } from '@mastra/core/request-context';
 import { openai } from '@ai-sdk/openai';
 import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
@@ -92,6 +93,17 @@ const MAX_STEPS = 20;
 
 const LAST_STEP_NOTE =
   'This is your last step in this turn and your tools are switched off. Tell the user what you did and what is left, so they can ask you to continue.';
+
+// Samy, in the chat. `ui` arrives as a string, so `!!ui` would also read 'false'
+// as a chat, and anything built on this stays off every outside connection.
+const isSamyRun = (requestContext: RequestContext<unknown>) =>
+  requestContext.get('ui' as never) === 'true';
+
+// In the list beside the editor's lines rather than a block of their own, which
+// would add a blank line to the prompt of every outside connection.
+const SAMY_LINES = [
+  'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.',
+];
 
 const organizationId = (organization?: string) => {
   if (!organization) return undefined;
@@ -204,6 +216,7 @@ ${channels}
         [
           'Open the post editor (manualPosting) only when the user asks to open the posts in it to review or edit them. It saves nothing until they save it, so it is never the way to save drafts or to add posts to the calendar.',
           'Never open the post editor (manualPosting) to edit an existing post - it only CREATES a new post, so using it to edit would duplicate the post.',
+          ...(isSamyRun(requestContext) ? SAMY_LINES : []),
         ],
         !!ui
       )}
