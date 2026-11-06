@@ -86,7 +86,7 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
   // happens next, so all of this reads the list here rather than from a render.
   const latest = useRef<Tile[]>([]);
   // The tile Uppy holds. It may have been removed since, and the next file still
-  // waits for its result, or that result would be read as the next file's.
+  // waits for Uppy's report, or that report would be read as the next file's.
   const inFlight = useRef<string | null>(null);
   const started = useRef(false);
 
@@ -94,6 +94,15 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
     latest.current = next;
     setTiles(next);
   };
+
+  const refuseSize = () =>
+    toaster.show(
+      t(
+        'upload_size_limit_exceeded',
+        'Upload size limit exceeded. Maximum 1 GB per upload session.'
+      ),
+      'warning'
+    );
 
   const uppy = useUppyUploader({
     allowedFileTypes: 'image/*,video/mp4',
@@ -117,13 +126,7 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
       uppy.addFile(next.file);
     } catch {
       // Uppy throws on its own limit, and this box mounts no Uppy UI to show why.
-      toaster.show(
-        t(
-          'upload_size_limit_exceeded',
-          'Upload size limit exceeded. Maximum 1 GB per upload session.'
-        ),
-        'warning'
-      );
+      refuseSize();
       finish();
     }
   };
@@ -188,6 +191,8 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
     uppy.on('error', listener);
     return () => {
       uppy.off('error', listener);
+      // Each chat makes its own, and it holds listeners on the window until told.
+      uppy.destroy();
     };
   }, [uppy]);
 
@@ -203,13 +208,7 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
   const addFiles = (files: File[]) => {
     const total = files.reduce((sum, file) => sum + file.size, 0);
     if (total > MAX_UPLOAD_SIZE) {
-      toaster.show(
-        t(
-          'upload_size_limit_exceeded',
-          'Upload size limit exceeded. Maximum 1 GB per upload session.'
-        ),
-        'warning'
-      );
+      refuseSize();
       return;
     }
 
@@ -239,13 +238,18 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
     write(next);
   };
 
-  // Only off the message: a finished upload stays in the Media library.
+  // Only off the message: a finished upload stays in the Media library. One still
+  // running stops, so the files behind it don't wait for it. Uppy then reports an
+  // empty ending, which is what starts the next file.
   const remove = (key: string) => {
     const tile = latest.current.find((item) => item.key === key);
     if (tile?.preview) {
       URL.revokeObjectURL(tile.preview);
     }
     write(latest.current.filter((item) => item.key !== key));
+    if (key === inFlight.current) {
+      uppy.cancelAll();
+    }
   };
 
   return (

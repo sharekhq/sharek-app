@@ -50,6 +50,7 @@ jest.mock('@gitroom/frontend/components/agents/agent', () => ({
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: () => ({
     addFile: () => {},
+    destroy: () => {},
     on: () => {},
     off: () => {},
     getState: () => ({ currentUploads: {} }),

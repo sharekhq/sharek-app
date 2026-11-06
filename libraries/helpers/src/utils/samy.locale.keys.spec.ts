@@ -78,8 +78,11 @@ describe("the strings of Samy's message box", () => {
       'This video is no longer available',
       'هذا الفيديو لم يعد متاحًا',
     ],
-  ])('%s reads the same in the app as in the contract', (key, english, arabic) => {
-    expect(en[key]).toBe(english);
-    expect(ar[key]).toBe(arabic);
-  });
+  ])(
+    '%s reads the same in the app as in the contract',
+    (key, english, arabic) => {
+      expect(en[key]).toBe(english);
+      expect(ar[key]).toBe(arabic);
+    }
+  );
 });

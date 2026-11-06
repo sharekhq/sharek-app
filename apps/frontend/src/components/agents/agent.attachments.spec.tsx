@@ -20,6 +20,8 @@ const listeners: Record<string, Array<() => void>> = {};
 const uppyState = { currentUploads: {} as Record<string, unknown> };
 const uppy = {
   addFile: jest.fn(),
+  cancelAll: jest.fn(),
+  destroy: jest.fn(),
   on: (event: string, listener: () => void) => {
     (listeners[event] = listeners[event] || []).push(listener);
   },
@@ -371,6 +373,7 @@ describe('the upload queue', () => {
 
     expect(pictures(host)).toEqual(['blob:a.png', 'blob:c.png']);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:b.png');
+    expect(uppy.cancelAll).not.toHaveBeenCalled();
 
     await finishUpload(row('a'));
 
@@ -378,18 +381,48 @@ describe('the upload queue', () => {
     expect(uppy.addFile).toHaveBeenLastCalledWith(c);
   });
 
-  // The upload can't be told apart from the next one's, so the next file waits
-  // for this one's result, and the file stays in the Media library.
-  it('ignores the result of an uploading tile that was removed, and it stays gone', async () => {
+  // The real Uppy reports an empty `complete` after cancelAll, read from
+  // @uppy/core and run against it, and that's what moves the queue on. Starting
+  // the next file sooner would read that report as the next file's.
+  it('stops an uploading tile that was removed, and the next file starts on its report', async () => {
     const { host } = await render();
     const [a, b] = [file('a.png'), file('b.png')];
     await add(a, b);
 
     await click(removeButtons(host)[0]);
 
+    expect(uppy.cancelAll).toHaveBeenCalledTimes(1);
     expect(pictures(host)).toEqual(['blob:b.png']);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.png');
     expect(uppy.addFile).toHaveBeenCalledTimes(1);
+
+    await finishUpload();
+
+    expect(pictures(host)).toEqual(['blob:b.png']);
+    expect(uppy.addFile).toHaveBeenCalledTimes(2);
+    expect(uppy.addFile).toHaveBeenLastCalledWith(b);
+  });
+
+  it('leaves the upload running when an attached tile is removed', async () => {
+    const { host } = await render();
+    await add(file('a.png'));
+    await finishUpload(row('a'));
+    await add(file('b.png'));
+
+    await click(removeButtons(host)[0]);
+
+    expect(uppy.cancelAll).not.toHaveBeenCalled();
+    expect(pictures(host)).toEqual(['blob:b.png']);
+  });
+
+  // An upload can finish just as it's removed, and the file stays in the Media
+  // library.
+  it('ignores the result of an uploading tile that was removed, and it stays gone', async () => {
+    const { host } = await render();
+    const [a, b] = [file('a.png'), file('b.png')];
+    await add(a, b);
+
+    await click(removeButtons(host)[0]);
 
     await finishUpload(row('a'));
 
@@ -517,6 +550,20 @@ describe('the upload queue', () => {
     await act(async () => uploader.options!.onUploadSuccess([row('a')]));
 
     expect(uppy.addFile).toHaveBeenCalledTimes(1);
+  });
+
+  // It's made for each chat, and it holds listeners on the window until told.
+  it('closes its uploader when it goes away, and not before', async () => {
+    const { root } = await render();
+    await add(file('a.png'));
+
+    await act(async () => {
+      root.render(tree());
+    });
+    expect(uppy.destroy).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+    expect(uppy.destroy).toHaveBeenCalledTimes(1);
   });
 });
 
