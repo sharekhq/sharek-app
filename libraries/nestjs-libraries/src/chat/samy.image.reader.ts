@@ -28,6 +28,7 @@ type ReaderState = {
 };
 
 type Prompt = ProcessLLMRequestArgs['prompt'];
+type UserPart = Extract<Prompt[number], { role: 'user' }>['content'][number];
 
 /** Where the prompt mentions an image, oldest first. */
 const mentionsIn = (prompt: Prompt) =>
@@ -57,7 +58,7 @@ const mentionsIn = (prompt: Prompt) =>
     return [];
   });
 
-const picture = (url: string) => [
+const picture = (url: string): UserPart[] => [
   { type: 'text', text: `Image ${url}:` },
   {
     type: 'file',
@@ -67,7 +68,7 @@ const picture = (url: string) => [
   },
 ];
 
-const note = (url: string, words: string) => [
+const note = (url: string, words: string): UserPart[] => [
   { type: 'text', text: `Image ${url}: ${words}` },
 ];
 
@@ -122,7 +123,7 @@ export class SamyImageReader {
         return sent.includes(url) ? picture(url) : note(url, NOTE.faded);
       };
 
-      const withImages = prompt.flatMap((message, position) => {
+      const withImages = prompt.flatMap((message, position): Prompt => {
         const parts = [...newest]
           .filter(([, at]) => at === position)
           .reverse()
@@ -136,7 +137,7 @@ export class SamyImageReader {
           ? [{ ...message, content: [...message.content, ...parts] }]
           : // The provider maps a tool output's media only as base64, not a link.
             [message, { role: 'user', content: parts }];
-      }) as Prompt;
+      });
 
       run.sent = sent;
       return { prompt: withImages };
