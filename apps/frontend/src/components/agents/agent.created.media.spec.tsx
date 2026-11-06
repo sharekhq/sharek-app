@@ -442,6 +442,9 @@ describe('a video card', () => {
     it('doesn’t check again because the window came back', async () => {
       await showVideo({ jobId: JOB });
       statusCheck.mockClear();
+      // SWR ignores a focus for 5 seconds after mount, and this is before the next
+      // 10-second check, so a call here could only come from the events below.
+      await settle(6 * 1000);
 
       await act(async () => {
         window.dispatchEvent(new Event('focus'));

@@ -463,6 +463,7 @@ describe('storedAgentRowToChatMessages', () => {
       ['failed', { status: 'failed', error: 'Render failed.' }],
       ['finished with no link', { status: 'completed' }],
       ['finished with a bad link', { status: 'completed', url: '/v.mp4' }],
+      ['failed with a link', { status: 'failed', url: 'https://m/v.mp4' }],
     ])('stays away when %s', (_name, result) => {
       expect(reported(result)).toEqual([
         { id: 'r1', role: 'assistant', content: 'Here.' },
