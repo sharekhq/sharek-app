@@ -28,6 +28,7 @@ jest.mock(
 // close over names so prefixed.
 let mockSteps: number[] = [];
 let mockStep = 0;
+let mockInput: unknown = { prompt: 'a cat' };
 
 const mockModel: any = {
   specificationVersion: 'v2',
@@ -42,7 +43,7 @@ const mockModel: any = {
           type: 'tool-call',
           toolCallId: `call-${step}-${call}`,
           toolName: 'generateImageTool',
-          input: JSON.stringify({ prompt: 'a cat' }),
+          input: JSON.stringify(mockInput),
         }))
       : [
           { type: 'text-start', id: 't' },
@@ -139,6 +140,42 @@ describe('Samy image calls through the real loop', () => {
   });
 
   afterEach(() => spy.mockRestore());
+
+  // OpenAI is told every field is required, so the model fills the ones it has no
+  // use for. Whatever it fills them with has to mean nothing, not a refusal.
+  it.each([
+    ['null', { references: null, editOf: null }],
+    ['empty', { references: [], editOf: '' }],
+  ])(
+    'makes the image when the unused fields come back %s',
+    async (_name, unused) => {
+      mockInput = { prompt: 'a cat', aspectRatio: 'story', ...unused };
+
+      const { media, results } = await runTurn([1], Infinity);
+      mockInput = { prompt: 'a cat' };
+
+      expect(results).toEqual([made]);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(1);
+    },
+    30000
+  );
+
+  it('makes a square when the shape comes back null', async () => {
+    mockInput = {
+      prompt: 'a cat',
+      aspectRatio: null,
+      references: null,
+      editOf: null,
+    };
+
+    const { media, results } = await runTurn([1], Infinity);
+    mockInput = { prompt: 'a cat' };
+
+    expect(results).toEqual([made]);
+    expect(media.generateImageFromLinks.mock.calls[0][1].aspectRatio).toBe(
+      'square'
+    );
+  }, 30000);
 
   it('renders 4 of 6 parallel calls in one step', async () => {
     const { media, results, text } = await runTurn([6], Infinity);
