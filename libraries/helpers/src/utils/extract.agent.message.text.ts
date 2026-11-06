@@ -84,3 +84,93 @@ export const extractAgentMessageText = (message: StoredAgentMessage): string => 
   }
   return joinTextParts(content?.parts || []);
 };
+
+interface StoredToolInvocation {
+  state?: string;
+  toolCallId: string;
+  toolName: string;
+  args?: unknown;
+  result?: { path?: string };
+}
+
+// The tools whose results the chat draws. A restored call with no renderer paints
+// an empty container, so nothing else comes back.
+const RESTORED_TOOLS = ['generateImageTool'];
+
+// Only a result holding media counts, so a refused attempt shows nothing and a
+// row left with nothing stays dropped.
+const restoredInvocations = ({
+  content,
+}: StoredAgentMessage): StoredToolInvocation[] => {
+  const parts =
+    content && typeof content === 'object' && !Array.isArray(content)
+      ? content.parts || []
+      : [];
+
+  return parts
+    .filter((part) => part.type === 'tool-invocation')
+    .map((part) => part.toolInvocation as StoredToolInvocation)
+    .filter(
+      (call) =>
+        call?.state === 'result' &&
+        RESTORED_TOOLS.includes(call.toolName) &&
+        !!call.result?.path
+    );
+};
+
+export interface RestoredChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  toolCalls?: {
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }[];
+  toolCallId?: string;
+}
+
+// One stored row as what CopilotKit holds live, so a reopened chat draws what
+// Samy made through the same cards: tool calls on the assistant message, then a
+// tool message per result. CopilotKit matches messages by id in the chat, its
+// runner and the Mastra bridge, so each keeps a stored id or one built from it;
+// without them each one shows twice.
+export const storedAgentRowToChatMessages = (
+  row: StoredAgentMessage & { id: string }
+): RestoredChatMessage[] => {
+  // Threads written before the channel list moved into the system prompt carry
+  // it in the message text. Drop it here so reopening an old thread does not
+  // resend it to the model on every turn.
+  const content = stripIntegrationsBlock(extractAgentMessageText(row));
+  const calls = restoredInvocations(row);
+
+  if (!content && !calls.length) {
+    return [];
+  }
+
+  return [
+    {
+      id: row.id,
+      role: row.role,
+      content,
+      ...(calls.length
+        ? {
+            toolCalls: calls.map((call) => ({
+              id: call.toolCallId,
+              type: 'function' as const,
+              function: {
+                name: call.toolName,
+                arguments: JSON.stringify(call.args ?? {}),
+              },
+            })),
+          }
+        : {}),
+    },
+    ...calls.map((call) => ({
+      id: `${row.id}:${call.toolCallId}`,
+      role: 'tool',
+      toolCallId: call.toolCallId,
+      content: JSON.stringify(call.result),
+    })),
+  ];
+};

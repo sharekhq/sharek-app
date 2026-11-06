@@ -1,6 +1,7 @@
 import {
   extractAgentMessageMedia,
   extractAgentMessageText,
+  storedAgentRowToChatMessages,
   stripIntegrationsBlock,
 } from './extract.agent.message.text';
 
@@ -239,5 +240,180 @@ describe('extractAgentMessageMedia', () => {
         '[--Media--]Image: http://localhost:4200/uploads/a.png\n[--Media--]'
       ).media
     ).toEqual([{ kind: 'image', url: 'http://localhost:4200/uploads/a.png' }]);
+  });
+});
+
+// A reopened chat holds what CopilotKit holds live: tool calls on the assistant
+// message and a tool message for each result, so one renderer draws both.
+describe('storedAgentRowToChatMessages', () => {
+  const invocation = (
+    toolCallId: string,
+    toolInvocation: Record<string, unknown> = {}
+  ) => ({
+    type: 'tool-invocation',
+    toolInvocation: {
+      state: 'result',
+      toolCallId,
+      toolName: 'generateImageTool',
+      args: { prompt: 'a cat' },
+      result: { id: `media-${toolCallId}`, path: `https://m/${toolCallId}.png` },
+      ...toolInvocation,
+    },
+  });
+  const words = (text: string) => [
+    { type: 'step-start' },
+    { type: 'text', text },
+  ];
+  const assistant = (parts: Record<string, unknown>[]) => ({
+    id: 'r1',
+    role: 'assistant',
+    content: { format: 2, parts: parts as any },
+  });
+  const call = (id: string) => ({
+    id,
+    type: 'function',
+    function: {
+      name: 'generateImageTool',
+      arguments: JSON.stringify({ prompt: 'a cat' }),
+    },
+  });
+  const result = (id: string) => ({
+    id: `r1:${id}`,
+    role: 'tool',
+    toolCallId: id,
+    content: JSON.stringify({ id: `media-${id}`, path: `https://m/${id}.png` }),
+  });
+
+  it('keeps a user row as it is shown today, without an integrations block', () => {
+    expect(
+      storedAgentRowToChatMessages({
+        id: 'u1',
+        role: 'user',
+        content:
+          'post this\n[--integrations--]\nUse the following social media platforms: []\n[--integrations--]',
+      })
+    ).toEqual([{ id: 'u1', role: 'user', content: 'post this' }]);
+  });
+
+  it('keeps the media block of a user row, for the bubble to read', () => {
+    const content = 'hello\n[--Media--]Image: https://m/a.png\n[--Media--]';
+
+    expect(
+      storedAgentRowToChatMessages({ id: 'u1', role: 'user', content })
+    ).toEqual([{ id: 'u1', role: 'user', content }]);
+  });
+
+  it('turns words and an image into a message with its call, then its result', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([invocation('c1'), ...words('Done.')])
+      )
+    ).toEqual([
+      { id: 'r1', role: 'assistant', content: 'Done.', toolCalls: [call('c1')] },
+      result('c1'),
+    ]);
+  });
+
+  it('keeps an image with no words', () => {
+    expect(
+      storedAgentRowToChatMessages(assistant([invocation('c1')]))
+    ).toEqual([
+      { id: 'r1', role: 'assistant', content: '', toolCalls: [call('c1')] },
+      result('c1'),
+    ]);
+  });
+
+  it('makes one message of two images, with two results in order', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([invocation('c1'), invocation('c2'), ...words('Both.')])
+      )
+    ).toEqual([
+      {
+        id: 'r1',
+        role: 'assistant',
+        content: 'Both.',
+        toolCalls: [call('c1'), call('c2')],
+      },
+      result('c1'),
+      result('c2'),
+    ]);
+  });
+
+  // A refused attempt shows nothing, and a row left with nothing stays dropped.
+  it('drops a row holding only a refusal', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([invocation('c1', { result: { error: 'No credits.' } })])
+      )
+    ).toEqual([]);
+  });
+
+  it('keeps the words of a refusal, with no tool call', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([
+          invocation('c1', { result: { error: 'No credits.' } }),
+          ...words('You are out of credits.'),
+        ])
+      )
+    ).toEqual([
+      { id: 'r1', role: 'assistant', content: 'You are out of credits.' },
+    ]);
+  });
+
+  it('ignores a call that never got a result', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([
+          invocation('c1', { state: 'call', result: undefined }),
+          ...words('Trying.'),
+        ])
+      )
+    ).toEqual([{ id: 'r1', role: 'assistant', content: 'Trying.' }]);
+  });
+
+  // A restored call with no renderer paints an empty container.
+  it.each(['generateVideoTool', 'videoStatusTool', 'postsListTool'])(
+    'ignores %s, which has no card yet',
+    (toolName) => {
+      expect(
+        storedAgentRowToChatMessages(
+          assistant([invocation('c1', { toolName }), ...words('Here.')])
+        )
+      ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
+    }
+  );
+
+  it('ignores a result that is not an object holding a link', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([invocation('c1', { result: 'done' }), ...words('Here.')])
+      )
+    ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
+  });
+
+  // The poison guard: a turn that died mid-stream must not come back.
+  it('drops a row with no words and no media', () => {
+    expect(
+      storedAgentRowToChatMessages({
+        id: 'r1',
+        role: 'assistant',
+        content: { format: 2, parts: [] },
+      })
+    ).toEqual([]);
+    expect(storedAgentRowToChatMessages({ id: 'r1', role: 'assistant' })).toEqual(
+      []
+    );
+  });
+
+  it('keeps a plain string row as it is shown today', () => {
+    expect(
+      storedAgentRowToChatMessages({
+        id: 'r1',
+        role: 'assistant',
+        content: 'hello',
+      })
+    ).toEqual([{ id: 'r1', role: 'assistant', content: 'hello' }]);
   });
 });

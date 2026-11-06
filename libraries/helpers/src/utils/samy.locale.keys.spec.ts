@@ -78,6 +78,7 @@ describe("the strings of Samy's message box", () => {
       'This video is no longer available',
       'هذا الفيديو لم يعد متاحًا',
     ],
+    ['samy_created_image', 'Image Samy made', 'صورة أنشأها سامي'],
   ])(
     '%s reads the same in the app as in the contract',
     (key, english, arabic) => {

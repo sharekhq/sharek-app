@@ -159,3 +159,54 @@ test("a sent image's sizes emit, important, because the vendor's rules outrank u
   }
   assert.equal(rules(css, 'phone:!w-[96px]')[0].atRule, PHONE);
 });
+
+// A row sees its cards as its own children, so a card alone can grow. Each of these
+// has to outrank its phone size, or a lone image would stay 150px on a phone.
+test('a card alone reaches 420px, and only alone', async () => {
+  const alone = 'min(420px,calc(100vw-72px))';
+  const css = await emit([
+    `group-only:max-w-[${alone}]`,
+    `only:w-[${alone}]`,
+    'max-w-[190px]',
+    'phone:max-w-[150px]',
+    'w-[190px]',
+    'phone:w-[150px]',
+  ]);
+
+  // Read whole, because Tailwind writes the comma in these names as `\2c `.
+  assert.match(
+    css,
+    /\.group:only-child \.group-only\\:max-w-[^{]*\{\s*max-width: min\(420px, ?calc\(100vw - 72px\)\)/
+  );
+  assert.match(
+    css,
+    /\.only\\:w-[^{]*:only-child \{\s*width: min\(420px, ?calc\(100vw - 72px\)\)/
+  );
+  assert.equal(rules(css, 'phone:max-w-[150px]')[0].atRule, PHONE);
+  assert.equal(rules(css, 'phone:w-[150px]')[0].atRule, PHONE);
+});
+
+test("a card's waiting and framing forms emit", async () => {
+  const css = await emit([
+    'empty:hidden',
+    'motion-safe:animate-pulse',
+    'aspect-square',
+    'max-h-[480px]',
+    'rounded-[16px]',
+    'after:border-line',
+    "after:content-['']",
+    'after:inset-0',
+  ]);
+
+  assert.match(css, /\.empty\\:hidden:empty/);
+  const pulse = rules(css, 'motion-safe:animate-pulse');
+  assert.ok(pulse.length > 0, 'the pulse emitted no CSS');
+  assert.equal(pulse[0].atRule, '(prefers-reduced-motion: no-preference)');
+  assert.deepEqual(rules(css, 'aspect-square')[0].decls[0], {
+    prop: 'aspect-ratio',
+    value: '1 / 1',
+    important: false,
+  });
+  assert.match(css, /\.after\\:border-line::after/);
+  assert.match(css, /\.after\\:content-\\\[\\'\\'\\\]::after/);
+});

@@ -12,6 +12,7 @@ import React, {
 } from 'react';
 import useSWR from 'swr';
 import clsx from 'clsx';
+import { omit } from 'lodash';
 import {
   AssistantMessage,
   AssistantMessageProps,
@@ -36,6 +37,15 @@ import {
   PlayBadge,
   useAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
+import {
+  CardMayWaitContext,
+  chatMediaPreview,
+  ChatRunContext,
+  ChatRunProvider,
+  isInLatestExchange,
+  keepChatAtBottom,
+  renderCreatedImage,
+} from '@gitroom/frontend/components/agents/agent.created.media';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
@@ -44,10 +54,10 @@ import {
   AgentMessageMedia,
   extractAgentMessageMedia,
   extractAgentMessageText,
+  storedAgentRowToChatMessages,
   stripIntegrationsBlock,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
-import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import i18next from 'i18next';
@@ -79,42 +89,44 @@ export const AgentChat: FC = () => {
       }}
     >
       <Hooks />
-      <LoadMessages key={params.id} id={params.id} />
-      {/* Keyed by the thread, so unsent attachments leave on a thread switch as
+      <ChatRunProvider>
+        <LoadMessages key={params.id} id={params.id} />
+        {/* Keyed by the thread, so unsent attachments leave on a thread switch as
           they do on leaving the page. */}
-      <AttachmentsProvider key={params.id}>
-        <div
-          style={
-            {
-              '--copilot-kit-primary-color': 'var(--brand)',
-              '--copilot-kit-background-color': 'var(--new-bg-color)',
-            } as CopilotKitCSSProperties
-          }
-          className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
-        >
-          <div className="absolute left-0 w-full h-full pb-[20px]">
-            <ChatDropZone>
-              <CopilotChat
-                className="w-full h-full"
-                labels={{
-                  // The eight shared controls. First, so Samy's own two below always
-                  // win. Its custom input reads labels.placeholder, so a missing one is
-                  // English in the field the user types into.
-                  ...assistantLabels(t),
-                  title: t('samy', 'Samy'),
-                  initial: t(
-                    'samy_welcome_message',
-                    "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
-                  ),
-                }}
-                UserMessage={Message}
-                AssistantMessage={Reply}
-                Input={NewInput}
-              />
-            </ChatDropZone>
+        <AttachmentsProvider key={params.id}>
+          <div
+            style={
+              {
+                '--copilot-kit-primary-color': 'var(--brand)',
+                '--copilot-kit-background-color': 'var(--new-bg-color)',
+              } as CopilotKitCSSProperties
+            }
+            className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
+          >
+            <div className="absolute left-0 w-full h-full pb-[20px]">
+              <ChatDropZone>
+                <CopilotChat
+                  className="w-full h-full"
+                  labels={{
+                    // The eight shared controls. First, so Samy's own two below always
+                    // win. Its custom input reads labels.placeholder, so a missing one is
+                    // English in the field the user types into.
+                    ...assistantLabels(t),
+                    title: t('samy', 'Samy'),
+                    initial: t(
+                      'samy_welcome_message',
+                      "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
+                    ),
+                  }}
+                  UserMessage={Message}
+                  AssistantMessage={Reply}
+                  Input={NewInput}
+                />
+              </ChatDropZone>
+            </div>
           </div>
-        </div>
-      </AttachmentsProvider>
+        </AttachmentsProvider>
+      </ChatRunProvider>
     </CopilotKit>
   );
 };
@@ -140,10 +152,18 @@ type ChatMessage = ReturnType<
   typeof useCopilotChatInternal
 >['messages'][number];
 
+// Messages carry these functions once a card has rendered. `setMessages` clones
+// with structuredClone, which throws on a function, and CopilotKit's bubble would
+// draw the card a second time.
+const withoutCards = <T extends object>(message: T) =>
+  omit(message, 'generativeUI', 'generativeUIPosition') as T;
+
 // Rendered with the thread id as its key, so each thread starts from nothing:
 // a list kept from an earlier visit would miss the exchanges since then.
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
-  const { messages, setMessages, isAvailable } = useCopilotChatInternal();
+  const { messages, setMessages, isAvailable, isLoading } =
+    useCopilotChatInternal();
+  const { setRunning } = useContext(ChatRunContext);
   const fetch = useFetch();
   // The thread's stored messages, once they arrive; a new thread has none.
   const [stored, setStored] = useState<ChatMessage[] | null>(
@@ -164,18 +184,16 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
       .then((response) => response.json())
       .then((data) => {
         setStored(
-          data.messages.flatMap((p: any) => {
-            // Threads written before the channel list moved into the system
-            // prompt carry it in the message text. Drop it here so reopening
-            // an old thread does not resend it to the model on every turn.
-            const content = stripIntegrationsBlock(extractAgentMessageText(p));
-            // CopilotKit matches messages by id in the chat, its runner and
-            // the Mastra bridge; without the stored ids each one shows twice.
-            return content ? [{ id: p.id, role: p.role, content }] : [];
-          })
+          data.messages.flatMap((row: any) => storedAgentRowToChatMessages(row))
         );
       });
   }, [id]);
+
+  // Cards read this, because a short-lived component using the hook above would
+  // detach the running reply when it unmounts.
+  useEffect(() => {
+    setRunning(isLoading);
+  }, [isLoading, setRunning]);
 
   // A list written before the agent connects is emptied by the connect, and the
   // connect can also empty the chat after the list is shown.
@@ -192,7 +210,7 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     }
 
     if (messages.length) {
-      restore.current = messages;
+      restore.current = messages.map(withoutCards);
       return;
     }
 
@@ -230,20 +248,7 @@ const SentMedia: FC<{
   return (
     <button
       type="button"
-      onClick={() =>
-        modals.openModal(
-          mediaPreviewModal(
-            [
-              {
-                id: item.url,
-                path: item.url,
-                name: item.url.split('/').pop(),
-              },
-            ],
-            0
-          )
-        )
-      }
+      onClick={() => modals.openModal(chatMediaPreview(item.url))}
       aria-label={
         isVideo
           ? t('samy_attached_video', 'Attached video {{n}}', { n: position })
@@ -268,6 +273,8 @@ const SentMedia: FC<{
           // would come back through the drop zone as a new upload.
           draggable={false}
           onError={() => setFailed(true)}
+          // A lone picture has no reserved size, so a reopened chat grows as it loads.
+          onLoad={keepChatAtBottom}
           className={clsx(
             'block rounded-[12px]',
             alone
@@ -325,12 +332,33 @@ const Message: FC<UserMessageProps> = (props) => {
 // CopilotKit's own reply bubble, wrapped rather than replaced: the markdown, the
 // copy and retry controls and the loading state are all its business and none of
 // them change — only the direction the reply is read in, which the slot cannot
-// set on a bubble it does not render.
-const Reply: FC<AssistantMessageProps> = (props) => (
-  <div dir="auto">
-    <AssistantMessage {...props} />
-  </div>
-);
+// set on a bubble it does not render. What Samy made goes above the bubble, in the
+// interface's direction, whatever language the words are in. The bubble gets none
+// of it, or it would draw it again.
+const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
+  const { running } = useContext(ChatRunContext);
+
+  return (
+    <>
+      <CardMayWaitContext.Provider
+        value={running && isInLatestExchange(props.messages, props.message?.id)}
+      >
+        <div
+          dir={i18next.dir()}
+          className="flex flex-wrap gap-[8px] my-[8px] empty:hidden"
+        >
+          {subComponent}
+        </div>
+      </CardMayWaitContext.Provider>
+      <div dir="auto">
+        <AssistantMessage
+          {...props}
+          message={props.message && withoutCards(props.message)}
+        />
+      </div>
+    </>
+  );
+};
 const NewInput: FC<InputProps> = (props) => {
   const { attached, uploading, addFiles, clear } = useAttachments();
   const [value, setValue] = useState('');
@@ -432,6 +460,14 @@ export const Hooks: FC = () => {
       return null;
     },
   });
+
+  // Draws the server's own tool, and offers the model nothing by this name.
+  useCopilotAction({
+    name: 'generateImageTool',
+    available: 'disabled',
+    render: renderCreatedImage,
+  });
+
   return null;
 };
 

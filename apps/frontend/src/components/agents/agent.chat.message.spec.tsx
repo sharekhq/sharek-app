@@ -9,6 +9,7 @@ import { createRoot, Root } from 'react-dom/client';
 let message: { id: string; role: string; content: string };
 const openModal = jest.fn();
 const previewed: Array<{ items: unknown[]; index: number }> = [];
+const keptAtBottom = jest.fn();
 
 jest.mock('@copilotkit/react-ui', () => ({
   CopilotChat: ({ UserMessage }: { UserMessage: FC<{ message: unknown }> }) => (
@@ -51,6 +52,12 @@ jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({
 }));
 jest.mock('@gitroom/frontend/components/layout/drop.files', () => ({
   DropFiles: ({ children }: any) => children,
+}));
+jest.mock('@gitroom/frontend/components/agents/agent.created.media', () => ({
+  ...jest.requireActual(
+    '@gitroom/frontend/components/agents/agent.created.media'
+  ),
+  keepChatAtBottom: (...args: unknown[]) => keptAtBottom(...args),
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ openModal }),
@@ -119,9 +126,23 @@ afterEach(() => {
   document.body.innerHTML = '';
   previewed.length = 0;
   openModal.mockClear();
+  keptAtBottom.mockClear();
 });
 
 describe("the user's message in Samy's chat", () => {
+  // A reopened chat's bubbles have no reserved size for a lone picture, and its
+  // load changes no DOM the chat's own scrolling watches.
+  it('keeps the chat at the bottom when a picture loads', async () => {
+    const bubble = await showMessage(block(`Image: ${IMAGE}`));
+
+    expect(keptAtBottom).not.toHaveBeenCalled();
+    await act(async () => {
+      bubble.querySelector('img')!.dispatchEvent(new Event('load'));
+    });
+
+    expect(keptAtBottom).toHaveBeenCalledTimes(1);
+  });
+
   it('does not turn markup typed into it into elements', async () => {
     const bubble = await showMessage(
       'Make a post about <img src=x onerror="document.title=1"> coffee'

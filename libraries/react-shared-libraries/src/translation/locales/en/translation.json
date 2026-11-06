@@ -700,6 +700,7 @@
   "samy_remove_attachment": "Remove attachment {{n}}",
   "samy_image_unavailable": "This image is no longer available",
   "samy_video_unavailable": "This video is no longer available",
+  "samy_created_image": "Image Samy made",
   "last_github_trending": "Last Github Trending",
   "next_predicted_github_trending": "Next Predicted GitHub Trending",
   "repository": "Repository",
