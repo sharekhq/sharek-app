@@ -6,6 +6,7 @@ import React, {
   ReactNode,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -16,6 +17,7 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { followChatBottom } from '@gitroom/frontend/components/agents/agent.created.media';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -366,13 +368,31 @@ const AttachmentTile: FC<{ tile: Tile; position: number }> = ({
 /** The row above the text, which scrolls sideways when it runs out of room. */
 export const AttachmentsTray: FC = () => {
   const { tiles } = useAttachments();
+  const row = useRef<HTMLDivElement>(null);
+  const showing = !!tiles.length;
 
-  if (!tiles.length) {
+  // The row takes its room from the chat, and the chat's own scrolling watches only
+  // its messages, so the latest reply would slip under the box.
+  useLayoutEffect(() => {
+    if (row.current) {
+      followChatBottom(
+        row.current
+          .closest('.copilotKitChatBody')
+          ?.querySelector('.copilotKitMessages'),
+        row.current.offsetHeight
+      );
+    }
+  }, [showing]);
+
+  if (!showing) {
     return null;
   }
 
   return (
-    <div className="flex gap-[10px] phone:gap-[8px] pt-[12px] px-[12px] overflow-x-auto cursor-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      ref={row}
+      className="flex gap-[10px] phone:gap-[8px] pt-[12px] px-[12px] overflow-x-auto cursor-default [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {tiles.map((tile, index) => (
         <AttachmentTile key={tile.key} tile={tile} position={index + 1} />
       ))}

@@ -538,6 +538,71 @@ describe('the upload queue', () => {
     expect(tiles(host)).toHaveLength(0);
   });
 
+  // The row takes its room from the chat, and the chat's own scrolling watches only
+  // its messages, so the latest reply would slip under the box.
+  describe('and the chat when the row appears', () => {
+    const ROW = 108;
+    let height: jest.SpyInstance;
+
+    beforeEach(() => {
+      height = jest
+        .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+        .mockReturnValue(ROW);
+    });
+
+    afterEach(() => height.mockRestore());
+
+    const chatAt = async (scrollTop: number) => {
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      mounted.push(root);
+      await act(async () => {
+        root.render(
+          <AttachmentsProvider>
+            <Probe />
+            <div className="copilotKitChatBody">
+              <div className="copilotKitMessages" />
+              <AttachmentsTray />
+            </div>
+          </AttachmentsProvider>
+        );
+      });
+      const chat = host.querySelector('.copilotKitMessages') as HTMLElement;
+      Object.defineProperty(chat, 'scrollHeight', { value: 1000 });
+      Object.defineProperty(chat, 'clientHeight', { value: 400 });
+      chat.scrollTop = scrollTop;
+      return chat;
+    };
+
+    it('stays at the bottom if it was there', async () => {
+      // The row's height is all that's below the fold.
+      const chat = await chatAt(1000 - 400 - ROW);
+
+      await add(file('a.png'));
+
+      expect(chat.scrollTop).toBe(1000);
+    });
+
+    it('stays where it is if it was scrolled up', async () => {
+      const chat = await chatAt(100);
+
+      await add(file('a.png'));
+
+      expect(chat.scrollTop).toBe(100);
+    });
+
+    it('moves once, because more tiles share the row', async () => {
+      const chat = await chatAt(1000 - 400 - ROW);
+      await add(file('a.png'));
+      chat.scrollTop = 1000 - 400 - ROW;
+
+      await add(file('b.png'));
+
+      expect(chat.scrollTop).toBe(1000 - 400 - ROW);
+    });
+  });
+
   it('revokes what is left when it goes away, and starts nothing more', async () => {
     const { root } = await render();
     await add(file('a.png'), file('b.png'));

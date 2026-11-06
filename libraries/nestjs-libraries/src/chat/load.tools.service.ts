@@ -102,7 +102,7 @@ const isSamyRun = (requestContext: RequestContext<unknown>) =>
 // In the list beside the editor's lines rather than a block of their own, which
 // would add a blank line to the prompt of every outside connection.
 const SAMY_LINES = [
-  'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself.',
+  'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.',
 ];
 
 const organizationId = (organization?: string) => {

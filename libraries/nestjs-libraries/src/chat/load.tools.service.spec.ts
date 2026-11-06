@@ -505,7 +505,7 @@ describe('LoadToolsService video guidance', () => {
 // only repeats it. Videos keep their link until they have cards of their own.
 describe('LoadToolsService images in the chat', () => {
   const LINE =
-    'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself.';
+    'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.';
 
   const contextWithUi = (ui: string) => {
     const requestContext = new RequestContext();

@@ -53,21 +53,29 @@ export const isInLatestExchange = (
   messages.map((message) => message.role).lastIndexOf('user');
 
 /**
- * An image load changes no DOM the chat's own scrolling watches. The list has
- * already grown by the time this runs, so the chat counts as having been at the
- * bottom if it's within the picture's own height of the end.
+ * For a change the chat's own scrolling doesn't watch. The change has already
+ * happened by the time this runs, so the chat counts as having been at the bottom
+ * if it's within that much of the end.
  */
-export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) => {
-  const picture = event.currentTarget;
-  const chat = picture.closest('.copilotKitMessages');
-  if (!chat) {
-    return;
-  }
-
-  const fromEnd = chat.scrollHeight - chat.scrollTop - chat.clientHeight;
-  if (fromEnd <= picture.offsetHeight) {
+export const followChatBottom = (
+  chat: Element | null | undefined,
+  grewBy: number
+) => {
+  if (
+    chat &&
+    chat.scrollHeight - chat.scrollTop - chat.clientHeight <= grewBy
+  ) {
     chat.scrollTop = chat.scrollHeight;
   }
+};
+
+/** An image load changes no DOM the chat's own scrolling watches. */
+export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) => {
+  const picture = event.currentTarget;
+  followChatBottom(
+    picture.closest('.copilotKitMessages'),
+    picture.offsetHeight
+  );
 };
 
 /** What a media link in the chat opens: the Media library's viewer, with that one item. */
