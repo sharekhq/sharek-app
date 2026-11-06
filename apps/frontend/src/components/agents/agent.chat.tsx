@@ -42,9 +42,11 @@ import {
   chatMediaPreview,
   ChatRunProvider,
   createdImageAction,
+  createdVideoAction,
   drawsWaitingCard,
   isInLatestExchange,
   keepChatAtBottom,
+  reportedVideoAction,
   useChatRun,
 } from '@gitroom/frontend/components/agents/agent.created.media';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
@@ -468,6 +470,8 @@ export const Hooks: FC = () => {
   });
 
   useCopilotAction(createdImageAction);
+  useCopilotAction(createdVideoAction);
+  useCopilotAction(reportedVideoAction);
 
   return null;
 };

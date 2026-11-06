@@ -6,10 +6,16 @@ import React, {
   FC,
   ReactNode,
   SyntheticEvent,
+  useCallback,
   useContext,
+  useEffect,
   useState,
 } from 'react';
+import clsx from 'clsx';
+import Link from 'next/link';
+import useSWR from 'swr';
 import { isMediaLink } from '@gitroom/helpers/utils/extract.agent.message.text';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -74,8 +80,8 @@ export const followChatBottom = (
   }
 };
 
-/** An image load changes no DOM the chat's own scrolling watches. */
-export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) => {
+/** A picture or video getting its size changes no DOM the chat's own scrolling watches. */
+export const keepChatAtBottom = (event: SyntheticEvent<HTMLElement>) => {
   const picture = event.currentTarget;
   followChatBottom(
     picture.closest('.copilotKitMessages'),
@@ -99,6 +105,41 @@ const cardRatio = (aspectRatio?: string) => {
   return width / height;
 };
 
+// Container units, because a percentage would be ignored while its parent shrinks
+// to fit. The row holds the cards as its own children, so one alone can tell.
+const MEDIA_LIMITS =
+  'block w-auto h-auto max-w-[190px] phone:max-w-[150px] group-only:max-w-[min(420px,100cqw)] max-h-[480px] rounded-[16px]';
+
+const UNAVAILABLE =
+  'p-[12px] rounded-[16px] bg-surface2 text-muted text-[12px]';
+
+const CARD_TITLE = 'text-[14px] font-[600] text-ink';
+const CARD_SUBTITLE = 'text-[12px] text-muted';
+
+/** What stands where media is on its way or can't come. No icon, as the preview has none. */
+const MediaCard: FC<{
+  ratio: number;
+  waiting?: boolean;
+  children: ReactNode;
+}> = ({ ratio, waiting, children }) => (
+  <div
+    // A picture stops at 480px tall, so a tall card alone is only as wide as that
+    // allows, and the picture lands in the room the card kept.
+    className="relative overflow-hidden aspect-[var(--card-ratio)] w-[190px] phone:w-[150px] only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)] rounded-[16px]"
+    style={{ '--card-ratio': ratio } as CSSProperties}
+  >
+    <div
+      className={clsx(
+        'absolute inset-0 bg-surface2',
+        waiting && 'motion-safe:animate-pulse'
+      )}
+    />
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-[4px] p-[16px] text-center leading-[1.4]">
+      {children}
+    </div>
+  </div>
+);
+
 export const CreatedImage: FC<{
   result?: { path?: string };
   args?: { aspectRatio?: string };
@@ -114,7 +155,7 @@ export const CreatedImage: FC<{
 
   if (path && failed) {
     return (
-      <div className="p-[12px] rounded-[16px] bg-surface2 text-muted text-[12px]">
+      <div className={UNAVAILABLE}>
         {t('samy_image_unavailable', 'This image is no longer available')}
       </div>
     );
@@ -140,10 +181,7 @@ export const CreatedImage: FC<{
           // After a card its size is known at once, and that change is one the
           // chat's own scrolling watches.
           onLoad={loaded ? undefined : keepChatAtBottom}
-          // Container units, because a percentage would be ignored while the button
-          // shrinks to fit the picture. The row holds the cards as its own children,
-          // so one alone can tell.
-          className="block w-auto h-auto max-w-[190px] phone:max-w-[150px] group-only:max-w-[min(420px,100cqw)] max-h-[480px] rounded-[16px]"
+          className={MEDIA_LIMITS}
         />
       </button>
     );
@@ -154,21 +192,13 @@ export const CreatedImage: FC<{
   }
 
   return (
-    <div
-      // A picture stops at 480px tall, so a tall card alone is only as wide as that
-      // allows, and the picture lands in the room the card kept.
-      className="relative overflow-hidden aspect-[var(--card-ratio)] w-[190px] phone:w-[150px] only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)] rounded-[16px]"
-      style={{ '--card-ratio': cardRatio(args?.aspectRatio) } as CSSProperties}
-    >
-      <div className="absolute inset-0 bg-surface2 motion-safe:animate-pulse" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-[4px] p-[16px] text-center leading-[1.4]">
-        <span className="text-[14px] font-[600] text-ink">
-          {t('creating_your_image', 'Creating your image…')}
-        </span>
-        <span className="text-[12px] text-muted">
-          {t('usually_takes_half_minute', 'Usually takes about half a minute')}
-        </span>
-      </div>
+    <MediaCard ratio={cardRatio(args?.aspectRatio)} waiting>
+      <span className={CARD_TITLE}>
+        {t('creating_your_image', 'Creating your image…')}
+      </span>
+      <span className={CARD_SUBTITLE}>
+        {t('usually_takes_half_minute', 'Usually takes about half a minute')}
+      </span>
       {path && (
         <img
           src={path}
@@ -178,9 +208,178 @@ export const CreatedImage: FC<{
           className="hidden"
         />
       )}
+    </MediaCard>
+  );
+};
+
+const VIDEO_CHECK_EVERY = 10 * 1000;
+const VIDEO_CHECK_LIMIT = 45 * 60 * 1000;
+
+type VideoStatus = {
+  status: 'pending' | 'completed' | 'failed' | 'missing';
+  path?: string;
+};
+
+/**
+ * A failed check counts as pending, because SWR doesn't revalidate while its cache
+ * holds an error, so one network blip would leave a card waiting out its limit. A
+ * focus or reconnect stays out of it, or a playing video could flip to the pointer
+ * once its status has gone.
+ */
+export const useVideoStatus = (jobId: string | undefined, active: boolean) => {
+  const fetch = useFetch();
+
+  const load = useCallback(
+    async (url: string): Promise<VideoStatus> => {
+      try {
+        const response = await fetch(url);
+        if (response.status === 404) {
+          return { status: 'missing' };
+        }
+        return response.ok ? await response.json() : { status: 'pending' };
+      } catch {
+        return { status: 'pending' };
+      }
+    },
+    [fetch]
+  );
+
+  return useSWR<VideoStatus>(
+    jobId ? `/media/generate-video/${jobId}/status` : null,
+    load,
+    {
+      refreshInterval: (latest) =>
+        active && (latest?.status ?? 'pending') === 'pending'
+          ? VIDEO_CHECK_EVERY
+          : 0,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
+  );
+};
+
+const PlayableVideo: FC<{ path: string }> = ({ path }) => {
+  const t = useT();
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div className={UNAVAILABLE}>
+        {t('samy_video_unavailable', 'This video is no longer available')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="group">
+      <video
+        src={path}
+        controls
+        playsInline
+        preload="metadata"
+        onError={() => setFailed(true)}
+        onLoadedMetadata={keepChatAtBottom}
+        className={MEDIA_LIMITS}
+      />
     </div>
   );
 };
+
+export const CreatedVideo: FC<{
+  result?: { jobId?: string; startedAt?: string };
+  args?: { output?: string };
+}> = ({ result, args }) => {
+  const t = useT();
+  const mayWait = useContext(CardMayWaitContext);
+  const jobId = result?.jobId;
+  // A reopened card brings when it started, and a live one is starting now.
+  const [startedAt] = useState(
+    () => Date.parse(result?.startedAt as string) || Date.now()
+  );
+  const [expired, setExpired] = useState(
+    () => Date.now() - startedAt >= VIDEO_CHECK_LIMIT
+  );
+  const { data } = useVideoStatus(jobId, !expired);
+
+  // A clock, because another `pending` from a check changes nothing on the page.
+  useEffect(() => {
+    if (!jobId || expired) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setExpired(true),
+      startedAt + VIDEO_CHECK_LIMIT - Date.now()
+    );
+    return () => clearTimeout(timer);
+  }, [jobId, expired, startedAt]);
+
+  // Refused, or stopped before the render began. A job outlives its run, so a card
+  // with one goes on whether or not a run is going.
+  if (!jobId && (result || !mayWait)) {
+    return null;
+  }
+
+  if (data?.status === 'completed' && isMediaLink(data.path)) {
+    return <PlayableVideo path={data.path} />;
+  }
+
+  const ratio = cardRatio(
+    args?.output === 'horizontal' ? 'landscape' : 'story'
+  );
+
+  if (data?.status === 'failed') {
+    return (
+      <MediaCard ratio={ratio}>
+        <span className={CARD_TITLE}>
+          {t('samy_video_failed', "This video couldn't be made")}
+        </span>
+      </MediaCard>
+    );
+  }
+
+  if (!data || (data.status === 'pending' && !expired)) {
+    return (
+      <MediaCard ratio={ratio} waiting>
+        <span className={CARD_TITLE}>
+          {t('samy_video_rendering', 'Your video is rendering')}
+        </span>
+        <span className={CARD_SUBTITLE}>
+          {t(
+            'samy_video_rendering_sub',
+            "It will play here when it's ready. You can keep chatting."
+          )}
+        </span>
+      </MediaCard>
+    );
+  }
+
+  // A failed render ends as not found too, so this can't promise the video exists.
+  return (
+    <MediaCard ratio={ratio}>
+      <span className={CARD_SUBTITLE}>
+        {t(
+          'samy_video_pointer',
+          "If this video finished, it's in your Media library"
+        )}
+      </span>
+      <Link
+        href="/media"
+        className="text-[12px] font-[600] text-ink underline rounded-[4px] focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        {t('media_library', 'Media Library')}
+      </Link>
+    </MediaCard>
+  );
+};
+
+/** A video Samy reports as finished plays in that reply. Anything else, its words say. */
+export const ReportedVideo: FC<{
+  result?: { status?: string; url?: string };
+}> = ({ result }) =>
+  result?.status === 'completed' && isMediaLink(result.url) ? (
+    <PlayableVideo path={result.url} />
+  ) : null;
 
 /**
  * Draws the server's own tool, and offers the model nothing by this name. CopilotKit
@@ -199,10 +398,32 @@ export const createdImageAction = {
   }) => <CreatedImage result={result} args={args} />,
 };
 
+export const createdVideoAction = {
+  name: 'generateVideoTool',
+  available: 'disabled' as const,
+  render: ({
+    result,
+    args,
+  }: {
+    result?: { jobId?: string; startedAt?: string };
+    args?: { output?: string };
+  }) => <CreatedVideo result={result} args={args} />,
+};
+
+export const reportedVideoAction = {
+  name: 'videoStatusTool',
+  available: 'disabled' as const,
+  render: ({ result }: { result?: { status?: string; url?: string } }) => (
+    <ReportedVideo result={result} />
+  ),
+};
+
 /** Whether the message's own card says it's working, which the chat's dots would repeat. */
 export const drawsWaitingCard = (message?: {
   toolCalls?: { function: { name: string } }[];
 }) =>
-  !!message?.toolCalls?.some(
-    (call) => call.function.name === createdImageAction.name
+  !!message?.toolCalls?.some((call) =>
+    [createdImageAction.name, createdVideoAction.name].includes(
+      call.function.name
+    )
   );

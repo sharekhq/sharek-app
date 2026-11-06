@@ -498,23 +498,68 @@ describe('LoadToolsService video guidance', () => {
   // The render outlives the turn, so the tool hands back a job id. Without
   // this the model reads "jobId" and does the obvious thing: polls until the
   // video is ready, holding the reply open for minutes.
-  it('tells the model to end its turn instead of waiting for the render', async () => {
-    const instructions = await instructionsWith(uiContext());
-    expect(instructions).toContain('generateVideoTool only starts the render');
-    expect(instructions).toContain('Media library');
-    expect(instructions).toContain(
-      'never wait, poll or call videoStatusTool in the same turn'
-    );
-    expect(instructions).toContain('offer to start it again');
-    expect(instructions).not.toMatch(/postiz/i);
+  describe.each([
+    ['no ui', undefined],
+    ['a ui of false', 'false'],
+  ])('for an outside connection, with %s', (_name, ui) => {
+    const outside = () => {
+      const requestContext = new RequestContext();
+      if (ui) {
+        requestContext.set('ui' as never, ui as never);
+      }
+      return instructionsWith(requestContext);
+    };
+
+    it('tells the model to end its turn instead of waiting for the render', async () => {
+      const instructions = await outside();
+      expect(instructions).toContain(
+        'Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will appear in their Media library, then end your reply — never wait, poll or call videoStatusTool in the same turn.'
+      );
+      expect(instructions).not.toMatch(/postiz/i);
+    });
+
+    it('says what to do when a video is asked about later', async () => {
+      expect(await outside()).toContain(
+        'When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, say so and offer to start it again.'
+      );
+    });
+
+    it('says nothing of a card it can’t see', async () => {
+      const instructions = await outside();
+      expect(instructions).not.toContain('will play here in the chat');
+      expect(instructions).not.toContain('may still be safe');
+    });
+  });
+
+  // The chat draws the video and turns it playable by itself, and a job that's no
+  // longer found is normal about a day after its render, so a new one would spend
+  // a credit on a video the user probably has.
+  describe("in Samy's chat", () => {
+    it('says the video will play in the chat, and to end the reply', async () => {
+      const instructions = await instructionsWith(uiContext());
+      expect(instructions).toContain(
+        "Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will play here in the chat when it's ready, then end your reply. Never wait, poll or call videoStatusTool in the same turn."
+      );
+      expect(instructions).not.toContain('will appear in their Media library');
+    });
+
+    it('points to the Media library before offering a new render', async () => {
+      const instructions = await instructionsWith(uiContext());
+      expect(instructions).toContain(
+        "When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, the video may still be safe in their Media library, so point them there first. Offer to start it again only if it isn't there, because a new render uses a credit."
+      );
+      expect(instructions).not.toContain(
+        'If the job is not found, say so and offer to start it again.'
+      );
+    });
   });
 });
 
 // The chat draws what Samy makes from the tool's result, so a link in its words
-// only repeats it. Videos keep their link until they have cards of their own.
-describe('LoadToolsService images in the chat', () => {
+// only repeats it.
+describe('LoadToolsService images and videos in the chat', () => {
   const LINE =
-    'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.';
+    'The chat shows every image and video you create by itself, above your words. Never paste its link and never say where to find it: talk about the image or video itself, unless they ask for the link.';
 
   const contextWithUi = (ui: string) => {
     const requestContext = new RequestContext();
@@ -535,16 +580,6 @@ describe('LoadToolsService images in the chat', () => {
     expect(await instructionsWith(contextWithUi('false'))).not.toContain(LINE);
   });
 
-  it('leaves what it says about videos as it was', async () => {
-    const instructions = await instructionsWith(uiContext());
-
-    expect(instructions).toContain(
-      'Tell the user the video is rendering and will appear in their Media library, then end your reply'
-    );
-    expect(instructions).toContain(
-      'When the user asks about a video later, call videoStatusTool with its jobId'
-    );
-  });
 });
 
 // What must not move, from contracts/samy-image-tool.md: only a Samy run gets the

@@ -79,6 +79,22 @@ describe("the strings of Samy's message box", () => {
       'هذا الفيديو لم يعد متاحًا',
     ],
     ['samy_created_image', 'Image Samy made', 'صورة أنشأها سامي'],
+    ['samy_video_rendering', 'Your video is rendering', 'جاري تجهيز الفيديو'],
+    [
+      'samy_video_rendering_sub',
+      "It will play here when it's ready. You can keep chatting.",
+      'سيعمل هنا عند اكتماله، ويمكنك متابعة المحادثة.',
+    ],
+    [
+      'samy_video_failed',
+      "This video couldn't be made",
+      'تعذر إنشاء هذا الفيديو',
+    ],
+    [
+      'samy_video_pointer',
+      "If this video finished, it's in your Media library",
+      'إذا اكتمل هذا الفيديو فستجده في مكتبة الوسائط',
+    ],
   ])(
     '%s reads the same in the app as in the contract',
     (key, english, arabic) => {

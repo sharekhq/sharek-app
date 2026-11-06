@@ -288,6 +288,28 @@ describe('the editor action Samy is offered', () => {
       capturedActions.some((action) => action.name === 'manualPosting')
     ).toBe(true);
   });
+
+  it.each(['generateVideoTool', 'videoStatusTool'])(
+    'sits beside a card for %s, which it isn’t offered either',
+    async (name) => {
+      const hooks = async () => {
+        capturedActions.length = 0;
+        const root = createRoot(document.createElement('div'));
+        mounted.push(root);
+        await act(async () => {
+          root.render(<Hooks />);
+        });
+        return capturedActions.find(
+          (action) => action.name === name
+        ) as unknown as { available: string; render: unknown };
+      };
+
+      const first = await hooks();
+      expect(first.available).toBe('disabled');
+      expect(typeof first.render).toBe('function');
+      expect(await hooks()).toBe(first);
+    }
+  );
 });
 
 describe('manualPosting queue', () => {
