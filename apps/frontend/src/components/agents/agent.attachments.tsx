@@ -128,13 +128,10 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
     }
   };
 
-  // Ends the tile in flight, attached if a row came back. A second report of the
-  // same ending finds nothing in flight.
+  // Ends the tile in flight, attached if a row came back. Uppy reports one ending
+  // per upload, and a report with nothing in flight changes nothing.
   const finish = (saved?: Attachment) => {
     const key = inFlight.current;
-    if (!key) {
-      return;
-    }
     inFlight.current = null;
     started.current = false;
 
@@ -179,11 +176,9 @@ export const AttachmentsProvider: FC<{ children: ReactNode }> = ({
     finish();
   };
 
-  // The hook keeps the first render's callbacks, so they read this one's here.
+  // The uploader is created once, so it reads the latest of these from here.
   const signals = useRef({ finish, onError });
-  useEffect(() => {
-    signals.current = { finish, onError };
-  });
+  signals.current = { finish, onError };
 
   useEffect(() => {
     const listener = () => signals.current.onError();
@@ -294,14 +289,14 @@ const AttachmentTile: FC<{ tile: Tile; position: number }> = ({
     : hasExtension(tile.media.path, 'mp4');
   const url = uploading ? tile.preview : mediaDirectory.set(tile.media.path);
   const picture = clsx(
-    'block w-full h-full object-cover rounded-[12px]',
+    'block w-full h-full object-cover rounded-[12px] border border-line',
     uploading && 'opacity-[0.45]'
   );
 
   return (
     // The picture carries the rounding, not an overflow here: a remove target
     // grown to 44px reaches 5px past the tile's top and end.
-    <div className="relative flex-none w-[96px] h-[96px] phone:w-[76px] phone:h-[76px] rounded-[12px] bg-surface2 after:content-[''] after:absolute after:inset-0 after:rounded-[12px] after:shadow-[inset_0_0_0_1px_var(--line)] after:pointer-events-none">
+    <div className="relative flex-none w-[96px] h-[96px] phone:w-[76px] phone:h-[76px] rounded-[12px] bg-surface2">
       {isVideo ? (
         <div
           role="img"
@@ -326,7 +321,9 @@ const AttachmentTile: FC<{ tile: Tile; position: number }> = ({
       )}
       {isVideo && !uploading && <PlayBadge />}
       {uploading && (
-        <span className="absolute inset-0 m-auto w-[24px] h-[24px] rounded-full border-[2.5px] border-line border-t-brand animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <Loading height={24} width={24} type="spin" color="var(--brand)" />
+        </div>
       )}
       {/* The circle stays 22px; under a coarse pointer the button around it
           grows to 44px and its inset shrinks by the same amount, so the circle

@@ -264,6 +264,9 @@ const SentMedia: FC<{
         <img
           src={item.url}
           alt=""
+          // Chrome reports a picture dragged inside the page as a file, which
+          // would come back through the drop zone as a new upload.
+          draggable={false}
           onError={() => setFailed(true)}
           className={clsx(
             'block rounded-[12px]',

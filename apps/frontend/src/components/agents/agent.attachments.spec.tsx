@@ -56,6 +56,10 @@ jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
     return <>{props.renderTrigger(() => undefined, ai.loading)}</>;
   },
 }));
+jest.mock('@gitroom/frontend/components/layout/loading', () => ({
+  __esModule: true,
+  default: () => <span data-spinner="" />,
+}));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: ({ url }: { url: string }) => <video data-frame={url} />,
 }));
@@ -196,7 +200,7 @@ describe('the upload queue', () => {
     expect(pictures(host)).toEqual(['blob:a.png', 'blob:b.png', 'blob:c.png']);
     for (const tile of tiles(host)) {
       expect(classes(tile.querySelector('img')!)).toContain('opacity-[0.45]');
-      expect(tile.querySelector('.animate-spin')).not.toBeNull();
+      expect(tile.querySelector('[data-spinner]')).not.toBeNull();
     }
     expect(uppy.addFile).toHaveBeenCalledTimes(1);
     expect(uppy.addFile).toHaveBeenCalledWith(a);
@@ -221,7 +225,7 @@ describe('the upload queue', () => {
     expect(classes(tiles(host)[0].querySelector('img')!)).not.toContain(
       'opacity-[0.45]'
     );
-    expect(tiles(host)[0].querySelector('.animate-spin')).toBeNull();
+    expect(tiles(host)[0].querySelector('[data-spinner]')).toBeNull();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.png');
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(uppy.addFile).toHaveBeenCalledTimes(2);
@@ -605,7 +609,7 @@ describe('a tile', () => {
     expect(tile.querySelector('video')?.getAttribute('data-frame')).toBe(
       'blob:v.mp4'
     );
-    expect(tile.querySelector('.animate-spin')).not.toBeNull();
+    expect(tile.querySelector('[data-spinner]')).not.toBeNull();
   });
 });
 
@@ -703,7 +707,7 @@ describe('the two buttons', () => {
     expect(button.textContent).toBe('AI Image');
     // The spinner takes the icon's place.
     expect(button.querySelector('svg')).toBeNull();
-    expect(button.children).toHaveLength(2);
+    expect(button.querySelector('[data-spinner]')).not.toBeNull();
   });
 
   // The input's row ends in a growing spacer before Send. A toolbar that grows

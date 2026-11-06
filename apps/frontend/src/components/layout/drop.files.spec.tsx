@@ -68,7 +68,7 @@ describe('DropFiles', () => {
     expect(host.querySelector('.bg-black\\/90')?.textContent).toBe(
       'Drag n drop some files here'
     );
-    expect(dropzone.options).not.toHaveProperty('noKeyboard');
+    expect(dropzone.options?.noKeyboard).toBeFalsy();
   });
 
   it('draws no overlay with no drag', async () => {

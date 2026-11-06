@@ -209,6 +209,13 @@ describe('a message with one image', () => {
     expect(bubble.getAttribute('dir')).toBe('auto');
   });
 
+  // A picture dragged inside the page reads as a file drop on the chat.
+  it('can’t be dragged back onto the chat', async () => {
+    const bubble = await showMessage(block(`Image: ${IMAGE}`));
+
+    expect(bubble.querySelector('img')!.getAttribute('draggable')).toBe('false');
+  });
+
   it('holds no words box when there are no words', async () => {
     const bubble = await showMessage(block(`Image: ${IMAGE}`));
 

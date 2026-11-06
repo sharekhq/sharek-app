@@ -815,6 +815,7 @@ export const InsertMediaIcon: FC<IconProps> = ({
   </svg>
 );
 
+// AI Image Icon
 export const AiImageIcon: FC<IconProps> = ({
   size = 16,
   className,

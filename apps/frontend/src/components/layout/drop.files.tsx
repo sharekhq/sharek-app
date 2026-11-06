@@ -17,7 +17,7 @@ export const DropFiles: FC<{
   const toaster = useToaster();
 
   const { getRootProps, isDragActive } = useDropzone({
-    ...(props.noKeyboard ? { noKeyboard: true } : {}),
+    noKeyboard: props.noKeyboard,
     onDrop: (files) => {
       if (props.disabled) {
         toaster.show(
