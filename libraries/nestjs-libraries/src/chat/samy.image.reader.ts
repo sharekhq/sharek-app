@@ -5,12 +5,14 @@ import type {
   Processor,
 } from '@mastra/core/processors';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
+import { getSsrfSafeAxios } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import {
   extractAgentMessageMedia,
   isMediaLink,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
 
 const PICTURES_PER_CALL = 8;
+const LINK_CHECK_TIMEOUT = 5_000;
 
 const READABLE = /\.(png|jpe?g|webp)(?:[?#].*)?$/i;
 
@@ -72,6 +74,22 @@ const picture = (url: string): UserPart[] => [
 const note = (url: string, words: string): UserPart[] => [
   { type: 'text', text: `Image ${url}: ${words}` },
 ];
+
+/** A stored path is user-influenced, so it's read through the SSRF-safe client. */
+const unreachableLinks = async (links: string[]) => {
+  const gone = await Promise.all(
+    links.map((url) =>
+      getSsrfSafeAxios()
+        .head(url, { signal: AbortSignal.timeout(LINK_CHECK_TIMEOUT) })
+        .then(
+          () => false,
+          () => true
+        )
+    )
+  );
+
+  return links.filter((_url, index) => gone[index]);
+};
 
 /**
  * Shows Samy the images in the prompt it was given, which is already exactly what
@@ -148,7 +166,7 @@ export class SamyImageReader implements Processor {
     }
   }
 
-  processAPIError({ error, state }: ProcessAPIErrorArgs) {
+  async processAPIError({ error, state }: ProcessAPIErrorArgs) {
     const run = state as ReaderState;
     const sent = run.sent ?? [];
     if (!sent.length) {
@@ -169,7 +187,11 @@ export class SamyImageReader implements Processor {
       return undefined;
     }
 
-    run.skip = [...(run.skip ?? []), ...(named.length ? named : sent)];
+    // OpenAI's answer for a link it can't download doesn't say which one, and only
+    // the one that's gone should cost Samy its picture. If every link answers, the
+    // pictures may still be the cause, so they all go and the retry tells.
+    const gone = named.length ? named : await unreachableLinks(sent);
+    run.skip = [...(run.skip ?? []), ...(gone.length ? gone : sent)];
     return { retry: true };
   }
 

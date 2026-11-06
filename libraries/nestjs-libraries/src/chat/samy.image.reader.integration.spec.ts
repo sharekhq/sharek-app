@@ -19,6 +19,12 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
 );
+// A stored path is user-influenced, so the reader asks about one through this client.
+const mockHead = jest.fn();
+jest.mock(
+  '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher',
+  () => ({ getSsrfSafeAxios: () => ({ head: mockHead }) })
+);
 // Makes the image named by its prompt, so a test says which link a tool returns.
 jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => {
   const { createTool } = require('@mastra/core/tools');
@@ -243,6 +249,8 @@ describe('What Samy sees of a chat’s images', () => {
   beforeEach(() => {
     logged = jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
     quiet = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockHead.mockReset();
+    mockHead.mockResolvedValue({ status: 200 });
     mockScript = [];
     mockProvider = mockStubModel;
     prompts.length = 0;
@@ -461,8 +469,51 @@ describe('What Samy sees of a chat’s images', () => {
       30000
     );
 
-    it('drops every picture when the error names none', async () => {
-      mockScript = [{ reject: 'Invalid image.' }];
+    // OpenAI's real answer for a link it can't download, which names no link.
+    const unnamed = 'Error while downloading file. Upstream status code: 404.';
+
+    it('asks which link is gone when the error doesn’t say, and keeps the rest', async () => {
+      // axios rejects on a 404, as it does on anything that isn't a success.
+      mockHead.mockImplementation(async (url: string) => {
+        if (url === dead) {
+          throw new Error('Request failed with status code 404');
+        }
+        return { status: 200 };
+      });
+      mockScript = [{ reject: unnamed }];
+
+      const { text } = await runTurn(`Look${attach(good, dead)}`, newThread());
+
+      expect(text).toBe('Done.');
+      expect(picturesIn(prompts[1])).toEqual([good]);
+      expect(noteFor(prompts[1], dead)).toMatch(/couldn't be loaded/);
+      expect(noteFor(prompts[1], good)).toBeUndefined();
+      expect(mockHead.mock.calls.map(([url]) => url).sort()).toEqual(
+        [good, dead].sort()
+      );
+    }, 30000);
+
+    it('gives up on a link that doesn’t answer, rather than hold the turn', async () => {
+      mockHead.mockImplementation(
+        (url: string, { signal }: { signal: AbortSignal }) =>
+          url === dead
+            ? new Promise((_resolve, reject) => {
+                signal.addEventListener('abort', () =>
+                  reject(new Error('aborted'))
+                );
+              })
+            : Promise.resolve({ status: 200 })
+      );
+      mockScript = [{ reject: unnamed }];
+
+      const { text } = await runTurn(`Look${attach(good, dead)}`, newThread());
+
+      expect(text).toBe('Done.');
+      expect(picturesIn(prompts[1])).toEqual([good]);
+    }, 30000);
+
+    it('drops every picture when each link answers and the error names none', async () => {
+      mockScript = [{ reject: unnamed }];
 
       const { text } = await runTurn(`Look${attach(good, dead)}`, newThread());
 
@@ -470,6 +521,20 @@ describe('What Samy sees of a chat’s images', () => {
       expect(picturesIn(prompts[1])).toEqual([]);
       expect(noteFor(prompts[1], good)).toMatch(/couldn't be loaded/);
       expect(noteFor(prompts[1], dead)).toMatch(/couldn't be loaded/);
+    }, 30000);
+
+    it('asks nothing when the error names the link', async () => {
+      mockScript = [{ reject: named }];
+
+      await runTurn(`Look${attach(good, dead)}`, newThread());
+
+      expect(mockHead).not.toHaveBeenCalled();
+    }, 30000);
+
+    it('asks nothing on a call that goes through', async () => {
+      await runTurn(`Look${attach(good, dead)}`, newThread());
+
+      expect(mockHead).not.toHaveBeenCalled();
     }, 30000);
   });
 
