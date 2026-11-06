@@ -171,6 +171,11 @@ export class LoadToolsService {
     const samyImageReader = this._moduleRef.get(SamyImageReader, {
       strict: false,
     });
+    const samyProcessors = ({
+      requestContext,
+    }: {
+      requestContext: RequestContext<unknown>;
+    }) => (isSamyRun(requestContext) ? [samyImageReader] : []);
     return new Agent({
       id: 'sharek',
       name: 'Sharek',
@@ -289,10 +294,8 @@ ${channels}
           ? { ...tools, generateImageTool: samyImageTool }
           : tools,
       // The same instance in both lists, so the error hook shares the run's state.
-      inputProcessors: ({ requestContext }) =>
-        isSamyRun(requestContext) ? [samyImageReader] : [],
-      errorProcessors: ({ requestContext }) =>
-        isSamyRun(requestContext) ? [samyImageReader] : [],
+      inputProcessors: samyProcessors,
+      errorProcessors: samyProcessors,
       memory: new Memory({
         storage: pStore,
         options: {

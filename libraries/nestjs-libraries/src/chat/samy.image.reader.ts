@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   ProcessAPIErrorArgs,
   ProcessLLMRequestArgs,
+  Processor,
 } from '@mastra/core/processors';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import {
@@ -79,7 +80,7 @@ const note = (url: string, words: string): UserPart[] => [
  * `errorProcessors`, because Mastra's error hook skips what it wraps as input.
  */
 @Injectable()
-export class SamyImageReader {
+export class SamyImageReader implements Processor {
   readonly id = 'samy-image-reader';
 
   constructor(private _mediaService: MediaService) {}
