@@ -34,13 +34,10 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
-import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
+import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
-import {
-  ModalHeaderSlotTarget,
-  useModals,
-} from '@gitroom/frontend/components/layout/new-modal';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { ThirdPartyMediaLibrary } from '@gitroom/frontend/components/third-parties/third-party.media-library';
 import { Dashboard } from '@uppy/react';
 import { uploaderLocale } from '@gitroom/frontend/components/ui/uploader.locale';
@@ -506,20 +503,7 @@ export const MediaBox: FC<{
   const maximize = useCallback(
     (media: Media, index: number) => (e: any) => {
       e.stopPropagation();
-      // All three options are load-bearing: `top` keeps the modal out of its
-      // centring branch, whose pt/pb-[100px] costs a third of a 1366x768
-      // viewport, and `size` is what disables the card's min-w-[600px].
-      modals.openModal({
-        // The header describes whichever item the preview is showing, which
-        // only the preview knows, so it fills the title row from the body.
-        title: <ModalHeaderSlotTarget />,
-        top: 20,
-        size: 'min(1120px, calc(100vw - 40px))',
-        height: 'calc(100vh - 40px)',
-        // On a phone the card's own 32px padding is 18% of its width.
-        cardClassName: 'phone:!p-[16px]',
-        children: <MediaPreview items={visibleMedia} index={index} />,
-      });
+      modals.openModal(mediaPreviewModal(visibleMedia, index));
     },
     [visibleMedia]
   );

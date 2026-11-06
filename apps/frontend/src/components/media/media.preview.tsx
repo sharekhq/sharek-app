@@ -12,12 +12,19 @@ import {
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { ModalHeaderSlot } from '@gitroom/frontend/components/layout/new-modal';
+import {
+  ModalHeaderSlot,
+  ModalHeaderSlotTarget,
+} from '@gitroom/frontend/components/layout/new-modal';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ExternalLinkIcon,
 } from '@gitroom/frontend/components/ui/icons';
+
+/** What the viewer reads of a Media row. */
+type PreviewItem = Pick<Media, 'id' | 'name' | 'path'> &
+  Partial<Pick<Media, 'originalName'>>;
 
 /**
  * What the browser reports once it has the item, tagged with the item it
@@ -41,7 +48,7 @@ interface LoadedMetadata {
  */
 export const MediaPreview: FC<{
   /** The current page's media, already filtered. Never empty. */
-  items: Media[];
+  items: PreviewItem[];
   /** Start position within `items`. 0 <= index < items.length. */
   index: number;
 }> = ({ items, index }) => {
@@ -196,3 +203,19 @@ export const MediaPreview: FC<{
     </>
   );
 };
+
+/** The options the viewer opens with, for `openModal`. */
+export const mediaPreviewModal = (items: PreviewItem[], index: number) => ({
+  // The header describes whichever item the preview is showing, which only the
+  // preview knows, so it fills the title row from the body.
+  title: <ModalHeaderSlotTarget />,
+  // All three are load-bearing: `top` keeps the modal out of its centring
+  // branch, whose pt/pb-[100px] costs a third of a 1366x768 viewport, and `size`
+  // is what disables the card's min-w-[600px].
+  top: 20,
+  size: 'min(1120px, calc(100vw - 40px))',
+  height: 'calc(100vh - 40px)',
+  // On a phone the card's own 32px padding is 18% of its width.
+  cardClassName: 'phone:!p-[16px]',
+  children: <MediaPreview items={items} index={index} />,
+});
