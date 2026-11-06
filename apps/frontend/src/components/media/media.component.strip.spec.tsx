@@ -1,43 +1,22 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// Two complaints, one component. In Samy's chat the four labelled buttons need
-// about 560px and the chat gives them 470, so AI Video takes a line of its own
-// (2026-09-18). On a phone the same strip is a horizontal scroller, so pen, U,
-// B and emoji sit past the edge with nothing saying they exist (2026-09-20).
-//
-// `compact` is what reconciles them: the caller that knows its container is
-// narrow drops the labels, and the strip wraps rather than scrolls so a control
-// that does not fit moves to a second row instead of off the edge.
-//
-// Nine controls at the 44px touch floor cannot share one row at 390px whatever
-// we do. "Nothing hidden" here means two rows, and that is what is asserted.
-//
-// The AI pair render their own triggers, so what this file can say about them
-// is that the flag reaches them — their own specs assert what they do with it.
-// The mock list is media.component.uploader.spec.tsx's, which mounts the same
-// component; only the AI stubs, whose props are the assertion, and the image
-// editor's switch differ.
-const aiImageProps: any[] = [];
-const aiVideoProps: any[] = [];
-
+// The composer's row of media buttons. On a phone it's a horizontal scroller,
+// and a row that wraps paints over the control below it (see the first case).
+// Each button keeps its name, on the control as well as in its label. The mock
+// list is media.component.uploader.spec.tsx's, which mounts the same component;
+// only the image editor's switch differs.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback?: string) => fallback ?? _key,
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: any) => {
-    aiImageProps.push(props);
-    return null;
-  },
+  AiImage: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideo: (props: any) => {
-    aiVideoProps.push(props);
-    return null;
-  },
+  AiVideo: () => null,
 }));
 // Scenery, none of it asserted on: the component has to mount for its strip to
-// render. `tier.ai` is on so the AI pair are in the row at all.
+// render.
 jest.mock('@uppy/react', () => ({ Dashboard: () => null }));
 jest.mock('swr', () => ({
   __esModule: true,
@@ -70,8 +49,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { ai: true }, totalChannels: 1 }),
 }));
-// The image editor is switched on so Design Media is in the row and its label
-// can be seen to go.
+// The image editor is switched on so Design Media is in the row.
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ showImageEditor: true }),
 }));
@@ -149,11 +127,6 @@ const render = async (props: Record<string, unknown> = {}) => {
 const strip = (host: HTMLElement) =>
   host.querySelector('.b2')!.parentElement as HTMLElement;
 
-beforeEach(() => {
-  aiImageProps.length = 0;
-  aiVideoProps.length = 0;
-});
-
 describe('the media strip', () => {
   // This assertion was the opposite way round for one deployment, and the
   // deployment is what corrected it. Branch 138 made the row wrap, on the
@@ -182,37 +155,13 @@ describe('the media strip', () => {
     expect(host.textContent).toContain('Insert Media');
   });
 
-  it('drops its labels when the caller says the space is tight', async () => {
-    const host = await render({ compact: true });
-
-    expect(host.textContent).not.toContain('Insert Media');
-    expect(host.textContent).not.toContain('Design Media');
-  });
-
-  // Dropping the visible label must not drop the name: the control still has to
-  // announce itself to a screen reader and on hover.
-  it('keeps the name on the control it stopped printing', async () => {
-    const host = await render({ compact: true });
+  // The name is on the control too, for a screen reader and on hover, because
+  // at 1025px and below the label is hidden.
+  it('keeps the name on the control', async () => {
+    const host = await render();
     const button = host.querySelector('[data-tooltip-content="Insert Media"]');
 
     expect(button).toBeTruthy();
     expect(button!.getAttribute('aria-label')).toBe('Insert Media');
-  });
-
-  // The other two buttons in the row render their own triggers, so all this
-  // component can do is hand the flag on — and it has to, or the row reads as
-  // two icons beside two labelled buttons.
-  it('tells the AI triggers the space is tight too', async () => {
-    await render({ compact: true });
-
-    expect(aiImageProps.at(-1).compact).toBe(true);
-    expect(aiVideoProps.at(-1).compact).toBe(true);
-  });
-
-  it('leaves them labelled when it is not', async () => {
-    await render();
-
-    expect(aiImageProps.at(-1).compact).toBeFalsy();
-    expect(aiVideoProps.at(-1).compact).toBeFalsy();
   });
 });

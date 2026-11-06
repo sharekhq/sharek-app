@@ -258,7 +258,7 @@ export const showMediaBox = (
   showModalEmitter.emit('show-modal', callback);
 };
 const CHUNK_SIZE = 1024 * 1024;
-const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
+export const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 /**
  * A video tile: the frame, plus the badge that marks it as video and carries
@@ -908,13 +908,6 @@ export const MultiMediaComponent: FC<{
    * read as a stray border and a stray indent.
    */
   flush?: boolean;
-  /**
-   * The caller knows its container is narrower than the labels need. Samy's
-   * chat is 470px and the four labelled buttons want about 560, so AI Video
-   * took a line of its own. Icon-only, with the name kept as a tooltip and an
-   * aria-label — the label is what goes, not the control and not its name.
-   */
-  compact?: boolean;
   dummy: boolean;
   allData: {
     content: string;
@@ -972,7 +965,6 @@ export const MultiMediaComponent: FC<{
     aiVideoNotAvailable,
     destination,
     flush,
-    compact,
     insertInContent,
   } = props;
   const user = useUser();
@@ -1204,11 +1196,9 @@ export const MultiMediaComponent: FC<{
                   <div>
                     <InsertMediaIcon className="mobile:w-[20px] mobile:h-[20px]" />
                   </div>
-                  {!compact && (
-                    <div className="text-[12px] font-[600] mobile:hidden block">
-                      {t('insert_media', 'Insert Media')}
-                    </div>
-                  )}
+                  <div className="text-[12px] font-[600] mobile:hidden block">
+                    {t('insert_media', 'Insert Media')}
+                  </div>
                 </div>
               </div>
               {!designNotAvailable && showImageEditor && (
@@ -1223,11 +1213,9 @@ export const MultiMediaComponent: FC<{
                     <div>
                       <DesignMediaIcon />
                     </div>
-                    {!compact && (
-                      <div className="text-[12px] font-[600] mobile:hidden block">
-                        {t('design_media', 'Design Media')}
-                      </div>
-                    )}
+                    <div className="text-[12px] font-[600] mobile:hidden block">
+                      {t('design_media', 'Design Media')}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1242,14 +1230,12 @@ export const MultiMediaComponent: FC<{
                     value={text}
                     onChange={changeMedia}
                     destination={destination}
-                    compact={compact}
                   />
                   {!aiVideoNotAvailable && !insertInContent && (
                     <AiVideo
                       value={text}
                       onChange={changeMedia}
                       destination={destination}
-                      compact={compact}
                     />
                   )}
                 </>

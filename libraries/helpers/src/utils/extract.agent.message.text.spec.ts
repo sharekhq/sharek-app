@@ -159,6 +159,20 @@ describe('extractAgentMessageMedia', () => {
     });
   });
 
+  it('reads every block, and keeps the words between them', () => {
+    expect(
+      extractAgentMessageMedia(
+        '[--Media--]Image: https://m/a.png\n[--Media--]middle\n[--Media--]Image: https://m/b.png\n[--Media--]'
+      )
+    ).toEqual({
+      text: 'middle',
+      media: [
+        { kind: 'image', url: 'https://m/a.png' },
+        { kind: 'image', url: 'https://m/b.png' },
+      ],
+    });
+  });
+
   it('leaves text with no block unchanged', () => {
     expect(extractAgentMessageMedia('just words\n')).toEqual({
       text: 'just words\n',

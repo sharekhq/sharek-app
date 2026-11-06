@@ -7,6 +7,7 @@ export const VideoFrame: FC<{
   controls?: boolean;
   playsInline?: boolean;
   onLoadedMetadata?: (video: HTMLVideoElement) => void;
+  onError?: () => void;
   className?: string;
 }> = (props) => {
   const { url, className, onLoadedMetadata } = props;
@@ -21,6 +22,7 @@ export const VideoFrame: FC<{
       onLoadedMetadata={
         onLoadedMetadata ? (e) => onLoadedMetadata(e.currentTarget) : undefined
       }
+      onError={props.onError}
     />
   );
 };

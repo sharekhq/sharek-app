@@ -2,6 +2,7 @@
 
 import React, {
   FC,
+  ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -10,6 +11,7 @@ import React, {
   useState,
 } from 'react';
 import useSWR from 'swr';
+import clsx from 'clsx';
 import {
   AssistantMessage,
   AssistantMessageProps,
@@ -25,18 +27,27 @@ import {
   useCopilotAction,
   useCopilotChatInternal,
 } from '@copilotkit/react-core';
+import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import {
-  MediaPortal,
-  PropertiesContext,
-} from '@gitroom/frontend/components/agents/agent';
+  AttachmentsDropOverlay,
+  AttachmentsProvider,
+  AttachmentsTray,
+  AttachmentTools,
+  PlayBadge,
+  useAttachments,
+} from '@gitroom/frontend/components/agents/agent.attachments';
+import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import {
+  AgentMessageMedia,
+  extractAgentMessageMedia,
   extractAgentMessageText,
   stripIntegrationsBlock,
 } from '@gitroom/helpers/utils/extract.agent.message.text';
-import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
+import { VideoFrame } from '@gitroom/react/helpers/video.frame';
+import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import i18next from 'i18next';
@@ -69,36 +80,59 @@ export const AgentChat: FC = () => {
     >
       <Hooks />
       <LoadMessages key={params.id} id={params.id} />
-      <div
-        style={
-          {
-            '--copilot-kit-primary-color': 'var(--brand)',
-            '--copilot-kit-background-color': 'var(--new-bg-color)',
-          } as CopilotKitCSSProperties
-        }
-        className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
-      >
-        <div className="absolute left-0 w-full h-full pb-[20px]">
-          <CopilotChat
-            className="w-full h-full"
-            labels={{
-              // The eight shared controls. First, so Samy's own two below always
-              // win. Its custom input reads labels.placeholder, so a missing one is
-              // English in the field the user types into.
-              ...assistantLabels(t),
-              title: t('samy', 'Samy'),
-              initial: t(
-                'samy_welcome_message',
-                "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
-              ),
-            }}
-            UserMessage={Message}
-            AssistantMessage={Reply}
-            Input={NewInput}
-          />
+      {/* Keyed by the thread, so unsent attachments leave on a thread switch as
+          they do on leaving the page. */}
+      <AttachmentsProvider key={params.id}>
+        <div
+          style={
+            {
+              '--copilot-kit-primary-color': 'var(--brand)',
+              '--copilot-kit-background-color': 'var(--new-bg-color)',
+            } as CopilotKitCSSProperties
+          }
+          className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
+        >
+          <div className="absolute left-0 w-full h-full pb-[20px]">
+            <ChatDropZone>
+              <CopilotChat
+                className="w-full h-full"
+                labels={{
+                  // The eight shared controls. First, so Samy's own two below always
+                  // win. Its custom input reads labels.placeholder, so a missing one is
+                  // English in the field the user types into.
+                  ...assistantLabels(t),
+                  title: t('samy', 'Samy'),
+                  initial: t(
+                    'samy_welcome_message',
+                    "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
+                  ),
+                }}
+                UserMessage={Message}
+                AssistantMessage={Reply}
+                Input={NewInput}
+              />
+            </ChatDropZone>
+          </div>
         </div>
-      </div>
+      </AttachmentsProvider>
     </CopilotKit>
+  );
+};
+
+// Inside the provider, for the files it adds, and inside the wrapper that's
+// `absolute`, because the drop zone's own `relative` would fight it.
+const ChatDropZone: FC<{ children: ReactNode }> = ({ children }) => {
+  const { addFiles } = useAttachments();
+
+  return (
+    <DropFiles
+      className="w-full h-full"
+      noKeyboard={true}
+      overlay={<AttachmentsDropOverlay />}
+      onDrop={addFiles}
+    >
+      {children}
+    </DropFiles>
   );
 };
 
@@ -170,29 +204,118 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
   return null;
 };
 
-const Message: FC<UserMessageProps> = (props) => {
-  const convertContentToImagesAndVideo = useMemo(() => {
-    const text = props.message ? extractAgentMessageText(props.message) : '';
+// An item of a sent message, opening in the Media library's viewer, which plays
+// a video itself. `.copilotKitMessage img` outranks plain utilities, so a square
+// has to be important about its size.
+const SentMedia: FC<{
+  item: AgentMessageMedia;
+  position: number;
+  alone: boolean;
+}> = ({ item, position, alone }) => {
+  const t = useT();
+  const modals = useModals();
+  const [failed, setFailed] = useState(false);
+  const isVideo = item.kind === 'video';
 
-    return stripIntegrationsBlock(text)
-      .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
-        return `<video controls class="h-[150px] w-[150px] rounded-[8px] mb-[10px]"><source src="${p1.trim()}" type="video/mp4">Your browser does not support the video tag.</video>`;
-      })
-      .replace(/Image: (http.*\n)/g, (match, p1) => {
-        return `<img src="${p1.trim()}" class="h-[150px] w-[150px] max-w-full border border-newBgColorInner" />`;
-      })
-      .replace(/\[\-\-Media\-\-\](.*)\[\-\-Media\-\-\]/g, (match, p1) => {
-        return `<div class="flex justify-center mt-[20px]">${p1}</div>`;
-      });
-  }, [props.message]);
+  if (failed) {
+    return (
+      <div className="flex items-center justify-center w-[120px] h-[120px] phone:w-[96px] phone:h-[96px] p-[8px] rounded-[12px] bg-surface text-muted text-[12px] text-center">
+        {isVideo
+          ? t('samy_video_unavailable', 'This video is no longer available')
+          : t('samy_image_unavailable', 'This image is no longer available')}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        modals.openModal(
+          mediaPreviewModal(
+            [
+              {
+                id: item.url,
+                path: item.url,
+                name: item.url.split('/').pop(),
+              },
+            ],
+            0
+          )
+        )
+      }
+      aria-label={
+        isVideo
+          ? t('samy_attached_video', 'Attached video {{n}}', { n: position })
+          : t('samy_attached_image', 'Attached image {{n}}', { n: position })
+      }
+      className="block rounded-[12px] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      {isVideo ? (
+        <span className="block relative w-[120px] h-[120px] phone:w-[96px] phone:h-[96px] rounded-[12px] overflow-hidden">
+          <VideoFrame
+            url={item.url}
+            className="block w-full h-full object-cover"
+            onError={() => setFailed(true)}
+          />
+          <PlayBadge />
+        </span>
+      ) : (
+        <img
+          src={item.url}
+          alt=""
+          onError={() => setFailed(true)}
+          className={clsx(
+            'block rounded-[12px]',
+            alone
+              ? 'max-w-[200px] max-h-[200px] phone:max-w-[160px] phone:max-h-[160px]'
+              : '!w-[120px] !h-[120px] phone:!w-[96px] phone:!h-[96px] object-cover'
+          )}
+        />
+      )}
+    </button>
+  );
+};
+
+const Message: FC<UserMessageProps> = (props) => {
+  const { text, media } = useMemo(
+    () =>
+      extractAgentMessageMedia(
+        stripIntegrationsBlock(
+          props.message ? extractAgentMessageText(props.message) : ''
+        )
+      ),
+    [props.message]
+  );
+
   return (
     <div
       dir="auto"
-      className="copilotKitMessage copilotKitUserMessage min-w-[300px]"
-      dangerouslySetInnerHTML={{
-        __html: sanitizeDisplayHtml(convertContentToImagesAndVideo),
-      }}
-    />
+      className={clsx(
+        'copilotKitMessage copilotKitUserMessage min-w-[300px]',
+        // CopilotKit's stylesheet loads after ours, so its padding outranks these
+        // unless they're important.
+        !!media.length && '!pt-[10px] !px-[10px] !pb-[8px]'
+      )}
+    >
+      {media.length ? (
+        <>
+          <div className="flex flex-wrap gap-[6px]">
+            {media.map((item, index) => (
+              <SentMedia
+                key={`${index}-${item.url}`}
+                item={item}
+                position={index + 1}
+                alone={media.length === 1}
+              />
+            ))}
+          </div>
+          {!!text && <div className="pt-[8px] px-[4px]">{text}</div>}
+        </>
+      ) : (
+        text
+      )}
+    </div>
   );
 };
 
@@ -206,26 +329,23 @@ const Reply: FC<AssistantMessageProps> = (props) => (
   </div>
 );
 const NewInput: FC<InputProps> = (props) => {
-  const [media, setMedia] = useState([] as { path: string; id: string }[]);
+  const { attached, uploading, addFiles, clear } = useAttachments();
   const [value, setValue] = useState('');
   return (
     <>
       <Input
         {...props}
         onChange={setValue}
-        tools={
-          <MediaPortal
-            value={value}
-            media={media}
-            setMedia={(e) => setMedia(e.target.value)}
-          />
-        }
+        attachments={<AttachmentsTray />}
+        tools={<AttachmentTools value={value} />}
+        uploading={uploading}
+        onPasteFiles={addFiles}
         onSend={(text) => {
           const send = props.onSend(
             text +
-              (media.length > 0
+              (attached.length > 0
                 ? '\n[--Media--]' +
-                  media
+                  attached
                     .map((m) =>
                       hasExtension(m.path, 'mp4')
                         ? `Video: ${m.path}`
@@ -236,7 +356,7 @@ const NewInput: FC<InputProps> = (props) => {
                 : '')
           );
           setValue('');
-          setMedia([]);
+          clear();
           return send;
         }}
       />

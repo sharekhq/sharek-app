@@ -27,10 +27,28 @@ jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
   Input: () => null,
 }));
 jest.mock('@gitroom/frontend/components/agents/agent', () => ({
-  MediaPortal: () => null,
   PropertiesContext: jest
     .requireActual('react')
     .createContext({ properties: [] }),
+}));
+jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({
+  AttachmentsProvider: ({ children }: any) => children,
+  AttachmentsTray: () => null,
+  AttachmentTools: () => null,
+  AttachmentsDropOverlay: () => null,
+  PlayBadge: () => null,
+  useAttachments: () => ({
+    tiles: [],
+    attached: [],
+    uploading: false,
+    addFiles: () => {},
+    addMedia: () => {},
+    remove: () => {},
+    clear: () => {},
+  }),
+}));
+jest.mock('@gitroom/frontend/components/layout/drop.files', () => ({
+  DropFiles: ({ children }: any) => children,
 }));
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ backendUrl: '' }),

@@ -6,6 +6,7 @@ interface AutoResizingTextareaProps {
   value: string;
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onCompositionStart?: () => void;
   onCompositionEnd?: () => void;
   autoFocus?: boolean;
@@ -19,6 +20,7 @@ const AutoResizingTextarea = forwardRef<HTMLTextAreaElement, AutoResizingTextare
       value,
       onChange,
       onKeyDown,
+      onPaste,
       onCompositionStart,
       onCompositionEnd,
       autoFocus,
@@ -60,6 +62,7 @@ const AutoResizingTextarea = forwardRef<HTMLTextAreaElement, AutoResizingTextare
         value={value}
         onChange={onChange}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
         onCompositionStart={onCompositionStart}
         onCompositionEnd={onCompositionEnd}
         placeholder={placeholder}

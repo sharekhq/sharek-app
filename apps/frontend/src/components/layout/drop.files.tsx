@@ -8,11 +8,16 @@ export const DropFiles: FC<{
   className?: string;
   onDrop: (files: File[]) => void;
   disabled?: boolean;
+  /** Replaces the black overlay shown during a drag. */
+  overlay?: ReactNode;
+  /** No tab stop on the zone: over a large area it's invisible, as a global rule removes outlines. */
+  noKeyboard?: boolean;
 }> = (props) => {
   const t = useT();
   const toaster = useToaster();
 
   const { getRootProps, isDragActive } = useDropzone({
+    ...(props.noKeyboard ? { noKeyboard: true } : {}),
     onDrop: (files) => {
       if (props.disabled) {
         toaster.show(
@@ -29,11 +34,12 @@ export const DropFiles: FC<{
   });
   return (
     <div {...getRootProps()} className={clsx("relative", props.className)}>
-      {isDragActive && (
-        <div className="absolute start-0 top-0 w-full h-full bg-black/90 flex items-center justify-center z-[200] animate-normalFadeIn">
-          {t('drag_n_drop_some_files_here', 'Drag n drop some files here')}
-        </div>
-      )}
+      {isDragActive &&
+        (props.overlay ?? (
+          <div className="absolute start-0 top-0 w-full h-full bg-black/90 flex items-center justify-center z-[200] animate-normalFadeIn">
+            {t('drag_n_drop_some_files_here', 'Drag n drop some files here')}
+          </div>
+        ))}
       {props.children}
     </div>
   );
