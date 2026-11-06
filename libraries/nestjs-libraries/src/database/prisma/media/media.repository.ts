@@ -193,4 +193,18 @@ export class MediaRepository {
       },
     });
   }
+
+  getMediaByPaths(org: string, paths: string[]) {
+    return this._media.model.media.findMany({
+      where: {
+        organizationId: org,
+        path: { in: paths },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        path: true,
+      },
+    });
+  }
 }

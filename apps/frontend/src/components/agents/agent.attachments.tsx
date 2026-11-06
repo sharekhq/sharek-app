@@ -403,7 +403,7 @@ export const AttachmentsTray: FC = () => {
 const TOOL_BUTTON =
   'inline-flex flex-none items-center gap-[6px] h-[32px] coarse:h-[44px] phone:h-[44px] px-[10px] phone:px-[12px] rounded-[8px] border text-[12px] phone:text-[13px] font-[600] whitespace-nowrap cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand [@media(max-width:400px)]:px-[8px] [@media(max-width:400px)]:gap-[4px] [@media(max-width:400px)]:text-[12px]';
 const TOOL_ICON =
-  'flex-none w-[16px] h-[16px] phone:w-[20px] phone:h-[20px] [@media(max-width:340px)]:hidden';
+  'flex-none w-[16px] h-[16px] phone:w-[20px] phone:h-[20px] [@media(max-width:340px)]:!hidden';
 
 /** The box's two labelled buttons. */
 export const AttachmentTools: FC<{ value: string }> = ({ value }) => {

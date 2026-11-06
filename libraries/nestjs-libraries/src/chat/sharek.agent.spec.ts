@@ -33,6 +33,25 @@ describe('messagesToSend', () => {
     expect(messagesToSend(list)).toEqual([u('3'), toolCall('4'), toolResult('5')]);
   });
 
+  // A reopened chat's video result carries when it started, for the browser's card.
+  // It must not reach the model or the database.
+  it('leaves a restored tool result behind with the history', () => {
+    const list = [
+      u('1'),
+      toolCall('2'),
+      {
+        ...toolResult('3'),
+        content: JSON.stringify({
+          jobId: 'video_org-1_abc',
+          startedAt: '2026-11-06T10:00:00.000Z',
+        }),
+      },
+      u('4'),
+    ];
+
+    expect(messagesToSend(list)).toEqual([u('4')]);
+  });
+
   // Defensive: never return nothing, and never guess when the shape is unfamiliar.
   it('falls back to the whole list when there is no user message', () => {
     const list = [a('1'), a('2')];

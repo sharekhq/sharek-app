@@ -9,7 +9,10 @@ jest.mock(
   () => ({ MediaService: class {} })
 );
 
-import { GenerateImageTool } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
+import {
+  GenerateImageTool,
+  imageCreditRefusal,
+} from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import {
   AuthorizationActions,
   Sections,
@@ -175,6 +178,38 @@ describe('GenerateImageTool', () => {
 
       expect(error).toMatch(/current plan has no AI image credits/i);
       expect(error).not.toMatch(/run out|reset/i);
+    });
+  });
+
+  // Samy's tool says the same, and sometimes with no exception in hand, so the
+  // wording lives in one place and can't drift (feature 050-samy-images, FR-047).
+  describe('imageCreditRefusal', () => {
+    it('with a reset date is the text the tool returns for used-up credits', async () => {
+      const { tool } = makeTool({
+        generateImage: jest.fn().mockRejectedValue(outOfCredits()),
+      });
+
+      const { error } = await tool.execute(
+        { prompt: 'a pomegranate' },
+        context()
+      );
+
+      expect(imageCreditRefusal(RESETS_AT)).toBe(error);
+      expect(error).toContain(RESETS_AT);
+    });
+
+    it('with none is the text the tool returns for a plan without credits', async () => {
+      const { tool } = makeTool({
+        generateImage: jest.fn().mockRejectedValue(noPlanCredits()),
+      });
+
+      const { error } = await tool.execute(
+        { prompt: 'a pomegranate' },
+        context()
+      );
+
+      expect(imageCreditRefusal()).toBe(error);
+      expect(error).toMatch(/current plan has no AI image credits/i);
     });
   });
 

@@ -371,16 +371,105 @@ describe('storedAgentRowToChatMessages', () => {
   });
 
   // A restored call with no renderer paints an empty container.
-  it.each(['generateVideoTool', 'videoStatusTool', 'postsListTool'])(
-    'ignores %s, which has no card yet',
-    (toolName) => {
+  it('ignores a tool that has no card', () => {
+    expect(
+      storedAgentRowToChatMessages(
+        assistant([
+          invocation('c1', { toolName: 'postsListTool' }),
+          ...words('Here.'),
+        ])
+      )
+    ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
+  });
+
+  describe('a started video', () => {
+    const CREATED_AT = '2026-11-06T10:00:00.000Z';
+    const started = {
+      toolName: 'generateVideoTool',
+      args: { output: 'vertical' },
+      result: { jobId: 'video_org-1_abc' },
+    };
+
+    it('comes back with when it started, for the card’s time limit', () => {
+      expect(
+        storedAgentRowToChatMessages({
+          ...assistant([invocation('c1', started), ...words('Rendering.')]),
+          createdAt: CREATED_AT,
+        })
+      ).toEqual([
+        {
+          id: 'r1',
+          role: 'assistant',
+          content: 'Rendering.',
+          toolCalls: [
+            {
+              id: 'c1',
+              type: 'function',
+              function: {
+                name: 'generateVideoTool',
+                arguments: JSON.stringify({ output: 'vertical' }),
+              },
+            },
+          ],
+        },
+        {
+          id: 'r1:c1',
+          role: 'tool',
+          toolCallId: 'c1',
+          content: JSON.stringify({
+            jobId: 'video_org-1_abc',
+            startedAt: CREATED_AT,
+          }),
+        },
+      ]);
+    });
+
+    it('stays away when it was refused', () => {
       expect(
         storedAgentRowToChatMessages(
-          assistant([invocation('c1', { toolName }), ...words('Here.')])
+          assistant([
+            invocation('c1', {
+              ...started,
+              result: { error: 'No video credits.' },
+            }),
+          ])
         )
-      ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
-    }
-  );
+      ).toEqual([]);
+    });
+  });
+
+  describe('a reported video', () => {
+    const reported = (result: Record<string, unknown>) =>
+      storedAgentRowToChatMessages(
+        assistant([
+          invocation('c1', { toolName: 'videoStatusTool', args: {}, result }),
+          ...words('Here.'),
+        ])
+      );
+
+    it('comes back when it finished, with its link', () => {
+      const result = { status: 'completed', id: 'm1', url: 'https://m/v.mp4' };
+
+      expect(reported(result)[1]).toEqual({
+        id: 'r1:c1',
+        role: 'tool',
+        toolCallId: 'c1',
+        content: JSON.stringify(result),
+      });
+    });
+
+    it.each([
+      ['still pending', { status: 'pending' }],
+      ['failed', { status: 'failed', error: 'Render failed.' }],
+      ['finished with no link', { status: 'completed' }],
+      ['finished with a bad link', { status: 'completed', url: '/v.mp4' }],
+      ['failed with a link', { status: 'failed', url: 'https://m/v.mp4' }],
+    ])('stays away when %s', (_name, result) => {
+      expect(reported(result)).toEqual([
+        { id: 'r1', role: 'assistant', content: 'Here.' },
+      ]);
+    });
+  });
 
   it('ignores a result that is not an object holding a link', () => {
     expect(

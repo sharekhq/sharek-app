@@ -3,10 +3,20 @@ import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.serv
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
+import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
+import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 
 @Global()
 @Module({
-  providers: [MastraService, LoadToolsService, McpRelayService, ...toolList],
+  // SamyImageTool stays out of toolList, which is what every outside connection lists.
+  providers: [
+    MastraService,
+    LoadToolsService,
+    McpRelayService,
+    SamyImageTool,
+    SamyImageReader,
+    ...toolList,
+  ],
   get exports() {
     return this.providers;
   },

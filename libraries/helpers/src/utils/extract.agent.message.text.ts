@@ -94,15 +94,26 @@ interface StoredToolInvocation {
   toolCallId: string;
   toolName: string;
   args?: unknown;
-  result?: { path?: string };
+  result?: { path?: string; jobId?: string; status?: string; url?: string };
 }
 
 // The tools whose results the chat draws. A restored call with no renderer paints
-// an empty container, so nothing else comes back.
-const RESTORED_TOOLS = ['generateImageTool'];
+// an empty container, so nothing else comes back. Only a result holding media
+// counts, so a refused attempt shows nothing and a row left with nothing stays
+// dropped.
+const holdsMedia = ({ toolName, result }: StoredToolInvocation) => {
+  switch (toolName) {
+    case 'generateImageTool':
+      return isMediaLink(result?.path);
+    case 'generateVideoTool':
+      return !!result?.jobId;
+    case 'videoStatusTool':
+      return result?.status === 'completed' && isMediaLink(result?.url);
+    default:
+      return false;
+  }
+};
 
-// Only a result holding media counts, so a refused attempt shows nothing and a
-// row left with nothing stays dropped.
 const restoredInvocations = ({
   content,
 }: StoredAgentMessage): StoredToolInvocation[] => {
@@ -114,12 +125,7 @@ const restoredInvocations = ({
   return parts
     .filter((part) => part.type === 'tool-invocation')
     .map((part) => part.toolInvocation as StoredToolInvocation)
-    .filter(
-      (call) =>
-        call?.state === 'result' &&
-        RESTORED_TOOLS.includes(call.toolName) &&
-        isMediaLink(call.result?.path)
-    );
+    .filter((call) => call?.state === 'result' && holdsMedia(call));
 };
 
 interface RestoredChatMessage {
@@ -140,7 +146,7 @@ interface RestoredChatMessage {
 // runner and the Mastra bridge, so each keeps a stored id or one built from it;
 // without them each one shows twice.
 export const storedAgentRowToChatMessages = (
-  row: StoredAgentMessage & { id: string }
+  row: StoredAgentMessage & { id: string; createdAt?: string }
 ): RestoredChatMessage[] => {
   // Threads written before the channel list moved into the system prompt carry
   // it in the message text. Drop it here so reopening an old thread does not
@@ -174,7 +180,13 @@ export const storedAgentRowToChatMessages = (
       id: `${row.id}:${call.toolCallId}`,
       role: 'tool',
       toolCallId: call.toolCallId,
-      content: JSON.stringify(call.result),
+      // A video card counts its time limit from this. It stays in the browser, since
+      // only the newest user message onward goes back to the server.
+      content: JSON.stringify(
+        call.toolName === 'generateVideoTool'
+          ? { ...call.result, startedAt: row.createdAt }
+          : call.result
+      ),
     })),
   ];
 };

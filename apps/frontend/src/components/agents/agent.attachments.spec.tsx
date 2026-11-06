@@ -782,6 +782,18 @@ describe('the two buttons', () => {
     }
   });
 
+  // CopilotKit's `.copilotKitChat svg` sets a display of its own and outranks a plain
+  // class, so without the mark the icons stay and Send covers AI Image at 320px.
+  it('drop their icons on the narrowest screens, over CopilotKit\'s own rule', async () => {
+    const { host } = await render();
+    const icons = Array.from(tools(host).querySelectorAll('button svg'));
+
+    expect(icons).toHaveLength(2);
+    for (const icon of icons) {
+      expect(classes(icon)).toContain('[@media(max-width:340px)]:!hidden');
+    }
+  });
+
   it('are one button with no AI image access', async () => {
     user.tier = {};
     const { host } = await render();

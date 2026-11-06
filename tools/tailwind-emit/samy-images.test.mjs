@@ -44,7 +44,7 @@ test('the 400px and 340px steps emit, under their own queries', async () => {
     '[@media(max-width:400px)]:px-[8px]',
     '[@media(max-width:400px)]:gap-[4px]',
     '[@media(max-width:400px)]:text-[12px]',
-    '[@media(max-width:340px)]:hidden',
+    '[@media(max-width:340px)]:!hidden',
   ]);
 
   for (const className of [
@@ -56,11 +56,13 @@ test('the 400px and 340px steps emit, under their own queries', async () => {
     assert.ok(found.length > 0, `${className} emitted no CSS`);
     assert.equal(found[0].atRule, STEP_400);
   }
-  const hidden = rules(css, '[@media(max-width:340px)]:hidden');
+  // Important, because CopilotKit's `.copilotKitChat svg` outranks a plain class,
+  // and the walk's measure was Send over AI Image at 320px.
+  const hidden = rules(css, '[@media(max-width:340px)]:!hidden');
   assert.ok(hidden.length > 0, 'the 340px step emitted no CSS');
   assert.equal(hidden[0].atRule, STEP_340);
   assert.deepEqual(hidden[0].decls, [
-    { prop: 'display', value: 'none', important: false },
+    { prop: 'display', value: 'none', important: true },
   ]);
 });
 
@@ -163,11 +165,10 @@ test("a sent image's sizes emit, important, because the vendor's rules outrank u
 // A row sees its cards as its own children, so a card alone can grow. Each of these
 // has to outrank its phone size, or a lone image would stay 150px on a phone.
 test('a card alone reaches 420px, and only alone', async () => {
-  const alone = 'min(420px,100cqw)';
   const css = await emit([
     '[container-type:inline-size]',
-    `group-only:max-w-[${alone}]`,
-    `only:w-[${alone}]`,
+    'group-only:max-w-[min(420px,100cqw)]',
+    'only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)]',
     'max-w-[190px]',
     'phone:max-w-[150px]',
     'w-[190px]',
@@ -182,7 +183,7 @@ test('a card alone reaches 420px, and only alone', async () => {
   );
   assert.match(
     css,
-    /\.only\\:w-[^{]*:only-child \{\s*width: min\(420px, ?100cqw\)/
+    /\.only\\:w-[^{]*:only-child \{\s*width: min\(420px, ?calc\(480px \* var\(--card-ratio\)\), ?100cqw\)/
   );
   assert.equal(rules(css, 'phone:max-w-[150px]')[0].atRule, PHONE);
   assert.equal(rules(css, 'phone:w-[150px]')[0].atRule, PHONE);
@@ -192,7 +193,7 @@ test("a card's waiting and framing forms emit", async () => {
   const css = await emit([
     'empty:hidden',
     'motion-safe:animate-pulse',
-    'aspect-square',
+    'aspect-[var(--card-ratio)]',
     'max-h-[480px]',
     'rounded-[16px]',
     'after:border-line',
@@ -204,9 +205,9 @@ test("a card's waiting and framing forms emit", async () => {
   const pulse = rules(css, 'motion-safe:animate-pulse');
   assert.ok(pulse.length > 0, 'the pulse emitted no CSS');
   assert.equal(pulse[0].atRule, '(prefers-reduced-motion: no-preference)');
-  assert.deepEqual(rules(css, 'aspect-square')[0].decls[0], {
+  assert.deepEqual(rules(css, 'aspect-[var(--card-ratio)]')[0].decls[0], {
     prop: 'aspect-ratio',
-    value: '1 / 1',
+    value: 'var(--card-ratio)',
     important: false,
   });
   assert.match(css, /\.after\\:border-line::after/);

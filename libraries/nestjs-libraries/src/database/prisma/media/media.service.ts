@@ -1,4 +1,5 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import { WorkflowNotFoundError } from '@temporalio/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import {
@@ -14,8 +15,10 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
   IMAGE_ASPECT_PRESETS,
+  IMAGE_REFERENCE_MAX,
   IMAGE_REFERENCE_MAX_BYTES,
   IMAGE_STYLES,
+  ImageAspectId,
   ImageReferenceRefusal,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import {
@@ -117,6 +120,18 @@ const refuseReference = (
   message: string
 ) => new HttpException({ message, code, index }, status);
 
+// The same refusals for a caller that holds links and no thumbnails.
+const REFUSED_LINK: Record<ImageReferenceRefusal, (link: string) => string> = {
+  reference_missing: (link) =>
+    `The image ${link} is no longer in the Media library, so no image was made and no credit was spent.`,
+  reference_too_large: (link) =>
+    `The image ${link} is larger than ${
+      IMAGE_REFERENCE_MAX_BYTES / (1024 * 1024)
+    } MB, so no image was made and no credit was spent.`,
+  reference_unreadable: (link) =>
+    `The image ${link} can't be used because its file format isn't supported, so no image was made and no credit was spent.`,
+};
+
 @Injectable()
 export class MediaService {
   private storage = UploadFactory.createStorage();
@@ -138,27 +153,19 @@ export class MediaService {
     return this._mediaRepository.getMediaById(id);
   }
 
+  getMediaByPaths(org: string, paths: string[]) {
+    return this._mediaRepository.getMediaByPaths(org, paths);
+  }
+
   /**
    * Shared pre-flight for every image render, the counterpart of
    * `resolveVideo`. It belongs to the service and not to a route because the
    * routes were never the only callers — the post generator, autopost and the
    * assistant reach these two methods directly, and each surface that had to
    * remember the check on its own eventually forgot it.
-   *
-   * Gated on a configured payment provider: a self-hosted deployment has no
-   * subscription, which `checkCredits` reads as tier FREE and therefore zero
-   * allowance — without this gate every such install would refuse outright.
-   * Usage is still recorded there, it is simply never enforced.
    */
   private async resolveImage(org: Organization) {
-    if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-      return;
-    }
-
-    const totalCredits = await this._subscriptionService.checkCredits(
-      org,
-      'ai_images'
-    );
+    const totalCredits = await this.imageCreditsLeft(org);
 
     if (totalCredits.credits <= 0) {
       throw new SubscriptionException({
@@ -179,6 +186,25 @@ export class MediaService {
   async generateImageAllowed(org: Organization) {
     await this.resolveImage(org);
     return true;
+  }
+
+  /**
+   * What `resolveImage` lets through, for a caller that makes several images and
+   * has to share them out.
+   *
+   * Gated on a configured payment provider: a self-hosted deployment has no
+   * subscription, which `checkCredits` reads as tier FREE and therefore zero
+   * allowance — without this gate every such install would refuse outright.
+   * Usage is still recorded there, it is simply never enforced.
+   */
+  async imageCreditsLeft(
+    org: Organization
+  ): Promise<{ credits: number; resetsAt?: string }> {
+    if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+      return { credits: Infinity };
+    }
+
+    return this._subscriptionService.checkCredits(org, 'ai_images');
   }
 
   async generateImage(prompt: string, org: Organization) {
@@ -391,6 +417,94 @@ export class MediaService {
     }
 
     yield { name: 'done', media: saved };
+  }
+
+  /**
+   * The AI image window's two routes for a caller that names images by link, as
+   * Samy does, since links are what its messages and tool results hold. A link
+   * counts only as a live row of this organization, so past the lookup everything
+   * is what the window gets: the same refusals, credit, render and save.
+   */
+  async generateImageFromLinks(
+    org: Organization,
+    input: {
+      prompt: string;
+      aspectRatio: ImageAspectId;
+      references?: string[];
+      editOf?: string;
+    }
+  ) {
+    const { prompt, aspectRatio, editOf } = input;
+    const others = [...new Set(input.references)].filter(
+      (link) => link !== editOf
+    );
+
+    // The edit's own DTO has this limit, but only HTTP routes run a DTO.
+    if (editOf && others.length > IMAGE_REFERENCE_MAX - 1) {
+      throw new HttpException(
+        `An edit can use the image plus ${
+          IMAGE_REFERENCE_MAX - 1
+        } others, so no image was made and no credit was spent. Ask the user which to keep.`,
+        400
+      );
+    }
+
+    // Numbered as the routes number them: the image being edited is image 1.
+    const links = editOf ? [editOf, ...others] : others;
+    const rows = links.length
+      ? await this._mediaRepository.getMediaByPaths(org.id, links)
+      : [];
+    const ids = links.map((link) => rows.find((row) => row.path === link)?.id);
+    const missing = ids.findIndex((id) => !id);
+    if (missing !== -1) {
+      throw refuseReference(
+        404,
+        'reference_missing',
+        missing + 1,
+        REFUSED_LINK.reference_missing(links[missing])
+      );
+    }
+
+    try {
+      let frames;
+      if (editOf) {
+        const [imageId, ...references] = ids;
+        const dto = { imageId, prompt, aspectRatio, references };
+        frames = this.editImageWithPrompt(
+          org,
+          dto,
+          await this.resolveImageEdit(org, dto)
+        );
+      } else {
+        const dto = { prompt, aspectRatio, references: ids };
+        frames = this.generateImageWithPrompt(
+          org,
+          dto,
+          await this.resolveImageWithPrompt(org, dto)
+        );
+      }
+
+      let saved;
+      for await (const frame of frames) {
+        saved = frame.media;
+      }
+
+      return { id: saved.id, path: saved.path };
+    } catch (err) {
+      const { code, index } = (
+        err instanceof HttpException ? err.getResponse() : {}
+      ) as { code?: ImageReferenceRefusal; index?: number };
+      if (code && index) {
+        throw refuseReference(
+          (err as HttpException).getStatus() as 404 | 422,
+          code,
+          index,
+          REFUSED_LINK[code](links[index - 1])
+        );
+      }
+
+      throw err;
+    }
   }
 
   /**
@@ -996,7 +1110,12 @@ export class MediaService {
     try {
       status = (await handle.describe()).status.name;
     } catch (err) {
-      throw new HttpException('Video job not found', 404);
+      // A card stops for good on a 404, so only Temporal saying it has no such job
+      // may answer one. A blip must not end a card whose render is still going.
+      if (err instanceof WorkflowNotFoundError) {
+        throw new HttpException('Video job not found', 404);
+      }
+      throw new HttpException('Video status is unavailable right now', 503);
     }
 
     if (status === 'RUNNING') {
@@ -1009,6 +1128,12 @@ export class MediaService {
       >;
       return { status: 'completed', id: media.id, path: media.path };
     } catch (err) {
+      // The render finished and only reading its result failed. Calling that a
+      // failure could have someone spend a credit on a video they already have.
+      if (status === 'COMPLETED') {
+        throw new HttpException('Video status is unavailable right now', 503);
+      }
+
       // the workflow failure wraps the activity failure which wraps the actual error
       let cause: any = err;
       while (cause?.cause && cause.cause !== cause) {

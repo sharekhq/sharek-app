@@ -272,6 +272,72 @@ describe.each([
 // The Transloadit uploader saves what it put in the bucket by the bare object
 // name the upload returned, and the stored path is the bucket URL plus that
 // name, so any other name would point the media outside the bucket.
+// A video card's check, so it answers only what the card needs. The failure text
+// stays out, because the card shows fixed words and a provider's raw message has no
+// reason to reach the browser.
+describe('getGenerateVideoStatus', () => {
+  const JOB = 'video_org-1_abc';
+
+  const answer = (status: unknown) => {
+    const getGenerateVideoStatus = jest.fn().mockResolvedValue(status);
+    const controller = makeController({ getGenerateVideoStatus });
+    return {
+      getGenerateVideoStatus,
+      result: controller.getGenerateVideoStatus(org, JOB),
+    };
+  };
+
+  it('asks the service for this organization’s job', async () => {
+    const { getGenerateVideoStatus, result } = answer({ status: 'pending' });
+
+    await result;
+
+    expect(getGenerateVideoStatus).toHaveBeenCalledWith(org, JOB);
+  });
+
+  it('answers a render still going', async () => {
+    expect(await answer({ status: 'pending' }).result).toEqual({
+      status: 'pending',
+    });
+  });
+
+  it('answers a finished video with its id and link', async () => {
+    expect(
+      await answer({
+        status: 'completed',
+        id: 'media-1',
+        path: 'https://media/v.mp4',
+      }).result
+    ).toEqual({
+      status: 'completed',
+      id: 'media-1',
+      path: 'https://media/v.mp4',
+    });
+  });
+
+  it('answers a failed render with no failure text', async () => {
+    const result = await answer({
+      status: 'failed',
+      error: 'kie.ai said: quota exceeded for key',
+    }).result;
+
+    expect(result).toEqual({ status: 'failed' });
+    expect(result).not.toHaveProperty('error');
+  });
+
+  // Another organization's job, or one Temporal no longer holds.
+  it('lets the service’s 404 through', async () => {
+    const notFound = new HttpException('Video job not found', 404);
+    const controller = makeController({
+      getGenerateVideoStatus: jest.fn().mockRejectedValue(notFound),
+    });
+
+    await expect(
+      controller.getGenerateVideoStatus(org, 'video_org-2_abc')
+    ).rejects.toBe(notFound);
+  });
+});
+
 describe('saveMedia', () => {
   const bucketUrl = process.env.CLOUDFLARE_BUCKET_URL;
 

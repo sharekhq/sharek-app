@@ -30,3 +30,29 @@ describe('MediaRepository.getMediaByIds', () => {
     });
   });
 });
+
+// Samy names an image by its link, which reaches the model in chat text, so here
+// too the query is the guard: a link that isn't this organization's live row comes
+// back as missing (feature 050-samy-images, FR-041).
+describe('MediaRepository.getMediaByPaths', () => {
+  it('reads only live rows of the asking organization, and only their paths', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new MediaRepository({
+      model: { media: { findMany } },
+    } as unknown as ConstructorParameters<typeof MediaRepository>[0]);
+
+    await repository.getMediaByPaths('org-1', [
+      'https://media/a',
+      'https://media/b',
+    ]);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org-1',
+        path: { in: ['https://media/a', 'https://media/b'] },
+        deletedAt: null,
+      },
+      select: { id: true, path: true },
+    });
+  });
+});

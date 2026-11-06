@@ -321,6 +321,19 @@ export class MediaController {
     return this._mediaService.getMediaStatus(org.id, id);
   }
 
+  // A video card's check. The failure text stays out: the card shows fixed words,
+  // and a provider's raw message has no reason to reach the browser.
+  @Get('/generate-video/:jobId/status')
+  async getGenerateVideoStatus(
+    @GetOrgFromRequest() org: Organization,
+    @Param('jobId') jobId: string
+  ) {
+    const { status, id, path } =
+      await this._mediaService.getGenerateVideoStatus(org, jobId);
+
+    return { status, id, path };
+  }
+
   @Get('/')
   getMedia(
     @GetOrgFromRequest() org: Organization,
