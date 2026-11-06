@@ -22,6 +22,14 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
 );
+// samy.image.reader.integration.spec runs the real one.
+jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
+  SamyImageReader: class SamyImageReader {
+    id = 'samy-image-reader';
+    processLLMRequest() {}
+    processAPIError() {}
+  },
+}));
 
 // The image calls the stand-in model makes in each step, then a reply. `mock`
 // prefix: jest.mock factories are hoisted above const declarations and may only
@@ -81,6 +89,7 @@ jest.mock('@ai-sdk/openai', () => ({ openai: () => mockModel }));
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
 import { imageCreditRefusal } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
+import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 
 const made = { id: 'media-1', path: 'https://media/made.jpg' };
 const RESETS_AT = '2026-12-01T00:00:00.000Z';
@@ -98,7 +107,10 @@ const runTurn = async (steps: number[], credits: number) => {
       .mockResolvedValue({ credits, resetsAt: RESETS_AT }),
   };
   const moduleRef = {
-    get: () => new SamyImageTool(media as any),
+    get: (token: unknown) =>
+      token === SamyImageReader
+        ? new SamyImageReader()
+        : new SamyImageTool(media as any),
   } as any;
 
   const agent = await new LoadToolsService(moduleRef).agent();

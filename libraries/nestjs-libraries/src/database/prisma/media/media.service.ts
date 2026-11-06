@@ -152,6 +152,10 @@ export class MediaService {
     return this._mediaRepository.getMediaById(id);
   }
 
+  getMediaByPaths(org: string, paths: string[]) {
+    return this._mediaRepository.getMediaByPaths(org, paths);
+  }
+
   /**
    * Shared pre-flight for every image render, the counterpart of
    * `resolveVideo`. It belongs to the service and not to a route because the

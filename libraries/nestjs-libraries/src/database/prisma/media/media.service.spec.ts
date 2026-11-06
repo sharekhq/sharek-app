@@ -1752,6 +1752,19 @@ describe('generateImageFromLinks', () => {
     });
   });
 
+  it('getMediaByPaths answers what the repository does', async () => {
+    const { service, repository } = makeService();
+    const rows = [{ id: 'media-1', path: 'https://media/a.png' }];
+    repository.getMediaByPaths.mockResolvedValue(rows);
+
+    await expect(
+      service.getMediaByPaths('org-1', ['https://media/a.png'])
+    ).resolves.toBe(rows);
+    expect(repository.getMediaByPaths).toHaveBeenCalledWith('org-1', [
+      'https://media/a.png',
+    ]);
+  });
+
   // resolveImage doesn't enforce credits on an install with no payment provider,
   // which checkCredits alone would read as a free plan with none.
   it('imageCreditsLeft has no limit with billing not configured', async () => {

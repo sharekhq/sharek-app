@@ -63,6 +63,14 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => {
   }
   return { SamyImageTool };
 });
+// samy.image.reader.integration.spec runs the real one.
+jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
+  SamyImageReader: class SamyImageReader {
+    id = 'samy-image-reader';
+    processLLMRequest() {}
+    processAPIError() {}
+  },
+}));
 
 // Samy's own instructions: every step of a turn carries them, the background
 // request for the thread's title does not.

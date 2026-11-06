@@ -4,6 +4,7 @@ import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
+import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 
 @Global()
 @Module({
@@ -13,6 +14,7 @@ import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.t
     LoadToolsService,
     McpRelayService,
     SamyImageTool,
+    SamyImageReader,
     ...toolList,
   ],
   get exports() {
