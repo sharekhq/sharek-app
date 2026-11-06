@@ -44,7 +44,7 @@ test('the 400px and 340px steps emit, under their own queries', async () => {
     '[@media(max-width:400px)]:px-[8px]',
     '[@media(max-width:400px)]:gap-[4px]',
     '[@media(max-width:400px)]:text-[12px]',
-    '[@media(max-width:340px)]:hidden',
+    '[@media(max-width:340px)]:!hidden',
   ]);
 
   for (const className of [
@@ -56,11 +56,13 @@ test('the 400px and 340px steps emit, under their own queries', async () => {
     assert.ok(found.length > 0, `${className} emitted no CSS`);
     assert.equal(found[0].atRule, STEP_400);
   }
-  const hidden = rules(css, '[@media(max-width:340px)]:hidden');
+  // Important, because CopilotKit's `.copilotKitChat svg` outranks a plain class,
+  // and the walk's measure was Send over AI Image at 320px.
+  const hidden = rules(css, '[@media(max-width:340px)]:!hidden');
   assert.ok(hidden.length > 0, 'the 340px step emitted no CSS');
   assert.equal(hidden[0].atRule, STEP_340);
   assert.deepEqual(hidden[0].decls, [
-    { prop: 'display', value: 'none', important: false },
+    { prop: 'display', value: 'none', important: true },
   ]);
 });
 
