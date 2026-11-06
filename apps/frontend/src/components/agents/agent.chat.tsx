@@ -40,11 +40,11 @@ import {
 import {
   CardMayWaitContext,
   chatMediaPreview,
-  ChatRunContext,
   ChatRunProvider,
+  createdImageAction,
   isInLatestExchange,
   keepChatAtBottom,
-  renderCreatedImage,
+  useChatRun,
 } from '@gitroom/frontend/components/agents/agent.created.media';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
@@ -163,7 +163,7 @@ const withoutCards = <T extends object>(message: T) =>
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
   const { messages, setMessages, isAvailable, isLoading } =
     useCopilotChatInternal();
-  const { setRunning } = useContext(ChatRunContext);
+  const { setRunning } = useChatRun();
   const fetch = useFetch();
   // The thread's stored messages, once they arrive; a new thread has none.
   const [stored, setStored] = useState<ChatMessage[] | null>(
@@ -210,12 +210,12 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
     }
 
     if (messages.length) {
-      restore.current = messages.map(withoutCards);
+      restore.current = messages;
       return;
     }
 
     if (restore.current.length) {
-      setMessages(restore.current);
+      setMessages(restore.current.map(withoutCards));
     }
   }, [isAvailable, stored, messages]);
 
@@ -274,7 +274,8 @@ const SentMedia: FC<{
           draggable={false}
           onError={() => setFailed(true)}
           // A lone picture has no reserved size, so a reopened chat grows as it loads.
-          onLoad={keepChatAtBottom}
+          // Squares hold theirs from the start.
+          onLoad={alone ? keepChatAtBottom : undefined}
           className={clsx(
             'block rounded-[12px]',
             alone
@@ -336,7 +337,7 @@ const Message: FC<UserMessageProps> = (props) => {
 // interface's direction, whatever language the words are in. The bubble gets none
 // of it, or it would draw it again.
 const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
-  const { running } = useContext(ChatRunContext);
+  const { running } = useChatRun();
 
   return (
     <>
@@ -345,7 +346,7 @@ const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
       >
         <div
           dir={i18next.dir()}
-          className="flex flex-wrap gap-[8px] my-[8px] empty:hidden"
+          className="[container-type:inline-size] flex flex-wrap gap-[8px] my-[8px] empty:hidden"
         >
           {subComponent}
         </div>
@@ -461,12 +462,7 @@ export const Hooks: FC = () => {
     },
   });
 
-  // Draws the server's own tool, and offers the model nothing by this name.
-  useCopilotAction({
-    name: 'generateImageTool',
-    available: 'disabled',
-    render: renderCreatedImage,
-  });
+  useCopilotAction(createdImageAction);
 
   return null;
 };

@@ -8,6 +8,7 @@ import React, {
   useContext,
   useState,
 } from 'react';
+import { isMediaLink } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -31,6 +32,8 @@ export const ChatRunProvider: FC<{ children: ReactNode }> = ({ children }) => {
     </ChatRunContext.Provider>
   );
 };
+
+export const useChatRun = () => useContext(ChatRunContext);
 
 /**
  * Whether a card with no result may still wait. CopilotKit reports `InProgress`
@@ -71,13 +74,17 @@ export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) => {
 export const chatMediaPreview = (url: string) =>
   mediaPreviewModal([{ id: url, path: url, name: url.split('/').pop() }], 0);
 
-export const CreatedImage: FC<{ result?: { path?: string } }> = ({ result }) => {
+export const CreatedImage: FC<{ result?: { path?: string } }> = ({
+  result,
+}) => {
   const t = useT();
   const modals = useModals();
   const mayWait = useContext(CardMayWaitContext);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   // CopilotKit parses a JSON result and leaves anything else as a string.
-  const path = result?.path;
+  const link = result?.path;
+  const path = isMediaLink(link) ? link : undefined;
 
   if (path && failed) {
     return (
@@ -87,13 +94,15 @@ export const CreatedImage: FC<{ result?: { path?: string } }> = ({ result }) => 
     );
   }
 
-  if (path) {
+  // A picture holds no size until it has downloaded, so the card keeps the chat's
+  // room until then. A reopened chat has no card to keep, so its picture comes at once.
+  if (path && (loaded || !mayWait)) {
     return (
       <button
         type="button"
         onClick={() => modals.openModal(chatMediaPreview(path))}
         aria-label={t('samy_created_image', 'Image Samy made')}
-        className="group block relative w-fit leading-[0] rounded-[16px] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-brand after:content-[''] after:absolute after:inset-0 after:rounded-[16px] after:border after:border-line after:pointer-events-none"
+        className="group block relative rounded-[16px] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-brand after:content-[''] after:absolute after:inset-0 after:rounded-[16px] after:border after:border-line after:pointer-events-none"
       >
         <img
           src={path}
@@ -102,22 +111,24 @@ export const CreatedImage: FC<{ result?: { path?: string } }> = ({ result }) => 
           // would come back through the drop zone as a new upload.
           draggable={false}
           onError={() => setFailed(true)}
-          onLoad={keepChatAtBottom}
-          // Viewport units, because a percentage would be ignored while the button
+          // After a card its size is known at once, and that change is one the
+          // chat's own scrolling watches.
+          onLoad={loaded ? undefined : keepChatAtBottom}
+          // Container units, because a percentage would be ignored while the button
           // shrinks to fit the picture. The row holds the cards as its own children,
           // so one alone can tell.
-          className="block w-auto h-auto max-w-[190px] phone:max-w-[150px] group-only:max-w-[min(420px,calc(100vw-72px))] max-h-[480px] rounded-[16px]"
+          className="block w-auto h-auto max-w-[190px] phone:max-w-[150px] group-only:max-w-[min(420px,100cqw)] max-h-[480px] rounded-[16px]"
         />
       </button>
     );
   }
 
-  if (result || !mayWait) {
+  if (!path && (result || !mayWait)) {
     return null;
   }
 
   return (
-    <div className="relative overflow-hidden aspect-square w-[190px] phone:w-[150px] only:w-[min(420px,calc(100vw-72px))] rounded-[16px]">
+    <div className="relative overflow-hidden aspect-square w-[190px] phone:w-[150px] only:w-[min(420px,100cqw)] rounded-[16px]">
       <div className="absolute inset-0 bg-surface2 motion-safe:animate-pulse" />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-[4px] p-[16px] text-center leading-[1.4]">
         <span className="text-[14px] font-[600] text-ink">
@@ -127,16 +138,28 @@ export const CreatedImage: FC<{ result?: { path?: string } }> = ({ result }) => 
           {t('usually_takes_half_minute', 'Usually takes about half a minute')}
         </span>
       </div>
+      {path && (
+        <img
+          src={path}
+          alt=""
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          className="hidden"
+        />
+      )}
     </div>
   );
 };
 
 /**
- * CopilotKit's memo compares this function, so it lives out here rather than being
- * made again on every render of `Hooks`.
+ * Draws the server's own tool, and offers the model nothing by this name. CopilotKit
+ * registers a new renderer whenever this object changes, and a new renderer remounts
+ * the card, so it's one object out here rather than a new one on every render of `Hooks`.
  */
-export const renderCreatedImage = ({
-  result,
-}: {
-  result?: { path?: string };
-}) => <CreatedImage result={result} />;
+export const createdImageAction = {
+  name: 'generateImageTool',
+  available: 'disabled' as const,
+  render: ({ result }: { result?: { path?: string } }) => (
+    <CreatedImage result={result} />
+  ),
+};

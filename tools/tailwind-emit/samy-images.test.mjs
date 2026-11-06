@@ -163,8 +163,9 @@ test("a sent image's sizes emit, important, because the vendor's rules outrank u
 // A row sees its cards as its own children, so a card alone can grow. Each of these
 // has to outrank its phone size, or a lone image would stay 150px on a phone.
 test('a card alone reaches 420px, and only alone', async () => {
-  const alone = 'min(420px,calc(100vw-72px))';
+  const alone = 'min(420px,100cqw)';
   const css = await emit([
+    '[container-type:inline-size]',
     `group-only:max-w-[${alone}]`,
     `only:w-[${alone}]`,
     'max-w-[190px]',
@@ -174,13 +175,14 @@ test('a card alone reaches 420px, and only alone', async () => {
   ]);
 
   // Read whole, because Tailwind writes the comma in these names as `\2c `.
+  assert.match(css, /container-type: inline-size/);
   assert.match(
     css,
-    /\.group:only-child \.group-only\\:max-w-[^{]*\{\s*max-width: min\(420px, ?calc\(100vw - 72px\)\)/
+    /\.group:only-child \.group-only\\:max-w-[^{]*\{\s*max-width: min\(420px, ?100cqw\)/
   );
   assert.match(
     css,
-    /\.only\\:w-[^{]*:only-child \{\s*width: min\(420px, ?calc\(100vw - 72px\)\)/
+    /\.only\\:w-[^{]*:only-child \{\s*width: min\(420px, ?100cqw\)/
   );
   assert.equal(rules(css, 'phone:max-w-[150px]')[0].atRule, PHONE);
   assert.equal(rules(css, 'phone:w-[150px]')[0].atRule, PHONE);

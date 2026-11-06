@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Agent, AgentExecutionOptions } from '@mastra/core/agent';
+import type { RequestContext } from '@mastra/core/request-context';
 import { openai } from '@ai-sdk/openai';
 import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
@@ -95,9 +96,11 @@ const LAST_STEP_NOTE =
 
 // Samy, in the chat. `ui` arrives as a string, so `!!ui` would also read 'false'
 // as a chat, and anything built on this stays off every outside connection.
-const isSamyRun = (requestContext: { get: (key: never) => unknown }) =>
+const isSamyRun = (requestContext: RequestContext<unknown>) =>
   requestContext.get('ui' as never) === 'true';
 
+// In the list beside the editor's lines rather than a block of their own, which
+// would add a blank line to the prompt of every outside connection.
 const SAMY_LINES = [
   'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself.',
 ];

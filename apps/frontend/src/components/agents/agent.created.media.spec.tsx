@@ -99,10 +99,9 @@ describe('a card while the image is being made', () => {
 });
 
 describe('the image', () => {
-  it('replaces the card, named, and sized by the picture', async () => {
-    const host = await show(MADE, true);
+  it('is named, and sized by the picture', async () => {
+    const host = await show(MADE);
 
-    expect(host.textContent).not.toContain('Creating your image…');
     const picture = host.querySelector('img') as HTMLImageElement;
     expect(picture.getAttribute('src')).toBe(MADE.path);
     expect(classes(picture)).toEqual(
@@ -113,10 +112,44 @@ describe('the image', () => {
     );
   });
 
-  it('shows whatever the state of the wait, because the result is what counts', async () => {
+  // Nothing holds a picture's size until it has downloaded, so the card keeps the
+  // chat's room, and there's no button with nothing to see in the meantime.
+  it('replaces the card once the picture has loaded, not before', async () => {
+    const host = await show(MADE, true);
+
+    expect(host.textContent).toContain('Creating your image…');
+    expect(host.querySelector('button')).toBeNull();
+    const loading = host.querySelector('img') as HTMLImageElement;
+    expect(loading.getAttribute('src')).toBe(MADE.path);
+    expect(classes(loading)).toContain('hidden');
+
+    await act(async () => {
+      loading.dispatchEvent(new Event('load'));
+    });
+
+    expect(host.textContent).not.toContain('Creating your image…');
+    expect(host.querySelector('button')).not.toBeNull();
+    expect(classes(host.querySelector('img')!)).not.toContain('hidden');
+  });
+
+  it('says it is gone if the picture can’t load while the card holds', async () => {
+    const host = await show(MADE, true);
+
+    await act(async () => {
+      host.querySelector('img')!.dispatchEvent(new Event('error'));
+    });
+
+    expect(host.querySelector('img')).toBeNull();
+    expect(host.textContent).toBe('This image is no longer available');
+  });
+
+  // A reopened chat has no card to hold, and a run that ended has nothing to wait for.
+  it('shows at once when it may not wait, because the result is what counts', async () => {
     const host = await show(MADE, false);
 
-    expect(host.querySelector('img')?.getAttribute('src')).toBe(MADE.path);
+    expect(host.textContent).not.toContain('Creating your image…');
+    expect(classes(host.querySelector('img')!)).not.toContain('hidden');
+    expect(host.querySelector('button')).not.toBeNull();
   });
 
   it('opens in the Media library’s viewer, with one item and no new buttons', async () => {
@@ -184,10 +217,23 @@ describe('a result with no image in it', () => {
 
     expect(host.innerHTML).toBe('');
   });
+
+  // These reach an image source and the viewer's external link, as sent media does.
+  it.each([
+    'javascript:alert(1)',
+    'data:image/png;base64,AA',
+    '/uploads/a.png',
+  ])('shows nothing for a link that is %s', async (path) => {
+    const host = await show({ id: 'm1', path }, true);
+
+    expect(host.innerHTML).toBe('');
+  });
 });
 
 describe('the size of a card', () => {
-  const ALONE = 'min(420px,calc(100vw-72px))';
+  // The column, not the window: both side panels stay until 1025px, so the chat can
+  // be narrower than 420px with the window far wider.
+  const ALONE = 'min(420px,100cqw)';
 
   // The row sees the cards as its own children, so one alone can tell.
   it('lets an image alone reach 420px, and one in a row 190px, or 150px on a phone', async () => {
@@ -295,6 +341,35 @@ describe('keepChatAtBottom', () => {
     });
 
     expect(chat.scrollTop).toBe(1000);
+  });
+
+  // Its size was known as soon as the card went, and that change is one the chat's
+  // own scrolling watches, so nothing here should pull a reader back down.
+  it('stays out of it when the picture replaces a card', async () => {
+    const chat = document.createElement('div');
+    chat.className = 'copilotKitMessages';
+    document.body.appendChild(chat);
+    Object.defineProperty(chat, 'scrollHeight', { value: 1000 });
+    Object.defineProperty(chat, 'clientHeight', { value: 1000 });
+    const root = createRoot(chat);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <CardMayWaitContext.Provider value={true}>
+          <CreatedImage result={MADE} />
+        </CardMayWaitContext.Provider>
+      );
+    });
+    await act(async () => {
+      chat.querySelector('img')!.dispatchEvent(new Event('load'));
+    });
+    chat.scrollTop = 0;
+
+    await act(async () => {
+      chat.querySelector('img')!.dispatchEvent(new Event('load'));
+    });
+
+    expect(chat.scrollTop).toBe(0);
   });
 
   it('does nothing outside a chat', () => {

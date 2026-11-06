@@ -149,7 +149,13 @@ describe('what Samy made sits above its words', () => {
     const row = container.firstElementChild as HTMLElement;
     expect(row.querySelector('[data-card]')).not.toBeNull();
     expect(row.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['flex', 'flex-wrap', 'empty:hidden'])
+      expect.arrayContaining([
+        'flex',
+        'flex-wrap',
+        'empty:hidden',
+        // What a card alone measures itself against.
+        '[container-type:inline-size]',
+      ])
     );
     expect(row.nextElementSibling?.getAttribute('dir')).toBe('auto');
     expect(

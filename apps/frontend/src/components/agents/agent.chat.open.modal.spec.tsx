@@ -265,7 +265,8 @@ describe('the editor action Samy is offered', () => {
   });
 
   // Registered to draw the server's tool, not to offer the model a second one by
-  // that name. The render stays one function, because CopilotKit's memo compares it.
+  // that name. CopilotKit registers a new renderer whenever this object changes, and
+  // a new renderer remounts the card, which would lose what it knows about its picture.
   it('sits beside a card for the image tool, which it isn’t offered', async () => {
     const hooks = async () => {
       capturedActions.length = 0;
@@ -282,7 +283,7 @@ describe('the editor action Samy is offered', () => {
     const first = await hooks();
     expect(first.available).toBe('disabled');
     expect(typeof first.render).toBe('function');
-    expect((await hooks()).render).toBe(first.render);
+    expect(await hooks()).toBe(first);
     expect(
       capturedActions.some((action) => action.name === 'manualPosting')
     ).toBe(true);

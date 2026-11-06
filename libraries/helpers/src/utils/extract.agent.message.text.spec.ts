@@ -362,13 +362,10 @@ describe('storedAgentRowToChatMessages', () => {
     ]);
   });
 
-  it('ignores a call that never got a result', () => {
+  it('ignores a call in any state but result, whatever it holds', () => {
     expect(
       storedAgentRowToChatMessages(
-        assistant([
-          invocation('c1', { state: 'call', result: undefined }),
-          ...words('Trying.'),
-        ])
+        assistant([invocation('c1', { state: 'call' }), ...words('Trying.')])
       )
     ).toEqual([{ id: 'r1', role: 'assistant', content: 'Trying.' }]);
   });
@@ -392,6 +389,18 @@ describe('storedAgentRowToChatMessages', () => {
       )
     ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
   });
+
+  // These reach an image source and the viewer's external link, as sent media does.
+  it.each(['javascript:alert(1)', 'data:image/png;base64,AA', '/uploads/a.png'])(
+    'ignores a result whose link is %s',
+    (path) => {
+      expect(
+        storedAgentRowToChatMessages(
+          assistant([invocation('c1', { result: { path } }), ...words('Here.')])
+        )
+      ).toEqual([{ id: 'r1', role: 'assistant', content: 'Here.' }]);
+    }
+  );
 
   // The poison guard: a turn that died mid-stream must not come back.
   it('drops a row with no words and no media', () => {

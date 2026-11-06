@@ -1,7 +1,7 @@
 // Chat storage rows (mastra_messages) hold either a plain string or a Mastra v2
 // content object; a turn that died mid-stream persists one with no flattened
-// string and no text parts. Callers drop messages that yield '' here rather
-// than restore an empty one into the thread.
+// string and no text parts. Messages that yield '' here are dropped rather than
+// restored empty into the thread, unless they hold media to show.
 export interface StoredAgentMessagePart {
   type: string;
   text?: string;
@@ -40,6 +40,10 @@ const MEDIA_BLOCK = /\n?\[--Media--\]([\s\S]*?)\[--Media--\]/g;
 // A link ends at the first whitespace or quote. Only http(s) counts, because
 // these reach an image source and the viewer's external link.
 const MEDIA_LINE = /^(Image|Video): (https?:\/\/[^\s"']+)/gm;
+
+// The same rule for a link that comes from a tool's result.
+export const isMediaLink = (url: unknown): url is string =>
+  typeof url === 'string' && /^https?:\/\//.test(url);
 
 export interface AgentMessageMedia {
   kind: 'image' | 'video';
@@ -114,11 +118,11 @@ const restoredInvocations = ({
       (call) =>
         call?.state === 'result' &&
         RESTORED_TOOLS.includes(call.toolName) &&
-        !!call.result?.path
+        isMediaLink(call.result?.path)
     );
 };
 
-export interface RestoredChatMessage {
+interface RestoredChatMessage {
   id: string;
   role: string;
   content: string;

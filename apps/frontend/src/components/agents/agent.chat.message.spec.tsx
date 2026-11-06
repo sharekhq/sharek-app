@@ -143,6 +143,19 @@ describe("the user's message in Samy's chat", () => {
     expect(keptAtBottom).toHaveBeenCalledTimes(1);
   });
 
+  // Squares hold their size from the start, so a load changes nothing below them.
+  it('leaves the chat alone when a square loads', async () => {
+    const bubble = await showMessage(
+      block(`Image: ${IMAGE}`, `Image: ${IMAGE_2}`)
+    );
+
+    await act(async () => {
+      bubble.querySelector('img')!.dispatchEvent(new Event('load'));
+    });
+
+    expect(keptAtBottom).not.toHaveBeenCalled();
+  });
+
   it('does not turn markup typed into it into elements', async () => {
     const bubble = await showMessage(
       'Make a post about <img src=x onerror="document.title=1"> coffee'
