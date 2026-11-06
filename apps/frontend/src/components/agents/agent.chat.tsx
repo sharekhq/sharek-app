@@ -140,6 +140,7 @@ const ChatDropZone: FC<{ children: ReactNode }> = ({ children }) => {
     <DropFiles
       className="w-full h-full"
       noKeyboard={true}
+      capture={true}
       overlay={<AttachmentsDropOverlay />}
       onDrop={addFiles}
     >

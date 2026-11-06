@@ -237,6 +237,8 @@ describe('dropping on the chat', () => {
     const props = dropProps[dropProps.length - 1];
 
     expect(props.noKeyboard).toBe(true);
+    // CopilotKit's chat body stops a drop and a leave from bubbling to the zone.
+    expect(props.capture).toBe(true);
     expect(props.overlay).toBeTruthy();
     expect(props.className).toBe('w-full h-full');
     expect(host.querySelector('[data-drop] [data-tools]')).not.toBeNull();
