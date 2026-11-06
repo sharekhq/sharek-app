@@ -384,6 +384,27 @@ describe('What Samy sees of a chat’s images', () => {
     ]);
   }, 30000);
 
+  it('gives a link outside the organization no place among the 8', async () => {
+    const mine = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => link(`${n}.png`));
+
+    await runTurn(`Look${attach(...mine, NOT_THEIRS)}`, newThread());
+
+    expect(picturesIn(prompts[0])).toEqual(mine);
+  }, 30000);
+
+  it('doesn’t blame an earlier call’s pictures for a later call’s 400', async () => {
+    const mine = link('mine.png');
+    media.getMediaByPaths
+      .mockResolvedValueOnce([{ id: mine, path: mine }])
+      .mockRejectedValueOnce(new Error('database is down'));
+    mockScript = [{ make: link('made.png') }, { reject: 'Unknown parameter' }];
+
+    const { errors } = await runTurn(`Look${attach(mine)}`, newThread());
+
+    expect(prompts).toHaveLength(2);
+    expect(errors[0].message).toBe('Unknown parameter');
+  }, 30000);
+
   it('asks about each link once in a run, across its steps', async () => {
     const mine = link('mine.png');
     mockScript = [{ make: link('made.png') }];
