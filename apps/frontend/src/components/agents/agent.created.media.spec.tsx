@@ -343,23 +343,40 @@ describe('a video card', () => {
 
   const showVideo = async (
     result: unknown,
-    { mayWait = false, args = { output: 'vertical' } as unknown } = {}
+    {
+      mayWait = false,
+      args = { output: 'vertical' } as unknown,
+      cache = new Map(),
+    } = {}
   ) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     mounted.push(root);
-    await act(async () => {
+    const draw = (waiting: boolean) =>
       root.render(
-        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-          <CardMayWaitContext.Provider value={mayWait}>
+        <SWRConfig value={{ provider: () => cache, dedupingInterval: 0 }}>
+          <CardMayWaitContext.Provider value={waiting}>
             <CreatedVideo result={result as any} args={args as any} />
           </CardMayWaitContext.Provider>
         </SWRConfig>
       );
+    await act(async () => {
+      draw(mayWait);
     });
     await settle();
-    return host;
+    return {
+      host,
+      redraw: (waiting: boolean) =>
+        act(async () => {
+          draw(waiting);
+        }),
+      close: () =>
+        act(async () => {
+          root.unmount();
+          mounted.splice(mounted.indexOf(root), 1);
+        }),
+    };
   };
 
   const ratioOf = (host: Element) =>
@@ -387,7 +404,7 @@ describe('a video card', () => {
 
   describe('while it renders', () => {
     it('says so, with no icon, and pulses', async () => {
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
 
       expect(host.textContent).toContain(RENDERING);
       expect(host.textContent).toContain(
@@ -403,7 +420,7 @@ describe('a video card', () => {
       ['vertical', 9 / 16],
       ['horizontal', 16 / 9],
     ])('takes the shape of a %s video', async (output, ratio) => {
-      const host = await showVideo({ jobId: JOB }, { args: { output } });
+      const { host } = await showVideo({ jobId: JOB }, { args: { output } });
 
       expect(ratioOf(host)).toBeCloseTo(ratio, 5);
     });
@@ -449,7 +466,7 @@ describe('a video card', () => {
     ])('goes on checking after %s', async (_name, failure) => {
       statusCheck.mockImplementationOnce(failure);
 
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
       expect(host.textContent).toContain(RENDERING);
 
       statusCheck.mockImplementation(async () => completed());
@@ -457,11 +474,25 @@ describe('a video card', () => {
 
       expect(host.querySelector('video')).not.toBeNull();
     });
+
+    // The chat tells them to keep chatting, and a render must not push the check
+    // back every time, or a busy chat would never see its video.
+    it('keeps to its 10 seconds while the page draws it again', async () => {
+      const { redraw } = await showVideo({ jobId: JOB });
+      statusCheck.mockClear();
+
+      for (let second = 0; second < 12; second += 3) {
+        await redraw(second % 2 === 0);
+        await settle(3 * 1000);
+      }
+
+      expect(statusCheck).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('once it’s ready', () => {
     const playable = async () => {
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
       statusCheck.mockImplementation(async () => completed());
       await settle(10 * 1000);
       return host;
@@ -471,7 +502,8 @@ describe('a video card', () => {
       const host = await playable();
 
       const video = host.querySelector('video') as HTMLVideoElement;
-      expect(video.getAttribute('src')).toBe(VIDEO);
+      // The fragment VideoFrame adds is what gives a still frame before play.
+      expect(video.getAttribute('src')).toBe(`${VIDEO}#t=0.1`);
       expect(video.hasAttribute('controls')).toBe(true);
       expect(video.hasAttribute('playsinline')).toBe(true);
       expect(video.getAttribute('preload')).toBe('metadata');
@@ -513,12 +545,36 @@ describe('a video card', () => {
       expect(host.textContent).toBe('This video is no longer available');
     });
 
+    // A card remounts when the chat is written again, and checks once when it does.
+    it.each([
+      ['a server error', async () => answer(500)],
+      [
+        'a dropped connection',
+        async () => {
+          throw new TypeError('Failed to fetch');
+        },
+      ],
+    ])('keeps playing through %s on a remount', async (_name, failure) => {
+      const cache = new Map();
+      statusCheck.mockImplementation(async () => completed());
+      const first = await showVideo({ jobId: JOB }, { cache });
+      expect(first.host.querySelector('video')).not.toBeNull();
+      await first.close();
+
+      statusCheck.mockImplementation(failure);
+      const { host } = await showVideo({ jobId: JOB }, { cache });
+      await settle(1000);
+
+      expect(statusCheck).toHaveBeenCalled();
+      expect(host.querySelector('video')).not.toBeNull();
+    });
+
     it('ignores a finished job with no usable link', async () => {
       statusCheck.mockImplementation(async () =>
         answer(200, { status: 'completed', path: 'javascript:alert(1)' })
       );
 
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
 
       expect(host.querySelector('video')).toBeNull();
     });
@@ -529,7 +585,7 @@ describe('a video card', () => {
       answer(200, { status: 'failed' })
     );
 
-    const host = await showVideo({ jobId: JOB });
+    const { host } = await showVideo({ jobId: JOB });
     statusCheck.mockClear();
     await settle(MINUTE);
 
@@ -543,7 +599,7 @@ describe('a video card', () => {
     it('points to the Media library, and doesn’t say it failed or is gone', async () => {
       statusCheck.mockImplementation(async () => answer(404));
 
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
       statusCheck.mockClear();
       await settle(MINUTE);
 
@@ -563,7 +619,7 @@ describe('a video card', () => {
 
   describe('45 minutes after it started', () => {
     it('stops a live card, by the clock alone, since a same answer changes nothing', async () => {
-      const host = await showVideo({ jobId: JOB });
+      const { host } = await showVideo({ jobId: JOB });
 
       await settle(45 * MINUTE - 1000);
       expect(host.textContent).toContain(RENDERING);
@@ -579,7 +635,7 @@ describe('a video card', () => {
     it('counts a reopened card from when it started', async () => {
       const startedAt = new Date(Date.now() - 44 * MINUTE).toISOString();
 
-      const host = await showVideo({ jobId: JOB, startedAt });
+      const { host } = await showVideo({ jobId: JOB, startedAt });
       expect(host.textContent).toContain(RENDERING);
 
       await settle(MINUTE);
@@ -589,7 +645,7 @@ describe('a video card', () => {
     it('still checks once on a reopen, and shows the pointer while it’s pending', async () => {
       const startedAt = new Date(Date.now() - 120 * MINUTE).toISOString();
 
-      const host = await showVideo({ jobId: JOB, startedAt });
+      const { host } = await showVideo({ jobId: JOB, startedAt });
 
       expect(statusCheck).toHaveBeenCalledTimes(1);
       expect(host.textContent).toContain(POINTER);
@@ -602,9 +658,11 @@ describe('a video card', () => {
       const startedAt = new Date(Date.now() - 120 * MINUTE).toISOString();
       statusCheck.mockImplementation(async () => completed());
 
-      const host = await showVideo({ jobId: JOB, startedAt });
+      const { host } = await showVideo({ jobId: JOB, startedAt });
 
-      expect(host.querySelector('video')?.getAttribute('src')).toBe(VIDEO);
+      expect(host.querySelector('video')?.getAttribute('src')).toBe(
+        `${VIDEO}#t=0.1`
+      );
     });
   });
 
@@ -613,14 +671,14 @@ describe('a video card', () => {
       ['may still wait', true],
       ['may no longer wait', false],
     ])('shows nothing for a refusal when it %s', async (_name, mayWait) => {
-      const host = await showVideo({ error: 'No credits.' }, { mayWait });
+      const { host } = await showVideo({ error: 'No credits.' }, { mayWait });
 
       expect(host.innerHTML).toBe('');
       expect(statusCheck).not.toHaveBeenCalled();
     });
 
     it('says it’s rendering while the call runs', async () => {
-      const host = await showVideo(undefined, { mayWait: true });
+      const { host } = await showVideo(undefined, { mayWait: true });
 
       expect(host.textContent).toContain(RENDERING);
       expect(statusCheck).not.toHaveBeenCalled();
@@ -629,7 +687,7 @@ describe('a video card', () => {
     // A stopped call stays in the chat with no result, so a run alone would bring
     // its card back on the old message.
     it('shows nothing once it may no longer wait', async () => {
-      const host = await showVideo(undefined, { mayWait: false });
+      const { host } = await showVideo(undefined, { mayWait: false });
 
       expect(host.innerHTML).toBe('');
     });
@@ -637,7 +695,7 @@ describe('a video card', () => {
 
   // The render outlives the run that started it.
   it('keeps going with a job after the run ends, and on older messages', async () => {
-    const host = await showVideo({ jobId: JOB }, { mayWait: false });
+    const { host } = await showVideo({ jobId: JOB }, { mayWait: false });
 
     expect(host.textContent).toContain(RENDERING);
 
@@ -662,7 +720,9 @@ describe('a video Samy reports', () => {
       );
     });
 
-    expect(host.querySelector('video')?.getAttribute('src')).toBe(REPORTED);
+    expect(host.querySelector('video')?.getAttribute('src')).toBe(
+      `${REPORTED}#t=0.1`
+    );
   });
 
   it.each([

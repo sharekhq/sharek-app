@@ -1,4 +1,5 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import { WorkflowNotFoundError } from '@temporalio/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import {
@@ -1109,7 +1110,12 @@ export class MediaService {
     try {
       status = (await handle.describe()).status.name;
     } catch (err) {
-      throw new HttpException('Video job not found', 404);
+      // A card stops for good on a 404, so only Temporal saying it has no such job
+      // may answer one. A blip must not end a card whose render is still going.
+      if (err instanceof WorkflowNotFoundError) {
+        throw new HttpException('Video job not found', 404);
+      }
+      throw new HttpException('Video status is unavailable right now', 503);
     }
 
     if (status === 'RUNNING') {
@@ -1122,6 +1128,12 @@ export class MediaService {
       >;
       return { status: 'completed', id: media.id, path: media.path };
     } catch (err) {
+      // The render finished and only reading its result failed. Calling that a
+      // failure could have someone spend a credit on a video they already have.
+      if (status === 'COMPLETED') {
+        throw new HttpException('Video status is unavailable right now', 503);
+      }
+
       // the workflow failure wraps the activity failure which wraps the actual error
       let cause: any = err;
       while (cause?.cause && cause.cause !== cause) {

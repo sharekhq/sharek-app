@@ -13,7 +13,7 @@ import React, {
 } from 'react';
 import clsx from 'clsx';
 import Link from 'next/link';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { isMediaLink } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -23,6 +23,8 @@ import {
   IMAGE_ASPECT_IDS,
   IMAGE_ASPECT_PRESETS,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import { VIDEO_ORIENTATIONS } from '@gitroom/nestjs-libraries/dtos/videos/video.orientation.catalog';
+import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 
 /**
  * Whether a run is going. A card can't ask `useCopilotChatInternal`, because each
@@ -81,29 +83,32 @@ export const followChatBottom = (
 };
 
 /** A picture or video getting its size changes no DOM the chat's own scrolling watches. */
-export const keepChatAtBottom = (event: SyntheticEvent<HTMLElement>) => {
-  const picture = event.currentTarget;
-  followChatBottom(
-    picture.closest('.copilotKitMessages'),
-    picture.offsetHeight
-  );
-};
+const followMediaSize = (media: HTMLElement) =>
+  followChatBottom(media.closest('.copilotKitMessages'), media.offsetHeight);
+
+export const keepChatAtBottom = (event: SyntheticEvent<HTMLImageElement>) =>
+  followMediaSize(event.currentTarget);
 
 /** What a media link in the chat opens: the Media library's viewer, with that one item. */
 export const chatMediaPreview = (url: string) =>
   mediaPreviewModal([{ id: url, path: url, name: url.split('/').pop() }], 0);
 
-/**
- * The shape being made, as one number the card can both take and size itself by.
- * A row stored before Samy's own tool has none, and a value still streaming in is
- * part of a word, so both are the tool's default.
- */
-const cardRatio = (aspectRatio?: string) => {
-  const id =
-    IMAGE_ASPECT_IDS.find((shape) => shape === aspectRatio) ?? 'square';
-  const [width, height] = IMAGE_ASPECT_PRESETS[id].ratio.split(':').map(Number);
+/** A catalog's `9:16` as one number, which a card can both take and size itself by. */
+const cardRatio = (ratio: string) => {
+  const [width, height] = ratio.split(':').map(Number);
   return width / height;
 };
+
+/**
+ * A row stored before Samy's own tool has no shape, and a value still streaming in
+ * is part of a word, so both are the tool's default.
+ */
+const imageCardRatio = (aspectRatio?: string) =>
+  cardRatio(
+    IMAGE_ASPECT_PRESETS[
+      IMAGE_ASPECT_IDS.find((shape) => shape === aspectRatio) ?? 'square'
+    ].ratio
+  );
 
 // Container units, because a percentage would be ignored while its parent shrinks
 // to fit. The row holds the cards as its own children, so one alone can tell.
@@ -192,7 +197,7 @@ export const CreatedImage: FC<{
   }
 
   return (
-    <MediaCard ratio={cardRatio(args?.aspectRatio)} waiting>
+    <MediaCard ratio={imageCardRatio(args?.aspectRatio)} waiting>
       <span className={CARD_TITLE}>
         {t('creating_your_image', 'Creating your image…')}
       </span>
@@ -221,13 +226,17 @@ type VideoStatus = {
 };
 
 /**
- * A failed check counts as pending, because SWR doesn't revalidate while its cache
- * holds an error, so one network blip would leave a card waiting out its limit. A
- * focus or reconnect stays out of it, or a playing video could flip to the pointer
+ * A failed check answers what the last one did, or pending, because SWR doesn't
+ * revalidate while its cache holds an error, so one network blip would leave a card
+ * waiting out its limit, and an error's place in the cache can't be a playing video's.
+ * A focus or reconnect stays out of it, or a playing video could flip to the pointer
  * once its status has gone.
  */
-export const useVideoStatus = (jobId: string | undefined, active: boolean) => {
+const useVideoStatus = (jobId: string | undefined, active: boolean) => {
   const fetch = useFetch();
+  const { cache } = useSWRConfig();
+  const key = jobId ? `/media/generate-video/${jobId}/status` : null;
+  const known: VideoStatus | undefined = key ? cache.get(key)?.data : undefined;
 
   const load = useCallback(
     async (url: string): Promise<VideoStatus> => {
@@ -236,27 +245,28 @@ export const useVideoStatus = (jobId: string | undefined, active: boolean) => {
         if (response.status === 404) {
           return { status: 'missing' };
         }
-        return response.ok ? await response.json() : { status: 'pending' };
+        if (response.ok) {
+          return await response.json();
+        }
       } catch {
-        return { status: 'pending' };
+        // The same as a failed answer.
       }
+      return cache.get(url)?.data ?? { status: 'pending' };
     },
-    [fetch]
+    [fetch, cache]
   );
 
-  return useSWR<VideoStatus>(
-    jobId ? `/media/generate-video/${jobId}/status` : null,
-    load,
-    {
-      refreshInterval: (latest) =>
-        active && (latest?.status ?? 'pending') === 'pending'
-          ? VIDEO_CHECK_EVERY
-          : 0,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    }
-  );
+  return useSWR<VideoStatus>(key, load, {
+    // A number, because SWR restarts its timer when this changes: a new function on
+    // every render would keep a page that draws often from reaching the next check.
+    refreshInterval:
+      active && (known?.status ?? 'pending') === 'pending'
+        ? VIDEO_CHECK_EVERY
+        : 0,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+  });
 };
 
 const PlayableVideo: FC<{ path: string }> = ({ path }) => {
@@ -273,13 +283,12 @@ const PlayableVideo: FC<{ path: string }> = ({ path }) => {
 
   return (
     <div className="group">
-      <video
-        src={path}
-        controls
-        playsInline
-        preload="metadata"
+      <VideoFrame
+        url={path}
+        controls={true}
+        playsInline={true}
         onError={() => setFailed(true)}
-        onLoadedMetadata={keepChatAtBottom}
+        onLoadedMetadata={followMediaSize}
         className={MEDIA_LIMITS}
       />
     </div>
@@ -325,7 +334,9 @@ export const CreatedVideo: FC<{
   }
 
   const ratio = cardRatio(
-    args?.output === 'horizontal' ? 'landscape' : 'story'
+    VIDEO_ORIENTATIONS[
+      args?.output === 'horizontal' ? 'horizontal' : 'vertical'
+    ].ratio
   );
 
   if (data?.status === 'failed') {

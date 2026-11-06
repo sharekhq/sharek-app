@@ -119,14 +119,18 @@ const SAMY_LINES = [
 // normal about a day after its render, so a new one could spend a credit on a video
 // the user has. Outside connections keep their words: nothing there draws a card.
 const VIDEO_LINES = {
-  samy: [
-    "Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will play here in the chat when it's ready, then end your reply. Never wait, poll or call videoStatusTool in the same turn.",
-    "When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, the video may still be safe in their Media library, so point them there first. Offer to start it again only if it isn't there, because a new render uses a credit.",
-  ],
-  outside: [
-    'Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will appear in their Media library, then end your reply — never wait, poll or call videoStatusTool in the same turn.',
-    'When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, say so and offer to start it again.',
-  ],
+  samy: {
+    started:
+      "Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will play here in the chat when it's ready, then end your reply. Never wait, poll or call videoStatusTool in the same turn.",
+    askedAbout:
+      "When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, the video may still be safe in their Media library, so point them there first. Offer to start it again only if it isn't there, because a new render uses a credit.",
+  },
+  outside: {
+    started:
+      'Video generation runs in the background: generateVideoTool only starts the render and returns a jobId. Tell the user the video is rendering and will appear in their Media library, then end your reply — never wait, poll or call videoStatusTool in the same turn.',
+    askedAbout:
+      'When the user asks about a video later, call videoStatusTool with its jobId and report the saved video or the failure reason in their words. If the job is not found, say so and offer to start it again.',
+  },
 };
 
 const organizationId = (organization?: string) => {
@@ -200,7 +204,7 @@ export class LoadToolsService {
         const channels = renderChannels(
           requestContext.get('integrations' as never)
         );
-        const [videoStarted, videoAskedAbout] = isSamyRun(requestContext)
+        const video = isSamyRun(requestContext)
           ? VIDEO_LINES.samy
           : VIDEO_LINES.outside;
         return `
@@ -247,8 +251,8 @@ ${channels}
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box
       - There may be more than one way to generate a video. Before generating one, call generateVideoOptions and read each option's description — it says what that option actually produces and what it suits.
       - Then pick the option that fits the request, tell the user in one line what it will produce and why you picked it, and name any other options it returned so they can switch. Never pick silently.
-      - ${videoStarted}
-      - ${videoAskedAbout}
+      - ${video.started}
+      - ${video.askedAbout}
       - If a tool fails or returns an error, report only what it reported. Never invent a reason — in particular, never tell the user that their plan, subscription or account does not include something unless a tool said so. If a tool gave no reason, say the step failed and offer to try again.
       ${renderArray(
         [

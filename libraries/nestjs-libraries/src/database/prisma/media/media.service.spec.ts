@@ -29,6 +29,7 @@ jest.mock(
 );
 
 import { HttpException } from '@nestjs/common';
+import { WorkflowNotFoundError } from '@temporalio/common';
 import sharp from 'sharp';
 import { MediaService } from './media.service';
 import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
@@ -462,6 +463,65 @@ describe('getGenerateVideoStatus', () => {
       status: 'failed',
       error: 'No AI video credits are available on this account.',
     });
+  });
+
+  // A card stops for good on a 404 and on `failed`, and can offer a render that
+  // costs a credit, so neither may stand in for "couldn't ask right now".
+  describe('when Temporal can’t answer', () => {
+    const jobId = `video_${org.id}_abcdefghij`;
+
+    const statusOf = async (handle: object) => {
+      const { service } = makeService({ temporal: temporal(handle) });
+      return service.getGenerateVideoStatus(org, jobId).catch((e) => e);
+    };
+
+    it('says not found only when Temporal says it has no such job', async () => {
+      const err = await statusOf({
+        describe: jest
+          .fn()
+          .mockRejectedValue(
+            new WorkflowNotFoundError('gone', jobId, undefined)
+          ),
+      });
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(404);
+      expect(err.message).toBe('Video job not found');
+    });
+
+    it('calls an outage an outage', async () => {
+      const err = await statusOf({
+        describe: jest.fn().mockRejectedValue(new Error('14 UNAVAILABLE')),
+      });
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(503);
+      expect(err.message).not.toContain('14 UNAVAILABLE');
+    });
+
+    it('doesn’t call a finished job failed because its result couldn’t be read', async () => {
+      const err = await statusOf({
+        describe: jest
+          .fn()
+          .mockResolvedValue({ status: { name: 'COMPLETED' } }),
+        result: jest.fn().mockRejectedValue(new Error('4 DEADLINE_EXCEEDED')),
+      });
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(503);
+    });
+
+    it.each(['FAILED', 'CANCELLED', 'TERMINATED', 'TIMED_OUT'])(
+      'still calls a job that ended %s failed',
+      async (name) => {
+        const answer = await statusOf({
+          describe: jest.fn().mockResolvedValue({ status: { name } }),
+          result: jest.fn().mockRejectedValue(new Error('It ended.')),
+        });
+
+        expect(answer).toEqual({ status: 'failed', error: 'It ended.' });
+      }
+    );
   });
 });
 
