@@ -104,6 +104,7 @@ const makeService = (
   const manager = { getVideoByName: jest.fn().mockReturnValue(over.video) };
   const repository = {
     getMediaByIds: jest.fn().mockResolvedValue(over.references ?? []),
+    getMediaByPaths: jest.fn().mockResolvedValue(over.references ?? []),
   };
   const service = new MediaService(
     repository as any,
@@ -1355,6 +1356,420 @@ describe('editImageWithPrompt', () => {
 // so the wizard, autopost and Samy each generated unmetered. Both image methods
 // now refuse for themselves — the same shape `resolveVideo` gives videos — which
 // is what makes every caller metered by construction rather than by discipline.
+// Samy names images by link, because links are what its messages and tool results
+// hold. Past the lookup it's the AI image window's route (feature 050-samy-images).
+describe('generateImageFromLinks', () => {
+  const link = (id: string) => `https://media/${id}`;
+  const prompt = 'a model wearing it';
+
+  // What each stored file holds, by path.
+  const stored: Record<string, Buffer> = {};
+
+  beforeAll(async () => {
+    const jpeg = await picture(16, 16).jpeg().toBuffer();
+    for (const id of ['a', 'b', 'c', 'd', 'e']) {
+      stored[link(id)] = jpeg;
+    }
+    stored[link('not-a-picture')] = Buffer.from('not a picture');
+  });
+
+  beforeEach(() => {
+    read.mockImplementation(async (path: string) => {
+      if (path === link('too-big')) {
+        throw new MediaTooLargeError();
+      }
+      return stored[path];
+    });
+  });
+
+  it("with no links takes the window's plain route, and returns only the id and path", async () => {
+    const ai = openAi();
+    const { service, repository, saveFile } = makeService({
+      openAi: ai,
+      file: 'https://media/made.jpg',
+    });
+    saveFile.mockResolvedValue({
+      id: 'media-1',
+      path: 'https://media/made.jpg',
+      name: 'made.jpg',
+      organizationId: 'org-1',
+    } as any);
+    const resolve = jest.spyOn(service, 'resolveImageWithPrompt');
+
+    const made = await service.generateImageFromLinks(org, {
+      prompt,
+      aspectRatio: 'story',
+    });
+
+    expect(made).toEqual({ id: 'media-1', path: 'https://media/made.jpg' });
+    expect(resolve).toHaveBeenCalledWith(
+      org,
+      expect.objectContaining({ prompt, aspectRatio: 'story', references: [] })
+    );
+    expect(repository.getMediaByPaths).not.toHaveBeenCalled();
+    expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+      prompt,
+      undefined,
+      0
+    );
+    expect(ai.generateImageAtSize).toHaveBeenCalledWith(
+      'an enhanced scene',
+      '1008x1792'
+    );
+    expect(ai.editImageAtSize).not.toHaveBeenCalled();
+  });
+
+  it("turns references into ids in the links' order, for one credit however many", async () => {
+    const ai = openAi();
+    const { service, repository, subscription, charged } = makeService({
+      openAi: ai,
+      // The database answers in its own order.
+      references: [row('d'), row('b'), row('a'), row('c')],
+    });
+
+    await service.generateImageFromLinks(org, {
+      prompt,
+      aspectRatio: 'square',
+      references: [link('a'), link('b'), link('c'), link('d')],
+    });
+
+    expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+    expect(subscription.useCredit).toHaveBeenCalledTimes(1);
+    expect(charged.value).toBe(true);
+    expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+      prompt,
+      undefined,
+      4
+    );
+    expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
+    expect(ai.editImageAtSize.mock.calls[0][2]).toHaveLength(4);
+  });
+
+  it('counts a link listed twice once', async () => {
+    const { service, repository } = makeService({
+      openAi: openAi(),
+      references: [row('a')],
+    });
+
+    await service.generateImageFromLinks(org, {
+      prompt,
+      aspectRatio: 'square',
+      references: [link('a'), link('a')],
+    });
+
+    expect(repository.getMediaByPaths).toHaveBeenCalledWith('org-1', [
+      link('a'),
+    ]);
+  });
+
+  // A generation's prompt rewrite describes a whole new picture, and the model
+  // redraws what the user meant to keep. The edit's states the change alone.
+  it("with editOf takes the window's edit route, at the shape it was given", async () => {
+    const ai = openAi();
+    const { service } = makeService({
+      openAi: ai,
+      references: [row('b'), row('a')],
+    });
+    const resolve = jest.spyOn(service, 'resolveImageEdit');
+
+    await service.generateImageFromLinks(org, {
+      prompt: 'make the background darker',
+      aspectRatio: 'portrait',
+      editOf: link('a'),
+      references: [link('b')],
+    });
+
+    expect(resolve).toHaveBeenCalledWith(
+      org,
+      expect.objectContaining({
+        imageId: 'a',
+        prompt: 'make the background darker',
+        aspectRatio: 'portrait',
+        references: ['b'],
+      })
+    );
+    expect(ai.generateEditPrompt).toHaveBeenCalledWith(
+      'make the background darker',
+      2
+    );
+    expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+    const [, size, inputs] = ai.editImageAtSize.mock.calls[0];
+    expect(size).toBe('1024x1280');
+    expect(inputs).toHaveLength(2);
+  });
+
+  // resolveImageEdit answers 400 to an image named twice, which here would only be
+  // the model saying the same thing two ways.
+  it('counts a link in both editOf and references once', async () => {
+    const { service } = makeService({
+      openAi: openAi(),
+      references: [row('a'), row('b')],
+    });
+    const resolve = jest.spyOn(service, 'resolveImageEdit');
+
+    await service.generateImageFromLinks(org, {
+      prompt,
+      aspectRatio: 'square',
+      editOf: link('a'),
+      references: [link('a'), link('b')],
+    });
+
+    expect(resolve).toHaveBeenCalledWith(
+      org,
+      expect.objectContaining({ imageId: 'a', references: ['b'] })
+    );
+  });
+
+  // EditImageWithPromptDto's limit runs only on HTTP routes, and resolveImageEdit
+  // doesn't count, so nothing else would stop a fifth image reaching the render.
+  describe('takes an image plus 3 others in an edit', () => {
+    it('refuses a fourth other, with no credit', async () => {
+      const ai = openAi();
+      const { service, subscription } = makeService({ openAi: ai });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          editOf: link('a'),
+          references: [link('b'), link('c'), link('d'), link('e')],
+        })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.message).toMatch(/plus 3 others/);
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+      expect(ai.editImageAtSize).not.toHaveBeenCalled();
+    });
+
+    it('counts after taking out the image being edited', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('a'), row('b'), row('c'), row('d')],
+      });
+
+      await service.generateImageFromLinks(org, {
+        prompt,
+        aspectRatio: 'square',
+        editOf: link('a'),
+        references: [link('a'), link('b'), link('c'), link('d')],
+      });
+
+      expect(subscription.useCredit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // The model holds links and no thumbnails, so a number means nothing to it.
+  describe('refuses before any credit exists, naming the link', () => {
+    it('that has no row', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('a')],
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('deleted')],
+        })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(404);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_missing',
+        index: 2,
+      });
+      expect(err.message).toContain(link('deleted'));
+      expect(err.message).toMatch(/no longer in the Media library/);
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it('that is too large', async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('a'), row('too-big')],
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('too-big')],
+        })
+        .catch((e) => e);
+
+      expect(err.getStatus()).toBe(422);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_too_large',
+        index: 2,
+      });
+      expect(err.message).toContain(link('too-big'));
+      expect(err.message).toMatch(/30 MB/);
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    it("that can't be read", async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: [row('not-a-picture')],
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('not-a-picture')],
+        })
+        .catch((e) => e);
+
+      expect(err.getStatus()).toBe(422);
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_unreadable',
+        index: 1,
+      });
+      expect(err.message).toContain(link('not-a-picture'));
+      expect(err.message).toMatch(/format/);
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    // The image being edited is image 1, so the others are numbered from 2.
+    it("with an edit's numbers one along", async () => {
+      const { service } = makeService({
+        openAi: openAi(),
+        references: [row('a'), row('too-big')],
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          editOf: link('a'),
+          references: [link('too-big')],
+        })
+        .catch((e) => e);
+
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_too_large',
+        index: 2,
+      });
+      expect(err.message).toContain(link('too-big'));
+    });
+
+    it('the image being edited, when that is the one gone', async () => {
+      const { service } = makeService({ openAi: openAi(), references: [] });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          editOf: link('deleted'),
+        })
+        .catch((e) => e);
+
+      expect(err.getResponse()).toMatchObject({
+        code: 'reference_missing',
+        index: 1,
+      });
+      expect(err.message).toContain(link('deleted'));
+    });
+  });
+
+  it("looks links up in the asking organization's library", async () => {
+    const { service, repository } = makeService({
+      openAi: openAi(),
+      references: [row('a')],
+    });
+
+    await service.generateImageFromLinks(org, {
+      prompt,
+      aspectRatio: 'square',
+      references: [link('a')],
+    });
+
+    expect(repository.getMediaByPaths).toHaveBeenCalledWith('org-1', [
+      link('a'),
+    ]);
+  });
+
+  it("leaves a failure that is no reference's fault as it was, with no credit", async () => {
+    const ai = openAi();
+    ai.generateImageAtSize.mockRejectedValue(flagged());
+    ai.rewriteFlaggedPrompt.mockResolvedValue('');
+    const { service, charged } = makeService({ openAi: ai });
+
+    const err = await service
+      .generateImageFromLinks(org, { prompt, aspectRatio: 'square' })
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(422);
+    expect(err.message).toMatch(/safety system/);
+    expect(charged.value).toBe(false);
+  });
+
+  describe('with billing configured', () => {
+    const initial = process.env.STRIPE_PUBLISHABLE_KEY;
+
+    beforeEach(() => {
+      process.env.STRIPE_PUBLISHABLE_KEY = 'pk_test';
+    });
+
+    afterEach(() => {
+      if (initial === undefined) {
+        delete process.env.STRIPE_PUBLISHABLE_KEY;
+      } else {
+        process.env.STRIPE_PUBLISHABLE_KEY = initial;
+      }
+    });
+
+    it('lets a credit refusal through unchanged', async () => {
+      const { service } = makeService({ credits: 0, openAi: openAi() });
+
+      const err = await service
+        .generateImageFromLinks(org, { prompt, aspectRatio: 'square' })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(SubscriptionException);
+      expect(err.getResponse()).toMatchObject({ resetsAt: RESETS_AT });
+    });
+
+    it('imageCreditsLeft answers what checkCredits does', async () => {
+      const { service, subscription } = makeService({ credits: 2 });
+
+      await expect(service.imageCreditsLeft(org)).resolves.toEqual({
+        credits: 2,
+        resetsAt: RESETS_AT,
+      });
+      expect(subscription.checkCredits).toHaveBeenCalledWith(org, 'ai_images');
+    });
+  });
+
+  // resolveImage doesn't enforce credits on an install with no payment provider,
+  // which checkCredits alone would read as a free plan with none.
+  it('imageCreditsLeft has no limit with billing not configured', async () => {
+    const initial = process.env.STRIPE_PUBLISHABLE_KEY;
+    delete process.env.STRIPE_PUBLISHABLE_KEY;
+    const { service, subscription } = makeService({ credits: 0 });
+
+    await expect(service.imageCreditsLeft(org)).resolves.toEqual({
+      credits: Infinity,
+    });
+    expect(subscription.checkCredits).not.toHaveBeenCalled();
+
+    if (initial !== undefined) {
+      process.env.STRIPE_PUBLISHABLE_KEY = initial;
+    }
+  });
+});
+
 describe('image credit enforcement', () => {
   // Read once at collection time, restored after every case: the gate is an
   // env var, and a test that leaves it set decides the outcome of the next one.

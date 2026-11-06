@@ -6,6 +6,7 @@ import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
+import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
 import { languageName } from '@gitroom/helpers/utils/language.names';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import dayjs from 'dayjs';
@@ -103,6 +104,10 @@ const isSamyRun = (requestContext: RequestContext<unknown>) =>
 // would add a blank line to the prompt of every outside connection.
 const SAMY_LINES = [
   'The chat shows every image you create by itself, above your words. Never paste its link and never say where to find it: talk about the image itself, unless they ask for the link.',
+  "To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them. Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square. A style they name stays in the description.",
+  "Use as references the images in this chat that the request means: up to 4, for one credit. When more than 4 are attached and you can't tell which they mean, ask which 4 before making anything.",
+  "To change an image you just made, pass its link as editOf with the aspectRatio it was made at. That's one more credit.",
+  'You work only with images in this chat. For an image from the Media library or an outside link, ask the user to attach it with Insert Media, and spend no credit. mediaListTool and uploadFromUrlTool are for post attachments only.',
 ];
 
 const organizationId = (organization?: string) => {
@@ -155,6 +160,9 @@ export class LoadToolsService {
 
   async agent() {
     const tools = await this.loadTools();
+    const samyImageTool = await this._moduleRef
+      .get(SamyImageTool, { strict: false })
+      .run();
     return new Agent({
       id: 'sharek',
       name: 'Sharek',
@@ -266,7 +274,12 @@ ${channels}
           },
         } as AgentExecutionOptions<undefined>;
       },
-      tools,
+      // Under the same key, so old and new tool calls draw the same way. MCP reads
+      // this with no context, and so gets what it has today.
+      tools: ({ requestContext }) =>
+        isSamyRun(requestContext)
+          ? { ...tools, generateImageTool: samyImageTool }
+          : tools,
       memory: new Memory({
         storage: pStore,
         options: {

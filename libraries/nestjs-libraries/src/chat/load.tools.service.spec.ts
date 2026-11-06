@@ -13,17 +13,23 @@ jest.mock('@gitroom/nestjs-libraries/chat/mastra.store', () => {
 // The real tool list reaches every social provider, and through them a chunk of
 // the monorepo. These tests are about the agent's own configuration — the system
 // prompt, the memory options, the provider options — so the tools are noise.
-jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => ({
-  toolList: [] as unknown[],
+// The one tool here is the one a Samy run swaps.
+jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
+  class GenerateImageTool {}
+  return { toolList: [GenerateImageTool] };
+});
+// The real one pulls in Prisma and the upload SDKs, as the real tool list does.
+jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => ({
+  SamyImageTool: class SamyImageTool {},
 }));
 
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 
-// agent() resolves each tool class through ModuleRef; with an empty tool list
-// nothing is resolved, but the constructor still wants the dependency.
+// agent() resolves each tool class through ModuleRef, and each stands in as a tool
+// that says which class it came from.
 const moduleRef = {
   get: (token: { name: string }) => ({
-    name: token.name,
+    name: 'generateImageTool',
     run: () => ({ id: token.name }),
   }),
 } as any;
@@ -535,6 +541,76 @@ describe('LoadToolsService images in the chat', () => {
     expect(instructions).toContain(
       'When the user asks about a video later, call videoStatusTool with its jobId'
     );
+  });
+});
+
+// What must not move, from contracts/samy-image-tool.md: only a Samy run gets the
+// image tool that takes references, and MCP, which reads this list with no context
+// at all (start.mcp.ts), gets the one it has today (feature 050-samy-images, FR-048).
+describe('LoadToolsService image tool', () => {
+  const imageToolFor = async (ui?: string) => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const requestContext = new RequestContext();
+    if (ui) {
+      requestContext.set('ui' as never, ui as never);
+    }
+    const tools = (await agent.listTools({ requestContext })) as any;
+    return tools.generateImageTool.id;
+  };
+
+  it('is the outside one with no context, as MCP lists it', async () => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const tools = (await agent.listTools()) as any;
+
+    expect(tools.generateImageTool.id).toBe('GenerateImageTool');
+  });
+
+  it('is the outside one with no ui', async () => {
+    expect(await imageToolFor()).toBe('GenerateImageTool');
+  });
+
+  it("is Samy's in Samy's chat", async () => {
+    expect(await imageToolFor('true')).toBe('SamyImageTool');
+  });
+
+  // checkAuth writes 'false' on the MCP path, and a plain truthy check reads it as true.
+  it('is the outside one for a ui of false', async () => {
+    expect(await imageToolFor('false')).toBe('GenerateImageTool');
+  });
+});
+
+describe('LoadToolsService making images', () => {
+  const instructionsFor = async (ui?: string) => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const requestContext = new RequestContext();
+    if (ui) {
+      requestContext.set('ui' as never, ui as never);
+    }
+    return (await agent.getInstructions({ requestContext })) as string;
+  };
+
+  const LINES = [
+    "To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them.",
+    'Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square.',
+    'A style they name stays in the description.',
+    'Use as references the images in this chat that the request means: up to 4, for one credit.',
+    "When more than 4 are attached and you can't tell which they mean, ask which 4 before making anything.",
+    "To change an image you just made, pass its link as editOf with the aspectRatio it was made at. That's one more credit.",
+    'You work only with images in this chat.',
+    'For an image from the Media library or an outside link, ask the user to attach it with Insert Media, and spend no credit.',
+    'mediaListTool and uploadFromUrlTool are for post attachments only.',
+  ];
+
+  it.each(LINES)('tells Samy: %s', async (line) => {
+    expect(await instructionsFor('true')).toContain(line);
+  });
+
+  it.each(LINES)('says nothing over MCP of: %s', async (line) => {
+    expect(await instructionsFor()).not.toContain(line);
+  });
+
+  it.each(LINES)('says nothing for a ui of false of: %s', async (line) => {
+    expect(await instructionsFor('false')).not.toContain(line);
   });
 });
 

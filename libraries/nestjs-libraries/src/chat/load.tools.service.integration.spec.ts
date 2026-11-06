@@ -26,7 +26,42 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
       });
     }
   }
-  return { toolList: [ScheduleOnePostTool] };
+  // What the outside connections get today.
+  class GenerateImageTool {
+    name = 'generateImageTool';
+    run() {
+      return createTool({
+        id: 'generateImageTool',
+        description: 'Make an image',
+        inputSchema: z.object({ prompt: z.string() }),
+        execute: async () => ({}),
+      });
+    }
+  }
+  return { toolList: [ScheduleOnePostTool, GenerateImageTool] };
+});
+
+// What Samy gets in its place, with the real tool's input.
+jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => {
+  const { createTool } = require('@mastra/core/tools');
+  const { z } = require('zod');
+  class SamyImageTool {
+    name = 'generateImageTool';
+    run() {
+      return createTool({
+        id: 'generateImageTool',
+        description: 'Make an image',
+        inputSchema: z.object({
+          prompt: z.string(),
+          aspectRatio: z.string().optional(),
+          references: z.array(z.string()).optional(),
+          editOf: z.string().optional(),
+        }),
+        execute: async () => ({}),
+      });
+    }
+  }
+  return { SamyImageTool };
 });
 
 // Samy's own instructions: every step of a turn carries them, the background
@@ -118,7 +153,7 @@ const moduleRef = {
 
 let thread = 0;
 
-const runTurn = async (wanted: number) => {
+const runTurn = async (wanted: number, chat = true) => {
   toolCallsWanted = wanted;
   steps.length = 0;
 
@@ -128,7 +163,9 @@ const runTurn = async (wanted: number) => {
     'organization' as never,
     JSON.stringify({ id: 'org-1' }) as never
   );
-  requestContext.set('ui' as never, 'true' as never);
+  if (chat) {
+    requestContext.set('ui' as never, 'true' as never);
+  }
 
   const res = await agent.stream('Schedule my posts', {
     memory: { thread: `thread-${++thread}`, resource: 'org-1' },
@@ -194,5 +231,38 @@ describe('Samy multi-step turns', () => {
     expect(
       earlier.some((request) => systemText(request).includes('what is left'))
     ).toBe(false);
+  }, 30000);
+});
+
+// What a run really offers the model. Over MCP, ask_sharek runs this same agent with
+// no ui, so nothing Samy can do with references reaches an outside connection.
+describe('The image tool a run offers the model', () => {
+  let spy: jest.SpyInstance;
+
+  beforeEach(() => {
+    spy = jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => spy.mockRestore());
+
+  const offered = async (chat: boolean) => {
+    const turn = await runTurn(0, chat);
+    const tool = turn.steps[0].tools.find(
+      (entry: any) => entry.name === 'generateImageTool'
+    );
+    return Object.keys(tool.inputSchema.properties).sort();
+  };
+
+  it("in Samy's chat takes references, an image to change and a shape", async () => {
+    expect(await offered(true)).toEqual([
+      'aspectRatio',
+      'editOf',
+      'prompt',
+      'references',
+    ]);
+  }, 30000);
+
+  it('with no ui takes a prompt alone', async () => {
+    expect(await offered(false)).toEqual(['prompt']);
   }, 30000);
 });
