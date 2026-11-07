@@ -632,14 +632,26 @@ describe('LoadToolsService making images', () => {
     'Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square.',
     'A style they name stays in the description.',
     'Use as references the images in this chat that the request means: up to 4, for one credit.',
-    "When more than 4 are attached and you can't tell which they mean, ask which 4 before making anything.",
+    "When more than 4 are attached and you can't tell which they mean, use the 4 that matter most and say which ones you used.",
     "To change an image you just made, pass its link as editOf with the aspectRatio it was made at. That's one more credit.",
     'You work only with images in this chat.',
     'For an image from the Media library or an outside link, ask the user to attach it with Insert Media, and spend no credit.',
     'mediaListTool and uploadFromUrlTool are for post attachments only.',
-    "Ask first when a request would use more than one image credit, and don't ask for a single image.",
+    'Each version or variation is its own image: one generateImageTool call with a prompt for that version alone, for one credit, so 3 versions means 3 calls and 3 credits.',
+    'Before making more than one image, say how many credits it will use and wait for a yes.',
+    'A single image needs no question, and that includes a collage or sheet they ask for, which is one image.',
     'One message can make at most 4 images: asked for more, say you can make up to 4 at a time.',
   ];
+
+  // On the live walk the older words left Samy drawing every version into one
+  // image, which dodged both the question and the limit of 4, and asked for 6
+  // images it asked nothing. It can see them all, and the collage it made was good.
+  it.each([
+    'Ask first when a request would use more than one image credit',
+    'ask which 4 before making anything',
+  ])('no longer says: %s', async (line) => {
+    expect(await instructionsFor('true')).not.toContain(line);
+  });
 
   it.each(LINES)('tells Samy: %s', async (line) => {
     expect(await instructionsFor('true')).toContain(line);
