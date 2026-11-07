@@ -33,17 +33,20 @@ const PicturePrompt = z.object({
 // Which words are printed, and how they are carried: the rule
 // generatePromptForPicture was sampled into (its comment has the history),
 // shared with generateEditPrompt so a change of copy is decided the same way.
+// Where the words go is not shared, so each caller finishes the sentence: a
+// generation's sit flat on the image, an edit's in the scene it is keeping.
 const IN_IMAGE_TEXT_RULES = `When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
-Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.`;
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them`;
 
 // Added to generatePromptForPicture's instructions only when reference images
 // are attached; without them the prompt stays byte for byte what it was. The
 // improver never sees the images, and told nothing it describes a subject of
 // its own that competes with the one in the picture. A reference's own logo or
-// lettering is the user's to keep, so the no-text rule must not strip it.
+// lettering is the user's to keep, so the no-text rules must not strip it.
 const REFERENCE_RULES = `The image model also receives the reference images the user attached, numbered from 1 in the order given; the user message says how many.
-When the description points to one of them, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries, which the no-text rule above never removes.
-A reference the description does not mention is used for what the description implies: its subject, its product or its look.`;
+When the description points to one of them, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries, which the no-text rules above never remove.
+A reference the description does not mention is used for what the description implies: its subject, its product or its look.
+When the description asks for the look of a reference, set any new words the way that reference sets its own, not on a new object.`;
 
 const VoicePrompt = z.object({
   voice: z.string(),
@@ -267,6 +270,19 @@ Clips must not overlap. Write the title and the post in this language, whatever 
    * extraction, and the modal's hint tells users that quotes are the
    * guarantee.
    *
+   * Where the words sit was sampled too. "Write one concrete scene" with "say
+   * where in the scene they appear" set the words of 25 rewrites in 40 on an
+   * object nobody asked for, a hung cloth banner or a card on the counter, and
+   * the sale banner above over a storefront 10 times in 10. Nothing stopped
+   * extra words either: 16 of those 40 said nothing against them. So a banner's
+   * or a headline's words are flat lettering on the finished image, and an
+   * object carries them only when the user asks for it. Told only that, 5
+   * rewrites in 50 still hung a banner on a storefront or drew a band across
+   * the image, hence "the image itself is the banner": 0 in 50 with it. 39 of
+   * the 40 now rule out extra words, and a chalkboard, a label and a cloth
+   * banner the user named stayed on theirs 40 times in 40. All of this counts
+   * rewrites, not renders.
+   *
    * `references` is how many reference images the render receives
    * (REFERENCE_RULES); at 0 the request is exactly what it was before
    * references existed.
@@ -289,7 +305,9 @@ Clips must not overlap. Write the title and the post in this language, whatever 
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
-${IN_IMAGE_TEXT_RULES}
+${IN_IMAGE_TEXT_RULES}.
+Say where the words appear. Words for a banner, poster, post, flyer or ad, or words the user calls a headline, title or caption, are flat graphic lettering set directly on the finished image, not carried by any object in the scene: the image itself is the banner or poster, so draw no banner, band or sign to hold them, and say where on the image they sit. Put words on a physical object, such as a sign, chalkboard, package or storefront, only when the user asks for that object.
+Add no other words anywhere in the image.
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
@@ -337,7 +355,7 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
 The editing model receives the image to edit as image 1 and any images the user added to the edit as image 2 onwards, in the order given; the user message says how many.
 Return one instruction, in English regardless of the request's language.
 State the change and only the change, and say that everything else stays exactly as it is: the composition, the subjects and their faces, any existing text, the colours and the framing. Never describe a new scene.
-${IN_IMAGE_TEXT_RULES}
+${IN_IMAGE_TEXT_RULES} — and say where in the scene they appear.
 When the change points to one of the images, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries.`,
             },
             {
