@@ -37,17 +37,18 @@ export class SamyImageTool implements AgentToolInterface {
       description:
         "Make an image and save it to the Media library, for one image credit. Returns { id, path }, or { error } when it couldn't be made. The chat shows the image by itself.",
       inputSchema: z.object({
-        prompt: z
-          .string()
-          .max(IMAGE_PROMPT_MAX_CHARS)
-          .describe(
-            "The user's description in their own words. Words to print stay as they wrote them."
-          ),
+        // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
           .enum(IMAGE_ASPECT_IDS as [ImageAspectId, ...ImageAspectId[]])
           .default('square')
           .describe(
             'The shape of the image. Square unless they ask for another.'
+          ),
+        prompt: z
+          .string()
+          .max(IMAGE_PROMPT_MAX_CHARS)
+          .describe(
+            "The user's description in their own words. Words to print stay as they wrote them."
           ),
         references: z
           .array(z.string())

@@ -109,6 +109,14 @@ describe('SamyImageTool', () => {
       );
     });
 
+    // A card takes its shape from this while the arguments stream in, and a long
+    // prompt ahead of it left a story's card square for about 2 seconds on the walk.
+    it('the shape first, before the prompt', () => {
+      expect(Object.keys(makeTool().tool.inputSchema.shape)[0]).toBe(
+        'aspectRatio'
+      );
+    });
+
     it('no style, which stays in the prompt', () => {
       expect(Object.keys(makeTool().tool.inputSchema.shape).sort()).toEqual([
         'aspectRatio',
