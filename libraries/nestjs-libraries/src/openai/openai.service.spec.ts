@@ -174,6 +174,42 @@ describe('OpenaiService.generatePromptForPicture', () => {
       expect(system).toMatch(/culturally accurate/i);
     });
 
+    // A scene and "say where in the scene" together put a headline on an
+    // invented sign or card, on a banner hung in the picture rather than on
+    // the picture that is the banner.
+    it("sets a banner's words flat on the finished image", async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/banner, poster, post, flyer or ad/i);
+      expect(system).toMatch(/headline, title or caption/i);
+      expect(system).toMatch(
+        /flat graphic lettering set directly on the finished image/i
+      );
+      expect(system).toMatch(/say where on the image they sit/i);
+      expect(system).not.toMatch(/say where in the scene/i);
+    });
+
+    // Told only that the words are flat, a rewrite that chose a storefront scene
+    // still hung a banner on it, or drew one across the top to hold them.
+    it('makes the image the banner, rather than a banner inside it', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/the image itself is the banner or poster/i);
+      expect(system).toMatch(/draw no banner, band or sign to hold them/i);
+    });
+
+    it('keeps words on a physical object only when the user asks for that object', async () => {
+      const system = await systemPrompt();
+      expect(system).toMatch(/sign, chalkboard, package or storefront/i);
+      expect(system).toMatch(/only when the user asks for that object/i);
+    });
+
+    // The no-text rule only speaks when the user asks for no words, so once
+    // they asked for a headline nothing stopped a tagline or a signpost.
+    it('adds no words beyond the ones asked for', async () => {
+      expect(await systemPrompt()).toMatch(
+        /add no other words anywhere in the image/i
+      );
+    });
+
     // Auto is the default, so "no style given" has to be a case the prompt
     // handles rather than a gap it falls into.
     it('tells the model what to do when no style is given', async () => {
@@ -260,15 +296,18 @@ describe('OpenaiService.generatePromptForPicture', () => {
   // description of its own that competes with the picture the user attached
   // (feature 031-ai-image-references-edit, research R7).
   describe('with reference images', () => {
-    // Captured from the code before references existed. A render without
-    // references must send these exact bytes (SC-007), so they are pinned
-    // whole rather than by the phrases the other cases look for.
+    // Captured from the code before references existed, and changed since only
+    // for where a banner's words sit. A render without references must send
+    // these exact bytes (SC-007), so they are pinned whole rather than by the
+    // phrases the other cases look for.
     const TODAY_SYSTEM = `You rewrite a user's description into one prompt for an AI image generation model.
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
 When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
-Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them.
+Say where the words appear. Words for a banner, poster, post, flyer or ad, or words the user calls a headline, title or caption, are flat graphic lettering set directly on the finished image, not carried by any object in the scene: the image itself is the banner or poster, so draw no banner, band or sign to hold them, and say where on the image they sit. Put words on a physical object, such as a sign, chalkboard, package or storefront, only when the user asks for that object.
+Add no other words anywhere in the image.
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`;
@@ -327,13 +366,13 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
       expect(system).toContain('"the second picture"');
     });
 
-    // Today's no-text rule bans logos and lettering the user did not ask for;
+    // Today's no-text rules ban logos and lettering the user did not ask for;
     // a logo the user brings in as a reference is not one of those.
-    it('keeps what a reference carries out of the no-text rule', async () => {
+    it('keeps what a reference carries out of the no-text rules', async () => {
       await service.generatePromptForPicture('p', 's', 2);
 
       expect(sent().system).toMatch(
-        /any logo, label or lettering it already carries/i
+        /any logo, label or lettering it already carries, which the no-text rules above never remove/i
       );
     });
 
@@ -341,6 +380,22 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
       await service.generatePromptForPicture('p', 's', 2);
 
       expect(sent().system).toMatch(/does not mention/i);
+    });
+
+    // The improver can't see how a reference sets its headline, and told only
+    // to place the words it invented a card on the counter for them.
+    it('sets new words the way a reference it copies sets its own', async () => {
+      await service.generatePromptForPicture('p', 's', 2);
+
+      expect(sent().system).toMatch(
+        /the way that reference sets its own, not on a new object/i
+      );
+    });
+
+    it('leaves that rule out of a request without references', async () => {
+      await service.generatePromptForPicture('p', 's', 0);
+
+      expect(sent().system).not.toMatch(/the way that reference sets its own/i);
     });
 
     it('tells the model how many references there are', async () => {
@@ -433,6 +488,22 @@ describe('OpenaiService.generateEditPrompt', () => {
 
     expect(system).not.toMatch(/concrete scene/i);
     expect(system).not.toMatch(/must contain no text/i);
+  });
+
+  // An edit keeps an image's existing text, so where a generation's words sit
+  // is no rule of its own. Pinned whole: this prompt shares its words rule with
+  // the generation's, and a change made for one must not reach the other.
+  it("sends its exact prompt, untouched by the generation's rules for placing words", async () => {
+    await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+
+    expect(sent().system)
+      .toBe(`You rewrite a change a user asks for into one instruction for an AI image editing model.
+The editing model receives the image to edit as image 1 and any images the user added to the edit as image 2 onwards, in the order given; the user message says how many.
+Return one instruction, in English regardless of the request's language.
+State the change and only the change, and say that everything else stays exactly as it is: the composition, the subjects and their faces, any existing text, the colours and the framing. Never describe a new scene.
+When the user asks for words to appear in the image, first decide which words those are: only what would be printed on the sign, banner, label or product. What the object is, where it is and who it is for describes the scene and never appears in the image; when the user did not quote the words, take the shortest span of the user's own words that reads as the copy, exactly as written — never a synonym or a tidier phrasing. Name them in the inImageText field.
+Carry those words into the prompt verbatim, inside quotation marks, in their original script and spelling — never translate, transliterate, shorten or correct them — and say where in the scene they appear.
+When the change points to one of the images, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries.`);
   });
 
   it('keeps the words to print verbatim, in their own script', async () => {
