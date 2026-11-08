@@ -10,10 +10,10 @@ import { useDragDropManager } from 'react-dnd';
 // controls, a one-line hint, a search past 6 channels, customer groups that
 // remember being closed, rows with a picture, a name in its own direction and
 // a second line, and Reconnect and Finish setup beside a row, never inside it.
-// These are the parts every mode shares, rendered in calendar mode, the only
-// mode increment 2 has, then the calendar's own: ticks, Show all, the row menu,
-// the customer pencil and drag. The test DOM has no layout, so sizes are
-// pinned by the classes that carry them.
+// These are the parts every mode shares, rendered in calendar mode, then the
+// calendar's own: ticks, Show all, the row menu, the customer pencil and drag;
+// then Samy's: picks, with no dimming and none of the calendar's extras. The
+// test DOM has no layout, so sizes are pinned by the classes that carry them.
 //
 // useT gives the key, so each case names the string it expects. The platform
 // names come from platformLabel, which reads i18next itself, so i18next runs
@@ -1334,10 +1334,10 @@ const chain = (node: Element, top: Element) => {
   }
   return list;
 };
-const pictureOf = (name: string) =>
+const pictureOf = (name: string, list = CAL) =>
   Array.from(mainButton(name).querySelectorAll('img')).find(
     (img) =>
-      img.getAttribute('src') === CAL.find((c) => c.name === name)!.picture
+      img.getAttribute('src') === list.find((c) => c.name === name)!.picture
   )!;
 // The row's checkbox, the app's 20px Check, beside its main button.
 const checkboxOf = (name: string) => {
@@ -2030,5 +2030,279 @@ describe('on a real calendar', () => {
     await click(tickOf('Client 10'));
     expect(latest().shown).toEqual(allPostsBut());
     expect(latest().selection).toBeNull();
+  });
+});
+
+// Samy's picks (contracts/channel-panel.md, C20, FR-025). A tick means Samy
+// may use the channel, and the page keeps the picked ids. A disabled,
+// disconnected or needs-setup channel can't be picked, an unpicked row isn't
+// dimmed, and there's no Show all, ⋯ menu, drag or pencil.
+describe('isUsable on Samy (C20)', () => {
+  it.each([
+    ['an enabled channel', true, {}],
+    ['a disconnected channel', false, { refreshNeeded: true }],
+    ['a channel that needs setup', false, { inBetweenSteps: true }],
+    ['a disabled channel', false, { disabled: true }],
+    [
+      'a disabled, disconnected channel',
+      false,
+      { disabled: true, refreshNeeded: true },
+    ],
+  ])('says %s is usable: %s', (_, usable, values) => {
+    expect(isUsable(channel('u', values), 'samy')).toBe(usable);
+  });
+});
+
+// No customer: a usable channel, then one disconnected, one that needs setup
+// and one disabled. Client 2: two usable channels and a disconnected one.
+// Noor Dental: one that needs setup, usable on the calendar but not on Samy.
+const SAMY: Channel[] = [
+  channel('lamsa', { name: 'Lamsa Studio' }),
+  channel('mona', {
+    name: 'Mona Saeed',
+    identifier: 'linkedin',
+    refreshNeeded: true,
+  }),
+  channel('zed', { name: 'Zed', identifier: 'x', inBetweenSteps: true }),
+  channel('archive', {
+    name: 'Archive',
+    identifier: 'facebook',
+    disabled: true,
+  }),
+  channel('two-shop', {
+    name: 'Two Shop',
+    identifier: 'linkedin',
+    customer: CLIENT_2,
+  }),
+  channel('two-cafe', { name: 'Two Cafe', customer: CLIENT_2 }),
+  channel('two-pages', {
+    name: 'Two Pages',
+    identifier: 'facebook',
+    customer: CLIENT_2,
+    refreshNeeded: true,
+  }),
+  channel('noor-setup', {
+    name: 'Noor Clinic',
+    identifier: 'facebook',
+    customer: NOOR,
+    inBetweenSteps: true,
+  }),
+];
+const SAMY_USABLE = ['lamsa', 'two-shop', 'two-cafe'];
+const renderSamy = (selected: string[]) =>
+  render(SAMY, { mode: 'samy', selected });
+
+describe('samy picks (C20, FR-025)', () => {
+  it('makes each row a checkbox, checked while it is picked', async () => {
+    await renderSamy(['two-shop']);
+
+    SAMY.forEach(({ id, name }) => {
+      const main = mainButton(name);
+      expect(main.getAttribute('role')).toBe('checkbox');
+      expect(main.getAttribute('aria-checked')).toBe(String(id === 'two-shop'));
+      expect(ticked(name)).toBe(id === 'two-shop');
+    });
+  });
+
+  it.each([
+    [
+      'picking a row adds its id',
+      ['two-shop'],
+      'Lamsa Studio',
+      ['lamsa', 'two-shop'],
+    ],
+    [
+      'unpicking a row drops its id',
+      ['lamsa', 'two-shop'],
+      'Two Shop',
+      ['lamsa'],
+    ],
+    ['unpicking the last pick passes none', ['lamsa'], 'Lamsa Studio', []],
+    [
+      'picking the last usable channel passes every usable id, never null',
+      ['two-shop', 'two-cafe'],
+      'Lamsa Studio',
+      SAMY_USABLE,
+    ],
+  ])('%s', async (_, selected, name, expected) => {
+    await renderSamy(selected);
+
+    await click(mainButton(name));
+
+    expect(changedTo()).toEqual(sorted(expected));
+  });
+
+  it("does the same from the row's checkbox", async () => {
+    await renderSamy([]);
+
+    await click(checkboxOf('Two Cafe'));
+
+    expect(changedTo()).toEqual(['two-cafe']);
+  });
+
+  it("can't pick a disconnected, needs-setup or disabled row, which reads unpicked and dims as the calendar's disabled rows do", async () => {
+    await renderSamy([]);
+
+    for (const { id, name } of SAMY) {
+      if (SAMY_USABLE.includes(id)) continue;
+      const main = mainButton(name);
+      expect(main.getAttribute('aria-checked')).toBe('false');
+      expect(main.getAttribute('aria-disabled')).toBe('true');
+      expect(main.hasAttribute('disabled')).toBe(false);
+      expect(
+        chain(pictureOf(name, SAMY), rowOf(name)).some((el) =>
+          has(el, 'opacity-50')
+        )
+      ).toBe(true);
+      expect(
+        chain(main.querySelector('bdi')!, rowOf(name)).some((el) =>
+          has(el, 'opacity-50')
+        )
+      ).toBe(true);
+
+      await click(main);
+      await click(checkboxOf(name));
+    }
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // The page keeps the ids it was given, and a pick the list then reports
+  // unusable leaves the panel's ticks, so the next change passes only the
+  // picks the panel shows (C20).
+  it('reads a pick that is no longer usable as unpicked, and leaves it out of the next change', async () => {
+    await renderSamy(['two-shop', 'mona', 'archive']);
+    ['Mona Saeed', 'Archive'].forEach((name) => {
+      expect(mainButton(name).getAttribute('aria-checked')).toBe('false');
+      expect(ticked(name)).toBe(false);
+    });
+
+    await click(mainButton('Lamsa Studio'));
+
+    expect(changedTo()).toEqual(['lamsa', 'two-shop']);
+  });
+
+  it("doesn't dim an unpicked row: its picture in full colour, its name in text-ink, nothing faded", async () => {
+    await renderSamy([]);
+
+    SAMY.filter(({ id }) => SAMY_USABLE.includes(id)).forEach(({ name }) => {
+      const row = rowOf(name);
+      const bdi = mainButton(name).querySelector('bdi')!;
+      expect(mainButton(name).getAttribute('aria-checked')).toBe('false');
+      expect([row, ...within(row)].some((el) => has(el, 'grayscale'))).toBe(
+        false
+      );
+      expect(classes(bdi)).toContain('text-ink');
+      expect(classes(bdi)).not.toContain('text-muted');
+      const faded = [...chain(row, host), ...within(row)].filter((el) =>
+        classes(el).some(
+          (cls) => /^opacity-\d+$/.test(cls) && cls !== 'opacity-100'
+        )
+      );
+      expect(faded.map((el) => el.outerHTML.slice(0, 120))).toEqual([]);
+    });
+  });
+});
+
+describe("a customer's tick on Samy (C20, FR-025)", () => {
+  // The page keeps the picks, so a tick shows once the page hands it back.
+  const SamyPage: FC<{ initial: string[] }> = ({ initial }) => {
+    const [selected, setSelected] = useState(initial);
+    return (
+      <ChannelPanel
+        mode="samy"
+        channels={SAMY}
+        selected={selected}
+        onChange={(next: string[]) => {
+          onChange(next);
+          setSelected(next);
+        }}
+        update={update}
+        onToggleCollapse={onToggleCollapse}
+        onDone={onDone}
+      />
+    );
+  };
+
+  it.each([
+    ['nothing', [], 'false'],
+    ['one of its usable channels', ['two-shop'], 'mixed'],
+    ['both its usable channels', ['two-shop', 'two-cafe'], 'true'],
+    [
+      'both, and its disconnected one',
+      ['two-shop', 'two-cafe', 'two-pages'],
+      'true',
+    ],
+  ])(
+    'counts only its usable channels: with %s picked',
+    async (_, selected, state) => {
+      await renderSamy(selected);
+
+      expect(nameOf(tickOf('Client 2'))).toBe('Client 2');
+      expect(tickOf('Client 2').getAttribute('aria-checked')).toBe(state);
+    }
+  );
+
+  it('picks all its usable channels, leaving the other picks as they were, and ticking it again drops them', async () => {
+    await mount(<SamyPage initial={['lamsa']} />);
+
+    await click(tickOf('Client 2'));
+
+    expect(changedTo()).toEqual(['lamsa', 'two-cafe', 'two-shop']);
+    expect(tickOf('Client 2').getAttribute('aria-checked')).toBe('true');
+    expect(mainButton('Two Pages').getAttribute('aria-checked')).toBe('false');
+
+    onChange.mockClear();
+    await click(tickOf('Client 2'));
+
+    expect(changedTo()).toEqual(['lamsa']);
+    expect(tickOf('Client 2').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('picks the rest of its usable channels from mixed', async () => {
+    await mount(<SamyPage initial={['two-shop']} />);
+
+    await click(tickOf('Client 2'));
+
+    expect(changedTo()).toEqual(['two-cafe', 'two-shop']);
+    expect(tickOf('Client 2').getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('is disabled when the customer has no usable channel, and changes nothing', async () => {
+    await renderSamy([]);
+    const tick = tickOf('Noor Dental');
+    expect(isDisabled(tick)).toBe(true);
+
+    await click(tick);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('the hint and the extras on Samy (FR-007, FR-025)', () => {
+  it('says what a tick means on Samy, in one 12px muted line', async () => {
+    await renderSamy([]);
+    const hint = leaf(host, 'channel_hint_samy');
+
+    expect(hint).toHaveLength(1);
+    expect(closestWith(hint[0], 'text-[12px]')).not.toBeNull();
+    expect(closestWith(hint[0], 'text-muted')).not.toBeNull();
+    expect(leaf(host, 'channel_hint_calendar')).toHaveLength(0);
+  });
+
+  it('has no Show all with nothing picked, and no ⋯ menu, drag or pencil, outside any DNDProvider', async () => {
+    await renderSamy([]);
+
+    expect(control(host, 'show_all')).toHaveLength(0);
+    expect(control(host, 'edit_group_name')).toHaveLength(0);
+    expect(host.querySelector('[draggable="true"]')).toBeNull();
+    // beside its main button, a row has only Reconnect or Finish setup
+    SAMY.forEach(({ name }) => {
+      const beside = Array.from(rowOf(name).querySelectorAll('button'))
+        .filter((button) => button !== mainButton(name))
+        .map((button) => (button.textContent ?? '').trim())
+        .filter((text) => text !== 'reconnect' && text !== 'finish_setup');
+      expect(beside).toEqual([]);
+    });
   });
 });
