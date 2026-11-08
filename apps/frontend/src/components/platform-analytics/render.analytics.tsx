@@ -9,6 +9,7 @@ import {
 } from '@gitroom/frontend/components/analytics/chart-social';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import i18next from 'i18next';
 
 interface AnalyticsDataItem {
   label: string;
@@ -16,6 +17,14 @@ interface AnalyticsDataItem {
   average?: boolean;
   percentageChange?: number;
 }
+
+export const metricLabel = (label: string): string => {
+  const slug = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  return i18next.t(`analytics_metric_${slug}`, label);
+};
 
 const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
   value,
@@ -79,7 +88,7 @@ const AnalyticsCard: FC<{
           <div className="flex items-center gap-[10px]">
             <div className={`w-[8px] h-[8px] rounded-full ${dotClass}`} />
             <span className="text-[15px] font-medium text-newTableText">
-              {item.label}
+              {metricLabel(item.label)}
             </span>
           </div>
           {item.percentageChange !== undefined && (
