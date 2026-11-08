@@ -118,7 +118,8 @@ const send = async (content: string) => {
   const ended = new Promise((resolve) => res.on('end', resolve));
   await new CopilotController(
     {} as unknown as ConstructorParameters<typeof CopilotController>[0],
-    {} as unknown as ConstructorParameters<typeof CopilotController>[1]
+    {} as unknown as ConstructorParameters<typeof CopilotController>[1],
+    {} as unknown as ConstructorParameters<typeof CopilotController>[2]
   ).chatAgent(
     composerRequest(content) as unknown as Parameters<ChatAgent>[0],
     res as unknown as Parameters<ChatAgent>[1]

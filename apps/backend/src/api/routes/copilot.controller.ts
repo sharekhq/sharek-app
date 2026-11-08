@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Body,
   Req,
   Res,
   Query,
@@ -21,6 +23,9 @@ import {
   logRunError,
 } from '@gitroom/nestjs-libraries/chat/sharek.agent';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
+import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
+import { ChatTitleDto } from '@gitroom/nestjs-libraries/dtos/chat/chat.title.dto';
+import { ChatPinDto } from '@gitroom/nestjs-libraries/dtos/chat/chat.pin.dto';
 import { Request, Response } from 'express';
 import { RequestContext } from '@mastra/core/di';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -54,7 +59,8 @@ const COMPOSER_PROMPT =
 export class CopilotController {
   constructor(
     private _subscriptionService: SubscriptionService,
-    private _mastraService: MastraService
+    private _mastraService: MastraService,
+    private _chatThreadsService: ChatThreadsService
   ) {}
   @Post('/chat')
   chatAgent(@Req() req: Request, @Res() res: Response) {
@@ -171,20 +177,34 @@ export class CopilotController {
   @Get('/list')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async getList(@GetOrgFromRequest() organization: Organization) {
-    const mastra = await this._mastraService.mastra();
-    const memory = await mastra.getAgent('postiz').getMemory();
-    const list = await memory.listThreads({
-      filter: { resourceId: organization.id },
-      perPage: 100000,
-      page: 0,
-      orderBy: { field: 'createdAt', direction: 'DESC' },
-    });
+    return this._chatThreadsService.list(organization.id);
+  }
 
-    return {
-      threads: list.threads.map((p) => ({
-        id: p.id,
-        title: p.title,
-      })),
-    };
+  @Put('/:thread/title')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async renameThread(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('thread') threadId: string,
+    @Body() body: ChatTitleDto
+  ) {
+    return this._chatThreadsService.rename(
+      organization.id,
+      threadId,
+      body.title
+    );
+  }
+
+  @Put('/:thread/pin')
+  @CheckPolicies([AuthorizationActions.Create, Sections.AI])
+  async pinThread(
+    @GetOrgFromRequest() organization: Organization,
+    @Param('thread') threadId: string,
+    @Body() body: ChatPinDto
+  ) {
+    return this._chatThreadsService.setPinned(
+      organization.id,
+      threadId,
+      body.pinned
+    );
   }
 }

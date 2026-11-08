@@ -55,7 +55,8 @@ const send = async (body: unknown) => {
   capturedContexts.length = 0;
   const controller = new CopilotController(
     {} as any,
-    { mastra: async () => ({}) } as any
+    { mastra: async () => ({}) } as any,
+    {} as unknown as ConstructorParameters<typeof CopilotController>[2]
   );
   await controller.agent({ body } as any, {} as any, { id: 'org-1' } as any);
   expect(capturedContexts).toHaveLength(1);
