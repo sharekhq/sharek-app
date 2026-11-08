@@ -1,21 +1,32 @@
-import { act, ComponentProps, FC, ReactNode, useState } from 'react';
+import { act, ComponentProps, FC, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
+import i18next from 'i18next';
 
-// The calendar's filter bar at 1025px and below (phones and iPads held
-// upright) is upstream's: Day, Week, Month and List in one switcher with a
-// filter button beside it, then the date stepper and Today, every control 44px
-// tall. The customer and channel pickers leave the bar for a "Select Channels"
-// bottom sheet. Above 1025px the bar is today's: the pickers inline, the
-// calendar and list icons, and the 54px rows on touch screens.
+// The calendar's top bar (spec 051, R8, contracts/pages-ui.md's Calendar
+// part). Above 1025px it reads, in order: Today, Previous and Next named for
+// the view, the date in words, the notice while channels are hidden, one
+// segmented control for Day, Week, Month and List, and Create Post. At 1025px
+// and below it is two rows: the Channels chip and Create Post, then Today,
+// Previous, Next, the short date and a view button whose menu offers the four
+// views. The customer picker and the funnel are gone, because the channel
+// list is the calendar's filter now (FR-011).
 //
-// jsdom-like DOMs apply no media queries, so the width rules are pinned by the
+// The test DOM applies no media queries, so the width rules are pinned by the
 // classes that carry them (the emitted CSS is read by tools/tailwind-emit).
+// useT runs on i18next with the real en and ar files, so each case reads the
+// words a user sees, and dayjs follows i18next's language as the app's layout
+// sets it up (html.component.tsx).
 type Customer = { id: string; name: string };
 type Channel = {
   id: string;
+  internalId: string;
   name: string;
   picture: string;
   identifier: string;
+  type: string;
+  disabled: boolean;
   customer: Customer | null;
 };
 
@@ -28,125 +39,158 @@ jest.mock('@gitroom/frontend/components/launches/calendar.context', () => {
   };
 });
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback: string) => fallback,
+  useT:
+    () =>
+    (key: string, defaultValue?: string, values?: Record<string, unknown>) =>
+      mockT(key, defaultValue, values),
 }));
-const mockToast = jest.fn();
-jest.mock('@gitroom/react/toaster/toaster', () => ({
-  useToaster: () => ({ show: mockToast }),
+jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
+  useUser: () => ({ tier: { ai: true } }),
 }));
-// 044's sheet is scenery here: its title, what it holds and its main button.
-jest.mock('@gitroom/frontend/components/ui/bottom.sheet.component', () => ({
-  BottomSheet: ({
-    title,
-    children,
-    button,
-  }: {
-    title: string;
-    children: ReactNode;
-    button?: { label: string; onClick: () => void };
-  }) => (
-    <div data-testid="sheet">
-      <div data-testid="sheet-title">{title}</div>
-      {children}
-      {button && (
-        <button type="button" onClick={button.onClick}>
-          {button.label}
-        </button>
-      )}
-    </div>
-  ),
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  useVariables: () => ({ billingEnabled: true, showUpstreamExtras: false }),
 }));
-jest.mock('@gitroom/react/helpers/safe.image', () => ({
-  __esModule: true,
-  default: () => null,
+// Create Post and Add Channel are scenery: what is under test is where the bar
+// puts them, not what they open.
+jest.mock('@gitroom/frontend/components/launches/new.post', () => ({
+  NewPost: () => <div data-testid="new-post" />,
 }));
+const mockAddProvider = jest.fn();
+jest.mock(
+  '@gitroom/frontend/components/launches/add.provider.component',
+  () => ({
+    AddProviderButton: (props: { update?: () => void }) => {
+      mockAddProvider(props);
+      return <div data-testid="add-provider" />;
+    },
+    useAddProvider: () => () => undefined,
+    CustomVariables: () => null,
+  })
+);
 jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
   __esModule: true,
-  default: () => null,
+  default: ({ src, alt, className }: Record<string, string>) => (
+    <i
+      data-mock="ImageWithFallback"
+      data-src={src}
+      data-alt={alt}
+      className={className}
+    />
+  ),
 }));
-jest.mock(
-  '@gitroom/frontend/components/launches/helpers/use.existing.data',
-  () => ({ useExistingData: () => ({}) })
-);
 
 import { CalendarContext } from '@gitroom/frontend/components/launches/calendar.context';
 import { Filters } from '@gitroom/frontend/components/launches/filters';
-import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+// dayjs takes i18next's language from the layout's listener, with the
+// locales it loads; the Arabic one runs without preParsePostFormat, so its
+// digits stay Latin.
+import '@gitroom/frontend/components/layout/html.component';
 
-// The window, as the media query reports it: 1025px or narrower unless a case
-// grows it, telling the listeners as a browser does (044's phone spec).
-const realMatchMedia = window.matchMedia;
-let smallWindow = true;
-const mediaListeners = new Set<() => void>();
-const resize = async (small: boolean) => {
-  smallWindow = small;
-  await act(async () => {
-    mediaListeners.forEach((listener) => listener());
+const mockT = (
+  key: string,
+  defaultValue?: string,
+  values?: Record<string, unknown>
+) => i18next.t(key, { defaultValue, ...values });
+
+const readLocale = (lng: string) =>
+  JSON.parse(
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        `../../../../../libraries/react-shared-libraries/src/translation/locales/${lng}/translation.json`
+      ),
+      'utf8'
+    )
+  );
+
+beforeAll(async () => {
+  await i18next.init({
+    lng: 'en',
+    resources: {
+      en: { translation: readLocale('en') },
+      ar: { translation: readLocale('ar') },
+    },
   });
-};
+});
 
 const ACME: Customer = { id: 'c1', name: 'Acme' };
 const OTHER: Customer = { id: 'c2', name: 'Other' };
-const channel = (id: string, customer: Customer | null = null): Channel => ({
+const channel = (
+  id: string,
+  customer: Customer | null = null,
+  disabled = false
+): Channel => ({
   id,
+  internalId: `internal-${id}`,
   name: `channel ${id}`,
-  picture: '',
+  picture: `/avatar-${id}.png`,
   identifier: 'x',
+  type: 'social',
+  disabled,
   customer,
 });
-const FIVE = [
+// Ten channels across two customers, one of them disabled.
+const TEN = [
   channel('a', ACME),
   channel('b', ACME),
   channel('c', ACME),
   channel('d', OTHER),
   channel('e', OTHER),
+  channel('f'),
+  channel('g'),
+  channel('h'),
+  channel('i'),
+  channel('j', null, true),
 ];
+// Every channel's id but these.
+const allBut = (...hidden: string[]) =>
+  TEN.map(({ id }) => id).filter((id) => !hidden.includes(id));
 
 const mockSetFilters = jest.fn();
-// Every channel selection the filters hand the calendar, in order.
+const mockSetListState = jest.fn();
+const mockSetListPage = jest.fn();
+const mockOpenChannels = jest.fn();
+const mockUpdate = jest.fn();
+// Every channel selection the bar hands the calendar, in order.
 const picks: Array<string[] | null> = [];
 
 type Start = {
   display?: string;
   startDate?: string;
   endDate?: string;
-  customer?: string | null;
   integrations?: Channel[];
   selectedChannels?: string[] | null;
+  listPage?: number;
   listTotalPages?: number;
 };
 
 // The calendar's context, holding the channel selection in state as the real
-// provider does; everything else is fixed for the mount.
+// provider does, and the page's open state for the channel sheet; everything
+// else is fixed for the mount.
 const Harness: FC<{ start: Start }> = ({ start }) => {
   const [selectedChannels, setSelectedChannels] = useState<string[] | null>(
     start.selectedChannels ?? null
   );
-  const [customer, setCustomer] = useState<string | null>(
-    start.customer ?? null
-  );
+  const [channelsOpen, setChannelsOpen] = useState(false);
   const calendar = {
     // a week in the past, so no view button is already on its own range
     display: 'week',
     startDate: '2020-01-06',
     endDate: '2020-01-12',
-    integrations: FIVE,
+    integrations: TEN,
+    customer: null,
     listPage: 0,
     listTotalPages: 1,
     listState: 'all',
-    setListState: jest.fn(),
-    setListPage: jest.fn(),
+    setListState: mockSetListState,
+    setListPage: mockSetListPage,
     ...start,
-    customer,
     selectedChannels,
     setSelectedChannels: (next: string[] | null) => {
       picks.push(next);
       setSelectedChannels(next);
     },
-    setFilters: (filters: { customer: string | null }) => {
-      mockSetFilters(filters);
-      setCustomer(filters.customer);
-    },
+    setFilters: mockSetFilters,
   };
   return (
     <CalendarContext.Provider
@@ -156,7 +200,14 @@ const Harness: FC<{ start: Start }> = ({ start }) => {
         >['value']
       }
     >
-      <Filters />
+      <Filters
+        onOpenChannels={() => {
+          mockOpenChannels();
+          setChannelsOpen(true);
+        }}
+        channelsOpen={channelsOpen}
+        update={mockUpdate}
+      />
     </CalendarContext.Provider>
   );
 };
@@ -188,51 +239,65 @@ const byText = (host: HTMLElement, text: string) =>
   Array.from(host.querySelectorAll<HTMLElement>('*')).find(
     (el) => el.children.length === 0 && el.textContent === text
   );
-// A view or state segment: the label, and the element that takes its tap.
+const byLabel = (host: HTMLElement, label: string) =>
+  host.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+const buttons = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('button'));
+// Today, the button that reads it.
+const today = (host: HTMLElement) =>
+  buttons(host).find((b) => b.textContent === 'Today');
+// The four views' buttons in the segmented control above 1025px.
+const viewButtons = (host: HTMLElement) =>
+  buttons(host).filter((b) => b.hasAttribute('aria-pressed'));
+// The view button at 1025px and below, named for the current view.
+const viewButton = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('[aria-haspopup="menu"]')).find(
+    (el) => (el.getAttribute('aria-label') ?? '').startsWith('View: ')
+  );
+const menuItems = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+// The Channels chip, found by its name.
+const chip = (host: HTMLElement) =>
+  buttons(host).find((b) =>
+    (b.getAttribute('aria-label') ?? '').startsWith('Channels: ')
+  );
+// The date as the bar prints it: the wide words and the phone's short form.
+const dates = (host: HTMLElement) => {
+  const spans = Array.from(host.querySelectorAll('span'));
+  return {
+    long: spans.find((s) => s.className === 'mobile:hidden'),
+    short: spans.find((s) => s.className === 'hidden mobile:inline'),
+  };
+};
+// A list-state segment: the label, and the element that takes its tap.
 const segment = (host: HTMLElement, label: string) => {
   const pill = byText(host, label);
   return { pill, target: pill?.parentElement };
 };
-// The filter button that opens the sheet; the inline channel filter above
-// 1025px shares its name, but not its small-screen reveal.
-const filterButton = (host: HTMLElement) =>
-  Array.from(host.querySelectorAll('button')).find(
-    (b) =>
-      (b.getAttribute('aria-label') ?? '').startsWith('Select Channels') &&
-      classes(b).includes('mobile:flex')
-  );
-const sheet = (host: HTMLElement) =>
-  host.querySelector<HTMLElement>('[data-testid="sheet"]');
 // The date and pager arrows are drawn by these two paths.
 const arrows = (host: HTMLElement) =>
   Array.from(
     host.querySelectorAll(
       'path[d="M6.5 11L1.5 6L6.5 1"], path[d="M1.5 11L6.5 6L1.5 1"]'
     )
-  ).map((path) => path.closest('svg')!.parentElement as HTMLElement);
-// The calendar and list icon pair beside the switcher above 1025px.
-const iconPair = (host: HTMLElement) =>
-  host.querySelector('path[d^="M15.75 7.41667"]')?.closest('svg')?.parentElement
-    ?.parentElement as HTMLElement | undefined;
+  ).map((p) => p.closest('svg')!.parentElement as HTMLElement);
+const count = (host: HTMLElement, id: string) =>
+  host.querySelectorAll(`[data-testid="${id}"]`).length;
 const lastFilters = () =>
   mockSetFilters.mock.calls[mockSetFilters.mock.calls.length - 1]?.[0];
+// `b` comes after `a` in the document.
+const follows = (a: Element, b: Element) =>
+  !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+const FOCUS_RING = ['focus-visible:ring-2', 'focus-visible:ring-brand'];
 
-beforeEach(() => {
+beforeEach(async () => {
   mockSetFilters.mockClear();
-  mockToast.mockClear();
+  mockSetListState.mockClear();
+  mockSetListPage.mockClear();
+  mockOpenChannels.mockClear();
+  mockAddProvider.mockClear();
   picks.length = 0;
-  smallWindow = true;
-  mediaListeners.clear();
-  window.matchMedia = ((query: string) => ({
-    get matches() {
-      return smallWindow && query === MOBILE_QUERY;
-    },
-    media: query,
-    addEventListener: (_: string, listener: () => void) =>
-      mediaListeners.add(listener),
-    removeEventListener: (_: string, listener: () => void) =>
-      mediaListeners.delete(listener),
-  })) as unknown as typeof window.matchMedia;
+  await i18next.changeLanguage('en');
 });
 
 afterEach(() => {
@@ -240,105 +305,454 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
-  window.matchMedia = realMatchMedia;
 });
 
-describe('the view switcher at 1025px and below', () => {
+describe('the top bar above 1025px', () => {
+  it('reads Today, Previous, Next, the date, the view control and Create Post, in that order', async () => {
+    const host = await mount({
+      startDate: '2026-11-09',
+      endDate: '2026-11-15',
+      selectedChannels: allBut('b'),
+    });
+    const notice = byText(host, 'Show all')!;
+    const order = [
+      today(host),
+      byLabel(host, 'Previous week'),
+      byLabel(host, 'Next week'),
+      dates(host).long,
+      notice,
+      ...viewButtons(host),
+      host.querySelector('[data-testid="new-post"]'),
+    ];
+
+    order.forEach((node) => expect(node).toBeTruthy());
+    order
+      .slice(1)
+      .forEach((node, index) =>
+        expect(follows(order[index]!, node!)).toBe(true)
+      );
+  });
+
   it.each([
-    ['Day', 'day'],
-    ['Week', 'week'],
-    ['Month', 'month'],
-    ['List', 'list'],
-  ])('offers %s, which opens that view', async (label, view) => {
+    ['day', '2020-01-06', '2020-01-06', 'Previous day', 'Next day'],
+    ['week', '2020-01-06', '2020-01-12', 'Previous week', 'Next week'],
+    ['month', '2020-01-01', '2020-01-31', 'Previous month', 'Next month'],
+  ])(
+    'names Previous and Next for the %s view, as buttons',
+    async (display, startDate, endDate, previous, next) => {
+      const host = await mount({ display, startDate, endDate });
+
+      [previous, next].forEach((label) => {
+        const button = byLabel(host, label);
+        expect(button?.tagName).toBe('BUTTON');
+        expect(button!.getAttribute('type')).toBe('button');
+        expect(classes(button)).toEqual(expect.arrayContaining(FOCUS_RING));
+      });
+    }
+  );
+
+  it('steps a week back and forward from Previous and Next', async () => {
     const host = await mount();
-    const { pill } = segment(host, label);
-    expect(pill).toBeDefined();
 
-    await click(pill!);
-
-    expect(lastFilters()?.display).toBe(view);
-  });
-
-  it('shows List in the switcher only below 1025px, and the icon pair only above', async () => {
-    const host = await mount();
-
-    expect(classes(segment(host, 'List').target)).toEqual(
-      expect.arrayContaining(['hidden', 'mobile:flex'])
+    await click(byLabel(host, 'Previous week')!);
+    expect(lastFilters()).toEqual(
+      expect.objectContaining({
+        startDate: '2019-12-30',
+        endDate: '2020-01-05',
+        display: 'week',
+      })
     );
-    expect(iconPair(host)).toBeDefined();
-    expect(classes(iconPair(host))).toContain('mobile:hidden');
+
+    await click(byLabel(host, 'Next week')!);
+    expect(lastFilters()).toEqual(
+      expect.objectContaining({ startDate: '2020-01-13', display: 'week' })
+    );
   });
 
-  it('opens the week grid from the calendar icon in the list view', async () => {
-    const host = await mount({ display: 'list' });
-    const calendarIcon = host
-      .querySelector('path[d^="M15.75 7.41667"]')!
-      .closest('svg')!.parentElement!;
+  it('makes Today a button with a focus ring', async () => {
+    const host = await mount();
 
-    await click(calendarIcon);
+    expect(today(host)).toBeDefined();
+    expect(today(host)!.getAttribute('type')).toBe('button');
+    expect(classes(today(host))).toEqual(expect.arrayContaining(FOCUS_RING));
+  });
+
+  it.each([
+    ['week', '2026-11-09', '2026-11-15', '9 – 15 November 2026'],
+    ['week', '2026-11-30', '2026-12-06', '30 November – 6 December 2026'],
+    ['week', '2025-12-29', '2026-01-04', '29 December 2025 – 4 January 2026'],
+    ['day', '2026-11-11', '2026-11-11', 'Wednesday, 11 November 2026'],
+    ['month', '2026-11-01', '2026-11-30', 'November 2026'],
+  ])(
+    'reads the %s from %s to %s in words: %s',
+    async (display, startDate, endDate, words) => {
+      const host = await mount({ display, startDate, endDate });
+
+      expect(dates(host).long?.textContent).toBe(words);
+    }
+  );
+
+  it('reads the week in Arabic words with Latin digits', async () => {
+    await i18next.changeLanguage('ar');
+    const host = await mount({
+      startDate: '2026-11-09',
+      endDate: '2026-11-15',
+    });
+
+    expect(dates(host).long?.textContent).toBe('9 – 15 نوفمبر 2026');
+    expect(dates(host).long?.textContent).not.toMatch(/[٠-٩]/);
+  });
+
+  describe('the notice', () => {
+    it('says how many channels show while one is hidden, and Show all shows every channel', async () => {
+      const host = await mount({ selectedChannels: allBut('b') });
+      const showAll = byText(host, 'Show all')!;
+      const notice = showAll.parentElement!;
+
+      expect(showAll.tagName).toBe('BUTTON');
+      expect(showAll.getAttribute('type')).toBe('button');
+      expect(classes(showAll)).toEqual(expect.arrayContaining(FOCUS_RING));
+      expect(notice.textContent).toBe('9 of 10 channels·Show all');
+      expect(classes(notice)).toContain('mobile:hidden');
+
+      await click(showAll);
+
+      expect(picks).toEqual([null]);
+      expect(byText(host, 'Show all')).toBeUndefined();
+    });
+
+    it('reads in Arabic', async () => {
+      await i18next.changeLanguage('ar');
+      const host = await mount({ selectedChannels: allBut('b') });
+
+      expect(byText(host, 'عرض الكل')!.parentElement!.textContent).toBe(
+        'القنوات الظاهرة: 9 من 10·عرض الكل'
+      );
+    });
+
+    it.each([
+      ['every channel shows', null],
+      ['the array holds every usable channel', allBut('j')],
+      ['a deleted channel’s id is left in the array', [...allBut(), 'gone']],
+    ])('is not there when %s', async (_, selectedChannels) => {
+      const host = await mount({ selectedChannels });
+
+      expect(byText(host, 'Show all')).toBeUndefined();
+      expect(host.textContent).not.toMatch(/of 10 channels/);
+    });
+  });
+
+  describe('the view control', () => {
+    it('is one segmented control of Day, Week, Month and List, the chosen one pressed and heavier', async () => {
+      const host = await mount();
+      const views = viewButtons(host);
+
+      expect(views.map((b) => b.textContent)).toEqual([
+        'Day',
+        'Week',
+        'Month',
+        'List',
+      ]);
+      expect(views.map((b) => b.getAttribute('aria-pressed'))).toEqual([
+        'false',
+        'true',
+        'false',
+        'false',
+      ]);
+      views.forEach((b) => {
+        expect(b.getAttribute('type')).toBe('button');
+        expect(classes(b)).toEqual(expect.arrayContaining(FOCUS_RING));
+        expect(classes(b).includes('font-[600]')).toBe(
+          b.textContent === 'Week'
+        );
+      });
+      const control = views[0].parentElement!;
+      expect(views.every((b) => b.parentElement === control)).toBe(true);
+      expect(classes(control)).toContain('mobile:hidden');
+    });
+
+    it.each([
+      ['Day', 'day'],
+      ['Week', 'week'],
+      ['Month', 'month'],
+      ['List', 'list'],
+    ])('opens the %s view', async (label, view) => {
+      const host = await mount();
+
+      await click(viewButtons(host).find((b) => b.textContent === label)!);
+
+      expect(lastFilters()?.display).toBe(view);
+    });
+
+    it('stays in the List view with List pressed, and opens the week from Week', async () => {
+      const host = await mount({ display: 'list' });
+      const views = viewButtons(host);
+
+      expect(classes(views[0].parentElement)).not.toContain('hidden');
+      expect(
+        views.find((b) => b.getAttribute('aria-pressed') === 'true')
+          ?.textContent
+      ).toBe('List');
+
+      await click(views.find((b) => b.textContent === 'Week')!);
+
+      expect(lastFilters()?.display).toBe('week');
+    });
+
+    it('has no calendar and list icon pair', async () => {
+      const host = await mount();
+
+      expect(host.querySelector('path[d^="M15.75 7.41667"]')).toBeNull();
+      expect(host.querySelector('path[d^="M17.5 10L7.5 10"]')).toBeNull();
+    });
+  });
+
+  it('ends with Create Post, and shows none with no channels', async () => {
+    const host = await mount();
+    const create = host.querySelector('[data-testid="new-post"]')!;
+
+    expect(count(host, 'new-post')).toBe(1);
+    viewButtons(host).forEach((b) => expect(follows(b, create)).toBe(true));
+
+    const empty = await mount({ integrations: [] });
+    expect(count(empty, 'new-post')).toBe(0);
+  });
+
+  it('has no customer picker and no filter button', async () => {
+    const host = await mount({ selectedChannels: allBut('b') });
+
+    expect(
+      host.querySelector('[data-tooltip-content="Select Customer"]')
+    ).toBeNull();
+    expect(host.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(
+      buttons(host).filter((b) =>
+        (b.getAttribute('aria-label') ?? '').startsWith('Select Channels')
+      )
+    ).toHaveLength(0);
+    // the funnel's path, ui/icons' FilterIcon
+    expect(host.querySelector('path[d^="M2.5 4.16667H17.5"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/Select Customer|Select Channels/);
+  });
+});
+
+describe('the first row at 1025px and below', () => {
+  it('opens with the Channels chip: three overlapped pictures and the count, named for it', async () => {
+    const host = await mount();
+    const button = chip(host);
+
+    expect(button).toBeDefined();
+    expect(button!.getAttribute('type')).toBe('button');
+    expect(button!.getAttribute('aria-label')).toBe('Channels: 10');
+    expect(button!.getAttribute('aria-expanded')).toBe('false');
+    expect(classes(button)).toEqual(
+      expect.arrayContaining([
+        'hidden',
+        'mobile:flex',
+        'mobile:order-1',
+        'h-[44px]',
+        ...FOCUS_RING,
+      ])
+    );
+    const pictures = Array.from(
+      button!.querySelectorAll('[data-mock="ImageWithFallback"]')
+    );
+    expect(pictures.map((p) => p.getAttribute('data-src'))).toEqual([
+      '/avatar-a.png',
+      '/avatar-b.png',
+      '/avatar-c.png',
+    ]);
+    pictures.forEach((p) => expect(p.getAttribute('data-alt')).toBe(''));
+    // overlapped from the start edge, which is the right in Arabic
+    expect(classes(pictures[0])).not.toContain('-ms-[10px]');
+    expect(classes(pictures[1])).toContain('-ms-[10px]');
+    expect(classes(pictures[2])).toContain('-ms-[10px]');
+    expect(button!.textContent).toBe('10');
+  });
+
+  it('reads shown of total while channels are hidden', async () => {
+    const host = await mount({ selectedChannels: allBut('b') });
+
+    expect(chip(host)!.getAttribute('aria-label')).toBe(
+      'Channels: 9 of 10 shown'
+    );
+    expect(chip(host)!.textContent).toBe('9/10');
+  });
+
+  it('is named in Arabic', async () => {
+    await i18next.changeLanguage('ar');
+    const host = await mount({ selectedChannels: allBut('b') });
+    const named = (label: string) =>
+      buttons(host).find((b) => b.getAttribute('aria-label') === label);
+
+    expect(named('القنوات الظاهرة: 9 من 10')).toBeDefined();
+    expect(named('القنوات الظاهرة: 9 من 10')!.textContent).toBe('9/10');
+  });
+
+  it('opens the channel sheet from the chip', async () => {
+    const host = await mount();
+
+    await click(chip(host)!);
+
+    expect(mockOpenChannels).toHaveBeenCalledTimes(1);
+    expect(chip(host)!.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('puts Create Post beside the chip, before the date row', async () => {
+    const host = await mount();
+    const create = host.querySelector(
+      '[data-testid="new-post"]'
+    )!.parentElement;
+    const dateRow = today(host)!.parentElement;
+
+    expect(classes(create)).toEqual(
+      expect.arrayContaining(['mobile:order-2', 'mobile:flex-1'])
+    );
+    expect(classes(dateRow)).toEqual(
+      expect.arrayContaining(['mobile:order-3', 'mobile:basis-full'])
+    );
+    expect(count(host, 'add-provider')).toBe(0);
+  });
+
+  it('offers Add Channel in the chip’s place with no channel yet, and no Create Post', async () => {
+    const host = await mount({ integrations: [] });
+    const add = host.querySelector('[data-testid="add-provider"]');
+
+    expect(chip(host)).toBeUndefined();
+    expect(add).not.toBeNull();
+    expect(classes(add!.parentElement)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:flex', 'mobile:order-1'])
+    );
+    expect(mockAddProvider).toHaveBeenLastCalledWith({ update: mockUpdate });
+    expect(count(host, 'new-post')).toBe(0);
+  });
+});
+
+describe('the second row at 1025px and below', () => {
+  it('holds Today, Previous, Next, the short date and the view button, in that order', async () => {
+    const host = await mount();
+    const row = today(host)!.parentElement!;
+    const order = [
+      today(host),
+      byLabel(host, 'Previous week'),
+      byLabel(host, 'Next week'),
+      dates(host).short,
+      viewButton(host),
+    ];
+
+    order.forEach((node) => {
+      expect(node).toBeTruthy();
+      expect(row.contains(node!)).toBe(true);
+    });
+    order
+      .slice(1)
+      .forEach((node, index) =>
+        expect(follows(order[index]!, node!)).toBe(true)
+      );
+  });
+
+  it('names the view button for the view and opens a menu of the four views', async () => {
+    const host = await mount();
+    const button = viewButton(host)!;
+
+    expect(button).toBeDefined();
+    expect(button.getAttribute('aria-label')).toBe('View: Week');
+    expect(button.textContent).toBe('Week');
+    expect(classes(button)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:flex', ...FOCUS_RING])
+    );
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+
+    await click(button);
+
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(menuItems(host).map((item) => item.textContent)).toEqual([
+      'Day',
+      'Week',
+      'Month',
+      'List',
+    ]);
+
+    await click(menuItems(host).find((item) => item.textContent === 'Month')!);
+
+    expect(lastFilters()?.display).toBe('month');
+    expect(menuItems(host)).toHaveLength(0);
+  });
+
+  it('names the view button in Arabic', async () => {
+    await i18next.changeLanguage('ar');
+    const host = await mount();
+
+    expect(byLabel(host, 'العرض: أسبوع')?.textContent).toBe('أسبوع');
+  });
+
+  it('keeps the view button in the List view, so the list can be left', async () => {
+    const host = await mount({ display: 'list' });
+    const button = viewButton(host)!;
+
+    expect(button).toBeDefined();
+    expect(button.getAttribute('aria-label')).toBe('View: List');
+
+    await click(button);
+    await click(menuItems(host).find((item) => item.textContent === 'Week')!);
 
     expect(lastFilters()?.display).toBe('week');
   });
-});
 
-describe('the date at 1025px and below', () => {
-  it('reads short for a day, and long above 1025px', async () => {
-    const host = await mount({
-      display: 'day',
-      startDate: '2026-10-28',
-      endDate: '2026-10-28',
-    });
-    const spans = Array.from(host.querySelectorAll('span'));
-    const long = spans.find((s) => s.className === 'mobile:hidden');
-    const short = spans.find((s) => s.className === 'hidden mobile:inline');
+  it.each([
+    ['en', 'Wed, 11 Nov', 'Wednesday, 11 November 2026'],
+    ['ar', '11 نوفمبر', 'الأربعاء, 11 نوفمبر 2026'],
+  ])(
+    'reads short for a day in %s, and in words above 1025px',
+    async (lng, short, long) => {
+      await i18next.changeLanguage(lng);
+      const host = await mount({
+        display: 'day',
+        startDate: '2026-11-11',
+        endDate: '2026-11-11',
+      });
 
-    expect(long?.textContent).toMatch(/^Wednesday \(/);
-    expect(short?.textContent).toMatch(/^Wed \(/);
-    expect(short?.textContent).not.toMatch(/^Wednesday/);
-  });
+      expect(dates(host).short?.textContent).toBe(short);
+      expect(dates(host).long?.textContent).toBe(long);
+    }
+  );
 
   it.each(['week', 'month'])(
-    'reads the same at every width for a %s',
+    'reads the same at every width for a %s, cut with an ellipsis',
     async (display) => {
       const host = await mount({ display });
-      const spans = Array.from(host.querySelectorAll('span'));
-      const long = spans.find((s) => s.className === 'mobile:hidden');
-      const short = spans.find((s) => s.className === 'hidden mobile:inline');
+      const { long, short } = dates(host);
 
       expect(long).toBeDefined();
       expect(short?.textContent).toBe(long?.textContent);
+      expect(classes(short!.parentElement)).toContain('mobile:truncate');
     }
   );
 });
 
 // One control height at 1025px and below: 44px, with 44px-wide arrows. Each
-// segment takes taps across the whole row while its tinted pill keeps
-// upstream's look. Above 1025px the 54px rows on touch screens stay.
+// list-state segment takes taps across the whole row while its tinted pill
+// keeps upstream's look. Above 1025px the 54px rows on touch screens stay.
 describe('the 44px rule at 1025px and below', () => {
-  it('makes the switcher, the date box and Today 44px tall, and the arrows 44px wide', async () => {
+  it('makes Today, the view button and the arrows 44px tall, and the arrows 44px wide', async () => {
     const host = await mount();
-    const switcher = segment(host, 'Week').target!.parentElement!;
     const [previous, next] = arrows(host);
-    const dateBox = previous.parentElement!;
-    const today = byText(host, 'Today')!.parentElement!;
 
-    expect(classes(switcher)).toEqual(
-      expect.arrayContaining([
-        'mobile:h-[44px]',
-        'mobile:min-h-[44px]',
-        'coarse:min-h-[54px]',
-      ])
+    expect(previous).toBe(byLabel(host, 'Previous week'));
+    expect(next).toBe(byLabel(host, 'Next week'));
+    [today(host), previous, next].forEach((control) =>
+      expect(classes(control)).toEqual(
+        expect.arrayContaining(['mobile:h-[44px]', 'coarse:h-[54px]'])
+      )
     );
-    expect(classes(dateBox)).toEqual(
-      expect.arrayContaining(['mobile:h-[44px]', 'coarse:h-[54px]'])
-    );
-    expect(classes(today)).toEqual(
-      expect.arrayContaining(['mobile:h-[44px]', 'coarse:h-[54px]'])
-    );
+    expect(classes(viewButton(host))).toContain('h-[44px]');
     [previous, next].forEach((arrow) =>
       expect(classes(arrow)).toEqual(
         expect.arrayContaining(['mobile:w-[44px]', 'coarse:min-w-[44px]'])
       )
+    );
+    expect(classes(viewButtons(host)[0].parentElement)).toContain(
+      'coarse:min-h-[54px]'
     );
   });
 
@@ -365,224 +779,33 @@ describe('the 44px rule at 1025px and below', () => {
     );
   });
 
-  it.each([
-    [{}, 'Week'],
-    [{ display: 'list' }, 'All'],
-  ])(
-    'takes a segment’s tap across the full row, with the fill on its pill (%p)',
-    async (start, label) => {
-      const host = await mount(start);
-      const { pill, target } = segment(host, label);
+  it('takes a list state’s tap across the full row, with the fill on its pill', async () => {
+    const host = await mount({ display: 'list' });
+    const { pill, target } = segment(host, 'All');
 
-      expect(classes(target)).toContain('mobile:h-full');
-      expect(classes(target)).not.toContain('bg-brandSoft');
-      expect(classes(pill)).toEqual(
-        expect.arrayContaining(['text-brandText', 'bg-brandSoft'])
-      );
-    }
-  );
-});
-
-describe('the filter button at 1025px and below', () => {
-  it('is shown for two channels or more, not for one', async () => {
-    const single = await mount({ integrations: [channel('a')] });
-    const two = await mount({ integrations: [channel('a'), channel('b')] });
-
-    expect(filterButton(single)).toBeUndefined();
-    expect(filterButton(two)).toBeDefined();
-  });
-
-  it('is a named button with its state and a focus ring', async () => {
-    const host = await mount();
-    const button = filterButton(host);
-
-    expect(button).toBeDefined();
-    expect(button!.getAttribute('type')).toBe('button');
-    expect(button!.getAttribute('aria-label')).toBe('Select Channels');
-    expect(button!.getAttribute('aria-expanded')).toBe('false');
-    expect(classes(button)).toEqual(
-      expect.arrayContaining([
-        'hidden',
-        'mobile:flex',
-        'w-[44px]',
-        'h-[44px]',
-        'focus-visible:ring-2',
-        'focus-visible:ring-brand',
-      ])
-    );
-  });
-
-  it('says the filter is on, in the brand colour with a dot', async () => {
-    const host = await mount({ selectedChannels: ['a', 'b'] });
-    const button = filterButton(host);
-
-    expect(button).toBeDefined();
-    expect(button!.getAttribute('aria-label')).toBe(
-      'Select Channels (filter on)'
-    );
-    expect(classes(button)).toEqual(
-      expect.arrayContaining(['border-brand', 'text-brandText'])
-    );
-    expect(button!.querySelector('.bg-brand')).not.toBeNull();
-    expect(host.innerHTML).not.toMatch(/#612BD3/i);
-  });
-});
-
-describe('the Select Channels sheet', () => {
-  const open = async (start: Start = {}) => {
-    const host = await mount(start);
-    expect(filterButton(host)).toBeDefined();
-    await click(filterButton(host)!);
-    return host;
-  };
-  const radios = (host: HTMLElement) =>
-    Array.from(host.querySelectorAll<HTMLElement>('[role="radio"]'));
-  const row = (host: HTMLElement, name: string) =>
-    Array.from(host.querySelectorAll<HTMLElement>('[role="checkbox"]')).find(
-      (el) => el.textContent === name
-    );
-
-  it('opens titled Select Channels, with the customers above the channels', async () => {
-    const host = await open();
-
-    expect(sheet(host)).not.toBeNull();
-    expect(filterButton(host)!.getAttribute('aria-expanded')).toBe('true');
-    expect(host.querySelector('[data-testid="sheet-title"]')!.textContent).toBe(
-      'Select Channels'
-    );
-    const text = sheet(host)!.textContent!;
-    expect(text.indexOf('Acme')).toBeGreaterThan(-1);
-    expect(text.indexOf('Acme')).toBeLessThan(text.indexOf('channel a'));
-    expect(radios(host).map((r) => r.textContent)).toEqual(['Acme', 'Other']);
-    FIVE.forEach(({ name }) => expect(row(host, name)).toBeDefined());
-  });
-
-  it('picks a customer as the inline selector does, with its toast', async () => {
-    const host = await open();
-
-    await click(radios(host)[1]);
-
-    expect(lastFilters()?.customer).toBe('c2');
-    expect(mockToast).toHaveBeenCalledWith(
-      'Customer socials selected',
-      'success'
-    );
-  });
-
-  it('unticks a channel, and Select all brings every channel back', async () => {
-    const host = await open();
-
-    await click(row(host, 'channel b')!);
-    expect(picks).toEqual([['a', 'c', 'd', 'e']]);
-
-    await click(byText(host, 'Select all')!);
-    expect(picks[picks.length - 1]).toBeNull();
-  });
-
-  it('closes on Done, and the filters stay', async () => {
-    const host = await open();
-    await click(row(host, 'channel b')!);
-
-    await click(byText(host, 'Done')!);
-
-    expect(sheet(host)).toBeNull();
-    expect(filterButton(host)!.getAttribute('aria-label')).toBe(
-      'Select Channels (filter on)'
-    );
-  });
-
-  it('marks the picked customer in the brand colour', async () => {
-    const host = await open({ customer: 'c1' });
-    const circle = (radio: HTMLElement) =>
-      radio.lastElementChild as HTMLElement;
-    const [acme, other] = radios(host);
-
-    expect(classes(circle(acme))).toContain('border-brand');
-    expect(classes(circle(acme).firstElementChild)).toContain('bg-brand');
-    expect(classes(circle(other))).toContain('border-line');
-    expect(circle(other).firstElementChild).toBeNull();
-    expect(sheet(host)!.innerHTML).not.toMatch(/#FC69FF|\/20\b/i);
-  });
-
-  // A keyboard reaches each customer, and Space or Enter picks one: a browser
-  // turns both keys on a native button into its click, which happy-dom does
-  // not emulate, so the click stands in for them here and the keys are walked
-  // on a device (W-15).
-  it('makes each customer a radio button a keyboard can pick', async () => {
-    const host = await open({ customer: 'c1' });
-    const group = host.querySelector('[role="radiogroup"]');
-
-    expect(group).not.toBeNull();
-    expect(group!.getAttribute('aria-label')).toBe('Customers');
-    expect(radios(host).every((r) => group!.contains(r))).toBe(true);
-    radios(host).forEach((radio) => {
-      expect(radio.tagName).toBe('BUTTON');
-      expect(radio.getAttribute('type')).toBe('button');
-      expect(radio.hasAttribute('disabled')).toBe(false);
-      expect(radio.hasAttribute('tabindex')).toBe(false);
-      expect(classes(radio)).toEqual(
-        expect.arrayContaining([
-          'min-h-[44px]',
-          'focus-visible:ring-2',
-          'focus-visible:ring-brand',
-        ])
-      );
-    });
-    expect(radios(host).map((r) => r.getAttribute('aria-checked'))).toEqual([
-      'true',
-      'false',
-    ]);
-
-    await click(radios(host)[1]);
-
-    expect(radios(host).map((r) => r.getAttribute('aria-checked'))).toEqual([
-      'false',
-      'true',
-    ]);
-    expect(lastFilters()?.customer).toBe('c2');
-    expect(mockToast).toHaveBeenCalledWith(
-      'Customer socials selected',
-      'success'
+    expect(classes(target)).toContain('mobile:h-full');
+    expect(classes(target)).not.toContain('bg-brandSoft');
+    expect(classes(pill)).toEqual(
+      expect.arrayContaining(['text-brandText', 'bg-brandSoft'])
     );
   });
 });
 
-describe('the Select Channels sheet and the wide layout', () => {
-  const open = async (start: Start = {}) => {
-    const host = await mount(start);
-    expect(filterButton(host)).toBeDefined();
-    await click(filterButton(host)!);
-    return host;
-  };
-  // The inline customer selector above 1025px, always in the page.
-  const inlineCustomer = (host: HTMLElement) =>
-    host.querySelector<HTMLElement>(
-      '[data-tooltip-content="Select Customer"]'
-    )!;
+describe('the List view', () => {
+  it('shows the list states and the pager in place of the date controls', async () => {
+    const host = await mount({ display: 'list', listTotalPages: 3 });
 
-  // An iPad turned to landscape (820 to 1180) with the sheet open.
-  it('closes when the window grows past 1025px', async () => {
-    const host = await open();
-    expect(sheet(host)).not.toBeNull();
-
-    await resize(false);
-
-    expect(sheet(host)).toBeNull();
-    expect(filterButton(host)!.getAttribute('aria-expanded')).toBe('false');
-  });
-
-  it('shows the customer picked in the sheet on the inline selector too', async () => {
-    const host = await open({ customer: 'c1' });
-    expect(inlineCustomer(host).textContent).toContain('Acme');
-
-    await click(
-      Array.from(host.querySelectorAll('[role="radio"]')).find(
-        (radio) => radio.textContent === 'Other'
-      )!
+    expect(today(host)).toBeUndefined();
+    expect(byLabel(host, 'Previous week')).toBeNull();
+    expect(byText(host, 'Page 1 of 3')).toBeDefined();
+    ['All', 'Scheduled', 'Draft', 'Published'].forEach((label) =>
+      expect(segment(host, label).pill).toBeDefined()
     );
-    await click(byText(host, 'Done')!);
-    await resize(false);
 
-    expect(inlineCustomer(host).textContent).toContain('Other');
+    await click(segment(host, 'Scheduled').target!);
+    expect(mockSetListState).toHaveBeenCalledWith('scheduled');
+
+    await click(arrows(host)[1]);
+    expect(mockSetListPage).toHaveBeenCalledWith(1);
   });
 });
