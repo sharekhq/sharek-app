@@ -424,6 +424,9 @@ textarea::placeholder {
   top: 50%;
   transform: translate(-50%, -50%);
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   opacity: 30%;
   font-size: 14px;
 }

@@ -1113,7 +1113,11 @@ export const CalendarColumn: FC<{
             display === 'month' && 'mobile:before:hidden'
           )}
           // col-calendar's hover hint draws these words (global.scss)
-          data-hint={t('date_passed', 'Date passed')}
+          data-hint={
+            isBeforeNow && postList.length === 0
+              ? t('date_passed', 'Date passed')
+              : undefined
+          }
         >
           {loading && (
             <div className="h-full w-full p-[5px] animate-pulse absolute left-0 top-0 z-[50]">
