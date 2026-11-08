@@ -76,6 +76,11 @@ const STRINGS = [
   ['calendar_state_scheduled', 'Scheduled', 'مجدول'],
   ['calendar_state_failed', 'Failed', 'فشل'],
   ['draft', 'Draft', 'مسودة'],
+  // The List view's state segments (filters.tsx), Draft's beside them; in en
+  // and ar alone until walk 2.
+  ['all', 'All', 'الكل'],
+  ['scheduled', 'Scheduled', 'مجدول'],
+  ['published', 'Published', 'منشور'],
 ] as const;
 
 // C3 keeps today's chip label while nothing is hidden. No document gives its
