@@ -276,6 +276,7 @@ export const LaunchesComponent = () => {
               );
               return (
                 <Menu
+                  label={t('channel_menu', 'Channel menu')}
                   canChangeProfilePicture={integration.changeProfilePicture}
                   canChangeNickName={integration.changeNickName}
                   refreshChannel={reconnectChannel}
