@@ -83,6 +83,35 @@ const STRINGS = [
   ['published', 'Published', 'منشور'],
 ] as const;
 
+// The status chips and the List view's segments describe a post, which es, fr
+// and pt name with a feminine noun (publicación, publication, postagem), so
+// their words agree with it. Failed is a noun in fr and pt (Échec, Falha) and
+// agrees with nothing. ru keeps the neuter short form, the impersonal one a
+// Russian status label takes (a sent message's Отправлено), not the masculine
+// of пост.
+const AGREEING = [
+  ['es', 'calendar_state_published', 'Publicada'],
+  ['es', 'calendar_state_scheduled', 'Programada'],
+  ['es', 'calendar_state_failed', 'Fallida'],
+  ['es', 'all', 'Todas'],
+  ['es', 'scheduled', 'Programada'],
+  ['es', 'published', 'Publicada'],
+  ['fr', 'calendar_state_published', 'Publiée'],
+  ['fr', 'calendar_state_scheduled', 'Planifiée'],
+  ['fr', 'all', 'Toutes'],
+  ['fr', 'scheduled', 'Planifiée'],
+  ['fr', 'published', 'Publiée'],
+  ['pt', 'calendar_state_published', 'Publicada'],
+  ['pt', 'calendar_state_scheduled', 'Agendada'],
+  ['pt', 'all', 'Todas'],
+  ['pt', 'scheduled', 'Agendada'],
+  ['pt', 'published', 'Publicada'],
+  ['ru', 'calendar_state_published', 'Опубликовано'],
+  ['ru', 'calendar_state_scheduled', 'Запланировано'],
+  ['ru', 'scheduled', 'Запланировано'],
+  ['ru', 'published', 'Опубликовано'],
+] as const;
+
 // C3 keeps today's chip label while nothing is hidden. No document gives its
 // Arabic, so only the English is pinned.
 const CHIP_COUNT = ['channel_list_with_count', 'Channels: {{count}}'] as const;
@@ -155,6 +184,13 @@ describe('channel panel locale keys', () => {
     expect(locales.en[key]).toBe(en);
     expect(locales.ar[key]).toBe(ar);
   });
+
+  it.each(AGREEING)(
+    'reads %s.%s as "%s", agreeing with a post',
+    (lng, key, word) => {
+      expect(locales[lng][key]).toBe(word);
+    }
+  );
 
   it('reads channel_list_with_count as C3 gives it in en, translated in ar', () => {
     const [key, en] = CHIP_COUNT;
