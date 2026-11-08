@@ -376,6 +376,64 @@ test("the post card's preview aligns to the start of its own text", async () => 
   );
 });
 
+// The week view from 1026px to 1279px (calendar.tsx's WeekView and
+// WeekNowLine): each header's short weekday over its day number, and the
+// phone's 72px hour column, its labels 12px on one line with 4px sides.
+const NARROW_WEEK = '[@media(min-width:1026px)_and_(max-width:1279px)]:';
+
+test('the narrow week emits, only between 1026px and 1279px', async () => {
+  await assertEmits(
+    {
+      [`${NARROW_WEEK}hidden`]: [['display', 'none']],
+      [`${NARROW_WEEK}inline`]: [['display', 'inline']],
+      [`${NARROW_WEEK}[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]`]:
+        [['grid-template-columns', '72px repeat(7, minmax(0, 1fr))']],
+      [`${NARROW_WEEK}px-[4px]`]: px('padding', '4px'),
+      [`${NARROW_WEEK}text-[12px]`]: [['font-size', '12px']],
+      [`${NARROW_WEEK}whitespace-nowrap`]: [['white-space', 'nowrap']],
+      [`${NARROW_WEEK}w-[72px]`]: [['width', '72px']],
+    },
+    '(min-width:1026px) and (max-width:1279px)'
+  );
+});
+
+test('the narrow week is emitted after the rules it replaces, and a max-width one would replace the phone’s', async () => {
+  const css = await emit([
+    'hidden',
+    `${NARROW_WEEK}inline`,
+    '[grid-template-columns:136px_repeat(7,_minmax(0,_1fr))]',
+    `${NARROW_WEEK}[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]`,
+    'p-2',
+    'pe-4',
+    `${NARROW_WEEK}px-[4px]`,
+    'text-[14px]',
+    `${NARROW_WEEK}text-[12px]`,
+    'w-[136px]',
+    `${NARROW_WEEK}w-[72px]`,
+    'mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))]',
+    '[@media(max-width:1279px)]:[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]',
+  ]);
+  order(css, 'hidden', `${NARROW_WEEK}inline`);
+  order(
+    css,
+    '[grid-template-columns:136px_repeat(7,_minmax(0,_1fr))]',
+    `${NARROW_WEEK}[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]`
+  );
+  // pe-4 is padding-inline-end; the later physical padding takes its side
+  order(css, 'p-2', `${NARROW_WEEK}px-[4px]`);
+  order(css, 'pe-4', `${NARROW_WEEK}px-[4px]`);
+  order(css, 'text-[14px]', `${NARROW_WEEK}text-[12px]`);
+  order(css, 'w-[136px]', `${NARROW_WEEK}w-[72px]`);
+  // Why a band: an arbitrary variant is emitted after every mobile: rule, so
+  // [@media(max-width:1279px)]: would also replace the phone's 100px columns
+  // and full headers at 1025px and below.
+  order(
+    css,
+    'mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))]',
+    '[@media(max-width:1279px)]:[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]'
+  );
+});
+
 test('the states of the rows and controls emit, on the custom colours too', async () => {
   const table = {
     'focus-visible:ring-2': ring('2px'),

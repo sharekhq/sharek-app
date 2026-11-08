@@ -222,6 +222,16 @@ const byText = (host: HTMLElement, text: string) =>
 // the post's status in words, read out at 1025px and below and hidden above
 const statusName = (card: HTMLElement) =>
   withClass(body(card), 'mobile:sr-only')[0];
+// The week from 1026px to 1279px. A band, not max-width: an arbitrary variant
+// is emitted after every mobile: rule, so a max-width rule would replace the
+// phone's week too (tools/tailwind-emit/channel-panels.test.mjs).
+const NARROW_WEEK = '[@media(min-width:1026px)_and_(max-width:1279px)]:';
+// a week header's full name and date, hidden in that band, and its short
+// weekday and day number, shown in it alone
+const fullForms = (header: HTMLElement) =>
+  withClass(header, `${NARROW_WEEK}hidden`);
+const shortForms = (header: HTMLElement) =>
+  withClass(header, `${NARROW_WEEK}inline`);
 // every class a month chip's status adds at 1025px and below
 const STATUS_CLASSES = [
   'mobile:ring-2',
@@ -276,17 +286,28 @@ describe('the week at 1025px and below', () => {
     );
   });
 
+  // Each header holds both forms, the short one shown from 1026px to 1279px
+  // only (below), so here the full forms carry nothing that hides them and
+  // the short ones nothing that shows them.
   it('writes the full day name and date in every header', async () => {
     const host = await render(<WeekView />);
     const headers = withClass(host, 'cal-weekday', 'z-[20]');
 
     expect(headers).toHaveLength(7);
-    expect(headers[0].textContent).toBe(
-      `Monday${dayjs('2026-10-19').format('L')}`
-    );
-    headers.forEach((header) =>
-      expect(withClass(header, 'hidden', 'mobile:inline')).toEqual([])
-    );
+    expect(fullForms(headers[0]).map((el) => el.textContent)).toEqual([
+      'Monday',
+      dayjs('2026-10-19').format('L'),
+    ]);
+    headers.forEach((header) => {
+      fullForms(header).forEach((el) =>
+        expect(classes(el)).toEqual([`${NARROW_WEEK}hidden`])
+      );
+      expect(shortForms(header)).toHaveLength(2);
+      shortForms(header).forEach((el) =>
+        expect(classes(el)).toEqual(['hidden', `${NARROW_WEEK}inline`])
+      );
+      expect(withClass(header, 'hidden', 'mobile:inline')).toEqual([]);
+    });
   });
 
   it('keeps the hour labels sticky in the 72px column, on one line', async () => {
@@ -355,6 +376,78 @@ describe('the week at 1025px and below', () => {
       );
       expect(statusName(card)).toBeUndefined();
     });
+  });
+});
+
+// From 1026px to 1279px a day column is 58 to 100px wide, and "Wednesday"
+// over "11/11/2026" ran into its neighbours (walk 2; the maintainer approved
+// the narrow-week preview). There each header shows the short weekday over
+// the day number, and the hour column is the phone's: 72px, its labels 12px
+// on one line with 4px sides. At 1280px and up, and at 1025px and below, the
+// week is as it was.
+describe('the week from 1026px to 1279px', () => {
+  it("writes the short weekday over the day number, in the full form's type, with today's mark", async () => {
+    const host = await render(<WeekView />);
+    const headers = withClass(host, 'cal-weekday', 'z-[20]');
+
+    expect(
+      headers.map((header) => shortForms(header).map((el) => el.textContent))
+    ).toEqual(
+      [0, 1, 2, 3, 4, 5, 6].map((index) => {
+        const day = dayjs('2026-10-19').add(index, 'day');
+        return [day.format('ddd'), day.format('D')];
+      })
+    );
+    headers.forEach((header) => {
+      const [name, date] = fullForms(header);
+      const [shortName, number] = shortForms(header);
+      // each form sits in the same row, so it takes the row's type
+      expect(shortName.parentElement).toBe(name.parentElement);
+      expect(number.parentElement).toBe(date.parentElement);
+      expect(classes(name.parentElement)).toEqual(
+        expect.arrayContaining(['text-[14px]', 'font-[600]', 'text-brandText'])
+      );
+      expect(classes(date.parentElement)).toEqual(
+        expect.arrayContaining(['text-[14px]', 'font-[600]'])
+      );
+    });
+    // Wednesday is today: underlined, its date row coloured and dotted
+    const today = shortForms(headers[2])[1].parentElement!;
+    expect(classes(headers[2])).toContain(
+      'shadow-[inset_0_-2px_0_0_var(--brand)]'
+    );
+    expect(classes(today)).toContain('text-newTableTextFocused');
+    expect(withClass(today, 'bg-newTableTextFocused')).toHaveLength(1);
+  });
+
+  it("is the phone's 72px hour column, its labels 12px on one line", async () => {
+    const host = await render(<WeekView />);
+    const grid = withClass(
+      host,
+      '[grid-template-columns:136px_repeat(7,_minmax(0,_1fr))]'
+    )[0];
+    const labels = withClass(host, 'mobile:sticky');
+
+    expect(classes(grid)).toEqual(
+      expect.arrayContaining([
+        `${NARROW_WEEK}[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]`,
+        'mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))]',
+      ])
+    );
+    expect(labels).toHaveLength(24);
+    labels.forEach((label) =>
+      expect(classes(label)).toEqual(
+        expect.arrayContaining([
+          // at 1280px and up, as they were
+          'p-2',
+          'pe-4',
+          'text-[14px]',
+          `${NARROW_WEEK}px-[4px]`,
+          `${NARROW_WEEK}text-[12px]`,
+          `${NARROW_WEEK}whitespace-nowrap`,
+        ])
+      )
+    );
   });
 });
 
