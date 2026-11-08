@@ -550,4 +550,36 @@ describe("a past cell's hint", () => {
       fs.readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
     ).toMatch(/\.col-calendar:hover:before \{\s*content: attr\(data-hint\);/);
   });
+
+  // Only a past cell with no posts is col-calendar, the cell the hint is
+  // drawn in; a past cell with a post, or one still to come, has no hint to
+  // carry (code review).
+  it('is carried by the past empty cells alone', async () => {
+    withPosts([post('p1', 'PUBLISHED', MONDAY_TEN)]);
+    const host = await render(<WeekView />);
+    const lists = withClass(host, 'pointer', 'text-[12px]');
+    const withPost = lists.find((list) => cards(list).length > 0)!;
+
+    expect(lists).toHaveLength(7 * 24);
+    expect(withClass(host, 'col-calendar').length).toBeGreaterThan(0);
+    expect(lists.map((list) => list.hasAttribute('data-hint'))).toEqual(
+      lists.map((list) => classes(list).includes('col-calendar'))
+    );
+    expect(withPost.hasAttribute('data-hint')).toBe(false);
+  });
+
+  // The words are longer in some languages ("Vergangenes Datum", "Прошедшая
+  // дата") than a narrow day column, and the hint is one line, so it is held
+  // to its cell's width and cut with an ellipsis rather than drawn over the
+  // cells beside it (code review).
+  it('stays inside its cell, cut with an ellipsis', () => {
+    const rule = fs
+      .readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
+      .match(/\.col-calendar:hover:before \{([^}]*)\}/)![1];
+
+    expect(rule).toMatch(/\bwhite-space: nowrap;/);
+    expect(rule).toMatch(/\bmax-width: 100%;/);
+    expect(rule).toMatch(/\boverflow: hidden;/);
+    expect(rule).toMatch(/\btext-overflow: ellipsis;/);
+  });
 });
