@@ -203,11 +203,6 @@ import {
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
 
-// happy-dom has a localStorage; jest.setup.js lifts a fixed list of globals
-// onto globalThis and that is not one of them, so a channel group's
-// open/closed memory would throw during render.
-globalThis.localStorage = window.localStorage;
-
 function mockChannel(n: number, values: Record<string, unknown> = {}) {
   return {
     id: `int-${n}`,
@@ -281,7 +276,6 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
-  localStorage.clear();
   jest.clearAllMocks();
   if (version === undefined) delete process.env.NEXT_PUBLIC_VERSION;
   else process.env.NEXT_PUBLIC_VERSION = version;

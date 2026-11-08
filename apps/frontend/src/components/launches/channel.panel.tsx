@@ -683,7 +683,7 @@ export const ChannelPanel: FC<{
       {/* The header, the hint and the search stay put while the groups scroll
           under them (C28), so the block sits above everything in a row,
           the badge's z-10 included. */}
-      <div className="sticky top-0 z-20 bg-newBgColorInner flex flex-col gap-[8px] pb-[8px]">
+      <div className="sticky top-0 z-20 bg-newBgColorInner flex flex-col gap-[8px] pt-[20px] pb-[8px]">
         <div
           className={clsx(
             'flex items-center gap-[4px]',
