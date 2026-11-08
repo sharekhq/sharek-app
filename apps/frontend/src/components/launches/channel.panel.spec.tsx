@@ -383,6 +383,16 @@ const besideButtons = (name: string, text: string) =>
   Array.from(rowOf(name).querySelectorAll('button')).filter(
     (button) => (button.textContent ?? '').trim() === text
   );
+// Collapsed, a row's main button is named for its channel, then its state
+// after a · when it has one; the buttons beside it are the ! that fixes it.
+const collapsedButton = (name: string) =>
+  rowButtons(host).find((button) => labelOf(button).split(' · ')[0] === name)!;
+const marksOf = (name: string) => {
+  const main = collapsedButton(name);
+  return Array.from(main.parentElement!.querySelectorAll('button')).filter(
+    (button) => button !== main
+  );
+};
 const customerGroups = (root: Element) =>
   Array.from(root.querySelectorAll('[role="group"]')).filter(labelOf);
 const groupOf = (name: string) =>
@@ -595,6 +605,37 @@ describe('the header', () => {
 
     expect(onToggleCollapse).toHaveBeenCalledTimes(1);
   });
+
+  // The rail never shows at 1025px and below, so collapsed with no channels
+  // the + is the only way to add one (T043 review, finding 3).
+  it.each([
+    ['with channels', GROUPS],
+    ['with none', []],
+  ])(
+    'keeps the + on the collapsed rail %s, stacked with Expand, offering the same two items',
+    async (_, list) => {
+      await render(list, { collapsed: true });
+      const plus = control(host, 'add_a_channel');
+      expect(plus).toHaveLength(1);
+      expect(plus[0].getAttribute('aria-haspopup')).toBe('menu');
+      // the collapsed rail fits one control a row
+      const header = plus[0].parentElement;
+      expect(control(host, 'expand')[0].parentElement).toBe(header);
+      expect(classes(header)).toContain('flex-col');
+      expect(classes(plus[0])).not.toContain('ms-auto');
+
+      await click(plus[0]);
+      const [add, invite, ...rest] = menuItems();
+      expect(rest).toHaveLength(0);
+      expect(leaf(add, 'add_channel')).toHaveLength(1);
+      expect(leaf(add, 'add_channel_hint')).toHaveLength(1);
+      expect(leaf(invite, 'invite_a_customer')).toHaveLength(1);
+      expect(leaf(invite, 'invite_a_customer_hint')).toHaveLength(1);
+
+      await click(add);
+      expect(mockOpened).toEqual([[update]]);
+    }
+  );
 });
 
 describe('the hint', () => {
@@ -701,6 +742,22 @@ describe('the groups', () => {
       Array.from(group.querySelectorAll('bdi')).map((bdi) => bdi.textContent)
     ).toContain('Client 2');
     expect(leaf(group, '2')).toHaveLength(1);
+  });
+
+  // A row's picture and Check sit 8px inside it. The header's 4px and the
+  // chevron button's 4px put the chevron over the pictures, and its 4px and
+  // the 28px button's around the 20px box put the tick over the Checks (M8).
+  it("sets the header's chevron and tick on the rows' columns", async () => {
+    await render(GROUPS);
+    const [chevron] = chevrons(groupOf('Client 2'));
+    const header = chevron.parentElement!;
+    const tick = header.querySelector('[role="checkbox"]')!;
+
+    expect(classes(rowOf('Two Cafe'))).toContain('px-[8px]');
+    expect(classes(header)).toContain('px-[4px]');
+    expect(classes(chevron)).toContain('px-[4px]');
+    expect(classes(tick)).toContain('w-[28px]');
+    expect(classes(tick.firstElementChild)).toContain('w-[20px]');
   });
 
   it('closes and opens a group from its chevron, writing <name>_isOpen', async () => {
@@ -949,6 +1006,35 @@ describe('Reconnect and Finish setup (R4)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("runs them from the collapsed rail's !, while the picture still ticks", async () => {
+    await render(ROWS, { collapsed: true });
+    expect(marksOf('Noor Dental')).toHaveLength(1);
+    expect(marksOf('Mona Saeed')).toHaveLength(1);
+
+    await click(marksOf('Noor Dental')[0]);
+    await flush();
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/integrations/social/facebook?refresh=internal-dc',
+      { method: 'GET' }
+    );
+    expect(window.location.href).toBe('https://auth.example/connect');
+
+    await click(marksOf('Mona Saeed')[0]);
+    await flush();
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/launches?added=linkedin&continue=setup'
+    );
+    expect(onChange).not.toHaveBeenCalled();
+
+    await click(collapsedButton('Noor Dental'));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0]).not.toContain('dc');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   // The calendar's ⋯ Menu takes it as its refreshChannel (T036), so the hook
   // returns what refreshChannel was: a channel in, a handler out.
   it('is the hook useReconnectChannel, a channel in and a handler out', async () => {
@@ -999,6 +1085,53 @@ describe('the collapsed list', () => {
       ).toBe(true);
     });
   });
+
+  // The maintainer's "Mark + clickable !" (T043 review, finding 2): the old
+  // rail's red ! stays on the picture, as a button of its own beside the
+  // picture's, never inside it, and the picture's name and tooltip say the
+  // state. A disabled channel shows none, as an open row offers no fix.
+  it('marks a disconnected or needs-setup channel with a red ! that fixes it, and names the state with the channel', async () => {
+    await render(ROWS, { collapsed: true });
+    const marked: Array<[string, string | null, string | null]> = [
+      ['Lamsa Studio', null, null],
+      ['بيت القهوة', null, null],
+      ['Rawda Florist', null, null],
+      ['Noor Dental', 'channel_disconnected', 'reconnect'],
+      ['Mona Saeed', 'channel_needs_setup', 'finish_setup'],
+      ['Sky Studio', 'channel_disconnected', 'reconnect'],
+    ];
+
+    marked.forEach(([name, state, action]) => {
+      const main = collapsedButton(name);
+      const label = state ? `${name} · ${state}` : name;
+      expect(main.getAttribute('aria-label')).toBe(label);
+      expect(main.getAttribute('data-tooltip-content')).toBe(label);
+      expect(main.querySelector('button, [role="button"]')).toBeNull();
+
+      const marks = marksOf(name);
+      expect(marks.map(nameOf)).toEqual(action ? [action] : []);
+      marks.forEach((mark) => {
+        expect(mark.getAttribute('type')).toBe('button');
+        expect(mark.textContent).toBe('!');
+        expect(main.contains(mark)).toBe(false);
+        // the post card's red ! (calendar.post.card.tsx), past the old rail's
+        // 15px, on the picture's corner at the start
+        expect(classes(mark.parentElement)).toContain('relative');
+        expect(classes(mark)).toEqual(
+          expect.arrayContaining([
+            'absolute',
+            'top-[2px]',
+            '-start-[6px]',
+            'w-[18px]',
+            'h-[18px]',
+            'rounded-full',
+            'bg-error',
+            'text-white',
+          ])
+        );
+      });
+    });
+  });
 });
 
 describe('focus and touch (FR-052)', () => {
@@ -1029,7 +1162,11 @@ describe('focus and touch (FR-052)', () => {
           const wide =
             !iconOnly ||
             names.some((name) => /^coarse:(min-)?w-\[44px\]$/.test(name));
-          return !(ring && tall && wide);
+          // The collapsed rail's ! keeps its 18px: a 44px one would cover the
+          // picture it marks, whose tap ticks, and the rail never shows at
+          // 1025px and below (T043 review, finding 2).
+          const mark = (el.textContent ?? '').trim() === '!';
+          return !(ring && ((tall && wide) || mark));
         })
         .map((el) => nameOf(el) || el.outerHTML.slice(0, 120));
       expect(missing).toEqual([]);

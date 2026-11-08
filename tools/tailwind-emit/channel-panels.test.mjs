@@ -122,6 +122,12 @@ const ARBITRARY = {
   'min-h-[36px]': [['min-height', '36px']],
   'bottom-[5px]': [['bottom', '5px']],
   '-end-[5px]': [['inset-inline-end', '-5px']],
+  // the collapsed rail's red !, on the picture's corner at the start
+  'top-[2px]': [['top', '2px']],
+  '-start-[6px]': [['inset-inline-start', '-6px']],
+  'w-[18px]': [['width', '18px']],
+  'h-[18px]': [['height', '18px']],
+  'text-[11px]': [['font-size', '11px']],
   // a row: 52px, its button, its name and its second line
   'min-h-[52px]': [['min-height', '52px']],
   'rounded-[10px]': [['border-radius', '10px']],
