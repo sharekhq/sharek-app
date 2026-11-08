@@ -743,6 +743,30 @@ describe('ChannelSummary', () => {
     );
   });
 
+  // With the name hidden, two text nodes side by side are one flex item, so
+  // the words ran into the count, "Samy will use· 3 channels" (Look T074,
+  // M18). The count is an element of its own, as the board has it, so the
+  // pill's gap stays between them whether or not the name shows.
+  it('keeps the count a part of its own, the gap from the words with the name hidden', async () => {
+    const { host } = await render(<ChannelSummary />, {
+      properties: [channel('a', BAYT), channel('b', BAYT), channel('c', BAYT)],
+    });
+    const line = summary(host);
+    const shown = Array.from(line.childNodes).filter(
+      (node) => node.nodeName !== 'BDI'
+    );
+
+    expect(classes(line)).toEqual(
+      expect.arrayContaining(['flex', 'gap-[8px]'])
+    );
+    expect(shown.map((node) => [node.nodeName, node.textContent])).toEqual([
+      ['SPAN', ''],
+      ['#text', 'Samy will use'],
+      ['SPAN', '· 3 channels'],
+      ['svg', ''],
+    ]);
+  });
+
   it('shows the first three pictures, as decoration', async () => {
     const { host } = await render(<ChannelSummary />, {
       properties: ['a', 'b', 'c', 'd'].map((id) => channel(id, BAYT)),
