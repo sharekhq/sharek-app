@@ -65,6 +65,11 @@ const STRINGS = [
   // The phone's short day is a dayjs format each language words its own way:
   // the canvas gives "Wed, 11 Nov" in English and "11 نوفمبر" in Arabic.
   ['calendar_short_day_format', 'ddd, D MMM', 'D MMM'],
+  // Two calendar strings older than the spec that walk 2 found in English: the
+  // post menus' name, in en and ar alone, and a past cell's hover hint, which
+  // global.scss drew as a literal.
+  ['post_actions', 'Post actions', 'إجراءات المنشور'],
+  ['date_passed', 'Date passed', 'مضى التاريخ'],
 ] as const;
 
 // C3 keeps today's chip label while nothing is hidden. No document gives its

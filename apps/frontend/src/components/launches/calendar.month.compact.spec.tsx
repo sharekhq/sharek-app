@@ -1,5 +1,7 @@
 import { act, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
 import dayjs from 'dayjs';
 import i18next from 'i18next';
 
@@ -30,6 +32,9 @@ const mockCalendar = {
 const mockUseCalendar = jest.fn(() => mockCalendar);
 // What each card hands the drag, for the preview to match it.
 const mockDragged: Array<Record<string, unknown>> = [];
+// What useT reads for a key in place of its English default: nothing, but in
+// the case of a past cell's hint.
+let mockWords: Record<string, string> = {};
 
 jest.mock('swr', () => ({
   __esModule: true,
@@ -57,8 +62,10 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT:
-    () => (_key: string, fallback: string, values?: Record<string, string>) =>
-      fallback.replace(/{{(\w+)}}/g, (_, name) => String(values?.[name])),
+    () => (key: string, fallback: string, values?: Record<string, string>) =>
+      (mockWords[key] ?? fallback).replace(/{{(\w+)}}/g, (_, name) =>
+        String(values?.[name])
+      ),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({}),
@@ -246,6 +253,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   jest.useRealTimers();
   setUserTimezone(null);
+  mockWords = {};
 });
 
 const asMonth = () =>
@@ -521,5 +529,25 @@ describe('the month at 1025px and below', () => {
     expect(classes(name)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:inline', 'mobile:sr-only'])
     );
+  });
+});
+
+// At every width, a past cell with no posts names itself on hover. global.scss
+// drew the hint as the literal 'Date passed', so it read English in every
+// language (walk 2); the cell carries its words, translated, and the
+// stylesheet draws what the cell carries.
+describe("a past cell's hint", () => {
+  it('carries date_passed in the page’s language, for global.scss to draw', async () => {
+    mockWords = { date_passed: 'مضى التاريخ' };
+    const host = await render(<WeekView />);
+    const past = withClass(host, 'col-calendar');
+
+    expect(past.length).toBeGreaterThan(0);
+    past.forEach((cell) =>
+      expect(cell.getAttribute('data-hint')).toBe('مضى التاريخ')
+    );
+    expect(
+      fs.readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
+    ).toMatch(/\.col-calendar:hover:before \{\s*content: attr\(data-hint\);/);
   });
 });
