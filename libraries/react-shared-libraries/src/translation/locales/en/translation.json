@@ -598,6 +598,7 @@
   "channels_shown_of_total_other": "{{shown}} of {{count}} channels",
   "channels_chip_label_one": "Channels: {{shown}} of 1 shown",
   "channels_chip_label_other": "Channels: {{shown}} of {{count}} shown",
+  "lifetime_tier": "{{tier}} tier",
   "start_7_days_free_trial": "Start 7 days free trial",
   "change_language": "Select Language",
   "that_a_wrap": "That's a wrap!\n\nIf you enjoyed this thread:\n\n1. Follow me @{{username}} for more of these\n2. RT the tweet below to share this thread with your audience\n",

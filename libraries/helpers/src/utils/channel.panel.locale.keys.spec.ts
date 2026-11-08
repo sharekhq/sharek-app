@@ -59,6 +59,9 @@ const STRINGS = [
   ['view_named', 'View: {{view}}', 'العرض: {{view}}'],
   ['previous_month', 'Previous month', 'الشهر السابق'],
   ['next_month', 'Next month', 'الشهر التالي'],
+  // The lifetime-tier line, moved from the channel list to Settings (R11). The
+  // plan's name in {{tier}} stays as the product names it.
+  ['lifetime_tier', '{{tier}} tier', 'خطة {{tier}}'],
 ] as const;
 
 // C3 keeps today's chip label while nothing is hidden. No document gives its

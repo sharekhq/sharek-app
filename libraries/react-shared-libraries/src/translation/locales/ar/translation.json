@@ -616,6 +616,7 @@
   "channels_chip_label_few": "القنوات الظاهرة: {{shown}} من {{count}}",
   "channels_chip_label_many": "القنوات الظاهرة: {{shown}} من {{count}}",
   "channels_chip_label_other": "القنوات الظاهرة: {{shown}} من {{count}}",
+  "lifetime_tier": "خطة {{tier}}",
   "start_7_days_free_trial": "ابدأ تجربة مجانية لمدة 7 أيام",
   "change_language": "اختر اللغة",
   "that_a_wrap": "انتهينا!\n\nإذا أعجبك هذا التسلسل:\n\n1. تابعني على @{{username}} للمزيد من هذه المواضيع\n2. أعد تغريد التغريدة أدناه لمشاركة هذا التسلسل مع جمهورك\n",

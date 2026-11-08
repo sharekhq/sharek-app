@@ -173,7 +173,11 @@ export const SettingsPopup: FC<{
           )}
           <div className="mt-[5px] flex flex-col text-[12px] text-muted break-all">
             {billingEnabled && user?.isLifetime && (
-              <div>{capitalize(user?.tier?.current || '')} tier</div>
+              <div>
+                {t('lifetime_tier', '{{tier}} tier', {
+                  tier: capitalize(user?.tier?.current || ''),
+                })}
+              </div>
             )}
             <div>
               {process.env.NEXT_PUBLIC_VERSION

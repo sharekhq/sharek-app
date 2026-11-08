@@ -584,6 +584,7 @@
   "channels_shown_of_total_other": "{{shown}} von {{count}} Kanälen",
   "channels_chip_label_one": "Angezeigte Kanäle: {{shown}} von {{count}}",
   "channels_chip_label_other": "Angezeigte Kanäle: {{shown}} von {{count}}",
+  "lifetime_tier": "{{tier}}-Plan",
   "start_7_days_free_trial": "7-tägige kostenlose Testversion starten",
   "change_language": "Sprache ändern",
   "that_a_wrap": "Das war's!\n\nWenn dir dieser Thread gefallen hat:\n\n1. Folge mir @{{username}} für mehr davon\n2. Retweete den untenstehenden Tweet, um diesen Thread mit deinem Publikum zu teilen\n",

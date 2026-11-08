@@ -586,6 +586,7 @@
   "channels_chip_label_one": "Canali visibili: {{shown}} di {{count}}",
   "channels_chip_label_many": "Canali visibili: {{shown}} di {{count}}",
   "channels_chip_label_other": "Canali visibili: {{shown}} di {{count}}",
+  "lifetime_tier": "Piano {{tier}}",
   "start_7_days_free_trial": "Inizia la prova gratuita di 7 giorni",
   "change_language": "Cambia lingua",
   "that_a_wrap": "È tutto!\n\nSe ti è piaciuto questo thread:\n\n1. Seguimi su @{{username}} per altri contenuti come questo\n2. Ritwitta il tweet qui sotto per condividere questo thread con il tuo pubblico\n",
