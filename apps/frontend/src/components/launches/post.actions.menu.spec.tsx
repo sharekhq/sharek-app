@@ -78,6 +78,12 @@ const click = async (node: Element) => {
   });
 };
 
+const press = async (node: Element, key: string) => {
+  await act(async () => {
+    node.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  });
+};
+
 afterEach(() => {
   mounted.splice(0).forEach((root) => act(() => root.unmount()));
   document.body.innerHTML = '';
@@ -292,6 +298,119 @@ describe('post actions menu', () => {
     await click(trigger());
 
     expect(labels()).toEqual(['Duplicate Post', 'Delete Post']);
+  });
+
+  // The channel list's + and the chat's ⋯ are buttons of their own, not a
+  // card's strip: what they are given is what they draw, and they stay the
+  // same menu button to assistive technology.
+  it('draws the trigger it is given in place of the strip', async () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <PostActionsMenu
+          actions={actions()}
+          label="Add a channel"
+          trigger={<i data-testid="icon-plus" />}
+          triggerClassName="flex items-center justify-center w-[32px] h-[32px] rounded-[8px]"
+        />
+      );
+    });
+
+    expect(trigger().querySelector('[data-testid="icon-plus"]')).toBeTruthy();
+    expect(trigger().querySelector('svg')).toBeNull();
+    expect(trigger().className.split(' ')).toEqual(
+      expect.arrayContaining(['w-[32px]', 'h-[32px]'])
+    );
+    expect(trigger().className.split(' ')).not.toContain('absolute');
+    expect(trigger().className.split(' ')).not.toContain('inset-0');
+    expect(trigger().getAttribute('aria-label')).toBe('Add a channel');
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+
+    await click(trigger());
+
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    expect(labels()).toEqual(['Duplicate Post', 'Preview Post', 'Delete Post']);
+  });
+
+  // The + menu explains each of its two choices under its name (research R6),
+  // in the small muted line the app writes such notes in.
+  it('shows a hint under its label, and an action without one as before', async () => {
+    await mount(
+      actions().map((action) =>
+        action.key === 'preview'
+          ? { ...action, hint: 'Shows it as it will publish' }
+          : action
+      )
+    );
+    await click(trigger());
+
+    const plain = menuItem('Duplicate');
+    expect(plain.children.length).toBe(2);
+    expect(plain.lastElementChild!.className).toBe('text-[14px]');
+    expect(plain.lastElementChild!.textContent).toBe('Duplicate Post');
+    expect(plain.querySelector('.text-muted')).toBeNull();
+
+    expect(document.querySelectorAll('[role="menuitem"]').length).toBe(3);
+    const item = menuItem('Preview');
+    const hint = [...item.querySelectorAll('*')].find(
+      (n) => n.textContent === 'Shows it as it will publish'
+    );
+    expect(hint).toBeTruthy();
+    expect(hint!.className.split(' ')).toEqual(
+      expect.arrayContaining(['text-[12px]', 'text-muted'])
+    );
+    expect(hint!.parentElement).not.toBe(item);
+    expect(hint!.previousElementSibling!.textContent).toBe('Preview Post');
+  });
+
+  // An item a keyboard can reach but only a click can run leaves the keyboard
+  // user stranded on it (FR-052).
+  it.each([
+    ['Enter', 'Enter'],
+    ['Space', ' '],
+  ])('runs a focused item on %s, once, and closes', async (_name, key) => {
+    await mount();
+    await click(trigger());
+    const item = menuItem('Preview') as HTMLElement;
+    item.focus();
+    expect(document.activeElement).toBe(item);
+
+    for (const other of ['a', 'Tab', 'ArrowDown']) {
+      await press(item, other);
+    }
+
+    expect(calls).toEqual([]);
+    expect(panel()).toBeTruthy();
+
+    await press(item, key);
+
+    expect(calls).toEqual(['preview']);
+    expect(panel()).toBeNull();
+  });
+
+  // The + menu opens inside SplitPanel's sheet, which closes on an Escape heard
+  // on the document (split.panel.tsx). While the list is open Escape is the
+  // list's: it closes the list and the sheet stays. Closed, it is the sheet's.
+  it('keeps Escape to itself while open, and passes it on when closed', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await mount();
+
+    await press(trigger(), 'Escape');
+    expect(documentEscape).toHaveBeenCalledTimes(1);
+
+    await click(trigger());
+    await press(menuItem('Preview'), 'Escape');
+    expect(panel()).toBeNull();
+    expect(documentEscape).toHaveBeenCalledTimes(1);
+
+    await press(trigger(), 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(documentEscape).toHaveBeenCalledTimes(2);
   });
 
   // Near the bottom of the screen the list used to be pulled up over the post
