@@ -723,6 +723,26 @@ describe('ChannelSummary', () => {
     );
   });
 
+  // A 390px phone left the name a few letters ("Ba…"), so at 1025px and below
+  // the line drops it and keeps the words and the count; the label says it all
+  // (Look T074, M16).
+  it('leaves the name out at 1025px and below, and to its label', async () => {
+    const { host } = await render(<ChannelSummary />, {
+      properties: [channel('a', BAYT), channel('b', BAYT), channel('c', BAYT)],
+    });
+    const line = summary(host);
+    const name = line.querySelector('bdi')!;
+
+    expect(classes(name)).toContain('mobile:hidden');
+    // shown on a wide screen
+    expect(classes(name)).not.toContain('hidden');
+    expect(line.querySelectorAll('[class*="mobile:hidden"]')).toHaveLength(1);
+    expect(line.textContent).toBe('Samy will useBayt Al Qahwa· 3 channels');
+    expect(line.getAttribute('aria-label')).toBe(
+      'Samy will use Bayt Al Qahwa, 3 channels. Change channels'
+    );
+  });
+
   it('shows the first three pictures, as decoration', async () => {
     const { host } = await render(<ChannelSummary />, {
       properties: ['a', 'b', 'c', 'd'].map((id) => channel(id, BAYT)),
