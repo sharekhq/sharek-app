@@ -215,12 +215,22 @@ const ChannelRow: FC<{
   /** the enabled channels fill the plan, the old rail's tooltip condition */
   atPlanLimit: boolean;
   onToggle: () => void;
+  onReconnect: () => void;
+  onFinishSetup: () => void;
   /** the ⋯ menu, between the row's actions and its Check */
   menu?: ReactNode;
-}> = ({ channel, collapsed, checked, usable, atPlanLimit, onToggle, menu }) => {
+}> = ({
+  channel,
+  collapsed,
+  checked,
+  usable,
+  atPlanLimit,
+  onToggle,
+  onReconnect,
+  onFinishSetup,
+  menu,
+}) => {
   const t = useT();
-  const router = useRouter();
-  const reconnect = useReconnectChannel();
   const disconnected = !channel.disabled && !!channel.refreshNeeded;
   const needsSetup =
     !channel.disabled && !channel.refreshNeeded && !!channel.inBetweenSteps;
@@ -300,24 +310,12 @@ const ChannelRow: FC<{
         )}
       </button>
       {!collapsed && disconnected && (
-        <button
-          type="button"
-          onClick={reconnect(channel)}
-          className={ROW_ACTION}
-        >
+        <button type="button" onClick={onReconnect} className={ROW_ACTION}>
           {t('reconnect', 'Reconnect')}
         </button>
       )}
       {!collapsed && needsSetup && (
-        <button
-          type="button"
-          onClick={() =>
-            router.push(
-              `/launches?added=${channel.identifier}&continue=${channel.id}`
-            )
-          }
-          className={ROW_ACTION}
-        >
+        <button type="button" onClick={onFinishSetup} className={ROW_ACTION}>
           {t('finish_setup', 'Finish setup')}
         </button>
       )}
@@ -588,6 +586,8 @@ export const ChannelPanel: FC<{
 }) => {
   const t = useT();
   const user = useUser();
+  const router = useRouter();
+  const reconnect = useReconnectChannel();
   const add = useAddProvider(update);
   const invite = useAddProvider(update, true);
   const [search, setSearch] = useState('');
@@ -651,6 +651,12 @@ export const ChannelPanel: FC<{
           onToggle={() =>
             select((other) =>
               other.id === channel.id ? !shows(other) : shows(other)
+            )
+          }
+          onReconnect={reconnect(channel)}
+          onFinishSetup={() =>
+            router.push(
+              `/launches?added=${channel.identifier}&continue=${channel.id}`
             )
           }
           menu={rowMenu?.(channel)}
