@@ -172,7 +172,8 @@ const ROW_ACTION = clsx(
 );
 
 // The channel's picture with its platform's badge, moved from the calendar's
-// old rail with its YouTube branch, at the list's 16px (C13).
+// old rail with its YouTube branch, at the list's 16px (C13). Decoration: it
+// sits only in a row's main button, which the channel's name already names.
 const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
   channel,
   className,
@@ -187,7 +188,7 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
       fallbackSrc={'/no-picture.jpg'}
       src={channel.picture || '/no-picture.jpg'}
       className="rounded-[8px] min-w-[36px] min-h-[36px]"
-      alt={channel.identifier}
+      alt=""
       width={36}
       height={36}
     />
@@ -195,13 +196,14 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
       <img
         src="/icons/platforms/youtube.svg"
         className="absolute z-10 bottom-[5px] -end-[5px]"
+        alt=""
         width={16}
       />
     ) : (
       <SafeImage
         src={`/icons/platforms/${channel.identifier}.png`}
         className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-        alt={channel.identifier}
+        alt=""
         width={16}
         height={16}
       />
