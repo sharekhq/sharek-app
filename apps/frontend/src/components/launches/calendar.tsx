@@ -406,17 +406,19 @@ const DaySlotColumn: FC<{ option: any[]; startDate: string }> = memo(
 // when the range changes, and once more when its posts are in, since a week's
 // rows grow with them and a day gets a slot for each post's time. The context
 // ends a load a render before it hands over the posts with a new postDates,
-// so that second scroll waits for the first postDates, once loading is over,
-// other than the one the range opened on. Later updates, the minute's tick
-// and the user's own scroll keep the position (R9). The view passes its own
-// loading and postDates, so it reads the calendar once a render.
+// and an uncached load also hands over a new, empty postDates while it is
+// still loading. So that second scroll waits for the first postDates, once
+// loading is over, other than the last one handed over before or during the
+// load. Later updates, the minute's tick and the user's own scroll keep the
+// position (R9). The view passes its own loading and postDates, so it reads
+// the calendar once a render.
 const useOpeningScroll = (
   scroll: () => void,
   loading: boolean,
   postDates: object
 ) => {
   const range = useRef<(() => void) | undefined>(undefined);
-  // the dates the range opened on, until its posts are in
+  // the last dates handed over before the range's posts are in
   const waiting = useRef<object | undefined>(undefined);
   useLayoutEffect(() => {
     if (range.current === scroll) {
