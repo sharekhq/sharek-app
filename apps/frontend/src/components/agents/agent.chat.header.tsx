@@ -211,9 +211,10 @@ export const ChannelSummary: FC = () => {
             </span>
             {t('samy_will_use', 'Samy will use')}
             {/* A name in either script, cut before the count is. A phone's
-                composer left it a few letters, so at 1025px and below the
-                label alone says it. */}
-            <bdi className="min-w-0 truncate font-[600] text-ink mobile:hidden">
+                composer, and the chat with both side panels open from 1026px,
+                left it a few letters, so below 1280px the label alone says
+                it. */}
+            <bdi className="min-w-0 truncate font-[600] text-ink [@media(max-width:1279px)]:hidden">
               {names}
             </bdi>
             {/* its own flex item, so the gap stays without the name */}
