@@ -201,7 +201,7 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
 
 // A row: the picture, the name in its own direction, and a second line with
 // the first state that applies, else the platform (data-model.md). Collapsed,
-// the picture alone, named by the channel.
+// the picture alone, named by the channel and any state it needs fixed.
 //
 // The main button is the row's checkbox, checked while the channel's posts
 // show. A hidden row greys only its picture and sets its name in text-muted,
@@ -231,11 +231,93 @@ const ChannelRow: FC<{
   menu,
 }) => {
   const t = useT();
-  const disconnected = !channel.disabled && !!channel.refreshNeeded;
-  const needsSetup =
-    !channel.disabled && !channel.refreshNeeded && !!channel.inBetweenSteps;
+  // What a channel needs fixed, disconnected before needs setup: the state its
+  // second line says, or collapsed its name, and the action that fixes it. A
+  // disabled channel has none.
+  const fix = channel.disabled
+    ? null
+    : channel.refreshNeeded
+    ? {
+        state: t('channel_disconnected', 'Disconnected'),
+        label: t('reconnect', 'Reconnect'),
+        onClick: onReconnect,
+      }
+    : channel.inBetweenSteps
+    ? {
+        state: t('channel_needs_setup', 'Needs setup'),
+        label: t('finish_setup', 'Finish setup'),
+        onClick: onFinishSetup,
+      }
+    : null;
   const overPlan = !!channel.disabled && atPlanLimit;
   const toggle = () => usable && onToggle();
+  const named = fix ? `${channel.name} · ${fix.state}` : channel.name;
+
+  // aria-disabled, not disabled, keeps a disabled row in the Tab order, so its
+  // reason can be reached
+  const main = (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-disabled={!usable}
+      onClick={toggle}
+      {...(collapsed
+        ? {
+            'aria-label': named,
+            'data-tooltip-id': 'tooltip',
+            'data-tooltip-content': named,
+          }
+        : overPlan
+        ? {
+            'data-tooltip-id': 'tooltip',
+            'data-tooltip-content': t(
+              'channel_disabled_upgrade_plan',
+              'This channel is disabled, please upgrade your plan to enable it.'
+            ),
+          }
+        : {})}
+      className={clsx(
+        'flex items-center gap-[12px] py-[8px] rounded-[8px] text-start coarse:min-h-[44px] coarse:min-w-[44px]',
+        !collapsed && 'flex-1 min-w-0',
+        FOCUS_RING
+      )}
+    >
+      <ChannelPicture
+        channel={channel}
+        className={clsx(!checked && 'grayscale', !usable && 'opacity-50')}
+      />
+      {!collapsed && (
+        <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
+          <bdi
+            className={clsx(
+              'text-[14px] font-[500] truncate',
+              checked ? 'text-ink' : 'text-muted',
+              !usable && 'opacity-50'
+            )}
+          >
+            {channel.name}
+          </bdi>
+          <span
+            className={clsx(
+              'text-[12px] truncate',
+              fix ? 'text-error' : 'text-muted'
+            )}
+          >
+            {/* over the plan only at its limit; under it, the channel was
+                disabled by hand from its ⋯ menu */}
+            {overPlan
+              ? t('channel_disabled_over_plan', 'Disabled · over your plan')
+              : channel.disabled
+              ? t('channel_disabled', 'Channel Disabled')
+              : fix
+              ? fix.state
+              : platformLabel(channel.identifier)}
+          </span>
+        </span>
+      )}
+    </button>
+  );
 
   return (
     <div
@@ -244,79 +326,32 @@ const ChannelRow: FC<{
         collapsed ? 'justify-center' : 'px-[8px]'
       )}
     >
-      {/* aria-disabled, not disabled, keeps a disabled row in the Tab order,
-          so its reason can be reached */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
-        aria-disabled={!usable}
-        onClick={toggle}
-        {...(collapsed
-          ? {
-              'aria-label': channel.name,
-              'data-tooltip-id': 'tooltip',
-              'data-tooltip-content': channel.name,
-            }
-          : overPlan
-          ? {
-              'data-tooltip-id': 'tooltip',
-              'data-tooltip-content': t(
-                'channel_disabled_upgrade_plan',
-                'This channel is disabled, please upgrade your plan to enable it.'
-              ),
-            }
-          : {})}
-        className={clsx(
-          'flex items-center gap-[12px] py-[8px] rounded-[8px] text-start coarse:min-h-[44px] coarse:min-w-[44px]',
-          !collapsed && 'flex-1 min-w-0',
-          FOCUS_RING
-        )}
-      >
-        <ChannelPicture
-          channel={channel}
-          className={clsx(!checked && 'grayscale', !usable && 'opacity-50')}
-        />
-        {!collapsed && (
-          <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-            <bdi
-              className={clsx(
-                'text-[14px] font-[500] truncate',
-                checked ? 'text-ink' : 'text-muted',
-                !usable && 'opacity-50'
-              )}
-            >
-              {channel.name}
-            </bdi>
-            <span
-              className={clsx(
-                'text-[12px] truncate',
-                disconnected || needsSetup ? 'text-error' : 'text-muted'
-              )}
-            >
-              {/* over the plan only at its limit; under it, the channel was
-                  disabled by hand from its ⋯ menu */}
-              {overPlan
-                ? t('channel_disabled_over_plan', 'Disabled · over your plan')
-                : channel.disabled
-                ? t('channel_disabled', 'Channel Disabled')
-                : disconnected
-                ? t('channel_disconnected', 'Disconnected')
-                : needsSetup
-                ? t('channel_needs_setup', 'Needs setup')
-                : platformLabel(channel.identifier)}
-            </span>
-          </span>
-        )}
-      </button>
-      {!collapsed && disconnected && (
-        <button type="button" onClick={onReconnect} className={ROW_ACTION}>
-          {t('reconnect', 'Reconnect')}
-        </button>
+      {collapsed && fix ? (
+        // The old rail's red ! on the picture's corner, as the post card draws
+        // its own, a button of its own beside the picture's and never inside
+        // it, so a click on the picture still ticks. The rail never shows at
+        // 1025px and below, so it keeps its 18px on a touch screen too: 44px
+        // would cover the picture.
+        <span className="relative flex">
+          {main}
+          <button
+            type="button"
+            aria-label={fix.label}
+            onClick={fix.onClick}
+            className={clsx(
+              'absolute top-[2px] -start-[6px] w-[18px] h-[18px] rounded-full bg-error flex items-center justify-center text-white text-[11px] font-bold',
+              FOCUS_RING
+            )}
+          >
+            !
+          </button>
+        </span>
+      ) : (
+        main
       )}
-      {!collapsed && needsSetup && (
-        <button type="button" onClick={onFinishSetup} className={ROW_ACTION}>
-          {t('finish_setup', 'Finish setup')}
+      {!collapsed && fix && (
+        <button type="button" onClick={fix.onClick} className={ROW_ACTION}>
+          {fix.label}
         </button>
       )}
       {!collapsed && menu}
@@ -426,7 +461,9 @@ const CustomerGroup: FC<{
       aria-label={customer.name}
       className="flex flex-col gap-[2px]"
     >
-      <div className="group flex items-center gap-[4px]">
+      {/* 4px here and the chevron button's 4px put the chevron over the
+          rows' pictures, and the tick over their Checks (M8) */}
+      <div className="group flex items-center gap-[4px] px-[4px]">
         <button
           type="button"
           aria-expanded={isOpen}
@@ -693,7 +730,8 @@ export const ChannelPanel: FC<{
         <div
           className={clsx(
             'flex items-center gap-[4px]',
-            collapsed && 'justify-center'
+            // the rail fits one control a row
+            collapsed && 'flex-col justify-center'
           )}
         >
           {!collapsed && (
@@ -704,78 +742,79 @@ export const ChannelPanel: FC<{
               <span className="text-[12px] font-[600] text-muted bg-surface2 rounded-full px-[8px] py-[1px]">
                 {channels.length}
               </span>
-              <PostActionsMenu
-                label={t('add_a_channel', 'Add a channel')}
-                triggerClassName={clsx('ms-auto', ICON_BUTTON)}
-                trigger={
+            </>
+          )}
+          {/* collapsed too, so a rail with no channels can still add one */}
+          <PostActionsMenu
+            label={t('add_a_channel', 'Add a channel')}
+            triggerClassName={clsx(!collapsed && 'ms-auto', ICON_BUTTON)}
+            trigger={
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            }
+            actions={[
+              {
+                key: 'add',
+                icon: (
                   <svg
-                    width="18"
-                    height="18"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
                     aria-hidden="true"
+                    className="text-muted"
                   >
                     <path d="M12 5v14M5 12h14" />
                   </svg>
-                }
-                actions={[
-                  {
-                    key: 'add',
-                    icon: (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        aria-hidden="true"
-                        className="text-muted"
-                      >
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                    ),
-                    label: t('add_channel', 'Add Channel'),
-                    hint: t(
-                      'add_channel_hint',
-                      'Connect an account you can log in to'
-                    ),
-                    onClick: add,
-                  },
-                  {
-                    key: 'invite',
-                    icon: (
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        className="text-muted"
-                      >
-                        <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
-                        <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
-                      </svg>
-                    ),
-                    label: t('invite_a_customer', 'Invite a customer'),
-                    hint: t(
-                      'invite_a_customer_hint',
-                      'Copies a link they open to connect their own account. It works for 1 hour.'
-                    ),
-                    onClick: invite,
-                  },
-                ]}
-              />
-            </>
-          )}
+                ),
+                label: t('add_channel', 'Add Channel'),
+                hint: t(
+                  'add_channel_hint',
+                  'Connect an account you can log in to'
+                ),
+                onClick: add,
+              },
+              {
+                key: 'invite',
+                icon: (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className="text-muted"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                  </svg>
+                ),
+                label: t('invite_a_customer', 'Invite a customer'),
+                hint: t(
+                  'invite_a_customer_hint',
+                  'Copies a link they open to connect their own account. It works for 1 hour.'
+                ),
+                onClick: invite,
+              },
+            ]}
+          />
           {/* the rail's; the sheet closes with Done */}
           <button
             type="button"
