@@ -227,6 +227,8 @@ const MOBILE_CLASSES = {
   'mobile:order-3': [['order', '3']],
   'mobile:basis-full': [['flex-basis', '100%']],
   'mobile:flex-1': [['flex', '1 1 0%']],
+  // the end group dissolves, so Create Post is the bar's own item there
+  'mobile:contents': [['display', 'contents']],
   'mobile:flex-col': [['flex-direction', 'column']],
   'mobile:min-w-0': [['min-width', '0px']],
   'mobile:w-full': [['width', '100%']],
@@ -487,6 +489,9 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['pe-[2px]', 'mobile:pe-[4px]'],
     ['flex', 'mobile:hidden'],
     ['hidden', 'mobile:flex'],
+    // the bar's end group, and Create Post's box in it, on a phone
+    ['flex', 'mobile:contents'],
+    ['shrink-0', 'mobile:flex-1'],
     ['ms-[6px]', 'mobile:ms-0'],
     ['text-[18px]', 'mobile:text-[15px]'],
     ['h-[42px]', 'mobile:h-[44px]'],
