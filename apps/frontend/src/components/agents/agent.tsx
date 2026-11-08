@@ -159,7 +159,15 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
   );
 };
 
-export const PropertiesContext = createContext({ properties: [] });
+export const PropertiesContext = createContext({
+  properties: [],
+  // the open chat, which the chat header reads from CopilotKit, so a chat
+  // started at /agents/new has its id too (C21)
+  threadId: '',
+  // the chats panel's Hide chats on a wide screen, and its Close on the drawer
+  hideChats: () => {},
+  closeChats: () => {},
+});
 export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
   const [properties, setProperties] = useState([]);
 

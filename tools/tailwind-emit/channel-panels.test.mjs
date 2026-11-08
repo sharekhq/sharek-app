@@ -205,6 +205,17 @@ const ARBITRARY = {
   'mt-[2px]': [['margin-top', '2px']],
   // settings.component.tsx — the build number under Log out
   'mt-[5px]': [['margin-top', '5px']],
+  // agent.chats.tsx — Samy's chats: the sticky block's 4px under the search,
+  // New chat's 40px, the drawer's 44px Close, a group's name, a row's insets,
+  // and the 32px rename field (its 3px ring is with the core forms, below)
+  'pb-[4px]': [['padding-bottom', '4px']],
+  'h-[40px]': [['height', '40px']],
+  'w-[44px]': [['width', '44px']],
+  'pt-[14px]': [['padding-top', '14px']],
+  'pb-[6px]': [['padding-bottom', '6px']],
+  'ps-[10px]': [['padding-inline-start', '10px']],
+  'pe-[4px]': [['padding-inline-end', '4px']],
+  'h-[32px]': [['height', '32px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -526,6 +537,9 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'bg-catPalm': [['background-color', 'var(--cat-palm)']],
       'bg-catLapis': [['background-color', 'var(--cat-lapis)']],
       'bg-catMulberry': [['background-color', 'var(--cat-mulberry)']],
+      // the open chat's tint, and the rename field's ring (agent.chats.tsx)
+      'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
+      'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
     },
     null
   );
@@ -558,6 +572,8 @@ test('the core forms the list, the menu and the card lean on emit', async () => 
       'ring-1': ring('1px'),
       'ring-inset': [['--tw-ring-inset', 'inset']],
       'underline-offset-2': [['text-underline-offset', '2px']],
+      // a chat's rename field (agent.chats.tsx)
+      'ring-[3px]': ring('3px'),
     },
     null
   );
@@ -603,6 +619,10 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['opacity-0', 'focus-visible:opacity-100'],
     ['opacity-0', 'focus-within:opacity-100'],
     ['opacity-0', 'has-[[aria-expanded=true]]:opacity-100'],
+    // Samy's chats: a row and New chat at 44px on touch, the rename field too
+    ['min-h-[36px]', 'coarse:min-h-[44px]'],
+    ['h-[40px]', 'coarse:h-[44px]'],
+    ['h-[32px]', 'coarse:h-[44px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);
