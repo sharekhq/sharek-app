@@ -101,6 +101,31 @@ describe("the attached images' slot", () => {
   });
 });
 
+// FR-026: the channels Samy will use head the box.
+describe("the summary's slot", () => {
+  it('sits inside the box, above the images and the text, and a click in the box still focuses the text', async () => {
+    const { host } = await render({
+      summary: <div data-summary="" />,
+      attachments: <div data-tray="" />,
+    });
+    const box = host.querySelector('.copilotKitInput')!;
+
+    expect(box.firstElementChild).toBe(box.querySelector('[data-summary]'));
+    expect(box.querySelector('[data-summary]')!.nextElementSibling).toBe(
+      box.querySelector('[data-tray]')
+    );
+    expect(box.querySelector('[data-tray]')!.nextElementSibling).toBe(
+      textarea(host)
+    );
+
+    await act(async () => {
+      box.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(document.activeElement).toBe(textarea(host));
+  });
+});
+
 describe('Send', () => {
   it('waits for an upload, and so does Enter', async () => {
     const { host, onSend } = await render({ uploading: true });
