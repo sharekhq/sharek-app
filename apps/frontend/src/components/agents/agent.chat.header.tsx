@@ -44,12 +44,30 @@ export const ChatHeader: FC = () => {
     setThreadId(threadId);
   }, [threadId, setThreadId]);
 
+  // Mastra names a new chat just after its first reply is saved, so while the
+  // open chat is still untitled the list is read again, 1.5s apart, three
+  // more times at most. Another chat or the next reply stops it.
   useEffect(() => {
-    if (ran.current && !running) {
-      mutate();
-    }
+    const ended = ran.current && !running;
     ran.current = running;
-  }, [running, mutate]);
+    if (!ended) {
+      return;
+    }
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const read = async (left: number) => {
+      const list = await mutate();
+      const named = list?.threads.find((item) => item.id === threadId)?.title;
+      if (!stopped && left && !named) {
+        timer = setTimeout(() => read(left - 1), 1500);
+      }
+    };
+    read(3);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [running, mutate, threadId]);
 
   // The list has the chat once its first reply is saved; until then it has
   // no title to show and nothing to rename or pin.
