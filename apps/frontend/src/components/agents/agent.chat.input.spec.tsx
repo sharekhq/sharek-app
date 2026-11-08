@@ -36,6 +36,10 @@ jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
     );
   },
 }));
+jest.mock('@gitroom/frontend/components/agents/agent.chat.header', () => ({
+  ChatHeader: () => null,
+  ChannelSummary: () => null,
+}));
 jest.mock('@gitroom/frontend/components/layout/drop.files', () => ({
   DropFiles: (props: { children: ReactNode }) => {
     dropProps.push(props);
