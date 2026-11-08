@@ -524,6 +524,20 @@ describe('the top bar above 1025px', () => {
       expect(classes(views[0].parentElement)).toContain('gap-[2px]');
     });
 
+    // A word that short leaves its pill under the 44px touch target: Arabic's
+    // يوم (Day) was 42 by 44 on a touch screen (walk 2, step 15). The pills
+    // stretch to the control's 54px less its 4px padding and 1px border, so
+    // they are 44px tall, and each holds a 44px width on touch.
+    it('holds each view at 44 by 44px at least on a touch screen', async () => {
+      const host = await mount();
+      const views = viewButtons(host);
+
+      views.forEach((b) => expect(classes(b)).toContain('coarse:min-w-[44px]'));
+      expect(classes(views[0].parentElement)).toEqual(
+        expect.arrayContaining(['coarse:min-h-[54px]', 'p-[4px]', 'border'])
+      );
+    });
+
     it.each([
       ['Day', 'day'],
       ['Week', 'week'],
