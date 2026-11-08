@@ -267,4 +267,16 @@ describe('the address once the start is read (C24)', () => {
     expect(selections()).toEqual(contexts.map(() => null));
     expect(shown()).toEqual(ALL_POSTS);
   });
+
+  it.each([
+    ['/launches?customer=c1', '/launches'],
+    ['/calendar?display=day&customer=c1', '/calendar?display=day'],
+  ])(
+    "writes %s as %s, on the page's own path and with no ? when nothing is left",
+    async (from, to) => {
+      await open(from);
+
+      expect(window.location.href).toBe(`${window.location.origin}${to}`);
+    }
+  );
 });
