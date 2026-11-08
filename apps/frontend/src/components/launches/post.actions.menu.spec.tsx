@@ -501,6 +501,21 @@ describe('post actions menu', () => {
     expect(document.activeElement).toBe(field);
   });
 
+  // With nothing focused the Escape is no one else's: a held menu, opened by a
+  // finger, never has the focus (calendar.month.hold.spec.tsx).
+  it('takes an Escape pressed with nothing focused', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await mount();
+
+    await click(trigger());
+    await press(document.body, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(panel()).toBeNull();
+    expect(documentEscape).not.toHaveBeenCalled();
+  });
+
   // Near the bottom of the screen the list used to be pulled up over the post
   // that opened it, so a finger still holding a month chip ended up on a menu
   // item and lit it. Where nothing fits below, it opens above.
