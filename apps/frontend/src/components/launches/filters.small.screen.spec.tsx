@@ -622,6 +622,30 @@ describe('the top bar above 1025px', () => {
 
       expect(classes(groups(host).end)).toContain('mobile:contents');
     });
+
+    // On its own row the second group can still be wider than the bar: 596px
+    // in English with the notice against 589 on a 1030px screen. It never runs
+    // past the bar; the notice's count gives way first and the rest keep
+    // their size (the maintainer's call).
+    it('cuts the notice’s count first when the second group is wider than the bar, its full words in its title', async () => {
+      const host = await mount({ selectedChannels: allBut('b') });
+      const { end } = groups(host);
+      const showAll = byText(host, 'Show all')!;
+      const words = byText(host, '9 of 10 channels')!;
+
+      expect(classes(end)).toEqual(
+        expect.arrayContaining(['min-w-0', 'max-w-full'])
+      );
+      expect(classes(showAll.parentElement)).toContain('min-w-0');
+      expect(classes(words)).toContain('truncate');
+      // the cut is drawn only: a reader and the title get every word
+      expect(words.getAttribute('title')).toBe('9 of 10 channels');
+      [
+        showAll,
+        viewButtons(host)[0].parentElement,
+        host.querySelector('[data-testid="new-post"]')!.parentElement,
+      ].forEach((node) => expect(classes(node)).toContain('shrink-0'));
+    });
   });
 
   it('ends with Create Post, and shows none with no channels', async () => {
