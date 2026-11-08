@@ -28,11 +28,9 @@ jest.mock('@gitroom/frontend/components/analytics/chart-social', () => ({
   CHART_CARD_DOTS: ['bg-catPomegranate'],
 }));
 // MetricChart draws on chart.js too, and metric.chart.spec covers what it
-// draws; the stand-in shows the name and the points it was given. Until
-// metric.chart.tsx exists, the alias can't resolve, so the virtual mock names
-// the file itself, the id the alias resolves to once it does.
+// draws; the stand-in shows the name and the points it was given.
 jest.mock(
-  './metric.chart.tsx',
+  '@gitroom/frontend/components/platform-analytics/metric.chart',
   () => ({
     MetricChart: (props: { label: string; data: unknown }) => (
       <div
@@ -41,8 +39,7 @@ jest.mock(
         data-points={JSON.stringify(props.data)}
       />
     ),
-  }),
-  { virtual: true }
+  })
 );
 // The channel list's Reconnect, a channel in and a handler out (R4).
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
