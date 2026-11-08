@@ -225,6 +225,9 @@ describe('the channel sheet at 1025px and below', () => {
         /^(?:block|flex|grid|inline(?:-\w+)?)$/.test(name)
       )
     ).toEqual([]);
+    // on the sheet's own surface, as the scroller under it is, not over the
+    // scrim
+    expect(classes(panel(host))).toContain('mobile:bg-newBgColorInner');
   });
 
   it('draws no grab handle while closed', async () => {

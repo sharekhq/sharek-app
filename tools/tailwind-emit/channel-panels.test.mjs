@@ -249,6 +249,10 @@ const MOBILE_CLASSES = {
   'mobile:py-[4px]': py('padding', '4px'),
   'mobile:px-[8px]': px('padding', '8px'),
   'mobile:whitespace-nowrap': [['white-space', 'nowrap']],
+  // split.panel.tsx — the sheet's surface, under its grab handle too
+  'mobile:bg-newBgColorInner': [
+    ['background-color', 'var(--new-bgColorInner)'],
+  ],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {

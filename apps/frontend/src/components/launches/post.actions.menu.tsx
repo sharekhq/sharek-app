@@ -172,6 +172,8 @@ export const PostActionsMenu = forwardRef<
   // trigger's start edge, where a + at the end of the screen leaves it a few
   // pixels, and a list that can wrap would shrink to its longest word there
   // and then grow by a few pixels on each pass of the layout effect above.
+  // It is spaced as the canvas spaces it too, 6px inside its edge, its items
+  // touching and 10px from an icon to its text, which leaves its hints 210px.
   const hinted = actions.some((action) => action.hint);
 
   const panel = show && (
@@ -187,8 +189,8 @@ export const PostActionsMenu = forwardRef<
       // inherits. It names its own foreground so the list reads as app chrome
       // wherever it opens.
       className={clsx(
-        'fixed p-[12px] bg-newBgColorInner text-textColor shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
-        hinted && 'min-w-[260px] max-w-[270px]',
+        'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
+        hinted ? 'min-w-[260px] max-w-[270px] p-[6px]' : 'p-[12px] gap-[16px]',
         held && 'pointer-events-auto'
       )}
     >
@@ -198,7 +200,8 @@ export const PostActionsMenu = forwardRef<
           role="menuitem"
           tabIndex={0}
           className={clsx(
-            'flex gap-[12px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors',
+            'flex py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors',
+            hinted ? 'gap-[10px]' : 'gap-[12px]',
             action.hint ? 'items-start' : 'items-center'
           )}
           onClick={() => choose(action)}

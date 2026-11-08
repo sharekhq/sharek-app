@@ -16,13 +16,14 @@ import {
  *
  * Below that width (phones and iPads held upright) the rail leaves the page
  * and opens as upstream's channel sheet: full width from the bottom of the
- * screen, at most 80% of it tall, with 16px rounded top corners and room
- * under its last row, over a scrim. It draws no header: its child draws its
- * own, with the button that closes the sheet. The scrim, Escape and the screen
- * growing past 1025px close it too. While open there it is a modal dialog
- * named by its label, as 044's sheets are (and as the composer's settings pane
- * is, which is not a BottomSheet either): it takes the focus and keeps Tab
- * inside, holds the page behind it still and hides the support chat bubble.
+ * screen, at most 80% of it tall, with 16px rounded top corners, a grab
+ * handle and room under its last row, over a scrim. It draws no header: its
+ * child draws its own, with the button that closes the sheet. The scrim,
+ * Escape and the screen growing past 1025px close it too. While open there it
+ * is a modal dialog named by its label, as 044's sheets are (and as the
+ * composer's settings pane is, which is not a BottomSheet either): it takes
+ * the focus and keeps Tab inside, holds the page behind it still and hides the
+ * support chat bubble.
  *
  * The open state stays with the caller. It has to: the control that opens the
  * sheet sits in the *content* column, a sibling of this panel, and hoisting
@@ -99,18 +100,29 @@ export const SplitPanel: FC<{
           // min-content is 0 and a greedy sibling can shrink it to nothing —
           // which is what put Create Post under the calendar on a tablet.
           'flex relative flex-col shrink-0',
-          collapsed ? 'group sidebar w-[100px]' : width,
+          collapsed ? 'group sidebar w-[64px]' : width,
           // 1025px and below: out of the page until the caller opens it, then
-          // a sheet from the bottom of the screen
+          // a sheet from the bottom of the screen, its surface under the grab
+          // handle too
           open
-            ? 'mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[190] mobile:w-full mobile:max-h-[80vh] mobile:rounded-t-[16px] mobile:overflow-hidden'
+            ? 'mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[190] mobile:w-full mobile:max-h-[80vh] mobile:rounded-t-[16px] mobile:overflow-hidden mobile:bg-newBgColorInner'
             : 'mobile:hidden'
         )}
       >
+        {/* The sheet's grab handle, a picture only. It sits outside the
+            scroller, so it stays put while the list scrolls. */}
+        {open && (
+          <div
+            aria-hidden="true"
+            className="hidden mobile:block flex-none self-center w-[36px] h-[4px] mt-[8px] rounded-[2px] bg-line"
+          />
+        )}
         <div
           ref={backdrop}
           className={clsx(
-            'bg-newBgColorInner px-[20px] pb-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full mobile:static mobile:h-auto mobile:max-h-[80vh] mobile:pb-[80px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor'
+            'bg-newBgColorInner pb-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full mobile:static mobile:h-auto mobile:max-h-[80vh] mobile:pb-[80px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor',
+            // the inset of the list's rows; the icon rail's pictures get 52px
+            collapsed ? 'px-[6px]' : 'px-[8px]'
           )}
         >
           {children}
