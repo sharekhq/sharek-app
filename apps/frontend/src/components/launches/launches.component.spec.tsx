@@ -343,7 +343,7 @@ describe('the channel list (C6, FR-005)', () => {
     expect(mockPanel!.selected).toBeNull();
   });
 
-  it("gives each row the existing ⋯ menu, with today's props and the shared Reconnect", async () => {
+  it("gives each row the existing ⋯ menu, named channel_menu, with today's props and the shared Reconnect", async () => {
     mockChannels = [
       mockChannel(1, { changeProfilePicture: true }),
       mockChannel(2, { disabled: true, changeNickName: true }),
@@ -362,6 +362,7 @@ describe('the channel list (C6, FR-005)', () => {
     expect(enabled.mutate).toBe(mockMutate);
     expect(enabled).toEqual(
       expect.objectContaining({
+        label: 'channel_menu',
         canChangeProfilePicture: true,
         canChangeNickName: false,
         canEnable: false,
@@ -371,6 +372,7 @@ describe('the channel list (C6, FR-005)', () => {
     // under the plan's limit a disabled channel can be enabled again
     expect(disabled).toEqual(
       expect.objectContaining({
+        label: 'channel_menu',
         canChangeProfilePicture: false,
         canChangeNickName: true,
         canEnable: true,

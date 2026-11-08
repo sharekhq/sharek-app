@@ -1212,6 +1212,37 @@ describe('the sticky block (C28)', () => {
       expect(classes(block)).toContain('pt-[20px]');
     }
   });
+
+  // SplitPanel's scroller insets everything by the rows' 8px. The board sets
+  // the header 16px from the start and 10px from the end (12px on the sheet),
+  // the hint 16px and the search 12px, so each takes the rest itself. The
+  // search's is a margin: its icon is placed from the box around the field.
+  it("insets the header, the hint and the search as the board does, inside SplitPanel's 8px", async () => {
+    await render(SEARCH);
+    const [block] = stickyBlocks();
+
+    expect(classes(block.querySelector('h2')!.parentElement)).toEqual(
+      expect.arrayContaining(['ps-[8px]', 'pe-[2px]', 'mobile:pe-[4px]'])
+    );
+    expect(classes(leaf(block, 'channel_hint_calendar')[0])).toContain(
+      'px-[8px]'
+    );
+    const search = block.querySelector('input')!.parentElement!;
+    expect(classes(search)).toContain('mx-[4px]');
+    expect(classes(search).filter((name) => /^p[xse]-/.test(name))).toEqual(
+      []
+    );
+  });
+
+  it('keeps the collapsed header centred, with no inset of its own', async () => {
+    await render(SEARCH, { collapsed: true });
+    const [block] = stickyBlocks();
+    const header = control(block, 'expand')[0].parentElement!;
+
+    expect(
+      classes(header).filter((name) => /^(mobile:)?p[xse]-/.test(name))
+    ).toEqual([]);
+  });
 });
 
 describe('isUsable on the calendar (C20)', () => {
@@ -1661,6 +1692,32 @@ describe('the row menu and the customer pencil', () => {
     await click(document.querySelector('[data-row-menu="lamsa"]')!);
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // The menu opens inside the wrapper, so the wrapper stays shown while it is
+  // open too, or a click that doesn't focus the ⋯ (Safari's) would leave it
+  // open and unseen once the pointer leaves the row.
+  it('shows the ⋯ while its own row is hovered, while it has focus or its menu is open, and always on a touch screen', async () => {
+    await render(CAL, { rowMenu });
+
+    CAL.forEach(({ id, name }) => {
+      const wrapper = document.querySelector(`[data-row-menu="${id}"]`)!
+        .parentElement!;
+      expect(classes(wrapper)).toEqual(
+        expect.arrayContaining([
+          'opacity-0',
+          'group-hover:opacity-100',
+          'focus-within:opacity-100',
+          'has-[[aria-expanded=true]]:opacity-100',
+          'coarse:opacity-100',
+          'transition-opacity',
+        ])
+      );
+      // its row is the group it answers to, and nothing around the row is
+      // one, so another row's hover leaves it hidden
+      expect(closestWith(wrapper, 'group')).toBe(rowOf(name));
+      expect(closestWith(rowOf(name).parentElement!, 'group')).toBeNull();
+    });
   });
 
   it('puts the pencil on each customer header only with onRenameCustomer, and calls it with the customer', async () => {

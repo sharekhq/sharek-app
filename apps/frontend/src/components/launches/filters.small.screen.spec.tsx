@@ -508,6 +508,22 @@ describe('the top bar above 1025px', () => {
       expect(classes(control)).toContain('mobile:hidden');
     });
 
+    // As the board draws them. Four 74px pills made the control 306px wide,
+    // so with the notice shown the bar's one row needed 1035px and Create
+    // Post fell to a row of its own below a 1477px screen (T042 Look, M4).
+    it('makes each view as wide as its word, 12px either side, with 2px between views', async () => {
+      const host = await mount();
+      const views = viewButtons(host);
+
+      views.forEach((b) => {
+        expect(classes(b)).toContain('px-[12px]');
+        expect(classes(b).filter((name) => /^(min-)?w-/.test(name))).toEqual(
+          []
+        );
+      });
+      expect(classes(views[0].parentElement)).toContain('gap-[2px]');
+    });
+
     it.each([
       ['Day', 'day'],
       ['Week', 'week'],
