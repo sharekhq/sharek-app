@@ -40,10 +40,11 @@ export class ChatThreadsService {
     return thread;
   }
 
+  // Mastra's title is optional; the contract's is a string, '' until named.
   private toChat(thread: StorageThreadType) {
     return {
       id: thread.id,
-      title: thread.title,
+      title: thread.title ?? '',
       pinned: thread.metadata?.pinned === true,
       updatedAt: thread.updatedAt.toISOString(),
     };
