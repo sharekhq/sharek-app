@@ -209,9 +209,16 @@ export const CalendarWeekProvider: FC<{
       ? { startDate: initStartDate, endDate: initEndDate }
       : getDateRange(display);
 
-  const [selectedChannels, setSelectedChannelsRaw] = useState<
-    string[] | null
-  >(null);
+  // An old ?customer= link starts on that customer's channels, every disabled
+  // one kept in, since its posts always show
+  const [selectedChannels, setSelectedChannelsRaw] = useState<string[] | null>(
+    () =>
+      integrations.some((p) => p.customer?.id === initCustomer)
+        ? integrations
+            .filter((p) => p.customer?.id === initCustomer || p.disabled)
+            .map((p) => p.id)
+        : null
+  );
   const setSelectedChannels = useCallback((next: string[] | null) => {
     setSelectedChannelsRaw(next);
     setListPage(0);
@@ -220,13 +227,20 @@ export const CalendarWeekProvider: FC<{
   const [filters, setFilters] = useState({
     startDate: initialRange.startDate,
     endDate: initialRange.endDate,
-    customer: initCustomer || null,
+    customer: null as string | null,
     display,
   });
 
+  // The link is read once, so the address drops customer and a remount shows
+  // every channel
   useEffect(() => {
-    setSelectedChannels(null);
-  }, [filters.customer]);
+    if (!initCustomer) {
+      return;
+    }
+    const address = new URLSearchParams(window.location.search);
+    address.delete('customer');
+    window.history.replaceState(null, '', `/launches?${address}`);
+  }, [initCustomer]);
 
   const params = useMemo(() => {
     return new URLSearchParams({
