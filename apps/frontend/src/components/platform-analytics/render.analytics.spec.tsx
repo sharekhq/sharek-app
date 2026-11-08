@@ -26,6 +26,7 @@ jest.mock('@gitroom/frontend/components/analytics/chart-social', () => ({
 
 import i18next from 'i18next';
 import { SWRConfig } from 'swr';
+import { Integration } from '@prisma/client';
 import {
   metricLabel,
   RenderAnalytics,
@@ -120,7 +121,7 @@ const render = async (items: unknown[]) => {
   await act(async () => {
     root.render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <RenderAnalytics integration={{ id: 'ch1' } as any} date={7} />
+        <RenderAnalytics integration={{ id: 'ch1' } as Integration} date={7} />
       </SWRConfig>
     );
   });
@@ -164,6 +165,12 @@ describe.each([
     expect(metricLabel('BUSINESS_IMPRESSIONS_DESKTOP_SEARCH')).toBe(
       'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH'
     );
+  });
+
+  // The slug drops a run of other characters at either end, so a label with
+  // stray spaces or punctuation around it still finds its key.
+  it('finds the key of a label with other characters at either end', () => {
+    expect(metricLabel(' (Reach) ')).toBe(locale.analytics_metric_reach);
   });
 
   it("shows the card's name in the page's language, not the provider's", async () => {
