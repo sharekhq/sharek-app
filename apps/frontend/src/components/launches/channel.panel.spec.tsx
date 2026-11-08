@@ -713,6 +713,15 @@ describe('the search', () => {
     expect(leaf(host, 'no_channel_matches')).toHaveLength(0);
   });
 
+  // one rule for both of the app's searches, the chats' too (agent.chats.tsx)
+  it('matches a name whatever its accents, as the chats search does', async () => {
+    await render([...SEARCH, channel('s-cafe', { name: 'Mocha Café' })]);
+
+    await type(search(), 'CAFE');
+
+    expect(shownNames()).toEqual(['Mocha Café']);
+  });
+
   it('shows every channel of a customer whose name matches', async () => {
     await render(SEARCH);
 

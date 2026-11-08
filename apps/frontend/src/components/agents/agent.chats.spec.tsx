@@ -321,6 +321,29 @@ describe('the search', () => {
     expect(host.textContent).not.toContain('no_chat_matches');
   });
 
+  it('matches what a row shows, New chat for a chat not yet named', async () => {
+    const host = await render();
+
+    await type(search(host), 'NEW');
+
+    expect(groups(host)).toEqual([['chats_today', ['new_chat']]]);
+  });
+
+  it('takes a chat the list gives no title at all as one not yet named', async () => {
+    mockList = [
+      { ...chat('nameless', '', '2026-11-08T15:30:00.000Z'), title: undefined },
+      ...LIST,
+    ] as Chat[];
+    const host = await render();
+    expect(titleOf(host, 'nameless').textContent).toBe('new_chat');
+
+    await type(search(host), 'cafe');
+    expect(groups(host)).toEqual([['chats_previous_7_days', ['Café plans']]]);
+
+    await type(search(host), 'new');
+    expect(groups(host)).toEqual([['chats_today', ['new_chat', 'new_chat']]]);
+  });
+
   it('says so when no chat matches', async () => {
     const host = await render();
 
