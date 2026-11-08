@@ -6,6 +6,7 @@ import React, {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -468,9 +469,29 @@ export const DayView = () => {
     return upcoming === -1 ? options.length : upcoming;
   }, [options, startDate, now]);
 
+  // opens at the first slot at or after 8 AM, or the current hour on today,
+  // else at the last slot; again on another day only (R9)
+  const list = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const now = newDayjs();
+    const hour = newDayjs(startDate).isSame(now, 'day')
+      ? Math.max(8, now.hour())
+      : 8;
+    const slots = Array.from(
+      list.current!.querySelectorAll<HTMLElement>('div[data-slot]')
+    );
+    const slot =
+      slots.find((el) => Number(el.dataset.slot) >= hour * 60) ??
+      slots[slots.length - 1];
+    list.current!.scrollTop = slot?.offsetTop ?? 0;
+  }, [startDate]);
+
   return (
     <div className="flex flex-col gap-[10px] flex-1 relative">
-      <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div
+        ref={list}
+        className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+      >
         {options.map((option, index) => (
           <Fragment key={option[0].time}>
             {/* sits in the 20px gap under the previous slot */}
@@ -480,7 +501,10 @@ export const DayView = () => {
                 className={clsx(index > 0 && '-mt-[20px]')}
               />
             )}
-            <div className="text-center text-[14px] min-h-[21px] shrink-0">
+            <div
+              data-slot={option[0].time}
+              className="text-center text-[14px] min-h-[21px] shrink-0"
+            >
               {slotDate(startDate, option[0].time).format(
                 isUSCitizen() ? 'hh:mm A' : 'LT'
               )}
@@ -522,10 +546,25 @@ export const WeekView = () => {
     return days;
   }, [i18next.resolvedLanguage, startDate]);
 
+  // opens with 8 AM, or the current hour in the week of today, where the
+  // first row sits under the sticky day header; again on another week only (R9)
+  const grid = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const now = newDayjs();
+    const hour = localizedDays.some((day) => day.date.isSame(now, 'day'))
+      ? Math.max(8, now.hour())
+      : 8;
+    const rows = grid.current!.querySelectorAll<HTMLElement>('div[data-hour]');
+    grid.current!.scrollTop = rows[hour].offsetTop - rows[0].offsetTop;
+  }, [localizedDays]);
+
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 relative">
-        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+        <div
+          ref={grid}
+          className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+        >
           <div className="z-10 mobile:z-30 mobile:start-0 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
             <div
@@ -558,7 +597,10 @@ export const WeekView = () => {
               {/* below 1025px the labels stick while the days scroll under
                   them, so they sit over the add buttons (z-[16]) and the now
                   line (z-[15]) passing beneath */}
-              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap">
+              <div
+                data-hour={hour}
+                className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap"
+              >
                 {convertTimeFormatBasedOnLocality(hour)}
               </div>
               {localizedDays.map((day, indexDay) => (
