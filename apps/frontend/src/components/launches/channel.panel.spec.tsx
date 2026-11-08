@@ -353,7 +353,22 @@ const labelOf = (el: Element) => {
       .trim();
   return el.getAttribute('aria-label') ?? '';
 };
-const nameOf = (el: Element) => labelOf(el) || (el.textContent ?? '').trim();
+// Unlabelled, a control is named by what it holds, as a browser names it: its
+// text and its pictures' alt in order, leaving out what's aria-hidden, the
+// pieces joined by a space as the row's blocks are.
+const contentOf = (node: Node): string[] => {
+  if (node.nodeType === node.TEXT_NODE) return [node.textContent ?? ''];
+  const el = node as Element;
+  if (el.getAttribute('aria-hidden') === 'true') return [];
+  if (el.tagName === 'IMG') return [el.getAttribute('alt') ?? ''];
+  return Array.from(el.childNodes).flatMap(contentOf);
+};
+const nameOf = (el: Element) =>
+  labelOf(el) ||
+  contentOf(el)
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .join(' ');
 const controls = (root: Element) =>
   Array.from(root.querySelectorAll('button, [role="button"], input'));
 const control = (root: Element, name: string) =>
@@ -1149,6 +1164,73 @@ describe('the collapsed list', () => {
       });
     });
   });
+});
+
+// Walk 2 (T045): a row's checkbox read "facebook facebook AdFountain
+// Facebook", the picture's and its badge's alt before the channel's name.
+// Each picture sits in a control its channel already names, so it's
+// decoration, on both pages and on the rail.
+describe("the controls' names (walk 2)", () => {
+  const USES = [
+    ['the open list on the calendar', 'calendar', null, false],
+    ['the open list on Samy', 'samy', [], false],
+    ['the collapsed list on the calendar', 'calendar', null, true],
+    ['the collapsed list on Samy', 'samy', [], true],
+  ] as const;
+
+  it.each(USES)(
+    "names each row's checkbox once for its channel, its pictures decoration: %s",
+    async (_, mode, selected, collapsed) => {
+      await render(ROWS, { mode, selected, collapsed });
+      // open, the second line follows the name; collapsed, a state follows it
+      // after a ·
+      const names: Array<[string, string, string | null]> = [
+        ['Lamsa Studio', 'Instagram', null],
+        ['بيت القهوة', 'YouTube', null],
+        ['Rawda Florist', 'channel_disabled', null],
+        ['Noor Dental', 'channel_disconnected', 'channel_disconnected'],
+        ['Mona Saeed', 'channel_needs_setup', 'channel_needs_setup'],
+        ['Sky Studio', 'channel_disconnected', 'channel_disconnected'],
+      ];
+
+      names.forEach(([name, line, state]) => {
+        const main = collapsed ? collapsedButton(name) : mainButton(name);
+        expect(main.getAttribute('role')).toBe('checkbox');
+        expect(nameOf(main)).toBe(
+          !collapsed ? `${name} ${line}` : state ? `${name} · ${state}` : name
+        );
+      });
+      const pictures = Array.from(host.querySelectorAll('img'));
+      expect(pictures).toHaveLength(ROWS.length * 2);
+      pictures.forEach((img) => expect(img.getAttribute('alt')).toBe(''));
+      // the Check beside an open row is the look of its checkbox, not another
+      expect(host.querySelectorAll('[role="checkbox"]')).toHaveLength(
+        ROWS.length
+      );
+    }
+  );
+
+  it.each(USES)(
+    "names a customer's chevron for the customer and its count, and its tick for the customer: %s",
+    async (_, mode, selected, collapsed) => {
+      await render(GROUPS, { mode, selected, collapsed });
+      const customers: Array<[string, number]> = [
+        ['Client 2', 2],
+        ['Client 10', 1],
+      ];
+
+      customers.forEach(([customer, count]) => {
+        const group = groupOf(customer);
+        expect(chevrons(group).map(nameOf)).toEqual([
+          collapsed ? customer : `${customer} ${count}`,
+        ]);
+        const ticks = Array.from(
+          group.querySelectorAll('[role="checkbox"]')
+        ).filter((el) => !el.querySelector('img'));
+        expect(ticks.map(nameOf)).toEqual(collapsed ? [] : [customer]);
+      });
+    }
+  );
 });
 
 describe('focus and touch (FR-052)', () => {
