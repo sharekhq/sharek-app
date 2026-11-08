@@ -166,6 +166,11 @@ const ARBITRARY = {
   'h-[28px]': [['height', '28px']],
   'w-[20px]': [['width', '20px']],
   'h-[20px]': [['height', '20px']],
+  // Analytics' radio at a row's end, the Check's 20px (above): its ring and
+  // its mark
+  'border-[1.5px]': [['border-width', '1.5px']],
+  'w-[10px]': [['width', '10px']],
+  'h-[10px]': [['height', '10px']],
   // the sticky header, its count and its hint; past SplitPanel's 8px, the
   // header's own 8px and 2px (4px on the sheet, below), the hint's 8px
   // (px-[8px], above) and the search's 4px
@@ -650,7 +655,8 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'scrollbar-track-newBgColor': [
         ['--scrollbar-track', 'var(--new-bgColor)'],
       ],
-      // the open chat's tint, and the rename field's ring (agent.chats.tsx)
+      // the open chat's tint, and the rename field's ring (agent.chats.tsx);
+      // Analytics' chosen row (channel.panel.tsx)
       'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
       'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
       // the summary's pictures, ringed in its pill's colour
