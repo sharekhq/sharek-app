@@ -4,12 +4,13 @@ import { createRoot } from 'react-dom/client';
 // The calendar's channel list: a rail beside the calendar above 1025px, and at
 // 1025px and below (phones and iPads held upright) a bottom sheet the toolbar's
 // channel chip opens: full width, at most 80% of the screen tall, 16px rounded
-// top corners and 80px of room under the last row, over a scrim. Its close
-// button, the scrim and Escape close it. jsdom-like DOMs apply no media
-// queries, so the width rules are pinned by the classes that carry them.
-// While it is open at that width it is a modal dialog, as 044's sheets are: it
-// takes the focus and keeps Tab inside, holds the page behind it still and
-// hides the support chat bubble.
+// top corners and 80px of room under the last row, over a scrim. It draws no
+// header: its child draws its own, with the button that closes it. The scrim,
+// Escape and the screen growing past 1025px close it. jsdom-like DOMs apply no
+// media queries, so the width rules are pinned by the classes that carry them.
+// While it is open at that width it is a modal dialog named by its label, as
+// 044's sheets are: it takes the focus and keeps Tab inside, holds the page
+// behind it still and hides the support chat bubble.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
 }));
@@ -18,21 +19,36 @@ import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 
 // The window, as the media query reports it: 1025px or narrower unless a case
-// widens it.
+// widens it, and what listens for it to change.
 const realMatchMedia = window.matchMedia;
 let smallWindow = true;
+const listeners = new Set<() => void>();
 
 beforeEach(() => {
   smallWindow = true;
+  listeners.clear();
   window.matchMedia = ((query: string) => ({
     get matches() {
       return smallWindow && query === MOBILE_QUERY;
     },
     media: query,
-    addEventListener: (): void => undefined,
-    removeEventListener: (): void => undefined,
+    addEventListener: (_type: string, listener: () => void) => {
+      listeners.add(listener);
+    },
+    removeEventListener: (_type: string, listener: () => void) => {
+      listeners.delete(listener);
+    },
   })) as unknown as typeof window.matchMedia;
 });
+
+// The window resized to 1025px or narrower, or wider, as the media query's
+// listeners hear it.
+const resize = async (small: boolean) => {
+  smallWindow = small;
+  await act(async () => {
+    listeners.forEach((listener) => listener());
+  });
+};
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -45,12 +61,8 @@ const mountPanel = async (open: boolean, onClose = jest.fn()) => {
   const render = async (isOpen: boolean) => {
     await act(async () => {
       root.render(
-        <SplitPanel
-          open={isOpen}
-          onClose={onClose}
-          onToggleCollapse={() => undefined}
-          title="Channels"
-        >
+        <SplitPanel open={isOpen} onClose={onClose} label="Channels">
+          <button type="button">Done</button>
           <button type="button">Add Channel</button>
         </SplitPanel>
       );
@@ -123,31 +135,23 @@ describe('the channel sheet at 1025px and below', () => {
     );
   });
 
-  it('has a 44px close button named Close, and no collapse chevron', async () => {
-    const host = await mount(true);
+  it('draws no title row, close button or chevron of its own, and its child comes first', async () => {
+    for (const open of [true, false]) {
+      const host = await mount(open);
 
-    expect(close(host)).not.toBeNull();
-    expect(classes(close(host))).toEqual(
-      expect.arrayContaining([
-        'hidden',
-        'mobile:flex',
-        'mobile:w-[44px]',
-        'mobile:h-[44px]',
-        'focus-visible:ring-2',
-        'focus-visible:ring-brand',
-      ])
-    );
-    expect(classes(chevron(host))).toContain('mobile:hidden');
+      expect(host.querySelector('h2')).toBeNull();
+      expect(close(host)).toBeNull();
+      expect(chevron(host)).toBeUndefined();
+      expect(Array.from(scroller(host).children)).toEqual([
+        byText(host, 'Done'),
+        byText(host, 'Add Channel'),
+      ]);
+    }
   });
 
-  it('closes from its close button, the scrim and Escape', async () => {
+  it('closes from the scrim and Escape', async () => {
     const onClose = jest.fn();
     const host = await mount(true, onClose);
-
-    await act(async () => {
-      close(host)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(onClose).toHaveBeenCalledTimes(1);
 
     expect(classes(scrim(host))).toEqual(
       expect.arrayContaining(['hidden', 'mobile:block'])
@@ -155,12 +159,32 @@ describe('the channel sheet at 1025px and below', () => {
     await act(async () => {
       scrim(host)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     });
-    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes once the screen grows past 1025px, and not while it stays at 1025px or below', async () => {
+    const onClose = jest.fn();
+    await mount(true, onClose);
+
+    await resize(true);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await resize(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls nothing while closed, whatever the screen does', async () => {
+    const onClose = jest.fn();
+    await mount(false, onClose);
+
+    await resize(false);
+    await resize(true);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('keeps none of the side drawer it replaces', async () => {
@@ -191,16 +215,13 @@ describe('the open channel sheet at 1025px and below', () => {
     return event;
   };
 
-  it('is a modal dialog named by its title', async () => {
+  it('is a modal dialog named by its label', async () => {
     const host = await mount(true);
     const sheet = panel(host);
 
     expect(sheet.getAttribute('role')).toBe('dialog');
     expect(sheet.getAttribute('aria-modal')).toBe('true');
-    const title = document.getElementById(
-      sheet.getAttribute('aria-labelledby') ?? ''
-    );
-    expect(title?.textContent).toBe('Channels');
+    expect(sheet.getAttribute('aria-label')).toBe('Channels');
   });
 
   it('takes the focus when it opens and gives it back when it closes', async () => {
@@ -220,7 +241,7 @@ describe('the open channel sheet at 1025px and below', () => {
 
   it('keeps Tab inside, from the last control to the first and back', async () => {
     const host = await mount(true);
-    const first = close(host)!;
+    const first = panel(host).querySelector('button')!;
     const last = byText(host, 'Add Channel');
     last.focus();
 
@@ -260,9 +281,8 @@ describe('the open channel sheet at 1025px and below', () => {
       const rail = panel(host);
       expect(rail.hasAttribute('role')).toBe(false);
       expect(rail.hasAttribute('aria-modal')).toBe(false);
-      expect(rail.hasAttribute('aria-labelledby')).toBe(false);
+      expect(rail.hasAttribute('aria-label')).toBe(false);
       expect(rail.hasAttribute('tabindex')).toBe(false);
-      expect(host.querySelector('h2')!.hasAttribute('id')).toBe(false);
     }
     expect(document.body.classList.contains('bottomSheetOpen')).toBe(false);
     expect(document.activeElement).toBe(document.body);
