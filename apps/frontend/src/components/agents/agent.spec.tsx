@@ -1,4 +1,4 @@
-import { act, ComponentProps, useContext } from 'react';
+import { act, ComponentProps, useContext, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // Samy's page (spec 051, pages-ui.md): the chats panel at the start, the chat,
@@ -73,21 +73,19 @@ jest.mock('next/navigation', () => ({
 // Kept in state, as react-use-cookie keeps it.
 jest.mock('react-use-cookie', () => {
   const { useState } = jest.requireActual('react');
-  return {
-    __esModule: true,
-    default: (name: string, initial: string) => {
-      const [value, setValue] = useState(
-        name === 'collapseMenu' ? mockCollapse : initial
-      );
-      return [
-        value,
-        (next: string) => {
-          mockSetCookie(name, next);
-          setValue(next);
-        },
-      ];
-    },
+  const useCookieMock = (name: string, initial: string) => {
+    const [value, setValue] = useState(
+      name === 'collapseMenu' ? mockCollapse : initial
+    );
+    return [
+      value,
+      (next: string) => {
+        mockSetCookie(name, next);
+        setValue(next);
+      },
+    ];
   };
+  return { __esModule: true, default: useCookieMock };
 });
 // The chats panel takes the drawer, the channel list the sheet.
 jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
@@ -177,10 +175,14 @@ const resize = async (small: boolean) => {
   });
 };
 
-// Stands in for the chat route: the context it reads, and the chat it is.
+// Stands in for the chat route: the context it reads, kept once each render
+// commits, and the chat it is.
 let page: Page;
 const Probe = ({ chat }: { chat: string }) => {
-  page = useContext(PropertiesContext) as unknown as Page;
+  const context = useContext(PropertiesContext) as unknown as Page;
+  useEffect(() => {
+    page = context;
+  });
   return <div data-testid="chat" data-chat={chat} />;
 };
 
