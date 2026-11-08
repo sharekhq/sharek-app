@@ -255,12 +255,11 @@ describe('the change figure on a card', () => {
 });
 
 // Instagram and Threads send a total as one point, and X pads each of its
-// totals with a 0 at the period's start, so fewer than 3 points are a total,
-// shown as a tile. A series has a point a day and is a chart (R19).
+// totals with a 0 at the period's start, so 1 or 2 points are a total, shown
+// as a tile. A series has a point a day and is a chart (R19).
 describe('tiles and charts', () => {
-  it('draws a chart for each metric with 3 or more points, and a tile for each with fewer', async () => {
+  it('draws a chart for each metric with 3 or more points, and a tile for each with 1 or 2', async () => {
     const host = await render([
-      metric('Saves', []),
       metric('Followers', [480]),
       metric('IMPRESSION', [0, 1234]),
       metric('Page followers', [120, 340, 560]),
@@ -287,15 +286,29 @@ describe('tiles and charts', () => {
     expect(host.querySelectorAll('[data-testid="metric-chart"]')).toHaveLength(
       2
     );
-    [
-      en.analytics_metric_saves,
-      en.analytics_metric_followers,
-      en.analytics_metric_impression,
-    ].forEach((name) => {
-      const tile = leaf(host, name);
-      expect(tile).toBeDefined();
-      expect(tile!.closest('figure')).toBeNull();
-    });
+    [en.analytics_metric_followers, en.analytics_metric_impression].forEach(
+      (name) => {
+        const tile = leaf(host, name);
+        expect(tile).toBeDefined();
+        expect(tile!.closest('figure')).toBeNull();
+      }
+    );
+  });
+
+  // A totals platform always sends its one point, so a metric with none this
+  // period is a series with no data: a chart, whose MetricChart says so, with a
+  // headline of 0 (spec.md, Edge Cases: tiles show 0 and charts an empty state).
+  it('draws a metric with no points as a chart, and hands MetricChart the empty series', async () => {
+    const host = await render([metric('Reach', [])]);
+
+    const figure = host.querySelector('figure');
+    expect(figure).not.toBeNull();
+    expect(figure!.querySelector('figcaption')!.textContent).toBe(
+      en.analytics_metric_reach
+    );
+    expect(chartOf(figure!).getAttribute('data-points')).toBe('[]');
+    expect(leaf(figure!, '0')).toBeDefined();
+    expect(figure!.textContent).toContain('Total for the last 7 days');
   });
 
   // A tile is its name and value; only a chart says what the value covers.
