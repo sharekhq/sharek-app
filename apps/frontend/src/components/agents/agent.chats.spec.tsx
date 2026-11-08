@@ -14,6 +14,7 @@ type Chat = { id: string; title: string; pinned: boolean; updatedAt: string };
 
 const mockFetch = jest.fn();
 const mockToast = jest.fn();
+const mockRedirect = jest.fn();
 
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
@@ -29,6 +30,11 @@ jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'new' }),
   usePathname: () => '/agents/new',
   useRouter: () => ({ push: jest.fn() }),
+  redirect: (url: string) => mockRedirect(url),
+}));
+// /agents's page reads it for its title only
+jest.mock('@gitroom/react/translation/get.translation.service.backend', () => ({
+  getT: async () => (key: string) => key,
 }));
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -197,7 +203,7 @@ const titleOf = (host: HTMLElement, id: string) =>
   linkOf(host, id)!.querySelector('[dir="auto"]')!;
 const chatLinks = (root: Element) =>
   Array.from(root.querySelectorAll('a')).filter(
-    (a) => a.getAttribute('href') !== '/agents/new'
+    (a) => a.getAttribute('href') !== '/agents'
   );
 // each group's name and its rows' titles, in order
 const groups = (host: HTMLElement) =>
@@ -689,21 +695,34 @@ describe('the header', () => {
         'bg-newBgColorInner',
       ])
     );
-    expect(block.contains(host.querySelector('a[href="/agents/new"]'))).toBe(
-      true
-    );
+    expect(block.contains(host.querySelector('a[href="/agents"]'))).toBe(true);
     expect(block.contains(search(host))).toBe(true);
   });
 
-  it('starts a new chat with a +, at /agents/new, closing the drawer', async () => {
+  // As upstream's Start a new chat did. /agents is a route of its own, not
+  // /agents/[id], so Next unmounts the open chat on the way and mounts a new
+  // one at /agents/new, whose CopilotKit has no thread id yet and makes one.
+  // A link to /agents/new from /agents/new would change nothing, and the next
+  // message would land in the chat just left.
+  it('starts a new chat with a +, at /agents, closing the drawer', async () => {
     const host = await render();
-    const link = host.querySelector('a[href="/agents/new"]')!;
+    const link = host.querySelector('a[href="/agents"]')!;
 
     expect(link.textContent).toBe('new_chat');
     expect(link.querySelector('svg')).not.toBeNull();
 
     await tap(link);
     expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('lands at /agents/new, where /agents sends it', async () => {
+    const { default: AgentsPage } = await import(
+      '@gitroom/frontend/app/(app)/(site)/agents/page'
+    );
+
+    await AgentsPage();
+
+    expect(mockRedirect).toHaveBeenCalledWith('/agents/new');
   });
 
   it("hides the chats on the rail, through the page's hide", async () => {

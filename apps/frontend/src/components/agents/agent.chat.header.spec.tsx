@@ -303,8 +303,10 @@ const field = (host: HTMLElement) =>
   host.querySelector<HTMLInputElement>('input');
 const button = (host: HTMLElement, label: string) =>
   host.querySelector<HTMLElement>(`button[aria-label="${label}"]`)!;
+// /agents, as the history's New chat: a route of its own, so the chat being
+// left unmounts and a new one starts at /agents/new (agent.chats.spec.tsx)
 const newChat = (host: HTMLElement) =>
-  host.querySelector<HTMLAnchorElement>('a[href="/agents/new"]')!;
+  host.querySelector<HTMLAnchorElement>('a[href="/agents"]')!;
 // how many times the list was read
 const lists = () =>
   mockFetch.mock.calls.filter(([url]) => url === '/copilot/list').length;
