@@ -417,7 +417,7 @@ textarea::placeholder {
 }
 
 .col-calendar:hover:before {
-  content: 'Date passed';
+  content: attr(data-hint);
   color: var(--color-text);
   position: absolute;
   left: 50%;

@@ -1112,6 +1112,8 @@ export const CalendarColumn: FC<{
             // the "Date passed" hint is wider than a phone month cell
             display === 'month' && 'mobile:before:hidden'
           )}
+          // col-calendar's hover hint draws these words (global.scss)
+          data-hint={t('date_passed', 'Date passed')}
         >
           {loading && (
             <div className="h-full w-full p-[5px] animate-pulse absolute left-0 top-0 z-[50]">
