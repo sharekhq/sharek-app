@@ -262,6 +262,8 @@ const MOBILE_CLASSES = {
   'mobile:bg-newBgColorInner': [
     ['background-color', 'var(--new-bgColorInner)'],
   ],
+  // the drawer's width, the SamyPhoneChats board's 318px
+  'mobile:w-[318px]': [['width', '318px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
