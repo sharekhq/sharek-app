@@ -50,8 +50,9 @@ interface Channel {
 }
 
 // What a tick means on the page the list is on (contracts/channel-panel.md):
-// on the calendar, that the channel's posts show.
-type PanelMode = 'calendar';
+// on the calendar, that the channel's posts show; on Samy, that Samy may use
+// the channel.
+type PanelMode = 'calendar' | 'samy';
 
 // Code-unit order, as lodash's orderBy compares, so the calendar keeps
 // today's order wherever today's had no tie (C14).
@@ -97,10 +98,16 @@ export const orderChannels = (list: Channel[]) =>
 // data-model.md's usable table, one rule per page (C20): whether a row can be
 // ticked or picked. It takes only the fields the rules read, so the calendar's
 // top bar can ask it of the calendar's channels too.
-type UsableFields = Pick<Channel, 'disabled'>;
+type UsableFields = Pick<
+  Channel,
+  'disabled' | 'refreshNeeded' | 'inBetweenSteps'
+>;
 const USABLE: Record<PanelMode, (channel: UsableFields) => boolean> = {
   // a disabled channel's posts always show, so it can't be hidden (C5)
   calendar: (channel) => !channel.disabled,
+  // Samy can't post to a channel over the plan, disconnected or not set up
+  samy: (channel) =>
+    !channel.disabled && !channel.refreshNeeded && !channel.inBetweenSteps,
 };
 
 export const isUsable = (channel: UsableFields, mode: PanelMode) =>
@@ -206,13 +213,15 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
 // the picture alone, named by the channel and any state it needs fixed.
 //
 // The main button is the row's checkbox, checked while the channel's posts
-// show. A hidden row greys only its picture and sets its name in text-muted,
-// so its text keeps AA; a row that can't change keeps today's opacity-50 on
-// its picture, its name and its Check (C25).
+// show, or on Samy while it's picked. A dimmed row, the calendar's hidden one,
+// greys only its picture and sets its name in text-muted, so its text keeps
+// AA; a row that can't change keeps today's opacity-50 on its picture, its
+// name and its Check (C25).
 const ChannelRow: FC<{
   channel: Channel;
   collapsed: boolean;
   checked: boolean;
+  dimmed: boolean;
   usable: boolean;
   /** the enabled channels fill the plan, the old rail's tooltip condition */
   atPlanLimit: boolean;
@@ -225,6 +234,7 @@ const ChannelRow: FC<{
   channel,
   collapsed,
   checked,
+  dimmed,
   usable,
   atPlanLimit,
   onToggle,
@@ -287,14 +297,14 @@ const ChannelRow: FC<{
     >
       <ChannelPicture
         channel={channel}
-        className={clsx(!checked && 'grayscale', !usable && 'opacity-50')}
+        className={clsx(dimmed && 'grayscale', !usable && 'opacity-50')}
       />
       {!collapsed && (
         <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
           <bdi
             className={clsx(
               'text-[14px] font-[500] truncate',
-              checked ? 'text-ink' : 'text-muted',
+              dimmed ? 'text-muted' : 'text-ink',
               !usable && 'opacity-50'
             )}
           >
@@ -602,9 +612,12 @@ export const ChannelPanel: FC<{
   mode: PanelMode;
   /** the page's `useIntegrationList()` data */
   channels: Channel[];
-  /** the ids whose posts show, or null for all */
+  /** calendar: the ids whose posts show, or null for all; samy: the picks */
   selected: string[] | null;
-  /** the ids that show next, or null once every usable channel does (C5) */
+  /**
+   * calendar: the ids that show next, or null once every usable channel does
+   * (C5); samy: the ids picked next
+   */
   onChange: (selected: string[] | null) => void;
   /** the row's ⋯ menu */
   rowMenu?: (channel: Channel) => ReactNode;
@@ -643,24 +656,31 @@ export const ChannelPanel: FC<{
 
   const hints: Record<PanelMode, string> = {
     calendar: t('channel_hint_calendar', 'Untick a channel to hide its posts.'),
+    samy: t('channel_hint_samy', 'Samy schedules to the channels you tick.'),
   };
 
   const atPlanLimit =
     channels.filter((channel) => !channel.disabled).length ===
     user?.totalChannels;
   const usable = (channel: Channel) => isUsable(channel, mode);
-  // A channel that can't be ticked always shows (C5).
-  const shows = (channel: Channel) =>
-    !usable(channel) || !selected || selected.includes(channel.id);
-  const hiding = channels.some((channel) => !shows(channel));
-  // The page's next selection: null once every channel shows, else the ids
-  // that do, every disabled one's included, even one the array was missing.
+  // On the calendar a channel that can't be ticked always shows (C5); on Samy
+  // one that can't be picked never is, even while the page holds its id (C20).
+  const ticked = (channel: Channel) =>
+    mode === 'calendar'
+      ? !usable(channel) || !selected || selected.includes(channel.id)
+      : usable(channel) && selected.includes(channel.id);
+  // only the calendar hides channels, so only it offers Show all
+  const hiding =
+    mode === 'calendar' && channels.some((channel) => !ticked(channel));
+  // The page's next selection: the ids ticked next, a channel that can't be
+  // ticked staying as it reads, so the calendar's holds every disabled id,
+  // even one the array was missing, and is null once every channel shows.
   const select = (next: (channel: Channel) => boolean) => {
-    const shown = channels.filter(
-      (channel) => !usable(channel) || next(channel)
-    );
+    const ids = channels
+      .filter((channel) => (usable(channel) ? next(channel) : ticked(channel)))
+      .map(({ id }) => id);
     onChange(
-      shown.length === channels.length ? null : shown.map(({ id }) => id)
+      mode === 'calendar' && ids.length === channels.length ? null : ids
     );
   };
 
@@ -693,12 +713,13 @@ export const ChannelPanel: FC<{
           key={channel.id}
           channel={channel}
           collapsed={collapsed}
-          checked={shows(channel)}
+          checked={ticked(channel)}
+          dimmed={mode === 'calendar' && !ticked(channel)}
           usable={usable(channel)}
           atPlanLimit={atPlanLimit}
           onToggle={() =>
             select((other) =>
-              other.id === channel.id ? !shows(other) : shows(other)
+              other.id === channel.id ? !ticked(other) : ticked(other)
             )
           }
           onReconnect={reconnect(channel)}
@@ -943,9 +964,9 @@ export const ChannelPanel: FC<{
             </div>
           );
         }
-        const shown = members.filter(shows).length;
+        const ticks = members.filter(ticked).length;
         const checked =
-          shown === members.length ? true : shown ? 'mixed' : false;
+          ticks === members.length ? true : ticks ? 'mixed' : false;
         return dropZone(
           customer.id,
           <CustomerGroup
@@ -957,7 +978,7 @@ export const ChannelPanel: FC<{
             disabled={!members.length}
             onToggle={() =>
               select((channel) =>
-                members.includes(channel) ? checked !== true : shows(channel)
+                members.includes(channel) ? checked !== true : ticked(channel)
               )
             }
             onRename={onRenameCustomer && (() => onRenameCustomer(customer))}
