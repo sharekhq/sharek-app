@@ -37,6 +37,60 @@ function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
   });
 }
 
+// Series colors match the legend badges in statistics.tsx / render.analytics.tsx:
+// purple→brand, green→success, blue→info. Literal per-theme RGB because Chart.js
+// paints on canvas and can't resolve CSS vars (data-model §8).
+// Exported for Analytics' MetricChart, which takes the brand entry.
+export const chartColorSchemes = (mode: string) => ({
+  purple: {
+    start: 'rgba(185, 45, 67, 0.8)',
+    end: 'rgba(185, 45, 67, 0.1)',
+    border: 'rgb(185, 45, 67)',
+  },
+  green: {
+    start: mode === 'dark' ? 'rgba(61, 214, 140, 0.8)' : 'rgba(30, 158, 90, 0.8)',
+    end: mode === 'dark' ? 'rgba(61, 214, 140, 0.1)' : 'rgba(30, 158, 90, 0.1)',
+    border: mode === 'dark' ? 'rgb(61, 214, 140)' : 'rgb(30, 158, 90)',
+  },
+  blue: {
+    start: mode === 'dark' ? 'rgba(138, 176, 232, 0.8)' : 'rgba(62, 99, 168, 0.8)',
+    end: mode === 'dark' ? 'rgba(138, 176, 232, 0.1)' : 'rgba(62, 99, 168, 0.1)',
+    border: mode === 'dark' ? 'rgb(138, 176, 232)' : 'rgb(62, 99, 168)',
+  },
+  // v3 categorical slots (colors.scss §categorical) — cycled per analytics
+  // card so each metric reads distinctly instead of a single blue.
+  pomegranate: {
+    start: mode === 'dark' ? 'rgba(224, 99, 120, 0.8)' : 'rgba(185, 45, 67, 0.8)',
+    end: mode === 'dark' ? 'rgba(224, 99, 120, 0.1)' : 'rgba(185, 45, 67, 0.1)',
+    border: mode === 'dark' ? 'rgb(224, 99, 120)' : 'rgb(185, 45, 67)',
+  },
+  saffron: {
+    start: mode === 'dark' ? 'rgba(198, 132, 0, 0.8)' : 'rgba(201, 133, 0, 0.8)',
+    end: mode === 'dark' ? 'rgba(198, 132, 0, 0.1)' : 'rgba(201, 133, 0, 0.1)',
+    border: mode === 'dark' ? 'rgb(198, 132, 0)' : 'rgb(201, 133, 0)',
+  },
+  fayrouz: {
+    start: mode === 'dark' ? 'rgba(0, 165, 188, 0.8)' : 'rgba(0, 128, 167, 0.8)',
+    end: mode === 'dark' ? 'rgba(0, 165, 188, 0.1)' : 'rgba(0, 128, 167, 0.1)',
+    border: mode === 'dark' ? 'rgb(0, 165, 188)' : 'rgb(0, 128, 167)',
+  },
+  palm: {
+    start: mode === 'dark' ? 'rgba(60, 165, 12, 0.8)' : 'rgba(61, 152, 0, 0.8)',
+    end: mode === 'dark' ? 'rgba(60, 165, 12, 0.1)' : 'rgba(61, 152, 0, 0.1)',
+    border: mode === 'dark' ? 'rgb(60, 165, 12)' : 'rgb(61, 152, 0)',
+  },
+  lapis: {
+    start: mode === 'dark' ? 'rgba(124, 137, 240, 0.8)' : 'rgba(80, 88, 187, 0.8)',
+    end: mode === 'dark' ? 'rgba(124, 137, 240, 0.1)' : 'rgba(80, 88, 187, 0.1)',
+    border: mode === 'dark' ? 'rgb(124, 137, 240)' : 'rgb(80, 88, 187)',
+  },
+  mulberry: {
+    start: mode === 'dark' ? 'rgba(184, 95, 210, 0.8)' : 'rgba(171, 86, 196, 0.8)',
+    end: mode === 'dark' ? 'rgba(184, 95, 210, 0.1)' : 'rgba(171, 86, 196, 0.1)',
+    border: mode === 'dark' ? 'rgb(184, 95, 210)' : 'rgb(171, 86, 196)',
+  },
+});
+
 export const ChartSocial: FC<{
   data: TotalList[];
   color?:
@@ -68,60 +122,7 @@ export const ChartSocial: FC<{
   const ref = useRef<any>(null);
   const chart = useRef<null | DrawChart>(null);
 
-  // Series colors match the legend badges in statistics.tsx / render.analytics.tsx:
-  // purple→brand, green→success, blue→info. Literal per-theme RGB because Chart.js
-  // paints on canvas and can't resolve CSS vars (data-model §8).
-  const colorSchemes = {
-    purple: {
-      start: 'rgba(185, 45, 67, 0.8)',
-      end: 'rgba(185, 45, 67, 0.1)',
-      border: 'rgb(185, 45, 67)',
-    },
-    green: {
-      start: mode === 'dark' ? 'rgba(61, 214, 140, 0.8)' : 'rgba(30, 158, 90, 0.8)',
-      end: mode === 'dark' ? 'rgba(61, 214, 140, 0.1)' : 'rgba(30, 158, 90, 0.1)',
-      border: mode === 'dark' ? 'rgb(61, 214, 140)' : 'rgb(30, 158, 90)',
-    },
-    blue: {
-      start: mode === 'dark' ? 'rgba(138, 176, 232, 0.8)' : 'rgba(62, 99, 168, 0.8)',
-      end: mode === 'dark' ? 'rgba(138, 176, 232, 0.1)' : 'rgba(62, 99, 168, 0.1)',
-      border: mode === 'dark' ? 'rgb(138, 176, 232)' : 'rgb(62, 99, 168)',
-    },
-    // v3 categorical slots (colors.scss §categorical) — cycled per analytics
-    // card so each metric reads distinctly instead of a single blue.
-    pomegranate: {
-      start: mode === 'dark' ? 'rgba(224, 99, 120, 0.8)' : 'rgba(185, 45, 67, 0.8)',
-      end: mode === 'dark' ? 'rgba(224, 99, 120, 0.1)' : 'rgba(185, 45, 67, 0.1)',
-      border: mode === 'dark' ? 'rgb(224, 99, 120)' : 'rgb(185, 45, 67)',
-    },
-    saffron: {
-      start: mode === 'dark' ? 'rgba(198, 132, 0, 0.8)' : 'rgba(201, 133, 0, 0.8)',
-      end: mode === 'dark' ? 'rgba(198, 132, 0, 0.1)' : 'rgba(201, 133, 0, 0.1)',
-      border: mode === 'dark' ? 'rgb(198, 132, 0)' : 'rgb(201, 133, 0)',
-    },
-    fayrouz: {
-      start: mode === 'dark' ? 'rgba(0, 165, 188, 0.8)' : 'rgba(0, 128, 167, 0.8)',
-      end: mode === 'dark' ? 'rgba(0, 165, 188, 0.1)' : 'rgba(0, 128, 167, 0.1)',
-      border: mode === 'dark' ? 'rgb(0, 165, 188)' : 'rgb(0, 128, 167)',
-    },
-    palm: {
-      start: mode === 'dark' ? 'rgba(60, 165, 12, 0.8)' : 'rgba(61, 152, 0, 0.8)',
-      end: mode === 'dark' ? 'rgba(60, 165, 12, 0.1)' : 'rgba(61, 152, 0, 0.1)',
-      border: mode === 'dark' ? 'rgb(60, 165, 12)' : 'rgb(61, 152, 0)',
-    },
-    lapis: {
-      start: mode === 'dark' ? 'rgba(124, 137, 240, 0.8)' : 'rgba(80, 88, 187, 0.8)',
-      end: mode === 'dark' ? 'rgba(124, 137, 240, 0.1)' : 'rgba(80, 88, 187, 0.1)',
-      border: mode === 'dark' ? 'rgb(124, 137, 240)' : 'rgb(80, 88, 187)',
-    },
-    mulberry: {
-      start: mode === 'dark' ? 'rgba(184, 95, 210, 0.8)' : 'rgba(171, 86, 196, 0.8)',
-      end: mode === 'dark' ? 'rgba(184, 95, 210, 0.1)' : 'rgba(171, 86, 196, 0.1)',
-      border: mode === 'dark' ? 'rgb(184, 95, 210)' : 'rgb(171, 86, 196)',
-    },
-  };
-
-  const colors = colorSchemes[color];
+  const colors = chartColorSchemes(mode)[color];
 
   useEffect(() => {
     const ctx = ref.current.getContext('2d');
