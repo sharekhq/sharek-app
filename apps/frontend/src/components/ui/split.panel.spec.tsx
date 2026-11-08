@@ -12,6 +12,9 @@ import { createRoot } from 'react-dom/client';
 // While it is open at that width it is a modal dialog named by its label, as
 // 044's sheets are: it takes the focus and keeps Tab inside, holds the page
 // behind it still and hides the support chat bubble.
+// Samy's chats open at that width as a drawer instead (R15): from the start
+// side of the screen, the full height, as wide as the SamyPhoneChats board's
+// 318px, with no grab handle. Only where it sits changes.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
 }));
@@ -57,7 +60,8 @@ const mounted: Array<{ unmount: () => void }> = [];
 const mountPanel = async (
   open: boolean,
   onClose = jest.fn(),
-  collapsed = false
+  collapsed = false,
+  variant?: 'sheet' | 'drawer'
 ) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -71,6 +75,7 @@ const mountPanel = async (
           onClose={onClose}
           label="Channels"
           collapsed={collapsed}
+          variant={variant}
         >
           <button type="button">Done</button>
           <button type="button">Add Channel</button>
@@ -111,6 +116,19 @@ const byText = (host: HTMLElement, text: string) =>
   )!;
 const scrim = (host: HTMLElement) =>
   host.querySelector<HTMLElement>('[aria-hidden="true"].fixed');
+const press = async (target: Element, options: KeyboardEventInit = {}) => {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    code: 'Tab',
+    bubbles: true,
+    cancelable: true,
+    ...options,
+  });
+  await act(async () => {
+    target.dispatchEvent(event);
+  });
+  return event;
+};
 
 describe('the channel sheet at 1025px and below', () => {
   it('is hidden while closed', async () => {
@@ -288,20 +306,6 @@ describe('the channel sheet at 1025px and below', () => {
 });
 
 describe('the open channel sheet at 1025px and below', () => {
-  const press = async (target: Element, options: KeyboardEventInit = {}) => {
-    const event = new KeyboardEvent('keydown', {
-      key: 'Tab',
-      code: 'Tab',
-      bubbles: true,
-      cancelable: true,
-      ...options,
-    });
-    await act(async () => {
-      target.dispatchEvent(event);
-    });
-    return event;
-  };
-
   it('is a modal dialog named by its label', async () => {
     const host = await mount(true);
     const sheet = panel(host);
@@ -373,5 +377,185 @@ describe('the open channel sheet at 1025px and below', () => {
     }
     expect(document.body.classList.contains('bottomSheetOpen')).toBe(false);
     expect(document.activeElement).toBe(document.body);
+  });
+});
+
+// Samy's chats (R15, FR-041): at 1025px and below the panel opens from the
+// start side of the screen rather than its bottom. Everything else is the
+// sheet's: the scrim, the dialog, the focus, and what closes it (FR-043).
+describe('the start-side drawer at 1025px and below', () => {
+  const drawer = (open: boolean, onClose = jest.fn()) =>
+    mountPanel(open, onClose, false, 'drawer');
+  // a class on a physical side, which stays put when Arabic flips the page
+  const physical = (name: string) => /^(?:[^:]+:)*-?(?:left|right)-/.test(name);
+  const wide = (node: Element) =>
+    classes(node).filter((name) => !name.startsWith('mobile:'));
+
+  it('is hidden while closed', async () => {
+    const { host } = await drawer(false);
+
+    expect(classes(panel(host))).toContain('mobile:hidden');
+    expect(scrim(host)).toBeNull();
+  });
+
+  // The SamyPhoneChats board's .drawer: top 0, bottom 0, inset-inline-start 0,
+  // 318px wide, on the panel's surface with the card shadow.
+  it('opens from the start edge, the full height of the screen and 318px wide, over a scrim', async () => {
+    const { host } = await drawer(true);
+    const own = classes(panel(host));
+
+    expect(own).toEqual(
+      expect.arrayContaining([
+        'mobile:fixed',
+        'mobile:inset-y-0',
+        'mobile:start-0',
+        'mobile:z-[190]',
+        'mobile:w-[318px]',
+        'mobile:bg-newBgColorInner',
+        'mobile:shadow-card',
+      ])
+    );
+    // none of the sheet's place: along the bottom, the screen's width, 80%
+    // of its height at most, rounded at the top
+    for (const name of [
+      'mobile:hidden',
+      'mobile:inset-x-0',
+      'mobile:bottom-0',
+      'mobile:w-full',
+      'mobile:max-h-[80vh]',
+      'mobile:rounded-t-[16px]',
+    ])
+      expect(own).not.toContain(name);
+    // logical sides only, so in Arabic it comes in from the right
+    expect([...own, ...classes(scroller(host))].filter(physical)).toEqual([]);
+    // the sheet's scrim, under the drawer
+    expect(classes(scrim(host))).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:block', 'fixed', 'inset-0'])
+    );
+  });
+
+  // The sheet's scroller sizes to its rows, up to 80% of the screen, with 80px
+  // under the last; the drawer's keeps the rail's, filling it top to bottom.
+  it('scrolls its child the whole height of the drawer, as the rail does', async () => {
+    const { host } = await drawer(true);
+    const own = classes(scroller(host));
+
+    expect(own).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'top-0',
+        'h-full',
+        'overflow-y-auto',
+        'pb-[20px]',
+        'px-[8px]',
+      ])
+    );
+    expect(own.filter((name) => name.startsWith('mobile:'))).toEqual([]);
+  });
+
+  // The grab handle is the sheet's. The close button is the chats panel's.
+  it('draws no grab handle and no close button of its own, and its child comes first', async () => {
+    const { host } = await drawer(true);
+
+    expect(Array.from(panel(host).children)).toEqual([scroller(host)]);
+    expect(close(host)).toBeNull();
+    expect(Array.from(scroller(host).children)).toEqual([
+      byText(host, 'Done'),
+      byText(host, 'Add Channel'),
+    ]);
+  });
+
+  it('is the same rail as the sheet above 1025px, open or closed', async () => {
+    for (const open of [true, false]) {
+      const sheet = await mount(open);
+      const { host } = await drawer(open);
+
+      expect(wide(panel(host))).toEqual(wide(panel(sheet)));
+      expect(wide(scroller(host))).toEqual(wide(scroller(sheet)));
+    }
+  });
+
+  it('is a modal dialog named by its label, and not a dialog open above 1025px', async () => {
+    const { host } = await drawer(true);
+
+    expect(panel(host).getAttribute('role')).toBe('dialog');
+    expect(panel(host).getAttribute('aria-modal')).toBe('true');
+    expect(panel(host).getAttribute('aria-label')).toBe('Channels');
+
+    smallWindow = false;
+    const { host: wideHost } = await drawer(true);
+    expect(panel(wideHost).hasAttribute('role')).toBe(false);
+    expect(panel(wideHost).hasAttribute('aria-modal')).toBe(false);
+    expect(panel(wideHost).hasAttribute('aria-label')).toBe(false);
+    expect(panel(wideHost).hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('takes the focus when it opens and gives it back when it closes', async () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { host, render } = await drawer(true);
+
+    expect(document.activeElement).toBe(panel(host));
+    expect(panel(host).getAttribute('tabindex')).toBe('-1');
+
+    await render(false);
+
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('keeps Tab inside, from the last control to the first and back', async () => {
+    const { host } = await drawer(true);
+    const first = byText(host, 'Done');
+    const last = byText(host, 'Add Channel');
+    last.focus();
+
+    const forward = await press(last);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    const back = await press(first, { shiftKey: true });
+    expect(back.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('holds the page behind it still and hides the support chat bubble, until it closes', async () => {
+    const page = document.createElement('div');
+    page.style.overflowY = 'auto';
+    document.body.appendChild(page);
+    const { host, render } = await drawer(false);
+    page.appendChild(host);
+
+    await render(true);
+
+    expect(page.style.overflowY).toBe('hidden');
+    expect(document.body.classList.contains('bottomSheetOpen')).toBe(true);
+
+    await render(false);
+
+    expect(page.style.overflowY).toBe('auto');
+    expect(document.body.classList.contains('bottomSheetOpen')).toBe(false);
+  });
+
+  it('closes from the scrim and Escape, and once the screen grows past 1025px', async () => {
+    const onClose = jest.fn();
+    const { host } = await drawer(true, onClose);
+
+    await act(async () => {
+      scrim(host)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(2);
+
+    await resize(true);
+    expect(onClose).toHaveBeenCalledTimes(2);
+
+    await resize(false);
+    expect(onClose).toHaveBeenCalledTimes(3);
   });
 });
