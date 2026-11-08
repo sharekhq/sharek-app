@@ -210,8 +210,12 @@ export const ChannelSummary: FC = () => {
               ))}
             </span>
             {t('samy_will_use', 'Samy will use')}
-            {/* a name in either script, cut before the count is */}
-            <bdi className="min-w-0 truncate font-[600] text-ink">{names}</bdi>
+            {/* A name in either script, cut before the count is. A phone's
+                composer left it a few letters, so at 1025px and below the
+                label alone says it. */}
+            <bdi className="min-w-0 truncate font-[600] text-ink mobile:hidden">
+              {names}
+            </bdi>
             {`· ${channels}`}
           </>
         ) : (
