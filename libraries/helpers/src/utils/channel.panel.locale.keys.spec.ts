@@ -157,4 +157,11 @@ describe('channel panel locale keys', () => {
       }
     }
   );
+
+  // select_channels_filtered was Sharek's own label for the calendar's channel
+  // filter, which the panel replaces, so it leaves en and ar, the only files
+  // that carried it (C4).
+  it.each(['en', 'ar'])('has no select_channels_filtered in %s', (lng) => {
+    expect(locales[lng]).not.toHaveProperty('select_channels_filtered');
+  });
 });
