@@ -82,6 +82,13 @@ jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
     />
   ),
 }));
+// The bar counts what's hidden through the channel list's one usable rule
+// (C20), so a case can swap the rule and see the bar follow it.
+const mockIsUsable = jest.fn();
+jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/launches/channel.panel'),
+  isUsable: (...args: unknown[]) => mockIsUsable(...args),
+}));
 
 import { CalendarContext } from '@gitroom/frontend/components/launches/calendar.context';
 import { Filters } from '@gitroom/frontend/components/launches/filters';
@@ -306,6 +313,12 @@ beforeEach(async () => {
   mockSetListPage.mockClear();
   mockOpenChannels.mockClear();
   mockAddProvider.mockClear();
+  mockIsUsable
+    .mockReset()
+    .mockImplementation(
+      jest.requireActual('@gitroom/frontend/components/launches/channel.panel')
+        .isUsable
+    );
   picks.length = 0;
   await i18next.changeLanguage('en');
 });
@@ -447,6 +460,20 @@ describe('the top bar above 1025px', () => {
     ])('is not there when %s', async (_, selectedChannels) => {
       const host = await mount({ selectedChannels });
 
+      expect(byText(host, 'Show all')).toBeUndefined();
+      expect(host.textContent).not.toMatch(/of 10 channels/);
+    });
+
+    // T043 review, finding 4: a channel the list can't tick always shows,
+    // whatever the rule's reason.
+    it("counts what's hidden through the channel list's usable rule", async () => {
+      mockIsUsable.mockImplementation((channel: Channel) => channel.id !== 'b');
+      const host = await mount({ selectedChannels: allBut('b') });
+
+      expect(mockIsUsable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'b' }),
+        'calendar'
+      );
       expect(byText(host, 'Show all')).toBeUndefined();
       expect(host.textContent).not.toMatch(/of 10 channels/);
     });
