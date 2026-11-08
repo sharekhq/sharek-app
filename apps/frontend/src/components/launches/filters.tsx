@@ -55,9 +55,9 @@ const segment =
   'mobile:flex mobile:flex-1 mobile:min-w-fit mobile:h-full mobile:items-stretch mobile:py-[4px] cursor-pointer';
 // A view in the segmented control, which shows above 1025px; at 1025px and
 // below the view button's menu takes its place. Each is as wide as its word,
-// as the board draws them.
+// as the board draws them, and 44px wide at least on touch.
 const viewPill =
-  'pt-[6px] pb-[5px] cursor-pointer px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center focus-visible:ring-2 focus-visible:ring-brand';
+  'pt-[6px] pb-[5px] cursor-pointer px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] focus-visible:ring-2 focus-visible:ring-brand';
 const statePill =
   'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:min-w-fit mobile:py-0 mobile:px-[8px] mobile:whitespace-nowrap';
 const selectedPill = 'text-brandText bg-brandSoft font-[600]';

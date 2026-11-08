@@ -1,5 +1,7 @@
 import { act, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
 import dayjs from 'dayjs';
 import i18next from 'i18next';
 
@@ -30,6 +32,9 @@ const mockCalendar = {
 const mockUseCalendar = jest.fn(() => mockCalendar);
 // What each card hands the drag, for the preview to match it.
 const mockDragged: Array<Record<string, unknown>> = [];
+// What useT reads for a key in place of its English default: nothing, but in
+// the case of a past cell's hint.
+let mockWords: Record<string, string> = {};
 
 jest.mock('swr', () => ({
   __esModule: true,
@@ -57,8 +62,10 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT:
-    () => (_key: string, fallback: string, values?: Record<string, string>) =>
-      fallback.replace(/{{(\w+)}}/g, (_, name) => String(values?.[name])),
+    () => (key: string, fallback: string, values?: Record<string, string>) =>
+      (mockWords[key] ?? fallback).replace(/{{(\w+)}}/g, (_, name) =>
+        String(values?.[name])
+      ),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({}),
@@ -215,6 +222,16 @@ const byText = (host: HTMLElement, text: string) =>
 // the post's status in words, read out at 1025px and below and hidden above
 const statusName = (card: HTMLElement) =>
   withClass(body(card), 'mobile:sr-only')[0];
+// The week from 1026px to 1279px. A band, not max-width: an arbitrary variant
+// is emitted after every mobile: rule, so a max-width rule would replace the
+// phone's week too (tools/tailwind-emit/channel-panels.test.mjs).
+const NARROW_WEEK = '[@media(min-width:1026px)_and_(max-width:1279px)]:';
+// a week header's full name and date, hidden in that band, and its short
+// weekday and day number, shown in it alone
+const fullForms = (header: HTMLElement) =>
+  withClass(header, `${NARROW_WEEK}hidden`);
+const shortForms = (header: HTMLElement) =>
+  withClass(header, `${NARROW_WEEK}inline`);
 // every class a month chip's status adds at 1025px and below
 const STATUS_CLASSES = [
   'mobile:ring-2',
@@ -246,6 +263,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   jest.useRealTimers();
   setUserTimezone(null);
+  mockWords = {};
 });
 
 const asMonth = () =>
@@ -268,17 +286,28 @@ describe('the week at 1025px and below', () => {
     );
   });
 
+  // Each header holds both forms, the short one shown from 1026px to 1279px
+  // only (below), so here the full forms carry nothing that hides them and
+  // the short ones nothing that shows them.
   it('writes the full day name and date in every header', async () => {
     const host = await render(<WeekView />);
     const headers = withClass(host, 'cal-weekday', 'z-[20]');
 
     expect(headers).toHaveLength(7);
-    expect(headers[0].textContent).toBe(
-      `Monday${dayjs('2026-10-19').format('L')}`
-    );
-    headers.forEach((header) =>
-      expect(withClass(header, 'hidden', 'mobile:inline')).toEqual([])
-    );
+    expect(fullForms(headers[0]).map((el) => el.textContent)).toEqual([
+      'Monday',
+      dayjs('2026-10-19').format('L'),
+    ]);
+    headers.forEach((header) => {
+      fullForms(header).forEach((el) =>
+        expect(classes(el)).toEqual([`${NARROW_WEEK}hidden`])
+      );
+      expect(shortForms(header)).toHaveLength(2);
+      shortForms(header).forEach((el) =>
+        expect(classes(el)).toEqual(['hidden', `${NARROW_WEEK}inline`])
+      );
+      expect(withClass(header, 'hidden', 'mobile:inline')).toEqual([]);
+    });
   });
 
   it('keeps the hour labels sticky in the 72px column, on one line', async () => {
@@ -347,6 +376,78 @@ describe('the week at 1025px and below', () => {
       );
       expect(statusName(card)).toBeUndefined();
     });
+  });
+});
+
+// From 1026px to 1279px a day column is 58 to 100px wide, and "Wednesday"
+// over "11/11/2026" ran into its neighbours (walk 2; the maintainer approved
+// the narrow-week preview). There each header shows the short weekday over
+// the day number, and the hour column is the phone's: 72px, its labels 12px
+// on one line with 4px sides. At 1280px and up, and at 1025px and below, the
+// week is as it was.
+describe('the week from 1026px to 1279px', () => {
+  it("writes the short weekday over the day number, in the full form's type, with today's mark", async () => {
+    const host = await render(<WeekView />);
+    const headers = withClass(host, 'cal-weekday', 'z-[20]');
+
+    expect(
+      headers.map((header) => shortForms(header).map((el) => el.textContent))
+    ).toEqual(
+      [0, 1, 2, 3, 4, 5, 6].map((index) => {
+        const day = dayjs('2026-10-19').add(index, 'day');
+        return [day.format('ddd'), day.format('D')];
+      })
+    );
+    headers.forEach((header) => {
+      const [name, date] = fullForms(header);
+      const [shortName, number] = shortForms(header);
+      // each form sits in the same row, so it takes the row's type
+      expect(shortName.parentElement).toBe(name.parentElement);
+      expect(number.parentElement).toBe(date.parentElement);
+      expect(classes(name.parentElement)).toEqual(
+        expect.arrayContaining(['text-[14px]', 'font-[600]', 'text-brandText'])
+      );
+      expect(classes(date.parentElement)).toEqual(
+        expect.arrayContaining(['text-[14px]', 'font-[600]'])
+      );
+    });
+    // Wednesday is today: underlined, its date row coloured and dotted
+    const today = shortForms(headers[2])[1].parentElement!;
+    expect(classes(headers[2])).toContain(
+      'shadow-[inset_0_-2px_0_0_var(--brand)]'
+    );
+    expect(classes(today)).toContain('text-newTableTextFocused');
+    expect(withClass(today, 'bg-newTableTextFocused')).toHaveLength(1);
+  });
+
+  it("is the phone's 72px hour column, its labels 12px on one line", async () => {
+    const host = await render(<WeekView />);
+    const grid = withClass(
+      host,
+      '[grid-template-columns:136px_repeat(7,_minmax(0,_1fr))]'
+    )[0];
+    const labels = withClass(host, 'mobile:sticky');
+
+    expect(classes(grid)).toEqual(
+      expect.arrayContaining([
+        `${NARROW_WEEK}[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))]`,
+        'mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))]',
+      ])
+    );
+    expect(labels).toHaveLength(24);
+    labels.forEach((label) =>
+      expect(classes(label)).toEqual(
+        expect.arrayContaining([
+          // at 1280px and up, as they were
+          'p-2',
+          'pe-4',
+          'text-[14px]',
+          `${NARROW_WEEK}px-[4px]`,
+          `${NARROW_WEEK}text-[12px]`,
+          `${NARROW_WEEK}whitespace-nowrap`,
+        ])
+      )
+    );
   });
 });
 
@@ -521,5 +622,57 @@ describe('the month at 1025px and below', () => {
     expect(classes(name)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:inline', 'mobile:sr-only'])
     );
+  });
+});
+
+// At every width, a past cell with no posts names itself on hover. global.scss
+// drew the hint as the literal 'Date passed', so it read English in every
+// language (walk 2); the cell carries its words, translated, and the
+// stylesheet draws what the cell carries.
+describe("a past cell's hint", () => {
+  it('carries date_passed in the page’s language, for global.scss to draw', async () => {
+    mockWords = { date_passed: 'مضى التاريخ' };
+    const host = await render(<WeekView />);
+    const past = withClass(host, 'col-calendar');
+
+    expect(past.length).toBeGreaterThan(0);
+    past.forEach((cell) =>
+      expect(cell.getAttribute('data-hint')).toBe('مضى التاريخ')
+    );
+    expect(
+      fs.readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
+    ).toMatch(/\.col-calendar:hover:before \{\s*content: attr\(data-hint\);/);
+  });
+
+  // Only a past cell with no posts is col-calendar, the cell the hint is
+  // drawn in; a past cell with a post, or one still to come, has no hint to
+  // carry (code review).
+  it('is carried by the past empty cells alone', async () => {
+    withPosts([post('p1', 'PUBLISHED', MONDAY_TEN)]);
+    const host = await render(<WeekView />);
+    const lists = withClass(host, 'pointer', 'text-[12px]');
+    const withPost = lists.find((list) => cards(list).length > 0)!;
+
+    expect(lists).toHaveLength(7 * 24);
+    expect(withClass(host, 'col-calendar').length).toBeGreaterThan(0);
+    expect(lists.map((list) => list.hasAttribute('data-hint'))).toEqual(
+      lists.map((list) => classes(list).includes('col-calendar'))
+    );
+    expect(withPost.hasAttribute('data-hint')).toBe(false);
+  });
+
+  // The words are longer in some languages ("Vergangenes Datum", "Прошедшая
+  // дата") than a narrow day column, and the hint is one line, so it is held
+  // to its cell's width and cut with an ellipsis rather than drawn over the
+  // cells beside it (code review).
+  it('stays inside its cell, cut with an ellipsis', () => {
+    const rule = fs
+      .readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
+      .match(/\.col-calendar:hover:before \{([^}]*)\}/)![1];
+
+    expect(rule).toMatch(/\bwhite-space: nowrap;/);
+    expect(rule).toMatch(/\bmax-width: 100%;/);
+    expect(rule).toMatch(/\boverflow: hidden;/);
+    expect(rule).toMatch(/\btext-overflow: ellipsis;/);
   });
 });

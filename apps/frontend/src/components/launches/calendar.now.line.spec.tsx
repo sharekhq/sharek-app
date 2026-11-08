@@ -320,6 +320,14 @@ describe('the week view now line', () => {
     // it is as wide as the hour column, 72px below 1025px, where a 12-hour
     // time fits on one line as the labels do
     expect(cover.className).toContain('mobile:w-[72px]');
+    // and 72px from 1026px to 1279px, where the column is the phone's too;
+    // 136px at 1280px and up
+    expect(cover.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        'w-[136px]',
+        '[@media(min-width:1026px)_and_(max-width:1279px)]:w-[72px]',
+      ])
+    );
     expect(badge(host)!.className).toContain('whitespace-nowrap');
     expect(badge(host)!.className).not.toContain('mobile:whitespace-normal');
 

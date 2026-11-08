@@ -124,6 +124,11 @@ const open = async () => {
   await render();
   await click();
 };
+const press = async (node: Element, key: string) => {
+  await act(async () => {
+    node.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  });
+};
 
 beforeEach(() => {
   Object.defineProperty(window, 'innerWidth', {
@@ -228,5 +233,79 @@ describe('the trigger (FR-052)', () => {
     await render();
 
     expect(trigger().hasAttribute('aria-label')).toBe(false);
+  });
+
+  // The menu closed on a click outside only, while the + menu beside it
+  // closes on Escape too (walk 2). The channel list opens in SplitPanel's
+  // sheet, which closes on an Escape heard on the document (split.panel.tsx),
+  // so while the menu is open the Escape is the menu's alone; closed, it is
+  // the sheet's.
+  it('closes on Escape, hands the focus back to its button, and keeps that Escape to itself', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await open();
+    const button = trigger();
+    expect(document.activeElement).not.toBe(button);
+
+    await press(menu(), 'Escape');
+
+    expect(menu()).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+    expect(documentEscape).not.toHaveBeenCalled();
+
+    await press(button, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(documentEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays open on any other key', async () => {
+    await open();
+
+    for (const key of ['Enter', 'Tab', 'ArrowDown', 'a']) {
+      await press(menu(), key);
+    }
+
+    expect(menu()).not.toBeNull();
+  });
+
+  it('closes on an Escape pressed on its ⋯, where the keyboard leaves the focus', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await open();
+    const button = trigger();
+    button.focus();
+
+    await press(button, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(menu()).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+    expect(documentEscape).not.toHaveBeenCalled();
+  });
+
+  // The menu stays open behind the Disable and Delete confirmations and the
+  // Custom URL modal, each of which closes on its own Escape, and the focus
+  // can be anywhere else on the page (code review). An Escape pressed outside
+  // the menu and its ⋯ isn't the menu's.
+  it('lets an Escape pressed outside it pass, and stays open', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await open();
+    const button = trigger();
+    // stands in for a confirmation or a modal's field over the menu
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    field.focus();
+
+    await press(field, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(menu()).not.toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(field);
+    expect(documentEscape).toHaveBeenCalledTimes(1);
   });
 });
