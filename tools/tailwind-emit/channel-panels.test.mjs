@@ -284,6 +284,10 @@ const COARSE_CLASSES = {
   'coarse:flex': [['display', 'flex']],
   'coarse:justify-center': [['justify-content', 'center']],
   'coarse:items-center': [['align-items', 'center']],
+  // a customer's tick keeps its box at the 44px button's end, 4px in, on the
+  // rows' Checks
+  'coarse:justify-end': [['justify-content', 'flex-end']],
+  'coarse:pe-[4px]': [['padding-inline-end', '4px']],
 };
 
 test('the touch sizes emit, and only under a coarse pointer', async () => {
@@ -500,6 +504,7 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['min-w-[200px]', 'mobile:min-w-0'],
     ['gap-[10px]', 'mobile:gap-[8px]'],
     ['w-[36px]', 'coarse:w-[44px]'],
+    ['justify-center', 'coarse:justify-end'],
     ['h-[36px]', 'coarse:h-[44px]'],
     ['min-h-[28px]', 'coarse:min-h-[44px]'],
     ['h-[42px]', 'coarse:h-[54px]'],

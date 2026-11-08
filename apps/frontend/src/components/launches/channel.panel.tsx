@@ -471,7 +471,9 @@ const CustomerGroup: FC<{
       className="flex flex-col gap-[2px]"
     >
       {/* 4px here and the chevron button's 4px put the chevron over the
-          rows' pictures, and the tick over their Checks (M8) */}
+          rows' pictures, and the tick over their Checks (M8); on a touch
+          screen the tick's 44px button keeps its box at its end, 4px in
+          (M11) */}
       <div className="group flex items-center gap-[4px] px-[4px]">
         <button
           type="button"
@@ -547,7 +549,7 @@ const CustomerGroup: FC<{
             disabled={disabled}
             onClick={onToggle}
             className={clsx(
-              'flex-none flex items-center justify-center w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] disabled:opacity-50',
+              'flex-none flex items-center justify-center w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] coarse:justify-end coarse:pe-[4px] rounded-[8px] disabled:opacity-50',
               FOCUS_RING
             )}
           >
