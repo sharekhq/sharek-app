@@ -760,6 +760,23 @@ describe('the groups', () => {
     expect(classes(tick.firstElementChild)).toContain('w-[20px]');
   });
 
+  // On a touch screen the tick's button is 44px, but a row's Check stays 20px
+  // at the row's 8px. Centred, the box would sit 12px inside the button's end;
+  // at its end, 4px in, it sits on the Checks again (M11).
+  it("keeps the header's tick on the rows' Checks on a touch screen", async () => {
+    await render(GROUPS);
+    const [chevron] = chevrons(groupOf('Client 2'));
+    const tick = chevron.parentElement!.querySelector('[role="checkbox"]')!;
+
+    expect(classes(tick)).toEqual(
+      expect.arrayContaining([
+        'coarse:w-[44px]',
+        'coarse:justify-end',
+        'coarse:pe-[4px]',
+      ])
+    );
+  });
+
   it('closes and opens a group from its chevron, writing <name>_isOpen', async () => {
     await render(GROUPS);
     expect(shownNames()).toEqual([
