@@ -244,6 +244,8 @@ const ARBITRARY = {
   'ps-[6px]': [['padding-inline-start', '6px']],
   'pe-[10px]': [['padding-inline-end', '10px']],
   '-ms-[7px]': [['margin-inline-start', '-7px']],
+  // metric.chart.tsx — Analytics' chart, as tall with no data as with it
+  'h-[340px]': [['height', '340px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -346,6 +348,8 @@ const MOBILE_CLASSES = {
   'mobile:pe-[6px]': [['padding-inline-end', '6px']],
   'mobile:gap-[4px]': [['gap', '4px']],
   'mobile:rounded-[8px]': [['border-radius', '8px']],
+  // metric.chart.tsx — Analytics' chart on a phone, the AnalyticsBody board's
+  'mobile:h-[200px]': [['height', '200px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
@@ -768,6 +772,8 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['h-full', 'mobile:h-auto'],
     ['pb-[20px]', 'mobile:pb-[80px]'],
     ['hidden', 'mobile:block'],
+    // Analytics' chart, shorter on a phone
+    ['h-[340px]', 'mobile:h-[200px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);
