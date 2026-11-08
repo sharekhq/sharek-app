@@ -13,6 +13,7 @@ import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { GeneratorComponent } from '@gitroom/frontend/components/launches/generator/generator';
 import { AddProviderButton } from '@gitroom/frontend/components/launches/add.provider.component';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { isUsable } from '@gitroom/frontend/components/launches/channel.panel';
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 
@@ -306,14 +307,16 @@ export const Filters: FC<{
   }, [calendar]);
 
   // The channels that show, as the list counts them: the total minus the
-  // usable channels missing from the selection. A disabled channel's posts
-  // always show (C5), and a deleted channel's id left in it counts for none.
+  // usable channels missing from the selection, by the list's own rule (C20).
+  // A channel it can't tick always shows (C5), and a deleted channel's id left
+  // in the selection counts for none.
   const total = calendar.integrations.length;
   const shown = calendar.selectedChannels
     ? total -
       calendar.integrations.filter(
         (channel) =>
-          !channel.disabled && !calendar.selectedChannels!.includes(channel.id)
+          isUsable(channel, 'calendar') &&
+          !calendar.selectedChannels!.includes(channel.id)
       ).length
     : total;
   const hiding = shown < total;

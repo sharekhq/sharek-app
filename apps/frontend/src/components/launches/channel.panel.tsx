@@ -95,13 +95,15 @@ export const orderChannels = (list: Channel[]) =>
     );
 
 // data-model.md's usable table, one rule per page (C20): whether a row can be
-// ticked or picked.
-const USABLE: Record<PanelMode, (channel: Channel) => boolean> = {
+// ticked or picked. It takes only the fields the rules read, so the calendar's
+// top bar can ask it of the calendar's channels too.
+type UsableFields = Pick<Channel, 'disabled'>;
+const USABLE: Record<PanelMode, (channel: UsableFields) => boolean> = {
   // a disabled channel's posts always show, so it can't be hidden (C5)
   calendar: (channel) => !channel.disabled,
 };
 
-export const isUsable = (channel: Channel, mode: PanelMode) =>
+export const isUsable = (channel: UsableFields, mode: PanelMode) =>
   USABLE[mode](channel);
 
 // Reconnect from any page (R4): the calendar's refreshChannel, moved here so
