@@ -85,6 +85,26 @@ describe('ChatThreadsService', () => {
     expect(repository.listThreads).toHaveBeenCalledWith('org-1');
   });
 
+  // Mastra's thread type leaves the title optional, and the contract's title is
+  // a string (contracts/chat-threads-api.md).
+  it("lists a chat stored with no title as ''", async () => {
+    const { service, repository } = serviceOnRepository();
+    repository.listThreads.mockResolvedValueOnce([
+      { ...untitled, title: undefined },
+    ]);
+
+    const { threads } = await service.list('org-1');
+
+    expect(threads).toEqual([
+      {
+        id: 'thread-3',
+        title: '',
+        pinned: false,
+        updatedAt: '2026-09-01T08:05:00.000Z',
+      },
+    ]);
+  });
+
   it('reads a chat as pinned only when its metadata.pinned is true', async () => {
     const { service, repository } = serviceOnRepository();
     repository.listThreads.mockResolvedValueOnce([
