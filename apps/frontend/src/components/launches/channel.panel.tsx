@@ -162,7 +162,7 @@ const ROW_ACTION = clsx(
 );
 
 // The channel's picture with its platform's badge, moved from the calendar's
-// MenuComponent with its YouTube branch, at the list's 16px (C13).
+// old rail with its YouTube branch, at the list's 16px (C13).
 const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
   channel,
   className,
@@ -212,7 +212,7 @@ const ChannelRow: FC<{
   collapsed: boolean;
   checked: boolean;
   usable: boolean;
-  /** the enabled channels fill the plan, MenuComponent's tooltip condition */
+  /** the enabled channels fill the plan, the old rail's tooltip condition */
   atPlanLimit: boolean;
   onToggle: () => void;
   /** the ⋯ menu, between the row's actions and its Check */
@@ -331,7 +331,7 @@ const ChannelRow: FC<{
   );
 };
 
-// A row a mouse or a held finger carries to a customer, as MenuComponent's
+// A row a mouse or a held finger carries to a customer, as the old rail's
 // was. Rendered only with onMoveToCustomer, so a page without DNDProvider
 // never calls useDrag (C16).
 const DraggableChannel: FC<{ id: string; children: ReactNode }> = ({
@@ -353,7 +353,7 @@ const DraggableChannel: FC<{ id: string; children: ReactNode }> = ({
 };
 
 // A customer's group, header and rows, or the channels with no customer, ''
-// (C27), taking a dropped channel as MenuGroupComponent's group did (C16).
+// (C27), taking a dropped channel as the old rail's groups did (C16).
 const CustomerDropZone: FC<{
   customerId: string;
   onMoveToCustomer: (channelId: string, customerId: string) => void;

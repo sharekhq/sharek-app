@@ -1462,7 +1462,7 @@ describe('hidden and disabled rows (C25)', () => {
   });
 
   // The second line says why. Over the plan only when the enabled channels
-  // fill it, MenuComponent's tooltip condition, with that tooltip; under it,
+  // fill it, the old rail's tooltip condition, with that tooltip; under it,
   // the channel was disabled by hand from its ⋯ menu, and there's no tooltip.
   it.each([
     [
