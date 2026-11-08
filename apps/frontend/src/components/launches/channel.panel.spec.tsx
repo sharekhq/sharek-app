@@ -1,8 +1,9 @@
-import { act } from 'react';
+import { act, FC, ReactElement, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { orderBy, uniqBy } from 'lodash';
+import { useDragDropManager } from 'react-dnd';
 
 // The channel list that Calendar, Samy and Analytics share (spec 051,
 // contracts/channel-panel.md): one order, a header with + and the rail's
@@ -10,8 +11,9 @@ import { orderBy, uniqBy } from 'lodash';
 // remember being closed, rows with a picture, a name in its own direction and
 // a second line, and Reconnect and Finish setup beside a row, never inside it.
 // These are the parts every mode shares, rendered in calendar mode, the only
-// mode increment 2 has. The test DOM has no layout, so sizes are pinned by the
-// classes that carry them.
+// mode increment 2 has, then the calendar's own: ticks, Show all, the row menu,
+// the customer pencil and drag. The test DOM has no layout, so sizes are
+// pinned by the classes that carry them.
 //
 // useT gives the key, so each case names the string it expects. The platform
 // names come from platformLabel, which reads i18next itself, so i18next runs
@@ -26,6 +28,11 @@ const mockUseAddProvider = jest.fn(
     () =>
       mockOpened.push(args)
 );
+// The signed-in user, for the plan's channel limit.
+let mockUser: { totalChannels?: number } = {};
+// What the calendar grid's request answers, as calendar.render.gate.spec.tsx
+// stubs it: nothing, unless a case puts posts on it.
+let mockGridPosts: unknown[] | undefined;
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string) => key,
@@ -35,6 +42,24 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
+  useUser: () => mockUser,
+}));
+jest.mock('swr', () => ({
+  __esModule: true,
+  default: (key: string | null) => ({
+    data:
+      !!key &&
+      key.startsWith('/posts-') &&
+      !key.startsWith('/posts-list-') &&
+      mockGridPosts
+        ? { posts: mockGridPosts }
+        : undefined,
+    isLoading: false,
+    mutate: () => undefined,
+  }),
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ openModal: mockOpenModal }),
@@ -63,6 +88,12 @@ import {
   orderChannels,
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
+import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
+import {
+  CalendarWeekProvider,
+  Integrations,
+  useCalendar,
+} from '@gitroom/frontend/components/launches/calendar.context';
 
 const readLocale = (lng: string) =>
   JSON.parse(
@@ -270,30 +301,30 @@ const onDone = jest.fn();
 const mounted: Root[] = [];
 let host: HTMLElement;
 
-const render = async (
-  channels: Channel[],
-  values: Record<string, unknown> = {}
-) => {
+const mount = async (node: ReactElement) => {
   host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(
-      <ChannelPanel
-        mode="calendar"
-        channels={channels}
-        selected={null}
-        onChange={onChange}
-        update={update}
-        onToggleCollapse={onToggleCollapse}
-        onDone={onDone}
-        {...values}
-      />
-    );
+    root.render(node);
   });
   return host;
 };
+
+const render = (channels: Channel[], values: Record<string, unknown> = {}) =>
+  mount(
+    <ChannelPanel
+      mode="calendar"
+      channels={channels}
+      selected={null}
+      onChange={onChange}
+      update={update}
+      onToggleCollapse={onToggleCollapse}
+      onDone={onDone}
+      {...values}
+    />
+  );
 
 // Not [class*="…"] selectors: happy-dom's parser trips on the brackets in
 // Tailwind's arbitrary values.
@@ -399,6 +430,7 @@ afterEach(async () => {
   document.body.innerHTML = '';
   localStorage.clear();
   mockOpened.length = 0;
+  mockUser = {};
   jest.clearAllMocks();
   await i18next.changeLanguage('en');
 });
@@ -1046,5 +1078,731 @@ describe('isUsable on the calendar (C20)', () => {
     ],
   ])('says %s is usable: %s', (_, usable, values) => {
     expect(isUsable(channel('u', values), 'calendar')).toBe(usable);
+  });
+});
+
+// The calendar's own parts (contracts/channel-panel.md, C5, C16, C25, C27). A
+// tick shows a channel's posts, and the page keeps the ids that show, null for
+// all. A disabled row can't be ticked and its posts always show, so every
+// array the list builds holds every disabled channel's id.
+//
+// No customer: one usable channel and a disabled one. Client 2: two usable.
+// Client 10: one usable and one disabled. Noor Dental: a disabled one only.
+const CAL: Channel[] = [
+  channel('lamsa', { name: 'Lamsa Studio' }),
+  channel('archive', {
+    name: 'Archive',
+    identifier: 'facebook',
+    disabled: true,
+  }),
+  channel('two-shop', {
+    name: 'Two Shop',
+    identifier: 'linkedin',
+    customer: CLIENT_2,
+  }),
+  channel('two-cafe', { name: 'Two Cafe', customer: CLIENT_2 }),
+  channel('ten', { name: 'Ten Shop', customer: CLIENT_10 }),
+  channel('ten-off', {
+    name: 'Ten Archive',
+    identifier: 'x',
+    customer: CLIENT_10,
+    disabled: true,
+  }),
+  channel('noor-off', {
+    name: 'Noor Clinic',
+    identifier: 'facebook',
+    customer: NOOR,
+    disabled: true,
+  }),
+];
+const ALL = CAL.map((c) => c.id);
+const without = (...ids: string[]) => ALL.filter((id) => !ids.includes(id));
+const sorted = (ids: string[]) => [...ids].sort();
+// What the one onChange call passed, its ids in any order.
+const changedTo = () => {
+  expect(onChange).toHaveBeenCalledTimes(1);
+  const [value] = onChange.mock.calls[0];
+  return value === null ? null : sorted(value);
+};
+
+const rowMenu = jest.fn((c: Channel) => (
+  <button type="button" aria-label={`menu ${c.id}`} data-row-menu={c.id} />
+));
+const onRenameCustomer = jest.fn();
+
+// From a node up to and including `top`.
+const chain = (node: Element, top: Element) => {
+  const list: Element[] = [];
+  for (let el: Element | null = node; el; el = el.parentElement) {
+    list.push(el);
+    if (el === top) break;
+  }
+  return list;
+};
+const pictureOf = (name: string) =>
+  Array.from(mainButton(name).querySelectorAll('img')).find(
+    (img) =>
+      img.getAttribute('src') === CAL.find((c) => c.name === name)!.picture
+  )!;
+// The row's checkbox, the app's 20px Check, beside its main button.
+const checkboxOf = (name: string) => {
+  const found = within(rowOf(name)).filter(
+    (el) =>
+      has(el, 'w-[20px]') &&
+      has(el, 'h-[20px]') &&
+      !mainButton(name).contains(el)
+  );
+  expect(found).toHaveLength(1);
+  return found[0];
+};
+// Ticked by a mark, never by colour alone.
+const ticked = (name: string) => !!checkboxOf(name).querySelector('svg');
+// A customer's own checkbox: the one in its group that isn't a row's.
+const tickOf = (name: string) => {
+  const found = Array.from(
+    groupOf(name).querySelectorAll('[role="checkbox"]')
+  ).filter((el) => !el.querySelector('img'));
+  expect(found).toHaveLength(1);
+  return found[0];
+};
+const isDisabled = (el: Element) =>
+  el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true';
+const hintLine = () =>
+  within(host).find(
+    (el) =>
+      has(el, 'text-[12px]') &&
+      (el.textContent ?? '').trim().startsWith('channel_hint_calendar')
+  )!;
+// The brand focus ring and 44px on a coarse pointer, as FR-052 asks of every
+// control in the list.
+const reachable = (el: Element) => {
+  const names = classes(el);
+  const iconOnly = !(el.textContent ?? '').trim();
+  return (
+    names.includes('focus-visible:ring-2') &&
+    names.includes('focus-visible:ring-brand') &&
+    names.some((name) => /^coarse:(min-)?h-\[44px\]$/.test(name)) &&
+    (!iconOnly || names.some((name) => /^coarse:(min-)?w-\[44px\]$/.test(name)))
+  );
+};
+
+describe('calendar ticks (C5)', () => {
+  it('makes each row a checkbox, checked while its posts show', async () => {
+    await render(CAL, { selected: without('lamsa') });
+
+    CAL.forEach(({ id, name }) => {
+      const main = mainButton(name);
+      expect(main.getAttribute('role')).toBe('checkbox');
+      expect(main.getAttribute('aria-checked')).toBe(
+        id === 'lamsa' ? 'false' : 'true'
+      );
+    });
+  });
+
+  it("from null, unticking a row passes every other channel's id, the disabled channels' included", async () => {
+    await render(CAL);
+
+    await click(mainButton('Lamsa Studio'));
+
+    expect(changedTo()).toEqual(sorted(without('lamsa')));
+  });
+
+  it('unticking another row keeps what is hidden hidden', async () => {
+    await render(CAL, { selected: without('lamsa') });
+
+    await click(mainButton('Two Cafe'));
+
+    expect(changedTo()).toEqual(sorted(without('lamsa', 'two-cafe')));
+  });
+
+  it("puts back a disabled channel's id the array was missing", async () => {
+    await render(CAL, { selected: without('lamsa', 'archive') });
+
+    await click(mainButton('Two Cafe'));
+
+    expect(changedTo()).toEqual(sorted(without('lamsa', 'two-cafe')));
+  });
+
+  it("does the same from the row's checkbox", async () => {
+    await render(CAL);
+
+    await click(checkboxOf('Two Cafe'));
+
+    expect(changedTo()).toEqual(sorted(without('two-cafe')));
+  });
+
+  it.each([
+    ['the only hidden channel', without('lamsa'), null],
+    [
+      'one of two hidden channels',
+      without('lamsa', 'two-cafe'),
+      without('two-cafe'),
+    ],
+    [
+      'the last hidden channel of an array missing a disabled id',
+      without('lamsa', 'archive'),
+      null,
+    ],
+    [
+      "the last hidden channel of an array holding a deleted channel's id",
+      [...without('lamsa'), 'deleted'],
+      null,
+    ],
+  ])(
+    'ticking %s passes the ids that show, or null once every usable channel shows',
+    async (_, selected, expected) => {
+      await render(CAL, { selected });
+
+      await click(mainButton('Lamsa Studio'));
+
+      expect(changedTo()).toEqual(expected && sorted(expected));
+    }
+  );
+});
+
+describe('a customer tick (C5)', () => {
+  // The page keeps the selection, so a tick shows once the page hands it back.
+  const CalendarPage: FC<{ initial: string[] | null }> = ({ initial }) => {
+    const [selected, setSelected] = useState(initial);
+    return (
+      <ChannelPanel
+        mode="calendar"
+        channels={CAL}
+        selected={selected}
+        onChange={(next: string[] | null) => {
+          onChange(next);
+          setSelected(next);
+        }}
+        update={update}
+        onToggleCollapse={onToggleCollapse}
+        onDone={onDone}
+      />
+    );
+  };
+
+  it.each([
+    ['null', null, 'true', 'true'],
+    ['some of each hidden', without('two-shop', 'ten'), 'mixed', 'false'],
+    [
+      "all of Client 2's hidden",
+      without('two-shop', 'two-cafe'),
+      'false',
+      'true',
+    ],
+  ])(
+    'is a checkbox named for the customer that counts only its usable channels: with %s',
+    async (_, selected, client2, client10) => {
+      await render(CAL, { selected });
+
+      expect(nameOf(tickOf('Client 2'))).toBe('Client 2');
+      expect(tickOf('Client 2').getAttribute('aria-checked')).toBe(client2);
+      // Ten Archive is disabled, so only Ten Shop counts
+      expect(tickOf('Client 10').getAttribute('aria-checked')).toBe(client10);
+    }
+  );
+
+  it.each([
+    ['Client 2', ['two-shop', 'two-cafe']],
+    ['Client 10', ['ten']],
+  ])(
+    "hides all of %s's usable channels, %p, and ticking it again shows them",
+    async (customer, hidden) => {
+      await mount(<CalendarPage initial={null} />);
+
+      await click(tickOf(customer));
+
+      expect(changedTo()).toEqual(sorted(without(...hidden)));
+      expect(tickOf(customer).getAttribute('aria-checked')).toBe('false');
+      CAL.filter((c) => c.customer?.name === customer).forEach((c) =>
+        expect(mainButton(c.name).getAttribute('aria-checked')).toBe(
+          hidden.includes(c.id) ? 'false' : 'true'
+        )
+      );
+
+      onChange.mockClear();
+      await click(tickOf(customer));
+
+      expect(changedTo()).toBeNull();
+      expect(tickOf(customer).getAttribute('aria-checked')).toBe('true');
+    }
+  );
+
+  it('shows all its usable channels from mixed, and what is hidden elsewhere stays hidden', async () => {
+    await mount(<CalendarPage initial={without('two-shop', 'lamsa')} />);
+    expect(tickOf('Client 2').getAttribute('aria-checked')).toBe('mixed');
+
+    await click(tickOf('Client 2'));
+
+    expect(changedTo()).toEqual(sorted(without('lamsa')));
+    expect(tickOf('Client 2').getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('is disabled when the customer has no usable channel, and changes nothing', async () => {
+    await render(CAL);
+    const tick = tickOf('Noor Dental');
+    expect(isDisabled(tick)).toBe(true);
+
+    await click(tick);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('Show all', () => {
+  it('ends the hint only while a usable channel is hidden', async () => {
+    // nothing hidden: null, every id, or only a disabled id missing
+    for (const selected of [null, ALL, without('archive')]) {
+      await render(CAL, { selected });
+      expect(control(host, 'show_all')).toHaveLength(0);
+      act(() => {
+        mounted.splice(0).forEach((root) => root.unmount());
+      });
+    }
+
+    await render(CAL, { selected: without('two-cafe') });
+
+    const buttons = control(host, 'show_all');
+    expect(buttons).toHaveLength(1);
+    const line = hintLine();
+    expect(line.contains(buttons[0])).toBe(true);
+    expect((line.textContent ?? '').trim().endsWith('show_all')).toBe(true);
+    expect(buttons[0].getAttribute('type')).toBe('button');
+    expect(reachable(buttons[0])).toBe(true);
+  });
+
+  it('passes null', async () => {
+    await render(CAL, { selected: without('two-cafe', 'ten') });
+    const [showAll, ...others] = control(host, 'show_all');
+    expect(others).toHaveLength(0);
+    expect(showAll).toBeDefined();
+
+    await click(showAll);
+
+    expect(changedTo()).toBeNull();
+  });
+});
+
+describe('hidden and disabled rows (C25)', () => {
+  it("greys a hidden row's picture and sets its name in text-muted, fades none of its text, and keeps its checkbox", async () => {
+    await render(CAL, { selected: without('lamsa') });
+    const name = 'Lamsa Studio';
+    const bdi = mainButton(name).querySelector('bdi')!;
+
+    const greyed = chain(pictureOf(name), rowOf(name)).filter((el) =>
+      has(el, 'grayscale')
+    );
+    expect(greyed.length).toBeGreaterThan(0);
+    greyed.forEach((el) => expect(el.contains(bdi)).toBe(false));
+    expect(classes(bdi)).toContain('text-muted');
+    expect(classes(bdi)).not.toContain('text-ink');
+    expect(classes(secondLine(name)[0])).toContain('text-muted');
+    // opacity on text fails AA; the picture alone may fade
+    const faded = [...chain(rowOf(name), host), ...within(rowOf(name))]
+      .filter((el) => (el.textContent ?? '').trim())
+      .filter((el) =>
+        classes(el).some(
+          (cls) => /^opacity-\d+$/.test(cls) && cls !== 'opacity-100'
+        )
+      );
+    expect(faded.map((el) => el.outerHTML.slice(0, 120))).toEqual([]);
+    // still a checkbox that ticks it back
+    expect(mainButton(name).getAttribute('aria-checked')).toBe('false');
+    expect(isDisabled(mainButton(name))).toBe(false);
+    expect(ticked(name)).toBe(false);
+
+    // a shown row is in full colour and ticked
+    expect(
+      [rowOf('Two Cafe'), ...within(rowOf('Two Cafe'))].some((el) =>
+        has(el, 'grayscale')
+      )
+    ).toBe(false);
+    expect(classes(mainButton('Two Cafe').querySelector('bdi'))).toContain(
+      'text-ink'
+    );
+    expect(ticked('Two Cafe')).toBe(true);
+  });
+
+  it("keeps a disabled row as today: it can't change, its picture and name at opacity-50, over your plan", async () => {
+    await render(CAL);
+    const name = 'Archive';
+    const main = mainButton(name);
+
+    // its posts always show (C5)
+    expect(main.getAttribute('role')).toBe('checkbox');
+    expect(main.getAttribute('aria-checked')).toBe('true');
+    // aria-disabled, as the canvas has it, not disabled: a disabled button
+    // leaves the Tab order, so the reason couldn't be reached by keyboard
+    expect(main.getAttribute('aria-disabled')).toBe('true');
+    expect(main.hasAttribute('disabled')).toBe(false);
+    expect(
+      chain(pictureOf(name), rowOf(name)).some((el) => has(el, 'opacity-50'))
+    ).toBe(true);
+    expect(
+      chain(main.querySelector('bdi')!, rowOf(name)).some((el) =>
+        has(el, 'opacity-50')
+      )
+    ).toBe(true);
+    expect((secondLine(name)[0].textContent ?? '').trim()).toBe(
+      'channel_disabled_over_plan'
+    );
+
+    await click(main);
+    await click(checkboxOf(name));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // MenuComponent's tooltip, shown when the enabled channels fill the plan
+  it("shows today's upgrade tooltip on the disabled rows only at the plan's limit", async () => {
+    const tips = () =>
+      within(host).filter(
+        (el) =>
+          el.getAttribute('data-tooltip-content') ===
+          'channel_disabled_upgrade_plan'
+      );
+    const disabledNames = CAL.filter((c) => c.disabled).map((c) => c.name);
+
+    mockUser = { totalChannels: CAL.filter((c) => !c.disabled).length };
+    await render(CAL);
+
+    expect(tips()).toHaveLength(disabledNames.length);
+    disabledNames.forEach((name) => {
+      const own = tips().filter((el) => rowOf(name).contains(el));
+      expect(own).toHaveLength(1);
+      expect(own[0].getAttribute('data-tooltip-id')).toBe('tooltip');
+    });
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+    mockUser = { totalChannels: 10 };
+    await render(CAL);
+
+    expect(tips()).toHaveLength(0);
+  });
+});
+
+describe('the row menu and the customer pencil', () => {
+  it("renders rowMenu for each row after its main button and before its checkbox, and its clicks don't tick", async () => {
+    await render(CAL, { rowMenu });
+
+    CAL.forEach(({ id, name }) => {
+      const menus = Array.from(
+        document.querySelectorAll(`[data-row-menu="${id}"]`)
+      );
+      expect(menus).toHaveLength(1);
+      const [menu] = menus;
+      expect(rowOf(name).contains(menu)).toBe(true);
+      expect(mainButton(name).contains(menu)).toBe(false);
+      expect(
+        mainButton(name).compareDocumentPosition(menu) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(
+        menu.compareDocumentPosition(checkboxOf(name)) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    await click(document.querySelector('[data-row-menu="lamsa"]')!);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('puts the pencil on each customer header only with onRenameCustomer, and calls it with the customer', async () => {
+    await render(CAL);
+    expect(control(host, 'edit_group_name')).toHaveLength(0);
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+    await render(CAL, { onRenameCustomer });
+
+    const customers = ['Client 2', 'Client 10', 'Noor Dental'];
+    expect(control(host, 'edit_group_name')).toHaveLength(customers.length);
+    customers.forEach((name) => {
+      const [pencil, ...others] = control(groupOf(name), 'edit_group_name');
+      expect(others).toHaveLength(0);
+      // beside the chevron's button, never inside it
+      expect(chevrons(groupOf(name))[0].contains(pencil)).toBe(false);
+      expect(reachable(pencil)).toBe(true);
+    });
+
+    await click(control(groupOf('Client 2'), 'edit_group_name')[0]);
+
+    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
+    expect(onRenameCustomer).toHaveBeenCalledWith(
+      expect.objectContaining(CLIENT_2)
+    );
+    expect(chevrons(groupOf('Client 2'))[0].getAttribute('aria-expanded')).toBe(
+      'true'
+    );
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+    // the collapsed list has no pencil, as today
+    await render(CAL, { onRenameCustomer, collapsed: true });
+
+    expect(control(host, 'edit_group_name')).toHaveLength(0);
+  });
+});
+
+describe('dragging a channel to a customer (C16, C27)', () => {
+  const onMoveToCustomer = jest.fn();
+  // the drag monitor at every render, read through the latest
+  const monitors: Array<
+    ReturnType<ReturnType<typeof useDragDropManager>['getMonitor']>
+  > = [];
+  const monitor = () => monitors[monitors.length - 1];
+  const Monitor = () => {
+    monitors.push(useDragDropManager().getMonitor());
+    return null;
+  };
+
+  beforeAll(() => {
+    // what a drag under way reaches for, as in calendar.month.hold.spec.tsx:
+    // happy-dom has no elementsFromPoint, and Jest's node environment no
+    // MutationObserver, nor the Image the html5 backend's empty preview is
+    document.elementsFromPoint = () => [];
+    Object.assign(globalThis, {
+      MutationObserver: window.MutationObserver,
+      Image: window.Image,
+    });
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    monitors.length = 0;
+  });
+
+  const renderDraggable = () =>
+    mount(
+      <DNDProvider>
+        <Monitor />
+        <ChannelPanel
+          mode="calendar"
+          channels={CAL}
+          selected={null}
+          onChange={onChange}
+          update={update}
+          onToggleCollapse={onToggleCollapse}
+          onDone={onDone}
+          onMoveToCustomer={onMoveToCustomer}
+        />
+      </DNDProvider>
+    );
+
+  // A finger, through the calendar's own pipeline. Under Jest the html5 step
+  // listens on Node's global rather than the window, so a mouse drag can't be
+  // played here; the touch step, which the first touch switches to, can.
+  const touch = (
+    type: 'touchstart' | 'touchmove' | 'touchend',
+    target: Element,
+    clientY: number
+  ) => {
+    const point = new window.Touch({
+      identifier: 1,
+      target,
+      clientX: 20,
+      clientY,
+    });
+    const down = type === 'touchend' ? [] : [point];
+    act(() => {
+      target.dispatchEvent(
+        new window.TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: down,
+          targetTouches: down,
+          changedTouches: [point],
+        })
+      );
+    });
+  };
+  const nameIn = (name: string) => mainButton(name).querySelector('bdi')!;
+  // held on its name past the 400ms pickup (dnd.provider.tsx), then moved
+  const pickUp = (name: string) => {
+    touch('touchstart', nameIn(name), 100);
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    touch('touchmove', nameIn(name), 140);
+  };
+  // moved over the target and lifted there
+  const dropOn = (target: Element) => {
+    const under = jest
+      .spyOn(document, 'elementsFromPoint')
+      .mockReturnValue([target]);
+    const top = jest
+      .spyOn(document, 'elementFromPoint')
+      .mockReturnValue(target);
+    touch('touchmove', target, 200);
+    touch('touchend', target, 200);
+    under.mockRestore();
+    top.mockRestore();
+  };
+
+  it('makes every row a drag source of type menu', async () => {
+    await renderDraggable();
+
+    // the html5 step marks each source, so a mouse picks a row up by its name
+    CAL.forEach(({ name }) => {
+      expect(
+        chain(nameIn(name), host).some(
+          (el) => el.getAttribute('draggable') === 'true'
+        )
+      ).toBe(true);
+    });
+
+    pickUp('Lamsa Studio');
+
+    expect(monitor().isDragging()).toBe(true);
+    expect(monitor().getItemType()).toBe('menu');
+  });
+
+  it.each([
+    [
+      "a customer's header",
+      'Lamsa Studio',
+      'lamsa',
+      () => chevrons(groupOf('Client 2'))[0],
+      CLIENT_2.id,
+    ],
+    [
+      "another customer's header",
+      'Two Shop',
+      'two-shop',
+      () => chevrons(groupOf('Client 10'))[0],
+      CLIENT_10.id,
+    ],
+    [
+      "a row in a customer's group",
+      'Ten Shop',
+      'ten',
+      () => nameIn('Two Cafe'),
+      CLIENT_2.id,
+    ],
+    [
+      'the channels with no customer',
+      'Two Cafe',
+      'two-cafe',
+      () => nameIn('Lamsa Studio'),
+      '',
+    ],
+  ])(
+    'dropped on %s, calls onMoveToCustomer with the channel and the customer',
+    async (_, name, id, target, customer) => {
+      await renderDraggable();
+
+      pickUp(name);
+      dropOn(target());
+
+      expect(onMoveToCustomer).toHaveBeenCalledTimes(1);
+      expect(onMoveToCustomer).toHaveBeenCalledWith(id, customer);
+      expect(onChange).not.toHaveBeenCalled();
+    }
+  );
+
+  // Samy and Analytics have no DNDProvider (C16).
+  it('without onMoveToCustomer, renders outside any DNDProvider with nothing to drag', async () => {
+    await render(CAL, { rowMenu, onRenameCustomer });
+
+    expect(rowButtons(host)).toHaveLength(CAL.length);
+    expect(host.querySelector('[draggable="true"]')).toBeNull();
+  });
+});
+
+// plan.md's testing table: "hiding a customer hides the wrong posts".
+describe('on a real calendar', () => {
+  const post = (id: string, channelId: string) => ({
+    id,
+    group: id,
+    content: `<p>${id}</p>`,
+    publishDate: '2026-11-11T10:00:00.000Z',
+    state: 'QUEUE',
+    intervalInDays: null,
+    releaseURL: null,
+    releaseId: null,
+    tags: [],
+    integration: {
+      id: channelId,
+      providerIdentifier: 'instagram',
+      name: channelId,
+      picture: '',
+    },
+  });
+  // a post on each channel, and a second on Two Shop
+  const POSTS = [
+    ...CAL.map((c) => post(`post-${c.id}`, c.id)),
+    post('post-two-shop-2', 'two-shop'),
+  ];
+  const allPostsBut = (...channelIds: string[]) =>
+    sorted(
+      POSTS.filter((p) => !channelIds.includes(p.integration.id)).map(
+        (p) => p.id
+      )
+    );
+
+  // what the calendar held at every render: the posts it shows and the
+  // selection, read through the latest
+  const frames: Array<{ shown: string[]; selection: string[] | null }> = [];
+  const latest = () => frames[frames.length - 1];
+  // the list on the calendar's own selection, as the page wires it (T036)
+  const CalendarChannels = () => {
+    const { integrations, selectedChannels, setSelectedChannels, posts } =
+      useCalendar();
+    frames.push({
+      shown: sorted(posts.map((p) => p.id)),
+      selection: selectedChannels,
+    });
+    return (
+      <ChannelPanel
+        mode="calendar"
+        channels={integrations}
+        selected={selectedChannels}
+        onChange={setSelectedChannels}
+        update={update}
+        onToggleCollapse={onToggleCollapse}
+        onDone={onDone}
+      />
+    );
+  };
+
+  beforeEach(() => {
+    mockGridPosts = POSTS;
+  });
+
+  afterEach(() => {
+    mockGridPosts = undefined;
+    frames.length = 0;
+  });
+
+  it("ticking a customer off leaves exactly that customer's posts out of filterByChannels, and a disabled channel's posts in", async () => {
+    await mount(
+      <CalendarWeekProvider integrations={CAL as unknown as Integrations[]}>
+        <CalendarChannels />
+      </CalendarWeekProvider>
+    );
+    expect(latest().shown).toEqual(allPostsBut());
+
+    await click(tickOf('Client 2'));
+    expect(latest().shown).toEqual(allPostsBut('two-shop', 'two-cafe'));
+
+    // Ten Archive is disabled, so its post stays (C5)
+    await click(tickOf('Client 10'));
+    expect(latest().shown).toEqual(allPostsBut('two-shop', 'two-cafe', 'ten'));
+
+    await click(tickOf('Client 2'));
+    expect(latest().shown).toEqual(allPostsBut('ten'));
+
+    await click(tickOf('Client 10'));
+    expect(latest().shown).toEqual(allPostsBut());
+    expect(latest().selection).toBeNull();
   });
 });
