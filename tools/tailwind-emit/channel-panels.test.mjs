@@ -154,8 +154,13 @@ const ARBITRARY = {
   'h-[28px]': [['height', '28px']],
   'w-[20px]': [['width', '20px']],
   'h-[20px]': [['height', '20px']],
-  // the sticky header, its count and its hint
+  // the sticky header, its count and its hint; past SplitPanel's 8px, the
+  // header's own 8px and 2px (4px on the sheet, below), the hint's 8px
+  // (px-[8px], above) and the search's 4px
   'pt-[20px]': [['padding-top', '20px']],
+  'ps-[8px]': [['padding-inline-start', '8px']],
+  'pe-[2px]': [['padding-inline-end', '2px']],
+  'mx-[4px]': px('margin', '4px'),
   'pb-[8px]': [['padding-bottom', '8px']],
   'text-[15px]': [['font-size', '15px']],
   'py-[1px]': py('padding', '1px'),
@@ -168,10 +173,11 @@ const ARBITRARY = {
   'text-[20px]': [['font-size', '20px']],
   'py-[24px]': py('padding', '24px'),
   'px-[16px]': px('padding', '16px'),
-  // filters.tsx — the view pills, the state pills, Today and the arrows
+  // filters.tsx — the view pills, as wide as their words (px-[12px], above)
+  // with 2px between them (gap-[2px], above), the state pills, Today and the
+  // arrows
   'pt-[6px]': [['padding-top', '6px']],
   'pb-[5px]': [['padding-bottom', '5px']],
-  'w-[74px]': [['width', '74px']],
   'min-w-[80px]': [['min-width', '80px']],
   'h-[42px]': [['height', '42px']],
   'w-[42px]': [['width', '42px']],
@@ -207,10 +213,11 @@ test('every arbitrary value of the list, its page and the top bar emits its one 
 
 // Every `mobile:` class, at 1025px and below.
 const MOBILE_CLASSES = {
-  // channel.panel.tsx — a row's 56px, the header's 17px, the collapse control
-  // that leaves and Done that comes
+  // channel.panel.tsx — a row's 56px, the header's 17px and its 4px at the
+  // end, the collapse control that leaves and Done that comes
   'mobile:min-h-[56px]': [['min-height', '56px']],
   'mobile:text-[17px]': [['font-size', '17px']],
+  'mobile:pe-[4px]': [['padding-inline-end', '4px']],
   'mobile:hidden': [['display', 'none']],
   'mobile:flex': [['display', 'flex']],
   // filters.tsx — the two rows: the chip and Create Post first, the date row
@@ -477,6 +484,7 @@ test('each small-screen and touch change is emitted after the rule it replaces',
   const pairs = [
     ['min-h-[52px]', 'mobile:min-h-[56px]'],
     ['text-[15px]', 'mobile:text-[17px]'],
+    ['pe-[2px]', 'mobile:pe-[4px]'],
     ['flex', 'mobile:hidden'],
     ['hidden', 'mobile:flex'],
     ['ms-[6px]', 'mobile:ms-0'],

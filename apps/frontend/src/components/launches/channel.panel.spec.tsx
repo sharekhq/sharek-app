@@ -1229,9 +1229,7 @@ describe('the sticky block (C28)', () => {
     );
     const search = block.querySelector('input')!.parentElement!;
     expect(classes(search)).toContain('mx-[4px]');
-    expect(classes(search).filter((name) => /^p[xse]-/.test(name))).toEqual(
-      []
-    );
+    expect(classes(search).filter((name) => /^p[xse]-/.test(name))).toEqual([]);
   });
 
   it('keeps the collapsed header centred, with no inset of its own', async () => {

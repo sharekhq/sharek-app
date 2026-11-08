@@ -734,13 +734,16 @@ export const ChannelPanel: FC<{
     <div className="flex flex-col gap-[8px] select-none">
       {/* The header, the hint and the search stay put while the groups scroll
           under them (C28), so the block sits above everything in a row,
-          the badge's z-10 included. */}
+          the badge's z-10 included. Past SplitPanel's 8px, each takes the
+          rest of the board's inset itself. */}
       <div className="sticky top-0 z-20 bg-newBgColorInner flex flex-col gap-[8px] pt-[20px] pb-[8px]">
         <div
           className={clsx(
             'flex items-center gap-[4px]',
             // the rail fits one control a row
-            collapsed && 'flex-col justify-center'
+            collapsed
+              ? 'flex-col justify-center'
+              : 'ps-[8px] pe-[2px] mobile:pe-[4px]'
           )}
         >
           {!collapsed && (
@@ -862,7 +865,7 @@ export const ChannelPanel: FC<{
           </button>
         </div>
         {!collapsed && channels.length > 0 && (
-          <p className="text-[12px] text-muted">
+          <p className="px-[8px] text-[12px] text-muted">
             {hints[mode]}
             {hiding && (
               <>
@@ -882,7 +885,8 @@ export const ChannelPanel: FC<{
           </p>
         )}
         {searchable && (
-          <div className="relative">
+          // a margin, since the icon is placed from this box's edge
+          <div className="relative mx-[4px]">
             <svg
               width="16"
               height="16"
