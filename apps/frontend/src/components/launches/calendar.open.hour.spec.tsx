@@ -13,8 +13,11 @@ import dayjs from 'dayjs';
 // each post's time, so the views scroll once more when the posts of the range
 // in view are in. The context ends a load a render before it hands over the
 // load's posts, with their dates in a new postDates (calendar.context.tsx);
-// the cases go through those renders in that order. Later updates of the
-// posts, the minute's tick and the user's own scroll keep the position.
+// the cases go through those renders in that order. A load SWR hasn't cached
+// also renders once as it starts: the context's effect on its posts swaps
+// what it held for the load's none, a new postDates, still empty and still
+// loading. Later updates of the posts, the minute's tick and the user's own
+// scroll keep the position.
 //
 // happy-dom lays nothing out, so every offsetTop is 0 (C11). The rows the
 // views mark, the week's hours (data-hour) and the day's slots (data-slot),
@@ -247,6 +250,15 @@ const newRange = (loading: boolean) => {
   mockCalendar.postDates = new Map();
 };
 
+// A load SWR hasn't cached starts: the context renders once more, still
+// loading, with a new, still empty postDates.
+const loadStarts = async (root: Root, View: FC) => {
+  mockCalendar.postDates = new Map();
+  await act(async () => {
+    root.render(<View />);
+  });
+};
+
 // Posts reach the view: a load's end renders first, still with no posts, and
 // then the context hands them over with a new postDates. With loading over,
 // as for a later update of the posts, only the second render happens. Each
@@ -391,6 +403,19 @@ describe('the week view', () => {
     expect(hourAtTop(host)).toBe(8);
   });
 
+  it('waits for the posts through the render that starts the load', async () => {
+    at(wednesdayAt(21));
+    mockCalendar.startDate = '2026-10-26';
+    mockCalendar.endDate = '2026-11-01';
+    newRange(true);
+    const { host, root } = await render(<WeekView />);
+    await loadStarts(root, WeekView);
+
+    await postsArrive(root, WeekView, [postAt('2026-10-26 06:00')]);
+
+    expect(hourAtTop(host)).toBe(8);
+  });
+
   it.each([
     ['it loads', true],
     ['it was loaded before', false],
@@ -528,6 +553,25 @@ describe('the day view', () => {
     );
     newRange(true);
     const { host, root } = await render(<DayView />);
+
+    await postsArrive(root, DayView, [postAt('2026-10-23 07:00')]);
+
+    expect(slotAtTop(host)).toBe(label('2026-10-23', 9, 15));
+  });
+
+  it('waits for the posts through the render that starts the load', async () => {
+    at(wednesdayAt(21));
+    mockCalendar.startDate = '2026-10-23';
+    mockCalendar.endDate = '2026-10-23';
+    mockCalendar.integrations = postingAt(
+      '2026-10-23',
+      [6, 30],
+      [9, 15],
+      [17, 0]
+    );
+    newRange(true);
+    const { host, root } = await render(<DayView />);
+    await loadStarts(root, DayView);
 
     await postsArrive(root, DayView, [postAt('2026-10-23 07:00')]);
 
