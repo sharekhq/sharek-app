@@ -141,15 +141,21 @@ export const PostActionsMenu = forwardRef<
   // While the list is open Escape is the list's alone: it is heard on the way
   // down and goes no further, because SplitPanel closes the sheet a menu can
   // open in on an Escape that reaches the document (split.panel.tsx). Only an
-  // Escape pressed in the list or on its trigger: a field or a dialog that has
-  // the focus meanwhile keeps its own.
+  // Escape pressed in the list, on its trigger or with nothing focused, as a
+  // held menu's is: a field or a dialog that has the focus meanwhile keeps its
+  // own.
   useEffect(() => {
     if (!show) {
       return;
     }
     const close = () => setShow(false);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || !ref.current?.contains(e.target as Node)) {
+      // a key pressed with nothing focused comes from the body
+      const elsewhere =
+        e.target instanceof Node &&
+        e.target !== document.body &&
+        !ref.current?.contains(e.target);
+      if (e.key !== 'Escape' || elsewhere) {
         return;
       }
       e.stopPropagation();
