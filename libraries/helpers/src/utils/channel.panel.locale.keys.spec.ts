@@ -70,6 +70,12 @@ const STRINGS = [
   // global.scss drew as a literal.
   ['post_actions', 'Post actions', 'إجراءات المنشور'],
   ['date_passed', 'Date passed', 'مضى التاريخ'],
+  // The post card's status chips (calendar.post.card.tsx), in en and ar alone
+  // since July, and Draft's, the shared draft key.
+  ['calendar_state_published', 'Published', 'تم النشر'],
+  ['calendar_state_scheduled', 'Scheduled', 'مجدول'],
+  ['calendar_state_failed', 'Failed', 'فشل'],
+  ['draft', 'Draft', 'مسودة'],
 ] as const;
 
 // C3 keeps today's chip label while nothing is hidden. No document gives its
