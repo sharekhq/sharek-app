@@ -269,4 +269,43 @@ describe('the trigger (FR-052)', () => {
 
     expect(menu()).not.toBeNull();
   });
+
+  it('closes on an Escape pressed on its ⋯, where the keyboard leaves the focus', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await open();
+    const button = trigger();
+    button.focus();
+
+    await press(button, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(menu()).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+    expect(documentEscape).not.toHaveBeenCalled();
+  });
+
+  // The menu stays open behind the Disable and Delete confirmations and the
+  // Custom URL modal, each of which closes on its own Escape, and the focus
+  // can be anywhere else on the page (code review). An Escape pressed outside
+  // the menu and its ⋯ isn't the menu's.
+  it('lets an Escape pressed outside it pass, and stays open', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await open();
+    const button = trigger();
+    // stands in for a confirmation or a modal's field over the menu
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    field.focus();
+
+    await press(field, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(menu()).not.toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(field);
+    expect(documentEscape).toHaveBeenCalledTimes(1);
+  });
 });
