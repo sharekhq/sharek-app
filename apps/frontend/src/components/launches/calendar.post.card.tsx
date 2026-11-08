@@ -278,7 +278,10 @@ export const CalendarPostCard = forwardRef<
         >
           <div className="text-start"></div>
             <div className="w-full relative">
-              <div className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start">
+              <div
+                dir="auto"
+                className="absolute top-0 start-0 w-full text-ellipsis break-words line-clamp-1 text-start"
+              >
                 {stripHtmlValidation('none', post.content, false, true, false) ||
                   t('no_content', 'no content')}
               </div>

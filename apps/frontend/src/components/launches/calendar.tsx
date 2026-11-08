@@ -6,6 +6,7 @@ import React, {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -401,6 +402,41 @@ const DaySlotColumn: FC<{ option: any[]; startDate: string }> = memo(
   }
 );
 
+// Runs a week's or a day's opening scroll, a new function for each range:
+// when the range changes, and once more when its posts are in, since a week's
+// rows grow with them and a day gets a slot for each post's time. The context
+// ends a load a render before it hands over the posts with a new postDates,
+// and an uncached load also hands over a new, empty postDates while it is
+// still loading. So that second scroll waits for the first postDates, once
+// loading is over, other than the last one handed over before or during the
+// load. Later updates, the minute's tick and the user's own scroll keep the
+// position (R9). The view passes its own loading and postDates, so it reads
+// the calendar once a render.
+const useOpeningScroll = (
+  scroll: () => void,
+  loading: boolean,
+  postDates: object
+) => {
+  const range = useRef<(() => void) | undefined>(undefined);
+  // the last dates handed over before the range's posts are in
+  const waiting = useRef<object | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (range.current === scroll) {
+      if (loading && waiting.current) {
+        waiting.current = postDates;
+      }
+      if (loading || !waiting.current || waiting.current === postDates) {
+        return;
+      }
+      waiting.current = undefined;
+    } else {
+      range.current = scroll;
+      waiting.current = postDates;
+    }
+    scroll();
+  }, [scroll, loading, postDates]);
+};
+
 export const DayView = () => {
   const calendar = useCalendar();
   const { integrations, posts, postDates, startDate } = calendar;
@@ -468,9 +504,30 @@ export const DayView = () => {
     return upcoming === -1 ? options.length : upcoming;
   }, [options, startDate, now]);
 
+  // opens at the first slot at or after 8 AM, or the current hour on today,
+  // else at the last slot; again on another day and once its posts are in
+  const list = useRef<HTMLDivElement>(null);
+  const openAtHour = useCallback(() => {
+    const now = newDayjs();
+    const hour = newDayjs(startDate).isSame(now, 'day')
+      ? Math.max(8, now.hour())
+      : 8;
+    const slots = Array.from(
+      list.current!.querySelectorAll<HTMLElement>('div[data-slot]')
+    );
+    const slot =
+      slots.find((el) => Number(el.dataset.slot) >= hour * 60) ??
+      slots[slots.length - 1];
+    list.current!.scrollTop = slot?.offsetTop ?? 0;
+  }, [startDate]);
+  useOpeningScroll(openAtHour, calendar.loading, postDates);
+
   return (
     <div className="flex flex-col gap-[10px] flex-1 relative">
-      <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+      <div
+        ref={list}
+        className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+      >
         {options.map((option, index) => (
           <Fragment key={option[0].time}>
             {/* sits in the 20px gap under the previous slot */}
@@ -480,7 +537,10 @@ export const DayView = () => {
                 className={clsx(index > 0 && '-mt-[20px]')}
               />
             )}
-            <div className="text-center text-[14px] min-h-[21px] shrink-0">
+            <div
+              data-slot={option[0].time}
+              className="text-center text-[14px] min-h-[21px] shrink-0"
+            >
               {slotDate(startDate, option[0].time).format(
                 isUSCitizen() ? 'hh:mm A' : 'LT'
               )}
@@ -501,7 +561,7 @@ export const DayView = () => {
   );
 };
 export const WeekView = () => {
-  const { startDate, endDate } = useCalendar();
+  const { startDate, endDate, loading, postDates } = useCalendar();
   const t = useT();
 
   // Use dayjs to get localized day names
@@ -522,10 +582,27 @@ export const WeekView = () => {
     return days;
   }, [i18next.resolvedLanguage, startDate]);
 
+  // opens with 8 AM, or the current hour in the week of today, where the
+  // first row sits under the sticky day header; again on another week and
+  // once its posts are in
+  const grid = useRef<HTMLDivElement>(null);
+  const openAtHour = useCallback(() => {
+    const now = newDayjs();
+    const hour = localizedDays.some((day) => day.date.isSame(now, 'day'))
+      ? Math.max(8, now.hour())
+      : 8;
+    const rows = grid.current!.querySelectorAll<HTMLElement>('div[data-hour]');
+    grid.current!.scrollTop = rows[hour].offsetTop - rows[0].offsetTop;
+  }, [localizedDays]);
+  useOpeningScroll(openAtHour, loading, postDates);
+
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 relative">
-        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+        <div
+          ref={grid}
+          className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+        >
           <div className="z-10 mobile:z-30 mobile:start-0 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
             <div
@@ -558,7 +635,10 @@ export const WeekView = () => {
               {/* below 1025px the labels stick while the days scroll under
                   them, so they sit over the add buttons (z-[16]) and the now
                   line (z-[15]) passing beneath */}
-              <div className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap">
+              <div
+                data-hour={hour}
+                className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap"
+              >
                 {convertTimeFormatBasedOnLocality(hour)}
               </div>
               {localizedDays.map((day, indexDay) => (

@@ -392,3 +392,19 @@ describe('the agenda with a zone chosen', () => {
     expect(host.textContent).not.toContain('16:30');
   });
 });
+
+// A card's preview keeps its own direction, so an Arabic post in the English
+// calendar is aligned and cut at its own end, and the other way round.
+describe("the card's preview", () => {
+  it('takes its direction from its own text', async () => {
+    const host = await mount(post({ content: '<p>مرحبا</p>' }));
+
+    const preview = Array.from(host.querySelectorAll('div')).find(
+      (node) => !node.children.length && node.textContent === 'مرحبا'
+    )!;
+    expect(preview.getAttribute('dir')).toBe('auto');
+    expect(Array.from(preview.classList)).toEqual(
+      expect.arrayContaining(['text-start', 'line-clamp-1'])
+    );
+  });
+});

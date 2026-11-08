@@ -87,11 +87,14 @@ let containerLeft = 0;
 const menu = () => document.querySelector('.fixed') as HTMLElement;
 const paintedRight = () =>
   parseFloat(menu().style.left) + containerLeft + MENU.width;
+// The ⋯ itself, the button that opens the menu.
+const trigger = () =>
+  document.querySelector('button[aria-haspopup="menu"]') as HTMLElement;
 
 const mounted: Array<{ unmount: () => void }> = [];
 const size = { width: window.innerWidth, height: window.innerHeight };
 
-const open = async () => {
+const render = async (label?: string) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -107,14 +110,19 @@ const open = async () => {
         id="channel"
         mutate={() => undefined}
         onChange={() => undefined}
+        label={label}
       />
     );
   });
+};
+const click = async () => {
   await act(async () => {
-    host.firstElementChild!.dispatchEvent(
-      new MouseEvent('click', { bubbles: true })
-    );
+    trigger().dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
+};
+const open = async () => {
+  await render();
+  await click();
 };
 
 beforeEach(() => {
@@ -178,5 +186,47 @@ describe('the channel menu', () => {
 
     expect(menu().style.left).toBe('178px');
     expect(paintedRight()).toBe(380);
+  });
+});
+
+// The trigger was a bare div, so the keyboard couldn't reach it and a reader
+// couldn't name it (T042 Look, M2). A native button takes Tab, and Enter and
+// Space click it.
+describe('the trigger (FR-052)', () => {
+  it('is a button named by its label, with the brand focus ring, that says whether its menu is open', async () => {
+    await render('Channel menu');
+    const button = trigger();
+
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button.getAttribute('aria-label')).toBe('Channel menu');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+        'coarse:min-w-[44px]',
+        'coarse:min-h-[44px]',
+      ])
+    );
+    expect(menu()).toBeNull();
+
+    await click();
+
+    expect(menu()).not.toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    // the menu sits beside the button, never inside it
+    expect(button.contains(menu())).toBe(false);
+
+    await click();
+
+    expect(menu()).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('has no name of its own without a label', async () => {
+    await render();
+
+    expect(trigger().hasAttribute('aria-label')).toBe(false);
   });
 });
