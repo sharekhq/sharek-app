@@ -18,6 +18,7 @@ import { UserDetailDto } from '@gitroom/nestjs-libraries/dtos/users/user.details
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
+import { capitalize } from 'lodash';
 import { TeamsComponent } from '@gitroom/frontend/components/settings/teams.component';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
@@ -37,7 +38,7 @@ import { Plugs } from '@gitroom/frontend/components/plugs/plugs';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
-  const { isGeneral, showThirdParty } = useVariables();
+  const { isGeneral, showThirdParty, billingEnabled } = useVariables();
   const { getRef } = props;
   const fetch = useFetch();
   const toast = useToaster();
@@ -170,6 +171,16 @@ export const SettingsPopup: FC<{
               <LogoutComponent />
             </div>
           )}
+          <div className="mt-[5px] flex flex-col text-[12px] text-muted break-all">
+            {billingEnabled && user?.isLifetime && (
+              <div>{capitalize(user?.tier?.current || '')} tier</div>
+            )}
+            <div>
+              {process.env.NEXT_PUBLIC_VERSION
+                ? process.env.NEXT_PUBLIC_VERSION
+                : ''}
+            </div>
+          </div>
         </div>
       </div>
       {/* min-w-0: the same min-width:auto floor one level in — this pane is the
