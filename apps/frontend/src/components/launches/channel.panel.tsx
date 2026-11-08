@@ -11,14 +11,21 @@ import {
 import clsx from 'clsx';
 import { groupBy } from 'lodash';
 import { useRouter } from 'next/navigation';
+import { useDrag, useDrop } from 'react-dnd';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
   CustomVariables,
   useAddProvider,
 } from '@gitroom/frontend/components/launches/add.provider.component';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { Check } from '@gitroom/frontend/components/launches/tags.component';
+import {
+  CheckmarkIcon,
+  PencilIcon,
+} from '@gitroom/frontend/components/ui/icons';
 import { customerHue } from '@gitroom/frontend/components/launches/helpers/customer-hue';
 import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { NoChannelsIllustration } from '@gitroom/frontend/components/launches/no-channels.illustration';
@@ -156,8 +163,16 @@ const ROW_ACTION = clsx(
 
 // The channel's picture with its platform's badge, moved from the calendar's
 // MenuComponent with its YouTube branch, at the list's 16px (C13).
-const ChannelPicture: FC<{ channel: Channel }> = ({ channel }) => (
-  <span className="relative gap-[6px] flex justify-center items-center flex-none">
+const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
+  channel,
+  className,
+}) => (
+  <span
+    className={clsx(
+      'relative gap-[6px] flex justify-center items-center flex-none',
+      className
+    )}
+  >
     <ImageWithFallback
       fallbackSrc={'/no-picture.jpg'}
       src={channel.picture || '/no-picture.jpg'}
@@ -187,16 +202,30 @@ const ChannelPicture: FC<{ channel: Channel }> = ({ channel }) => (
 // A row: the picture, the name in its own direction, and a second line with
 // the first state that applies, else the platform (data-model.md). Collapsed,
 // the picture alone, named by the channel.
-const ChannelRow: FC<{ channel: Channel; collapsed: boolean }> = ({
-  channel,
-  collapsed,
-}) => {
+//
+// The main button is the row's checkbox, checked while the channel's posts
+// show. A hidden row greys only its picture and sets its name in text-muted,
+// so its text keeps AA; a row that can't change keeps today's opacity-50 on
+// its picture, its name and its Check (C25).
+const ChannelRow: FC<{
+  channel: Channel;
+  collapsed: boolean;
+  checked: boolean;
+  usable: boolean;
+  /** the enabled channels fill the plan, MenuComponent's tooltip condition */
+  atPlanLimit: boolean;
+  onToggle: () => void;
+  /** the ⋯ menu, between the row's actions and its Check */
+  menu?: ReactNode;
+}> = ({ channel, collapsed, checked, usable, atPlanLimit, onToggle, menu }) => {
   const t = useT();
   const router = useRouter();
   const reconnect = useReconnectChannel();
   const disconnected = !channel.disabled && !!channel.refreshNeeded;
   const needsSetup =
     !channel.disabled && !channel.refreshNeeded && !!channel.inBetweenSteps;
+  const overPlan = !!channel.disabled && atPlanLimit;
+  const toggle = () => usable && onToggle();
 
   return (
     <div
@@ -205,13 +234,27 @@ const ChannelRow: FC<{ channel: Channel; collapsed: boolean }> = ({
         collapsed ? 'justify-center' : 'px-[8px]'
       )}
     >
+      {/* aria-disabled, not disabled, keeps a disabled row in the Tab order,
+          so its reason can be reached */}
       <button
         type="button"
+        role="checkbox"
+        aria-checked={checked}
+        aria-disabled={!usable}
+        onClick={toggle}
         {...(collapsed
           ? {
               'aria-label': channel.name,
               'data-tooltip-id': 'tooltip',
               'data-tooltip-content': channel.name,
+            }
+          : overPlan
+          ? {
+              'data-tooltip-id': 'tooltip',
+              'data-tooltip-content': t(
+                'channel_disabled_upgrade_plan',
+                'This channel is disabled, please upgrade your plan to enable it.'
+              ),
             }
           : {})}
         className={clsx(
@@ -220,10 +263,19 @@ const ChannelRow: FC<{ channel: Channel; collapsed: boolean }> = ({
           FOCUS_RING
         )}
       >
-        <ChannelPicture channel={channel} />
+        <ChannelPicture
+          channel={channel}
+          className={clsx(!checked && 'grayscale', !usable && 'opacity-50')}
+        />
         {!collapsed && (
           <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-            <bdi className="text-[14px] font-[500] text-ink truncate">
+            <bdi
+              className={clsx(
+                'text-[14px] font-[500] truncate',
+                checked ? 'text-ink' : 'text-muted',
+                !usable && 'opacity-50'
+              )}
+            >
               {channel.name}
             </bdi>
             <span
@@ -232,8 +284,12 @@ const ChannelRow: FC<{ channel: Channel; collapsed: boolean }> = ({
                 disconnected || needsSetup ? 'text-error' : 'text-muted'
               )}
             >
-              {channel.disabled
+              {/* over the plan only at its limit; under it, the channel was
+                  disabled by hand from its ⋯ menu */}
+              {overPlan
                 ? t('channel_disabled_over_plan', 'Disabled · over your plan')
+                : channel.disabled
+                ? t('channel_disabled', 'Channel Disabled')
                 : disconnected
                 ? t('channel_disconnected', 'Disconnected')
                 : needsSetup
@@ -265,19 +321,99 @@ const ChannelRow: FC<{ channel: Channel; collapsed: boolean }> = ({
           {t('finish_setup', 'Finish setup')}
         </button>
       )}
+      {!collapsed && menu}
+      {!collapsed && (
+        <span className={clsx('flex', !usable && 'opacity-50')}>
+          <Check value={checked} onChange={toggle} />
+        </span>
+      )}
+    </div>
+  );
+};
+
+// A row a mouse or a held finger carries to a customer, as MenuComponent's
+// was. Rendered only with onMoveToCustomer, so a page without DNDProvider
+// never calls useDrag (C16).
+const DraggableChannel: FC<{ id: string; children: ReactNode }> = ({
+  id,
+  children,
+}) => {
+  const [, drag] = useDrag(() => ({
+    type: 'menu',
+    item: { id },
+  }));
+  // a connector returns an element, which React 19's ref types refuse
+  const attach = useCallback(
+    (element: HTMLDivElement | null) => {
+      drag(element);
+    },
+    [drag]
+  );
+  return <div ref={attach}>{children}</div>;
+};
+
+// A customer's group, header and rows, or the channels with no customer, ''
+// (C27), taking a dropped channel as MenuGroupComponent's group did (C16).
+const CustomerDropZone: FC<{
+  customerId: string;
+  onMoveToCustomer: (channelId: string, customerId: string) => void;
+  children: ReactNode;
+}> = ({ customerId, onMoveToCustomer, children }) => {
+  const [{ isOver }, drop] = useDrop(
+    () => ({
+      accept: 'menu',
+      drop: (item: { id: string }) => onMoveToCustomer(item.id, customerId),
+      collect: (monitor) => ({
+        isOver: !!monitor.isOver(),
+      }),
+    }),
+    [customerId, onMoveToCustomer]
+  );
+  const attach = useCallback(
+    (element: HTMLDivElement | null) => {
+      drop(element);
+    },
+    [drop]
+  );
+  return (
+    <div
+      ref={attach}
+      className={clsx(
+        'rounded-[10px]',
+        isOver && 'bg-brandSoft ring-1 ring-inset ring-brand'
+      )}
+    >
+      {children}
     </div>
   );
 };
 
 // A customer's channels, under a header that opens and closes them. Whether
 // it's open is kept under '<name>_isOpen', as the calendar always has, so
-// people's choices carry over and the three pages share them (R5).
+// people's choices carry over and the three pages share them (R5). Beside the
+// chevron, today's rename pencil when the page passes onRename, and the
+// customer's tick over its usable channels: on, off or mixed.
 const CustomerGroup: FC<{
   customer: { id: string; name: string };
   count: number;
   collapsed: boolean;
+  checked: boolean | 'mixed';
+  /** no usable channel to tick */
+  disabled: boolean;
+  onToggle: () => void;
+  onRename?: () => void;
   children: ReactNode;
-}> = ({ customer, count, collapsed, children }) => {
+}> = ({
+  customer,
+  count,
+  collapsed,
+  checked,
+  disabled,
+  onToggle,
+  onRename,
+  children,
+}) => {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(
     !!+(localStorage.getItem(customer.name + '_isOpen') || '1')
   );
@@ -292,58 +428,113 @@ const CustomerGroup: FC<{
       aria-label={customer.name}
       className="flex flex-col gap-[2px]"
     >
-      <button
-        type="button"
-        aria-expanded={isOpen}
-        onClick={changeOpenClose}
-        {...(collapsed
-          ? {
-              'aria-label': customer.name,
-              'data-tooltip-id': 'tooltip',
-              'data-tooltip-content': customer.name,
-            }
-          : {})}
-        className={clsx(
-          'flex items-center gap-[8px] min-h-[36px] coarse:min-h-[44px] coarse:min-w-[44px] px-[4px] rounded-[8px] text-start',
-          collapsed && 'justify-center',
-          FOCUS_RING
-        )}
-      >
-        {!collapsed && (
-          // down when open; closed, it points the way the page reads
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
+      <div className="group flex items-center gap-[4px]">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={changeOpenClose}
+          {...(collapsed
+            ? {
+                'aria-label': customer.name,
+                'data-tooltip-id': 'tooltip',
+                'data-tooltip-content': customer.name,
+              }
+            : {})}
+          className={clsx(
+            'flex-1 min-w-0 flex items-center gap-[8px] min-h-[36px] coarse:min-h-[44px] coarse:min-w-[44px] px-[4px] rounded-[8px] text-start',
+            collapsed && 'justify-center',
+            FOCUS_RING
+          )}
+        >
+          {!collapsed && (
+            // down when open; closed, it points the way the page reads
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className={clsx(
+                'flex-none text-muted transition-transform',
+                !isOpen && '-rotate-90 rtl:rotate-90'
+              )}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          )}
+          <span
             className={clsx(
-              'flex-none text-muted transition-transform',
-              !isOpen && '-rotate-90 rtl:rotate-90'
+              'w-[8px] h-[8px] rounded-full flex-none',
+              customerHue(customer.name)
+            )}
+          />
+          {!collapsed && (
+            <>
+              <bdi className="text-[13px] font-[600] text-inkSoft truncate">
+                {customer.name}
+              </bdi>
+              <span className="text-[12px] text-muted">{count}</span>
+            </>
+          )}
+        </button>
+        {!collapsed && onRename && (
+          <button
+            type="button"
+            aria-label={t('edit_group_name', 'Edit group name')}
+            onClick={onRename}
+            className={clsx(
+              'flex-none flex items-center justify-center w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] text-muted hover:text-brandText opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity',
+              FOCUS_RING
             )}
           >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+            <PencilIcon size={14} aria-hidden="true" />
+          </button>
         )}
-        <span
-          className={clsx(
-            'w-[8px] h-[8px] rounded-full flex-none',
-            customerHue(customer.name)
-          )}
-        />
         {!collapsed && (
-          <>
-            <bdi className="text-[13px] font-[600] text-inkSoft truncate">
-              {customer.name}
-            </bdi>
-            <span className="text-[12px] text-muted">{count}</span>
-          </>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={checked}
+            aria-label={customer.name}
+            disabled={disabled}
+            onClick={onToggle}
+            className={clsx(
+              'flex-none flex items-center justify-center w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] disabled:opacity-50',
+              FOCUS_RING
+            )}
+          >
+            {/* the look of the rows' Check, with a dash for mixed */}
+            <span
+              className={clsx(
+                'flex border rounded-[6px] w-[20px] h-[20px] justify-center items-center transition-colors',
+                checked ? 'bg-brand border-brand' : 'border-muted'
+              )}
+            >
+              {checked === 'mixed' ? (
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                  className="text-white"
+                >
+                  <path d="M6 12h12" />
+                </svg>
+              ) : (
+                checked && <CheckmarkIcon className="text-white" />
+              )}
+            </span>
+          </button>
         )}
-      </button>
+      </div>
       <div className={clsx('flex flex-col gap-[2px]', !isOpen && 'hidden')}>
         {children}
       </div>
@@ -358,12 +549,23 @@ const CustomerGroup: FC<{
  * with no customer and each customer's group, in `orderChannels` order.
  *
  * It draws its own header, because `SplitPanel` draws none (C6), and keeps
- * only its own state: the search, which groups are open, and the + menu.
+ * only its own state: the search, which groups are open, and the + menu. The
+ * page keeps the selection.
  */
 export const ChannelPanel: FC<{
   mode: PanelMode;
   /** the page's `useIntegrationList()` data */
   channels: Channel[];
+  /** the ids whose posts show, or null for all */
+  selected: string[] | null;
+  /** the ids that show next, or null once every usable channel does (C5) */
+  onChange: (selected: string[] | null) => void;
+  /** the row's ⋯ menu */
+  rowMenu?: (channel: Channel) => ReactNode;
+  /** a channel dropped on a customer, '' for none; enables the drag (C16) */
+  onMoveToCustomer?: (channelId: string, customerId: string) => void;
+  /** shows the pencil on a customer's header */
+  onRenameCustomer?: (customer: { id: string; name: string }) => void;
   /** refreshes the list after Add Channel or Invite a customer */
   update: () => void;
   /** the rail's pictures-only state; never the sheet */
@@ -374,12 +576,18 @@ export const ChannelPanel: FC<{
 }> = ({
   mode,
   channels,
+  selected,
+  onChange,
+  rowMenu,
+  onMoveToCustomer,
+  onRenameCustomer,
   update,
   collapsed = false,
   onToggleCollapse,
   onDone,
 }) => {
   const t = useT();
+  const user = useUser();
   const add = useAddProvider(update);
   const invite = useAddProvider(update, true);
   const [search, setSearch] = useState('');
@@ -387,6 +595,25 @@ export const ChannelPanel: FC<{
 
   const hints: Record<PanelMode, string> = {
     calendar: t('channel_hint_calendar', 'Untick a channel to hide its posts.'),
+  };
+
+  const atPlanLimit =
+    channels.filter((channel) => !channel.disabled).length ===
+    user?.totalChannels;
+  const usable = (channel: Channel) => isUsable(channel, mode);
+  // A channel that can't be ticked always shows (C5).
+  const shows = (channel: Channel) =>
+    !usable(channel) || !selected || selected.includes(channel.id);
+  const hiding = channels.some((channel) => !shows(channel));
+  // The page's next selection: null once every channel shows, else the ids
+  // that do, every disabled one's included, even one the array was missing.
+  const select = (next: (channel: Channel) => boolean) => {
+    const shown = channels.filter(
+      (channel) => !usable(channel) || next(channel)
+    );
+    onChange(
+      shown.length === channels.length ? null : shown.map(({ id }) => id)
+    );
   };
 
   // Past six channels a search helps find one (FR-006). It matches a channel's
@@ -397,6 +624,8 @@ export const ChannelPanel: FC<{
   const groups = ordered
     .map((group) => ({
       ...group,
+      // a customer's tick covers all its usable channels, whatever shows
+      members: group.channels.filter(usable),
       channels: group.channels.filter(
         (channel) =>
           !query ||
@@ -410,9 +639,44 @@ export const ChannelPanel: FC<{
     .filter((group) => group.channels.length);
 
   const rows = (list: Channel[]) =>
-    list.map((channel) => (
-      <ChannelRow key={channel.id} channel={channel} collapsed={collapsed} />
-    ));
+    list.map((channel) => {
+      const row = (
+        <ChannelRow
+          key={channel.id}
+          channel={channel}
+          collapsed={collapsed}
+          checked={shows(channel)}
+          usable={usable(channel)}
+          atPlanLimit={atPlanLimit}
+          onToggle={() =>
+            select((other) =>
+              other.id === channel.id ? !shows(other) : shows(other)
+            )
+          }
+          menu={rowMenu?.(channel)}
+        />
+      );
+      return onMoveToCustomer ? (
+        <DraggableChannel key={channel.id} id={channel.id}>
+          {row}
+        </DraggableChannel>
+      ) : (
+        row
+      );
+    });
+  // a group, taking dropped channels under the calendar
+  const dropZone = (customerId: string, group: ReactNode) =>
+    onMoveToCustomer ? (
+      <CustomerDropZone
+        key={customerId}
+        customerId={customerId}
+        onMoveToCustomer={onMoveToCustomer}
+      >
+        {group}
+      </CustomerDropZone>
+    ) : (
+      group
+    );
 
   return (
     <div className="flex flex-col gap-[8px] select-none">
@@ -544,7 +808,24 @@ export const ChannelPanel: FC<{
           </button>
         </div>
         {!collapsed && channels.length > 0 && (
-          <p className="text-[12px] text-muted">{hints[mode]}</p>
+          <p className="text-[12px] text-muted">
+            {hints[mode]}
+            {hiding && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  onClick={() => onChange(null)}
+                  className={clsx(
+                    'inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2',
+                    FOCUS_RING
+                  )}
+                >
+                  {t('show_all', 'Show all')}
+                </button>
+              </>
+            )}
+          </p>
         )}
         {searchable && (
           <div className="relative">
@@ -593,22 +874,38 @@ export const ChannelPanel: FC<{
           </div>
         </div>
       )}
-      {groups.map(({ customer, channels: list }) =>
-        customer ? (
+      {groups.map(({ customer, members, channels: list }) => {
+        if (!customer) {
+          return dropZone(
+            '',
+            <div key="" className="flex flex-col gap-[2px]">
+              {rows(list)}
+            </div>
+          );
+        }
+        const shown = members.filter(shows).length;
+        const checked =
+          shown === members.length ? true : shown ? 'mixed' : false;
+        return dropZone(
+          customer.id,
           <CustomerGroup
             key={customer.id}
             customer={customer}
             count={list.length}
             collapsed={collapsed}
+            checked={checked}
+            disabled={!members.length}
+            onToggle={() =>
+              select((channel) =>
+                members.includes(channel) ? checked !== true : shows(channel)
+              )
+            }
+            onRename={onRenameCustomer && (() => onRenameCustomer(customer))}
           >
             {rows(list)}
           </CustomerGroup>
-        ) : (
-          <div key="" className="flex flex-col gap-[2px]">
-            {rows(list)}
-          </div>
-        )
-      )}
+        );
+      })}
       {!!query && !groups.length && (
         <p className="py-[24px] px-[16px] text-center text-[13px] text-muted">
           {t('no_channel_matches', 'No channel matches')}
