@@ -560,6 +560,70 @@ describe('the top bar above 1025px', () => {
     });
   });
 
+  // The maintainer's "Two groups" (T042 Look, M4): the bar wraps only between
+  // its two groups, each held on one line, so where they don't fit side by
+  // side the second drops under the first, at the end, at any width, and no
+  // control is ever left alone on a row.
+  describe('the two groups', () => {
+    const groups = (host: HTMLElement) => ({
+      bar: host.firstElementChild!,
+      navigation: today(host)!.parentElement!,
+      end: host.querySelector('[data-testid="new-post"]')!.parentElement!
+        .parentElement!,
+    });
+    const wraps = (node: Element) =>
+      classes(node).some((name) => name.startsWith('flex-wrap'));
+
+    it('holds Today, Previous, Next and the date in the first, and the notice, the views and Create Post in the second', async () => {
+      const host = await mount({ selectedChannels: allBut('b') });
+      const { bar, navigation, end } = groups(host);
+
+      // the two are all the bar shows above 1025px
+      expect(
+        Array.from(bar.children).filter(
+          (child) => !classes(child).includes('hidden')
+        )
+      ).toEqual([navigation, end]);
+      [
+        today(host),
+        byLabel(host, 'Previous week'),
+        byLabel(host, 'Next week'),
+        dates(host).long,
+      ].forEach((node) => expect(navigation.contains(node!)).toBe(true));
+      [
+        byText(host, 'Show all'),
+        ...viewButtons(host),
+        host.querySelector('[data-testid="new-post"]'),
+      ].forEach((node) => expect(end.contains(node!)).toBe(true));
+    });
+
+    it('wraps the bar between them only, each held on one line, the second at the end', async () => {
+      const host = await mount({ selectedChannels: allBut('b') });
+      const { bar, navigation, end } = groups(host);
+      const create = host.querySelector('[data-testid="new-post"]')!
+        .parentElement!;
+
+      expect(classes(bar)).toEqual(
+        expect.arrayContaining(['flex', 'flex-wrap', 'gap-[8px]'])
+      );
+      expect(wraps(navigation)).toBe(false);
+      expect(wraps(end)).toBe(false);
+      expect(classes(end)).toEqual(
+        expect.arrayContaining(['flex', 'items-center', 'gap-[8px]', 'ms-auto'])
+      );
+      // Create Post keeps its words on one line when the group is tight
+      expect(classes(create)).toContain('shrink-0');
+    });
+
+    // At 1025px and below the second group lets its children be the bar's
+    // own, so Create Post sits beside the chip as it did.
+    it('dissolves the second group at 1025px and below', async () => {
+      const host = await mount();
+
+      expect(classes(groups(host).end)).toContain('mobile:contents');
+    });
+  });
+
   it('ends with Create Post, and shows none with no channels', async () => {
     const host = await mount();
     const create = host.querySelector('[data-testid="new-post"]')!;
