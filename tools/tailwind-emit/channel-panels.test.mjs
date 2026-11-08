@@ -2,7 +2,9 @@
 // (channel.panel.tsx, inside split.panel.tsx at launches.component.tsx's
 // w-[288px]), its top bar (filters.tsx), the ⋯ menu's hints
 // (post.actions.menu.tsx), the build number in Settings
-// (settings.component.tsx) and the post card's preview (calendar.post.card.tsx).
+// (settings.component.tsx), the post card's preview (calendar.post.card.tsx),
+// and Samy's page (agent.tsx): its chats (agent.chats.tsx) in the start-side
+// drawer, and the chat's header (agent.chat.header.tsx).
 // A variant or arbitrary value that Tailwind can't use emits nothing and the
 // page just doesn't change, so this file asserts what Tailwind emitted for each
 // of them, with the project's own config (see emit.mjs). Each class is added
@@ -103,11 +105,16 @@ const py = (prop, value) => [
 const ARBITRARY = {
   // launches.component.tsx — the list's width in the SplitPanel
   'w-[288px]': [['width', '288px']],
+  // agent.tsx — the chats panel's, at the start of Samy's page
+  'w-[272px]': [['width', '272px']],
   // split.panel.tsx — the icon rail's 64px; the scroller: no top padding, so
   // the list's sticky header sits at its top (C28), and at the sides the rows'
   // 8px, or the icon rail's 6px (px-[8px] and px-[6px], below)
   'w-[64px]': [['width', '64px']],
   'pb-[20px]': [['padding-bottom', '20px']],
+  // the scroller's gap, and the scrim under the sheet and the drawer
+  'gap-[15px]': [['gap', '15px']],
+  'z-[180]': [['z-index', '180']],
   // the sheet's grab handle, 36px (w-[36px], below) by 4px, 8px under the top
   'h-[4px]': [['height', '4px']],
   'mt-[8px]': [['margin-top', '8px']],
@@ -280,12 +287,47 @@ const MOBILE_CLASSES = {
   'mobile:py-[4px]': py('padding', '4px'),
   'mobile:px-[8px]': px('padding', '8px'),
   'mobile:whitespace-nowrap': [['white-space', 'nowrap']],
-  // split.panel.tsx — the sheet's surface, under its grab handle too
+  // split.panel.tsx — the sheet: out of the page at the screen's foot, over
+  // the scrim, up to 80% of the screen, its top corners rounded, and its
+  // surface under the grab handle too; the grab handle and the scrim show
+  'mobile:fixed': [['position', 'fixed']],
+  'mobile:inset-x-0': [
+    ['left', '0px'],
+    ['right', '0px'],
+  ],
+  'mobile:bottom-0': [['bottom', '0px']],
+  'mobile:z-[190]': [['z-index', '190']],
+  'mobile:max-h-[80vh]': [['max-height', '80vh']],
+  'mobile:rounded-t-[16px]': [
+    ['border-top-left-radius', '16px'],
+    ['border-top-right-radius', '16px'],
+  ],
+  'mobile:overflow-hidden': [['overflow', 'hidden']],
   'mobile:bg-newBgColorInner': [
     ['background-color', 'var(--new-bgColorInner)'],
   ],
-  // the drawer's width, the SamyPhoneChats board's 318px
+  'mobile:block': [['display', 'block']],
+  // its scroller sizes to the rows, with room under the last
+  'mobile:static': [['position', 'static']],
+  'mobile:h-auto': [['height', 'auto']],
+  'mobile:pb-[80px]': [['padding-bottom', '80px']],
+  // the drawer: the screen's height at the start side (mobile:start-0 has its
+  // own case, below), the SamyPhoneChats board's 318px and its card shadow
+  'mobile:inset-y-0': [
+    ['top', '0px'],
+    ['bottom', '0px'],
+  ],
   'mobile:w-[318px]': [['width', '318px']],
+  'mobile:shadow-card': [
+    ['--tw-shadow', 'var(--shadow-card)'],
+    ['--tw-shadow-colored', 'var(--shadow-card)'],
+    [
+      'box-shadow',
+      'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)',
+    ],
+  ],
+  // agent.tsx — Samy's chat column, free to shrink once the page stacks
+  'mobile:min-h-0': [['min-height', '0px']],
   // agent.chat.header.tsx — the phone bar, option A's: 52px, 6px in from
   // either side, 4px between its controls, and the ⋯ at the 44px buttons'
   // corners
@@ -298,6 +340,36 @@ const MOBILE_CLASSES = {
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
   await assertEmits(MOBILE_CLASSES, MOBILE);
+});
+
+test('the drawer sits at the start side in either direction', async () => {
+  // tailwindcss-rtl adds a physical side for each direction to core's
+  // inset-inline-start, so mobile:start-0 emits three rules.
+  const css = await emit(['mobile:start-0']);
+  assert.deepEqual(
+    rules(css, 'mobile:start-0').map(({ selector, atRule, decls }) => ({
+      selector,
+      atRule,
+      decls,
+    })),
+    [
+      {
+        selector: '.mobile:start-0',
+        atRule: MOBILE,
+        decls: [['inset-inline-start', '0px']],
+      },
+      {
+        selector: '[dir="rtl"] .mobile:start-0',
+        atRule: MOBILE,
+        decls: [['right', '0px']],
+      },
+      {
+        selector: '[dir="ltr"] .mobile:start-0',
+        atRule: MOBILE,
+        decls: [['left', '0px']],
+      },
+    ]
+  );
 });
 
 // Every `coarse:` class: the 44px touch floors, the bar's 54px above 1025px,
@@ -556,6 +628,13 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'bg-catPalm': [['background-color', 'var(--cat-palm)']],
       'bg-catLapis': [['background-color', 'var(--cat-lapis)']],
       'bg-catMulberry': [['background-color', 'var(--cat-mulberry)']],
+      // the collapsed rail's red ! (channel.panel.tsx)
+      'bg-error': [['background-color', 'var(--error)']],
+      // the panel's scrollbar (split.panel.tsx)
+      'scrollbar-thumb-fifth': [['--scrollbar-thumb', 'var(--color-fifth)']],
+      'scrollbar-track-newBgColor': [
+        ['--scrollbar-track', 'var(--new-bgColor)'],
+      ],
       // the open chat's tint, and the rename field's ring (agent.chats.tsx)
       'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
       'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
@@ -656,6 +735,18 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['h-[28px]', 'mobile:h-[44px]'],
     ['rounded-[6px]', 'mobile:rounded-[8px]'],
     ['h-[30px]', 'coarse:h-[44px]'],
+    // a chat's ⋯ and the header's at 44px on touch
+    ['w-[28px]', 'coarse:w-[44px]'],
+    ['h-[28px]', 'coarse:h-[44px]'],
+    // the drawer's and the sheet's widths over the rail's; the panel out of
+    // the page, its scroller sized to the rows, the grab handle and the scrim
+    ['w-[272px]', 'mobile:w-[318px]'],
+    ['w-[288px]', 'mobile:w-full'],
+    ['relative', 'mobile:fixed'],
+    ['absolute', 'mobile:static'],
+    ['h-full', 'mobile:h-auto'],
+    ['pb-[20px]', 'mobile:pb-[80px]'],
+    ['hidden', 'mobile:block'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);
