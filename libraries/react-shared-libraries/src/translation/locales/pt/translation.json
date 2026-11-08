@@ -1,5 +1,8 @@
 {
   "calendar": "Calendário",
+  "calendar_state_published": "Publicado",
+  "calendar_state_scheduled": "Agendado",
+  "calendar_state_failed": "Falha",
   "webhooks": "Webhooks",
   "webhooks_are_a_way_to_get_notified_when_something_happens_in_postiz_via_an_http_request": "Webhooks são uma forma de ser notificado quando algo acontece no Sharek via uma solicitação HTTP.",
   "name": "Nome",

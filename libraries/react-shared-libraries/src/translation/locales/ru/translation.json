@@ -1,5 +1,8 @@
 {
   "calendar": "Календарь",
+  "calendar_state_published": "Опубликовано",
+  "calendar_state_scheduled": "Запланировано",
+  "calendar_state_failed": "Ошибка",
   "webhooks": "Вебхуки",
   "webhooks_are_a_way_to_get_notified_when_something_happens_in_postiz_via_an_http_request": "Вебхуки — это способ получать уведомления о событиях в Sharek через HTTP-запрос.",
   "name": "Имя",
