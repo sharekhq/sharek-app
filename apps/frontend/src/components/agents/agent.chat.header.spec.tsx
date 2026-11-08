@@ -210,9 +210,10 @@ type Scene = {
 let cache: Map<string, unknown>;
 const mounted: Root[] = [];
 
-const settle = async () => {
+// The clock is fake, so a case moves it to see what the header does later.
+const settle = async (ms = 0) => {
   await act(async () => {
-    await new Promise((done) => setTimeout(done, 0));
+    await jest.advanceTimersByTimeAsync(ms);
   });
 };
 
@@ -323,6 +324,7 @@ const rename = async (host: HTMLElement, text: string) => {
 };
 
 beforeEach(() => {
+  jest.useFakeTimers();
   cache = new Map();
   mockThreadId = 'noor';
   mockHeader = null;
@@ -345,6 +347,7 @@ afterEach(async () => {
     act(() => root.unmount());
   }
   document.body.innerHTML = '';
+  jest.useRealTimers();
   await i18next.changeLanguage('en');
 });
 
@@ -526,6 +529,65 @@ describe('when a reply ends', () => {
 
     await update({ running: false });
     expect(lists()).toBe(2);
+    // a chat with a title is read once
+    await settle(10_000);
+    expect(lists()).toBe(2);
+  });
+
+  // Mastra may save a new chat's generated title just after its first reply
+  // ends, so the list read then can still have it untitled, or not at all.
+  it('reads it again every 1.5s while the chat is still untitled, until its title lands', async () => {
+    mockThreadId = 'fresh';
+    const { host, update } = await render(<ChatHeader />, { running: true });
+
+    await update({ running: false });
+    expect(lists()).toBe(2);
+    await settle(1499);
+    expect(lists()).toBe(2);
+
+    mockList = [chat('fresh', ''), ...LIST];
+    await settle(1);
+    expect(lists()).toBe(3);
+    expect(heading(host)!.textContent).toBe('New chat');
+
+    mockList = [chat('fresh', 'Spring menu'), ...LIST];
+    await settle(1500);
+    expect(lists()).toBe(4);
+    expect(heading(host)!.textContent).toBe('Spring menu');
+
+    await settle(10_000);
+    expect(lists()).toBe(4);
+  });
+
+  it('stops after three more reads', async () => {
+    mockThreadId = 'fresh';
+    const { update } = await render(<ChatHeader />, { running: true });
+
+    await update({ running: false });
+    await settle(4500);
+    expect(lists()).toBe(5);
+
+    await settle(10_000);
+    expect(lists()).toBe(5);
+  });
+
+  it('stops when another chat opens or the next reply starts', async () => {
+    mockThreadId = 'fresh';
+    const { update } = await render(<ChatHeader />, { running: true });
+
+    await update({ running: false });
+    expect(lists()).toBe(2);
+    mockThreadId = 'other';
+    await update({ running: false });
+    await settle(10_000);
+    expect(lists()).toBe(2);
+
+    await update({ running: true });
+    await update({ running: false });
+    expect(lists()).toBe(3);
+    await update({ running: true });
+    await settle(10_000);
+    expect(lists()).toBe(3);
   });
 });
 
