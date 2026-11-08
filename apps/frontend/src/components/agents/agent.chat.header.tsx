@@ -216,7 +216,8 @@ export const ChannelSummary: FC = () => {
             <bdi className="min-w-0 truncate font-[600] text-ink mobile:hidden">
               {names}
             </bdi>
-            {`· ${channels}`}
+            {/* its own flex item, so the gap stays without the name */}
+            <span>{`· ${channels}`}</span>
           </>
         ) : (
           t('no_channels_picked', 'No channels picked')
