@@ -12,8 +12,10 @@ import { useDragDropManager } from 'react-dnd';
 // a second line, and Reconnect and Finish setup beside a row, never inside it.
 // These are the parts every mode shares, rendered in calendar mode, then the
 // calendar's own: ticks, Show all, the row menu, the customer pencil and drag;
-// then Samy's: picks, with no dimming and none of the calendar's extras. The
-// test DOM has no layout, so sizes are pinned by the classes that carry them.
+// then Samy's: picks, with no dimming and none of the calendar's extras; then
+// Analytics': one choice, among the channels the page says have statistics.
+// The test DOM has no layout, so sizes are pinned by the classes that carry
+// them.
 //
 // useT gives the key, so each case names the string it expects. The platform
 // names come from platformLabel, which reads i18next itself, so i18next runs
@@ -2395,5 +2397,279 @@ describe('the hint and the extras on Samy (FR-007, FR-025)', () => {
         .filter((text) => text !== 'reconnect' && text !== 'finish_setup');
       expect(beside).toEqual([]);
     });
+  });
+});
+
+// Analytics' own parts (contracts/channel-panel.md, C7, C20, FR-030). The page
+// says which platforms have statistics, here every one but LinkedIn, and keeps
+// the one id whose numbers show.
+const hasStatistics = jest.fn(
+  (c: Pick<Channel, 'identifier'>) => c.identifier !== 'linkedin'
+);
+
+describe('isUsable on Analytics (C7, C20)', () => {
+  it.each([
+    ['an enabled channel with statistics', true, {}],
+    [
+      'an enabled channel without statistics',
+      false,
+      { identifier: 'linkedin' },
+    ],
+    ['a disconnected channel', false, { refreshNeeded: true }],
+    ['a channel that needs setup', false, { inBetweenSteps: true }],
+    ['a disabled channel', false, { disabled: true }],
+  ])('says %s is usable: %s', (_, usable, values) => {
+    const subject = channel('u', values);
+
+    expect(isUsable(subject, 'analytics', hasStatistics)).toBe(usable);
+    // Samy's rule, and the page's word on the channel's platform
+    expect(isUsable(subject, 'analytics', hasStatistics)).toBe(
+      isUsable(subject, 'samy') && hasStatistics(subject)
+    );
+  });
+
+  it("asks the page's predicate about the channel itself", () => {
+    const subject = channel('u');
+
+    isUsable(subject, 'analytics', hasStatistics);
+
+    expect(hasStatistics).toHaveBeenCalledWith(subject);
+  });
+});
+
+// No customer: a channel with numbers, one on a platform without, one
+// disconnected, one disconnected on a platform without (its state comes
+// first), one that needs setup and one disabled. Client 2: two with numbers.
+// Noor Dental: one on a platform without.
+const ANALYTICS: Channel[] = [
+  channel('lamsa', { name: 'Lamsa Studio' }),
+  channel('mona', { name: 'Mona Saeed', identifier: 'linkedin' }),
+  channel('dc', {
+    name: 'Noor Pages',
+    identifier: 'facebook',
+    refreshNeeded: true,
+  }),
+  channel('dc-li', {
+    name: 'Rawda Profile',
+    identifier: 'linkedin',
+    refreshNeeded: true,
+  }),
+  channel('zed', { name: 'Zed', identifier: 'x', inBetweenSteps: true }),
+  channel('archive', {
+    name: 'Archive',
+    identifier: 'facebook',
+    disabled: true,
+  }),
+  channel('two-shop', {
+    name: 'Two Shop',
+    identifier: 'facebook',
+    customer: CLIENT_2,
+  }),
+  channel('two-cafe', { name: 'Two Cafe', customer: CLIENT_2 }),
+  channel('noor-li', {
+    name: 'Noor Clinic',
+    identifier: 'linkedin',
+    customer: NOOR,
+  }),
+];
+const ANALYTICS_USABLE = ['lamsa', 'two-shop', 'two-cafe'];
+const renderAnalytics = (selected: string | null) =>
+  render(ANALYTICS, { mode: 'analytics', selected, hasStatistics });
+// The row's radio, a 20px round mark beside its main button.
+const radioOf = (name: string) => {
+  const found = within(rowOf(name)).filter(
+    (el) =>
+      has(el, 'w-[20px]') &&
+      has(el, 'h-[20px]') &&
+      has(el, 'rounded-full') &&
+      !mainButton(name).contains(el)
+  );
+  expect(found).toHaveLength(1);
+  return found[0];
+};
+const radios = () => Array.from(host.querySelectorAll('[role="radio"]'));
+
+describe('the analytics choice (C20, FR-030)', () => {
+  it('puts a radio per row in one radiogroup named Channels, around the customer groups', async () => {
+    await renderAnalytics('two-shop');
+    const groups = Array.from(host.querySelectorAll('[role="radiogroup"]'));
+
+    expect(groups).toHaveLength(1);
+    expect(labelOf(groups[0])).toBe('channels');
+    expect(radios()).toHaveLength(ANALYTICS.length);
+    ANALYTICS.forEach(({ id, name }) => {
+      const main = mainButton(name);
+      expect(main.getAttribute('role')).toBe('radio');
+      expect(main.getAttribute('aria-checked')).toBe(String(id === 'two-shop'));
+      expect(groups[0].contains(main)).toBe(true);
+    });
+    ['Client 2', 'Noor Dental'].forEach((customer) =>
+      expect(groups[0].contains(groupOf(customer))).toBe(true)
+    );
+  });
+
+  it.each([
+    ['its main button', (name: string) => mainButton(name)],
+    ['its radio', radioOf],
+  ])("calls onChange with the row's id alone, from %s", async (_, target) => {
+    await renderAnalytics('two-shop');
+
+    await click(target('Two Cafe'));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('two-cafe');
+  });
+
+  it('tints the chosen row and sets its name bold, with its radio filled, and the others neither', async () => {
+    await renderAnalytics('two-shop');
+
+    ANALYTICS.forEach(({ id, name }) => {
+      const chosen = id === 'two-shop';
+      const row = rowOf(name);
+      const bdi = mainButton(name).querySelector('bdi')!;
+      expect(has(row, 'bg-brandSoft2')).toBe(chosen);
+      // a hover tint of its own would replace the chosen row's
+      expect(has(row, 'hover:bg-boxHover')).toBe(!chosen);
+      expect(classes(bdi)).toContain(chosen ? 'font-[600]' : 'font-[500]');
+      expect(classes(bdi)).not.toContain(chosen ? 'font-[500]' : 'font-[600]');
+      // chosen by a mark, never by colour alone
+      expect(radioOf(name).children).toHaveLength(chosen ? 1 : 0);
+    });
+  });
+
+  it("doesn't dim a row that isn't chosen: its picture in full colour, its name in text-ink", async () => {
+    await renderAnalytics('two-shop');
+
+    ['Lamsa Studio', 'Two Cafe'].forEach((name) => {
+      const row = rowOf(name);
+      expect([row, ...within(row)].some((el) => has(el, 'grayscale'))).toBe(
+        false
+      );
+      expect(classes(mainButton(name).querySelector('bdi'))).toContain(
+        'text-ink'
+      );
+      expect(
+        [...chain(row, host), ...within(row)].some((el) =>
+          classes(el).some(
+            (cls) => /^opacity-\d+$/.test(cls) && cls !== 'opacity-100'
+          )
+        )
+      ).toBe(false);
+    });
+  });
+
+  it.each([
+    [
+      'a platform without statistics',
+      'Mona Saeed',
+      'no_statistics_for_platform',
+      [],
+    ],
+    [
+      'a platform without statistics, for a customer',
+      'Noor Clinic',
+      'no_statistics_for_platform',
+      [],
+    ],
+    [
+      'a disconnected channel',
+      'Noor Pages',
+      'channel_disconnected',
+      ['reconnect'],
+    ],
+    [
+      'a disconnected channel on a platform without statistics',
+      'Rawda Profile',
+      'channel_disconnected',
+      ['reconnect'],
+    ],
+    [
+      'a channel that needs setup',
+      'Zed',
+      'channel_needs_setup',
+      ['finish_setup'],
+    ],
+    // under the plan's limit, so disabled by hand
+    ['a disabled channel', 'Archive', 'channel_disabled', []],
+  ])(
+    "can't choose %s, which says why, offers its fix beside it, and dims as the calendar's disabled rows do",
+    async (_, name, state, actions) => {
+      await renderAnalytics(null);
+      const main = mainButton(name);
+
+      expect(main.getAttribute('aria-checked')).toBe('false');
+      expect(main.getAttribute('aria-disabled')).toBe('true');
+      expect(main.hasAttribute('disabled')).toBe(false);
+      const lines = secondLine(name);
+      expect(lines).toHaveLength(1);
+      expect((lines[0].textContent ?? '').trim()).toBe(state);
+      ['reconnect', 'finish_setup'].forEach((text) =>
+        expect(besideButtons(name, text)).toHaveLength(
+          actions.includes(text) ? 1 : 0
+        )
+      );
+      expect(
+        chain(pictureOf(name, ANALYTICS), rowOf(name)).some((el) =>
+          has(el, 'opacity-50')
+        )
+      ).toBe(true);
+      expect(
+        chain(main.querySelector('bdi')!, rowOf(name)).some((el) =>
+          has(el, 'opacity-50')
+        )
+      ).toBe(true);
+      // its radio stays, faded with it
+      expect(
+        chain(radioOf(name), rowOf(name)).some((el) => has(el, 'opacity-50'))
+      ).toBe(true);
+
+      await click(main);
+      await click(radioOf(name));
+
+      expect(onChange).not.toHaveBeenCalled();
+    }
+  );
+
+  it('says nothing of statistics on a row whose platform has them', async () => {
+    await renderAnalytics(null);
+
+    ANALYTICS.filter(({ id }) => ANALYTICS_USABLE.includes(id)).forEach(
+      ({ name }) =>
+        expect(secondLine(name).map((el) => el.textContent)).not.toContain(
+          'no_statistics_for_platform'
+        )
+    );
+  });
+
+  // The page keeps the id it was given, and a channel the list then reports
+  // unusable reads unchosen, so the page's fallback can choose another (C20).
+  it('reads a choice that is no longer usable as unchosen, untinted', async () => {
+    await renderAnalytics('dc');
+
+    expect(mainButton('Noor Pages').getAttribute('aria-checked')).toBe('false');
+    expect(has(rowOf('Noor Pages'), 'bg-brandSoft2')).toBe(false);
+    expect(radioOf('Noor Pages').children).toHaveLength(0);
+  });
+
+  it("gives a customer its header and no tick: there's no checkbox in the list", async () => {
+    await renderAnalytics('two-shop');
+
+    ['Client 2', 'Noor Dental'].forEach((customer) =>
+      expect(chevrons(groupOf(customer))).toHaveLength(1)
+    );
+    expect(host.querySelectorAll('[role="checkbox"]')).toHaveLength(0);
+  });
+});
+
+describe('the hint on Analytics (FR-007)', () => {
+  it('says what a choice means on Analytics, in one 12px muted line', async () => {
+    await renderAnalytics(null);
+    const hint = leaf(host, 'channel_hint_analytics');
+
+    expect(hint).toHaveLength(1);
+    expect(closestWith(hint[0], 'text-[12px]')).not.toBeNull();
+    expect(closestWith(hint[0], 'text-muted')).not.toBeNull();
+    expect(leaf(host, 'channel_hint_calendar')).toHaveLength(0);
+    expect(leaf(host, 'channel_hint_samy')).toHaveLength(0);
   });
 });
