@@ -62,11 +62,13 @@ jest.mock('i18next', () => ({
   __esModule: true,
   default: { t: (key: string, fallback: string) => fallback },
 }));
-jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
-  useFetch: () => async () => ({
-    json: async () => ({ integrations: [{ id: 'ig-1', name: 'Instagram' }] }),
-  }),
-}));
+const mockIntegrations = [{ id: 'ig-1', name: 'Instagram' }];
+jest.mock(
+  '@gitroom/frontend/components/launches/helpers/use.integration.list',
+  () => ({
+    useIntegrationList: () => ({ data: mockIntegrations }),
+  })
+);
 
 // Stands in for the real editor, with one button per way out of it. Both mirror ManageModal:
 // a save calls `mutate()` and then closes every modal (manage.modal.tsx:418-432), and the close
@@ -156,7 +158,7 @@ const Harness: FC<{
   </>
 );
 
-/** Lets the integrations fetch, the queue and React settle. */
+/** Lets the queue and React settle. */
 const flush = async () => {
   await act(async () => {
     await new Promise((res) => setTimeout(res, 0));

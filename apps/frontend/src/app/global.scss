@@ -920,6 +920,13 @@ html[dir='rtl'] .lbox {
     background: var(--surface-2);
     color: var(--muted) !important;
   }
+
+  /* The app's face, IBM Plex Sans and IBM Plex Sans Arabic, for the whole
+     chat: CopilotKit sets the system stack on `.copilotKitChat`, CopilotChat's
+     root, and `.agent` outranks that one class without `!important`. */
+  .copilotKitChat {
+    font-family: inherit;
+  }
 }
 
 /* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem).

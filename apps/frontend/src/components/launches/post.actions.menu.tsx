@@ -140,14 +140,22 @@ export const PostActionsMenu = forwardRef<
   // (calendar.tsx:358). Closing is the honest answer to that, and to Escape.
   // While the list is open Escape is the list's alone: it is heard on the way
   // down and goes no further, because SplitPanel closes the sheet a menu can
-  // open in on an Escape that reaches the document (split.panel.tsx).
+  // open in on an Escape that reaches the document (split.panel.tsx). Only an
+  // Escape pressed in the list, on its trigger or with nothing focused, as a
+  // held menu's is: a field or a dialog that has the focus meanwhile keeps its
+  // own.
   useEffect(() => {
     if (!show) {
       return;
     }
     const close = () => setShow(false);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') {
+      // a key pressed with nothing focused comes from the body
+      const elsewhere =
+        e.target instanceof Node &&
+        e.target !== document.body &&
+        !ref.current?.contains(e.target);
+      if (e.key !== 'Escape' || elsewhere) {
         return;
       }
       e.stopPropagation();
@@ -159,7 +167,7 @@ export const PostActionsMenu = forwardRef<
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [show]);
+  }, [show, ref]);
 
   const choose = (action: PostAction) => {
     setShow(false);
@@ -174,7 +182,10 @@ export const PostActionsMenu = forwardRef<
   // and then grow by a few pixels on each pass of the layout effect above.
   // It is spaced as the canvas spaces it too, 6px inside its edge, its items
   // touching and 10px from an icon to its text, which leaves its hints 210px.
+  // So is every list that opens from a button of its own, the chat's ⋯ with no
+  // hints among them; the post card's keeps the spacing it had.
   const hinted = actions.some((action) => action.hint);
+  const compact = hinted || !!trigger;
 
   const panel = show && (
     <div
@@ -190,7 +201,8 @@ export const PostActionsMenu = forwardRef<
       // wherever it opens.
       className={clsx(
         'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
-        hinted ? 'min-w-[260px] max-w-[270px] p-[6px]' : 'p-[12px] gap-[16px]',
+        hinted && 'min-w-[260px] max-w-[270px]',
+        compact ? 'p-[6px]' : 'p-[12px] gap-[16px]',
         held && 'pointer-events-auto'
       )}
     >
@@ -201,7 +213,7 @@ export const PostActionsMenu = forwardRef<
           tabIndex={0}
           className={clsx(
             'flex py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors',
-            hinted ? 'gap-[10px]' : 'gap-[12px]',
+            compact ? 'gap-[10px]' : 'gap-[12px]',
             action.hint ? 'items-start' : 'items-center'
           )}
           onClick={() => choose(action)}

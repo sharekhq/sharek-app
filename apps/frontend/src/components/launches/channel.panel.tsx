@@ -50,8 +50,9 @@ interface Channel {
 }
 
 // What a tick means on the page the list is on (contracts/channel-panel.md):
-// on the calendar, that the channel's posts show.
-type PanelMode = 'calendar';
+// on the calendar, that the channel's posts show; on Samy, that Samy may use
+// the channel.
+type PanelMode = 'calendar' | 'samy';
 
 // Code-unit order, as lodash's orderBy compares, so the calendar keeps
 // today's order wherever today's had no tie (C14).
@@ -97,10 +98,16 @@ export const orderChannels = (list: Channel[]) =>
 // data-model.md's usable table, one rule per page (C20): whether a row can be
 // ticked or picked. It takes only the fields the rules read, so the calendar's
 // top bar can ask it of the calendar's channels too.
-type UsableFields = Pick<Channel, 'disabled'>;
+type UsableFields = Pick<
+  Channel,
+  'disabled' | 'refreshNeeded' | 'inBetweenSteps'
+>;
 const USABLE: Record<PanelMode, (channel: UsableFields) => boolean> = {
   // a disabled channel's posts always show, so it can't be hidden (C5)
   calendar: (channel) => !channel.disabled,
+  // Samy can't post to a channel over the plan, disconnected or not set up
+  samy: (channel) =>
+    !channel.disabled && !channel.refreshNeeded && !channel.inBetweenSteps,
 };
 
 export const isUsable = (channel: UsableFields, mode: PanelMode) =>
@@ -152,7 +159,8 @@ export const useReconnectChannel = () => {
   );
 };
 
-const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
+// Samy's chats panel and chat header take the list's ring too
+export const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 const ICON_BUTTON = clsx(
   'flex items-center justify-center w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] text-muted hover:bg-surface2 hover:text-ink transition-colors cursor-pointer',
   FOCUS_RING
@@ -164,7 +172,8 @@ const ROW_ACTION = clsx(
 );
 
 // The channel's picture with its platform's badge, moved from the calendar's
-// old rail with its YouTube branch, at the list's 16px (C13).
+// old rail with its YouTube branch, at the list's 16px (C13). Decoration: it
+// sits only in a row's main button, which the channel's name already names.
 const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
   channel,
   className,
@@ -179,7 +188,7 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
       fallbackSrc={'/no-picture.jpg'}
       src={channel.picture || '/no-picture.jpg'}
       className="rounded-[8px] min-w-[36px] min-h-[36px]"
-      alt={channel.identifier}
+      alt=""
       width={36}
       height={36}
     />
@@ -187,13 +196,14 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
       <img
         src="/icons/platforms/youtube.svg"
         className="absolute z-10 bottom-[5px] -end-[5px]"
+        alt=""
         width={16}
       />
     ) : (
       <SafeImage
         src={`/icons/platforms/${channel.identifier}.png`}
         className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-        alt={channel.identifier}
+        alt=""
         width={16}
         height={16}
       />
@@ -206,13 +216,15 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
 // the picture alone, named by the channel and any state it needs fixed.
 //
 // The main button is the row's checkbox, checked while the channel's posts
-// show. A hidden row greys only its picture and sets its name in text-muted,
-// so its text keeps AA; a row that can't change keeps today's opacity-50 on
-// its picture, its name and its Check (C25).
+// show, or on Samy while it's picked. A dimmed row, the calendar's hidden one,
+// greys only its picture and sets its name in text-muted, so its text keeps
+// AA; a row that can't change keeps today's opacity-50 on its picture, its
+// name and its Check (C25).
 const ChannelRow: FC<{
   channel: Channel;
   collapsed: boolean;
   checked: boolean;
+  dimmed: boolean;
   usable: boolean;
   /** the enabled channels fill the plan, the old rail's tooltip condition */
   atPlanLimit: boolean;
@@ -225,6 +237,7 @@ const ChannelRow: FC<{
   channel,
   collapsed,
   checked,
+  dimmed,
   usable,
   atPlanLimit,
   onToggle,
@@ -287,14 +300,14 @@ const ChannelRow: FC<{
     >
       <ChannelPicture
         channel={channel}
-        className={clsx(!checked && 'grayscale', !usable && 'opacity-50')}
+        className={clsx(dimmed && 'grayscale', !usable && 'opacity-50')}
       />
       {!collapsed && (
         <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
           <bdi
             className={clsx(
               'text-[14px] font-[500] truncate',
-              checked ? 'text-ink' : 'text-muted',
+              dimmed ? 'text-muted' : 'text-ink',
               !usable && 'opacity-50'
             )}
           >
@@ -588,6 +601,56 @@ const CustomerGroup: FC<{
   );
 };
 
+// The list's search, which Samy's chats panel has too. What's typed, in either
+// script, keeps its own direction. Empty, the field has no letter to take one
+// from, and dir="auto" would turn an Arabic placeholder left to right, so it
+// follows the page until something is typed. The padding is the icon's on
+// both sides, because typed text may run either way.
+export const SearchField: FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ label, value, onChange }) => (
+  // a margin, since the icon is placed from this box's edge
+  <div className="relative mx-[4px]">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+      className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+    <input
+      type="search"
+      dir="auto"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={label}
+      aria-label={label}
+      className={clsx(
+        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+        FOCUS_RING
+      )}
+    />
+  </div>
+);
+
+// case and accents aside, so "cafe" finds "Café"
+const fold = (text: string) =>
+  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+// What a SearchField finds, the list's and the chats panel's alike: a text
+// that holds what's typed.
+export const matchesSearch = (text: string, query: string) =>
+  fold(text).includes(fold(query));
+
 /**
  * The channel list Calendar, Samy and Analytics share
  * (contracts/channel-panel.md): a header with the count, + and the rail's or
@@ -602,9 +665,12 @@ export const ChannelPanel: FC<{
   mode: PanelMode;
   /** the page's `useIntegrationList()` data */
   channels: Channel[];
-  /** the ids whose posts show, or null for all */
+  /** calendar: the ids whose posts show, or null for all; samy: the picks */
   selected: string[] | null;
-  /** the ids that show next, or null once every usable channel does (C5) */
+  /**
+   * calendar: the ids that show next, or null once every usable channel does
+   * (C5); samy: the ids picked next
+   */
   onChange: (selected: string[] | null) => void;
   /** the row's ⋯ menu */
   rowMenu?: (channel: Channel) => ReactNode;
@@ -643,24 +709,31 @@ export const ChannelPanel: FC<{
 
   const hints: Record<PanelMode, string> = {
     calendar: t('channel_hint_calendar', 'Untick a channel to hide its posts.'),
+    samy: t('channel_hint_samy', 'Samy schedules to the channels you tick.'),
   };
 
   const atPlanLimit =
     channels.filter((channel) => !channel.disabled).length ===
     user?.totalChannels;
   const usable = (channel: Channel) => isUsable(channel, mode);
-  // A channel that can't be ticked always shows (C5).
-  const shows = (channel: Channel) =>
-    !usable(channel) || !selected || selected.includes(channel.id);
-  const hiding = channels.some((channel) => !shows(channel));
-  // The page's next selection: null once every channel shows, else the ids
-  // that do, every disabled one's included, even one the array was missing.
+  // On the calendar a channel that can't be ticked always shows (C5); on Samy
+  // one that can't be picked never is, even while the page holds its id (C20).
+  const ticked = (channel: Channel) =>
+    mode === 'calendar'
+      ? !usable(channel) || !selected || selected.includes(channel.id)
+      : usable(channel) && selected.includes(channel.id);
+  // only the calendar hides channels, so only it offers Show all
+  const hiding =
+    mode === 'calendar' && channels.some((channel) => !ticked(channel));
+  // The page's next selection: the ids ticked next, a channel that can't be
+  // ticked staying as it reads, so the calendar's holds every disabled id,
+  // even one the array was missing, and is null once every channel shows.
   const select = (next: (channel: Channel) => boolean) => {
-    const shown = channels.filter(
-      (channel) => !usable(channel) || next(channel)
-    );
+    const ids = channels
+      .filter((channel) => (usable(channel) ? next(channel) : ticked(channel)))
+      .map(({ id }) => id);
     onChange(
-      shown.length === channels.length ? null : shown.map(({ id }) => id)
+      mode === 'calendar' && ids.length === channels.length ? null : ids
     );
   };
 
@@ -668,7 +741,7 @@ export const ChannelPanel: FC<{
   // name, its platform in the page's language or its customer, so a matching
   // customer shows all its channels.
   const searchable = !collapsed && channels.length > 6;
-  const query = searchable ? search.trim().toLowerCase() : '';
+  const query = searchable ? search.trim() : '';
   const groups = ordered
     .map((group) => ({
       ...group,
@@ -681,7 +754,7 @@ export const ChannelPanel: FC<{
             channel.name,
             platformLabel(channel.identifier),
             group.customer?.name || '',
-          ].some((text) => text.toLowerCase().includes(query))
+          ].some((text) => matchesSearch(text, query))
       ),
     }))
     .filter((group) => group.channels.length);
@@ -693,12 +766,13 @@ export const ChannelPanel: FC<{
           key={channel.id}
           channel={channel}
           collapsed={collapsed}
-          checked={shows(channel)}
+          checked={ticked(channel)}
+          dimmed={mode === 'calendar' && !ticked(channel)}
           usable={usable(channel)}
           atPlanLimit={atPlanLimit}
           onToggle={() =>
             select((other) =>
-              other.id === channel.id ? !shows(other) : shows(other)
+              other.id === channel.id ? !ticked(other) : ticked(other)
             )
           }
           onReconnect={reconnect(channel)}
@@ -887,40 +961,11 @@ export const ChannelPanel: FC<{
           </p>
         )}
         {searchable && (
-          // a margin, since the icon is placed from this box's edge
-          <div className="relative mx-[4px]">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-              className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            {/* A name typed in either script keeps its own direction. Empty,
-                the field has no letter to take one from, and dir="auto" would
-                turn an Arabic placeholder left to right, so it follows the
-                page until something is typed. The padding is the icon's on
-                both sides, because typed text may run either way. */}
-            <input
-              type="search"
-              dir="auto"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('search_channels', 'Search channels')}
-              aria-label={t('search_channels', 'Search channels')}
-              className={clsx(
-                'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-                FOCUS_RING
-              )}
-            />
-          </div>
+          <SearchField
+            label={t('search_channels', 'Search channels')}
+            value={search}
+            onChange={setSearch}
+          />
         )}
       </div>
       {!collapsed && channels.length === 0 && (
@@ -943,9 +988,9 @@ export const ChannelPanel: FC<{
             </div>
           );
         }
-        const shown = members.filter(shows).length;
+        const ticks = members.filter(ticked).length;
         const checked =
-          shown === members.length ? true : shown ? 'mixed' : false;
+          ticks === members.length ? true : ticks ? 'mixed' : false;
         return dropZone(
           customer.id,
           <CustomerGroup
@@ -957,7 +1002,7 @@ export const ChannelPanel: FC<{
             disabled={!members.length}
             onToggle={() =>
               select((channel) =>
-                members.includes(channel) ? checked !== true : shows(channel)
+                members.includes(channel) ? checked !== true : ticked(channel)
               )
             }
             onRename={onRenameCustomer && (() => onRenameCustomer(customer))}

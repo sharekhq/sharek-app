@@ -9,7 +9,7 @@
 // rather than laid out in the column. The pixel geometry is the probe's job —
 // happy-dom has no layout — so these assert the structure that makes the
 // geometry impossible to get wrong.
-import { act, createRef } from 'react';
+import { act, createRef, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -49,14 +49,17 @@ const actions = (): PostAction[] => [
 const mounted: Array<{ unmount: () => void }> = [];
 let host: HTMLElement;
 
-const mount = async (list: PostAction[] = actions()) => {
+// the post card's menu, unless a case gives it a trigger of its own
+const mount = async (list: PostAction[] = actions(), trigger?: ReactNode) => {
   calls.length = 0;
   host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(<PostActionsMenu actions={list} label="Post actions" />);
+    root.render(
+      <PostActionsMenu actions={list} label="Post actions" trigger={trigger} />
+    );
   });
 };
 
@@ -404,6 +407,20 @@ describe('post actions menu', () => {
     }
   });
 
+  // A menu that is a button of its own, the chat's ⋯ among them, is spaced as
+  // the canvas draws its menus, hints or none (Look T074, M12). Only a list
+  // with hints takes their width.
+  it('spaces a list with its own trigger as the canvas does, without hints too', async () => {
+    await mount(actions(), <i data-testid="icon-dots" />);
+    await click(trigger());
+
+    expect(spacing(panel()!)).toEqual(['p-[6px]']);
+    expect(panel()!.className).not.toMatch(/min-w-|max-w-/);
+    for (const item of document.querySelectorAll('[role="menuitem"]')) {
+      expect(spacing(item)).toEqual(['gap-[10px]', 'px-[10px]', 'py-[8px]']);
+    }
+  });
+
   // An item a keyboard can reach but only a click can run leaves the keyboard
   // user stranded on it (FR-052).
   it.each([
@@ -449,6 +466,54 @@ describe('post actions menu', () => {
     document.removeEventListener('keydown', documentEscape);
 
     expect(documentEscape).toHaveBeenCalledTimes(2);
+  });
+
+  it('takes an Escape pressed on its own trigger while open', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await mount();
+
+    await click(trigger());
+    await press(trigger(), 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(panel()).toBeNull();
+    expect(documentEscape).not.toHaveBeenCalled();
+  });
+
+  // Something else on the page can have the focus while the list is open, a
+  // field or a dialog, and its Escape is its own.
+  it('leaves an Escape pressed outside it alone, and stays open', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await mount();
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+
+    await click(trigger());
+    field.focus();
+    await press(field, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(documentEscape).toHaveBeenCalledTimes(1);
+    expect(panel()).toBeTruthy();
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(field);
+  });
+
+  // With nothing focused the Escape is no one else's: a held menu, opened by a
+  // finger, never has the focus (calendar.month.hold.spec.tsx).
+  it('takes an Escape pressed with nothing focused', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    await mount();
+
+    await click(trigger());
+    await press(document.body, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(panel()).toBeNull();
+    expect(documentEscape).not.toHaveBeenCalled();
   });
 
   // Near the bottom of the screen the list used to be pulled up over the post

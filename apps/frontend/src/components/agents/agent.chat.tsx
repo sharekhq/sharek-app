@@ -10,7 +10,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import useSWR from 'swr';
 import clsx from 'clsx';
 import { omit } from 'lodash';
 import {
@@ -62,13 +61,17 @@ import {
 } from '@gitroom/helpers/utils/extract.agent.message.text';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
-import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import i18next from 'i18next';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import {
+  ChannelSummary,
+  ChatHeader,
+} from '@gitroom/frontend/components/agents/agent.chat.header';
 
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
@@ -94,41 +97,45 @@ export const AgentChat: FC = () => {
       <Hooks />
       <ChatRunProvider>
         <LoadMessages key={params.id} id={params.id} />
-        {/* Keyed by the thread, so unsent attachments leave on a thread switch as
-          they do on leaving the page. */}
-        <AttachmentsProvider key={params.id}>
-          <div
-            style={
-              {
-                '--copilot-kit-primary-color': 'var(--brand)',
-                '--copilot-kit-background-color': 'var(--new-bg-color)',
-              } as CopilotKitCSSProperties
-            }
-            className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
-          >
-            <div className="absolute left-0 w-full h-full pb-[20px]">
-              <ChatDropZone>
-                <CopilotChat
-                  className="w-full h-full"
-                  labels={{
-                    // The eight shared controls. First, so Samy's own two below always
-                    // win. Its custom input reads labels.placeholder, so a missing one is
-                    // English in the field the user types into.
-                    ...assistantLabels(t),
-                    title: t('samy', 'Samy'),
-                    initial: t(
-                      'samy_welcome_message',
-                      "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
-                    ),
-                  }}
-                  UserMessage={Message}
-                  AssistantMessage={Reply}
-                  Input={NewInput}
-                />
-              </ChatDropZone>
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Inside the run's provider, so it sees each reply end (C23). */}
+          <ChatHeader />
+          {/* Keyed by the thread, so unsent attachments leave on a thread switch as
+            they do on leaving the page. */}
+          <AttachmentsProvider key={params.id}>
+            <div
+              style={
+                {
+                  '--copilot-kit-primary-color': 'var(--brand)',
+                  '--copilot-kit-background-color': 'var(--new-bg-color)',
+                } as CopilotKitCSSProperties
+              }
+              className="trz agent bg-newBgColorInner flex flex-col gap-[15px] transition-all flex-1 items-center relative"
+            >
+              <div className="absolute left-0 w-full h-full pb-[20px]">
+                <ChatDropZone>
+                  <CopilotChat
+                    className="w-full h-full"
+                    labels={{
+                      // The eight shared controls. First, so Samy's own two below always
+                      // win. Its custom input reads labels.placeholder, so a missing one is
+                      // English in the field the user types into.
+                      ...assistantLabels(t),
+                      title: t('samy', 'Samy'),
+                      initial: t(
+                        'samy_welcome_message',
+                        "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
+                      ),
+                    }}
+                    UserMessage={Message}
+                    AssistantMessage={Reply}
+                    Input={NewInput}
+                  />
+                </ChatDropZone>
+              </div>
             </div>
-          </div>
-        </AttachmentsProvider>
+          </AttachmentsProvider>
+        </div>
       </ChatRunProvider>
     </CopilotKit>
   );
@@ -375,6 +382,7 @@ const NewInput: FC<InputProps> = (props) => {
       <Input
         {...props}
         onChange={setValue}
+        summary={<ChannelSummary />}
         attachments={<AttachmentsTray />}
         tools={<AttachmentTools value={value} />}
         uploading={uploading}
@@ -487,26 +495,8 @@ export const OpenModal: FC<{
   };
 }> = ({ args, respond }) => {
   const modals = useModals();
-  const fetch = useFetch();
   const t = useT();
-
-  const load = useCallback(async () => {
-    return (await (await fetch('/integrations/list')).json()).integrations;
-  }, [fetch]);
-
-  const { data: allIntegrations } = useSWR<Integrations[]>(
-    'integrations',
-    load,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      revalidateIfStale: false,
-      revalidateOnMount: true,
-      refreshWhenHidden: false,
-      refreshWhenOffline: false,
-      fallbackData: [],
-    }
-  );
+  const { data: allIntegrations } = useIntegrationList();
 
   const startModal = useCallback(async () => {
     let saved = 0;

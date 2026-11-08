@@ -1,247 +1,146 @@
 'use client';
 
-import React, {
-  createContext,
-  FC,
-  useCallback,
-  useMemo,
-  useState,
-  ReactNode,
-} from 'react';
-import clsx from 'clsx';
+import { createContext, FC, useMemo, useRef, useState, ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import useCookie from 'react-use-cookie';
-import useSWR from 'swr';
-import { orderBy } from 'lodash';
-import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
-import SafeImage from '@gitroom/react/helpers/safe.image';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { Integration } from '@prisma/client';
-import Link from 'next/link';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { ChatsPanel } from '@gitroom/frontend/components/agents/agent.chats';
+import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
+import {
+  ChannelPanel,
+  isUsable,
+} from '@gitroom/frontend/components/launches/channel.panel';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 
-export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
-  onChange,
-}) => {
-  const fetch = useFetch();
-  const t = useT();
-  const [selected, setSelected] = useState([]);
+export const PropertiesContext = createContext({
+  properties: [],
+  // the open chat, which the chat header reads from CopilotKit and sets here,
+  // so a chat started at /agents/new has its id too (C21)
+  threadId: '',
+  setThreadId: (() => {}) as (id: string) => void,
+  // whether the chats panel is hidden for the visit on a wide screen
+  chatsHidden: false,
+  // the chats panel's Hide chats on a wide screen, and its Close on the drawer
+  hideChats: () => {},
+  closeChats: () => {},
+  // the chat header's Chats, and the message box's "Samy will use"
+  openChats: () => {},
+  openChannels: () => {},
+});
 
-  const load = useCallback(async () => {
-    return (await (await fetch('/integrations/list')).json()).integrations;
-  }, []);
-
-  const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-
-  const { data } = useSWR('integrations', load, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
-    revalidateOnMount: true,
-    refreshWhenHidden: false,
-    refreshWhenOffline: false,
-    fallbackData: [],
-  });
-
-  const setIntegration = useCallback(
-    (integration: Integration) => () => {
-      if (selected.some((p) => p.id === integration.id)) {
-        onChange(selected.filter((p) => p.id !== integration.id));
-        setSelected(selected.filter((p) => p.id !== integration.id));
-      } else {
-        onChange([...selected, integration]);
-        setSelected([...selected, integration]);
-      }
-    },
-    [selected]
-  );
-
-  const sortedIntegrations = useMemo(() => {
-    return orderBy(
-      data || [],
-      ['type', 'disabled', 'identifier'],
-      ['desc', 'asc', 'asc']
-    );
-  }, [data]);
-
-  return (
-    <div
-      className={clsx(
-        // shrink-0: the scroller below is absolutely positioned on a wide
-        // screen, so the rail's min-content is 0 and the chat could squeeze it.
-        'trz bg-newBgColorInner flex flex-col shrink-0 relative mobile:w-full mobile:order-1',
-        collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-      )}
-    >
-      <div className="absolute top-0 start-0 w-full h-full p-[20px] flex flex-col gap-[15px] transition-all overflow-x-hidden overflow-y-auto mobile:static mobile:h-auto mobile:p-[12px] mobile:overflow-x-auto mobile:overflow-y-hidden scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-        <div className="flex items-center mobile:hidden">
-          <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-            {t('select_channels', 'Select Channels')}
-          </h2>
-          <div
-            onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-            className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="7"
-              height="13"
-              viewBox="0 0 7 13"
-              fill="none"
-            >
-              <path
-                d="M6 11.5L1 6.5L6 1.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </div>
-        <div
-          className={clsx(
-            'flex flex-col gap-[15px] mobile:flex-row mobile:gap-[12px] mobile:ps-[12px] mobile:pt-[6px]'
-          )}
-        >
-          {sortedIntegrations.map((integration, index) => (
-            <div
-              onClick={setIntegration(integration)}
-              key={integration.id}
-              className={clsx(
-                'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px] coarse:min-w-[44px] hover:opacity-100 cursor-pointer mobile:shrink-0 mobile:coarse:-m-[4px]',
-                !selected.some((p) => p.id === integration.id) && 'opacity-20'
-              )}
-            >
-              <div
-                className={clsx(
-                  'relative rounded-full flex justify-center items-center gap-[6px]',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {(integration.inBetweenSteps || integration.refreshNeeded) && (
-                  <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                    <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                      !
-                    </div>
-                    <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
-                  </div>
-                )}
-                <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
-                  src={integration.picture}
-                  className="rounded-[8px]"
-                  alt={integration.identifier}
-                  width={36}
-                  height={36}
-                />
-                <SafeImage
-                  src={`/icons/platforms/${integration.identifier}.png`}
-                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                  alt={integration.identifier}
-                  width={18.41}
-                  height={18.41}
-                />
-              </div>
-              <div
-                className={clsx(
-                  'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden mobile:hidden',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {integration.name}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const PropertiesContext = createContext({ properties: [] });
+/**
+ * Samy's page (contracts/pages-ui.md): the chats at the start, the chat, then
+ * the shared channel list in samy mode at the end. At 1025px and below the
+ * chats open as SplitPanel's start-side drawer, from the chat header's Chats,
+ * and the channels as its bottom sheet, from the message box's summary.
+ */
 export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
-  const [properties, setProperties] = useState([]);
+  const t = useT();
+  const { data, mutate } = useIntegrationList();
+  // The picks outlive a chat switch. Samy gets the list's usable channels
+  // among them, so a pick the list then reports disconnected, needing setup
+  // or disabled drops out of what is sent, the summary and the ticks (C20).
+  const [ids, setIds] = useState<string[]>([]);
+  const properties = useMemo(
+    () =>
+      data.filter(
+        (channel: Integrations) =>
+          ids.includes(channel.id) && isUsable(channel, 'samy')
+      ),
+    [data, ids]
+  );
+  const [threadId, setThreadId] = useState('');
+  const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const railCollapsed = collapseMenu === '1' && !channelsOpen;
+  // Hide chats lasts for the visit, so it keeps no cookie.
+  const [chatsHidden, setChatsHidden] = useState(false);
+  const [chatsOpen, setChatsOpen] = useState(false);
+  // Where the openers put the focus on a wide screen.
+  const chats = useRef<HTMLDivElement>(null);
+  const channels = useRef<HTMLDivElement>(null);
+
+  // At 1025px and below each opener opens its drawer or sheet. On a wide
+  // screen it shows its panel, the chats if hidden and the channel rail
+  // expanded as its own Expand does, and puts the focus in it. Showing the
+  // chats is flushed first, so the panel is there to take the focus.
+  const openChats = () => {
+    if (window.matchMedia(MOBILE_QUERY).matches) {
+      setChatsOpen(true);
+      return;
+    }
+    flushSync(() => setChatsHidden(false));
+    chats.current?.focus();
+  };
+  const openChannels = () => {
+    if (window.matchMedia(MOBILE_QUERY).matches) {
+      setChannelsOpen(true);
+      return;
+    }
+    if (collapseMenu === '1') {
+      setCollapseMenu('0');
+    }
+    channels.current?.focus();
+  };
 
   return (
-    <PropertiesContext.Provider value={{ properties }}>
-      {/* Up to 1025px the page is one column: the channel strip, the chat
-          strip, then the chat, which takes exactly what the strips leave
-          (min-h-0, no floor) so the message box always ends on screen. */}
+    <PropertiesContext.Provider
+      value={{
+        properties,
+        threadId,
+        setThreadId,
+        chatsHidden,
+        hideChats: () => setChatsHidden(true),
+        closeChats: () => setChatsOpen(false),
+        openChats,
+        openChannels,
+      }}
+    >
+      {/* Up to 1025px the panels leave the row until opened, so the chat
+          takes exactly the column (min-h-0, no floor) and the message box
+          always ends on screen. */}
       <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
-        <AgentList onChange={setProperties} />
-        <div className="bg-newBgColorInner flex flex-1 min-w-0 mobile:order-3 mobile:min-h-0">
+        {(!chatsHidden || chatsOpen) && (
+          <SplitPanel
+            variant="drawer"
+            open={chatsOpen}
+            onClose={() => setChatsOpen(false)}
+            width="w-[272px]"
+            label={t('chats', 'Chats')}
+          >
+            <div ref={chats} tabIndex={-1}>
+              <ChatsPanel />
+            </div>
+          </SplitPanel>
+        )}
+        <div className="bg-newBgColorInner flex flex-1 min-w-0 mobile:min-h-0">
           {children}
         </div>
-        <Threads />
+        <SplitPanel
+          open={channelsOpen}
+          onClose={() => setChannelsOpen(false)}
+          collapsed={railCollapsed}
+          width="w-[288px]"
+          label={t('channels', 'Channels')}
+        >
+          <div ref={channels} tabIndex={-1}>
+            <ChannelPanel
+              mode="samy"
+              channels={data}
+              selected={ids}
+              onChange={setIds}
+              update={mutate}
+              collapsed={railCollapsed}
+              onToggleCollapse={() =>
+                setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+              }
+              onDone={() => setChannelsOpen(false)}
+            />
+          </div>
+        </SplitPanel>
       </div>
     </PropertiesContext.Provider>
-  );
-};
-
-const Threads: FC = () => {
-  const fetch = useFetch();
-  const router = useRouter();
-  const pathname = usePathname();
-  const t = useT();
-  const threads = useCallback(async () => {
-    return (await fetch('/copilot/list')).json();
-  }, []);
-  const { id } = useParams<{ id: string }>();
-
-  const { data } = useSWR('threads', threads);
-
-  return (
-    <div
-      className={clsx(
-        'trz bg-newBgColorInner flex flex-col shrink-0 relative',
-        'w-[260px] mobile:w-full mobile:order-2'
-      )}
-    >
-      <div className="absolute top-0 start-0 w-full h-full p-[20px] flex flex-col gap-[15px] transition-all overflow-x-hidden overflow-y-auto mobile:static mobile:h-auto mobile:p-[12px] mobile:overflow-x-auto mobile:overflow-y-hidden mobile:flex-row mobile:gap-[8px] mobile:items-center scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-        <div className="justify-center flex group-[.sidebar]:pb-[15px] mobile:shrink-0">
-          <Link
-            href={`/agents`}
-            className="text-white whitespace-nowrap flex-1 pt-[12px] pb-[14px] ps-[16px] pe-[20px] group-[.sidebar]:p-0 min-h-[44px] max-h-[44px] rounded-[8px] bg-brand flex justify-center items-center gap-[5px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="21"
-              height="20"
-              viewBox="0 0 21 20"
-              fill="none"
-              className="min-w-[21px] min-h-[20px]"
-            >
-              <path
-                d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div className="flex-1 text-start text-[16px] group-[.sidebar]:hidden">
-              {t('start_a_new_chat', 'Start a new chat')}
-            </div>
-          </Link>
-        </div>
-        <div className="flex flex-col gap-[1px] mobile:flex-row mobile:gap-[4px]">
-          {data?.threads?.map((p: any) => (
-            <Link
-              className={clsx(
-                'overflow-ellipsis overflow-hidden whitespace-nowrap hover:bg-newBgColor px-[10px] py-[6px] coarse:min-h-[44px] coarse:flex coarse:items-center rounded-[10px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand mobile:shrink-0 mobile:max-w-[180px] mobile:border mobile:border-newTableBorder',
-                p.id === id && 'bg-newBgColor'
-              )}
-              href={`/agents/${p.id}`}
-              key={p.id}
-            >
-              {/* A coarse:flex chip drops text-overflow on its own text, so
-                  the title carries the ellipsis. */}
-              <span className="truncate">{p.title}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 };

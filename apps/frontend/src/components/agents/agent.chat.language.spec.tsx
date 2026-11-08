@@ -34,6 +34,10 @@ jest.mock('@copilotkit/react-core', () => ({
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
   Input: () => null,
 }));
+jest.mock('@gitroom/frontend/components/agents/agent.chat.header', () => ({
+  ChatHeader: () => null,
+  ChannelSummary: () => null,
+}));
 jest.mock('@gitroom/frontend/components/agents/agent', () => ({
   PropertiesContext: require('react').createContext({ properties: [] }),
 }));

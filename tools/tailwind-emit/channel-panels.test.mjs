@@ -2,7 +2,10 @@
 // (channel.panel.tsx, inside split.panel.tsx at launches.component.tsx's
 // w-[288px]), its top bar (filters.tsx), the ⋯ menu's hints
 // (post.actions.menu.tsx), the build number in Settings
-// (settings.component.tsx) and the post card's preview (calendar.post.card.tsx).
+// (settings.component.tsx), the post card's preview (calendar.post.card.tsx),
+// and Samy's page (agent.tsx): its chats (agent.chats.tsx) in the start-side
+// drawer, and the chat's header (agent.chat.header.tsx). The last test reads
+// global.scss itself, for the chat's face, which is no class.
 // A variant or arbitrary value that Tailwind can't use emits nothing and the
 // page just doesn't change, so this file asserts what Tailwind emitted for each
 // of them, with the project's own config (see emit.mjs). Each class is added
@@ -14,8 +17,12 @@
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -103,11 +110,16 @@ const py = (prop, value) => [
 const ARBITRARY = {
   // launches.component.tsx — the list's width in the SplitPanel
   'w-[288px]': [['width', '288px']],
+  // agent.tsx — the chats panel's, at the start of Samy's page
+  'w-[272px]': [['width', '272px']],
   // split.panel.tsx — the icon rail's 64px; the scroller: no top padding, so
   // the list's sticky header sits at its top (C28), and at the sides the rows'
   // 8px, or the icon rail's 6px (px-[8px] and px-[6px], below)
   'w-[64px]': [['width', '64px']],
   'pb-[20px]': [['padding-bottom', '20px']],
+  // the scroller's gap, and the scrim under the sheet and the drawer
+  'gap-[15px]': [['gap', '15px']],
+  'z-[180]': [['z-index', '180']],
   // the sheet's grab handle, 36px (w-[36px], below) by 4px, 8px under the top
   'h-[4px]': [['height', '4px']],
   'mt-[8px]': [['margin-top', '8px']],
@@ -205,6 +217,28 @@ const ARBITRARY = {
   'mt-[2px]': [['margin-top', '2px']],
   // settings.component.tsx — the build number under Log out
   'mt-[5px]': [['margin-top', '5px']],
+  // agent.chats.tsx — Samy's chats: the sticky block's 4px under the search,
+  // New chat's 40px, the drawer's 44px Close, a group's name, a row's insets,
+  // and the 32px rename field (its 3px ring is with the core forms, below)
+  'pb-[4px]': [['padding-bottom', '4px']],
+  'h-[40px]': [['height', '40px']],
+  'w-[44px]': [['width', '44px']],
+  'pt-[14px]': [['padding-top', '14px']],
+  'pb-[6px]': [['padding-bottom', '6px']],
+  'ps-[10px]': [['padding-inline-start', '10px']],
+  'pe-[4px]': [['padding-inline-end', '4px']],
+  'h-[32px]': [['height', '32px']],
+  // agent.chat.header.tsx — the chat's 56px bar and its insets, and the
+  // message box's "Samy will use": its row's 10px, the 30px pill and its
+  // insets, and its pictures overlapping by 7px
+  'h-[56px]': [['height', '56px']],
+  'ps-[20px]': [['padding-inline-start', '20px']],
+  'pe-[16px]': [['padding-inline-end', '16px']],
+  'pt-[10px]': [['padding-top', '10px']],
+  'h-[30px]': [['height', '30px']],
+  'ps-[6px]': [['padding-inline-start', '6px']],
+  'pe-[10px]': [['padding-inline-end', '10px']],
+  '-ms-[7px]': [['margin-inline-start', '-7px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -258,14 +292,89 @@ const MOBILE_CLASSES = {
   'mobile:py-[4px]': py('padding', '4px'),
   'mobile:px-[8px]': px('padding', '8px'),
   'mobile:whitespace-nowrap': [['white-space', 'nowrap']],
-  // split.panel.tsx — the sheet's surface, under its grab handle too
+  // split.panel.tsx — the sheet: out of the page at the screen's foot, over
+  // the scrim, up to 80% of the screen, its top corners rounded, and its
+  // surface under the grab handle too; the grab handle and the scrim show
+  'mobile:fixed': [['position', 'fixed']],
+  'mobile:inset-x-0': [
+    ['left', '0px'],
+    ['right', '0px'],
+  ],
+  'mobile:bottom-0': [['bottom', '0px']],
+  'mobile:z-[190]': [['z-index', '190']],
+  'mobile:max-h-[80vh]': [['max-height', '80vh']],
+  'mobile:rounded-t-[16px]': [
+    ['border-top-left-radius', '16px'],
+    ['border-top-right-radius', '16px'],
+  ],
+  'mobile:overflow-hidden': [['overflow', 'hidden']],
   'mobile:bg-newBgColorInner': [
     ['background-color', 'var(--new-bgColorInner)'],
   ],
+  'mobile:block': [['display', 'block']],
+  // its scroller sizes to the rows, with room under the last
+  'mobile:static': [['position', 'static']],
+  'mobile:h-auto': [['height', 'auto']],
+  'mobile:pb-[80px]': [['padding-bottom', '80px']],
+  // the drawer: the screen's height at the start side (mobile:start-0 has its
+  // own case, below), the SamyPhoneChats board's 318px and its card shadow
+  'mobile:inset-y-0': [
+    ['top', '0px'],
+    ['bottom', '0px'],
+  ],
+  'mobile:w-[318px]': [['width', '318px']],
+  'mobile:shadow-card': [
+    ['--tw-shadow', 'var(--shadow-card)'],
+    ['--tw-shadow-colored', 'var(--shadow-card)'],
+    [
+      'box-shadow',
+      'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)',
+    ],
+  ],
+  // agent.tsx — Samy's chat column, free to shrink once the page stacks
+  'mobile:min-h-0': [['min-height', '0px']],
+  // agent.chat.header.tsx — the phone bar, option A's: 52px, 6px in from
+  // either side, 4px between its controls, and the ⋯ at the 44px buttons'
+  // corners
+  'mobile:h-[52px]': [['height', '52px']],
+  'mobile:ps-[6px]': [['padding-inline-start', '6px']],
+  'mobile:pe-[6px]': [['padding-inline-end', '6px']],
+  'mobile:gap-[4px]': [['gap', '4px']],
+  'mobile:rounded-[8px]': [['border-radius', '8px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
   await assertEmits(MOBILE_CLASSES, MOBILE);
+});
+
+test('the drawer sits at the start side in either direction', async () => {
+  // tailwindcss-rtl adds a physical side for each direction to core's
+  // inset-inline-start, so mobile:start-0 emits three rules.
+  const css = await emit(['mobile:start-0']);
+  assert.deepEqual(
+    rules(css, 'mobile:start-0').map(({ selector, atRule, decls }) => ({
+      selector,
+      atRule,
+      decls,
+    })),
+    [
+      {
+        selector: '.mobile:start-0',
+        atRule: MOBILE,
+        decls: [['inset-inline-start', '0px']],
+      },
+      {
+        selector: '[dir="rtl"] .mobile:start-0',
+        atRule: MOBILE,
+        decls: [['right', '0px']],
+      },
+      {
+        selector: '[dir="ltr"] .mobile:start-0',
+        atRule: MOBILE,
+        decls: [['left', '0px']],
+      },
+    ]
+  );
 });
 
 // Every `coarse:` class: the 44px touch floors, the bar's 54px above 1025px,
@@ -434,6 +543,16 @@ test('the narrow week is emitted after the rules it replaces, and a max-width on
   );
 });
 
+// The summary's name (agent.chat.header.tsx), left out below 1280px: a phone's
+// composer, and the chat from 1026px with both side panels open, cut it to a
+// few letters. It replaces no class, so it has no order to keep.
+test("the summary's name hides below 1280px, at 1025px and below too", async () => {
+  await assertEmits(
+    { '[@media(max-width:1279px)]:hidden': [['display', 'none']] },
+    '(max-width:1279px)'
+  );
+});
+
 test('the states of the rows and controls emit, on the custom colours too', async () => {
   const table = {
     'focus-visible:ring-2': ring('2px'),
@@ -524,6 +643,19 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'bg-catPalm': [['background-color', 'var(--cat-palm)']],
       'bg-catLapis': [['background-color', 'var(--cat-lapis)']],
       'bg-catMulberry': [['background-color', 'var(--cat-mulberry)']],
+      // the collapsed rail's red ! (channel.panel.tsx)
+      'bg-error': [['background-color', 'var(--error)']],
+      // the panel's scrollbar (split.panel.tsx)
+      'scrollbar-thumb-fifth': [['--scrollbar-thumb', 'var(--color-fifth)']],
+      'scrollbar-track-newBgColor': [
+        ['--scrollbar-track', 'var(--new-bgColor)'],
+      ],
+      // the open chat's tint, and the rename field's ring (agent.chats.tsx)
+      'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
+      'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
+      // the summary's pictures, ringed in its pill's colour
+      // (agent.chat.header.tsx)
+      'border-surface2': [['border-color', 'var(--surface-2)']],
     },
     null
   );
@@ -556,6 +688,8 @@ test('the core forms the list, the menu and the card lean on emit', async () => 
       'ring-1': ring('1px'),
       'ring-inset': [['--tw-ring-inset', 'inset']],
       'underline-offset-2': [['text-underline-offset', '2px']],
+      // a chat's rename field (agent.chats.tsx)
+      'ring-[3px]': ring('3px'),
     },
     null
   );
@@ -601,6 +735,33 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['opacity-0', 'focus-visible:opacity-100'],
     ['opacity-0', 'focus-within:opacity-100'],
     ['opacity-0', 'has-[[aria-expanded=true]]:opacity-100'],
+    // Samy's chats: a row and New chat at 44px on touch, the rename field too
+    ['min-h-[36px]', 'coarse:min-h-[44px]'],
+    ['h-[40px]', 'coarse:h-[44px]'],
+    ['h-[32px]', 'coarse:h-[44px]'],
+    // the chat header's phone bar, its Chats and its ⋯, and the summary's
+    // pill on touch
+    ['h-[56px]', 'mobile:h-[52px]'],
+    ['ps-[20px]', 'mobile:ps-[6px]'],
+    ['pe-[16px]', 'mobile:pe-[6px]'],
+    ['gap-[6px]', 'mobile:gap-[4px]'],
+    ['h-[36px]', 'mobile:h-[44px]'],
+    ['w-[28px]', 'mobile:w-[44px]'],
+    ['h-[28px]', 'mobile:h-[44px]'],
+    ['rounded-[6px]', 'mobile:rounded-[8px]'],
+    ['h-[30px]', 'coarse:h-[44px]'],
+    // a chat's ⋯ and the header's at 44px on touch
+    ['w-[28px]', 'coarse:w-[44px]'],
+    ['h-[28px]', 'coarse:h-[44px]'],
+    // the drawer's and the sheet's widths over the rail's; the panel out of
+    // the page, its scroller sized to the rows, the grab handle and the scrim
+    ['w-[272px]', 'mobile:w-[318px]'],
+    ['w-[288px]', 'mobile:w-full'],
+    ['relative', 'mobile:fixed'],
+    ['absolute', 'mobile:static'],
+    ['h-full', 'mobile:h-auto'],
+    ['pb-[20px]', 'mobile:pb-[80px]'],
+    ['hidden', 'mobile:block'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);
@@ -617,4 +778,54 @@ test("coarse: is emitted before mobile:, so a phone's bar is 44px and not 54px",
   ]);
   order(css, 'coarse:h-[54px]', 'mobile:h-[44px]');
   order(css, 'coarse:min-h-[54px]', 'mobile:min-h-[44px]');
+});
+
+// Look T074, M13: Samy's chat in the app's face. CopilotKit's stylesheet, which
+// the app loads after global.scss (app/(app)/layout.tsx), sets the system stack
+// on .copilotKitChat, CopilotChat's root, so the whole chat, the "Samy will
+// use" line, the field and every message, was set in it and not in IBM Plex
+// Sans and IBM Plex Sans Arabic. global.scss's .agent block, around the chat in
+// agent.chat.tsx, gives the chat its parent's face back; the ancestor outranks
+// the vendor's one class, so no !important is needed.
+const require = createRequire(import.meta.url);
+const GLOBAL_SCSS = new URL(
+  '../../apps/frontend/src/app/global.scss',
+  import.meta.url
+);
+const CHAT = '.copilotKitChat';
+const classCount = (selector) => (selector.match(/\./g) || []).length;
+
+test("Samy's chat takes the app's face over CopilotKit's system stack", () => {
+  const vendor = postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+  const stacks = [];
+  vendor.walkDecls('font-family', (decl) => {
+    if (decl.parent.selector === CHAT) stacks.push(collapse(decl.value));
+  });
+  assert.ok(
+    stacks.some((value) => value.startsWith('ui-sans-serif, system-ui')),
+    `CopilotKit no longer sets the system stack on ${CHAT}; re-check M13`
+  );
+
+  const app = postcss.parse(
+    sass.compile(fileURLToPath(GLOBAL_SCSS), {
+      loadPaths: [
+        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+      ],
+    }).css
+  );
+  const ours = [];
+  app.walkDecls('font-family', (decl) => {
+    const rule = decl.parent;
+    if (rule.parent.type !== 'root') return;
+    for (const selector of rule.selector.split(',').map(collapse)) {
+      if (selector.endsWith(CHAT)) ours.push([selector, decl]);
+    }
+  });
+  assert.deepEqual(
+    ours.map(([selector, decl]) => [selector, decl.value, !!decl.important]),
+    [['.agent .copilotKitChat', 'inherit', false]]
+  );
+  assert.ok(classCount(ours[0][0]) > classCount(CHAT));
 });

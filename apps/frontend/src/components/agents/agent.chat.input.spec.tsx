@@ -26,15 +26,24 @@ jest.mock('@copilotkit/react-core', () => ({
   }),
 }));
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
-  Input: (props: { attachments: ReactNode; tools: ReactNode }) => {
+  Input: (props: {
+    summary: ReactNode;
+    attachments: ReactNode;
+    tools: ReactNode;
+  }) => {
     inputProps.push(props);
     return (
       <div>
+        <div data-summary="">{props.summary}</div>
         <div data-attachments="">{props.attachments}</div>
         <div data-tools="">{props.tools}</div>
       </div>
     );
   },
+}));
+jest.mock('@gitroom/frontend/components/agents/agent.chat.header', () => ({
+  ChatHeader: () => null,
+  ChannelSummary: () => <span data-channel-summary="" />,
 }));
 jest.mock('@gitroom/frontend/components/layout/drop.files', () => ({
   DropFiles: (props: { children: ReactNode }) => {
@@ -204,6 +213,14 @@ describe('the box', () => {
     expect(
       host.querySelector('[data-attachments] img')?.getAttribute('src')
     ).toBe('https://media/a.png');
+  });
+
+  it('gets "Samy will use" in its summary slot', async () => {
+    const { host } = await mount();
+
+    expect(
+      host.querySelector('[data-summary] [data-channel-summary]')
+    ).not.toBeNull();
   });
 
   it('hands AI Image what has been typed', async () => {
