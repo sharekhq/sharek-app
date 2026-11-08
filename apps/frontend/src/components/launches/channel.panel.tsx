@@ -159,7 +159,8 @@ export const useReconnectChannel = () => {
   );
 };
 
-const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
+// Samy's chats panel and chat header take the list's ring too
+export const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 const ICON_BUTTON = clsx(
   'flex items-center justify-center w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] text-muted hover:bg-surface2 hover:text-ink transition-colors cursor-pointer',
   FOCUS_RING
@@ -598,6 +599,47 @@ const CustomerGroup: FC<{
   );
 };
 
+// The list's search, which Samy's chats panel has too. What's typed, in either
+// script, keeps its own direction. Empty, the field has no letter to take one
+// from, and dir="auto" would turn an Arabic placeholder left to right, so it
+// follows the page until something is typed. The padding is the icon's on
+// both sides, because typed text may run either way.
+export const SearchField: FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ label, value, onChange }) => (
+  // a margin, since the icon is placed from this box's edge
+  <div className="relative mx-[4px]">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+      className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+    <input
+      type="search"
+      dir="auto"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={label}
+      aria-label={label}
+      className={clsx(
+        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+        FOCUS_RING
+      )}
+    />
+  </div>
+);
+
 /**
  * The channel list Calendar, Samy and Analytics share
  * (contracts/channel-panel.md): a header with the count, + and the rail's or
@@ -908,40 +950,11 @@ export const ChannelPanel: FC<{
           </p>
         )}
         {searchable && (
-          // a margin, since the icon is placed from this box's edge
-          <div className="relative mx-[4px]">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
-              className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            {/* A name typed in either script keeps its own direction. Empty,
-                the field has no letter to take one from, and dir="auto" would
-                turn an Arabic placeholder left to right, so it follows the
-                page until something is typed. The padding is the icon's on
-                both sides, because typed text may run either way. */}
-            <input
-              type="search"
-              dir="auto"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('search_channels', 'Search channels')}
-              aria-label={t('search_channels', 'Search channels')}
-              className={clsx(
-                'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-                FOCUS_RING
-              )}
-            />
-          </div>
+          <SearchField
+            label={t('search_channels', 'Search channels')}
+            value={search}
+            onChange={setSearch}
+          />
         )}
       </div>
       {!collapsed && channels.length === 0 && (

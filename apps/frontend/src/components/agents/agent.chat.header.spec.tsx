@@ -727,10 +727,11 @@ describe('ChannelSummary', () => {
 describe('in AgentChat', () => {
   it('sits inside ChatRunProvider, so it sees the run it starts', async () => {
     let run: ReturnType<typeof useChatRun> | undefined;
-    mockHeader = () => {
+    const StandIn: FC = () => {
       run = useChatRun();
       return null;
     };
+    mockHeader = StandIn;
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);

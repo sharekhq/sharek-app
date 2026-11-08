@@ -216,6 +216,17 @@ const ARBITRARY = {
   'ps-[10px]': [['padding-inline-start', '10px']],
   'pe-[4px]': [['padding-inline-end', '4px']],
   'h-[32px]': [['height', '32px']],
+  // agent.chat.header.tsx — the chat's 56px bar and its insets, and the
+  // message box's "Samy will use": its row's 10px, the 30px pill and its
+  // insets, and its pictures overlapping by 7px
+  'h-[56px]': [['height', '56px']],
+  'ps-[20px]': [['padding-inline-start', '20px']],
+  'pe-[16px]': [['padding-inline-end', '16px']],
+  'pt-[10px]': [['padding-top', '10px']],
+  'h-[30px]': [['height', '30px']],
+  'ps-[6px]': [['padding-inline-start', '6px']],
+  'pe-[10px]': [['padding-inline-end', '10px']],
+  '-ms-[7px]': [['margin-inline-start', '-7px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -275,6 +286,14 @@ const MOBILE_CLASSES = {
   ],
   // the drawer's width, the SamyPhoneChats board's 318px
   'mobile:w-[318px]': [['width', '318px']],
+  // agent.chat.header.tsx — the phone bar, option A's: 52px, 6px in from
+  // either side, 4px between its controls, and the ⋯ at the 44px buttons'
+  // corners
+  'mobile:h-[52px]': [['height', '52px']],
+  'mobile:ps-[6px]': [['padding-inline-start', '6px']],
+  'mobile:pe-[6px]': [['padding-inline-end', '6px']],
+  'mobile:gap-[4px]': [['gap', '4px']],
+  'mobile:rounded-[8px]': [['border-radius', '8px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
@@ -540,6 +559,9 @@ test('every colour the list and the top bar name maps to its token', async () =>
       // the open chat's tint, and the rename field's ring (agent.chats.tsx)
       'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
       'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
+      // the summary's pictures, ringed in its pill's colour
+      // (agent.chat.header.tsx)
+      'border-surface2': [['border-color', 'var(--surface-2)']],
     },
     null
   );
@@ -623,6 +645,17 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['min-h-[36px]', 'coarse:min-h-[44px]'],
     ['h-[40px]', 'coarse:h-[44px]'],
     ['h-[32px]', 'coarse:h-[44px]'],
+    // the chat header's phone bar, its Chats and its ⋯, and the summary's
+    // pill on touch
+    ['h-[56px]', 'mobile:h-[52px]'],
+    ['ps-[20px]', 'mobile:ps-[6px]'],
+    ['pe-[16px]', 'mobile:pe-[6px]'],
+    ['gap-[6px]', 'mobile:gap-[4px]'],
+    ['h-[36px]', 'mobile:h-[44px]'],
+    ['w-[28px]', 'mobile:w-[44px]'],
+    ['h-[28px]', 'mobile:h-[44px]'],
+    ['rounded-[6px]', 'mobile:rounded-[8px]'],
+    ['h-[30px]', 'coarse:h-[44px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);

@@ -18,6 +18,10 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import {
+  FOCUS_RING,
+  SearchField,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
 import {
   CloseIcon,
@@ -146,8 +150,6 @@ export const ChatTitleField: FC<{ chat: Chat; onClose: () => void }> = ({
   );
 };
 
-const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
-
 // on a pinned chat's row, and on its menu's Pin
 const PinIcon: FC<{ size: number; className?: string }> = ({
   size,
@@ -169,6 +171,58 @@ const PinIcon: FC<{ size: number; className?: string }> = ({
     <path d="M12 14v6" />
   </svg>
 );
+
+// A chat's ⋯, in its row and in the chat header (C22): Rename, which the
+// caller turns into ChatTitleField where the title sits, and Pin to top or
+// Unpin. The caller pins, through a list it already holds: a menu reading
+// the list itself would load it again as its row moves group, and put back
+// the old values before the save is answered.
+export const ChatOptions: FC<{
+  chat: Chat;
+  onRename: () => void;
+  onPin: () => void;
+  triggerClassName: string;
+}> = ({ chat, onRename, onPin, triggerClassName }) => {
+  const t = useT();
+
+  return (
+    <PostActionsMenu
+      label={t('chat_options', 'Chat options')}
+      triggerClassName={triggerClassName}
+      trigger={
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
+        </svg>
+      }
+      actions={[
+        {
+          key: 'rename',
+          icon: (
+            <PencilIcon size={16} aria-hidden="true" className="text-muted" />
+          ),
+          label: t('rename', 'Rename'),
+          onClick: onRename,
+        },
+        {
+          key: 'pin',
+          icon: <PinIcon size={16} className="text-muted" />,
+          label: chat.pinned
+            ? t('unpin', 'Unpin')
+            : t('pin_to_top', 'Pin to top'),
+          onClick: onPin,
+        },
+      ]}
+    />
+  );
+};
 
 // A chat: its title, which opens it, a pin mark when pinned, and its ⋯. The
 // open chat has the selected tint; the others show a hover.
@@ -217,47 +271,14 @@ const ChatRow: FC<{ chat: Chat; current: boolean; onPin: () => void }> = ({
       {/* The ⋯ shows on its row's hover, on its own focus and always on a
           touch screen, as the channel list's does. */}
       <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
-        <PostActionsMenu
-          label={t('chat_options', 'Chat options')}
+        <ChatOptions
+          chat={chat}
+          onRename={() => setRenaming(true)}
+          onPin={onPin}
           triggerClassName={clsx(
             'flex items-center justify-center w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] rounded-[6px] text-muted hover:text-ink cursor-pointer',
             FOCUS_RING
           )}
-          trigger={
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <circle cx="5" cy="12" r="1.8" />
-              <circle cx="12" cy="12" r="1.8" />
-              <circle cx="19" cy="12" r="1.8" />
-            </svg>
-          }
-          actions={[
-            {
-              key: 'rename',
-              icon: (
-                <PencilIcon
-                  size={16}
-                  aria-hidden="true"
-                  className="text-muted"
-                />
-              ),
-              label: t('rename', 'Rename'),
-              onClick: () => setRenaming(true),
-            },
-            {
-              key: 'pin',
-              icon: <PinIcon size={16} className="text-muted" />,
-              label: chat.pinned
-                ? t('unpin', 'Unpin')
-                : t('pin_to_top', 'Pin to top'),
-              onClick: onPin,
-            },
-          ]}
         />
       </span>
     </div>
@@ -374,37 +395,11 @@ export const ChatsPanel: FC = () => {
           <PlusIcon size={18} aria-hidden="true" />
           {t('new_chat', 'New chat')}
         </Link>
-        {/* a margin, since the icon is placed from this box's edge */}
-        <div className="relative mx-[4px]">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
-            className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" />
-          </svg>
-          {/* A title typed in either script keeps its own direction. Empty,
-              the field follows the page, as the channel list's search does. */}
-          <input
-            type="search"
-            dir="auto"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('search_chats', 'Search chats')}
-            aria-label={t('search_chats', 'Search chats')}
-            className={clsx(
-              'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-              FOCUS_RING
-            )}
-          />
-        </div>
+        <SearchField
+          label={t('search_chats', 'Search chats')}
+          value={search}
+          onChange={setSearch}
+        />
       </div>
       {GROUPS.filter((group) => grouped[group]).map((group) => (
         <div key={group} role="group" aria-label={names[group]}>
