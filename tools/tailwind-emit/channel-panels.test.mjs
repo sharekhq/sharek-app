@@ -4,7 +4,8 @@
 // (post.actions.menu.tsx), the build number in Settings
 // (settings.component.tsx), the post card's preview (calendar.post.card.tsx),
 // and Samy's page (agent.tsx): its chats (agent.chats.tsx) in the start-side
-// drawer, and the chat's header (agent.chat.header.tsx).
+// drawer, and the chat's header (agent.chat.header.tsx). The last test reads
+// global.scss itself, for the chat's face, which is no class.
 // A variant or arbitrary value that Tailwind can't use emits nothing and the
 // page just doesn't change, so this file asserts what Tailwind emitted for each
 // of them, with the project's own config (see emit.mjs). Each class is added
@@ -16,8 +17,12 @@
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -763,4 +768,54 @@ test("coarse: is emitted before mobile:, so a phone's bar is 44px and not 54px",
   ]);
   order(css, 'coarse:h-[54px]', 'mobile:h-[44px]');
   order(css, 'coarse:min-h-[54px]', 'mobile:min-h-[44px]');
+});
+
+// Look T074, M13: Samy's chat in the app's face. CopilotKit's stylesheet, which
+// the app loads after global.scss (app/(app)/layout.tsx), sets the system stack
+// on .copilotKitChat, CopilotChat's root, so the whole chat, the "Samy will
+// use" line, the field and every message, was set in it and not in IBM Plex
+// Sans and IBM Plex Sans Arabic. global.scss's .agent block, around the chat in
+// agent.chat.tsx, gives the chat its parent's face back; the ancestor outranks
+// the vendor's one class, so no !important is needed.
+const require = createRequire(import.meta.url);
+const GLOBAL_SCSS = new URL(
+  '../../apps/frontend/src/app/global.scss',
+  import.meta.url
+);
+const CHAT = '.copilotKitChat';
+const classCount = (selector) => (selector.match(/\./g) || []).length;
+
+test("Samy's chat takes the app's face over CopilotKit's system stack", () => {
+  const vendor = postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+  const stacks = [];
+  vendor.walkDecls('font-family', (decl) => {
+    if (decl.parent.selector === CHAT) stacks.push(collapse(decl.value));
+  });
+  assert.ok(
+    stacks.some((value) => value.startsWith('ui-sans-serif, system-ui')),
+    `CopilotKit no longer sets the system stack on ${CHAT}; re-check M13`
+  );
+
+  const app = postcss.parse(
+    sass.compile(fileURLToPath(GLOBAL_SCSS), {
+      loadPaths: [
+        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+      ],
+    }).css
+  );
+  const ours = [];
+  app.walkDecls('font-family', (decl) => {
+    const rule = decl.parent;
+    if (rule.parent.type !== 'root') return;
+    for (const selector of rule.selector.split(',').map(collapse)) {
+      if (selector.endsWith(CHAT)) ours.push([selector, decl]);
+    }
+  });
+  assert.deepEqual(
+    ours.map(([selector, decl]) => [selector, decl.value, !!decl.important]),
+    [['.agent .copilotKitChat', 'inherit', false]]
+  );
+  assert.ok(classCount(ours[0][0]) > classCount(CHAT));
 });
