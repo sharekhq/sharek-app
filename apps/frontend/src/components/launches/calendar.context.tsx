@@ -237,9 +237,9 @@ export const CalendarWeekProvider: FC<{
     if (!initCustomer) {
       return;
     }
-    const address = new URLSearchParams(window.location.search);
-    address.delete('customer');
-    window.history.replaceState(null, '', `/launches?${address}`);
+    const address = new URL(window.location.href);
+    address.searchParams.delete('customer');
+    window.history.replaceState(null, '', address.toString());
   }, [initCustomer]);
 
   const params = useMemo(() => {

@@ -402,6 +402,39 @@ const DaySlotColumn: FC<{ option: any[]; startDate: string }> = memo(
   }
 );
 
+// Runs a week's or a day's opening scroll, a new function for each range:
+// when the range changes, and once more when its posts are in, since a week's
+// rows grow with them and a day gets a slot for each post's time. The context
+// ends a load a render before it hands over the posts with a new postDates,
+// so that second scroll waits for the first postDates, once loading is over,
+// other than the one the range opened on. Later updates, the minute's tick
+// and the user's own scroll keep the position (R9). The view passes its own
+// loading and postDates, so it reads the calendar once a render.
+const useOpeningScroll = (
+  scroll: () => void,
+  loading: boolean,
+  postDates: object
+) => {
+  const range = useRef<(() => void) | undefined>(undefined);
+  // the dates the range opened on, until its posts are in
+  const waiting = useRef<object | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (range.current === scroll) {
+      if (loading && waiting.current) {
+        waiting.current = postDates;
+      }
+      if (loading || !waiting.current || waiting.current === postDates) {
+        return;
+      }
+      waiting.current = undefined;
+    } else {
+      range.current = scroll;
+      waiting.current = postDates;
+    }
+    scroll();
+  }, [scroll, loading, postDates]);
+};
+
 export const DayView = () => {
   const calendar = useCalendar();
   const { integrations, posts, postDates, startDate } = calendar;
@@ -470,9 +503,9 @@ export const DayView = () => {
   }, [options, startDate, now]);
 
   // opens at the first slot at or after 8 AM, or the current hour on today,
-  // else at the last slot; again on another day only (R9)
+  // else at the last slot; again on another day and once its posts are in
   const list = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
+  const openAtHour = useCallback(() => {
     const now = newDayjs();
     const hour = newDayjs(startDate).isSame(now, 'day')
       ? Math.max(8, now.hour())
@@ -485,6 +518,7 @@ export const DayView = () => {
       slots[slots.length - 1];
     list.current!.scrollTop = slot?.offsetTop ?? 0;
   }, [startDate]);
+  useOpeningScroll(openAtHour, calendar.loading, postDates);
 
   return (
     <div className="flex flex-col gap-[10px] flex-1 relative">
@@ -525,7 +559,7 @@ export const DayView = () => {
   );
 };
 export const WeekView = () => {
-  const { startDate, endDate } = useCalendar();
+  const { startDate, endDate, loading, postDates } = useCalendar();
   const t = useT();
 
   // Use dayjs to get localized day names
@@ -547,9 +581,10 @@ export const WeekView = () => {
   }, [i18next.resolvedLanguage, startDate]);
 
   // opens with 8 AM, or the current hour in the week of today, where the
-  // first row sits under the sticky day header; again on another week only (R9)
+  // first row sits under the sticky day header; again on another week and
+  // once its posts are in
   const grid = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
+  const openAtHour = useCallback(() => {
     const now = newDayjs();
     const hour = localizedDays.some((day) => day.date.isSame(now, 'day'))
       ? Math.max(8, now.hour())
@@ -557,6 +592,7 @@ export const WeekView = () => {
     const rows = grid.current!.querySelectorAll<HTMLElement>('div[data-hour]');
     grid.current!.scrollTop = rows[hour].offsetTop - rows[0].offsetTop;
   }, [localizedDays]);
+  useOpeningScroll(openAtHour, loading, postDates);
 
   return (
     <div className="flex flex-col text-textColor flex-1">
