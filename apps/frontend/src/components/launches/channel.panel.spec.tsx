@@ -1064,6 +1064,17 @@ describe('the sticky block (C28)', () => {
       .filter((value): value is number => value !== undefined);
     expect(own!).toBeGreaterThan(Math.max(0, ...under));
   });
+
+  // SplitPanel's scroller has no top padding, since a sticky block sticks
+  // that far below a padded scroller's top and rows would show above it.
+  it('carries the 20px above the header itself, on the rail and collapsed', async () => {
+    for (const collapsed of [false, true]) {
+      await render(SEARCH, { collapsed });
+      const [block] = stickyBlocks();
+
+      expect(classes(block)).toContain('pt-[20px]');
+    }
+  });
 });
 
 describe('isUsable on the calendar (C20)', () => {

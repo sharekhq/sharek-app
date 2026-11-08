@@ -149,6 +149,21 @@ describe('the channel sheet at 1025px and below', () => {
     }
   });
 
+  // A sticky header in a scroller with top padding sticks that far below the
+  // scroller's top, and rows scroll through the band above it (C28), so the
+  // child's header carries the top padding instead.
+  it('leaves its top unpadded for the child to fill, with 20px at the sides and the bottom', async () => {
+    for (const open of [true, false]) {
+      const host = await mount(open);
+      const own = classes(scroller(host));
+      // p-*, py-* and pt-*, under any variant
+      const top = own.filter((name) => /^(?:[^:]+:)*p[ty]?-/.test(name));
+
+      expect(top).toEqual([]);
+      expect(own).toEqual(expect.arrayContaining(['px-[20px]', 'pb-[20px]']));
+    }
+  });
+
   it('closes from the scrim and Escape', async () => {
     const onClose = jest.fn();
     const host = await mount(true, onClose);
