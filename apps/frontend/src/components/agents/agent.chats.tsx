@@ -382,8 +382,12 @@ export const ChatsPanel: FC = () => {
             <CloseIcon size={18} aria-hidden="true" />
           </button>
         </div>
+        {/* /agents, as upstream's Start a new chat: a route of its own, so the
+            chat being left unmounts, even one started at /agents/new, and
+            /agents sends on to /agents/new, where CopilotKit makes a new
+            thread. */}
         <Link
-          href="/agents/new"
+          href="/agents"
           onClick={closeChats}
           className={clsx(
             'mx-[4px] flex items-center gap-[8px] h-[40px] coarse:h-[44px] px-[12px] rounded-[8px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink text-[14px] font-[600]',

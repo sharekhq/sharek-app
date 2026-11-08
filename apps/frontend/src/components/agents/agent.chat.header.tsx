@@ -129,9 +129,10 @@ export const ChatHeader: FC = () => {
           )}
         </>
       )}
-      {/* the history's New chat, which is in the drawer at 1025px and below */}
+      {/* the history's New chat, which is in the drawer at 1025px and below,
+          to /agents as it goes */}
       <Link
-        href="/agents/new"
+        href="/agents"
         aria-label={t('new_chat', 'New chat')}
         className={clsx(
           'hidden mobile:flex flex-none items-center justify-center w-[44px] h-[44px] rounded-[8px] text-muted hover:bg-surface2 hover:text-ink transition-colors',
