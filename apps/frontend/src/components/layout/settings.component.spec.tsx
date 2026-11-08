@@ -2,9 +2,18 @@ import { act, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // What decides the list: the plan and role on the user, the two server flags
-// and the address. Each case sets them; beforeEach resets them.
-const mockVariables = { isGeneral: true, showThirdParty: false };
-let mockUser: { role: string; tier: Record<string, string | boolean> };
+// and the address. Billing and a lifetime plan decide the line above the build
+// number. Each case sets them; beforeEach resets them.
+const mockVariables = {
+  isGeneral: true,
+  showThirdParty: false,
+  billingEnabled: false,
+};
+let mockUser: {
+  role: string;
+  tier: Record<string, string | boolean>;
+  isLifetime?: boolean;
+};
 let mockParams = new URLSearchParams();
 const mockAsked: string[] = [];
 
@@ -63,11 +72,13 @@ jest.mock('@gitroom/frontend/components/settings/apps.component', () => ({
   ),
 }));
 
-// Scenery: the profile form, the modal stack and the logout control the
-// component wires up. None of it is asserted on.
+// A marker: the build number is placed against the logout control.
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => null,
+  LogoutComponent: () => <div data-logout />,
 }));
+
+// Scenery: the profile form and the modal stack the component wires up. None
+// of it is asserted on.
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ closeAll: () => undefined, openModal: () => undefined }),
 }));
@@ -118,8 +129,8 @@ const settings = async () => {
   return host;
 };
 
-// The tab column holds the labels and nothing else (the logout control is
-// mocked out). Read through the first tab's siblings, so the helper does not
+// The tab column holds the labels and nothing else (the logout control and the
+// build number sit below it). Read through the first tab's siblings, so the helper does not
 // depend on the element a tab is drawn as.
 const tabs = (host: HTMLElement) => {
   const first = Array.from(host.querySelectorAll('*')).find(
@@ -139,6 +150,7 @@ beforeEach(() => {
   mockUser = admin();
   mockVariables.isGeneral = true;
   mockVariables.showThirdParty = false;
+  mockVariables.billingEnabled = false;
   mockParams = new URLSearchParams();
   mockAsked.length = 0;
 });
@@ -370,5 +382,105 @@ describe('the tab list on a phone', () => {
     await settings();
 
     expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
+// The build number, and above it the lifetime-tier line, moved here from the
+// calendar's channel list, where a long one ran past the list's edge (R11).
+describe('the build number under Log out', () => {
+  const version = process.env.NEXT_PUBLIC_VERSION;
+  // A full commit SHA, as the build stamps it: one word with nowhere to break.
+  const build = '4e6e5627b1edbe5a6cf8e1d2a3b4c5d6e7f80912';
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_VERSION = build;
+  });
+
+  afterEach(() => {
+    if (version === undefined) delete process.env.NEXT_PUBLIC_VERSION;
+    else process.env.NEXT_PUBLIC_VERSION = version;
+  });
+
+  const line = (host: HTMLElement, text: string) =>
+    Array.from(host.querySelectorAll('*')).find(
+      (el) => el.children.length === 0 && el.textContent === text
+    ) as HTMLElement | undefined;
+  // Every class from the line up to the page's root, so a style set on the
+  // line or on the block around it both count.
+  const classesUp = (el: HTMLElement, host: HTMLElement) => {
+    const found: string[] = [];
+    for (let at: HTMLElement | null = el; at && at !== host; ) {
+      found.push(at.className);
+      at = at.parentElement;
+    }
+    return found.join(' ');
+  };
+  const follows = (first: Node, second: Node) =>
+    !!(
+      first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+
+  it('shows under Log out in 12px muted text that wraps', async () => {
+    const host = await settings();
+    const number = line(host, build)!;
+
+    expect(number).toBeDefined();
+    expect(follows(host.querySelector('[data-logout]')!, number)).toBe(true);
+    const classes = classesUp(number, host);
+    expect(classes).toContain('text-[12px]');
+    expect(classes).toContain('text-muted');
+    expect(classes).toContain('break-all');
+    expect(classes).not.toMatch(
+      /\b(truncate|text-ellipsis|whitespace-nowrap|text-nowrap)\b/
+    );
+  });
+
+  it('stays on a phone, under the tab strip', async () => {
+    const host = await settings();
+    const number = line(host, build)!;
+    const strip = tabs(host)[0].parentElement!;
+
+    expect(number).toBeDefined();
+    expect(classesUp(number, host)).not.toMatch(/(^|\s)([a-z]+:)*hidden\b/);
+    expect(strip.contains(number)).toBe(false);
+    expect(follows(strip, number)).toBe(true);
+    // The column that holds both stacks them at every width, while the strip
+    // inside it turns sideways.
+    let column = number.parentElement!;
+    while (!column.contains(strip)) column = column.parentElement!;
+    expect(column.className).toContain('flex-col');
+    expect(column.className).not.toContain('mobile:flex-row');
+  });
+
+  it('has the lifetime-tier line above it for a lifetime plan while billing is on', async () => {
+    mockUser = { ...admin(), isLifetime: true };
+    mockVariables.billingEnabled = true;
+    const host = await settings();
+    const tier = line(host, 'Pro tier')!;
+    const number = line(host, build)!;
+
+    expect(tier).toBeDefined();
+    expect(number).toBeDefined();
+    expect(follows(host.querySelector('[data-logout]')!, tier)).toBe(true);
+    expect(follows(tier, number)).toBe(true);
+    const classes = classesUp(tier, host);
+    expect(classes).toContain('text-[12px]');
+    expect(classes).toContain('text-muted');
+    expect(classes).toContain('break-all');
+  });
+
+  it('has no lifetime-tier line while billing is off, or for a plan that is not lifetime', async () => {
+    mockUser = { ...admin(), isLifetime: true };
+    const unbilled = await settings();
+
+    expect(line(unbilled, build)).toBeDefined();
+    expect(line(unbilled, 'Pro tier')).toBeUndefined();
+
+    mockUser = admin();
+    mockVariables.billingEnabled = true;
+    const notLifetime = await settings();
+
+    expect(line(notLifetime, build)).toBeDefined();
+    expect(line(notLifetime, 'Pro tier')).toBeUndefined();
   });
 });
