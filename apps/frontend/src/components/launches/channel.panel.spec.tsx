@@ -827,7 +827,8 @@ describe('the rows', () => {
     ['en', 'بيت القهوة', 'YouTube'],
     ['ar', 'Lamsa Studio', 'إنستغرام'],
     ['ar', 'بيت القهوة', 'يوتيوب'],
-    ['en', 'Rawda Florist', 'channel_disabled_over_plan'],
+    // under the plan's limit, so disabled by hand
+    ['en', 'Rawda Florist', 'channel_disabled'],
     ['en', 'Noor Dental', 'channel_disconnected'],
     ['en', 'Mona Saeed', 'channel_needs_setup'],
     ['en', 'Sky Studio', 'channel_disconnected'],
@@ -1422,7 +1423,7 @@ describe('hidden and disabled rows (C25)', () => {
     expect(ticked('Two Cafe')).toBe(true);
   });
 
-  it("keeps a disabled row as today: it can't change, its picture and name at opacity-50, over your plan", async () => {
+  it("keeps a disabled row as today: it can't change, its picture and name at opacity-50", async () => {
     await render(CAL);
     const name = 'Archive';
     const main = mainButton(name);
@@ -1442,9 +1443,6 @@ describe('hidden and disabled rows (C25)', () => {
         has(el, 'opacity-50')
       )
     ).toBe(true);
-    expect((secondLine(name)[0].textContent ?? '').trim()).toBe(
-      'channel_disabled_over_plan'
-    );
 
     await click(main);
     await click(checkboxOf(name));
@@ -1452,34 +1450,42 @@ describe('hidden and disabled rows (C25)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  // MenuComponent's tooltip, shown when the enabled channels fill the plan
-  it("shows today's upgrade tooltip on the disabled rows only at the plan's limit", async () => {
-    const tips = () =>
-      within(host).filter(
-        (el) =>
-          el.getAttribute('data-tooltip-content') ===
-          'channel_disabled_upgrade_plan'
-      );
-    const disabledNames = CAL.filter((c) => c.disabled).map((c) => c.name);
+  // The second line says why. Over the plan only when the enabled channels
+  // fill it, MenuComponent's tooltip condition, with that tooltip; under it,
+  // the channel was disabled by hand from its ⋯ menu, and there's no tooltip.
+  it.each([
+    [
+      "at the plan's limit, over your plan, with today's upgrade tooltip",
+      CAL.filter((c) => !c.disabled).length,
+      'channel_disabled_over_plan',
+      1,
+    ],
+    ['under it, Channel Disabled, with no tooltip', 10, 'channel_disabled', 0],
+  ])(
+    'says why a disabled row is disabled: %s',
+    async (_, totalChannels, reason, tooltips) => {
+      const tips = () =>
+        within(host).filter(
+          (el) =>
+            el.getAttribute('data-tooltip-content') ===
+            'channel_disabled_upgrade_plan'
+        );
+      const disabledNames = CAL.filter((c) => c.disabled).map((c) => c.name);
 
-    mockUser = { totalChannels: CAL.filter((c) => !c.disabled).length };
-    await render(CAL);
+      mockUser = { totalChannels };
+      await render(CAL);
 
-    expect(tips()).toHaveLength(disabledNames.length);
-    disabledNames.forEach((name) => {
-      const own = tips().filter((el) => rowOf(name).contains(el));
-      expect(own).toHaveLength(1);
-      expect(own[0].getAttribute('data-tooltip-id')).toBe('tooltip');
-    });
-    act(() => {
-      mounted.splice(0).forEach((root) => root.unmount());
-    });
-
-    mockUser = { totalChannels: 10 };
-    await render(CAL);
-
-    expect(tips()).toHaveLength(0);
-  });
+      expect(tips()).toHaveLength(disabledNames.length * tooltips);
+      disabledNames.forEach((name) => {
+        expect((secondLine(name)[0].textContent ?? '').trim()).toBe(reason);
+        const own = tips().filter((el) => rowOf(name).contains(el));
+        expect(own).toHaveLength(tooltips);
+        own.forEach((el) =>
+          expect(el.getAttribute('data-tooltip-id')).toBe('tooltip')
+        );
+      });
+    }
+  );
 });
 
 describe('the row menu and the customer pencil', () => {
