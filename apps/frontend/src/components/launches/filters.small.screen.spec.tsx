@@ -641,6 +641,7 @@ describe('the top bar above 1025px', () => {
       // the cut is drawn only: a reader and the title get every word
       expect(words.getAttribute('title')).toBe('9 of 10 channels');
       [
+        showAll.parentElement!.querySelector('svg'),
         showAll,
         viewButtons(host)[0].parentElement,
         host.querySelector('[data-testid="new-post"]')!.parentElement,

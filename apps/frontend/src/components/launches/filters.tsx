@@ -321,6 +321,11 @@ export const Filters: FC<{
       ).length
     : total;
   const hiding = shown < total;
+  const shownOfTotal = t(
+    'channels_shown_of_total',
+    '{{shown}} of {{count}} channels',
+    { shown, count: total }
+  );
 
   const views = [
     { value: 'day', label: t('day', 'Day'), select: setDay },
@@ -571,12 +576,13 @@ export const Filters: FC<{
         </div>
       )}
       {/* The end group, at the end, held on one line: where it doesn't fit
-          beside the first it drops under it as a whole, at any width. At
-          1025px and below it lets its children be the bar's own, so Create
-          Post sits beside the chip. */}
-      <div className="flex items-center gap-[8px] ms-auto mobile:contents">
+          beside the first it drops under it as a whole, at any width, and
+          where it is wider than the bar on its own row the notice's count is
+          cut first. At 1025px and below it lets its children be the bar's
+          own, so Create Post sits beside the chip. */}
+      <div className="flex items-center gap-[8px] ms-auto min-w-0 max-w-full mobile:contents">
         {hiding && (
-          <div className="flex items-center gap-[6px] min-h-[32px] px-[12px] rounded-full bg-surface2 text-[13px] text-inkSoft whitespace-nowrap mobile:hidden">
+          <div className="flex items-center gap-[6px] min-w-0 min-h-[32px] px-[12px] rounded-full bg-surface2 text-[13px] text-inkSoft whitespace-nowrap mobile:hidden">
             <svg
               width="15"
               height="15"
@@ -587,29 +593,27 @@ export const Filters: FC<{
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
+              className="shrink-0"
             >
               <path d="M3 3l18 18" />
               <path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.4" />
               <path d="M6.4 6.4A16.8 16.8 0 0 0 2.5 12S6 19 12 19a9.6 9.6 0 0 0 4.6-1.2" />
               <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
             </svg>
-            <span>
-              {t('channels_shown_of_total', '{{shown}} of {{count}} channels', {
-                shown,
-                count: total,
-              })}
+            <span title={shownOfTotal} className="truncate">
+              {shownOfTotal}
             </span>
             <span aria-hidden="true">·</span>
             <button
               type="button"
               onClick={() => calendar.setSelectedChannels(null)}
-              className="inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-brand"
+              className="shrink-0 inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-brand"
             >
               {t('show_all', 'Show all')}
             </button>
           </div>
         )}
-        <div className="flex flex-row gap-[2px] p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:hidden">
+        <div className="flex flex-row shrink-0 gap-[2px] p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:hidden">
           {views.map((view) => (
             <button
               key={view.value}
