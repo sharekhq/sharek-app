@@ -17,12 +17,14 @@ export const Input = ({
   hideStopButton = false,
   onChange,
   tools,
+  summary,
   attachments,
   uploading = false,
   onPasteFiles,
 }: InputProps & {
   onChange: (value: string) => void;
   tools?: ReactNode;
+  summary?: ReactNode;
   attachments?: ReactNode;
   uploading?: boolean;
   onPasteFiles?: (files: File[]) => void;
@@ -80,6 +82,7 @@ export const Input = ({
       }`}
     >
       <div className="copilotKitInput" onClick={handleDivClick}>
+        {summary}
         {attachments}
         <AutoResizingTextarea
           ref={textareaRef}
