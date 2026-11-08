@@ -20,6 +20,7 @@ import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import {
   FOCUS_RING,
+  matchesSearch,
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
@@ -288,10 +289,6 @@ const ChatRow: FC<{ chat: Chat; current: boolean; onPin: () => void }> = ({
 type Group = 'pinned' | 'today' | 'yesterday' | 'week' | 'older';
 const GROUPS: Group[] = ['pinned', 'today', 'yesterday', 'week', 'older'];
 
-// case and accents aside, so "cafe" finds "Café"
-const fold = (text: string) =>
-  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-
 /**
  * Samy's chat history (contracts/pages-ui.md): a header with Hide chats on
  * the rail and Close on the drawer, New chat, the search, then the chats
@@ -307,9 +304,10 @@ export const ChatsPanel: FC = () => {
   const { threadId, hideChats, closeChats } = useContext(PropertiesContext);
   const [search, setSearch] = useState('');
 
-  const query = fold(search.trim());
+  // by what each row shows, so a chat not yet named is found as New chat
+  const query = search.trim();
   const chats = (data?.threads || []).filter((chat) =>
-    fold(chat.title).includes(query)
+    matchesSearch(chat.title || t('new_chat', 'New chat'), query)
   );
   // By the day of last use in the user's time zone, Previous 7 days being 2
   // to 7 days ago (data-model.md). Each group keeps the list's order, newest

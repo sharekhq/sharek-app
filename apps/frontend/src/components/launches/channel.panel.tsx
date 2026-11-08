@@ -642,6 +642,15 @@ export const SearchField: FC<{
   </div>
 );
 
+// case and accents aside, so "cafe" finds "Café"
+const fold = (text: string) =>
+  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+// What a SearchField finds, the list's and the chats panel's alike: a text
+// that holds what's typed.
+export const matchesSearch = (text: string, query: string) =>
+  fold(text).includes(fold(query));
+
 /**
  * The channel list Calendar, Samy and Analytics share
  * (contracts/channel-panel.md): a header with the count, + and the rail's or
@@ -732,7 +741,7 @@ export const ChannelPanel: FC<{
   // name, its platform in the page's language or its customer, so a matching
   // customer shows all its channels.
   const searchable = !collapsed && channels.length > 6;
-  const query = searchable ? search.trim().toLowerCase() : '';
+  const query = searchable ? search.trim() : '';
   const groups = ordered
     .map((group) => ({
       ...group,
@@ -745,7 +754,7 @@ export const ChannelPanel: FC<{
             channel.name,
             platformLabel(channel.identifier),
             group.customer?.name || '',
-          ].some((text) => text.toLowerCase().includes(query))
+          ].some((text) => matchesSearch(text, query))
       ),
     }))
     .filter((group) => group.channels.length);
