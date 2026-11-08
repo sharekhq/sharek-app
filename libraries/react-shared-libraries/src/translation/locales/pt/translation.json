@@ -587,6 +587,7 @@
   "channels_chip_label_many": "Canais visíveis: {{shown}} de {{count}}",
   "channels_chip_label_other": "Canais visíveis: {{shown}} de {{count}}",
   "lifetime_tier": "Plano {{tier}}",
+  "calendar_short_day_format": "ddd, D MMM",
   "start_7_days_free_trial": "Comece o teste gratuito de 7 dias",
   "change_language": "Mudar idioma",
   "that_a_wrap": "É isso aí!\n\nSe você gostou deste fio:\n\n1. Siga-me @{{username}} para ver mais conteúdos como este\n2. Dê RT no tweet abaixo para compartilhar este fio com seu público\n",

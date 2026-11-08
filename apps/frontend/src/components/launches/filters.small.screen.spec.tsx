@@ -50,10 +50,14 @@ jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => ({ billingEnabled: true, showUpstreamExtras: false }),
 }));
-// Create Post and Add Channel are scenery: what is under test is where the bar
-// puts them, not what they open.
+// Create Post, the generator and Add Channel are scenery: what is under test is
+// where the bar puts them, not what they open (the generator's gate is
+// launches.generator.gate.spec.tsx's).
 jest.mock('@gitroom/frontend/components/launches/new.post', () => ({
   NewPost: () => <div data-testid="new-post" />,
+}));
+jest.mock('@gitroom/frontend/components/launches/generator/generator', () => ({
+  GeneratorComponent: () => <div data-testid="generator" />,
 }));
 const mockAddProvider = jest.fn();
 jest.mock(
@@ -85,6 +89,12 @@ import { Filters } from '@gitroom/frontend/components/launches/filters';
 // locales it loads; the Arabic one runs without preParsePostFormat, so its
 // digits stay Latin.
 import '@gitroom/frontend/components/layout/html.component';
+import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
+
+// The real calendar context extends dayjs with isoWeek, which the bar's weeks
+// are measured in; the mock above leaves it out.
+dayjs.extend(isoWeek);
 
 const mockT = (
   key: string,

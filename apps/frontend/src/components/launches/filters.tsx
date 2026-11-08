@@ -3,18 +3,18 @@
 import { useCalendar, ListStateFilter } from '@gitroom/frontend/components/launches/calendar.context';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
-import { useCallback, useState } from 'react';
-import { SelectCustomer } from '@gitroom/frontend/components/launches/select.customer';
-import { SelectChannels } from '@gitroom/frontend/components/launches/select.channels';
+import { FC, useCallback } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import i18next from 'i18next';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
-import { BottomSheet } from '@gitroom/frontend/components/ui/bottom.sheet.component';
-import { FilterIcon } from '@gitroom/frontend/components/ui/icons';
-import {
-  MOBILE_QUERY,
-  useMediaQuery,
-} from '@gitroom/react/helpers/use.media.query';
+import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { NewPost } from '@gitroom/frontend/components/launches/new.post';
+import { GeneratorComponent } from '@gitroom/frontend/components/launches/generator/generator';
+import { AddProviderButton } from '@gitroom/frontend/components/launches/add.provider.component';
+import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
+import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -47,26 +47,38 @@ function getDateRange(
   }
 }
 
-// A view or list-state segment. At 1025px and below it takes taps across the
-// whole 44px row, and its tinted pill is the span inside it; above, it draws no
-// box of its own, and the pill is the segment it has always been.
+// A list-state segment. At 1025px and below it takes taps across the whole
+// 44px row, and its tinted pill is the span inside it; above, it draws no box
+// of its own, and the pill is the segment it has always been.
 const segment =
   'mobile:flex mobile:flex-1 mobile:min-w-fit mobile:h-full mobile:items-stretch mobile:py-[4px] cursor-pointer';
+// A view in the segmented control, which shows above 1025px; at 1025px and
+// below the view button's menu takes its place.
 const viewPill =
-  'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:w-auto mobile:min-w-fit mobile:py-0 mobile:px-[6px] mobile:whitespace-nowrap';
+  'pt-[6px] pb-[5px] cursor-pointer w-[74px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center focus-visible:ring-2 focus-visible:ring-brand';
 const statePill =
   'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:min-w-fit mobile:py-0 mobile:px-[8px] mobile:whitespace-nowrap';
 const selectedPill = 'text-brandText bg-brandSoft font-[600]';
+// Today and the arrows: 54px on touch screens above 1025px, 44px at 1025px
+// and below.
+const control =
+  'h-[42px] coarse:h-[54px] mobile:h-[44px] flex items-center justify-center rounded-[8px] bg-newBgColorInner border border-newTableBorder hover:text-textItemFocused hover:bg-boxFocused transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand';
+const arrow = clsx(
+  control,
+  'text-textColor rtl:rotate-180 w-[42px] coarse:min-w-[44px] mobile:w-[44px]'
+);
 
-export const Filters = () => {
+// The calendar's top bar (R8). The page owns the channel sheet the phone's
+// Channels chip opens, and the list refresh Add Channel runs.
+export const Filters: FC<{
+  onOpenChannels: () => void;
+  channelsOpen: boolean;
+  update: () => void;
+}> = ({ onOpenChannels, channelsOpen, update }) => {
   const calendar = useCalendar();
   const t = useT();
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  // The sheet belongs to 1025px and below: growing past it (an iPad turned to
-  // landscape) closes it, as the composer's sheets close, so no sheet sits over
-  // the inline pickers. Set during render, as the app shell's drawer is.
-  const isMobile = useMediaQuery(MOBILE_QUERY);
-  if (filtersOpen && !isMobile) setFiltersOpen(false);
+  const user = useUser();
+  const { billingEnabled, showUpstreamExtras } = useVariables();
 
   // Set dayjs locale based on current language
   const currentLanguage = i18next.resolvedLanguage || 'en';
@@ -79,9 +91,21 @@ export const Filters = () => {
 
     switch (calendar.display) {
       case 'day':
-        return startDate.format(short ? 'ddd (L)' : 'dddd (L)');
+        // each language words the phone's short day its own way
+        return startDate.format(
+          short
+            ? t('calendar_short_day_format', 'ddd, D MMM')
+            : 'dddd, D MMMM YYYY'
+        );
       case 'week':
-        return `${startDate.format('L')} - ${endDate.format('L')}`;
+        // the start leaves out what it shares with the end: 9 – 15 November 2026
+        return `${startDate.format(
+          startDate.year() !== endDate.year()
+            ? 'D MMMM YYYY'
+            : startDate.month() !== endDate.month()
+            ? 'D MMMM'
+            : 'D'
+        )} – ${endDate.format('D MMMM YYYY')}`;
       case 'month':
         return startDate.format('MMMM YYYY');
       default:
@@ -178,35 +202,6 @@ export const Filters = () => {
       customer: calendar.customer,
     });
   }, [calendar]);
-
-  const setCalendarView = useCallback(() => {
-    if (calendar.display !== 'list') {
-      return;
-    }
-
-    const range = getDateRange('week');
-    calendar.setFilters({
-      startDate: range.startDate,
-      endDate: range.endDate,
-      display: 'week',
-      customer: calendar.customer,
-    });
-  }, [calendar]);
-
-  const setCustomer = useCallback(
-    (customer: string) => {
-      if (calendar.customer === customer) {
-        return; // No need to set the same customer
-      }
-      calendar.setFilters({
-        startDate: calendar.startDate,
-        endDate: calendar.endDate,
-        display: calendar.display as 'day' | 'week' | 'month',
-        customer: customer,
-      });
-    },
-    [calendar]
-  );
 
   const next = useCallback(() => {
     const currentStart = newDayjs(calendar.startDate);
@@ -310,71 +305,179 @@ export const Filters = () => {
     }
   }, [calendar]);
 
+  // The channels that show, as the list counts them: the total minus the
+  // usable channels missing from the selection. A disabled channel's posts
+  // always show (C5), and a deleted channel's id left in it counts for none.
+  const total = calendar.integrations.length;
+  const shown = calendar.selectedChannels
+    ? total -
+      calendar.integrations.filter(
+        (channel) =>
+          !channel.disabled && !calendar.selectedChannels!.includes(channel.id)
+      ).length
+    : total;
+  const hiding = shown < total;
+
+  const views = [
+    { value: 'day', label: t('day', 'Day'), select: setDay },
+    { value: 'week', label: t('week', 'Week'), select: setWeek },
+    { value: 'month', label: t('month', 'Month'), select: setMonth },
+    { value: 'list', label: t('list', 'List'), select: setList },
+  ];
+  const currentView = views.find((view) => view.value === calendar.display);
+
+  // Previous and Next are named for the view they step
+  const [previousLabel, nextLabel] =
+    calendar.display === 'day'
+      ? [t('previous_day', 'Previous day'), t('next_day', 'Next day')]
+      : calendar.display === 'month'
+      ? [t('previous_month', 'Previous month'), t('next_month', 'Next month')]
+      : [t('previous_week', 'Previous week'), t('next_week', 'Next week')];
+
+  // At 1025px and below the views are a menu at the end of the second row,
+  // in the List view too, so the list can be left.
+  const viewMenu = (
+    <PostActionsMenu
+      label={t('view_named', 'View: {{view}}', { view: currentView?.label })}
+      triggerClassName="hidden mobile:flex mobile:order-1 items-center gap-[6px] h-[44px] px-[10px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] font-[500] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+      trigger={
+        <>
+          {currentView?.label}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </>
+      }
+      actions={views.map((view) => ({
+        key: view.value,
+        icon:
+          view.value === calendar.display ? (
+            <CheckmarkIcon className="text-brandText" />
+          ) : (
+            <span className="w-[11px]" />
+          ),
+        label: view.label,
+        onClick: view.select,
+      }))}
+    />
+  );
+
   return (
     <div className="text-textColor flex flex-row flex-wrap gap-[8px] items-center select-none">
-      {/* phones: view switcher and filter first, then the date or list row */}
+      {/* phones: the Channels chip and Create Post first, then the date or
+          list row */}
+      {total > 0 ? (
+        <button
+          type="button"
+          onClick={onOpenChannels}
+          aria-expanded={channelsOpen}
+          aria-label={
+            hiding
+              ? t(
+                  'channels_chip_label',
+                  'Channels: {{shown}} of {{count}} shown',
+                  { shown, count: total }
+                )
+              : t('channel_list_with_count', 'Channels: {{count}}', {
+                  count: total,
+                })
+          }
+          className="hidden mobile:flex mobile:order-1 cursor-pointer h-[44px] px-[12px] bg-btnSimple text-btnText rounded-[8px] items-center gap-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          {/* overlapped from the start edge, the right in Arabic */}
+          <span className="flex">
+            {calendar.integrations.slice(0, 3).map((integration, index) => (
+              <ImageWithFallback
+                key={integration.id}
+                fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                src={integration.picture}
+                className={clsx(
+                  'rounded-full border-2 border-btnSimple',
+                  index > 0 && '-ms-[10px]'
+                )}
+                alt=""
+                width={24}
+                height={24}
+              />
+            ))}
+          </span>
+          <span className="text-[14px] font-[500]">
+            {hiding ? `${shown}/${total}` : total}
+          </span>
+        </button>
+      ) : (
+        <div className="hidden mobile:flex mobile:flex-col mobile:order-1 mobile:flex-1">
+          <AddProviderButton update={update} />
+        </div>
+      )}
       {!isListView && (
-        <div className="flex flex-grow flex-row items-center gap-[10px] mobile:order-3 mobile:basis-full mobile:min-w-0 mobile:gap-[8px]">
-          <div className="border h-[42px] coarse:h-[54px] mobile:h-[44px] border-newTableBorder bg-newTableBorder gap-[1px] flex items-center rounded-[8px] overflow-hidden mobile:flex-1 mobile:min-w-0">
-            <div
-              onClick={previous}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+        <div className="flex flex-grow flex-row items-center gap-[8px] mobile:order-3 mobile:basis-full mobile:min-w-0">
+          <button
+            type="button"
+            onClick={setToday}
+            className={clsx(control, 'px-[9px] text-[14px] font-[500]')}
+          >
+            {t('today', 'Today')}
+          </button>
+          <button
+            type="button"
+            onClick={previous}
+            aria-label={previousLabel}
+            className={arrow}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="8"
+              height="12"
+              viewBox="0 0 8 12"
+              fill="none"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="8"
-                height="12"
-                viewBox="0 0 8 12"
-                fill="none"
-              >
-                <path
-                  d="M6.5 11L1.5 6L6.5 1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div className="min-w-[200px] mobile:min-w-0 mobile:flex-1 text-center bg-newBgColorInner h-full flex items-center justify-center">
-              <div className="py-[3px] px-[9px] mobile:px-[4px] rounded-[5px] transition-all text-[14px] mobile:truncate">
-                <span className="mobile:hidden">{getDisplayText()}</span>
-                <span className="hidden mobile:inline">
-                  {getDisplayText(true)}
-                </span>
-              </div>
-            </div>
-            <div
-              onClick={next}
-              className="cursor-pointer text-textColor rtl:rotate-180 px-[9px] coarse:min-w-[44px] mobile:px-0 mobile:w-[44px] bg-newBgColorInner h-full flex items-center justify-center hover:text-textItemFocused hover:bg-boxFocused"
+              <path
+                d="M6.5 11L1.5 6L6.5 1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            aria-label={nextLabel}
+            className={arrow}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="8"
+              height="12"
+              viewBox="0 0 8 12"
+              fill="none"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="8"
-                height="12"
-                viewBox="0 0 8 12"
-                fill="none"
-              >
-                <path
-                  d="M1.5 11L6.5 6L1.5 1"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+              <path
+                d="M1.5 11L6.5 6L1.5 1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <div className="ms-[6px] mobile:ms-0 text-[18px] mobile:text-[15px] font-[600] whitespace-nowrap mobile:flex-1 mobile:min-w-0 mobile:truncate">
+            <span className="mobile:hidden">{getDisplayText()}</span>
+            <span className="hidden mobile:inline">{getDisplayText(true)}</span>
           </div>
-          <div className="flex-1 mobile:flex-none text-[14px] font-[500]">
-            <div className="text-center flex h-[42px] coarse:h-[54px] mobile:h-[44px]">
-              <div
-                onClick={setToday}
-                className="hover:text-textItemFocused hover:bg-boxFocused py-[3px] px-[9px] flex justify-center items-center rounded-[8px] transition-all cursor-pointer text-[14px] bg-newBgColorInner border border-newTableBorder"
-              >
-                {t('today', 'Today')}
-              </div>
-            </div>
-          </div>
+          {viewMenu}
         </div>
       )}
       {isListView && (
@@ -441,7 +544,7 @@ export const Filters = () => {
               </svg>
             </div>
           </div>
-          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:w-full mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]">
+          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:min-w-0 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]">
             {listStateOptions.map((option) => (
               <div
                 key={option.value}
@@ -459,154 +562,67 @@ export const Filters = () => {
               </div>
             ))}
           </div>
+          {viewMenu}
           <div className="flex-1 mobile:hidden" />
         </div>
       )}
-      {/* phones get a single filter button that opens the filters sheet */}
-      <div className="contents mobile:hidden">
-        <SelectCustomer
-          customer={calendar.customer as string}
-          onChange={(customer: string) => setCustomer(customer)}
-          integrations={calendar.integrations}
-        />
-        <SelectChannels />
-      </div>
-      {calendar.integrations.length > 1 && (
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          aria-label={
-            calendar.selectedChannels
-              ? t('select_channels_filtered', 'Select Channels (filter on)')
-              : t('select_channels', 'Select Channels')
-          }
-          aria-expanded={filtersOpen}
-          className={clsx(
-            'hidden mobile:flex mobile:order-2 relative w-[44px] h-[44px] rounded-[8px] border justify-center items-center cursor-pointer focus-visible:ring-2 focus-visible:ring-brand',
-            calendar.selectedChannels
-              ? 'border-brand text-brandText'
-              : 'border-newTableBorder'
-          )}
-        >
-          <FilterIcon />
-          {calendar.selectedChannels && (
-            <span
-              aria-hidden="true"
-              className="absolute top-[6px] end-[6px] w-[6px] h-[6px] rounded-full bg-brand"
-            />
-          )}
-        </button>
+      {hiding && (
+        <div className="flex items-center gap-[6px] min-h-[32px] px-[12px] rounded-full bg-surface2 text-[13px] text-inkSoft whitespace-nowrap mobile:hidden">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 3l18 18" />
+            <path d="M10.6 5.1A9.8 9.8 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.4" />
+            <path d="M6.4 6.4A16.8 16.8 0 0 0 2.5 12S6 19 12 19a9.6 9.6 0 0 0 4.6-1.2" />
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          </svg>
+          <span>
+            {t('channels_shown_of_total', '{{shown}} of {{count}} channels', {
+              shown,
+              count: total,
+            })}
+          </span>
+          <span aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => calendar.setSelectedChannels(null)}
+            className="inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            {t('show_all', 'Show all')}
+          </button>
+        </div>
       )}
-      <div
-        className={clsx(
-          'flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]',
-          isListView && 'hidden mobile:flex'
-        )}
-      >
-        <div className={clsx('contents', segment)} onClick={setDay}>
-          <span
-            className={clsx(
-              viewPill,
-              calendar.display === 'day' && selectedPill
-            )}
-          >
-            {t('day', 'Day')}
-          </span>
-        </div>
-        <div className={clsx('contents', segment)} onClick={setWeek}>
-          <span
-            className={clsx(
-              viewPill,
-              calendar.display === 'week' && selectedPill
-            )}
-          >
-            {t('week', 'Week')}
-          </span>
-        </div>
-        <div className={clsx('contents', segment)} onClick={setMonth}>
-          <span
-            className={clsx(
-              viewPill,
-              calendar.display === 'month' && selectedPill
-            )}
-          >
-            {t('month', 'Month')}
-          </span>
-        </div>
-        {/* the list toggle joins the view switcher on phones */}
-        <div className={clsx('hidden', segment)} onClick={setList}>
-          <span className={clsx(viewPill, isListView && selectedPill)}>
-            {t('list', 'List')}
-          </span>
-        </div>
-      </div>
       <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:hidden">
-        <div
-          onClick={setCalendarView}
-          className={clsx(
-            'pt-[6px] pb-[5px] cursor-pointer flex justify-center items-center w-[34px] coarse:w-[44px] text-center rounded-[6px]',
-            !isListView && selectedPill
-          )}
-        >
-          {/*calendar*/}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="17"
-            height="19"
-            viewBox="0 0 17 19"
-            fill="none"
+        {views.map((view) => (
+          <button
+            key={view.value}
+            type="button"
+            aria-pressed={calendar.display === view.value}
+            onClick={view.select}
+            className={clsx(
+              viewPill,
+              calendar.display === view.value && selectedPill
+            )}
           >
-            <path
-              d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <div
-          onClick={setList}
-          className={clsx(
-            'pt-[6px] pb-[5px] flex justify-center items-center cursor-pointer w-[34px] coarse:w-[44px] text-center rounded-[6px]',
-            isListView && selectedPill
-          )}
-        >
-          {/*list*/}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-          >
-            <path
-              d="M17.5 10L7.5 10M17.5 5.00002L7.5 5.00002M17.5 15L7.5 15M4.16667 10C4.16667 10.4603 3.79357 10.8334 3.33333 10.8334C2.8731 10.8334 2.5 10.4603 2.5 10C2.5 9.53978 2.8731 9.16669 3.33333 9.16669C3.79357 9.16669 4.16667 9.53978 4.16667 10ZM4.16667 5.00002C4.16667 5.46026 3.79357 5.83335 3.33333 5.83335C2.8731 5.83335 2.5 5.46026 2.5 5.00002C2.5 4.53978 2.8731 4.16669 3.33333 4.16669C3.79357 4.16669 4.16667 4.53978 4.16667 5.00002ZM4.16667 15C4.16667 15.4603 3.79357 15.8334 3.33333 15.8334C2.8731 15.8334 2.5 15.4603 2.5 15C2.5 14.5398 2.8731 14.1667 3.33333 14.1667C3.79357 14.1667 4.16667 14.5398 4.16667 15Z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+            {view.label}
+          </button>
+        ))}
       </div>
-      {filtersOpen && (
-        <BottomSheet
-          title={t('select_channels', 'Select Channels')}
-          onClose={() => setFiltersOpen(false)}
-          button={{
-            label: t('done', 'Done'),
-            onClick: () => setFiltersOpen(false),
-          }}
-        >
-          <SelectCustomer
-            list={true}
-            customer={calendar.customer as string}
-            onChange={(customer: string) => setCustomer(customer)}
-            integrations={calendar.integrations}
-          />
-          <SelectChannels list={true} />
-        </BottomSheet>
+      {total > 0 && (
+        <div className="flex gap-[8px] mobile:order-2 mobile:flex-1">
+          <NewPost />
+          {user?.tier?.ai && billingEnabled && showUpstreamExtras && (
+            <GeneratorComponent />
+          )}
+        </div>
       )}
     </div>
   );

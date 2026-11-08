@@ -62,6 +62,9 @@ const STRINGS = [
   // The lifetime-tier line, moved from the channel list to Settings (R11). The
   // plan's name in {{tier}} stays as the product names it.
   ['lifetime_tier', '{{tier}} tier', 'خطة {{tier}}'],
+  // The phone's short day is a dayjs format each language words its own way:
+  // the canvas gives "Wed, 11 Nov" in English and "11 نوفمبر" in Arabic.
+  ['calendar_short_day_format', 'ddd, D MMM', 'D MMM'],
 ] as const;
 
 // C3 keeps today's chip label while nothing is hidden. No document gives its

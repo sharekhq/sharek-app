@@ -599,6 +599,7 @@
   "channels_chip_label_one": "Channels: {{shown}} of 1 shown",
   "channels_chip_label_other": "Channels: {{shown}} of {{count}} shown",
   "lifetime_tier": "{{tier}} tier",
+  "calendar_short_day_format": "ddd, D MMM",
   "start_7_days_free_trial": "Start 7 days free trial",
   "change_language": "Select Language",
   "that_a_wrap": "That's a wrap!\n\nIf you enjoyed this thread:\n\n1. Follow me @{{username}} for more of these\n2. RT the tweet below to share this thread with your audience\n",
