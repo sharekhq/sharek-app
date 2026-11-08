@@ -166,6 +166,14 @@ export const PostActionsMenu = forwardRef<
     action.onClick();
   };
 
+  // A list whose items carry hints is 260 to 270px wide, as the reviewed
+  // canvas draws the channel list's +, and its hints wrap inside it. The
+  // minimum matters as much as the maximum: the list first renders at its
+  // trigger's start edge, where a + at the end of the screen leaves it a few
+  // pixels, and a list that can wrap would shrink to its longest word there
+  // and then grow by a few pixels on each pass of the layout effect above.
+  const hinted = actions.some((action) => action.hint);
+
   const panel = show && (
     <div
       ref={panelRef}
@@ -180,6 +188,7 @@ export const PostActionsMenu = forwardRef<
       // wherever it opens.
       className={clsx(
         'fixed p-[12px] bg-newBgColorInner text-textColor shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
+        hinted && 'min-w-[260px] max-w-[270px]',
         held && 'pointer-events-auto'
       )}
     >
@@ -188,19 +197,29 @@ export const PostActionsMenu = forwardRef<
           key={action.key}
           role="menuitem"
           tabIndex={0}
-          className="flex gap-[12px] items-center py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors"
+          className={clsx(
+            'flex gap-[12px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors',
+            action.hint ? 'items-start' : 'items-center'
+          )}
           onClick={() => choose(action)}
           onKeyDown={pressKeys(() => choose(action))}
         >
-          <div className={clsx('flex', action.danger && 'text-error')}>
+          {/* beside a label and its hint, the icon stays level with the label */}
+          <div
+            className={clsx(
+              'flex',
+              action.danger && 'text-error',
+              action.hint && 'mt-[2px]'
+            )}
+          >
             {action.icon}
           </div>
           {action.hint ? (
-            // The list is `text-nowrap`, and a hint is a sentence: it wraps,
-            // or one line of it would make the list wider than a phone.
+            // The list is `text-nowrap`, and a hint is a sentence: it wraps
+            // within the list's width.
             <div className="flex flex-col gap-[2px]">
               <div className="text-[14px]">{action.label}</div>
-              <div className="text-[12px] text-muted text-wrap max-w-[200px]">
+              <div className="text-[12px] text-muted text-wrap">
                 {action.hint}
               </div>
             </div>
