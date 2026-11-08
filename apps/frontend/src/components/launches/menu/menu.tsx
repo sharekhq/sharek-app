@@ -114,13 +114,16 @@ export const Menu: FC<{
   // Escape closes the open menu and hands the focus back to its button, as
   // post.actions.menu.tsx's does. It is heard on the way down and goes no
   // further, because SplitPanel closes the sheet the channel list can open in
-  // on an Escape that reaches the document (split.panel.tsx).
+  // on an Escape that reaches the document (split.panel.tsx). Only an Escape
+  // pressed in the menu or on its button: the menu stays open behind the
+  // Disable and Delete confirmations and the Custom URL modal, whose Escape is
+  // theirs.
   useEffect(() => {
     if (!show) {
       return;
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') {
+      if (e.key !== 'Escape' || !ref.current?.contains(e.target as Node)) {
         return;
       }
       e.stopPropagation();
@@ -129,7 +132,7 @@ export const Menu: FC<{
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [show]);
+  }, [show, ref]);
 
   // Adjust menu position if it would overflow viewport
   useLayoutEffect(() => {
