@@ -26,12 +26,17 @@ jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
 jest.mock('next/navigation', () => ({
   useSearchParams: () => mockParams,
 }));
-// Records every key asked for, so a case can say a key was never used.
+// Records every key asked for, so a case can say a key was or was never used,
+// and fills the default's placeholders from the values passed.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (key: string, fallback?: string) => {
-    mockAsked.push(key);
-    return fallback ?? key;
-  },
+  useT:
+    () =>
+    (key: string, fallback?: string, params?: Record<string, unknown>) => {
+      mockAsked.push(key);
+      return (fallback ?? key).replace(/{{(\w+)}}/g, (whole, name) =>
+        params && name in params ? String(params[name]) : whole
+      );
+    },
 }));
 
 // Each panel is a marker: what is under test is which tab the list offers and
@@ -456,9 +461,11 @@ describe('the build number under Log out', () => {
     mockUser = { ...admin(), isLifetime: true };
     mockVariables.billingEnabled = true;
     const host = await settings();
+    // lifetime_tier's "{{tier}} tier", with the plan's name filled in.
     const tier = line(host, 'Pro tier')!;
     const number = line(host, build)!;
 
+    expect(mockAsked).toContain('lifetime_tier');
     expect(tier).toBeDefined();
     expect(number).toBeDefined();
     expect(follows(host.querySelector('[data-logout]')!, tier)).toBe(true);
