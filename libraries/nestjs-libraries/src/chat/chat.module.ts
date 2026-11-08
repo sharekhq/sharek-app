@@ -5,6 +5,8 @@ import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
 import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
+import { ChatThreadsRepository } from '@gitroom/nestjs-libraries/chat/chat.threads.repository';
+import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
 
 @Global()
 @Module({
@@ -15,6 +17,8 @@ import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reade
     McpRelayService,
     SamyImageTool,
     SamyImageReader,
+    ChatThreadsRepository,
+    ChatThreadsService,
     ...toolList,
   ],
   get exports() {
