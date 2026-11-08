@@ -114,9 +114,9 @@ const WeekNowLine: FC<{ days: dayjs.Dayjs[] }> = ({ days }) => {
       >
         {/* covers this hour's label with the calendar background, the time
             takes its place. As wide as the grid's hour column (136px, 72px
-            below 1025px). Below 1025px it sits over the sticky labels (17) and
+            below 1280px). Below 1025px it sits over the sticky labels (17) and
             under the sticky day headers (20) and the corner (30). */}
-        <div className="sticky start-0 h-full w-[136px] mobile:w-[72px] bg-newBgColorInner mobile:z-[18]">
+        <div className="sticky start-0 h-full w-[136px] mobile:w-[72px] [@media(min-width:1026px)_and_(max-width:1279px)]:w-[72px] bg-newBgColorInner mobile:z-[18]">
           <div className="absolute end-0 -translate-y-1/2" style={{ top }}>
             {/* same format as the hour labels; a 12-hour time fits the 72px
                 column on one line, as the labels do */}
@@ -575,7 +575,9 @@ export const WeekView = () => {
       const day = weekStart.add(i, 'day');
       days.push({
         name: day.format('dddd'),
+        shortName: day.format('ddd'),
         day: day.format('L'),
+        number: day.format('D'),
         date: day,
       });
     }
@@ -601,7 +603,7 @@ export const WeekView = () => {
       <div className="flex-1 relative">
         <div
           ref={grid}
-          className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
+          className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] mobile:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] [@media(min-width:1026px)_and_(max-width:1279px)]:[grid-template-columns:72px_repeat(7,_minmax(0,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor"
         >
           <div className="z-10 mobile:z-30 mobile:start-0 cal-weekday flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
@@ -613,8 +615,15 @@ export const WeekView = () => {
                   'shadow-[inset_0_-2px_0_0_var(--brand)]'
               )}
             >
+              {/* from 1026px to 1279px a day column is too narrow for the
+                  full name and date: the short weekday over the day number */}
               <div className="text-[14px] font-[600] text-brandText">
-                {day.name}
+                <span className="[@media(min-width:1026px)_and_(max-width:1279px)]:hidden">
+                  {day.name}
+                </span>
+                <span className="hidden [@media(min-width:1026px)_and_(max-width:1279px)]:inline">
+                  {day.shortName}
+                </span>
               </div>
               <div
                 className={clsx(
@@ -626,7 +635,12 @@ export const WeekView = () => {
                 {day.day === newDayjs().format('L') && (
                   <div className="w-[6px] h-[6px] bg-newTableTextFocused rounded-full" />
                 )}
-                {day.day}
+                <span className="[@media(min-width:1026px)_and_(max-width:1279px)]:hidden">
+                  {day.day}
+                </span>
+                <span className="hidden [@media(min-width:1026px)_and_(max-width:1279px)]:inline">
+                  {day.number}
+                </span>
               </div>
             </div>
           ))}
@@ -637,7 +651,7 @@ export const WeekView = () => {
                   line (z-[15]) passing beneath */}
               <div
                 data-hour={hour}
-                className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap"
+                className="p-2 pe-4 text-center items-center justify-center flex text-[14px] text-newTableText mobile:sticky mobile:start-0 mobile:z-[17] mobile:bg-newBgColorInner mobile:px-[4px] mobile:text-[12px] mobile:whitespace-nowrap [@media(min-width:1026px)_and_(max-width:1279px)]:px-[4px] [@media(min-width:1026px)_and_(max-width:1279px)]:text-[12px] [@media(min-width:1026px)_and_(max-width:1279px)]:whitespace-nowrap"
               >
                 {convertTimeFormatBasedOnLocality(hour)}
               </div>
