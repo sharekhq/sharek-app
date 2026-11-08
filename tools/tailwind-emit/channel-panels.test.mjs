@@ -543,6 +543,16 @@ test('the narrow week is emitted after the rules it replaces, and a max-width on
   );
 });
 
+// The summary's name (agent.chat.header.tsx), left out below 1280px: a phone's
+// composer, and the chat from 1026px with both side panels open, cut it to a
+// few letters. It replaces no class, so it has no order to keep.
+test("the summary's name hides below 1280px, at 1025px and below too", async () => {
+  await assertEmits(
+    { '[@media(max-width:1279px)]:hidden': [['display', 'none']] },
+    '(max-width:1279px)'
+  );
+});
+
 test('the states of the rows and controls emit, on the custom colours too', async () => {
   const table = {
     'focus-visible:ring-2': ring('2px'),
