@@ -347,6 +347,35 @@ test("a closed customer's chevron turns to the end in either direction", async (
   );
 });
 
+test("the post card's preview aligns to the start of its own text", async () => {
+  // The preview is dir="auto". tailwindcss-rtl adds a physical side for the
+  // page's direction to core's text-start, which outranks it, so in the
+  // Arabic calendar an English preview sat at the right and its ellipsis was
+  // clipped (walk 2, step 9). The arbitrary property is the native start
+  // alone, which resolves against the preview's own direction.
+  const css = await emit(['text-start', '[text-align:start]']);
+  const pick = ({ selector, atRule, decls }) => ({ selector, atRule, decls });
+  assert.deepEqual(rules(css, '[text-align:start]').map(pick), [
+    {
+      selector: '.[text-align:start]',
+      atRule: null,
+      decls: [['text-align', 'start']],
+    },
+  ]);
+  assert.deepEqual(
+    rules(css, 'text-start')
+      .map(pick)
+      .filter(({ selector }) => selector.startsWith('[dir="rtl"]')),
+    [
+      {
+        selector: '[dir="rtl"] .text-start',
+        atRule: null,
+        decls: [['text-align', 'right']],
+      },
+    ]
+  );
+});
+
 test('the states of the rows and controls emit, on the custom colours too', async () => {
   const table = {
     'focus-visible:ring-2': ring('2px'),

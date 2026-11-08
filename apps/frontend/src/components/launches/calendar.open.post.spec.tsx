@@ -394,7 +394,11 @@ describe('the agenda with a zone chosen', () => {
 });
 
 // A card's preview keeps its own direction, so an Arabic post in the English
-// calendar is aligned and cut at its own end, and the other way round.
+// calendar is aligned and cut at its own end, and the other way round. It is
+// aligned by the native start, which follows its own dir="auto". text-start
+// follows the page's: tailwindcss-rtl emits it as [dir=rtl] text-align right,
+// which pushed an English preview in the Arabic calendar to the right and
+// clipped its ellipsis (walk 2, step 9).
 describe("the card's preview", () => {
   it('takes its direction from its own text', async () => {
     const host = await mount(post({ content: '<p>مرحبا</p>' }));
@@ -404,7 +408,8 @@ describe("the card's preview", () => {
     )!;
     expect(preview.getAttribute('dir')).toBe('auto');
     expect(Array.from(preview.classList)).toEqual(
-      expect.arrayContaining(['text-start', 'line-clamp-1'])
+      expect.arrayContaining(['[text-align:start]', 'line-clamp-1'])
     );
+    expect(Array.from(preview.classList)).not.toContain('text-start');
   });
 });
