@@ -591,6 +591,33 @@ describe('when a reply ends', () => {
     await settle(10_000);
     expect(lists()).toBe(3);
   });
+
+  // The list answers after the chat changed or the next reply started: the
+  // chat it was read for is still untitled, and isn't read for again.
+  it('stops a read still in flight when another chat opens or the next reply starts', async () => {
+    mockThreadId = 'fresh';
+    const { update } = await render(<ChatHeader />, { running: true });
+    const leaving = deferred();
+    mockFetch.mockImplementationOnce(() => leaving.promise);
+
+    await update({ running: false });
+    expect(lists()).toBe(2);
+    mockThreadId = 'other';
+    await update({ running: false });
+    leaving.resolve(answer(200, { threads: mockList }));
+    await settle(10_000);
+    expect(lists()).toBe(2);
+
+    const replying = deferred();
+    mockFetch.mockImplementationOnce(() => replying.promise);
+    await update({ running: true });
+    await update({ running: false });
+    expect(lists()).toBe(3);
+    await update({ running: true });
+    replying.resolve(answer(200, { threads: mockList }));
+    await settle(10_000);
+    expect(lists()).toBe(3);
+  });
 });
 
 describe('the bar', () => {
