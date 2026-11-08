@@ -103,10 +103,15 @@ const py = (prop, value) => [
 const ARBITRARY = {
   // launches.component.tsx — the list's width in the SplitPanel
   'w-[288px]': [['width', '288px']],
-  // split.panel.tsx — the scroller: no top padding, so the list's sticky
-  // header sits at its top (C28)
-  'px-[20px]': px('padding', '20px'),
+  // split.panel.tsx — the icon rail's 64px; the scroller: no top padding, so
+  // the list's sticky header sits at its top (C28), and at the sides the rows'
+  // 8px, or the icon rail's 6px (px-[8px] and px-[6px], below)
+  'w-[64px]': [['width', '64px']],
   'pb-[20px]': [['padding-bottom', '20px']],
+  // the sheet's grab handle, 36px (w-[36px], below) by 4px, 8px under the top
+  'h-[4px]': [['height', '4px']],
+  'mt-[8px]': [['margin-top', '8px']],
+  'rounded-[2px]': [['border-radius', '2px']],
   // channel.panel.tsx — the icon buttons and the row actions
   'w-[36px]': [['width', '36px']],
   'h-[36px]': [['height', '36px']],
@@ -186,9 +191,11 @@ const ARBITRARY = {
   'p-[4px]': [['padding', '4px']],
   // the notice, "9 of 10 channels · Show all"
   'min-h-[32px]': [['min-height', '32px']],
-  // post.actions.menu.tsx — a hinted list, and a hint's icon level with its label
+  // post.actions.menu.tsx — a hinted list, its 6px padding and 10px icon gap
+  // (gap-[10px], above), and a hint's icon level with its label
   'min-w-[260px]': [['min-width', '260px']],
   'max-w-[270px]': [['max-width', '270px']],
+  'p-[6px]': [['padding', '6px']],
   'mt-[2px]': [['margin-top', '2px']],
   // settings.component.tsx — the build number under Log out
   'mt-[5px]': [['margin-top', '5px']],
@@ -385,6 +392,8 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'bg-newTableBorder': [['background-color', 'var(--new-table-border)']],
       'bg-btnSimple': [['background-color', 'var(--new-btn-simple)']],
       'border-line': [['border-color', 'var(--line)']],
+      // the sheet's grab handle
+      'bg-line': [['background-color', 'var(--line)']],
       'border-brand': [['border-color', 'var(--brand)']],
       'border-muted': [['border-color', 'var(--muted)']],
       'border-fifth': [['border-color', 'var(--color-fifth)']],

@@ -4,10 +4,11 @@ import { createRoot } from 'react-dom/client';
 // The calendar's channel list: a rail beside the calendar above 1025px, and at
 // 1025px and below (phones and iPads held upright) a bottom sheet the toolbar's
 // channel chip opens: full width, at most 80% of the screen tall, 16px rounded
-// top corners and 80px of room under the last row, over a scrim. It draws no
-// header: its child draws its own, with the button that closes it. The scrim,
-// Escape and the screen growing past 1025px close it. jsdom-like DOMs apply no
-// media queries, so the width rules are pinned by the classes that carry them.
+// top corners, a grab handle and 80px of room under the last row, over a
+// scrim. It draws no header: its child draws its own, with the button that
+// closes it. The scrim, Escape and the screen growing past 1025px close it.
+// jsdom-like DOMs apply no media queries, so the width rules are pinned by the
+// classes that carry them.
 // While it is open at that width it is a modal dialog named by its label, as
 // 044's sheets are: it takes the focus and keeps Tab inside, holds the page
 // behind it still and hides the support chat bubble.
@@ -53,7 +54,11 @@ const resize = async (small: boolean) => {
 const mounted: Array<{ unmount: () => void }> = [];
 
 // The panel in a host, and a way to open or close it again.
-const mountPanel = async (open: boolean, onClose = jest.fn()) => {
+const mountPanel = async (
+  open: boolean,
+  onClose = jest.fn(),
+  collapsed = false
+) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -61,7 +66,12 @@ const mountPanel = async (open: boolean, onClose = jest.fn()) => {
   const render = async (isOpen: boolean) => {
     await act(async () => {
       root.render(
-        <SplitPanel open={isOpen} onClose={onClose} label="Channels">
+        <SplitPanel
+          open={isOpen}
+          onClose={onClose}
+          label="Channels"
+          collapsed={collapsed}
+        >
           <button type="button">Done</button>
           <button type="button">Add Channel</button>
         </SplitPanel>
@@ -71,8 +81,8 @@ const mountPanel = async (open: boolean, onClose = jest.fn()) => {
   await render(open);
   return { host, render };
 };
-const mount = async (open: boolean, onClose = jest.fn()) =>
-  (await mountPanel(open, onClose)).host;
+const mount = async (open: boolean, onClose = jest.fn(), collapsed = false) =>
+  (await mountPanel(open, onClose, collapsed)).host;
 
 afterEach(() => {
   act(() => {
@@ -86,8 +96,9 @@ afterEach(() => {
 const classes = (node: Element | null | undefined) =>
   (node?.getAttribute('class') ?? '').split(/\s+/);
 const panel = (host: HTMLElement) => host.firstElementChild as HTMLElement;
+// the sheet's grab handle comes first, when there is one
 const scroller = (host: HTMLElement) =>
-  panel(host).firstElementChild as HTMLElement;
+  panel(host).lastElementChild as HTMLElement;
 const close = (host: HTMLElement) =>
   host.querySelector<HTMLElement>('button[aria-label="Close"]');
 // the collapse chevron, drawn by this path
@@ -151,17 +162,75 @@ describe('the channel sheet at 1025px and below', () => {
 
   // A sticky header in a scroller with top padding sticks that far below the
   // scroller's top, and rows scroll through the band above it (C28), so the
-  // child's header carries the top padding instead.
-  it('leaves its top unpadded for the child to fill, with 20px at the sides and the bottom', async () => {
+  // child's header carries the top padding instead. At the sides it keeps the
+  // board's 8px, the inset of the list's rows, which leaves a row's name and
+  // state the board's 148px: at 20px "Disabled · over your plan" was cut.
+  it('leaves its top unpadded for the child to fill, with 8px at the sides and 20px at the bottom', async () => {
     for (const open of [true, false]) {
       const host = await mount(open);
       const own = classes(scroller(host));
       // p-*, py-* and pt-*, under any variant
       const top = own.filter((name) => /^(?:[^:]+:)*p[ty]?-/.test(name));
+      // px-*, ps-* and pe-*, under any variant
+      const sides = own.filter((name) => /^(?:[^:]+:)*p[xse]-/.test(name));
 
       expect(top).toEqual([]);
-      expect(own).toEqual(expect.arrayContaining(['px-[20px]', 'pb-[20px]']));
+      expect(sides).toEqual(['px-[8px]']);
+      expect(own).toContain('pb-[20px]');
     }
+  });
+
+  // The icon rail is the board's: 64px wide, 6px at the sides, which leaves
+  // its pictures a 52px column. A 36px picture with its 2px focus ring takes
+  // 40 of it, and on a touch screen its 44px target with the ring 48.
+  it('is 64px wide as the icon rail, with 6px at the sides', async () => {
+    const host = await mount(false, jest.fn(), true);
+    const own = classes(scroller(host));
+
+    expect(
+      classes(panel(host)).filter((name) => /^(?:[^:]+:)*w-/.test(name))
+    ).toEqual(['w-[64px]']);
+    expect(own.filter((name) => /^(?:[^:]+:)*p[xse]-/.test(name))).toEqual([
+      'px-[6px]',
+    ]);
+  });
+
+  // The board's sheet has a grab handle at its top: 36 by 4px with 2px round
+  // ends, in the line colour, 8px under the top edge and centred
+  // (contracts/channel-panel.md). It is only a picture, so assistive
+  // technology skips it, and it stays put while the list scrolls under it.
+  it('draws a grab handle at the top of the open sheet, and none on the rail', async () => {
+    const host = await mount(true);
+    const handle = panel(host).firstElementChild!;
+
+    expect(handle).not.toBe(scroller(host));
+    expect(handle.getAttribute('aria-hidden')).toBe('true');
+    expect(handle.childNodes.length).toBe(0);
+    expect(classes(handle)).toEqual(
+      expect.arrayContaining([
+        'hidden',
+        'mobile:block',
+        'flex-none',
+        'self-center',
+        'w-[36px]',
+        'h-[4px]',
+        'mt-[8px]',
+        'rounded-[2px]',
+        'bg-line',
+      ])
+    );
+    // shown at 1025px and below only: no display of its own above that
+    expect(
+      classes(handle).filter((name) =>
+        /^(?:block|flex|grid|inline(?:-\w+)?)$/.test(name)
+      )
+    ).toEqual([]);
+  });
+
+  it('draws no grab handle while closed', async () => {
+    const host = await mount(false);
+
+    expect(Array.from(panel(host).children)).toEqual([scroller(host)]);
   });
 
   it('closes from the scrim and Escape', async () => {

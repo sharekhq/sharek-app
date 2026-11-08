@@ -366,6 +366,44 @@ describe('post actions menu', () => {
     expect(hint!.previousElementSibling!.textContent).toBe('Preview Post');
   });
 
+  // The list's padding and the gaps of the list and of each item, by class.
+  const spacing = (node: Element) =>
+    node.className
+      .split(' ')
+      .filter((name) => /^(?:p[xy]?|gap)-/.test(name))
+      .sort();
+
+  // A list with hints is spaced as the canvas draws the channel list's +: 6px
+  // inside its edge, its items touching, 10px between an icon and its text. Its
+  // hints get 210px, so English's two read on one line and two, and "to" no
+  // longer sits alone on a line.
+  it('spaces a list with hints as the canvas does', async () => {
+    await mount(
+      actions().map((action) =>
+        action.key === 'preview'
+          ? { ...action, hint: 'Shows it as it will publish' }
+          : action
+      )
+    );
+    await click(trigger());
+
+    expect(spacing(panel()!)).toEqual(['p-[6px]']);
+    for (const item of document.querySelectorAll('[role="menuitem"]')) {
+      expect(spacing(item)).toEqual(['gap-[10px]', 'px-[10px]', 'py-[8px]']);
+    }
+  });
+
+  // The post card's list has no hints and keeps the spacing it had.
+  it('spaces a list without hints as before', async () => {
+    await mount();
+    await click(trigger());
+
+    expect(spacing(panel()!)).toEqual(['gap-[16px]', 'p-[12px]']);
+    for (const item of document.querySelectorAll('[role="menuitem"]')) {
+      expect(spacing(item)).toEqual(['gap-[12px]', 'px-[10px]', 'py-[8px]']);
+    }
+  });
+
   // An item a keyboard can reach but only a click can run leaves the keyboard
   // user stranded on it (FR-052).
   it.each([
