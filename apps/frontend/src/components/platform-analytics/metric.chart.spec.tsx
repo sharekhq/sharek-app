@@ -1,5 +1,7 @@
 import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
 import type { ChartConfiguration } from 'chart.js';
 
 // Analytics' chart of one metric over its period (spec 051, R20, FR-032 and
@@ -64,10 +66,26 @@ import { MetricChart } from '@gitroom/frontend/components/platform-analytics/met
 const realMatchMedia = window.matchMedia;
 let reduced = false;
 
+// The page's language resolves only to one with translations, so the cases
+// load the real en and ar.
+const readLocale = (lng: string) =>
+  JSON.parse(
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        `../../../../../libraries/react-shared-libraries/src/translation/locales/${lng}/translation.json`
+      ),
+      'utf8'
+    )
+  );
+
 beforeAll(async () => {
   await i18next.init({
     lng: 'en',
-    resources: { en: { translation: {} }, ar: { translation: {} } },
+    resources: {
+      en: { translation: readLocale('en') },
+      ar: { translation: readLocale('ar') },
+    },
   });
 });
 
@@ -215,7 +233,8 @@ describe('MetricChart', () => {
     await mount(days(REACH));
     const { y } = drawn().config.options.scales;
 
-    expect(y.ticks.callback(12400)).toBe('12.4 ألف');
+    // Intl keeps the number and the word together with a no-break space
+    expect(y.ticks.callback(12400)).toBe('12.4\u00a0ألف');
     expect(y.ticks.callback(500)).toBe('500');
   });
 
