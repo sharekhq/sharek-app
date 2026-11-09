@@ -514,6 +514,30 @@ describe('the keyboard', () => {
     expect(documentEscape).not.toHaveBeenCalled();
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  // The list renders into the body, after the rest of the page, so a Tab
+  // from it would leave the page: Tab and Shift+Tab close it, as a menu
+  // does, and give the focus back to the button.
+  it.each([
+    ['Tab from the last option', 'No brand', false],
+    ['Shift+Tab from the first option', 'Bayt Al Qahwa', true],
+  ])(
+    'closes on %s and gives the focus back to the button',
+    async (_name, from, shiftKey) => {
+      const host = await open();
+      option(from)!.focus();
+
+      await act(async () => {
+        document.activeElement!.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true })
+        );
+      });
+
+      expect(listbox()).toBeNull();
+      expect(document.activeElement).toBe(trigger(host));
+      expect(onPick).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('on a wide screen', () => {
