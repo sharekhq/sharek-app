@@ -754,7 +754,7 @@ describe('a change the server refuses or that fails', () => {
 });
 
 describe('the ×', () => {
-  it('draws an example’s × as a colour’s, the AI image window’s reference chip', async () => {
+  it('draws an example’s × as board Main’s dark chip over the image, and a colour’s as the AI image window’s reference chip', async () => {
     await mount(
       brand({
         examples: [image('e1'), image('e2', true)],
@@ -762,13 +762,23 @@ describe('the ×', () => {
       })
     );
 
-    const chip = (control: Element) => control.querySelector('span')!.className;
-    const colour = chip(button(card('Colours'), 'Remove colour #3B2417')!);
-    expect(colour.split(' ')).toEqual(
+    const chip = (control: Element) =>
+      control.querySelector('span')!.className.split(' ');
+    expect(chip(button(card('Colours'), 'Remove colour #3B2417')!)).toEqual(
       expect.arrayContaining(['rounded-full', 'bg-surface', 'border-line'])
     );
-    for (const example of buttons(card('Example posts'), 'Remove example')) {
-      expect(chip(example)).toBe(colour);
+    const examples = buttons(card('Example posts'), 'Remove example');
+    expect(examples).toHaveLength(2);
+    for (const example of examples) {
+      expect(chip(example)).toEqual(
+        expect.arrayContaining([
+          'w-[28px]',
+          'h-[28px]',
+          'rounded-[8px]',
+          'bg-black/55',
+          'text-white',
+        ])
+      );
     }
   });
 });
