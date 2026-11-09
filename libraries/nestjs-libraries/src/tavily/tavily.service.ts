@@ -55,6 +55,19 @@ const cut = (text: string) =>
     ? `${text.slice(0, TEXT_LIMIT)}\n\n[Cut at 8,000 characters.]`
     : text;
 
+// Tavily may answer with another form of the address asked (a trailing slash
+// added or dropped, an upper-case scheme or host, the default port), so the
+// two are compared once parsed. An address that doesn't parse is its own text.
+const comparable = (address: string) => {
+  try {
+    const parsed = new URL(address);
+    parsed.pathname = parsed.pathname.replace(/\/$/, '');
+    return parsed.href;
+  } catch {
+    return address;
+  }
+};
+
 // Every organization draws on one monthly Tavily credit pool, so each call
 // leaves a line to watch it by without Tavily's dashboard. A log line must
 // never fail a lookup or change its answer: everything is swallowed.
@@ -84,10 +97,12 @@ export class TavilyService {
         include_answer: false,
         include_raw_content: false,
       });
+      // Mastra checks the tool's answer against its output schema, so one
+      // result with no title or snippet would fail the whole search.
       const found = (results || []).map((p: any) => ({
-        title: p.title,
+        title: p.title || '',
         url: p.url,
-        snippet: p.content,
+        snippet: p.content || '',
       }));
       logLookup({ org, kind: 'search', ok: true, ms: Date.now() - started });
       return found;
@@ -109,15 +124,15 @@ export class TavilyService {
         format: 'markdown',
       });
       const pages: WebPage[] = urls.map((url) => {
-        const text = results?.find((p: any) => p.url === url)?.raw_content;
+        const asked = comparable(url);
+        const match = (p: any) => comparable(p.url) === asked;
+        const text = results?.find(match)?.raw_content;
         if (text) {
           return { url, text: cut(text) };
         }
         return {
           url,
-          error:
-            failed_results?.find((p: any) => p.url === url)?.error ||
-            UNREADABLE,
+          error: failed_results?.find(match)?.error || UNREADABLE,
         };
       });
       logLookup({
