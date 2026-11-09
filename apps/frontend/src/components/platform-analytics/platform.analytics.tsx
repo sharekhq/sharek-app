@@ -280,85 +280,90 @@ export const PlatformAnalytics = () => {
 
   return (
     <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
-      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px]">
-        {currentIntegration ? (
-          <>
-            {/* The top bar. At 1025px and below the channel button takes the
-                channel's place, and the period sits under it, the full
-                width. */}
-            <div className="flex items-center gap-[12px] mobile:flex-col mobile:items-stretch">
-              <div className="flex items-center gap-[12px] min-w-0 mobile:hidden">
-                <ChosenChannel channel={currentIntegration} />
+      {/* Held to the window, as the calendar's grid and Samy's chat are: the
+          numbers scroll in their own box, so the channel list stays put. On a
+          phone the box is static, and the page scrolls as before. */}
+      <div className="bg-newBgColorInner flex-1 min-w-0 relative">
+        <div className="absolute inset-0 overflow-y-auto flex flex-col p-[20px] mobile:p-[12px] gap-[12px] mobile:static scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+          {currentIntegration ? (
+            <>
+              {/* The top bar. At 1025px and below the channel button takes the
+                  channel's place, and the period sits under it, the full
+                  width. */}
+              <div className="flex items-center gap-[12px] mobile:flex-col mobile:items-stretch">
+                <div className="flex items-center gap-[12px] min-w-0 mobile:hidden">
+                  <ChosenChannel channel={currentIntegration} />
+                </div>
+                {channelButton}
+                {/* the calendar's view control, as one-click radios, one Tab
+                    stop with arrow keys as the channel list's */}
+                <div
+                  role="radiogroup"
+                  aria-label={t('period', 'Period')}
+                  onKeyDown={onRadioGroupKeyDown}
+                  className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full mobile:min-h-[44px]"
+                >
+                  {options.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={keys === option.key}
+                      tabIndex={keys === option.key ? 0 : -1}
+                      onClick={() => setKey(option.key)}
+                      className={clsx(
+                        'pt-[6px] pb-[5px] px-[12px] rounded-[6px] text-center whitespace-nowrap cursor-pointer coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] mobile:flex-1',
+                        FOCUS_RING,
+                        keys === option.key &&
+                          'text-brandText bg-brandSoft font-[600]'
+                      )}
+                    >
+                      {option.value}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <div className="flex-1">
+                {/* drawn anew for each channel and period, so a switch back
+                    loads its numbers again on mount */}
+                <RenderAnalytics
+                  key={`${currentIntegration.id}-${keys}`}
+                  integration={currentIntegration}
+                  date={keys}
+                />
+              </div>
+            </>
+          ) : data.length ? (
+            // Channels, but none to pick: their rows say why and offer the fix,
+            // so the page says to pick one; on a phone the button says it.
+            <>
               {channelButton}
-              {/* the calendar's view control, as one-click radios, one Tab
-                  stop with arrow keys as the channel list's */}
-              <div
-                role="radiogroup"
-                aria-label={t('period', 'Period')}
-                onKeyDown={onRadioGroupKeyDown}
-                className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full mobile:min-h-[44px]"
-              >
-                {options.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={keys === option.key}
-                    tabIndex={keys === option.key ? 0 : -1}
-                    onClick={() => setKey(option.key)}
-                    className={clsx(
-                      'pt-[6px] pb-[5px] px-[12px] rounded-[6px] text-center whitespace-nowrap cursor-pointer coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] mobile:flex-1',
-                      FOCUS_RING,
-                      keys === option.key &&
-                        'text-brandText bg-brandSoft font-[600]'
-                    )}
-                  >
-                    {option.value}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex-1">
-              {/* drawn anew for each channel and period, so a switch back
-                  loads its numbers again on mount */}
-              <RenderAnalytics
-                key={`${currentIntegration.id}-${keys}`}
-                integration={currentIntegration}
-                date={keys}
+              <EmptyState
+                illustration={<AnalyticsEmptyIllustration />}
+                title={t(
+                  'channel_hint_analytics',
+                  'Pick a channel to see its numbers.'
+                )}
+                className="mobile:hidden"
               />
-            </div>
-          </>
-        ) : data.length ? (
-          // Channels, but none to pick: their rows say why and offer the fix,
-          // so the page says to pick one; on a phone the button says it.
-          <>
-            {channelButton}
+            </>
+          ) : (
             <EmptyState
               illustration={<AnalyticsEmptyIllustration />}
               title={t(
-                'channel_hint_analytics',
-                'Pick a channel to see its numbers.'
+                'analytics_empty_title',
+                'Track how your content performs'
               )}
-              className="mobile:hidden"
+              description={t(
+                'analytics_empty_description',
+                'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
+              )}
+              note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
+              actionLabel={t('connect_a_channel', 'Connect a channel')}
+              onAction={() => router.push('/launches')}
             />
-          </>
-        ) : (
-          <EmptyState
-            illustration={<AnalyticsEmptyIllustration />}
-            title={t(
-              'analytics_empty_title',
-              'Track how your content performs'
-            )}
-            description={t(
-              'analytics_empty_description',
-              'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
-            )}
-            note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
-            actionLabel={t('connect_a_channel', 'Connect a channel')}
-            onAction={() => router.push('/launches')}
-          />
-        )}
+          )}
+        </div>
       </div>
       <SplitPanel
         open={channelsOpen}
