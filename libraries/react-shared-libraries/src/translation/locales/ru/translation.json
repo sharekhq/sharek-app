@@ -40,6 +40,7 @@
   "cancel": "Отмена",
   "connect": "Подключить",
   "public_api": "Публичный API",
+  "developers": "Разработчики",
   "check_n8n": "Ознакомьтесь с нашим пользовательским узлом N8N для Sharek.",
   "use_postiz_api_to_integrate_with_your_tools": "Используйте API Sharek для интеграции с вашими инструментами.",
   "read_how_to_use_it_over_the_documentation": "Прочитайте, как использовать его, в документации.",

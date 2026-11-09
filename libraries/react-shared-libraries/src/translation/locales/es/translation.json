@@ -40,6 +40,7 @@
   "cancel": "Cancelar",
   "connect": "Conectar",
   "public_api": "API pública",
+  "developers": "Desarrolladores",
   "check_n8n": "Echa un vistazo a nuestro nodo personalizado de N8N para Sharek.",
   "use_postiz_api_to_integrate_with_your_tools": "Usa la API de Sharek para integrarla con tus herramientas.",
   "read_how_to_use_it_over_the_documentation": "Lee cómo usarla en la documentación.",
