@@ -6,6 +6,7 @@ import i18next from 'i18next';
 import useCookie from 'react-use-cookie';
 import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
 import {
+  CHART_CARD_HUES,
   chartColorSchemes,
   chartTooltipColors,
 } from '@gitroom/frontend/components/analytics/chart-social';
@@ -30,13 +31,14 @@ export const pageLocale = () => {
 
 // One metric over its period on Analytics (spec 051, R20): every daily point,
 // on axes labelled with short dates and numbers in thousands in the page's
-// language, in the brand's colour. The canvas takes the keyboard too: the
-// arrow keys move the tooltip from day to day, and a live line reads the same
-// date and value out.
+// language, in the colour-table entry its metric is given. The canvas takes
+// the keyboard too: the arrow keys move the tooltip from day to day, and a
+// live line reads the same date and value out.
 export const MetricChart: FC<{
   label: string;
   data: TotalList[];
-}> = ({ label, data }) => {
+  color: (typeof CHART_CARD_HUES)[number];
+}> = ({ label, data, color }) => {
   const t = useT();
   const [mode, setMode] = useCookie('mode', 'dark');
   // The cookie is read once, so the theme switch on the open page comes
@@ -79,7 +81,7 @@ export const MetricChart: FC<{
     if (!data.length) {
       return;
     }
-    const colors = chartColorSchemes(mode).purple;
+    const colors = chartColorSchemes(mode)[color];
     // ChartSocial's tooltip colours; its border and body are the line and
     // muted tokens, which the gridlines and the ticks take
     const tooltip = chartTooltipColors(mode);
@@ -183,7 +185,7 @@ export const MetricChart: FC<{
     return () => {
       chart.current?.destroy();
     };
-  }, [data, format, mode, reducedMotion]);
+  }, [color, data, format, mode, reducedMotion]);
 
   // The tooltip on the day the keys reached, as a hover shows it, or on none.
   const show = (index: number | null) => {

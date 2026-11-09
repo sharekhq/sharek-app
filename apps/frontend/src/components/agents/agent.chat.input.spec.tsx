@@ -1,5 +1,7 @@
 import { act, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // How the chat wires up what's attached to a message. CopilotChat renders its
 // Input slot and the real provider runs, so an image reaches the message the way
@@ -229,6 +231,25 @@ describe('the box', () => {
     await act(async () => input().onChange('a poster'));
 
     expect(aiImageProps[aiImageProps.length - 1].value).toBe('a poster');
+  });
+
+  // The board leaves 20px under the box: the wrapper's pb-[20px], upstream's,
+  // and no bottom padding of global.scss's own, whose 15px made it 35 (walk 4)
+  it("leaves the board's 20px under it, the wrapper's alone", async () => {
+    const { host } = await mount();
+    const wrapper = Array.from(host.querySelectorAll('div')).find((div) =>
+      ['absolute', 'h-full', 'pb-[20px]'].every((name) =>
+        div.classList.contains(name)
+      )
+    );
+    const rule = fs
+      .readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
+      .match(
+        /\.agent \{\s*(?:\/\*[\s\S]*?\*\/\s*)?\.copilotKitInputContainer \{([^}]*)\}/
+      )![1];
+
+    expect(wrapper).toBeDefined();
+    expect(rule.trim()).toBe('padding: 0 24px !important;');
   });
 
   it('leaves unsent attachments behind on another thread', async () => {

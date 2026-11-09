@@ -2,6 +2,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { CHART_CARD_HUES as CARD_HUES } from '@gitroom/frontend/components/analytics/chart-social';
 import {
   MetricChart,
   pageLocale,
@@ -96,7 +97,8 @@ const AnalyticsChart: FC<{
   item: AnalyticsDataItem;
   total: string;
   date: number;
-}> = ({ item, total, date }) => {
+  index: number;
+}> = ({ item, total, date, index }) => {
   const t = useT();
   const name = metricLabel(item.label);
 
@@ -122,7 +124,11 @@ const AnalyticsChart: FC<{
           : t(`total_last_${date}_days`, `Total for the last ${date} days`)}
       </span>
       <div className="mt-[10px]">
-        <MetricChart label={name} data={item.data} />
+        <MetricChart
+          label={name}
+          data={item.data}
+          color={CARD_HUES[index % CARD_HUES.length]}
+        />
       </div>
     </figure>
   );
@@ -182,8 +188,14 @@ export const RenderAnalytics: FC<{
   const { integration, date } = props;
   const fetch = useFetch();
 
+  // A failed answer (a 502 while the backend restarts has a JSON body too) is
+  // an error SWR asks again for, never numbers to draw
   const load = useCallback(async () => {
-    return (await fetch(`/analytics/${integration.id}?date=${date}`)).json();
+    const response = await fetch(`/analytics/${integration.id}?date=${date}`);
+    if (!response.ok) {
+      throw new Error('Failed to load analytics');
+    }
+    return response.json();
   }, [integration, date]);
 
   // SWR's own loading, per channel and period, so a slower answer for another
@@ -261,6 +273,7 @@ export const RenderAnalytics: FC<{
                   item={item}
                   total={totals[index]}
                   date={date}
+                  index={index}
                 />
               )
           )}

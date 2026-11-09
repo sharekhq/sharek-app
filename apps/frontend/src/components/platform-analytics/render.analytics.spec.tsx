@@ -22,18 +22,20 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 // MetricChart draws on chart.js, which needs a canvas the test DOM doesn't
 // have, and metric.chart.spec covers what it draws; the stand-in shows the
-// name and the points it was given. The page's locale is the real one.
+// name, the points and the colour it was given. The page's locale is the real
+// one.
 jest.mock(
   '@gitroom/frontend/components/platform-analytics/metric.chart',
   () => ({
     ...jest.requireActual(
       '@gitroom/frontend/components/platform-analytics/metric.chart'
     ),
-    MetricChart: (props: { label: string; data: unknown }) => (
+    MetricChart: (props: { label: string; data: unknown; color: string }) => (
       <div
         data-testid="metric-chart"
         data-label={props.label}
         data-points={JSON.stringify(props.data)}
+        data-color={props.color}
       />
     ),
   })
@@ -134,7 +136,7 @@ const channel = { id: 'ch1' } as Integration;
 // answering `items`. A fresh SWR cache per render, so one case's answer never
 // reaches the next.
 const render = async (items: unknown[], date = 7) => {
-  request.mockResolvedValue({ json: async () => items });
+  request.mockResolvedValue({ ok: true, json: async () => items });
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -290,6 +292,27 @@ describe('tiles and charts', () => {
         expect(tile!.closest('figure')).toBeNull();
       }
     );
+  });
+
+  // Each chart takes the supporting brand hue of its metric's place in the
+  // list, as the cards did before spec 051 and post statistics still do, so a
+  // metric keeps its colour whether the ones before it are tiles or charts.
+  it("colours each chart by its metric's place in the list, cycling the six hues", async () => {
+    const host = await render([
+      metric('Followers', [480]),
+      metric('Page Impressions', [1, 2, 3]),
+      metric('Page followers', [4, 5, 6]),
+      metric('Reach', [7, 8, 9]),
+      metric('Likes', [1]),
+      metric('Views', [1]),
+      metric('Page Impressions', [2, 3, 4]),
+    ]);
+
+    expect(
+      Array.from(host.querySelectorAll('[data-testid="metric-chart"]')).map(
+        (chart) => chart.getAttribute('data-color')
+      )
+    ).toEqual(['saffron', 'fayrouz', 'palm', 'pomegranate']);
   });
 
   // A totals platform always sends its one point, so a metric with none this
@@ -516,6 +539,58 @@ describe('a channel with no data at all', () => {
   });
 });
 
+// A failed answer isn't numbers. A 502 while the backend restarts comes back
+// with a JSON body, an object, which the page once took for its list and broke
+// on (Sentry 159718423, after the 206 Redeploy): it's an error SWR asks again
+// for, and the numbers show once an answer comes.
+describe('a failed answer', () => {
+  const failed = {
+    ok: false,
+    status: 502,
+    json: async () => ({ statusCode: 502, message: 'Bad Gateway' }),
+  };
+  const draw = async (config: Record<string, number> = {}) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, ...config }}
+        >
+          <RenderAnalytics integration={channel} date={7} />
+        </SWRConfig>
+      );
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    return host;
+  };
+
+  it('draws no tile, chart or "needs to be refreshed", and throws nothing', async () => {
+    request.mockResolvedValue(failed);
+    const host = await draw();
+
+    expect(request).toHaveBeenCalledWith('/analytics/ch1?date=7');
+    expect(host.querySelector('figure')).toBeNull();
+    expect(host.textContent).not.toContain(
+      'This channel needs to be refreshed to display analytics'
+    );
+  });
+
+  it('is asked again, and the numbers show once an answer comes', async () => {
+    request.mockResolvedValueOnce(failed).mockResolvedValue({
+      ok: true,
+      json: async () => [metric('Reach', [1, 2, 3])],
+    });
+    const host = await draw({ errorRetryInterval: 1 });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('figure')).not.toBeNull();
+  });
+});
+
 // The page draws RenderAnalytics anew for each channel and period, by its key,
 // and SWR keeps each one's numbers under its own key. So a channel shows its
 // own numbers or its own loading, never another's: from the cache on a quick
@@ -536,7 +611,7 @@ describe('switching channels and periods', () => {
         new Promise((resolve) =>
           pending.push({
             url,
-            answer: (items) => resolve({ json: async () => items }),
+            answer: (items) => resolve({ ok: true, json: async () => items }),
           })
         )
     );

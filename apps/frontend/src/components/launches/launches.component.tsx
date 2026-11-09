@@ -239,69 +239,76 @@ export const LaunchesComponent = () => {
 
   // @ts-ignore
   return (
-    <DNDProvider>
-      {/* One preview for every drag under the provider — the backends draw
+    // One box in the shell's row: the provider renders an empty box for its
+    // preview portal after its children, which the row's 1px gap would set
+    // apart as a strip down the end edge.
+    <div className="flex flex-1 min-w-0">
+      <DNDProvider>
+        {/* One preview for every drag under the provider — the backends draw
           either a filled rectangle or nothing at all on their own. */}
-      <CalendarDragLayer />
-      <Onboarding />
-      <ChannelsAfterPayment integrations={integrations} />
-      <HubspotInstalled />
-      <CalendarWeekProvider integrations={sortedIntegrations}>
-        {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
+        <CalendarDragLayer />
+        <Onboarding />
+        <ChannelsAfterPayment integrations={integrations} />
+        <HubspotInstalled />
+        <CalendarWeekProvider integrations={sortedIntegrations}>
+          <div className="flex flex-1 min-w-0 gap-[1px]">
+            {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
             pinned to the filter bar's min-content (847px), which starves the
             channels rail at every width below ~1220. */}
-        <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px] mobile:min-h-[600px]">
-          <Filters
-            onOpenChannels={() => setChannelsOpen(true)}
-            channelsOpen={channelsOpen}
-            update={() => update(true)}
-          />
-          <div className="flex-1 flex">
-            <Calendar />
+            <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px] mobile:min-h-[600px]">
+              <Filters
+                onOpenChannels={() => setChannelsOpen(true)}
+                channelsOpen={channelsOpen}
+                update={() => update(true)}
+              />
+              <div className="flex-1 flex">
+                <Calendar />
+              </div>
+            </div>
+            <SplitPanel
+              open={channelsOpen}
+              onClose={() => setChannelsOpen(false)}
+              collapsed={railCollapsed}
+              width="w-[288px]"
+              label={t('channels', 'Channels')}
+            >
+              <CalendarChannels
+                channels={sortedIntegrations}
+                rowMenu={(channel) => {
+                  // the full channel, for what only the menu reads
+                  const integration = sortedIntegrations.find(
+                    ({ id }) => id === channel.id
+                  );
+                  return (
+                    <Menu
+                      label={t('channel_menu', 'Channel menu')}
+                      canChangeProfilePicture={integration.changeProfilePicture}
+                      canChangeNickName={integration.changeNickName}
+                      refreshChannel={reconnectChannel}
+                      mutate={mutate}
+                      onChange={update}
+                      id={integration.id}
+                      canEnable={
+                        user?.totalChannels! > totalNonDisabledChannels &&
+                        integration.disabled
+                      }
+                      canDisable={!integration.disabled}
+                    />
+                  );
+                }}
+                onMoveToCustomer={changeItemGroup}
+                onRenameCustomer={renameCustomer}
+                update={() => update(true)}
+                collapsed={railCollapsed}
+                onToggleCollapse={() =>
+                  setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+                }
+                onDone={() => setChannelsOpen(false)}
+              />
+            </SplitPanel>
           </div>
-        </div>
-        <SplitPanel
-          open={channelsOpen}
-          onClose={() => setChannelsOpen(false)}
-          collapsed={railCollapsed}
-          width="w-[288px]"
-          label={t('channels', 'Channels')}
-        >
-          <CalendarChannels
-            channels={sortedIntegrations}
-            rowMenu={(channel) => {
-              // the full channel, for what only the menu reads
-              const integration = sortedIntegrations.find(
-                ({ id }) => id === channel.id
-              );
-              return (
-                <Menu
-                  label={t('channel_menu', 'Channel menu')}
-                  canChangeProfilePicture={integration.changeProfilePicture}
-                  canChangeNickName={integration.changeNickName}
-                  refreshChannel={reconnectChannel}
-                  mutate={mutate}
-                  onChange={update}
-                  id={integration.id}
-                  canEnable={
-                    user?.totalChannels! > totalNonDisabledChannels &&
-                    integration.disabled
-                  }
-                  canDisable={!integration.disabled}
-                />
-              );
-            }}
-            onMoveToCustomer={changeItemGroup}
-            onRenameCustomer={renameCustomer}
-            update={() => update(true)}
-            collapsed={railCollapsed}
-            onToggleCollapse={() =>
-              setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-            }
-            onDone={() => setChannelsOpen(false)}
-          />
-        </SplitPanel>
-      </CalendarWeekProvider>
-    </DNDProvider>
+        </CalendarWeekProvider>
+      </DNDProvider>
+    </div>
   );
 };

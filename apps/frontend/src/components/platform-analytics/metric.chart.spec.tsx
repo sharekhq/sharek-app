@@ -6,7 +6,7 @@ import type { ChartConfiguration } from 'chart.js';
 
 // Analytics' chart of one metric over its period (spec 051, R20, FR-032 and
 // FR-052): every daily point on labelled axes with light gridlines, in the
-// brand's colour, with a hover tooltip and the same readout from the keyboard,
+// colour-table entry its metric is given, with a hover tooltip and the same readout from the keyboard,
 // an empty state, and no motion under reduced motion (C26). chart.js paints on
 // a canvas the test DOM can't draw, so it's replaced by a recorder of what each
 // chart was built with and what it was then asked to do.
@@ -58,7 +58,10 @@ jest.mock('react-use-cookie', () => {
 });
 
 import i18next from 'i18next';
-import { chartColorSchemes } from '@gitroom/frontend/components/analytics/chart-social';
+import {
+  CHART_CARD_HUES,
+  chartColorSchemes,
+} from '@gitroom/frontend/components/analytics/chart-social';
 import { REDUCED_MOTION_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { modeEmitter } from '@gitroom/frontend/components/layout/mode.component';
 import { MetricChart } from '@gitroom/frontend/components/platform-analytics/metric.chart';
@@ -131,13 +134,19 @@ const days = (totals: number[]) =>
 
 type Point = { total: number; date: string };
 
-const mount = async (data: Point[], label = 'Reach') => {
+type Hue = (typeof CHART_CARD_HUES)[number];
+
+const mount = async (
+  data: Point[],
+  label = 'Reach',
+  color: Hue = 'pomegranate'
+) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(<MetricChart label={label} data={data} />);
+    root.render(<MetricChart label={label} data={data} color={color} />);
   });
   return host;
 };
@@ -300,12 +309,12 @@ describe('MetricChart', () => {
     ['dark', 'rgba(255,255,255,0.14)', '#AEA09D'],
     ['light', '#CFC9C6', '#6F635F'],
   ])(
-    'in the %s theme, draws light horizontal gridlines and the one data colour, the brand entry of the colour table',
+    'in the %s theme, draws light horizontal gridlines and one data colour, the colour-table entry it is given',
     async (mode, line, muted) => {
       mockMode = mode;
-      await mount(days(REACH));
+      await mount(days(REACH), 'Reach', 'saffron');
       const { options, data } = drawn().config;
-      const brand = chartColorSchemes(mode).purple;
+      const hue = chartColorSchemes(mode).saffron;
 
       expect(options.scales.y.grid.color).toBe(line);
       expect(options.scales.x.grid.display).toBe(false);
@@ -315,13 +324,39 @@ describe('MetricChart', () => {
       expect(data.datasets).toHaveLength(1);
       expect(data.datasets[0]).toEqual(
         expect.objectContaining({
-          borderColor: brand.border,
-          backgroundColor: brand.end,
-          pointHoverBackgroundColor: brand.border,
+          borderColor: hue.border,
+          backgroundColor: hue.end,
+          pointHoverBackgroundColor: hue.border,
         })
       );
     }
   );
+
+  // Each metric's colour comes from the per-card table post statistics use
+  // too, so the six supporting brand hues are all drawable (walk 4)
+  it.each(CHART_CARD_HUES)('draws in %s when given it', async (color) => {
+    await mount(days(REACH), 'Reach', color);
+    const [dataset] = drawn().config.data.datasets;
+
+    expect(dataset.borderColor).toBe(chartColorSchemes('dark')[color].border);
+    expect(dataset.backgroundColor).toBe(chartColorSchemes('dark')[color].end);
+  });
+
+  // the same points, so only the colour changes
+  it('draws again in a new colour when given one', async () => {
+    const data = days(REACH);
+    const host = await mount(data, 'Reach', 'saffron');
+    await act(async () => {
+      mounted[0].render(
+        <MetricChart label="Reach" data={data} color="lapis" />
+      );
+    });
+
+    expect(host.querySelector('canvas')).not.toBeNull();
+    expect(drawn().config.data.datasets[0].borderColor).toBe(
+      chartColorSchemes('dark').lapis.border
+    );
+  });
 
   it.each([
     ['dark', '#1D1518', '#F7F1EF', '#AEA09D', 'rgba(255,255,255,0.14)'],

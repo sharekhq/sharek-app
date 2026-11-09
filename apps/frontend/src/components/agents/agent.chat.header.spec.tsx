@@ -764,7 +764,8 @@ describe('ChannelSummary', () => {
     expect(classes(name)).toContain('[@media(max-width:1279px)]:hidden');
     // shown on a wide screen
     expect(classes(name)).not.toContain('hidden');
-    expect(line.querySelectorAll('[class*="hidden"]')).toHaveLength(1);
+    // the only words that drop; the arrow is decoration, with its own case
+    expect(line.querySelectorAll('[class*="hidden"]:not(svg)')).toHaveLength(1);
     expect(line.textContent).toBe('Samy will useBayt Al Qahwa· 3 channels');
     expect(line.getAttribute('aria-label')).toBe(
       'Samy will use Bayt Al Qahwa, 3 channels. Change channels'
@@ -793,6 +794,22 @@ describe('ChannelSummary', () => {
       ['SPAN', '· 3 channels'],
       ['svg', ''],
     ]);
+  });
+
+  // The down arrow promises something opens. At 1025px and below choosing the
+  // pill opens the channel sheet; on a wide screen it only moves the focus to
+  // the list beside it, so the arrow shows on the narrow side alone (walk 4,
+  // maintainer).
+  it('shows its down arrow only at 1025px and below, where it opens the channel sheet', async () => {
+    const { host } = await render(<ChannelSummary />, {
+      properties: [channel('a', BAYT)],
+    });
+    const arrow = summary(host).querySelector('svg')!;
+
+    expect(arrow.getAttribute('aria-hidden')).toBe('true');
+    expect(classes(arrow)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:block'])
+    );
   });
 
   it('shows the first three pictures, as decoration', async () => {

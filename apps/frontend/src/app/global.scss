@@ -841,11 +841,12 @@ html[dir='rtl'] .lbox {
 }
 
 .agent {
-  /* The 24px inline padding this surface has always had, plus the bottom gap
-     the popup gets from the rule beside `.poweredBy`. Samy's chat renders its
-     own input and never mounts that tag, so it never had the gap at all. */
+  /* The 24px inline padding this surface has always had, upstream's, and no
+     bottom padding: the chat's wrapper already leaves the board's 20px under
+     the box (`pb-[20px]` in agent.chat.tsx), and the popup's 15px from the
+     rule beside `.poweredBy` would make it 35 here. */
   .copilotKitInputContainer {
-    padding: 0 24px 15px !important;
+    padding: 0 24px !important;
   }
 
   /* v3 round 4: the user's own messages read soft, not shouting — the brand

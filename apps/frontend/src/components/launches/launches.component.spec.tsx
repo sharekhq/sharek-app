@@ -168,8 +168,15 @@ jest.mock('react-dnd', () => ({
   useDrag: () => [{}, () => undefined, () => undefined],
   useDrop: () => [{}, () => undefined],
 }));
+// As react-dnd-multi-backend's DndProvider, which renders an empty box for its
+// preview portal after its children.
 jest.mock('@gitroom/frontend/components/launches/helpers/dnd.provider', () => ({
-  DNDProvider: ({ children }: { children: ReactNode }) => children,
+  DNDProvider: ({ children }: { children: ReactNode }) => (
+    <>
+      {children}
+      <div data-testid="dnd-preview-portal" />
+    </>
+  ),
 }));
 jest.mock('@gitroom/frontend/components/launches/calendar.drag.layer', () => ({
   CalendarDragLayer: () => null,
@@ -295,6 +302,25 @@ describe('the layout (FR-001)', () => {
       marker('filters')!.compareDocumentPosition(marker('calendar')!) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  // The shell's row draws a 1px line in each of its gaps, and the drag
+  // provider's empty box came last in it, so Calendar alone had a 1px strip
+  // down its end edge (walk 4). The page hands the row one box, as Samy and
+  // Analytics do, and the column and the list keep their 1px gap inside it.
+  it("hands the shell's row one box, with the column and the list 1px apart inside it", async () => {
+    await mount();
+    const page = host.firstElementChild!;
+
+    expect(host.children).toHaveLength(1);
+    expect(classes(page)).toEqual(
+      expect.arrayContaining(['flex', 'flex-1', 'min-w-0'])
+    );
+    expect(classes(page)).not.toContain('gap-[1px]');
+    expect(row()).toEqual([column(), marker('split-panel')]);
+    expect(classes(marker('split-panel')!.parentElement)).toEqual(
+      expect.arrayContaining(['flex', 'flex-1', 'min-w-0', 'gap-[1px]'])
+    );
   });
 
   it('keeps the calendar column at 20px of padding, 12px on a phone, with a 600px floor there', async () => {

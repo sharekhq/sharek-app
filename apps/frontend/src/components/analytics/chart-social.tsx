@@ -40,7 +40,8 @@ function mergeDataPoints(data: TotalList[], numPoints: number): TotalList[] {
 // Series colors match the legend badges in statistics.tsx / render.analytics.tsx:
 // purple→brand, green→success, blue→info. Literal per-theme RGB because Chart.js
 // paints on canvas and can't resolve CSS vars (data-model §8).
-// Exported for Analytics' MetricChart, which takes the brand entry.
+// Exported for Analytics' MetricChart, which takes its metric's CHART_CARD_HUES
+// entry, as the cards here do.
 export const chartColorSchemes = (mode: string) => ({
   purple: {
     start: 'rgba(185, 45, 67, 0.8)',

@@ -327,9 +327,39 @@ describe('the layout (FR-001, C6)', () => {
       expect.arrayContaining(['min-w-0', 'mobile:flex-col'])
     );
     expect(classes(row().children[0])).toEqual(
-      expect.arrayContaining(['flex-1', 'min-w-0', 'mobile:p-[12px]'])
+      expect.arrayContaining(['flex-1', 'min-w-0'])
+    );
+    expect(classes(row().children[0].firstElementChild)).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[12px]'])
     );
     expect(row().outerHTML).not.toMatch(/\bphone:/);
+  });
+
+  // Calendar and Samy hold their page to the window, their long part in an
+  // absolute box that scrolls, so their channel list stays put. Analytics'
+  // numbers grew the whole document instead, and the list's header went up
+  // with the charts (walk 4). On a phone the box is static, and the page
+  // scrolls as before.
+  it('scrolls the numbers in a box of their own, so the list stays put, and leaves a phone scrolling the page', async () => {
+    await mount();
+    const content = row().children[0];
+    const box = content.firstElementChild!;
+
+    expect(content.children).toHaveLength(1);
+    expect(classes(content)).toEqual(
+      expect.arrayContaining(['flex-1', 'min-w-0', 'relative'])
+    );
+    expect(classes(box)).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'inset-0',
+        'overflow-y-auto',
+        'flex',
+        'flex-col',
+        'mobile:static',
+      ])
+    );
+    expect(box.contains(chart())).toBe(true);
   });
 });
 
