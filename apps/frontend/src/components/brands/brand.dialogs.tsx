@@ -14,7 +14,7 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
-import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
+import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import {
   Brand,
   useBrandChange,
@@ -106,16 +106,8 @@ const NewBrand: FC<{
             FOCUS_RING
           )}
         >
-          {/* the look of the channel list's Check */}
-          <span
-            aria-hidden="true"
-            className={clsx(
-              'flex-none flex border rounded-[6px] w-[20px] h-[20px] justify-center items-center transition-colors',
-              move ? 'bg-brand border-brand' : 'border-muted'
-            )}
-          >
-            {move && <CheckmarkIcon className="text-white" />}
-          </span>
+          {/* the channel list's Check, which the offer's button ticks */}
+          <Check value={move} onChange={() => {}} />
           <span className="flex flex-col gap-[3px]">
             <span className="text-[14px] font-[600] text-ink">
               {t(

@@ -23,11 +23,8 @@ import {
   compareChannels,
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
-import {
-  CheckmarkIcon,
-  CloseIcon,
-  PlusIcon,
-} from '@gitroom/frontend/components/ui/icons';
+import { Check } from '@gitroom/frontend/components/launches/tags.component';
+import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   Brand,
@@ -258,16 +255,8 @@ const ChannelPicker: FC<{
                   )}
                 </span>
               </span>
-              {/* the look of the channel list's Check */}
-              <span
-                aria-hidden="true"
-                className={clsx(
-                  'flex-none flex border rounded-[6px] w-[20px] h-[20px] justify-center items-center transition-colors',
-                  checked ? 'bg-brand border-brand' : 'border-muted'
-                )}
-              >
-                {checked && <CheckmarkIcon className="text-white" />}
-              </span>
+              {/* the channel list's Check, which the row's button ticks */}
+              <Check value={checked} onChange={() => {}} />
             </button>
           );
         })}
