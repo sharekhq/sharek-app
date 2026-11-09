@@ -592,8 +592,9 @@ const componentsIn = (dir: string) => {
 // The files that render these strings: the Brands components, among them the
 // brand list part 2 shares, the page, which sets the title, and the sidebar;
 // for part 2, Samy's components, where the chip and the note sit, and the AI
-// image dialog with its reference images. A file not written yet reads as
-// empty, so its keys fail to be found rather than the suite failing to load.
+// image dialog with its Brand field and reference images. A file not written
+// yet reads as empty, so its keys fail to be found rather than the suite
+// failing to load.
 const SOURCES = () =>
   [
     ...componentsIn('components/brands'),
@@ -601,6 +602,7 @@ const SOURCES = () =>
     path.join(FRONTEND_DIR, 'components/layout/top.menu.tsx'),
     ...componentsIn('components/agents'),
     path.join(FRONTEND_DIR, 'components/launches/ai.image.tsx'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.brand.tsx'),
     path.join(FRONTEND_DIR, 'components/launches/ai.image.references.tsx'),
   ]
     .filter((file) => fs.existsSync(file))
