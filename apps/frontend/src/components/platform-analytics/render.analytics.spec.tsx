@@ -521,8 +521,9 @@ describe('a channel with no data at all', () => {
 // own numbers or its own loading, never another's: from the cache on a quick
 // switch back, which SWR doesn't ask again within its 2s dedupe interval, and
 // past that interval fetched again on mount, its cached numbers kept on screen
-// meanwhile.
-describe('switching channels', () => {
+// meanwhile. A period is a key of its own too, so the channel's numbers for
+// another period are never shown as this one's.
+describe('switching channels and periods', () => {
   const IG = '/analytics/ig?date=7';
   const AF = '/analytics/af?date=7';
   // The requests not yet answered, which a case answers in its own order.
@@ -544,8 +545,8 @@ describe('switching channels', () => {
     pending.length = 0;
   });
 
-  // RenderAnalytics in one SWR cache, drawn for a channel over 7 days with the
-  // page's key, or without it as the same component.
+  // RenderAnalytics in one SWR cache, drawn for a channel over 7 days, or the
+  // period given, with the page's key, or without it as the same component.
   const page = (dedupingInterval?: number) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -553,14 +554,14 @@ describe('switching channels', () => {
     mounted.push(root);
     const cache = new Map();
     const config = dedupingInterval === undefined ? {} : { dedupingInterval };
-    const show = async (id: string, keyed = true) => {
+    const show = async (id: string, keyed = true, date = 7) => {
       await act(async () => {
         root.render(
           <SWRConfig value={{ provider: () => cache, ...config }}>
             <RenderAnalytics
-              key={keyed ? `${id}-7` : undefined}
+              key={keyed ? `${id}-${date}` : undefined}
               integration={{ id } as Integration}
-              date={7}
+              date={date}
             />
           </SWRConfig>
         );
@@ -609,6 +610,25 @@ describe('switching channels', () => {
     expect(spinning(host)).toBe(false);
     // asked once each
     expect(request.mock.calls.map(([url]) => url)).toEqual([IG, AF]);
+  });
+
+  it("fetches a period switched to within the interval, and shows its numbers, not the other period's", async () => {
+    const IG_30 = '/analytics/ig?date=30';
+    const { host, show } = page();
+    await show('ig');
+    await answer(IG, [1, 2, 3]);
+    expect(headline(host)).toBe('6');
+
+    await show('ig', true, 30);
+    await wait(20);
+
+    expect(request.mock.calls.map(([url]) => url)).toEqual([IG, IG_30]);
+    expect(headline(host)).toBeNull();
+    expect(spinning(host)).toBe(true);
+
+    await answer(IG_30, [10, 20, 30]);
+    expect(headline(host)).toBe('60');
+    expect(host.textContent).toContain('Total for the last 30 days');
   });
 
   it('fetches a channel switched back to past the interval again on mount, keeping its numbers on screen meanwhile', async () => {
