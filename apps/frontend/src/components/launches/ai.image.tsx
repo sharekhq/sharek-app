@@ -708,6 +708,9 @@ const AiImageModal: FC<{
   };
 
   const places = IMAGE_REFERENCE_MAX - (liveLogo(brand) ? 1 : 0);
+  // A brand picked after the user's images can leave one more than fits; the
+  // row under them says so, and nothing goes until it fits.
+  const overflow = references.length > places;
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
@@ -1248,7 +1251,7 @@ const AiImageModal: FC<{
                 {t('image_uses_one_credit', 'Uses 1 image credit')}
               </CostNote>
               <div className="flex-1" />
-              <Button type="button" onClick={generate}>
+              <Button type="button" onClick={generate} disabled={overflow}>
                 {t('generate', 'Generate')}
               </Button>
             </>

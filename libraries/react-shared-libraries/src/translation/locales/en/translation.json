@@ -700,6 +700,7 @@
   "brands_ref_help": "Optional. Your images take the place of the brand's examples; its logo stays.",
   "brands_ref_help_own_one": "Your image takes the place of the brand's examples; its logo stays.",
   "brands_ref_help_own_other": "Your images take the place of the brand's examples; its logo stays.",
+  "brands_ref_too_many": "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.",
   "start_7_days_free_trial": "Start 7 days free trial",
   "change_language": "Select Language",
   "that_a_wrap": "That's a wrap!\n\nIf you enjoyed this thread:\n\n1. Follow me @{{username}} for more of these\n2. RT the tweet below to share this thread with your audience\n",

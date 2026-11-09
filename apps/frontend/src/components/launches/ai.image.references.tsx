@@ -41,6 +41,10 @@ export const ReferenceImages: FC<{
   const mediaDirectory = useMediaDirectory();
   // In the order the render receives them.
   const images = lead ? [lead, ...value] : value;
+  // More than fit: a brand picked after they were attached took a place for
+  // its logo. The window holds the render until one is removed, or No brand
+  // gives the place back.
+  const over = value.length > max;
 
   // Opened the way MultiMediaComponent opens the library, and limited to the
   // slots left, so a pick that will not fit is refused there with a reason
@@ -168,6 +172,11 @@ export const ReferenceImages: FC<{
                 'image_edit_reference_hint',
                 "Image 1 is the one you're editing. Add more to bring something in, like a logo."
               )
+            : branded && over
+            ? t(
+                'brands_ref_too_many',
+                "Your images don't all fit beside the brand's logo. Remove one, or pick No brand."
+              )
             : branded && value.length
             ? t(
                 'brands_ref_help_own',
@@ -185,8 +194,16 @@ export const ReferenceImages: FC<{
               )}
         </span>
         {/* Fixed direction, as the prompt's counter has. Counts every image
-            the render takes, the one being edited included. */}
-        <span dir="ltr" className="flex-none tabular-nums text-muted">
+            the render takes, the one being edited included. Over the limit
+            it is in the error tone: unlike the prompt's ceiling, the count
+            isn't one the render takes. */}
+        <span
+          dir="ltr"
+          className={clsx(
+            'flex-none tabular-nums',
+            over ? 'text-error font-[600]' : 'text-muted'
+          )}
+        >
           {t('prompt_counter', '{{used}} / {{max}}', {
             used: images.length,
             max: max + (lead ? 1 : 0),
