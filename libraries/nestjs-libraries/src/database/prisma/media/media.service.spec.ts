@@ -591,7 +591,8 @@ describe('generateImageWithPrompt', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       undefined,
-      0
+      0,
+      undefined
     );
   });
 
@@ -606,7 +607,8 @@ describe('generateImageWithPrompt', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       'a watercolour painting with soft bleeding washes',
-      0
+      0,
+      undefined
     );
   });
 
@@ -1113,7 +1115,8 @@ describe('generateImageWithPrompt with references', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       'a watercolour painting with soft bleeding washes',
-      2
+      2,
+      undefined
     );
   });
 
@@ -1307,7 +1310,11 @@ describe('editImageWithPrompt', () => {
       edit({ references: ['logo'], style: 'watercolor' })
     );
 
-    expect(ai.generateEditPrompt).toHaveBeenCalledWith('اجعل الخلفية بيضاء', 2);
+    expect(ai.generateEditPrompt).toHaveBeenCalledWith(
+      'اجعل الخلفية بيضاء',
+      2,
+      undefined
+    );
     expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     expect(ai.editImageAtSize).toHaveBeenCalledWith(
       'an edit instruction',
@@ -1486,7 +1493,8 @@ describe('generateImageFromLinks', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       prompt,
       undefined,
-      0
+      0,
+      undefined
     );
     expect(ai.generateImageAtSize).toHaveBeenCalledWith(
       'an enhanced scene',
@@ -1520,7 +1528,8 @@ describe('generateImageFromLinks', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       prompt,
       undefined,
-      4
+      4,
+      undefined
     );
     expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
     expect(ai.editImageAtSize.mock.calls[0][2]).toHaveLength(4);
@@ -1571,7 +1580,8 @@ describe('generateImageFromLinks', () => {
     );
     expect(ai.generateEditPrompt).toHaveBeenCalledWith(
       'make the background darker',
-      2
+      2,
+      undefined
     );
     expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     const [, size, inputs] = ai.editImageAtSize.mock.calls[0];
@@ -2127,7 +2137,8 @@ describe('with a brand', () => {
       expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
         prompt,
         undefined,
-        0
+        0,
+        undefined
       );
       expect(ai.generateImageAtSize).toHaveBeenCalledWith(
         'an enhanced scene',
@@ -2151,7 +2162,8 @@ describe('with a brand', () => {
       expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
         prompt,
         undefined,
-        1
+        1,
+        undefined
       );
     });
 
@@ -2330,7 +2342,7 @@ describe('with a brand', () => {
       await editWith(service, edit());
 
       expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', ['shown']);
-      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 1);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 1, undefined);
     });
 
     it('without a brand, asks for no kit and asks the improver what it always has', async () => {
@@ -2348,7 +2360,7 @@ describe('with a brand', () => {
         'shown',
         'a',
       ]);
-      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 2);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 2, undefined);
     });
 
     describe('refuses before any credit exists', () => {

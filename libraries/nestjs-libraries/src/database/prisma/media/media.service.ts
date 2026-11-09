@@ -480,9 +480,6 @@ export class MediaService {
     // The wire carries a style id; the phrase behind it is resolved here so the
     // client cannot hand the model instructions of its own.
     const style = IMAGE_STYLES.find((entry) => entry.id === dto.style)?.prompt;
-    // Handed on only when part of a kit goes along, so without one the
-    // improver is asked exactly what it always was.
-    const brand: [BrandBlock?] = prepared.brand ? [prepared.brand.block] : [];
 
     let saved;
     try {
@@ -498,7 +495,7 @@ export class MediaService {
             dto.prompt,
             style,
             prepared.inputs.length,
-            ...brand
+            prepared.brand?.block
           )) || dto.prompt
       );
     } catch (err) {
@@ -547,9 +544,6 @@ export class MediaService {
     dto: EditImageWithPromptDto,
     prepared: Awaited<ReturnType<MediaService['resolveImageEdit']>>
   ) {
-    // As for a generation: without a kit, today's exact request.
-    const brand: [BrandBlock?] = prepared.brand ? [prepared.brand.block] : [];
-
     let saved;
     try {
       saved = await this.renderImage(
@@ -561,7 +555,7 @@ export class MediaService {
           (await this._openAi.generateEditPrompt(
             dto.prompt,
             prepared.inputs.length,
-            ...brand
+            prepared.brand?.block
           )) || dto.prompt
       );
     } catch (err) {
