@@ -80,7 +80,7 @@ import {
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
   const params = useParams<{ id: string }>();
-  const { properties } = useContext(PropertiesContext);
+  const { properties, brand } = useContext(PropertiesContext);
   const t = useT();
   // A chat started at /agents/new gets its id here, as an open chat gets its
   // own from the address. Given none, CopilotKit makes one for its context,
@@ -104,6 +104,9 @@ export const AgentChat: FC = () => {
         // Samy states this language in its system prompt instead of inferring
         // it from the conversation, which it got wrong (Spanish, unprompted).
         language: i18next.language,
+        // The brand chip's choice, for Samy's images. Left out while the chip
+        // waits, so the image tool goes by the selected channels (R14).
+        ...(brand ? { brand } : {}),
       }}
     >
       <Hooks />
