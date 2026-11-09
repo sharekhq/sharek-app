@@ -370,6 +370,39 @@ describe('tiles and charts', () => {
   );
 });
 
+// The headlines read numbers in the page's language, as the chart's axis and
+// readout do: Latin digits on an Arabic page, whatever the browser's own.
+describe("numbers in the page's language", () => {
+  const RealNumberFormat = Intl.NumberFormat;
+
+  beforeEach(async () => {
+    await i18next.changeLanguage('ar');
+    // a browser set to Egyptian Arabic, whose digits are Arabic-Indic
+    Intl.NumberFormat = function (
+      locales?: string | string[],
+      options?: Intl.NumberFormatOptions
+    ) {
+      return new RealNumberFormat(locales ?? 'ar-EG', options);
+    } as typeof Intl.NumberFormat;
+  });
+  afterEach(() => {
+    Intl.NumberFormat = RealNumberFormat;
+  });
+
+  it('heads a chart and a tile with Latin digits on an Arabic page', async () => {
+    const host = await render([
+      metric('IMPRESSION', [0, 1234]),
+      metric('Reach', [1000, 2000, 2345]),
+    ]);
+
+    const figure = host.querySelector('figure');
+    expect(figure).not.toBeNull();
+    expect(leaf(figure!, '5,345')).toBeDefined();
+    expect(leaf(host, '1,234')).toBeDefined();
+    expect(host.textContent).not.toMatch(/[٠-٩]/);
+  });
+});
+
 describe('the change figure on a chart', () => {
   it('shows nothing for a change of 0', async () => {
     const host = await render([metric('Reach', [1, 2, 3])]);
