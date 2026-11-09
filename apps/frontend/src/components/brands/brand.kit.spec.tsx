@@ -100,7 +100,13 @@ const channel = (
   id: string,
   name: string,
   customer: { id: string; name: string } | null
-) => ({ id, name, identifier: 'instagram', picture: null, customer });
+): (typeof channels)[number] => ({
+  id,
+  name,
+  identifier: 'instagram',
+  picture: null,
+  customer,
+});
 
 const BAYT = { id: 'b1', name: 'Bayt Al Qahwa' };
 const NOOR = { id: 'b2', name: 'Noor Dental' };

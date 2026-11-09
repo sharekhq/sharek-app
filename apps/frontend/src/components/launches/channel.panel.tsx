@@ -187,7 +187,7 @@ const ROW_ACTION = clsx(
 // The channel's picture with its platform's badge, moved from the calendar's
 // old rail with its YouTube branch, at the list's 16px (C13). Decoration: it
 // sits only in a row's main button, which the channel's name already names.
-const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
+export const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
   channel,
   className,
 }) => (
