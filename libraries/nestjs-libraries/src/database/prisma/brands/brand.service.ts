@@ -30,6 +30,9 @@ export type KitForImage = {
   bodyFont?: string;
 };
 
+// Samy's brand for one image: a brand's id, none for no kit, or words for Samy
+export type SamyBrand = { brandId?: string } | { error: string };
+
 type StoredBrand = Awaited<ReturnType<BrandRepository['findLive']>>;
 type MediaRow = Awaited<ReturnType<BrandRepository['mediaByIds']>>[number];
 
@@ -67,6 +70,21 @@ const toBrand = (
     bodyFont: brandKit?.bodyFont ?? null,
   },
 });
+
+type Named = { id: string; name: string };
+
+const namesOf = (brands: Named[]) => brands.map(({ name }) => name).join(', ');
+
+// The model may change a name's case; the exact name wins over another case
+const brandNamed = (brands: Named[], wanted: string) => {
+  const sameName = brands.filter(
+    ({ name }) => name.toLowerCase() === wanted.toLowerCase()
+  );
+  return (
+    sameName.find(({ name }) => name === wanted) ??
+    (sameName.length === 1 ? sameName[0] : undefined)
+  );
+};
 
 // Names the field, as class-validator's refusals do
 const notInMedia = (field: keyof BrandKitDto) =>
@@ -158,6 +176,60 @@ export class BrandService {
       headingFont: kit.headingFont ?? undefined,
       bodyFont: kit.bodyFont ?? undefined,
     };
+  }
+
+  // FR-017's order (R8). Names, not ids, because they are what the user sees
+  // and Samy says back; a refusal makes no image and spends no credit.
+  async resolveForSamy(
+    org: string,
+    { input, channelIds }: { input?: string; channelIds: string[] }
+  ): Promise<SamyBrand> {
+    const wanted = input?.trim();
+    if (wanted === 'none') {
+      return {};
+    }
+
+    // An organization with no brands goes without a kit, as today
+    const brands = await this._brandRepository.list(org);
+    if (!brands.length) {
+      return {};
+    }
+    const names = namesOf(brands);
+
+    if (wanted) {
+      const brand = brandNamed(brands, wanted);
+      return brand
+        ? { brandId: brand.id }
+        : {
+            error: `There's no brand called "${wanted}". The brands are: ${names}. Ask the user which one, or none.`,
+          };
+    }
+
+    // Channels in no brand never count, so ticked channels that are all in
+    // no brand go without a kit (FR-017)
+    if (channelIds.length) {
+      const ids = await this._brandRepository.customerIdsOfChannels(
+        org,
+        channelIds
+      );
+      const theirs = brands.filter(({ id }) => ids.includes(id));
+      if (theirs.length > 1) {
+        const theirNames = namesOf(theirs);
+        return {
+          error: `The selected channels belong to ${theirs.length} brands: ${theirNames}. Tell the user you'll make one image per brand, each in its own look, at one credit each, and wait for a yes. Then call once per brand with brand set to its name.`,
+        };
+      }
+
+      return { brandId: theirs[0]?.id };
+    }
+
+    if (brands.length > 1) {
+      return {
+        error: `This workspace has ${brands.length} brands: ${names}. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.`,
+      };
+    }
+
+    return { brandId: brands[0].id };
   }
 
   private async liveBrand(
