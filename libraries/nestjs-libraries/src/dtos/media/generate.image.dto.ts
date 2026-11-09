@@ -43,6 +43,15 @@ export class GenerateImageWithPromptDto {
   @ArrayUnique()
   @IsUUID('all', { each: true })
   references?: string[];
+
+  /**
+   * The brand whose kit goes along, by its id: the server checks it is a live
+   * brand of the asking organization. Omitted when the user picks No brand,
+   * which is today's request.
+   */
+  @IsOptional()
+  @IsUUID('all')
+  brand?: string;
 }
 
 /**
@@ -75,4 +84,9 @@ export class EditImageWithPromptDto {
   @ArrayUnique()
   @IsUUID('all', { each: true })
   references?: string[];
+
+  /** The brand whose kit goes along, as a generation names it. */
+  @IsOptional()
+  @IsUUID('all')
+  brand?: string;
 }
