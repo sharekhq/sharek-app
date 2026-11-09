@@ -403,11 +403,11 @@ const ChannelRow: FC<{
           {fix.label}
         </button>
       )}
-      {/* The ⋯ shows on its row's hover, on its own focus and always on a
-          touch screen, as the customer's pencil does. Its menu opens inside
-          it, so it also shows while that is open. */}
+      {/* The ⋯ shows on its row's hover, while the focus is anywhere in its
+          row, its own included, and always on a touch screen. Its menu opens
+          inside it, so it also shows while that is open. */}
       {!collapsed && menu && (
-        <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
+        <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
           {menu}
         </span>
       )}
