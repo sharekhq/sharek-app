@@ -196,8 +196,15 @@ export const BrandMenu: FC<{
   // Escape is the list's alone while it is open. The AI image dialog behind
   // it closes on an Escape that reaches the document (new-modal.tsx), where
   // React's listener sits too, so only stopImmediatePropagation keeps the key
-  // from it, as the bottom sheets do.
+  // from it, as the bottom sheets do. The list hanging in the body comes
+  // after the rest of the page, so Tab and Shift+Tab in it close it as a
+  // menu does, the focus back on the button; the sheet keeps its own Tab.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Tab' && panelRef.current?.contains(e.target as Node)) {
+      e.preventDefault();
+      close();
+      return;
+    }
     if (e.key !== 'Escape' || !open) {
       return;
     }
