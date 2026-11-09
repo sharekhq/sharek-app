@@ -49,7 +49,7 @@ export class BrandRepository {
   mediaByIds(org: string, ids: string[]) {
     return this._media.model.media.findMany({
       where: { organizationId: org, id: { in: ids } },
-      select: { id: true, path: true, deletedAt: true },
+      select: { id: true, path: true, deletedAt: true, type: true },
     });
   }
 

@@ -93,6 +93,9 @@ const notInMedia = (field: keyof BrandKitDto) =>
     `${field} must be in your Media library`,
     HttpStatus.NOT_FOUND
   );
+// The item is there, so a bad request rather than a missing one
+const notAnImage = (field: keyof BrandKitDto) =>
+  new HttpException(`${field} must be an image`, HttpStatus.BAD_REQUEST);
 
 @Injectable()
 export class BrandService {
@@ -137,14 +140,25 @@ export class BrandService {
     const rows = await this.images(org, [...imageIds(kit), ...kept]);
 
     // An image already in the kit may be missing, so replacing one missing
-    // image keeps the others (FR-012); a new one must be in the org's Media
+    // image keeps the others (FR-012); a new one must be in the org's Media,
+    // and be an image, since Media holds videos too
+    const added = (imageId: string) => !kept.includes(imageId);
     const refused = (imageId: string) =>
-      !kept.includes(imageId) && imageOf(rows, imageId).missing;
+      added(imageId) && imageOf(rows, imageId).missing;
+    const otherType = (imageId: string) =>
+      added(imageId) &&
+      rows.find((media) => media.id === imageId)?.type !== 'image';
     if (kit.logoId && refused(kit.logoId)) {
       throw notInMedia('logoId');
     }
     if (kit.exampleIds?.some(refused)) {
       throw notInMedia('exampleIds');
+    }
+    if (kit.logoId && otherType(kit.logoId)) {
+      throw notAnImage('logoId');
+    }
+    if (kit.exampleIds?.some(otherType)) {
+      throw notAnImage('exampleIds');
     }
 
     if (kit.colours) {
