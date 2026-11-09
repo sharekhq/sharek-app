@@ -1,6 +1,7 @@
 'use client';
 
 import { FC, KeyboardEvent, ReactNode, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import Link from 'next/link';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -38,7 +39,9 @@ const SEPARATOR = 'h-px mx-[4px] my-[6px] bg-line';
 
 // Up and Down move through the options, wrapping, as the channel list's
 // radios do (onRadioGroupKeyDown); the list runs top to bottom in either
-// language, so there is no horizontal pair to mirror.
+// language, so there is no horizontal pair to mirror. By then the list is in
+// its place, so the focus scrolls only a long list itself, to show the
+// option, and that keeps it open.
 const onListKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   const step = { ArrowDown: 1, ArrowUp: -1 }[event.key] || 0;
   const options = Array.from(
@@ -117,8 +120,12 @@ const Option: FC<{
  *
  * On a wide screen the list hangs from the button as PostActionsMenu's does,
  * against the viewport, so Samy's message box, which clips its content, can't
- * hide it. At 1025px and below it opens as SplitPanel's bottom sheet, as the
- * channel sheet does. Neither animates.
+ * hide it. It renders into the body: Samy's chat is a transformed box (`trz`,
+ * agent.chat.tsx), and `fixed` inside one measures from that box, not the
+ * viewport. So it sits over the modals (200 and up, new-modal.tsx), the AI
+ * image dialog among them, which no longer hold it. At 1025px and below it
+ * opens as SplitPanel's bottom sheet, as the channel sheet does. Neither
+ * animates.
  */
 export const BrandMenu: FC<{
   // the organization's brands, as useBrands() gives them
@@ -162,7 +169,9 @@ export const BrandMenu: FC<{
       : t('brands_for_this_message', 'Brand for this message');
 
   // The focus opens on the current choice, else on the first option, so the
-  // arrows work at once. The sheet's dialog takes it after, as every
+  // arrows work at once. It scrolls nothing: a browser scrolls the boxes
+  // around what takes the focus to show it, and a scroll outside the list
+  // closes it (useHangingPanel). The sheet's dialog takes it after, as every
   // SplitPanel sheet does, once its own media query has answered.
   useEffect(() => {
     if (!open) {
@@ -171,7 +180,7 @@ export const BrandMenu: FC<{
     (
       list.current?.querySelector<HTMLElement>('[aria-selected="true"]') ??
       list.current?.querySelector<HTMLElement>('[role="option"]')
-    )?.focus();
+    )?.focus({ preventScroll: true });
   }, [open]);
 
   const close = () => {
@@ -322,13 +331,16 @@ export const BrandMenu: FC<{
             <div className="flex flex-col">{content}</div>
           </SplitPanel>
         ) : (
-          <div
-            ref={panelRef}
-            style={{ left: show.x, top: show.y }}
-            className="fixed z-[100] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
-          >
-            {content}
-          </div>
+          createPortal(
+            <div
+              ref={panelRef}
+              style={{ left: show.x, top: show.y }}
+              className="fixed z-[300] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
+            >
+              {content}
+            </div>,
+            document.body
+          )
         ))}
     </div>
   );

@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useClickOutside } from '@mantine/hooks';
 import clsx from 'clsx';
 
 export interface PostAction {
@@ -44,13 +43,14 @@ export interface PostActionsMenuHandle {
 }
 
 // A list `fixed` against the viewport, so no box that clips its content hides
-// it, hung from the box `ref` is on, which holds the list too: a press outside
-// that box closes it. `show` is where the list sits while it is open, from
-// `below()`. PostActionsMenu's, and the brand list's (brands/brand.menu.tsx).
+// it, hung from the box `ref` is on: a press outside that box and the list
+// (`panelRef`) closes it. PostActionsMenu's list renders in the box, the brand
+// list's into the body (brands/brand.menu.tsx), and either is the box's own.
+// `show` is where the list sits while it is open, from `below()`.
 export const useHangingPanel = () => {
   const [show, setShow] = useState<false | { x: number; y: number }>(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const ref = useClickOutside<HTMLDivElement>(() => setShow(false));
+  const ref = useRef<HTMLDivElement>(null);
 
   // under the trigger, from its start edge; the layout effect below corrects it
   const below = useCallback(() => {
@@ -93,19 +93,29 @@ export const useHangingPanel = () => {
 
   // A fixed panel does not travel with the card, and the calendar grid scrolls
   // (calendar.tsx:358). Closing is the honest answer to that. A scroll inside
-  // the box, a list that scrolls its own options, is no reason to.
+  // the box or the list, a list that scrolls its own options, is no reason
+  // to. A press outside both closes it too, on the events useClickOutside
+  // listens for: it watched the box alone, and a list in the body is not in
+  // it.
   useEffect(() => {
     if (!show) {
       return;
     }
     const close = (e: Event) => {
-      if (!(e.target instanceof Node && ref.current?.contains(e.target))) {
+      const inside = [ref, panelRef].some(
+        (box) => e.target instanceof Node && box.current?.contains(e.target)
+      );
+      if (!inside) {
         setShow(false);
       }
     };
     window.addEventListener('scroll', close, true);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('touchstart', close);
     return () => {
       window.removeEventListener('scroll', close, true);
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('touchstart', close);
     };
   }, [show, ref]);
 
