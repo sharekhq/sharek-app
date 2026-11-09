@@ -128,6 +128,34 @@ export const useMenuItem = () => {
       ),
       path: '/analytics',
     },
+    {
+      name: t('brands', 'Brands'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="21"
+          viewBox="0 0 20 21"
+          fill="none"
+        >
+          <path
+            d="M1.75 9.75V4.25C1.75 3.14543 2.64543 2.25 3.75 2.25H9.25L17.1893 10.1893C17.7751 10.7751 17.7751 11.7249 17.1893 12.3107L11.8107 17.6893C11.2249 18.2751 10.2751 18.2751 9.68934 17.6893L1.75 9.75Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle
+            cx="6.25"
+            cy="6.75"
+            r="1.25"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      ),
+      path: '/brands',
+    },
   ] satisfies MenuItemInterface[] as MenuItemInterface[];
 
   const secondMenu = [
