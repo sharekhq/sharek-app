@@ -3,7 +3,9 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { HttpException, Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
+import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { selectedChannels } from '@gitroom/nestjs-libraries/chat/selected.channels';
 import { imageCreditRefusal } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import {
@@ -28,14 +30,17 @@ type ImageBudget = { credits: number; resetsAt?: string };
  */
 @Injectable()
 export class SamyImageTool implements AgentToolInterface {
-  constructor(private _mediaService: MediaService) {}
+  constructor(
+    private _mediaService: MediaService,
+    private _brandService: BrandService
+  ) {}
   name = 'generateImageTool';
 
   run() {
     return createTool({
       id: 'generateImageTool',
       description:
-        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, or { error } when it couldn't be made. The chat shows the image by itself.",
+        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.",
       inputSchema: z.object({
         // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
@@ -65,6 +70,12 @@ export class SamyImageTool implements AgentToolInterface {
               IMAGE_REFERENCE_MAX - 1
             }.`
           ),
+        brand: z
+          .string()
+          .optional()
+          .describe(
+            "A brand's name, to use its kit, or 'none' for no brand. Leave it out to use the brand of the selected channels."
+          ),
       }),
       // Mastra validates a tool's return against this schema, so it must also
       // allow the graceful { error } shape, as GenerateImageTool's does.
@@ -72,6 +83,8 @@ export class SamyImageTool implements AgentToolInterface {
         id: z.string().optional(),
         path: z.string().optional(),
         error: z.string().optional(),
+        // Only when part of the brand's kit went along, so Samy can name it
+        brand: z.string().optional(),
       }),
       execute: async (inputData, context) => {
         const run = context?.requestContext as any;
@@ -97,11 +110,33 @@ export class SamyImageTool implements AgentToolInterface {
           checkAuth(inputData, context);
           const org = JSON.parse(run?.get('organization') as string);
 
+          // A brand that can't be picked makes no image, and no credit is read.
+          // Only the channels' ids go: the brand service reads the channels
+          // again, for this organization (research R9).
+          const { brand, ...image } = inputData;
+          const picked = await this._brandService.resolveForSamy(org.id, {
+            input: brand,
+            channelIds: selectedChannels(run?.get('integrations')).map(
+              (channel) => channel.id
+            ),
+          });
+          if ('error' in picked) {
+            giveSlotBack();
+            return { error: picked.error };
+          }
+
           // The promise and not its answer, so parallel calls share one read. The
           // credit check inside the render can't do this: it passes all of them
           // before the first one's usage is written.
           if (!run?.get(IMAGE_BUDGET)) {
-            run?.set(IMAGE_BUDGET, this._mediaService.imageCreditsLeft(org));
+            run?.set(
+              IMAGE_BUDGET,
+              this._mediaService.imageCreditsLeft(org).catch((err) => {
+                // A failed read stays failed if it's kept, and a later call can recover.
+                run?.delete(IMAGE_BUDGET);
+                throw err;
+              })
+            );
           }
           const budget: ImageBudget = await run?.get(IMAGE_BUDGET);
           if (budget.credits <= 0) {
@@ -111,17 +146,14 @@ export class SamyImageTool implements AgentToolInterface {
           budget.credits -= 1;
           creditFrom = budget;
 
-          return await this._mediaService.generateImageFromLinks(
-            org,
-            inputData
-          );
+          return await this._mediaService.generateImageFromLinks(org, {
+            ...image,
+            brand: picked.brandId,
+          });
         } catch (err) {
           giveSlotBack();
           if (creditFrom) {
             creditFrom.credits += 1;
-          } else {
-            // A failed read stays failed if it's kept, and a later call can recover.
-            run?.delete(IMAGE_BUDGET);
           }
 
           if (err instanceof SubscriptionException) {

@@ -143,6 +143,9 @@ jest.mock('@gitroom/frontend/components/launches/tags.component', () => ({
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/platform-label',
   () => ({
+    ...jest.requireActual(
+      '@gitroom/frontend/components/launches/helpers/platform-label'
+    ),
     platformLabel: (identifier: string) => identifier,
   })
 );

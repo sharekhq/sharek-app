@@ -7,6 +7,11 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
 );
+// The brand repository opens a database client at import.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
+  () => ({ BrandService: class {} })
+);
 
 import { HttpException } from '@nestjs/common';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
@@ -27,7 +32,8 @@ const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
 const makeTool = (
   generateImageFromLinks?: jest.Mock,
-  imageCreditsLeft?: jest.Mock
+  imageCreditsLeft?: jest.Mock,
+  resolveForSamy?: jest.Mock
 ) => {
   const media = {
     generateImageFromLinks:
@@ -35,18 +41,30 @@ const makeTool = (
     imageCreditsLeft:
       imageCreditsLeft ?? jest.fn().mockResolvedValue({ credits: Infinity }),
   };
-  return { tool: new SamyImageTool(media as any).run() as any, media };
+  // No brand unless a test picks one, so the image is made as it always was.
+  const brands = {
+    resolveForSamy: resolveForSamy ?? jest.fn().mockResolvedValue({}),
+  };
+  return {
+    tool: new SamyImageTool(media as any, brands as any).run() as any,
+    media,
+    brands,
+  };
 };
 
 // checkAuth only writes to the request context when it finds an authInfo, and
 // there is no async-storage context in a unit test, so the organization the tool
-// reads back is the one seeded here.
-const context = () =>
-  ({
-    requestContext: new Map<string, string>([
-      ['organization', JSON.stringify(org)],
-    ]),
-  } as any);
+// reads back is the one seeded here. The channels are what the browser sent as
+// selected, left off when a test sends none.
+const context = (integrations?: unknown) => {
+  const requestContext = new Map<string, unknown>([
+    ['organization', JSON.stringify(org)],
+  ]);
+  if (integrations !== undefined) {
+    requestContext.set('integrations', integrations);
+  }
+  return { requestContext } as any;
+};
 
 const RESETS_AT = '2026-12-01T00:00:00.000Z';
 
@@ -64,15 +82,17 @@ describe('SamyImageTool', () => {
   it("goes by the outside tool's name, so old and new rows draw the same way", () => {
     const { tool } = makeTool();
 
-    expect(new SamyImageTool({} as any).name).toBe('generateImageTool');
+    expect(new SamyImageTool({} as any, {} as any).name).toBe(
+      'generateImageTool'
+    );
     expect(tool.id).toBe('generateImageTool');
   });
 
-  it('says what it does, what it returns and that the chat shows the image', () => {
+  it('says what it does, what it returns, the brand included, and that the chat shows the image', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
     );
   });
 
@@ -120,10 +140,22 @@ describe('SamyImageTool', () => {
     it('no style, which stays in the prompt', () => {
       expect(Object.keys(makeTool().tool.inputSchema.shape).sort()).toEqual([
         'aspectRatio',
+        'brand',
         'editOf',
         'prompt',
         'references',
       ]);
+    });
+
+    it("a brand's name or 'none', last, saying what leaving it out does", () => {
+      const { shape } = makeTool().tool.inputSchema;
+
+      expect(Object.keys(shape).slice(-1)).toEqual(['brand']);
+      expect(shape.brand.description).toBe(
+        "A brand's name, to use its kit, or 'none' for no brand. Leave it out to use the brand of the selected channels."
+      );
+      expect(parse({ brand: 'Acme' }).data.brand).toBe('Acme');
+      expect(parse({}).data.brand).toBeUndefined();
     });
   });
 
@@ -166,12 +198,252 @@ describe('SamyImageTool', () => {
     const { tool } = makeTool();
 
     expect(Object.keys(tool.outputSchema.shape).sort()).toEqual([
+      'brand',
       'error',
       'id',
       'path',
     ]);
     expect(tool.outputSchema.safeParse({ error: 'no' }).success).toBe(true);
     expect(tool.outputSchema.safeParse(made).success).toBe(true);
+  });
+
+  // Samy names the brand in its reply only from this (FR-019).
+  it("keeps the brand's name beside the image", () => {
+    const named = { ...made, brand: 'Acme' };
+
+    expect(makeTool().tool.outputSchema.parse(named)).toEqual(named);
+  });
+
+  // Picked on the server from the brand Samy names and the channels the browser
+  // says are selected, so a model that misses a line can't miss the kit
+  // (research R8, R9).
+  describe('picks the brand', () => {
+    const ACME = 'brand-acme';
+
+    const picks = (answer: object) => jest.fn().mockResolvedValue(answer);
+
+    it("asks for this organization's brand with the one named and the selected channels' ids", async () => {
+      const { tool, brands } = makeTool();
+
+      await tool.execute(
+        { prompt: 'a cat', brand: 'Acme' },
+        context([
+          {
+            id: 'channel-1',
+            identifier: 'instagram',
+            additionalSettings: '[]',
+          },
+          { id: 'channel-2', identifier: 'x', name: 'Acme on X' },
+        ])
+      );
+
+      expect(brands.resolveForSamy).toHaveBeenCalledWith('org-1', {
+        input: 'Acme',
+        channelIds: ['channel-1', 'channel-2'],
+      });
+    });
+
+    // The browser sends them, so nothing about their shape is guaranteed. A
+    // channel counts only as Samy's instructions list it, with a text id and
+    // identifier.
+    it('keeps only the channels Samy is told are selected', async () => {
+      const { tool, brands } = makeTool();
+
+      await tool.execute(
+        { prompt: 'a cat' },
+        context([
+          { id: 'channel-1', identifier: 'instagram' },
+          null,
+          { id: 7, identifier: 'x' },
+          'channel-2',
+          { identifier: 'x' },
+          { id: 'channel-3' },
+        ])
+      );
+
+      expect(brands.resolveForSamy).toHaveBeenCalledWith('org-1', {
+        input: undefined,
+        channelIds: ['channel-1'],
+      });
+    });
+
+    it.each([
+      ['none were sent', undefined],
+      ['they are not a list', { id: 'channel-1' }],
+    ])('asks with no channels when %s', async (_name, integrations) => {
+      const { tool, brands } = makeTool();
+
+      await tool.execute({ prompt: 'a cat' }, context(integrations));
+
+      expect(brands.resolveForSamy).toHaveBeenCalledWith('org-1', {
+        input: undefined,
+        channelIds: [],
+      });
+    });
+
+    it("hands the render the brand's id, not the name Samy gave", async () => {
+      const { tool, media } = makeTool(
+        undefined,
+        undefined,
+        picks({ brandId: ACME })
+      );
+
+      await tool.execute({ prompt: 'a cat', brand: 'Acme' }, context());
+
+      expect(media.generateImageFromLinks).toHaveBeenCalledWith(org, {
+        prompt: 'a cat',
+        aspectRatio: 'square',
+        brand: ACME,
+      });
+    });
+
+    it.each([
+      ["'none'", 'none'],
+      ['no brand', undefined],
+    ])(
+      'hands the render no brand when none is picked for %s',
+      async (_name, brand) => {
+        const { tool, media } = makeTool();
+
+        await tool.execute({ prompt: 'a cat', brand }, context());
+
+        expect(
+          media.generateImageFromLinks.mock.calls[0][1].brand
+        ).toBeUndefined();
+      }
+    );
+
+    it("returns the brand's name when the render names it", async () => {
+      const named = { ...made, brand: 'Acme' };
+      const { tool } = makeTool(
+        jest.fn().mockResolvedValue(named),
+        undefined,
+        picks({ brandId: ACME })
+      );
+
+      expect(
+        await tool.execute({ prompt: 'a cat', brand: 'Acme' }, context())
+      ).toEqual(named);
+    });
+
+    describe('when it refuses', () => {
+      const words =
+        'This workspace has 2 brands: Acme, Bloom. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.';
+
+      it('hands back its words and makes nothing', async () => {
+        const { tool, media } = makeTool(
+          undefined,
+          undefined,
+          picks({ error: words })
+        );
+
+        expect(await tool.execute({ prompt: 'a cat' }, context())).toEqual({
+          error: words,
+        });
+        expect(media.generateImageFromLinks).not.toHaveBeenCalled();
+      });
+
+      it('reads no credits', async () => {
+        const { tool, media } = makeTool(
+          undefined,
+          undefined,
+          picks({ error: words })
+        );
+
+        await tool.execute({ prompt: 'a cat' }, context());
+
+        expect(media.imageCreditsLeft).not.toHaveBeenCalled();
+      });
+
+      it('gives the slot back', async () => {
+        const { tool } = makeTool(
+          undefined,
+          undefined,
+          picks({ error: words })
+        );
+        const run = context();
+
+        await tool.execute({ prompt: 'a cat' }, run);
+
+        expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      });
+    });
+
+    it('hands back the words for too many images beside the logo, and gives the slot and credit back', async () => {
+      const words =
+        "With Acme's logo, only 3 of the user's images fit (2 when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.";
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException(words, 400))
+        .mockResolvedValue(made);
+      const { tool } = makeTool(
+        render,
+        jest.fn().mockResolvedValue({ credits: 1, resetsAt: RESETS_AT }),
+        picks({ brandId: ACME })
+      );
+      const run = context();
+
+      expect(
+        await tool.execute(
+          { prompt: 'a cat', brand: 'Acme', references: links(4) },
+          run
+        )
+      ).toEqual({ error: words });
+      expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
+    });
+
+    it("hands back the general words when the brands can't be read, before any credit", async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { tool, media } = makeTool(
+        undefined,
+        undefined,
+        jest.fn().mockRejectedValue(new Error('database is down'))
+      );
+      const run = context();
+
+      const result = await tool.execute({ prompt: 'a cat' }, run);
+
+      expect(result.error).toMatch(/offer to try again/);
+      expect(result.error).not.toContain('database is down');
+      expect(media.imageCreditsLeft).not.toHaveBeenCalled();
+      expect(media.generateImageFromLinks).not.toHaveBeenCalled();
+      expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      logged.mockRestore();
+    });
+
+    // Dropping it would read the credits again before the first call's usage is
+    // written, and spend past them (research R29).
+    it("keeps the run's credit read when one call's brands can't be read", async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const resolve = jest
+        .fn()
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new Error('database is down'))
+        .mockResolvedValue({});
+      // A fresh answer each read, as the database gives, so a second read
+      // would find the credit the first call is spending.
+      const { tool, media } = makeTool(
+        undefined,
+        jest.fn(async () => ({ credits: 1, resetsAt: RESETS_AT })),
+        resolve
+      );
+      const run = context();
+
+      const [first, failed] = await Promise.all([
+        tool.execute({ prompt: 'a cat' }, run),
+        tool.execute({ prompt: 'a cat' }, run),
+      ]);
+
+      expect(first).toEqual(made);
+      expect(failed.error).toMatch(/offer to try again/);
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual({
+        error: imageCreditRefusal(RESETS_AT),
+      });
+      expect(media.imageCreditsLeft).toHaveBeenCalledTimes(1);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(1);
+      logged.mockRestore();
+    });
   });
 
   // Enforced rather than instructed, because the model can miss a line. Parallel

@@ -676,9 +676,13 @@ describe('the top bar above 1025px', () => {
 
   it('has no customer picker and no filter button', async () => {
     const host = await mount({ selectedChannels: allBut('b') });
+    // the picker's words as the en file has them, so a rename can't leave
+    // this looking for words nothing says any more
+    const pickerTip = i18next.t('select_customer_tooltip');
+    const pickerWords = i18next.t('select_customer');
 
     expect(
-      host.querySelector('[data-tooltip-content="Select Customer"]')
+      host.querySelector(`[data-tooltip-content="${pickerTip}"]`)
     ).toBeNull();
     expect(host.querySelector('[role="radiogroup"]')).toBeNull();
     expect(
@@ -688,7 +692,9 @@ describe('the top bar above 1025px', () => {
     ).toHaveLength(0);
     // the funnel's path, ui/icons' FilterIcon
     expect(host.querySelector('path[d^="M2.5 4.16667H17.5"]')).toBeNull();
-    expect(host.textContent).not.toMatch(/Select Customer|Select Channels/);
+    [pickerTip, pickerWords, 'Select Channels'].forEach((words) =>
+      expect(host.textContent).not.toContain(words)
+    );
   });
 });
 

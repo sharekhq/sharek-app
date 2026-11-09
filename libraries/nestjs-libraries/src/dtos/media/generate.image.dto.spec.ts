@@ -111,6 +111,21 @@ describe('GenerateImageWithPromptDto', () => {
       ).toContain('isUuid');
     });
   });
+
+  // A brand is named by its id; the server checks it is the organization's.
+  // Omitted, the request is today's. (spec 053-brands, US2.)
+  describe('brand', () => {
+    it('accepts a brand id alongside the rest', async () => {
+      expect(await failures({ ...valid, brand: uuid(7) })).toEqual([]);
+    });
+
+    it.each([
+      ['a name', 'Pomegranate Co'],
+      ['an empty string', ''],
+    ])('rejects %s in place of a brand id', async (_case, brand) => {
+      expect(await failures({ ...valid, brand })).toContain('brand');
+    });
+  });
 });
 
 // The edit route's body: the version on screen, named by its Media id like a
@@ -179,6 +194,19 @@ describe('EditImageWithPromptDto', () => {
       expect(
         await constraintsOf({ ...edit, references: ['https://evil/x.png'] })
       ).toContain('isUuid');
+    });
+  });
+
+  describe('brand', () => {
+    it('accepts a brand id alongside the rest', async () => {
+      expect(await failures({ ...edit, brand: uuid(7) })).toEqual([]);
+    });
+
+    it.each([
+      ['a name', 'Pomegranate Co'],
+      ['an empty string', ''],
+    ])('rejects %s in place of a brand id', async (_case, brand) => {
+      expect(await failures({ ...edit, brand })).toContain('brand');
     });
   });
 });

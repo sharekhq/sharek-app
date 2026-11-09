@@ -37,7 +37,10 @@ import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import {
+  isolate,
+  platformLabel,
+} from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { SelectCustomer } from '@gitroom/frontend/components/launches/select.customer';
 import { CopilotPopup } from '@copilotkit/react-ui';
 import { DummyCodeComponent } from '@gitroom/frontend/components/new-launch/dummy.code.component';
@@ -73,13 +76,6 @@ import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
 import { Button } from '@gitroom/react/form/button';
-
-// A channel name inside a translated sentence. Isolated (FSI…PDI, the
-// plain-text <bdi>) so a Latin name in an Arabic sentence, or the reverse,
-// keeps its own direction and its trailing punctuation stays with it. The
-// calls pass `escapeValue: false`: React escapes the text it renders, and
-// i18next escaping it first would show a name's & or ' as an entity.
-const isolate = (text = '') => `\u2068${text}\u2069`;
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.

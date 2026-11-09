@@ -36,6 +36,7 @@ import { TrackService } from '@gitroom/nestjs-libraries/track/track.service';
 import { ShortLinkService } from '@gitroom/nestjs-libraries/short-linking/short.link.service';
 import { WebhookController } from '@gitroom/backend/api/routes/webhooks.controller';
 import { SignatureController } from '@gitroom/backend/api/routes/signature.controller';
+import { BrandsController } from '@gitroom/backend/api/routes/brands.controller';
 import { AutopostController } from '@gitroom/backend/api/routes/autopost.controller';
 import { SetsController } from '@gitroom/backend/api/routes/sets.controller';
 import { ThirdPartyController } from '@gitroom/backend/api/routes/third-party.controller';
@@ -73,6 +74,7 @@ const authenticatedController = [
   CopilotController,
   WebhookController,
   SignatureController,
+  BrandsController,
   AutopostController,
   SetsController,
   ThirdPartyController,

@@ -18,6 +18,10 @@ jest.mock(
 jest.mock('@gitroom/nestjs-libraries/videos/video.manager', () => ({
   VideoManager: class {},
 }));
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
+  () => ({ BrandService: class {} })
+);
 // A reference's bytes come from storage; each test says what the stored file
 // holds, and the error class stays a class so the service can tell it apart.
 jest.mock(
@@ -38,6 +42,7 @@ import {
   readOrFetch,
 } from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
 import { IMAGE_REFERENCE_MAX } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import { KitForImage } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 
 const org = { id: 'org-1', isTrailing: false } as any;
 const body = () =>
@@ -84,6 +89,10 @@ const makeService = (
     // The Media rows the organization's library answers with for a reference
     // lookup, in the order the database returns them.
     references?: Array<{ id: string; path: string }>;
+    // What BrandService.kitFor answers for the brand a request names: only
+    // the kit's images still in Media, or the 404 for a brand that isn't one
+    // of the organization's live brands.
+    kit?: KitForImage | HttpException;
   } = {}
 ) => {
   // The real useCredit commits the credit only when its callback resolves and
@@ -107,12 +116,19 @@ const makeService = (
     getMediaByIds: jest.fn().mockResolvedValue(over.references ?? []),
     getMediaByPaths: jest.fn().mockResolvedValue(over.references ?? []),
   };
+  const brands = {
+    kitFor:
+      over.kit instanceof HttpException
+        ? jest.fn().mockRejectedValue(over.kit)
+        : jest.fn().mockResolvedValue(over.kit),
+  };
   const service = new MediaService(
     repository as any,
     over.openAi ?? ({} as any),
     subscription as any,
     manager as any,
-    over.temporal as any
+    over.temporal as any,
+    brands as any
   );
   const file = over.file ?? 'https://media/abc.mp4';
   (service as any).storage = {
@@ -121,7 +137,7 @@ const makeService = (
   const saveFile = jest
     .spyOn(service, 'saveFile')
     .mockResolvedValue({ id: 'media-1', path: file } as any);
-  return { service, subscription, saveFile, charged, repository };
+  return { service, subscription, saveFile, charged, repository, brands };
 };
 
 const read = readOrFetch as jest.Mock;
@@ -575,7 +591,8 @@ describe('generateImageWithPrompt', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       undefined,
-      0
+      0,
+      undefined
     );
   });
 
@@ -590,7 +607,8 @@ describe('generateImageWithPrompt', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       'a watercolour painting with soft bleeding washes',
-      0
+      0,
+      undefined
     );
   });
 
@@ -1097,7 +1115,8 @@ describe('generateImageWithPrompt with references', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       'قهوة مختصة في الرياض',
       'a watercolour painting with soft bleeding washes',
-      2
+      2,
+      undefined
     );
   });
 
@@ -1291,7 +1310,11 @@ describe('editImageWithPrompt', () => {
       edit({ references: ['logo'], style: 'watercolor' })
     );
 
-    expect(ai.generateEditPrompt).toHaveBeenCalledWith('اجعل الخلفية بيضاء', 2);
+    expect(ai.generateEditPrompt).toHaveBeenCalledWith(
+      'اجعل الخلفية بيضاء',
+      2,
+      undefined
+    );
     expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     expect(ai.editImageAtSize).toHaveBeenCalledWith(
       'an edit instruction',
@@ -1470,7 +1493,8 @@ describe('generateImageFromLinks', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       prompt,
       undefined,
-      0
+      0,
+      undefined
     );
     expect(ai.generateImageAtSize).toHaveBeenCalledWith(
       'an enhanced scene',
@@ -1504,7 +1528,8 @@ describe('generateImageFromLinks', () => {
     expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
       prompt,
       undefined,
-      4
+      4,
+      undefined
     );
     expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
     expect(ai.editImageAtSize.mock.calls[0][2]).toHaveLength(4);
@@ -1555,7 +1580,8 @@ describe('generateImageFromLinks', () => {
     );
     expect(ai.generateEditPrompt).toHaveBeenCalledWith(
       'make the background darker',
-      2
+      2,
+      undefined
     );
     expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     const [, size, inputs] = ai.editImageAtSize.mock.calls[0];
@@ -1840,6 +1866,734 @@ describe('generateImageFromLinks', () => {
     if (initial !== undefined) {
       process.env.STRIPE_PUBLISHABLE_KEY = initial;
     }
+  });
+});
+
+// A brand's kit rides the same routes (spec 053, research R6 and R7): its
+// images follow the user's own, which keep their numbers, and the improver is
+// told which numbers are the brand's. Every refusal a brand adds comes before a
+// credit exists, and a request without one is today's, call for call.
+describe('with a brand', () => {
+  const brand = 'brand-1';
+  const prompt = 'قهوة مختصة في الرياض';
+  const change = 'اجعل الخلفية بيضاء';
+
+  // What each stored file holds, by path. The logo keeps its transparency, so
+  // it can be told apart from the other images in the inputs; big is over the
+  // bound and bad is no picture at all.
+  const stored: Record<string, Buffer> = {};
+
+  beforeAll(async () => {
+    const jpeg = await picture(16, 16).jpeg().toBuffer();
+    for (const id of ['a', 'b', 'c', 'd', 'shown', 'ex1', 'ex2']) {
+      stored[`https://media/${id}`] = jpeg;
+    }
+    stored['https://media/logo'] = await picture(16, 16, 4).png().toBuffer();
+    stored['https://media/bad'] = Buffer.from('not a picture');
+  });
+
+  beforeEach(() => {
+    read.mockImplementation(async (path: string) => {
+      if (path === 'https://media/big') {
+        throw new MediaTooLargeError();
+      }
+      return stored[path];
+    });
+  });
+
+  // Every image the cases name is in the library, so a lookup finds what it
+  // asks for and only what it asks for decides the inputs.
+  const library = ['a', 'b', 'c', 'd', 'shown', 'logo', 'ex1', 'ex2'].map(row);
+
+  // What kitFor answers: only the kit's images still in Media.
+  const words = {
+    colours: ['#B5542C', '#F4EDE4'],
+    headingFont: 'Cairo',
+    bodyFont: 'IBM Plex Sans Arabic',
+  };
+  const kit = (over: Partial<KitForImage> = {}): KitForImage => ({
+    name: 'Rawda Florist',
+    logoId: 'logo',
+    examples: [
+      { id: 'ex1', n: 1 },
+      { id: 'ex2', n: 2 },
+    ],
+    ...words,
+    ...over,
+  });
+  const empty = kit({
+    logoId: undefined,
+    examples: [],
+    colours: [],
+    headingFont: undefined,
+    bodyFont: undefined,
+  });
+
+  // The limit the logo sets, for the person at the window and for Samy, who
+  // asks the user
+  const TOO_MANY =
+    "With Rawda Florist's logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.";
+  const TOO_MANY_FOR_SAMY =
+    "With Rawda Florist's logo, only 3 of the user's images fit (2 when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.";
+  const GONE = 'That brand no longer exists. Pick another or No brand.';
+
+  // One of the kit's images that can't go along: over the bound, no picture,
+  // or gone from Media since kitFor read the kit. Example 2 was deleted, so
+  // the one that can't be decoded is the Brands page's third.
+  const unusable: Array<[string, KitForImage, 404 | 422, string]> = [
+    [
+      'a logo over the bound',
+      kit({ logoId: 'big' }),
+      422,
+      "Rawda Florist's logo is larger than 30 MB",
+    ],
+    [
+      'an example it cannot decode',
+      kit({
+        logoId: undefined,
+        examples: [
+          { id: 'ex1', n: 1 },
+          { id: 'bad', n: 3 },
+        ],
+      }),
+      422,
+      "Rawda Florist's example post 3 can't be used because its file format isn't supported",
+    ],
+    [
+      'a logo gone from Media',
+      kit({ logoId: 'gone' }),
+      404,
+      "Rawda Florist's logo is no longer in the Media library",
+    ],
+  ];
+  // The library has big and bad; gone is nowhere.
+  const withUnusable = [...library, row('big'), row('bad')];
+
+  const mimes = (inputs: Array<{ mime: string }>) =>
+    inputs.map((input) => input.mime);
+
+  describe('a generation', () => {
+    it("asks for the named brand's kit in the asking organization", async () => {
+      const { service, brands } = makeService({
+        openAi: openAi(),
+        references: library,
+        kit: kit(),
+      });
+
+      await generateWithPrompt(service, dto({ brand }));
+
+      expect(brands.kitFor).toHaveBeenCalledTimes(1);
+      expect(brands.kitFor).toHaveBeenCalledWith('org-1', brand);
+    });
+
+    it("with none of the user's images, sends the logo and then the examples, from 1", async () => {
+      const ai = openAi();
+      const { service, repository } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await generateWithPrompt(service, dto({ brand }));
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'logo',
+        'ex1',
+        'ex2',
+      ]);
+      expect(mimes(ai.editImageAtSize.mock.calls[0][2])).toEqual([
+        'image/png',
+        'image/jpeg',
+        'image/jpeg',
+      ]);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        3,
+        { logo: 1, examples: [2, 3], ...words }
+      );
+    });
+
+    // The improver resolves "image 2" in the user's words, so their numbers
+    // never shift (research R6).
+    it("keeps the user's numbers: the logo follows their images and the examples step aside", async () => {
+      const ai = openAi();
+      const { service, repository } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await generateWithPrompt(service, dto({ references: ['a', 'b'], brand }));
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'a',
+        'b',
+        'logo',
+      ]);
+      expect(mimes(ai.editImageAtSize.mock.calls[0][2])).toEqual([
+        'image/jpeg',
+        'image/jpeg',
+        'image/png',
+      ]);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        3,
+        { logo: 3, examples: [], ...words }
+      );
+    });
+
+    it("takes 3 of the user's images, the logo taking the fourth place", async () => {
+      const ai = openAi();
+      const { service, repository, charged } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await generateWithPrompt(
+        service,
+        dto({ references: ['a', 'b', 'c'], brand })
+      );
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'a',
+        'b',
+        'c',
+        'logo',
+      ]);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        4,
+        { logo: 4, examples: [], ...words }
+      );
+      expect(charged.value).toBe(true);
+    });
+
+    // The logo is what takes the place, so a kit without one leaves the
+    // user all four.
+    it("takes 4 of the user's images when the kit has no logo", async () => {
+      const ai = openAi();
+      const { service, repository } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit({ logoId: undefined }),
+      });
+
+      await generateWithPrompt(
+        service,
+        dto({ references: ['a', 'b', 'c', 'd'], brand })
+      );
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'a',
+        'b',
+        'c',
+        'd',
+      ]);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        4,
+        { examples: [], ...words }
+      );
+    });
+
+    // FR-012: kitFor answers only the images still in Media, and the rest of
+    // the kit goes along without them.
+    it("skips the kit's images deleted from Media and still makes the image", async () => {
+      const ai = openAi();
+      const { service, repository, saveFile, charged } = makeService({
+        openAi: ai,
+        references: library,
+        // The logo and the first example were deleted.
+        kit: kit({ logoId: undefined, examples: [{ id: 'ex2', n: 2 }] }),
+      });
+
+      await generateWithPrompt(service, dto({ brand }));
+
+      expect(repository.getMediaByIds).toHaveBeenCalledTimes(1);
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', ['ex2']);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        1,
+        { examples: [1], ...words }
+      );
+      expect(saveFile).toHaveBeenCalledTimes(1);
+      expect(charged.value).toBe(true);
+    });
+
+    it('with an empty kit, renders as it would with no brand', async () => {
+      const ai = openAi();
+      const { service, repository, brands } = makeService({
+        openAi: ai,
+        references: library,
+        kit: empty,
+      });
+
+      await generateWithPrompt(service, dto({ brand }));
+
+      expect(brands.kitFor).toHaveBeenCalledWith('org-1', brand);
+      expect(repository.getMediaByIds).not.toHaveBeenCalled();
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        0,
+        undefined
+      );
+      expect(ai.generateImageAtSize).toHaveBeenCalledWith(
+        'an enhanced scene',
+        '1024x1024'
+      );
+      expect(ai.editImageAtSize).not.toHaveBeenCalled();
+    });
+
+    it('without a brand, asks for no kit and asks the improver what it always has', async () => {
+      const ai = openAi();
+      const { service, repository, brands } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await generateWithPrompt(service, dto({ references: ['a'] }));
+
+      expect(brands.kitFor).not.toHaveBeenCalled();
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', ['a']);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        1,
+        undefined
+      );
+    });
+
+    describe('refuses before any credit exists', () => {
+      it("a fourth image of the user's beside the logo, naming the brand", async () => {
+        const ai = openAi();
+        const { service, repository, subscription } = makeService({
+          openAi: ai,
+          references: library,
+          kit: kit(),
+        });
+        const request = dto({ references: ['a', 'b', 'c', 'd'], brand });
+
+        const err = await generateWithPrompt(service, request).catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(400);
+        expect(err.message).toBe(TOO_MANY);
+        expect(repository.getMediaByIds).not.toHaveBeenCalled();
+        expect(read).not.toHaveBeenCalled();
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+        expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+      });
+
+      it("a brand that isn't one of the organization's live brands", async () => {
+        const ai = openAi();
+        const { service, repository, subscription } = makeService({
+          openAi: ai,
+          references: library,
+          kit: new HttpException(GONE, 404),
+        });
+        const request = dto({ references: ['a'], brand });
+
+        const err = await generateWithPrompt(service, request).catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(404);
+        expect(err.message).toBe(GONE);
+        expect(repository.getMediaByIds).not.toHaveBeenCalled();
+        expect(read).not.toHaveBeenCalled();
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+        expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+      });
+
+      // A kit image has no thumbnail, so its refusal names its part of the
+      // kit, and carries no code or number the window would word as one of
+      // the user's images.
+      it.each(unusable)(
+        'for %s, naming its part of the kit',
+        async (_case, answer, status, words) => {
+          const { service, subscription } = makeService({
+            openAi: openAi(),
+            references: withUnusable,
+            kit: answer,
+          });
+
+          const err = await generateWithPrompt(service, dto({ brand })).catch(
+            (e) => e
+          );
+
+          expect(err).toBeInstanceOf(HttpException);
+          expect(err.getStatus()).toBe(status);
+          expect(err.message).toBe(
+            `${words}. Replace it on the Brands page, or pick No brand.`
+          );
+          expect(err.getResponse()).not.toHaveProperty('code');
+          expect(err.getResponse()).not.toHaveProperty('index');
+          expect(subscription.useCredit).not.toHaveBeenCalled();
+        }
+      );
+
+      it("for one of the user's images, by its number as without a brand", async () => {
+        const { service } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: kit(),
+        });
+        const request = dto({ references: ['a', 'big'], brand });
+
+        const err = await generateWithPrompt(service, request).catch((e) => e);
+
+        expect(err.getStatus()).toBe(422);
+        expect(err.getResponse()).toEqual({
+          message: 'Reference image 2 is larger than 30 MB.',
+          code: 'reference_too_large',
+          index: 2,
+        });
+      });
+    });
+  });
+
+  // The image being changed already carries the brand's look, so an edit
+  // takes the logo alone, after the images added to it.
+  describe('an edit', () => {
+    const edit = (over: Partial<Record<string, any>> = {}) =>
+      ({
+        imageId: 'shown',
+        prompt: change,
+        aspectRatio: 'portrait',
+        brand,
+        ...over,
+      } as any);
+
+    // The edit route's two steps, as the controller runs them.
+    const editWith = async (service: MediaService, request: any) =>
+      drain(
+        service.editImageWithPrompt(
+          org,
+          request,
+          await service.resolveImageEdit(org, request)
+        )
+      );
+
+    it('sends the image, the images added to it, then the logo, and never the examples', async () => {
+      const ai = openAi();
+      const { service, repository, brands } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await editWith(service, edit({ references: ['a'] }));
+
+      expect(brands.kitFor).toHaveBeenCalledWith('org-1', brand);
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'shown',
+        'a',
+        'logo',
+      ]);
+      expect(mimes(ai.editImageAtSize.mock.calls[0][2])).toEqual([
+        'image/jpeg',
+        'image/jpeg',
+        'image/png',
+      ]);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(
+        change,
+        3,
+        expect.objectContaining({ logo: 3, examples: [] })
+      );
+    });
+
+    it('takes 2 images added to it, the logo taking the fourth place', async () => {
+      const ai = openAi();
+      const { service, repository } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await editWith(service, edit({ references: ['a', 'b'] }));
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'shown',
+        'a',
+        'b',
+        'logo',
+      ]);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(
+        change,
+        4,
+        expect.objectContaining({ logo: 4 })
+      );
+    });
+
+    // Its improver reads only the logo's number, so without a logo nothing of
+    // the kit goes along.
+    it("renders as it would with no brand when the kit's logo is gone", async () => {
+      const ai = openAi();
+      const { service, repository } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit({ logoId: undefined }),
+      });
+
+      await editWith(service, edit());
+
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', ['shown']);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 1, undefined);
+    });
+
+    it('without a brand, asks for no kit and asks the improver what it always has', async () => {
+      const ai = openAi();
+      const { service, repository, brands } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      await editWith(service, edit({ references: ['a'], brand: undefined }));
+
+      expect(brands.kitFor).not.toHaveBeenCalled();
+      expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+        'shown',
+        'a',
+      ]);
+      expect(ai.generateEditPrompt).toHaveBeenCalledWith(change, 2, undefined);
+    });
+
+    describe('refuses before any credit exists', () => {
+      it('a third image added to it beside the logo, naming the brand', async () => {
+        const ai = openAi();
+        const { service, repository, subscription } = makeService({
+          openAi: ai,
+          references: library,
+          kit: kit(),
+        });
+        const request = edit({ references: ['a', 'b', 'c'] });
+
+        const err = await editWith(service, request).catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(400);
+        expect(err.message).toBe(TOO_MANY);
+        expect(repository.getMediaByIds).not.toHaveBeenCalled();
+        expect(read).not.toHaveBeenCalled();
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      });
+
+      it("a brand that isn't one of the organization's live brands", async () => {
+        const { service, repository, subscription } = makeService({
+          openAi: openAi(),
+          references: library,
+          kit: new HttpException(GONE, 404),
+        });
+
+        const err = await editWith(service, edit()).catch((e) => e);
+
+        expect(err.getStatus()).toBe(404);
+        expect(err.message).toBe(GONE);
+        expect(repository.getMediaByIds).not.toHaveBeenCalled();
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      });
+
+      it('a logo over the bound, naming it as the logo', async () => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: kit({ logoId: 'big' }),
+        });
+        const request = edit({ references: ['a'] });
+
+        const err = await editWith(service, request).catch((e) => e);
+
+        expect(err.getStatus()).toBe(422);
+        expect(err.message).toBe(
+          "Rawda Florist's logo is larger than 30 MB. Replace it on the Brands page, or pick No brand."
+        );
+        expect(err.getResponse()).not.toHaveProperty('index');
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // Samy's route into the same code: the brand goes through, and the result
+  // names it only when part of the kit went along, so Samy can say so.
+  describe('generateImageFromLinks', () => {
+    const link = (id: string) => `https://media/${id}`;
+
+    it('passes the brand through and names it in the result', async () => {
+      const ai = openAi();
+      const { service, brands } = makeService({
+        openAi: ai,
+        file: 'https://media/made.jpg',
+        references: library,
+        kit: kit(),
+      });
+      const resolve = jest.spyOn(service, 'resolveImageWithPrompt');
+
+      const made = await service.generateImageFromLinks(org, {
+        prompt,
+        aspectRatio: 'square',
+        references: [link('a')],
+        brand,
+      });
+
+      expect(resolve).toHaveBeenCalledWith(
+        org,
+        expect.objectContaining({ references: ['a'], brand })
+      );
+      expect(brands.kitFor).toHaveBeenCalledWith('org-1', brand);
+      expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+        prompt,
+        undefined,
+        2,
+        { logo: 2, examples: [], ...words }
+      );
+      expect(made).toEqual({
+        id: 'media-1',
+        path: 'https://media/made.jpg',
+        brand: 'Rawda Florist',
+      });
+    });
+
+    it('passes it through an edit, and names it when the logo went along', async () => {
+      const { service } = makeService({
+        openAi: openAi(),
+        file: 'https://media/made.jpg',
+        references: library,
+        kit: kit(),
+      });
+      const resolve = jest.spyOn(service, 'resolveImageEdit');
+
+      const made = await service.generateImageFromLinks(org, {
+        prompt: change,
+        aspectRatio: 'portrait',
+        editOf: link('shown'),
+        brand,
+      });
+
+      expect(resolve).toHaveBeenCalledWith(
+        org,
+        expect.objectContaining({ imageId: 'shown', brand })
+      );
+      expect(made).toEqual({
+        id: 'media-1',
+        path: 'https://media/made.jpg',
+        brand: 'Rawda Florist',
+      });
+    });
+
+    it.each([
+      ['a generation with an empty kit', { answer: empty, editOf: undefined }],
+      [
+        'an edit with no logo in the kit',
+        { answer: kit({ logoId: undefined }), editOf: link('shown') },
+      ],
+    ])("doesn't name the brand for %s", async (_case, { answer, editOf }) => {
+      const { service } = makeService({
+        openAi: openAi(),
+        file: 'https://media/made.jpg',
+        references: library,
+        kit: answer,
+      });
+
+      const made = await service.generateImageFromLinks(org, {
+        prompt,
+        aspectRatio: 'square',
+        editOf,
+        brand,
+      });
+
+      expect(made).toStrictEqual({
+        id: 'media-1',
+        path: 'https://media/made.jpg',
+      });
+    });
+
+    // Worded as the edit limit is, for Samy to ask which to keep.
+    it.each([
+      ['a generation', undefined, ['a', 'b', 'c', 'd']],
+      ['an edit', link('shown'), ['a', 'b', 'c']],
+    ])(
+      'words the refusal for too many images in %s for Samy, with no credit',
+      async (_case, editOf, references) => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: library,
+          kit: kit(),
+        });
+
+        const err = await service
+          .generateImageFromLinks(org, {
+            prompt,
+            aspectRatio: 'square',
+            editOf,
+            references: references.map(link),
+            brand,
+          })
+          .catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(400);
+        expect(err.message).toBe(TOO_MANY_FOR_SAMY);
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      }
+    );
+
+    // The kit's images aren't among Samy's links, so Samy is told which part
+    // of whose kit it is and what the user can do.
+    it.each(unusable)(
+      'refuses %s naming its part of the kit, with no credit',
+      async (_case, answer, status, words) => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: answer,
+        });
+
+        const err = await service
+          .generateImageFromLinks(org, {
+            prompt,
+            aspectRatio: 'square',
+            brand,
+          })
+          .catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(status);
+        expect(err.message).toBe(
+          `${words}, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`
+        );
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      }
+    );
+
+    it("refuses one of the user's images by its link, as without a brand", async () => {
+      const { service } = makeService({
+        openAi: openAi(),
+        references: withUnusable,
+        kit: kit(),
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('big')],
+          brand,
+        })
+        .catch((e) => e);
+
+      expect(err.getStatus()).toBe(422);
+      expect(err.message).toBe(
+        'The image https://media/big is larger than 30 MB, so no image was made and no credit was spent.'
+      );
+    });
   });
 });
 

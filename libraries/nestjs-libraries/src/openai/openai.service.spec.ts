@@ -31,7 +31,7 @@ jest.mock('openai', () => ({
   toFile: mockToFile,
 }));
 
-import { OpenaiService } from './openai.service';
+import { BrandBlock, OpenaiService } from './openai.service';
 
 const service = new OpenaiService();
 
@@ -405,6 +405,157 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
         'prompt: p\nRender in this style: s\nReference images: 2'
       );
     });
+
+    // A brand's logo and examples go along as references after the user's
+    // own, so the improver, which sees none of them, is told which numbers are
+    // the brand's, and the colours and fonts as words (spec 053, research R6).
+    describe('with a brand', () => {
+      const brand: BrandBlock = {
+        logo: 3,
+        examples: [4, 5],
+        colours: ['#B5542C'],
+        headingFont: 'Tajawal',
+        bodyFont: 'Inter',
+      };
+
+      // The media service hands on undefined when no brand was picked, and a
+      // brand whose kit is empty sends nothing at all.
+      it.each([
+        ['no brand', undefined],
+        ['a brand that sends nothing', { examples: [], colours: [] }],
+      ])("sends today's exact prompt with %s", async (_case, block) => {
+        await service.generatePromptForPicture('p', 's', 0, block);
+
+        expect(sent()).toEqual({
+          system: TODAY_SYSTEM,
+          user: 'prompt: p\nRender in this style: s',
+        });
+      });
+
+      it('leaves the reference rules last without a brand', async () => {
+        await service.generatePromptForPicture('p', 's', 2, undefined);
+        const { system, user } = sent();
+
+        expect(system).toMatch(/not on a new object\.$/);
+        expect(system).not.toMatch(/brand/i);
+        expect(user).toBe(
+          'prompt: p\nRender in this style: s\nReference images: 2'
+        );
+      });
+
+      it('adds the brand rules after the reference rules', async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+        const { system } = sent();
+
+        expect(system.startsWith(TODAY_SYSTEM + '\n')).toBe(true);
+        expect(system).toMatch(
+          /not on a new object\.\nThe image is for a brand/
+        );
+      });
+
+      it('shows the logo once, exactly as given, as a brand post carries it', async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+        const { system } = sent();
+
+        expect(system).toMatch(/show that logo once, exactly as given/i);
+        expect(system).toMatch(/where a brand's own post carries it/i);
+        expect(system).toMatch(/by its image number instead of describing it/i);
+      });
+
+      // Today's no-text rule strips logos when the user mentions no words,
+      // which would take the brand's own off its post.
+      it("spares the brand's own logo, and only it, from the no-text rules", async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+        const { system } = sent();
+
+        expect(system).toMatch(/the one logo the no-text rules above allow/i);
+        expect(system).toMatch(
+          /they never remove it, and still forbid any other/i
+        );
+      });
+
+      it("follows the examples' look but not their subjects", async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+        const { system } = sent();
+
+        expect(system).toMatch(
+          /follow their layout, their type and their use of colour/i
+        );
+        expect(system).toMatch(
+          /take the subject and the words from the description, never from them/i
+        );
+      });
+
+      it('uses the colours and sets the words in the named typefaces', async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+        const { system } = sent();
+
+        expect(system).toMatch(/use them as the image's main colours/i);
+        expect(system).toMatch(/headline or title in the heading font/i);
+        expect(system).toMatch(/any other words in the body font/i);
+      });
+
+      it("names the brand's images by number, and its colours and fonts", async () => {
+        await service.generatePromptForPicture('p', 's', 5, brand);
+
+        expect(sent().user).toBe(
+          [
+            'prompt: p',
+            'Render in this style: s',
+            'Reference images: 5',
+            'Brand logo: image 3',
+            'Brand example: image 4',
+            'Brand example: image 5',
+            'Brand colours: #B5542C',
+            'Brand heading font: Tajawal',
+            'Brand body font: Inter',
+          ].join('\n')
+        );
+      });
+
+      // What did not go along is never mentioned, so the improver can't ask
+      // for a logo or a typeface it was never given.
+      it.each([
+        [
+          'a logo and no examples',
+          1,
+          { logo: 1, examples: [], colours: [] },
+          'Reference images: 1\nBrand logo: image 1',
+        ],
+        [
+          'colours only',
+          0,
+          { examples: [], colours: ['#B5542C', '#1F3A5F'] },
+          'Brand colours: #B5542C, #1F3A5F',
+        ],
+        [
+          'a heading font only',
+          0,
+          { examples: [], colours: [], headingFont: 'Tajawal' },
+          'Brand heading font: Tajawal',
+        ],
+      ])(
+        'names only what goes along with %s',
+        async (_case, references, block, lines) => {
+          await service.generatePromptForPicture('p', 's', references, block);
+          const { system, user } = sent();
+
+          expect(system).toMatch(/The image is for a brand/);
+          expect(user).toBe(`prompt: p\nRender in this style: s\n${lines}`);
+        }
+      );
+
+      it('adds the brand rules straight after the rules of today with no references', async () => {
+        await service.generatePromptForPicture('p', 's', 0, {
+          examples: [],
+          colours: ['#B5542C'],
+        });
+
+        expect(
+          sent().system.startsWith(TODAY_SYSTEM + '\nThe image is for a brand')
+        ).toBe(true);
+      });
+    });
   });
 });
 
@@ -555,6 +706,58 @@ When the change points to one of the images, by number in any script ("image 2",
     await expect(
       service.generateEditPrompt('اجعل الخلفية بيضاء', 1)
     ).resolves.toBe('');
+  });
+
+  // An edit takes the brand's logo alone, after the images the user added: the
+  // image being changed already carries the look, so the examples never go
+  // with it (spec 053, research R6).
+  describe('with a brand', () => {
+    const brand: BrandBlock = {
+      logo: 3,
+      examples: [],
+      colours: ['#B5542C'],
+      headingFont: 'Tajawal',
+      bodyFont: 'Inter',
+    };
+
+    it("names the logo's number and nothing else of the kit", async () => {
+      await service.generateEditPrompt('اجعل الخلفية بيضاء', 3, brand);
+
+      expect(sent().user).toBe(
+        'change: اجعل الخلفية بيضاء\nImages: 3, image 1 is the image being edited.\nBrand logo: image 3'
+      );
+    });
+
+    it('puts the logo on the image once, as given, unless it already shows it', async () => {
+      await service.generateEditPrompt('اجعل الخلفية بيضاء', 3, brand);
+      const { system } = sent();
+
+      expect(system).toMatch(
+        /lettering it already carries\.\nWhen the user message names one of the images as the brand's logo/
+      );
+      expect(system).toMatch(/puts that logo on the image being edited once/i);
+      expect(system).toMatch(/exactly as given/i);
+      expect(system).toMatch(/where a brand's own post carries it/i);
+      expect(system).toMatch(/unless that image already shows it/i);
+      expect(system).toMatch(/by its image number instead of describing it/i);
+      expect(system).not.toMatch(/font/i);
+    });
+
+    it.each([
+      ['no brand', undefined],
+      [
+        'a brand without a logo',
+        { examples: [], colours: ['#B5542C'], headingFont: 'Tajawal' },
+      ],
+    ])('sends exactly what it sends today with %s', async (_case, block) => {
+      await service.generateEditPrompt('اجعل الخلفية بيضاء', 1);
+      await service.generateEditPrompt('اجعل الخلفية بيضاء', 1, block);
+      const [[today], [withBlock]] = mockParse.mock.calls as unknown as [
+        { messages: unknown }
+      ][];
+
+      expect(withBlock.messages).toEqual(today.messages);
+    });
   });
 });
 

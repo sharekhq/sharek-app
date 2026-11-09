@@ -34,8 +34,8 @@ import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 
 // A channel as GET /integrations/list gives it: the fields the list reads
-// (data-model.md).
-interface Channel {
+// (data-model.md), and the Brands page.
+export interface Channel {
   id: string;
   internalId: string;
   name: string;
@@ -73,6 +73,13 @@ export const compareChannels = (a: Channel, b: Channel) =>
   collate(a.name, b.name) ||
   byValue(a.id, b.id);
 
+// Customers A to Z, the id breaking a tie, as the list orders its groups (R2)
+// and the Brands page its brands.
+export const compareCustomers = (
+  a: { id: string; name: string },
+  b: { id: string; name: string }
+) => collate(a.name, b.name) || byValue(a.id, b.id);
+
 // The list's groups: the channels with no customer first, then each customer
 // A to Z, each group's channels in compareChannels order (R2). A customer
 // with no channel has no group.
@@ -92,8 +99,7 @@ export const orderChannels = (list: Channel[]) =>
         ? -1
         : !b.customer
         ? 1
-        : collate(a.customer.name, b.customer.name) ||
-          byValue(a.customer.id, b.customer.id)
+        : compareCustomers(a.customer, b.customer)
     );
 
 // data-model.md's usable table, one rule per page (C20): whether a row can be
@@ -187,7 +193,7 @@ const ROW_ACTION = clsx(
 // The channel's picture with its platform's badge, moved from the calendar's
 // old rail with its YouTube branch, at the list's 16px (C13). Decoration: it
 // sits only in a row's main button, which the channel's name already names.
-const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
+export const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
   channel,
   className,
 }) => (

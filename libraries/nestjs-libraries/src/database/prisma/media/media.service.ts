@@ -1,7 +1,11 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { WorkflowNotFoundError } from '@temporalio/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
-import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
+import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import {
+  BrandBlock,
+  OpenaiService,
+} from '@gitroom/nestjs-libraries/openai/openai.service';
 import {
   generationError,
   isSafetyRejection,
@@ -132,6 +136,57 @@ const REFUSED_LINK: Record<ImageReferenceRefusal, (link: string) => string> = {
     `The image ${link} can't be used because its file format isn't supported, so no image was made and no credit was spent.`,
 };
 
+// What a refused reference carries, when err is one.
+const refusalOf = (err: unknown) =>
+  (err instanceof HttpException ? err.getResponse() : {}) as {
+    code?: ImageReferenceRefusal;
+    index?: number;
+  };
+
+// One of a brand's kit images, with the part of the kit it is.
+type KitImage = { id: string; part: string };
+
+// Why a kit image can't go along, said after its part ("Rawda's logo").
+const REFUSED_KIT_IMAGE: Record<ImageReferenceRefusal, string> = {
+  reference_missing: 'is no longer in the Media library',
+  reference_too_large: `is larger than ${
+    IMAGE_REFERENCE_MAX_BYTES / (1024 * 1024)
+  } MB`,
+  reference_unreadable: "can't be used because its file format isn't supported",
+};
+
+// A kit image has no thumbnail, so its refusal names its part of the kit and
+// carries no code or index the window would word as one of the user's images.
+// The message is for the person at the window; generateImageFromLinks words it
+// for Samy.
+class KitImageRefusal extends HttpException {
+  constructor(
+    readonly part: string,
+    readonly reason: ImageReferenceRefusal,
+    status: number
+  ) {
+    super(
+      `${part} ${REFUSED_KIT_IMAGE[reason]}. Replace it on the Brands page, or pick No brand.`,
+      status
+    );
+  }
+}
+
+// More of the user's images than fit beside the brand's logo, worded as
+// KitImageRefusal is.
+class LogoPlaceRefusal extends HttpException {
+  constructor(readonly brand: string) {
+    super(
+      `With ${brand}'s logo, only ${
+        IMAGE_REFERENCE_MAX - 1
+      } of your images fit (${
+        IMAGE_REFERENCE_MAX - 2
+      } when editing). Remove one, or pick No brand.`,
+      400
+    );
+  }
+}
+
 @Injectable()
 export class MediaService {
   private storage = UploadFactory.createStorage();
@@ -142,7 +197,8 @@ export class MediaService {
     private _openAi: OpenaiService,
     private _subscriptionService: SubscriptionService,
     private _videoManager: VideoManager,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _brandService: BrandService
   ) {}
 
   async deleteMedia(org: string, id: string) {
@@ -240,9 +296,12 @@ export class MediaService {
     dto: GenerateImageWithPromptDto
   ) {
     await this.resolveImage(org);
+    const references = dto.references || [];
+    const kit = await this.resolveBrand(org, dto.brand, references.length);
     return {
       size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
-      inputs: await this.loadReferences(org, dto.references || []),
+      inputs: await this.loadWithKit(org, references, kit.images),
+      brand: kit.brand,
     };
   }
 
@@ -324,6 +383,96 @@ export class MediaService {
   }
 
   /**
+   * The user's images and then the kit's, in one loadReferences. A refusal of
+   * one of the kit's names its part of the kit rather than a number past the
+   * user's images.
+   */
+  private async loadWithKit(org: Organization, ids: string[], kit: KitImage[]) {
+    try {
+      return await this.loadReferences(org, [
+        ...ids,
+        ...kit.map((image) => image.id),
+      ]);
+    } catch (err) {
+      const { code, index } = refusalOf(err);
+      const image =
+        index && index > ids.length ? kit[index - ids.length - 1] : undefined;
+      if (!code || !image) {
+        throw err;
+      }
+
+      throw new KitImageRefusal(
+        image.part,
+        code,
+        (err as HttpException).getStatus()
+      );
+    }
+  }
+
+  /**
+   * What a render takes from a brand's kit (research R6): its images, numbered
+   * after the `before` images the render already has so the user's keep their
+   * numbers, each with the part of the kit it is, and the block the improver
+   * is told. The logo comes first; the examples go only when nothing comes
+   * before them, since the user's references take their place and an edit's
+   * image already carries the brand's look. kitFor answers only the images
+   * still in Media, so a deleted one is skipped rather than refused (FR-012),
+   * and `brand` is left out when nothing of the kit goes along.
+   */
+  private async resolveBrand(
+    org: Organization,
+    brandId: string | undefined,
+    before: number
+  ): Promise<{
+    images: KitImage[];
+    brand?: { name: string; block: BrandBlock };
+  }> {
+    if (!brandId) {
+      return { images: [] };
+    }
+
+    const kit = await this._brandService.kitFor(org.id, brandId);
+    const logo = kit.logoId
+      ? [{ id: kit.logoId, part: `${kit.name}'s logo` }]
+      : [];
+
+    // The logo takes one of the render's places.
+    if (before + logo.length > IMAGE_REFERENCE_MAX) {
+      throw new LogoPlaceRefusal(kit.name);
+    }
+
+    const examples = (before ? [] : kit.examples).map(({ id, n }) => ({
+      id,
+      part: `${kit.name}'s example post ${n}`,
+    }));
+    const images = [...logo, ...examples];
+    if (
+      !images.length &&
+      !kit.colours.length &&
+      !kit.headingFont &&
+      !kit.bodyFont
+    ) {
+      return { images };
+    }
+
+    return {
+      images,
+      brand: {
+        name: kit.name,
+        block: {
+          logo: logo.length ? before + 1 : undefined,
+          examples: examples.map(
+            (_, position) => before + logo.length + position + 1
+          ),
+          colours: kit.colours,
+          headingFont: kit.headingFont,
+          bodyFont: kit.bodyFont,
+        },
+      },
+    };
+  }
+
+  /**
    * The AI image modal's render as a stream, shaped like `processVideo`: the
    * single frame is the terminal one, and the controller's heartbeat wrapper
    * supplies the keep-alives in between. The render cannot be cancelled
@@ -352,7 +501,8 @@ export class MediaService {
           (await this._openAi.generatePromptForPicture(
             dto.prompt,
             style,
-            prepared.inputs.length
+            prepared.inputs.length,
+            prepared.brand?.block
           )) || dto.prompt
       );
     } catch (err) {
@@ -380,12 +530,14 @@ export class MediaService {
       );
     }
 
+    const images = [dto.imageId, ...(dto.references || [])];
+    const kit = await this.resolveBrand(org, dto.brand, images.length);
     return {
       size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
-      inputs: await this.loadReferences(org, [
-        dto.imageId,
-        ...(dto.references || []),
-      ]),
+      inputs: await this.loadWithKit(org, images, kit.images),
+      // An edit is improved as a change that keeps the image's own colours
+      // and type, so the kit goes along only with its logo.
+      brand: kit.brand?.block.logo ? kit.brand : undefined,
     };
   }
 
@@ -409,7 +561,8 @@ export class MediaService {
         async () =>
           (await this._openAi.generateEditPrompt(
             dto.prompt,
-            prepared.inputs.length
+            prepared.inputs.length,
+            prepared.brand?.block
           )) || dto.prompt
       );
     } catch (err) {
@@ -432,9 +585,11 @@ export class MediaService {
       aspectRatio: ImageAspectId;
       references?: string[];
       editOf?: string;
+      // A live brand's id, whose kit goes along
+      brand?: string;
     }
   ) {
-    const { prompt, aspectRatio, editOf } = input;
+    const { prompt, aspectRatio, editOf, brand } = input;
     const others = [...new Set(input.references)].filter(
       (link) => link !== editOf
     );
@@ -466,22 +621,17 @@ export class MediaService {
     }
 
     try {
+      let prepared;
       let frames;
       if (editOf) {
         const [imageId, ...references] = ids;
-        const dto = { imageId, prompt, aspectRatio, references };
-        frames = this.editImageWithPrompt(
-          org,
-          dto,
-          await this.resolveImageEdit(org, dto)
-        );
+        const dto = { imageId, prompt, aspectRatio, references, brand };
+        prepared = await this.resolveImageEdit(org, dto);
+        frames = this.editImageWithPrompt(org, dto, prepared);
       } else {
-        const dto = { prompt, aspectRatio, references: ids };
-        frames = this.generateImageWithPrompt(
-          org,
-          dto,
-          await this.resolveImageWithPrompt(org, dto)
-        );
+        const dto = { prompt, aspectRatio, references: ids, brand };
+        prepared = await this.resolveImageWithPrompt(org, dto);
+        frames = this.generateImageWithPrompt(org, dto, prepared);
       }
 
       let saved;
@@ -489,11 +639,37 @@ export class MediaService {
         saved = frame.media;
       }
 
-      return { id: saved.id, path: saved.path };
+      // The brand is named only when part of its kit went along, so a reply
+      // never credits a kit that sent nothing.
+      return {
+        id: saved.id,
+        path: saved.path,
+        ...(prepared.brand && { brand: prepared.brand.name }),
+      };
     } catch (err) {
-      const { code, index } = (
-        err instanceof HttpException ? err.getResponse() : {}
-      ) as { code?: ImageReferenceRefusal; index?: number };
+      // The brand's refusals in Samy's words, as the edit limit above is. The
+      // kit's images aren't among the links, so one is named by its part of
+      // the kit.
+      if (err instanceof KitImageRefusal) {
+        throw new HttpException(
+          `${err.part} ${
+            REFUSED_KIT_IMAGE[err.reason]
+          }, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`,
+          err.getStatus()
+        );
+      }
+      if (err instanceof LogoPlaceRefusal) {
+        throw new HttpException(
+          `With ${err.brand}'s logo, only ${
+            IMAGE_REFERENCE_MAX - 1
+          } of the user's images fit (${
+            IMAGE_REFERENCE_MAX - 2
+          } when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.`,
+          400
+        );
+      }
+
+      const { code, index } = refusalOf(err);
       if (code && index) {
         throw refuseReference(
           (err as HttpException).getStatus() as 404 | 422,

@@ -537,6 +537,7 @@ export class IntegrationRepository {
           where: {
             orgId: org,
             name,
+            deletedAt: null,
           },
         })) ||
         (await this._customers.model.customer.create({

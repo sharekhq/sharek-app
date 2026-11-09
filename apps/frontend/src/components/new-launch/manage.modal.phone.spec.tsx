@@ -149,7 +149,12 @@ jest.mock('@gitroom/frontend/components/launches/internal.channels', () => ({
 }));
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/platform-label',
-  () => ({ platformLabel: (identifier: string) => identifier })
+  () => ({
+    ...jest.requireActual(
+      '@gitroom/frontend/components/launches/helpers/platform-label'
+    ),
+    platformLabel: (identifier: string) => identifier,
+  })
 );
 jest.mock('@gitroom/frontend/components/launches/select.customer', () => ({
   SelectCustomer: () => <i data-customer="" />,

@@ -22,6 +22,11 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
 );
+// The brand repository opens a database client at import.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
+  () => ({ BrandService: class {} })
+);
 // samy.image.reader.integration.spec runs the real one.
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
   SamyImageReader: class SamyImageReader {
@@ -106,12 +111,14 @@ const runTurn = async (steps: number[], credits: number) => {
       .fn()
       .mockResolvedValue({ credits, resetsAt: RESETS_AT }),
   };
+  // No brand, so the images are made as they always were.
+  const brands = { resolveForSamy: jest.fn().mockResolvedValue({}) };
   const moduleRef = {
     get: (token: unknown) =>
       token === SamyImageReader
         ? new SamyImageReader()
         : token === SamyImageTool
-        ? new SamyImageTool(media as any)
+        ? new SamyImageTool(media as any, brands as any)
         : // A web tool. These runs are about images, so it's left off.
           { available: () => false },
   } as any;
@@ -159,8 +166,8 @@ describe('Samy image calls through the real loop', () => {
   // OpenAI is told every field is required, so the model fills the ones it has no
   // use for. Whatever it fills them with has to mean nothing, not a refusal.
   it.each([
-    ['null', { references: null, editOf: null }],
-    ['empty', { references: [], editOf: '' }],
+    ['null', { references: null, editOf: null, brand: null }],
+    ['empty', { references: [], editOf: '', brand: '' }],
   ])(
     'makes the image when the unused fields come back %s',
     async (_name, unused) => {
