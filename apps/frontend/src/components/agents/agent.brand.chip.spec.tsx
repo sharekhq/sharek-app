@@ -545,6 +545,19 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     );
   });
 
+  // Leaving the page would lose a message half typed in the box, so the
+  // Brands page opens in a new tab, as it does from the AI image dialog.
+  it('opens Manage brands in a new tab, keeping what is typed in the box', async () => {
+    await mount();
+    await pick('ig');
+
+    await click(chip());
+
+    const manage = document.querySelector('a[href="/brands"]')!;
+    expect(manage.getAttribute('target')).toBe('_blank');
+    expect(manage.getAttribute('rel')).toBe('noreferrer');
+  });
+
   it('D: goes without a brand on No brand', async () => {
     await mount();
     await pick('ig');

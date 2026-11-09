@@ -333,7 +333,7 @@ describe('the list', () => {
     ).toBe(true);
   });
 
-  // In the tab the list is in, for Samy's chip.
+  // In the tab the list is in, unless a caller asks for a new one.
   it('links Manage brands to the Brands page, outside the options', async () => {
     await open();
 
@@ -351,7 +351,8 @@ describe('the list', () => {
   });
 
   // The AI image dialog asks for it, so the dialog, and a post editor under
-  // it, stay open with everything in them.
+  // it, stay open with everything in them, and Samy's chip, so a message half
+  // typed in the box stays.
   it('opens the Brands page in a new tab when asked, closing the list', async () => {
     await open({ manageInNewTab: true });
 
