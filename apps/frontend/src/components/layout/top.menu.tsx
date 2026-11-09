@@ -8,6 +8,8 @@ import { MenuItem } from '@gitroom/frontend/components/new-layout/menu-item';
 
 interface MenuItemInterface {
   name: string;
+  // The page's heading, when the rail's word is shorter than the page's name.
+  title?: string;
   icon: ReactNode;
   path: string;
   role?: string[];
@@ -130,6 +132,7 @@ export const useMenuItem = () => {
     },
     {
       name: t('brands', 'Brands'),
+      title: t('brands_all_brands', 'Brands'),
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
