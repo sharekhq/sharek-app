@@ -651,6 +651,7 @@
   "billing_stripe_load_failed": "Impossibile caricare il modulo di pagamento. Disattiva i blocchi pubblicitari o le estensioni per la privacy per questa pagina e ricarica.",
   "already_subscribed": "Già abbonato",
   "ok": "OK",
+  "open_menu": "Apri menu",
   "billing_headline_lead": "Pianifica una settimana di contenuti in",
   "billing_headline_highlight": "una sola sessione",
   "billing_video_link": "Guarda Samy scrivere, creare e programmare",
