@@ -34,9 +34,12 @@ import {
  * re-renders on every drag hover — for a small-screen-only style.
  */
 export const SplitPanel: FC<{
-  /** Sheet state. Inert above 1025px, where this is a rail. */
-  open: boolean;
-  onClose: () => void;
+  /**
+   * Sheet state. Inert above 1025px, where this is a rail. A page that shows
+   * only the rail, as the Brands page does, leaves both out.
+   */
+  open?: boolean;
+  onClose?: () => void;
   /** Names the sheet's or drawer's dialog; the rail is not one. */
   label: string;
   children: ReactNode;
@@ -47,7 +50,7 @@ export const SplitPanel: FC<{
   /** Where the panel opens at 1025px and below. */
   variant?: 'sheet' | 'drawer';
 }> = ({
-  open,
+  open = false,
   onClose,
   label,
   children,
@@ -76,7 +79,7 @@ export const SplitPanel: FC<{
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -88,7 +91,7 @@ export const SplitPanel: FC<{
   // mounts open on a phone would close at once.
   const wasMobile = useRef(isMobile);
   useEffect(() => {
-    if (open && wasMobile.current && !isMobile) onCloseRef.current();
+    if (open && wasMobile.current && !isMobile) onCloseRef.current?.();
     wasMobile.current = isMobile;
   }, [open, isMobile]);
 

@@ -386,14 +386,9 @@ export const BrandsComponent: FC = () => {
   return (
     <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
       {/* The rail above 1025px. Below it the list is the page itself, so the
-          rail's sheet never opens and has nothing to close. */}
+          rail has no sheet to open. */}
       {!isMobile && (
-        <SplitPanel
-          open={false}
-          onClose={() => undefined}
-          width="w-[272px]"
-          label={t('brands_all_brands', 'Brands')}
-        >
+        <SplitPanel width="w-[272px]" label={t('brands_all_brands', 'Brands')}>
           {list}
         </SplitPanel>
       )}
