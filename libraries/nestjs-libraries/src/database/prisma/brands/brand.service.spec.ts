@@ -482,17 +482,21 @@ describe('BrandService.resolveForSamy', () => {
   const resolver = (repository: Record<string, jest.Mock> = {}) =>
     makeService({ list: jest.fn().mockResolvedValue(brands), ...repository });
 
-  it("goes without a kit for 'none', whatever the channels, and reads nothing", async () => {
-    const { service, repository } = resolver({
-      customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
-    });
+  // The model may change its case or pad it, as it does a name's
+  it.each(['none', 'None', ' NONE '])(
+    "goes without a kit for '%s', whatever the channels, and reads nothing",
+    async (input) => {
+      const { service, repository } = resolver({
+        customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+      });
 
-    await expect(
-      service.resolveForSamy('org-1', { input: 'none', channelIds: ['int-1'] })
-    ).resolves.toEqual({});
-    expect(repository.list).not.toHaveBeenCalled();
-    expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
-  });
+      await expect(
+        service.resolveForSamy('org-1', { input, channelIds: ['int-1'] })
+      ).resolves.toEqual({});
+      expect(repository.list).not.toHaveBeenCalled();
+      expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+    }
+  );
 
   it('takes the brand the input names over the brand of the selected channels', async () => {
     const { service, repository } = resolver({
