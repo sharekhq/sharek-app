@@ -154,6 +154,7 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
         )}
       </p>
       <button
+        type="button"
         onClick={onRefresh}
         className="inline-flex items-center gap-[6px] px-[16px] py-[8px] coarse:min-h-[44px] text-[14px] font-medium text-ink bg-quiet border border-line hover:bg-surface2 rounded-[8px] transition-colors focus-visible:ring-2 focus-visible:ring-brand"
       >
