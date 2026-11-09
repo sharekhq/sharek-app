@@ -226,6 +226,57 @@ export const PlatformAnalytics = () => {
     );
   }
 
+  // The phone's channel button, which opens the sheet: the chosen channel, or
+  // with none that can be picked the list's hint, so the sheet and its
+  // Reconnect stay in reach.
+  const channelButton = (
+    <button
+      type="button"
+      onClick={() => setChannelsOpen(true)}
+      aria-expanded={channelsOpen}
+      aria-label={
+        currentIntegration
+          ? t(
+              'change_channel_named',
+              'Channel: {{name}} on {{platform}}. Change channel',
+              {
+                name: currentIntegration.name,
+                platform: platformLabel(currentIntegration.identifier),
+                // React escapes the label, so i18next mustn't first
+                interpolation: { escapeValue: false },
+              }
+            )
+          : undefined
+      }
+      className={clsx(
+        'hidden mobile:flex items-center gap-[10px] h-[56px] px-[12px] rounded-[10px] border border-line cursor-pointer',
+        FOCUS_RING
+      )}
+    >
+      {currentIntegration ? (
+        <ChosenChannel channel={currentIntegration} phone />
+      ) : (
+        <span className="flex-1 min-w-0 text-start text-[14px] font-[500] text-ink">
+          {t('channel_hint_analytics', 'Pick a channel to see its numbers.')}
+        </span>
+      )}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="text-muted"
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
+  );
+
   return (
     <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
       <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px]">
@@ -238,41 +289,7 @@ export const PlatformAnalytics = () => {
               <div className="flex items-center gap-[12px] min-w-0 mobile:hidden">
                 <ChosenChannel channel={currentIntegration} />
               </div>
-              <button
-                type="button"
-                onClick={() => setChannelsOpen(true)}
-                aria-expanded={channelsOpen}
-                aria-label={t(
-                  'change_channel_named',
-                  'Channel: {{name}} on {{platform}}. Change channel',
-                  {
-                    name: currentIntegration.name,
-                    platform: platformLabel(currentIntegration.identifier),
-                    // React escapes the label, so i18next mustn't first
-                    interpolation: { escapeValue: false },
-                  }
-                )}
-                className={clsx(
-                  'hidden mobile:flex items-center gap-[10px] h-[56px] px-[12px] rounded-[10px] border border-line cursor-pointer',
-                  FOCUS_RING
-                )}
-              >
-                <ChosenChannel channel={currentIntegration} phone />
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  className="text-muted"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
+              {channelButton}
               {/* the calendar's view control, as one-click radios */}
               <div
                 role="radiogroup"
@@ -303,20 +320,23 @@ export const PlatformAnalytics = () => {
             </div>
           </>
         ) : (
-          <EmptyState
-            illustration={<AnalyticsEmptyIllustration />}
-            title={t(
-              'analytics_empty_title',
-              'Track how your content performs'
-            )}
-            description={t(
-              'analytics_empty_description',
-              'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
-            )}
-            note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
-            actionLabel={t('connect_a_channel', 'Connect a channel')}
-            onAction={() => router.push('/launches')}
-          />
+          <>
+            {!!data.length && channelButton}
+            <EmptyState
+              illustration={<AnalyticsEmptyIllustration />}
+              title={t(
+                'analytics_empty_title',
+                'Track how your content performs'
+              )}
+              description={t(
+                'analytics_empty_description',
+                'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
+              )}
+              note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
+              actionLabel={t('connect_a_channel', 'Connect a channel')}
+              onAction={() => router.push('/launches')}
+            />
+          </>
         )}
       </div>
       <SplitPanel
@@ -330,7 +350,11 @@ export const PlatformAnalytics = () => {
           mode="analytics"
           channels={data}
           selected={currentIntegration?.id ?? null}
-          onChange={setChosen}
+          onChange={(id) => {
+            setChosen(id);
+            // one choice, so a pick closes the sheet; the rail stays
+            setChannelsOpen(false);
+          }}
           hasStatistics={hasStatistics}
           update={mutate}
           collapsed={railCollapsed}
