@@ -465,7 +465,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
       'https://media/bq.png'
     );
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'Brand for this message: Bayt Al Qahwa. Change brand'
+      'Brand for this message: ⁨Bayt Al Qahwa⁩. Change brand'
     );
     expect(sent()).not.toHaveProperty('brand');
   });
@@ -495,7 +495,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.querySelector('img')).toBeNull();
     expect(chipName()).toBeNull();
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'Brand for this message: Choose a brand. Change brand'
+      'Brand for this message: ⁨Choose a brand⁩. Change brand'
     );
     // an outline, not the chosen chip's fill
     expect(classes(chip()!)).not.toContain('bg-surface2');
@@ -557,7 +557,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     // its crossed circle, and the chevron
     expect(chip()!.querySelectorAll('svg')).toHaveLength(2);
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'Brand for this message: No brand. Change brand'
+      'Brand for this message: ⁨No brand⁩. Change brand'
     );
     expect(classes(chip()!)).not.toContain('bg-surface2');
     expect(sent().brand).toBe('none');
@@ -573,7 +573,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.querySelectorAll('img')).toHaveLength(1);
     expect(chip()!.textContent).toBe('N2 brands');
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'Brand for this message: 2 brands. Change brand'
+      'Brand for this message: ⁨2 brands⁩. Change brand'
     );
     expect(sent()).not.toHaveProperty('brand');
 
@@ -904,10 +904,12 @@ describe('in Arabic (board ChipStatesAR)', () => {
 
     expect(chip()!.textContent).toBe('اختر علامة تجارية');
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'العلامة التجارية لهذه الرسالة: اختر علامة تجارية. تغيير العلامة'
+      'العلامة التجارية لهذه الرسالة: ⁨اختر علامة تجارية⁩. تغيير العلامة'
     );
   });
 
+  // In its label too, isolated as the AI image dialog's Brand field and the
+  // note isolate it, so a Latin name doesn't reorder the Arabic around it.
   it("keeps a brand's Latin name in its own direction", async () => {
     await mount();
     await pick('ig');
@@ -915,7 +917,7 @@ describe('in Arabic (board ChipStatesAR)', () => {
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
     expect(chipName()!.getAttribute('dir')).toBe('auto');
     expect(chip()!.getAttribute('aria-label')).toBe(
-      'العلامة التجارية لهذه الرسالة: Bayt Al Qahwa. تغيير العلامة'
+      'العلامة التجارية لهذه الرسالة: ⁨Bayt Al Qahwa⁩. تغيير العلامة'
     );
   });
 
