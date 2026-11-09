@@ -11,7 +11,10 @@ import * as path from 'path';
 // picked, Choose a brand while it waits on several, No brand, or N brands when
 // the picked channels span brands. It opens the brand list for this message.
 // The user's own pick holds until they change it or the picked channels'
-// brands change. With images attached and a brand chosen that has an example
+// brands change, and only a pick goes to Samy: a choice the chip makes for
+// the user is the one the server makes from the picked channels too, and
+// sending it would outrank a brand the user names to Samy. With images
+// attached and a brand chosen that has an example
 // still in Media, a note in the box says they go in place of the brand's
 // examples and, while its logo is in Media too, that it still goes along.
 //
@@ -284,10 +287,10 @@ const realMatchMedia = window.matchMedia;
 let smallWindow = false;
 const listeners = new Set<() => void>();
 
-// What Samy is sent of the chip's choice, as the last render handed it on.
-const chosen = () => {
+// What AgentChat last handed Samy beside the message.
+const sent = () => {
   expect(mockProperties).toBeDefined();
-  return mockProperties!.brand;
+  return mockProperties!;
 };
 
 const mounted: Root[] = [];
@@ -440,15 +443,17 @@ describe('where it sits (FR-023, FR-026)', () => {
     const render = await mount();
     await pick('ig');
     expect(chip()).toBeNull();
-    expect(chosen()).toBeUndefined();
+    expect(sent()).not.toHaveProperty('brand');
 
     mockBrands = undefined;
     await render();
     expect(chip()).toBeNull();
-    expect(chosen()).toBeUndefined();
+    expect(sent()).not.toHaveProperty('brand');
   });
 });
 
+// Each choice made for the user shows on the chip and isn't sent: the
+// server goes by the picked channels, or by a brand the user names to Samy.
 describe('what it shows (contracts/pages-ui.md part 2)', () => {
   it('A: the one brand among the picked channels, its logo and name, chosen for the user', async () => {
     await mount();
@@ -461,7 +466,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.getAttribute('aria-label')).toBe(
       'Brand for this message: Bayt Al Qahwa. Change brand'
     );
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('A: leaves channels in no brand out of it', async () => {
@@ -469,7 +474,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('ig', 'tt');
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it("A: shows a brand's initial while it has no logo", async () => {
@@ -479,7 +484,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.querySelector('img')).toBeNull();
     expect(chip()!.textContent).toBe('NNoor Dental');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen()).toBe('nd');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('B: waits with Choose a brand while several brands and no channels are picked', async () => {
@@ -493,7 +498,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     );
     // an outline, not the chosen chip's fill
     expect(classes(chip()!)).not.toContain('bg-surface2');
-    expect(chosen()).toBeUndefined();
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it("pre-selects the organization's one brand while no channels are picked", async () => {
@@ -501,7 +506,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await mount();
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('reads No brand when every picked channel is in no brand, as Samy then uses none', async () => {
@@ -509,7 +514,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('tt');
 
     expect(chip()!.textContent).toBe('No brand');
-    expect(chosen()).toBe('none');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('C: opens the brand list for this message on a tap, the current brand ticked, with No brand and Manage brands', async () => {
@@ -554,7 +559,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
       'Brand for this message: No brand. Change brand'
     );
     expect(classes(chip()!)).not.toContain('bg-surface2');
-    expect(chosen()).toBe('none');
+    expect(sent().brand).toBe('none');
   });
 
   it("F: reads 2 brands when the picked channels span two, choosing each channel's brand, which the list offers first", async () => {
@@ -569,7 +574,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.getAttribute('aria-label')).toBe(
       'Brand for this message: 2 brands. Change brand'
     );
-    expect(chosen()).toBe('each');
+    expect(sent()).not.toHaveProperty('brand');
 
     await click(chip());
     expect(options()[0].textContent).toContain("Each channel's brand");
@@ -585,7 +590,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('ig', 'li', 'yt');
 
     expect(chip()!.textContent).toContain('3 brands');
-    expect(chosen()).toBe('each');
+    expect(sent()).not.toHaveProperty('brand');
   });
 });
 
@@ -596,53 +601,75 @@ describe("the user's own pick (FR-023)", () => {
 
     await choose('Noor Dental');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen()).toBe('nd');
+    expect(sent().brand).toBe('nd');
 
     await pick('ig', 'fb');
     expect(chipName()!.textContent).toBe('Noor Dental');
     // a channel in no brand changes no brand
     await pick('ig', 'fb', 'tt');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen()).toBe('nd');
+    expect(sent().brand).toBe('nd');
   });
 
   it("gives way once the picked channels' brands change, and doesn't come back with them", async () => {
     await mount();
     await pick('ig');
     await choose('No brand');
-    expect(chosen()).toBe('none');
+    expect(sent().brand).toBe('none');
 
     await pick('ig', 'li');
     expect(chip()!.textContent).toContain('2 brands');
-    expect(chosen()).toBe('each');
+    expect(sent()).not.toHaveProperty('brand');
 
     await pick('ig');
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('made while the chip waits, gives way once channels are picked', async () => {
     await mount();
     await choose('Rawda Florist');
     expect(chipName()!.textContent).toBe('Rawda Florist');
-    expect(chosen()).toBe('rf');
+    expect(sent().brand).toBe('rf');
 
     await pick('ig');
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
   });
 
   it('falls back as if none had been made when the brand picked is deleted', async () => {
     const render = await mount();
     await pick('ig');
     await choose('Noor Dental');
-    expect(chosen()).toBe('nd');
+    expect(sent().brand).toBe('nd');
 
     mockBrands = [BQ, RF];
     await render();
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen()).toBe('bq');
+    expect(sent()).not.toHaveProperty('brand');
+  });
+
+  it('is sent once the user picks the brand the chip already showed', async () => {
+    await mount();
+    await pick('ig');
+    expect(sent()).not.toHaveProperty('brand');
+
+    await choose('Bayt Al Qahwa');
+
+    expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
+    expect(sent().brand).toBe('bq');
+  });
+
+  it("is sent once the user picks each channel's brand", async () => {
+    await mount();
+    await pick('ig', 'li');
+    expect(sent()).not.toHaveProperty('brand');
+
+    await choose("Each channel's brand");
+
+    expect(chip()!.textContent).toContain('2 brands');
+    expect(sent().brand).toBe('each');
   });
 
   // The box puts the focus in the text on a click anywhere but a button,
@@ -741,7 +768,7 @@ describe('the note on attached images (FR-024, state E)', () => {
     expect(note()).toBeNull();
 
     await pick('ig', 'li');
-    expect(chosen()).toBe('each');
+    expect(chip()!.textContent).toContain('2 brands');
     expect(note()).toBeNull();
   });
 
@@ -786,7 +813,7 @@ describe('the note on attached images (FR-024, state E)', () => {
 
     await attach('a', 'png');
 
-    expect(chosen()).toBe('bq');
+    expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
     expect(note()).toBeNull();
   });
 
