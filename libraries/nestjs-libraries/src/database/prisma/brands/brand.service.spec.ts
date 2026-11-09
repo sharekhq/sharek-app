@@ -503,6 +503,107 @@ describe('BrandService.resolveForSamy', () => {
   const resolver = (repository: Record<string, jest.Mock> = {}) =>
     makeService({ list: jest.fn().mockResolvedValue(brands), ...repository });
 
+  // The brand chip's choice comes first. The copilot controller keeps only
+  // none, each or a live brand of the organization (R14), so a brand id is
+  // trusted; one deleted since is refused by kitFor before any render.
+  describe('with the brand chip', () => {
+    it.each([
+      ["another brand's name", 'Sanabel'],
+      ['no name', undefined],
+    ])(
+      'goes without a kit for none, whatever the channels, given %s, and reads nothing',
+      async (_gives, input) => {
+        const { service, repository } = resolver({
+          customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+        });
+
+        await expect(
+          service.resolveForSamy('org-1', {
+            chip: 'none',
+            input,
+            channelIds: ['int-1'],
+          })
+        ).resolves.toEqual({});
+        expect(repository.list).not.toHaveBeenCalled();
+        expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      ["another brand's name", 'Sanabel'],
+      ["'none'", 'none'],
+      ['no name', undefined],
+    ])(
+      'takes the brand it holds over the channels, given %s, and reads nothing',
+      async (_gives, input) => {
+        const { service, repository } = resolver({
+          customerIdsOfChannels: jest
+            .fn()
+            .mockResolvedValue(['brand-1', 'brand-2']),
+        });
+
+        await expect(
+          service.resolveForSamy('org-1', {
+            chip: 'brand-3',
+            input,
+            channelIds: ['int-1', 'int-2'],
+          })
+        ).resolves.toEqual({ brandId: 'brand-3' });
+        expect(repository.list).not.toHaveBeenCalled();
+        expect(repository.findLive).not.toHaveBeenCalled();
+        expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+      }
+    );
+
+    it('leaves each to the brand the input names', async () => {
+      const { service, repository } = resolver({
+        customerIdsOfChannels: jest
+          .fn()
+          .mockResolvedValue(['brand-1', 'brand-3']),
+      });
+
+      await expect(
+        service.resolveForSamy('org-1', {
+          chip: 'each',
+          input: 'Sanabel',
+          channelIds: ['int-1', 'int-2'],
+        })
+      ).resolves.toEqual({ brandId: 'brand-2' });
+      expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+    });
+
+    // So Samy still asks first, then calls once per brand with its name
+    it('leaves each to the selected channels, refusing when they belong to several brands', async () => {
+      const { service } = resolver({
+        customerIdsOfChannels: jest
+          .fn()
+          .mockResolvedValue(['brand-3', 'brand-1']),
+      });
+
+      await expect(
+        service.resolveForSamy('org-1', {
+          chip: 'each',
+          channelIds: ['int-1', 'int-2'],
+        })
+      ).resolves.toEqual({
+        error: `The selected channels belong to 2 brands: Rawda, نخيل. Tell the user you'll make one image per brand, each in its own look, at one credit each, and wait for a yes. Then call once per brand with brand set to its name.`,
+      });
+    });
+
+    it('leaves each to the brand of the selected channels when they share exactly one', async () => {
+      const { service } = resolver({
+        customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-2']),
+      });
+
+      await expect(
+        service.resolveForSamy('org-1', {
+          chip: 'each',
+          channelIds: ['int-1'],
+        })
+      ).resolves.toEqual({ brandId: 'brand-2' });
+    });
+  });
+
   // The model may change its case or pad it, as it does a name's
   it.each(['none', 'None', ' NONE '])(
     "goes without a kit for '%s', whatever the channels, and reads nothing",

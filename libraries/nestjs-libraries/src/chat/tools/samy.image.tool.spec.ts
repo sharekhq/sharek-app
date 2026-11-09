@@ -55,13 +55,17 @@ const makeTool = (
 // checkAuth only writes to the request context when it finds an authInfo, and
 // there is no async-storage context in a unit test, so the organization the tool
 // reads back is the one seeded here. The channels are what the browser sent as
-// selected, left off when a test sends none.
-const context = (integrations?: unknown) => {
+// selected, and the brand the chip's choice as the copilot controller kept it,
+// each left off when a test sends none.
+const context = (integrations?: unknown, brand?: string) => {
   const requestContext = new Map<string, unknown>([
     ['organization', JSON.stringify(org)],
   ]);
   if (integrations !== undefined) {
     requestContext.set('integrations', integrations);
+  }
+  if (brand !== undefined) {
+    requestContext.set('brand', brand);
   }
   return { requestContext } as any;
 };
@@ -267,6 +271,30 @@ describe('SamyImageTool', () => {
       });
     });
 
+    // The copilot controller keeps only none, each or a live brand id of the
+    // organization, so the brand service takes it as it is (research R14).
+    it.each([
+      ['none', 'none'],
+      ['each', 'each'],
+      ['a brand', ACME],
+    ])(
+      "asks with the brand chip's choice, %s, beside the name and the channels",
+      async (_name, chip) => {
+        const { tool, brands } = makeTool();
+
+        await tool.execute(
+          { prompt: 'a cat', brand: 'Bloom' },
+          context([{ id: 'channel-1', identifier: 'instagram' }], chip)
+        );
+
+        expect(brands.resolveForSamy).toHaveBeenCalledWith('org-1', {
+          chip,
+          input: 'Bloom',
+          channelIds: ['channel-1'],
+        });
+      }
+    );
+
     it.each([
       ['none were sent', undefined],
       ['they are not a list', { id: 'channel-1' }],
@@ -389,6 +417,28 @@ describe('SamyImageTool', () => {
           run
         )
       ).toEqual({ error: words });
+      expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
+    });
+
+    // The chip's brand is checked when the message is sent, so it may be
+    // deleted before the render reads its kit.
+    it("hands back kitFor's words when the chip's brand was deleted since, and gives the slot and credit back", async () => {
+      const words = 'That brand no longer exists. Pick another or No brand.';
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException(words, 404))
+        .mockResolvedValue(made);
+      const { tool } = makeTool(
+        render,
+        jest.fn().mockResolvedValue({ credits: 1, resetsAt: RESETS_AT }),
+        picks({ brandId: ACME })
+      );
+      const run = context(undefined, ACME);
+
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual({
+        error: words,
+      });
       expect(run.requestContext.get('samyImagesMade')).toBe(0);
       expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
     });
