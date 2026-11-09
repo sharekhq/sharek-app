@@ -221,9 +221,30 @@ export const BrandNote: FC = () => {
     (media) => !hasExtension(media.path, 'mp4')
   ).length;
   const showing = !!current && liveExamples(current).length > 0 && images > 0;
+  // Its words change as images join or leave, and as the brand changes or
+  // its logo leaves Media.
+  const values = {
+    count: images,
+    brand: isolate(current?.name),
+    interpolation: { escapeValue: false },
+  };
+  const text = !showing
+    ? ''
+    : liveLogo(current)
+    ? t(
+        'brands_attach_note',
+        "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
+        values
+      )
+    : t(
+        'brands_attach_note_no_logo',
+        "Your {{count}} images go in place of {{brand}}'s examples.",
+        values
+      );
 
   // It takes its room from the chat, as the attachments' row does, and the
-  // chat's own scrolling watches only its messages.
+  // chat's own scrolling watches only its messages: when it shows, and when
+  // its words change, which can change its height.
   useLayoutEffect(() => {
     if (note.current) {
       followChatBottom(
@@ -231,17 +252,11 @@ export const BrandNote: FC = () => {
         note.current.offsetHeight
       );
     }
-  }, [showing]);
+  }, [text]);
 
   if (!showing) {
     return null;
   }
-
-  const values = {
-    count: images,
-    brand: isolate(current.name),
-    interpolation: { escapeValue: false },
-  };
 
   return (
     <p
@@ -263,19 +278,7 @@ export const BrandNote: FC = () => {
         <circle cx="12" cy="12" r="9" />
         <path d="M12 11v5M12 8h.01" />
       </svg>
-      <span>
-        {liveLogo(current)
-          ? t(
-              'brands_attach_note',
-              "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
-              values
-            )
-          : t(
-              'brands_attach_note_no_logo',
-              "Your {{count}} images go in place of {{brand}}'s examples.",
-              values
-            )}
-      </span>
+      <span>{text}</span>
     </p>
   );
 };
