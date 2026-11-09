@@ -13,6 +13,7 @@ import { createRoot, Root } from 'react-dom/client';
 const request = jest.fn();
 const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
+const toast = jest.fn();
 let channels: Array<{
   id: string;
   name: string;
@@ -31,6 +32,9 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
+}));
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: toast }),
 }));
 // The page's two lists, which the kit refreshes after each save.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
@@ -66,6 +70,7 @@ jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
   compareChannels: () => 0,
 }));
 
+import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 import {
   ModalManagerInner,
   useModals,
@@ -637,6 +642,79 @@ describe('saving the kit', () => {
       { colours: ['#C8913A'] },
       { bodyFont: 'Tajawal' },
     ]);
+  });
+});
+
+describe('a change the server refuses or that fails', () => {
+  const refused = (status: number, body: object) =>
+    request.mockResolvedValueOnce({
+      ok: false,
+      status,
+      json: async () => body,
+    });
+
+  it('a refused save says so in the server’s words, and the brands stay as they were', async () => {
+    refused(404, { message: 'Media m9 was not found' });
+    await mount(brand({ logo: image('logo') }));
+
+    await click(button(card('Logo'), 'Remove'));
+
+    expect(toast).toHaveBeenCalledWith('Media m9 was not found', 'warning');
+    expect(reloadBrands).not.toHaveBeenCalled();
+  });
+
+  it('a refused save with several reasons gives the first', async () => {
+    refused(400, {
+      message: ['each value in colours must match', 'colours must be unique'],
+    });
+    await mount(brand({ colours: ['#3B2417', '#C8913A'] }));
+
+    await click(button(card('Colours'), 'Remove colour #3B2417'));
+
+    expect(toast).toHaveBeenCalledWith(
+      'each value in colours must match',
+      'warning'
+    );
+  });
+
+  it.each([
+    ['a refusal with no words', () => refused(500, {})],
+    [
+      'a request that fails',
+      () => request.mockRejectedValueOnce(new TypeError('Failed to fetch')),
+    ],
+  ])('%s says an error occurred', async (_, fail) => {
+    fail();
+    await mount(brand({ headingFont: 'Reem Kufi' }));
+
+    await type(font('Headings'), 'Tajawal');
+    await leave(font('Headings'));
+
+    expect(toast).toHaveBeenCalledWith(
+      'An error occurred. Please try again.',
+      'warning'
+    );
+    expect(reloadBrands).not.toHaveBeenCalled();
+  });
+
+  it('says nothing more for a request the fetch interceptor answered already', async () => {
+    request.mockRejectedValueOnce(new AlreadyAnsweredError(402));
+    await mount(brand({ logo: image('logo') }));
+
+    await click(button(card('Logo'), 'Remove'));
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(reloadBrands).not.toHaveBeenCalled();
+  });
+
+  it('a refused channel move says so, and the channel list reloads to show where each one is', async () => {
+    refused(404, { message: 'Integration not found' });
+    await mount(brand());
+
+    await click(buttons(card('Channels'), 'Remove from brand')[0]);
+
+    expect(toast).toHaveBeenCalledWith('Integration not found', 'warning');
+    expect(reloadChannels).toHaveBeenCalled();
   });
 });
 

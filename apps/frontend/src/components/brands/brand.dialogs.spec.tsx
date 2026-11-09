@@ -451,6 +451,43 @@ describe('Delete', () => {
     expect(request).not.toHaveBeenCalled();
     expect(button('Delete brand')).toBeUndefined();
   });
+
+  it('a delete the server refuses says so in its words, and both lists stay as they were', async () => {
+    brands = [BAYT];
+    request.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: 'Brand not found' }),
+    });
+    await mount();
+    await open(() => dialogs.openDeleteBrand(BAYT));
+
+    await click(button('Delete brand'));
+
+    expect(sent('/brands/b1')).toEqual([['DELETE', undefined]]);
+    expect(toast).toHaveBeenCalledWith('Brand not found', 'warning');
+    expect(reloadBrands).not.toHaveBeenCalled();
+    expect(reloadChannels).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['en', 'An error occurred. Please try again.'],
+    ['ar', 'حدث خطأ. يرجى المحاولة مرة أخرى.'],
+  ])(
+    'in %s, a delete that fails says an error occurred',
+    async (lng, words) => {
+      await i18next.changeLanguage(lng);
+      brands = [BAYT];
+      request.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      await mount();
+      await open(() => dialogs.openDeleteBrand(BAYT));
+
+      await click(button(i18next.t('brands_delete_brand')));
+
+      expect(toast).toHaveBeenCalledWith(words, 'warning');
+      expect(reloadBrands).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('Rename', () => {
