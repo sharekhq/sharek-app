@@ -78,10 +78,18 @@ export const AgentChat: FC = () => {
   const params = useParams<{ id: string }>();
   const { properties } = useContext(PropertiesContext);
   const t = useT();
+  // A chat started at /agents/new gets its id here, as an open chat gets its
+  // own from the address. Given none, CopilotKit makes one for its context,
+  // which the header and the history read (C21), and another for the thread
+  // its chat saves, so a new chat was never found by its id.
+  const threadId = useMemo(
+    () => (params.id === 'new' ? crypto.randomUUID() : params.id),
+    [params.id]
+  );
 
   return (
     <CopilotKit
-      {...(params.id === 'new' ? {} : { threadId: params.id })}
+      threadId={threadId}
       credentials="include"
       runtimeUrl={backendUrl + '/copilot/agent'}
       useSingleEndpoint={true}

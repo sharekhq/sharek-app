@@ -648,6 +648,7 @@
   "billing_stripe_load_failed": "Das Zahlungsformular konnte nicht geladen werden. Bitte deaktivieren Sie Werbeblocker oder Datenschutz-Erweiterungen für diese Seite und laden Sie sie erneut.",
   "already_subscribed": "Bereits abonniert",
   "ok": "OK",
+  "open_menu": "Menü öffnen",
   "billing_headline_lead": "Plane eine Woche Content in",
   "billing_headline_highlight": "einem Rutsch",
   "billing_video_link": "Sieh Samy beim Schreiben, Erstellen und Planen zu",

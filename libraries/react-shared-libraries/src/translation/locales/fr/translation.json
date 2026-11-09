@@ -651,6 +651,7 @@
   "billing_stripe_load_failed": "Le formulaire de paiement n’a pas pu être chargé. Veuillez désactiver les bloqueurs de publicités ou les extensions de confidentialité pour cette page, puis rechargez-la.",
   "already_subscribed": "Déjà abonné",
   "ok": "OK",
+  "open_menu": "Ouvrir le menu",
   "billing_headline_lead": "Planifiez une semaine de contenu en",
   "billing_headline_highlight": "une seule séance",
   "billing_video_link": "Regardez Samy rédiger, créer et programmer",

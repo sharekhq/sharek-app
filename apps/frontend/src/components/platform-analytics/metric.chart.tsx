@@ -9,6 +9,7 @@ import {
   chartColorSchemes,
   chartTooltipColors,
 } from '@gitroom/frontend/components/analytics/chart-social';
+import { modeEmitter } from '@gitroom/frontend/components/layout/mode.component';
 import {
   REDUCED_MOTION_QUERY,
   useMediaQuery,
@@ -37,7 +38,16 @@ export const MetricChart: FC<{
   data: TotalList[];
 }> = ({ label, data }) => {
   const t = useT();
-  const [mode] = useCookie('mode', 'dark');
+  const [mode, setMode] = useCookie('mode', 'dark');
+  // The cookie is read once, so the theme switch on the open page comes
+  // through modeEmitter, as for NoMediaIcon. Off with its own listener only:
+  // the other charts on the page are still listening.
+  useEffect(() => {
+    modeEmitter.on('mode', setMode);
+    return () => {
+      modeEmitter.off('mode', setMode);
+    };
+  }, [setMode]);
   // chart.js animates the canvas itself, out of global.scss's reach (C26)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const ref = useRef<HTMLCanvasElement>(null);

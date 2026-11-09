@@ -651,6 +651,7 @@
   "billing_stripe_load_failed": "O formulário de pagamento não pôde ser carregado. Por favor, desative bloqueadores de anúncios ou extensões de privacidade para esta página e recarregue.",
   "already_subscribed": "Já inscrito",
   "ok": "OK",
+  "open_menu": "Abrir menu",
   "billing_headline_lead": "Planeje uma semana de conteúdo em",
   "billing_headline_highlight": "uma só sessão",
   "billing_video_link": "Veja o Samy escrever, criar e agendar",

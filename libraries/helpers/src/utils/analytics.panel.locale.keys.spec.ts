@@ -1,8 +1,10 @@
 // Guards the strings of the Analytics page (spec 051, increment 4): the top
 // bar's period control, the charts' headline lines and empty state, the phone's
-// channel button, and the channel list's analytics hint and row reason. The en
-// and ar wording is the contracts' (contracts/pages-ui.md's Analytics table, and
-// contracts/channel-panel.md for the hint and the reason), and every offered
+// channel button, the channel list's analytics hint and row reason, and the
+// phone top bar's menu button, which walk 4 found English here in French, as
+// on every page. The en and ar wording is the contracts' (contracts/pages-ui.md's
+// Analytics table, and contracts/channel-panel.md for the hint and the
+// reason), the menu button's what it has read since 8098102af, and every offered
 // language carries each key, because keys in en and ar alone would drop the
 // other six to English. Each period has its own keys, so nothing is counted.
 import * as fs from 'fs';
@@ -71,6 +73,7 @@ const STRINGS = [
     'No statistics for this platform',
     'لا تتوفر أرقام لهذه المنصة',
   ],
+  ['open_menu', 'Open menu', 'فتح القائمة'],
 ] as const;
 
 const placeholders = (text: string) =>

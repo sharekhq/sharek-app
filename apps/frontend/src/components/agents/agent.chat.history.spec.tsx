@@ -19,6 +19,8 @@ type Row = StoredAgentMessage & { id: string };
 const fetched: Record<string, Array<(rows: Row[]) => void>> = {};
 // What a component inside the chat reads about the run, as a card's parent does.
 const run = { running: undefined as boolean | undefined };
+// The thread id AgentChat hands CopilotKit, one entry a render.
+const given: Array<string | undefined> = [];
 
 jest.mock('@copilotkit/react-ui', () => ({
   CopilotChat: () => {
@@ -30,7 +32,16 @@ jest.mock('@copilotkit/react-ui', () => ({
   },
 }));
 jest.mock('@copilotkit/react-core', () => ({
-  CopilotKit: ({ children }: { children: ReactNode }) => children,
+  CopilotKit: ({
+    threadId,
+    children,
+  }: {
+    threadId?: string;
+    children: ReactNode;
+  }) => {
+    given.push(threadId);
+    return children;
+  },
   useCopilotAction: () => {},
   useCopilotChatInternal: () => chat,
 }));
@@ -125,6 +136,7 @@ beforeEach(() => {
   run.running = undefined;
   chat.setMessages.mockReset();
   params.id = 'thread-1';
+  given.length = 0;
   Object.keys(fetched).forEach((id) => delete fetched[id]);
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -316,5 +328,42 @@ describe('AgentChat reopened thread', () => {
     chat.isLoading = false;
     await render();
     expect(run.running).toBe(false);
+  });
+});
+
+// CopilotKit 1.72 given no thread id makes two random ones: the one its
+// context gives the chat header and the history (C21), and the one its chat
+// saves the thread under. So a chat started at /agents/new gets an id from the
+// page, as an open chat gets its own from the address (walk 4).
+describe("AgentChat's thread id", () => {
+  const UUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it("hands CopilotKit the open chat's id from the address", async () => {
+    await render();
+
+    expect(given.at(-1)).toBe('thread-1');
+  });
+
+  it('hands CopilotKit an id of its own at /agents/new, the same on every render', async () => {
+    params.id = 'new';
+    await render();
+    await render();
+
+    expect(given.at(-1)).toMatch(UUID);
+    expect(new Set(given).size).toBe(1);
+  });
+
+  it('starts a new id at /agents/new after another chat was open', async () => {
+    params.id = 'new';
+    await render();
+    const first = given.at(-1);
+    params.id = 'thread-1';
+    await render();
+    params.id = 'new';
+    await render();
+
+    expect(given.at(-1)).toMatch(UUID);
+    expect(given.at(-1)).not.toBe(first);
   });
 });
