@@ -208,8 +208,7 @@ const BrandField: FC<{
   // the user has attached images of their own
   own: boolean;
   onPick: (choice: string) => void;
-  onManage: () => void;
-}> = ({ brands, brand, own, onPick, onManage }) => {
+}> = ({ brands, brand, own, onPick }) => {
   const t = useT();
   const mediaDirectory = useMediaDirectory();
   const { data } = useIntegrationList();
@@ -236,7 +235,7 @@ const BrandField: FC<{
             value={brand ? brand.id : NO_BRAND}
             variant="image"
             onPick={onPick}
-            onManage={onManage}
+            manageInNewTab
             label={t(
               'brands_field_label',
               'Brand for this image: {{brand}}. Change brand',
@@ -844,7 +843,6 @@ const AiImageModal: FC<{
           brand={brand}
           own={references.length > 0}
           onPick={pickBrand}
-          onManage={close}
         />
         <ReferenceImages
           value={references}

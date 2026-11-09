@@ -133,9 +133,9 @@ export const BrandMenu: FC<{
   // titles the list for a message (the chip) or an image (the dialog)
   variant: 'message' | 'image';
   onPick: (choice: string) => void;
-  // Manage brands is followed: a dialog around the list closes, so it doesn't
-  // stay open over the Brands page
-  onManage?: () => void;
+  // Manage brands opens the Brands page in a new tab, so a dialog around the
+  // list, and a post editor under it, keep what is in them
+  manageInNewTab?: boolean;
   // the button's accessible name, what it shows, and its classes
   label: string;
   trigger: ReactNode;
@@ -147,7 +147,7 @@ export const BrandMenu: FC<{
   each,
   variant,
   onPick,
-  onManage,
+  manageInNewTab,
   label,
   trigger,
   triggerClassName,
@@ -284,10 +284,9 @@ export const BrandMenu: FC<{
       </div>
       <Link
         href="/brands"
-        onClick={() => {
-          setShow(false);
-          onManage?.();
-        }}
+        target={manageInNewTab ? '_blank' : undefined}
+        rel={manageInNewTab ? 'noreferrer' : undefined}
+        onClick={() => setShow(false)}
         className={clsx(
           'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
           FOCUS_RING
