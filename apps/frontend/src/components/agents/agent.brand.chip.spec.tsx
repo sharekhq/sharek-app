@@ -11,8 +11,9 @@ import * as path from 'path';
 // picked, Choose a brand while it waits on several, No brand, or N brands when
 // the picked channels span brands. It opens the brand list for this message.
 // The user's own pick holds until they change it or the picked channels'
-// brands change. With images attached and a brand chosen, a note in the box
-// says they go in place of the brand's examples and its logo still goes along.
+// brands change. With images attached and a brand chosen that has an example
+// still in Media, a note in the box says they go in place of the brand's
+// examples and, while its logo is in Media too, that it still goes along.
 //
 // The page runs as the route has it: Agent holds the picked channels and the
 // chip's choice, and AgentChat's message box is the real Input, with the pill
@@ -205,14 +206,15 @@ beforeAll(async () => {
 function brand(
   id: string,
   name: string,
-  logo: Brand['kit']['logo'] = null
+  logo: Brand['kit']['logo'] = null,
+  examples: Brand['kit']['examples'] = []
 ): Brand {
   return {
     id,
     name,
     kit: {
       logo,
-      examples: [],
+      examples,
       colours: [],
       headingFont: null,
       bodyFont: null,
@@ -242,14 +244,19 @@ function channel(
   };
 }
 
-// As GET /brands gives them, A to Z. Bayt Al Qahwa has a logo; the others
-// show their initial.
-const BQ = brand('bq', 'Bayt Al Qahwa', {
-  id: 'm1',
-  path: 'https://media/bq.png',
+// As GET /brands gives them, A to Z. Bayt Al Qahwa has a logo and an example;
+// Noor Dental an example and no logo, so it shows its initial, as Rawda
+// Florist, with neither, does.
+const BQ_LOGO = { id: 'm1', path: 'https://media/bq.png', missing: false };
+const BQ_EXAMPLE = {
+  id: 'm2',
+  path: 'https://media/bq-post.png',
   missing: false,
-});
-const ND = brand('nd', 'Noor Dental');
+};
+const BQ = brand('bq', 'Bayt Al Qahwa', BQ_LOGO, [BQ_EXAMPLE]);
+const ND = brand('nd', 'Noor Dental', null, [
+  { id: 'm3', path: 'https://media/nd-post.png', missing: false },
+]);
 const RF = brand('rf', 'Rawda Florist');
 
 // Bayt Al Qahwa's three channels, Noor Dental's one, Rawda Florist's one,
@@ -738,6 +745,74 @@ describe('the note on attached images (FR-024, state E)', () => {
     expect(note()).toBeNull();
   });
 
+  // As the AI image dialog's help line does (brands_ref_help_no_logo)
+  it('says nothing of a logo beside a brand with none in its kit', async () => {
+    await mount();
+    await pick('li');
+
+    await attach('a', 'png');
+    expect(note()!.textContent).toBe(
+      "Your 1 image goes in place of ⁨Noor Dental⁩'s examples."
+    );
+
+    await attach('b', 'png');
+    expect(note()!.textContent).toBe(
+      "Your 2 images go in place of ⁨Noor Dental⁩'s examples."
+    );
+  });
+
+  it('says nothing of a logo beside a brand whose logo is gone from Media', async () => {
+    mockBrands = [
+      brand('bq', 'Bayt Al Qahwa', { ...BQ_LOGO, missing: true }, [BQ_EXAMPLE]),
+      ND,
+      RF,
+    ];
+    await mount();
+    await pick('ig');
+
+    await attach('a', 'png');
+
+    expect(note()!.textContent).toBe(
+      "Your 1 image goes in place of ⁨Bayt Al Qahwa⁩'s examples."
+    );
+  });
+
+  // The note is about the examples stepping aside; its logo alone goes along
+  // whatever the user attaches.
+  it('says nothing beside a brand with no example in its kit', async () => {
+    mockBrands = [brand('bq', 'Bayt Al Qahwa', BQ_LOGO), ND, RF];
+    await mount();
+    await pick('ig');
+
+    await attach('a', 'png');
+
+    expect(chosen).toBe('bq');
+    expect(note()).toBeNull();
+  });
+
+  it('says nothing while every example is gone from Media, and speaks once one is back', async () => {
+    const gone = { ...BQ_EXAMPLE, missing: true };
+    mockBrands = [brand('bq', 'Bayt Al Qahwa', BQ_LOGO, [gone]), ND, RF];
+    const render = await mount();
+    await pick('ig');
+    await attach('a', 'png');
+    expect(note()).toBeNull();
+
+    mockBrands = [
+      brand('bq', 'Bayt Al Qahwa', BQ_LOGO, [
+        gone,
+        { ...BQ_EXAMPLE, id: 'm4' },
+      ]),
+      ND,
+      RF,
+    ];
+    await render();
+
+    expect(note()!.textContent).toBe(
+      "Your 1 image goes in place of ⁨Bayt Al Qahwa⁩'s examples. Its logo still goes along."
+    );
+  });
+
   // The tray follows the chat when it appears; the note can come after it,
   // once an image joins a video, and takes its room from the chat too.
   it('keeps the chat at the bottom when it appears, as the tray does', async () => {
@@ -835,6 +910,18 @@ describe('in Arabic (board ChipStatesAR)', () => {
 
     expect(note()!.textContent).toBe(
       'تحل صورتاك محل المنشورات النموذجية لـ⁨Bayt Al Qahwa⁩، ويبقى شعارها مرافقًا.'
+    );
+  });
+
+  it('says the note without the logo in Arabic beside a brand with none', async () => {
+    await mount();
+    await pick('li');
+
+    await attach('a', 'png');
+    await attach('b', 'png');
+
+    expect(note()!.textContent).toBe(
+      'تحل صورتاك محل المنشورات النموذجية لـ⁨Noor Dental⁩.'
     );
   });
 

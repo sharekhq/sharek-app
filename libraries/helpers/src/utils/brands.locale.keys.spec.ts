@@ -371,6 +371,23 @@ const PLURALS = [
         'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
     },
   ],
+  // Not on the canvas: the same for a brand whose logo doesn't go along, none
+  // in its kit or one gone from Media, without the logo's clause.
+  [
+    'brands_attach_note_no_logo',
+    {
+      one: "Your 1 image goes in place of {{brand}}'s examples.",
+      other: "Your {{count}} images go in place of {{brand}}'s examples.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية لـ{{brand}}.',
+      one: 'تحل صورتك محل المنشورات النموذجية لـ{{brand}}.',
+      two: 'تحل صورتاك محل المنشورات النموذجية لـ{{brand}}.',
+      few: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+      many: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+      other: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+    },
+  ],
   // The AI image dialog's help line once the user's own images are attached
   // beside a brand, up to 3. It says no number, so the forms differ only in
   // image and images.
