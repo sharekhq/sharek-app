@@ -40,7 +40,7 @@ export class SamyImageTool implements AgentToolInterface {
     return createTool({
       id: 'generateImageTool',
       description:
-        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.",
+        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.",
       inputSchema: z.object({
         // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
@@ -85,6 +85,8 @@ export class SamyImageTool implements AgentToolInterface {
         error: z.string().optional(),
         // Only when part of the brand's kit went along, so Samy can name it
         brand: z.string().optional(),
+        // Beside brand, what Samy's reply says of it
+        say: z.string().optional(),
       }),
       execute: async (inputData, context) => {
         const run = context?.requestContext as any;
@@ -148,10 +150,19 @@ export class SamyImageTool implements AgentToolInterface {
           budget.credits -= 1;
           creditFrom = budget;
 
-          return await this._mediaService.generateImageFromLinks(org, {
+          const made = await this._mediaService.generateImageFromLinks(org, {
             ...image,
             brand: picked.brandId,
           });
+
+          // The instruction line alone left the brand out of some replies, and
+          // a result's words are read as its refusals are (FR-019).
+          return made.brand
+            ? {
+                ...made,
+                say: `Name ${made.brand} in your reply, exactly as written here, and say its kit went with this image: its logo, colours and example posts.`,
+              }
+            : made;
         } catch (err) {
           giveSlotBack();
           if (creditFrom) {
