@@ -26,43 +26,26 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
       });
     }
   }
-  // What the outside connections get today.
-  class GenerateImageTool {
-    name = 'generateImageTool';
-    run() {
-      return createTool({
-        id: 'generateImageTool',
-        description: 'Make an image',
-        inputSchema: z.object({ prompt: z.string() }),
-        execute: async () => ({}),
-      });
-    }
-  }
+  // The real one, which the outside connections get, as Samy gets the real
+  // SamyImageTool in its place. The stand-in model never calls either.
+  const {
+    GenerateImageTool,
+  } = require('@gitroom/nestjs-libraries/chat/tools/generate.image.tool');
   return { toolList: [ScheduleOnePostTool, GenerateImageTool] };
 });
-
-// What Samy gets in its place, with the real tool's input.
-jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => {
-  const { createTool } = require('@mastra/core/tools');
-  const { z } = require('zod');
-  class SamyImageTool {
-    name = 'generateImageTool';
-    run() {
-      return createTool({
-        id: 'generateImageTool',
-        description: 'Make an image',
-        inputSchema: z.object({
-          prompt: z.string(),
-          aspectRatio: z.string().optional(),
-          references: z.array(z.string()).optional(),
-          editOf: z.string().optional(),
-        }),
-        execute: async () => ({}),
-      });
-    }
-  }
-  return { SamyImageTool };
-});
+// The image tools' services, which they only call when they run.
+jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
+  UploadFactory: { createStorage: () => ({}) },
+}));
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/media/media.service',
+  () => ({ MediaService: class {} })
+);
+// The brand repository opens a database client at import.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
+  () => ({ BrandService: class {} })
+);
 // samy.image.reader.integration.spec runs the real one.
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
   SamyImageReader: class SamyImageReader {
@@ -248,7 +231,8 @@ describe('Samy multi-step turns', () => {
 });
 
 // What a run really offers the model. Over MCP, ask_sharek runs this same agent with
-// no ui, so nothing Samy can do with references reaches an outside connection.
+// no ui, so nothing Samy can do with references or a brand reaches an outside
+// connection.
 describe('The image tool a run offers the model', () => {
   let spy: jest.SpyInstance;
 
@@ -266,9 +250,10 @@ describe('The image tool a run offers the model', () => {
     return Object.keys(tool.inputSchema.properties).sort();
   };
 
-  it("in Samy's chat takes references, an image to change and a shape", async () => {
+  it("in Samy's chat takes references, an image to change, a shape and a brand", async () => {
     expect(await offered(true)).toEqual([
       'aspectRatio',
+      'brand',
       'editOf',
       'prompt',
       'references',
@@ -278,6 +263,15 @@ describe('The image tool a run offers the model', () => {
   it('with no ui takes a prompt alone', async () => {
     expect(await offered(false)).toEqual(['prompt']);
   }, 30000);
+
+  it('takes a prompt alone with no context, as MCP lists it', async () => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const tools = await agent.listTools();
+
+    expect(Object.keys(tools.generateImageTool.inputSchema.shape)).toEqual([
+      'prompt',
+    ]);
+  });
 });
 
 // Samy reads the web in its chat only, while Tavily's key is set (spec 052), and
