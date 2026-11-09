@@ -123,6 +123,9 @@ const STRINGS = [
     'إذا اكتمل هذا الفيديو فستجده في مكتبة الوسائط',
   ],
   ['opening_post_editor', 'Opening the post editor…', 'جاري فتح محرر المنشور…'],
+  // Settings' tab (settings.component.tsx), which the welcome's "Settings →
+  // Developers" names, so the tab reads as the welcome does.
+  ['developers', 'Developers', 'المطورون'],
 ] as const;
 
 // C4 gives the toast's English. No document gives its Arabic, so ar's existing
