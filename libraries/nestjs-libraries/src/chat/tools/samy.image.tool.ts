@@ -5,6 +5,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { selectedChannels } from '@gitroom/nestjs-libraries/chat/selected.channels';
 import { imageCreditRefusal } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import {
@@ -21,16 +22,6 @@ const IMAGES_MADE = 'samyImagesMade';
 const IMAGE_BUDGET = 'samyImageBudget';
 
 type ImageBudget = { credits: number; resetsAt?: string };
-
-// The browser sends the selected channels (copilot.controller.ts), so nothing
-// about their shape is guaranteed. Only the ids are kept: the brand service
-// reads the channels again, for this organization (research R9).
-const selectedChannelIds = (integrations: unknown): string[] =>
-  Array.isArray(integrations)
-    ? integrations
-        .filter((channel) => typeof channel?.id === 'string')
-        .map((channel) => channel.id)
-    : [];
 
 /**
  * Samy's `generateImageTool`, which LoadToolsService swaps in for its runs only.
@@ -120,10 +111,14 @@ export class SamyImageTool implements AgentToolInterface {
           const org = JSON.parse(run?.get('organization') as string);
 
           // A brand that can't be picked makes no image, and no credit is read.
+          // Only the channels' ids go: the brand service reads the channels
+          // again, for this organization (research R9).
           const { brand, ...image } = inputData;
           const picked = await this._brandService.resolveForSamy(org.id, {
             input: brand,
-            channelIds: selectedChannelIds(run?.get('integrations')),
+            channelIds: selectedChannels(run?.get('integrations')).map(
+              (channel) => channel.id
+            ),
           });
           if ('error' in picked) {
             giveSlotBack();
@@ -138,7 +133,7 @@ export class SamyImageTool implements AgentToolInterface {
               IMAGE_BUDGET,
               this._mediaService.imageCreditsLeft(org).catch((err) => {
                 // A failed read stays failed if it's kept, and a later call can recover.
-                run.delete(IMAGE_BUDGET);
+                run?.delete(IMAGE_BUDGET);
                 throw err;
               })
             );

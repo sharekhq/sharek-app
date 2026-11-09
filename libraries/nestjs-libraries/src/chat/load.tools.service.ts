@@ -11,6 +11,7 @@ import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reade
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 import { languageName } from '@gitroom/helpers/utils/language.names';
+import { selectedChannels } from '@gitroom/nestjs-libraries/chat/selected.channels';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import dayjs from 'dayjs';
 
@@ -19,21 +20,8 @@ const renderArray = (list: string[], show: boolean) => {
   return list.map((p) => `- ${p}`).join('\n');
 };
 
-type SelectedChannel = {
-  id: string;
-  identifier: string;
-  additionalSettings?: string;
-};
-
-// The browser sends this through CopilotKit `properties`, so nothing about its
-// shape is guaranteed. Keep only entries the model can actually act on, and
-// never throw: instructions run on every turn, so a malformed payload here
-// would fail the whole chat rather than one field.
 const renderChannels = (integrations: unknown) => {
-  if (!Array.isArray(integrations)) return '';
-  const channels = (integrations as SelectedChannel[]).filter(
-    (p) => p && typeof p.id === 'string' && typeof p.identifier === 'string'
-  );
+  const channels = selectedChannels(integrations);
   if (!channels.length) return '';
   const lines = channels.map((p) => {
     // additionalSettings defaults to the literal '[]'; it only carries anything
