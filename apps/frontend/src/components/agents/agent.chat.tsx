@@ -106,7 +106,7 @@ export const AgentChat: FC = () => {
         language: i18next.language,
         // The brand chip's choice, for Samy's images. Left out while the chip
         // waits, so the image tool goes by the selected channels (R14).
-        ...(brand ? { brand } : {}),
+        ...(brand?.shown ? { brand: brand.shown } : {}),
       }}
     >
       <Hooks />

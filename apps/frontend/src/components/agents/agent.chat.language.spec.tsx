@@ -80,8 +80,8 @@ import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { ASSISTANT_LABELS } from '@gitroom/frontend/components/ui/assistant.labels';
 
-// brand: the brand chip's choice, which the agent page keeps beside the channels.
-const render = (brand?: string) => {
+// shown: the brand chip's choice, which the agent page keeps beside the channels.
+const render = (shown?: string) => {
   capturedProperties.length = 0;
   capturedSingleEndpoint.length = 0;
   capturedLabels.length = 0;
@@ -89,7 +89,7 @@ const render = (brand?: string) => {
   document.body.appendChild(container);
   act(() => {
     createRoot(container).render(
-      <PropertiesContext.Provider value={{ properties: [], brand }}>
+      <PropertiesContext.Provider value={{ properties: [], brand: { shown } }}>
         <AgentChat />
       </PropertiesContext.Provider>
     );

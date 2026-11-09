@@ -132,6 +132,9 @@ jest.mock(
     CustomVariables: () => null,
   })
 );
+// Scenery: the brand chip's module, whose hook makes the brand choice, loads
+// the message box's attachments for its note.
+jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({}));
 
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import {

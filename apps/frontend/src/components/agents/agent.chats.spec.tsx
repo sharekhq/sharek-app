@@ -51,6 +51,9 @@ jest.mock('next/link', () => ({
     </a>
   ),
 }));
+// Scenery: the page's module, for its context, loads the brand chip's, which
+// loads the message box's attachments for its note.
+jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({}));
 
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 import {

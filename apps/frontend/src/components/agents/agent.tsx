@@ -3,18 +3,13 @@
 import { createContext, FC, useMemo, useRef, useState, ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import useCookie from 'react-use-cookie';
-import { uniq } from 'lodash';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ChatsPanel } from '@gitroom/frontend/components/agents/agent.chats';
 import {
-  EACH_BRAND,
-  NO_BRAND,
-} from '@gitroom/frontend/components/brands/brand.menu';
-import {
-  Brand,
-  useBrands,
-} from '@gitroom/frontend/components/brands/use.brands';
+  BrandChoice,
+  useBrandChoice,
+} from '@gitroom/frontend/components/agents/agent.brand.chip';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import {
   ChannelPanel,
@@ -25,10 +20,8 @@ import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 
 export const PropertiesContext = createContext({
   properties: [],
-  // the brand chip's choice, which Samy gets beside the channels: a brand's
-  // id, NO_BRAND or EACH_BRAND; none while the chip waits for one
-  brand: undefined as string | undefined,
-  pickBrand: (() => {}) as (choice: string) => void,
+  // the brand chip's choice among the picked channels' brands (useBrandChoice)
+  brand: undefined as BrandChoice | undefined,
   // the open chat, which the chat header reads from CopilotKit and sets here,
   // so a chat started at /agents/new has its id too (C21)
   threadId: '',
@@ -42,44 +35,6 @@ export const PropertiesContext = createContext({
   openChats: () => {},
   openChannels: () => {},
 });
-
-// The brands the picked channels are in, in the brands' order. A channel in
-// no brand is in none (FR-017).
-export const brandsAmong = (brands: Brand[], channels: Integrations[]) =>
-  brands.filter((brand) =>
-    channels.some((channel) => channel.customer?.id === brand.id)
-  );
-
-/**
- * The brand chip's choice (FR-017, FR-023; contracts/pages-ui.md part 2): the
- * user's own pick while the list still offers it; else the one brand among
- * the picked channels, each channel's brand when they span more, or No brand
- * when none of them is in one; with nothing picked, the organization's one
- * brand, or nothing while it has several, so Samy asks. An organization with
- * no brands has nothing to choose.
- */
-const chooseBrand = (
-  brands: Brand[] | undefined,
-  channels: Integrations[],
-  pick?: string
-) => {
-  if (!brands?.length) {
-    return undefined;
-  }
-  const among = brandsAmong(brands, channels);
-  const offered =
-    pick === NO_BRAND ||
-    (pick === EACH_BRAND
-      ? among.length > 1
-      : brands.some((brand) => brand.id === pick));
-  if (offered) {
-    return pick;
-  }
-  if (channels.length) {
-    return among.length > 1 ? EACH_BRAND : among[0]?.id ?? NO_BRAND;
-  }
-  return brands.length === 1 ? brands[0].id : undefined;
-};
 
 /**
  * Samy's page (contracts/pages-ui.md): the chats at the start, the chat, then
@@ -102,25 +57,7 @@ export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
       ),
     [data, ids]
   );
-  const { data: brands } = useBrands();
-  // The chip's own pick, with the brands of the picked channels it was made
-  // for. It lasts until those change; then the chip chooses again, and the
-  // pick doesn't come back with them (FR-023).
-  const [brandPick, setBrandPick] = useState<{
-    choice: string;
-    among: string;
-  }>();
-  const among = uniq(
-    properties.flatMap((channel: Integrations) =>
-      channel.customer?.id ? [channel.customer.id] : []
-    )
-  )
-    .sort()
-    .join();
-  const pick = brandPick?.among === among ? brandPick.choice : undefined;
-  if (brandPick && !pick) {
-    setBrandPick(undefined);
-  }
+  const brand = useBrandChoice(properties);
   const [threadId, setThreadId] = useState('');
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [channelsOpen, setChannelsOpen] = useState(false);
@@ -159,8 +96,7 @@ export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
     <PropertiesContext.Provider
       value={{
         properties,
-        brand: chooseBrand(brands, properties, pick),
-        pickBrand: (choice: string) => setBrandPick({ choice, among }),
+        brand,
         threadId,
         setThreadId,
         chatsHidden,

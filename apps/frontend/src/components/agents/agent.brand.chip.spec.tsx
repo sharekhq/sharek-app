@@ -1,4 +1,4 @@
-import { act, ComponentType, ReactNode, useContext, useEffect } from 'react';
+import { act, ComponentType, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -20,14 +20,15 @@ import * as path from 'path';
 // and the chip in its summary row and the attachments above the text. The
 // channel list is a marker whose onChange picks channels, AI Image a stub
 // whose onChange attaches, and the brands and channels come from stubbed
-// hooks. A probe reads the chip's choice from Agent's context, which is what
-// Samy is sent (T056). t() is the real i18next on the en and ar files. The
-// test DOM has no layout, so the wrap and the shapes are pinned by the
-// classes that carry them.
+// hooks. What Samy is sent of the chip's choice is read from the properties
+// AgentChat hands CopilotKit (T056). t() is the real i18next on the en and ar
+// files. The test DOM has no layout, so the wrap and the shapes are pinned by
+// the classes that carry them.
 
 type Channel = ReturnType<typeof channel>;
 
 const mockSent = jest.fn();
+let mockProperties: { brand?: string } | undefined;
 let mockChannels: Channel[] = [];
 let mockBrands: Brand[] | undefined;
 let mockPanel: { onChange: (ids: string[]) => void } | undefined;
@@ -56,7 +57,17 @@ jest.mock('@copilotkit/react-ui', () => ({
   }),
 }));
 jest.mock('@copilotkit/react-core', () => ({
-  CopilotKit: ({ children }: { children: ReactNode }) => children,
+  // What AgentChat hands Samy beside each message, the last render's.
+  CopilotKit: ({
+    properties,
+    children,
+  }: {
+    properties: { brand?: string };
+    children: ReactNode;
+  }) => {
+    mockProperties = properties;
+    return children;
+  },
   useCopilotAction: () => {},
   useCopilotContext: () => ({ copilotApiConfig: {} }),
   useCopilotReadable: () => {},
@@ -170,10 +181,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 import i18next from 'i18next';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
-import {
-  Agent,
-  PropertiesContext,
-} from '@gitroom/frontend/components/agents/agent';
+import { Agent } from '@gitroom/frontend/components/agents/agent';
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
 
 const mockTranslate = (
@@ -276,17 +284,10 @@ const realMatchMedia = window.matchMedia;
 let smallWindow = false;
 const listeners = new Set<() => void>();
 
-// What the chip has chosen, as Samy will be sent it, kept once each render
-// commits.
-let chosen: string | undefined;
-const Probe = (): null => {
-  const { brand: choice } = useContext(PropertiesContext) as {
-    brand?: string;
-  };
-  useEffect(() => {
-    chosen = choice;
-  });
-  return null;
+// What Samy is sent of the chip's choice, as the last render handed it on.
+const chosen = () => {
+  expect(mockProperties).toBeDefined();
+  return mockProperties!.brand;
 };
 
 const mounted: Root[] = [];
@@ -303,7 +304,6 @@ const mount = async () => {
       root.render(
         <Agent>
           <AgentChat />
-          <Probe />
         </Agent>
       );
     });
@@ -316,7 +316,7 @@ beforeEach(() => {
   mockChannels = CHANNELS;
   mockBrands = [BQ, ND, RF];
   mockPanel = undefined;
-  chosen = 'not read';
+  mockProperties = undefined;
   smallWindow = false;
   listeners.clear();
   window.matchMedia = ((query: string) => ({
@@ -440,12 +440,12 @@ describe('where it sits (FR-023, FR-026)', () => {
     const render = await mount();
     await pick('ig');
     expect(chip()).toBeNull();
-    expect(chosen).toBeUndefined();
+    expect(chosen()).toBeUndefined();
 
     mockBrands = undefined;
     await render();
     expect(chip()).toBeNull();
-    expect(chosen).toBeUndefined();
+    expect(chosen()).toBeUndefined();
   });
 });
 
@@ -461,7 +461,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.getAttribute('aria-label')).toBe(
       'Brand for this message: Bayt Al Qahwa. Change brand'
     );
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   it('A: leaves channels in no brand out of it', async () => {
@@ -469,7 +469,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('ig', 'tt');
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   it("A: shows a brand's initial while it has no logo", async () => {
@@ -479,7 +479,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.querySelector('img')).toBeNull();
     expect(chip()!.textContent).toBe('NNoor Dental');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen).toBe('nd');
+    expect(chosen()).toBe('nd');
   });
 
   it('B: waits with Choose a brand while several brands and no channels are picked', async () => {
@@ -493,7 +493,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     );
     // an outline, not the chosen chip's fill
     expect(classes(chip()!)).not.toContain('bg-surface2');
-    expect(chosen).toBeUndefined();
+    expect(chosen()).toBeUndefined();
   });
 
   it("pre-selects the organization's one brand while no channels are picked", async () => {
@@ -501,7 +501,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await mount();
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   it('reads No brand when every picked channel is in no brand, as Samy then uses none', async () => {
@@ -509,7 +509,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('tt');
 
     expect(chip()!.textContent).toBe('No brand');
-    expect(chosen).toBe('none');
+    expect(chosen()).toBe('none');
   });
 
   it('C: opens the brand list for this message on a tap, the current brand ticked, with No brand and Manage brands', async () => {
@@ -554,7 +554,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
       'Brand for this message: No brand. Change brand'
     );
     expect(classes(chip()!)).not.toContain('bg-surface2');
-    expect(chosen).toBe('none');
+    expect(chosen()).toBe('none');
   });
 
   it("F: reads 2 brands when the picked channels span two, choosing each channel's brand, which the list offers first", async () => {
@@ -569,7 +569,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     expect(chip()!.getAttribute('aria-label')).toBe(
       'Brand for this message: 2 brands. Change brand'
     );
-    expect(chosen).toBe('each');
+    expect(chosen()).toBe('each');
 
     await click(chip());
     expect(options()[0].textContent).toContain("Each channel's brand");
@@ -585,7 +585,7 @@ describe('what it shows (contracts/pages-ui.md part 2)', () => {
     await pick('ig', 'li', 'yt');
 
     expect(chip()!.textContent).toContain('3 brands');
-    expect(chosen).toBe('each');
+    expect(chosen()).toBe('each');
   });
 });
 
@@ -596,53 +596,53 @@ describe("the user's own pick (FR-023)", () => {
 
     await choose('Noor Dental');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen).toBe('nd');
+    expect(chosen()).toBe('nd');
 
     await pick('ig', 'fb');
     expect(chipName()!.textContent).toBe('Noor Dental');
     // a channel in no brand changes no brand
     await pick('ig', 'fb', 'tt');
     expect(chipName()!.textContent).toBe('Noor Dental');
-    expect(chosen).toBe('nd');
+    expect(chosen()).toBe('nd');
   });
 
   it("gives way once the picked channels' brands change, and doesn't come back with them", async () => {
     await mount();
     await pick('ig');
     await choose('No brand');
-    expect(chosen).toBe('none');
+    expect(chosen()).toBe('none');
 
     await pick('ig', 'li');
     expect(chip()!.textContent).toContain('2 brands');
-    expect(chosen).toBe('each');
+    expect(chosen()).toBe('each');
 
     await pick('ig');
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   it('made while the chip waits, gives way once channels are picked', async () => {
     await mount();
     await choose('Rawda Florist');
     expect(chipName()!.textContent).toBe('Rawda Florist');
-    expect(chosen).toBe('rf');
+    expect(chosen()).toBe('rf');
 
     await pick('ig');
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   it('falls back as if none had been made when the brand picked is deleted', async () => {
     const render = await mount();
     await pick('ig');
     await choose('Noor Dental');
-    expect(chosen).toBe('nd');
+    expect(chosen()).toBe('nd');
 
     mockBrands = [BQ, RF];
     await render();
 
     expect(chipName()!.textContent).toBe('Bayt Al Qahwa');
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
   });
 
   // The box puts the focus in the text on a click anywhere but a button,
@@ -741,7 +741,7 @@ describe('the note on attached images (FR-024, state E)', () => {
     expect(note()).toBeNull();
 
     await pick('ig', 'li');
-    expect(chosen).toBe('each');
+    expect(chosen()).toBe('each');
     expect(note()).toBeNull();
   });
 
@@ -786,7 +786,7 @@ describe('the note on attached images (FR-024, state E)', () => {
 
     await attach('a', 'png');
 
-    expect(chosen).toBe('bq');
+    expect(chosen()).toBe('bq');
     expect(note()).toBeNull();
   });
 
