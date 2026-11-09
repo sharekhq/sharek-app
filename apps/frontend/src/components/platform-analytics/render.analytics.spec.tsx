@@ -134,7 +134,7 @@ const channel = { id: 'ch1' } as Integration;
 // answering `items`. A fresh SWR cache per render, so one case's answer never
 // reaches the next.
 const render = async (items: unknown[], date = 7) => {
-  request.mockResolvedValue({ json: async () => items });
+  request.mockResolvedValue({ ok: true, json: async () => items });
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -516,6 +516,58 @@ describe('a channel with no data at all', () => {
   });
 });
 
+// A failed answer isn't numbers. A 502 while the backend restarts comes back
+// with a JSON body, an object, which the page once took for its list and broke
+// on (Sentry 159718423, after the 206 Redeploy): it's an error SWR asks again
+// for, and the numbers show once an answer comes.
+describe('a failed answer', () => {
+  const failed = {
+    ok: false,
+    status: 502,
+    json: async () => ({ statusCode: 502, message: 'Bad Gateway' }),
+  };
+  const draw = async (config: Record<string, number> = {}) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, ...config }}
+        >
+          <RenderAnalytics integration={channel} date={7} />
+        </SWRConfig>
+      );
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    return host;
+  };
+
+  it('draws no tile, chart or "needs to be refreshed", and throws nothing', async () => {
+    request.mockResolvedValue(failed);
+    const host = await draw();
+
+    expect(request).toHaveBeenCalledWith('/analytics/ch1?date=7');
+    expect(host.querySelector('figure')).toBeNull();
+    expect(host.textContent).not.toContain(
+      'This channel needs to be refreshed to display analytics'
+    );
+  });
+
+  it('is asked again, and the numbers show once an answer comes', async () => {
+    request.mockResolvedValueOnce(failed).mockResolvedValue({
+      ok: true,
+      json: async () => [metric('Reach', [1, 2, 3])],
+    });
+    const host = await draw({ errorRetryInterval: 1 });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('figure')).not.toBeNull();
+  });
+});
+
 // The page draws RenderAnalytics anew for each channel and period, by its key,
 // and SWR keeps each one's numbers under its own key. So a channel shows its
 // own numbers or its own loading, never another's: from the cache on a quick
@@ -536,7 +588,7 @@ describe('switching channels and periods', () => {
         new Promise((resolve) =>
           pending.push({
             url,
-            answer: (items) => resolve({ json: async () => items }),
+            answer: (items) => resolve({ ok: true, json: async () => items }),
           })
         )
     );
