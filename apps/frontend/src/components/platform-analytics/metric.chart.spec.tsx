@@ -52,11 +52,9 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 let mockMode = 'dark';
 jest.mock('react-use-cookie', () => {
   const { useState } = jest.requireActual('react');
-  return {
-    __esModule: true,
-    default: (key: string, initial: string) =>
-      useState(key === 'mode' ? mockMode : initial),
-  };
+  const useCookieMock = (key: string, initial: string) =>
+    useState(key === 'mode' ? mockMode : initial);
+  return { __esModule: true, default: useCookieMock };
 });
 
 import i18next from 'i18next';
