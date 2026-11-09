@@ -132,6 +132,27 @@ const Missing: FC<{ className: string; children?: ReactNode }> = ({
   );
 };
 
+// An example's ×, in its tile's corner, whether the image is there or was
+// deleted from Media.
+const RemoveExample: FC<{ onClick: () => void }> = ({ onClick }) => {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      aria-label={t('brands_remove_example', 'Remove example')}
+      onClick={onClick}
+      className={clsx(
+        'absolute top-[6px] end-[6px] coarse:top-0 coarse:end-0 w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center rounded-[8px] cursor-pointer',
+        FOCUS_RING
+      )}
+    >
+      <span className="flex items-center justify-center w-[28px] h-[28px] rounded-[8px] bg-[rgba(0,0,0,0.55)] text-white">
+        <CloseIcon size={14} aria-hidden="true" />
+      </span>
+    </button>
+  );
+};
+
 // A font name, saved when its field is left and only when it changed. Keyed
 // by the saved name, so a name saved by someone else refills the field.
 const FontField: FC<{
@@ -331,6 +352,9 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
       }
     });
 
+  const removeExample = (index: number) =>
+    save({ exampleIds: exampleIds.filter((_, n) => n !== index) });
+
   const addChannels = () =>
     modals.openModal({
       title: t('brands_add_channels', 'Add channels'),
@@ -348,311 +372,284 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
 
   const removeFromBrand = t('brands_remove_from_brand', 'Remove from brand');
 
+  // Two columns while there is room for both, the channels and fonts 320px
+  // wide; below that one column, the channels after the examples.
   return (
-    <div className="flex flex-col gap-[20px]">
-      <p className="text-[13px] leading-[1.45] text-muted">
-        {t(
-          'brands_used_by',
-          "Samy and Sharek's AI use this kit to keep your images on-brand."
-        )}
-      </p>
-      {/* Two columns while there is room for both, the channels and fonts
-          320px wide; below that one column, the channels after the
-          examples. */}
-      <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
-        <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
-            <Card
-              title={t('brands_logo', 'Logo')}
-              help={t(
-                'brands_logo_help',
-                'Goes with every image, even when you attach your own.'
-              )}
-            >
-              {logo?.missing ? (
-                <Missing className="h-[116px]" />
-              ) : (
-                <div
-                  className="flex items-center justify-center h-[116px] rounded-[10px] bg-panel"
-                  style={{
-                    backgroundImage: `linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%), linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%)`,
-                    backgroundSize: '16px 16px',
-                    backgroundPosition: '0 0, 8px 8px',
-                  }}
-                >
-                  {logo?.path ? (
-                    <SafeImage
-                      src={mediaDirectory.set(logo.path)}
-                      alt={t('brands_logo', 'Logo')}
-                      className="max-h-[84px] max-w-[calc(100%-32px)] object-contain"
-                    />
-                  ) : (
-                    <span className="text-[13px] text-muted">
-                      {t('brands_no_logo', 'No logo yet')}
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-[8px]">
-                {logo ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={pickLogo}
-                      className={SMALL_BUTTON}
-                    >
-                      {t('brands_replace', 'Replace')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => save({ logoId: null })}
-                      className={SMALL_BUTTON}
-                    >
-                      {t('remove', 'Remove')}
-                    </button>
-                  </>
+    <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
+      <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
+          <Card
+            title={t('brands_logo', 'Logo')}
+            help={t(
+              'brands_logo_help',
+              'Goes with every image, even when you attach your own.'
+            )}
+          >
+            {logo?.missing ? (
+              <Missing className="h-[116px]" />
+            ) : (
+              <div
+                className="flex items-center justify-center h-[116px] rounded-[10px] bg-panel"
+                style={{
+                  backgroundImage: `linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%), linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%)`,
+                  backgroundSize: '16px 16px',
+                  backgroundPosition: '0 0, 8px 8px',
+                }}
+              >
+                {logo?.path ? (
+                  <SafeImage
+                    src={mediaDirectory.set(logo.path)}
+                    alt={t('brands_logo', 'Logo')}
+                    className="max-h-[84px] max-w-[calc(100%-32px)] object-contain"
+                  />
                 ) : (
+                  <span className="text-[13px] text-muted">
+                    {t('brands_no_logo', 'No logo yet')}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-[8px]">
+              {logo ? (
+                <>
                   <button
                     type="button"
                     onClick={pickLogo}
                     className={SMALL_BUTTON}
                   >
-                    {t('brands_upload_logo', 'Upload logo')}
+                    {t('brands_replace', 'Replace')}
                   </button>
-                )}
-              </div>
-            </Card>
-            <Card
-              title={t('brands_colours', 'Colours')}
-              count={<Count n={colours.length} max={MAX_COLOURS} />}
-              help={t(
-                'brands_colours_help',
-                'Up to 6. Samy names them in each image request.'
-              )}
-            >
-              {/* Under a coarse pointer each × grows to 44px around its
-                  corner, so the row makes room for it above and between. */}
-              <div className="flex flex-wrap items-start gap-[10px] coarse:gap-[20px] coarse:pt-[13px]">
-                {colours.map((code) => (
-                  <div
-                    key={code}
-                    className="group/swatch flex flex-col items-center gap-[5px] w-[52px]"
+                  <button
+                    type="button"
+                    onClick={() => save({ logoId: null })}
+                    className={SMALL_BUTTON}
                   >
-                    <span className="relative flex">
-                      <span
-                        aria-hidden="true"
-                        className="w-[44px] h-[44px] rounded-[10px] ring-1 ring-inset ring-line"
-                        style={{ backgroundColor: code }}
-                      />
-                      <button
-                        type="button"
-                        aria-label={t(
-                          'brands_remove_colour',
-                          'Remove colour {{code}}',
-                          { code }
-                        )}
-                        onClick={() =>
-                          save({
-                            colours: colours.filter((item) => item !== code),
-                          })
-                        }
-                        className={clsx(
-                          'group absolute -top-[8px] -end-[8px] w-[22px] h-[22px] coarse:w-[44px] coarse:h-[44px] coarse:-top-[19px] coarse:-end-[19px] flex items-center justify-center rounded-full cursor-pointer opacity-0 group-hover/swatch:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity',
-                          FOCUS_RING
-                        )}
-                      >
-                        <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-surface border border-line text-inkSoft group-hover:text-ink group-hover:border-inkSoft transition-colors">
-                          <CloseIcon size={10} aria-hidden="true" />
-                        </span>
-                      </button>
-                    </span>
-                    <span
-                      dir="ltr"
-                      className="text-[11px] text-muted tabular-nums"
-                    >
-                      {code}
-                    </span>
-                  </div>
-                ))}
-                <BrandColourPopover
-                  colours={colours}
-                  onAdd={(code) => save({ colours: [...colours, code] })}
-                />
-              </div>
-            </Card>
-          </div>
-          <Card
-            title={t('brands_example_posts', 'Example posts')}
-            count={<Count n={examples.length} max={MAX_EXAMPLES} />}
-            help={
-              examples.some((example) => example.missing)
-                ? t(
-                    'brands_examples_help_missing',
-                    'One example was deleted from Media, so Samy skips it until you replace it.'
-                  )
-                : t(
-                    'brands_examples_help',
-                    'Up to 3 posts in your style. They stay out when you attach images of your own.'
-                  )
-            }
-          >
-            <div className="grid grid-cols-3 gap-[12px] phone:gap-[8px] max-w-[474px]">
-              {examples.map((example, index) =>
-                !example.missing && example.path ? (
-                  <div
-                    key={example.id}
-                    className="relative aspect-square rounded-[10px] overflow-hidden border border-line bg-panel"
-                  >
-                    <SafeImage
-                      src={mediaDirectory.set(example.path)}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      aria-label={t('brands_remove_example', 'Remove example')}
-                      onClick={() =>
-                        save({
-                          exampleIds: exampleIds.filter((_, n) => n !== index),
-                        })
-                      }
-                      className={clsx(
-                        'absolute top-[6px] end-[6px] coarse:top-0 coarse:end-0 w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center rounded-[8px] cursor-pointer',
-                        FOCUS_RING
-                      )}
-                    >
-                      <span className="flex items-center justify-center w-[28px] h-[28px] rounded-[8px] bg-[rgba(0,0,0,0.55)] text-white">
-                        <CloseIcon size={14} aria-hidden="true" />
-                      </span>
-                    </button>
-                  </div>
-                ) : (
-                  <Missing key={example.id} className="aspect-square">
-                    <button
-                      type="button"
-                      onClick={() => replaceExample(index)}
-                      className={SMALL_BUTTON}
-                    >
-                      {t('brands_replace', 'Replace')}
-                    </button>
-                  </Missing>
-                )
-              )}
-              {examples.length < MAX_EXAMPLES && (
+                    {t('remove', 'Remove')}
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  onClick={addExamples}
-                  className={clsx(
-                    'aspect-square flex flex-col items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] border-dashed border-line text-muted hover:text-ink hover:border-inkSoft text-[13px] font-[600] cursor-pointer transition-colors',
-                    FOCUS_RING
-                  )}
+                  onClick={pickLogo}
+                  className={SMALL_BUTTON}
                 >
-                  <PlusIcon size={18} aria-hidden="true" />
-                  <span>{t('add', 'Add')}</span>
+                  {t('brands_upload_logo', 'Upload logo')}
                 </button>
               )}
             </div>
           </Card>
-        </div>
-        <div className="flex-[1_1_320px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
           <Card
-            title={t('channels', 'Channels')}
-            count={
-              <span className="px-[8px] py-[1px] rounded-full bg-surface2 text-[12px] font-[600] text-muted">
-                {own.length}
-              </span>
-            }
+            title={t('brands_colours', 'Colours')}
+            count={<Count n={colours.length} max={MAX_COLOURS} />}
             help={t(
-              'brands_channels_help',
-              'Tick these channels in Samy and it uses this kit.'
+              'brands_colours_help',
+              'Up to 6. Samy names them in each image request.'
             )}
           >
-            {!!own.length && (
-              <div className="flex flex-col gap-[2px]">
-                {own.map((channel) => (
-                  <div
-                    key={channel.id}
-                    className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors"
-                  >
-                    <ChannelPicture channel={channel} />
-                    <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-                      <bdi className="text-[14px] font-[500] text-ink truncate">
-                        {channel.name}
-                      </bdi>
-                      <span className="text-[12px] text-muted truncate">
-                        {platformLabel(channel.identifier)}
-                      </span>
-                    </span>
+            {/* Under a coarse pointer each × grows to 44px around its
+                corner, so the row makes room for it above and between. */}
+            <div className="flex flex-wrap items-start gap-[10px] coarse:gap-[20px] coarse:pt-[13px]">
+              {colours.map((code) => (
+                <div
+                  key={code}
+                  className="group/swatch flex flex-col items-center gap-[5px] w-[52px]"
+                >
+                  <span className="relative flex">
+                    <span
+                      aria-hidden="true"
+                      className="w-[44px] h-[44px] rounded-[10px] ring-1 ring-inset ring-line"
+                      style={{ backgroundColor: code }}
+                    />
                     <button
                       type="button"
-                      aria-label={removeFromBrand}
-                      title={removeFromBrand}
-                      onClick={() => move([channel.id], '')}
+                      aria-label={t(
+                        'brands_remove_colour',
+                        'Remove colour {{code}}',
+                        { code }
+                      )}
+                      onClick={() =>
+                        save({
+                          colours: colours.filter((item) => item !== code),
+                        })
+                      }
                       className={clsx(
-                        'flex-none flex items-center justify-center w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] text-muted hover:bg-surface2 hover:text-ink cursor-pointer transition-colors',
+                        'group absolute -top-[8px] -end-[8px] w-[22px] h-[22px] coarse:w-[44px] coarse:h-[44px] coarse:-top-[19px] coarse:-end-[19px] flex items-center justify-center rounded-full cursor-pointer opacity-0 group-hover/swatch:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity',
                         FOCUS_RING
                       )}
                     >
-                      <CloseIcon size={16} aria-hidden="true" />
+                      <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-surface border border-line text-inkSoft group-hover:text-ink group-hover:border-inkSoft transition-colors">
+                        <CloseIcon size={10} aria-hidden="true" />
+                      </span>
                     </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              onClick={addChannels}
-              className="w-full"
-              innerClassName="gap-[8px]"
-            >
-              <PlusIcon aria-hidden="true" />
-              {t('brands_add_channels', 'Add channels')}
-            </Button>
+                  </span>
+                  <span
+                    dir="ltr"
+                    className="text-[11px] text-muted tabular-nums"
+                  >
+                    {code}
+                  </span>
+                </div>
+              ))}
+              <BrandColourPopover
+                colours={colours}
+                onAdd={(code) => save({ colours: [...colours, code] })}
+              />
+            </div>
           </Card>
-          <Card
-            title={t('brands_fonts', 'Fonts')}
-            help={t(
-              'brands_fonts_help',
-              "Names only: Sharek's AI reads them as words, so well-known fonts work best."
-            )}
-          >
-            <FontField
-              label={t('brands_headings', 'Headings')}
-              value={headingFont}
-              onSave={(value) => save({ headingFont: value })}
-            />
-            <FontField
-              label={t('brands_body_text', 'Body text')}
-              value={bodyFont}
-              onSave={(value) => save({ bodyFont: value })}
-            />
-          </Card>
-          <p className="flex items-start gap-[6px] px-[4px] text-[12.5px] leading-[1.5] text-muted">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className="flex-none mt-[2px]"
-            >
-              <circle cx="9" cy="8" r="3.5" />
-              <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
-              <circle cx="17" cy="9" r="2.5" />
-              <path d="M16 14.5a5 5 0 0 1 5.5 5" />
-            </svg>
-            <span>
-              {t(
-                'brands_any_member',
-                'Anyone in your team can edit this brand.'
-              )}
-            </span>
-          </p>
         </div>
+        <Card
+          title={t('brands_example_posts', 'Example posts')}
+          count={<Count n={examples.length} max={MAX_EXAMPLES} />}
+          help={
+            examples.some((example) => example.missing)
+              ? t(
+                  'brands_examples_help_missing',
+                  'One example was deleted from Media, so Samy skips it until you replace it.'
+                )
+              : t(
+                  'brands_examples_help',
+                  'Up to 3 posts in your style. They stay out when you attach images of your own.'
+                )
+          }
+        >
+          <div className="grid grid-cols-3 gap-[12px] phone:gap-[8px] max-w-[474px]">
+            {examples.map((example, index) =>
+              !example.missing && example.path ? (
+                <div
+                  key={example.id}
+                  className="relative aspect-square rounded-[10px] overflow-hidden border border-line bg-panel"
+                >
+                  <SafeImage
+                    src={mediaDirectory.set(example.path)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  <RemoveExample onClick={() => removeExample(index)} />
+                </div>
+              ) : (
+                <Missing key={example.id} className="relative aspect-square">
+                  <button
+                    type="button"
+                    onClick={() => replaceExample(index)}
+                    className={SMALL_BUTTON}
+                  >
+                    {t('brands_replace', 'Replace')}
+                  </button>
+                  <RemoveExample onClick={() => removeExample(index)} />
+                </Missing>
+              )
+            )}
+            {examples.length < MAX_EXAMPLES && (
+              <button
+                type="button"
+                onClick={addExamples}
+                className={clsx(
+                  'aspect-square flex flex-col items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] border-dashed border-line text-muted hover:text-ink hover:border-inkSoft text-[13px] font-[600] cursor-pointer transition-colors',
+                  FOCUS_RING
+                )}
+              >
+                <PlusIcon size={18} aria-hidden="true" />
+                <span>{t('add', 'Add')}</span>
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+      <div className="flex-[1_1_320px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
+        <Card
+          title={t('channels', 'Channels')}
+          count={
+            <span className="px-[8px] py-[1px] rounded-full bg-surface2 text-[12px] font-[600] text-muted">
+              {own.length}
+            </span>
+          }
+          help={t(
+            'brands_channels_help',
+            'Tick these channels in Samy and it uses this kit.'
+          )}
+        >
+          {!!own.length && (
+            <div className="flex flex-col gap-[2px]">
+              {own.map((channel) => (
+                <div
+                  key={channel.id}
+                  className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors"
+                >
+                  <ChannelPicture channel={channel} />
+                  <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
+                    <bdi className="text-[14px] font-[500] text-ink truncate">
+                      {channel.name}
+                    </bdi>
+                    <span className="text-[12px] text-muted truncate">
+                      {platformLabel(channel.identifier)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={removeFromBrand}
+                    title={removeFromBrand}
+                    onClick={() => move([channel.id], '')}
+                    className={clsx(
+                      'flex-none flex items-center justify-center w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-[8px] text-muted hover:bg-surface2 hover:text-ink cursor-pointer transition-colors',
+                      FOCUS_RING
+                    )}
+                  >
+                    <CloseIcon size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            onClick={addChannels}
+            className="w-full"
+            innerClassName="gap-[8px]"
+          >
+            <PlusIcon aria-hidden="true" />
+            {t('brands_add_channels', 'Add channels')}
+          </Button>
+        </Card>
+        <Card
+          title={t('brands_fonts', 'Fonts')}
+          help={t(
+            'brands_fonts_help',
+            "Names only: Sharek's AI reads them as words, so well-known fonts work best."
+          )}
+        >
+          <FontField
+            label={t('brands_headings', 'Headings')}
+            value={headingFont}
+            onSave={(value) => save({ headingFont: value })}
+          />
+          <FontField
+            label={t('brands_body_text', 'Body text')}
+            value={bodyFont}
+            onSave={(value) => save({ bodyFont: value })}
+          />
+        </Card>
+        <p className="flex items-start gap-[6px] px-[4px] text-[12.5px] leading-[1.5] text-muted">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="flex-none mt-[2px]"
+          >
+            <circle cx="9" cy="8" r="3.5" />
+            <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+            <circle cx="17" cy="9" r="2.5" />
+            <path d="M16 14.5a5 5 0 0 1 5.5 5" />
+          </svg>
+          <span>
+            {t('brands_any_member', 'Anyone in your team can edit this brand.')}
+          </span>
+        </p>
       </div>
     </div>
   );
