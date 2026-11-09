@@ -2056,6 +2056,56 @@ describe('the Brand field', () => {
     expect(body()).not.toHaveProperty('brand');
   });
 
+  // Three images added to an edit on No brand, then, back at the prompt, a
+  // brand whose logo takes one of the edit's places and a new image: the
+  // edit is held as Generate is, saying so under its images.
+  const editOverTheCap = async () => {
+    renders(done);
+    await compose();
+    await type(field(), 'A Ramadan night menu post');
+    await click(button('Generate'));
+    await attach(ref('a'), ref('b'), ref('c'));
+    await click(button('Back to prompt'));
+    await pick('Bayt Al Qahwa');
+    renders({
+      name: 'done',
+      media: { id: 'media-2', path: 'https://media/second.png' },
+    });
+    await click(button('Generate'));
+    await type(field(), 'put the logo on the cup');
+  };
+
+  it('holds Apply edit while more images are added to it than fit beside the logo', async () => {
+    await editOverTheCap();
+
+    expect(thumbnails()).toHaveLength(4);
+    expect(counter('4 / 3')?.classList.contains('text-error')).toBe(true);
+    expect(lines()).toContain(TOO_MANY_LINE);
+    expect(button('Add image')).toBeUndefined();
+    expect(apply()?.disabled).toBe(true);
+
+    request.mockClear();
+    await click(apply());
+
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('lets Apply edit go with the brand once one of the images is removed', async () => {
+    await editOverTheCap();
+    await click(
+      document.querySelector('button[aria-label="Remove reference image 4"]')
+    );
+
+    expect(counter('3 / 3')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(apply()?.disabled).toBe(false);
+
+    await click(apply());
+
+    expect(editBody().references).toEqual(['a', 'b']);
+    expect(editBody().brand).toBe('bq');
+  });
+
   // Only a logo that goes along takes a place, as the server counts them: a
   // logo deleted from Media is skipped, and a kit without one has none.
   const LOGO_GONE: Brand = {
