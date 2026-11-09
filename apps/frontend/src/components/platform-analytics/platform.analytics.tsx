@@ -316,7 +316,13 @@ export const PlatformAnalytics = () => {
               </div>
             </div>
             <div className="flex-1">
-              <RenderAnalytics integration={currentIntegration} date={keys} />
+              {/* drawn anew for each channel and period, so a switch back
+                  loads its numbers again on mount */}
+              <RenderAnalytics
+                key={`${currentIntegration.id}-${keys}`}
+                integration={currentIntegration}
+                date={keys}
+              />
             </div>
           </>
         ) : (
