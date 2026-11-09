@@ -81,6 +81,10 @@ const STRINGS = [
   ['all', 'All', 'الكل'],
   ['scheduled', 'Scheduled', 'مجدول'],
   ['published', 'Published', 'منشور'],
+  // The List view's pager (filters.tsx), "Page 1 of 1"; in en and ar alone
+  // until the 205 re-walk.
+  ['page', 'Page', 'الصفحة'],
+  ['of', 'of', 'من'],
 ] as const;
 
 // The status chips and the List view's segments describe a post, which es, fr
