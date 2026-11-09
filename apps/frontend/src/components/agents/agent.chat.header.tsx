@@ -223,6 +223,8 @@ export const ChannelSummary: FC = () => {
         ) : (
           t('no_channels_picked', 'No channels picked')
         )}
+        {/* Where choosing the pill opens the channel sheet, 1025px and below;
+            a wide screen has the list beside it, which it only focuses */}
         <svg
           width="14"
           height="14"
@@ -233,7 +235,7 @@ export const ChannelSummary: FC = () => {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="flex-none"
+          className="flex-none hidden mobile:block"
         >
           <path d="M6 9l6 6 6-6" />
         </svg>

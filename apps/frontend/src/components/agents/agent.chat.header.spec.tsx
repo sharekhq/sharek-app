@@ -764,7 +764,8 @@ describe('ChannelSummary', () => {
     expect(classes(name)).toContain('[@media(max-width:1279px)]:hidden');
     // shown on a wide screen
     expect(classes(name)).not.toContain('hidden');
-    expect(line.querySelectorAll('[class*="hidden"]')).toHaveLength(1);
+    // the only words that drop; the arrow is decoration, with its own case
+    expect(line.querySelectorAll('[class*="hidden"]:not(svg)')).toHaveLength(1);
     expect(line.textContent).toBe('Samy will useBayt Al Qahwa· 3 channels');
     expect(line.getAttribute('aria-label')).toBe(
       'Samy will use Bayt Al Qahwa, 3 channels. Change channels'
