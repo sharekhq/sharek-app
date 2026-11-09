@@ -19,6 +19,8 @@ import {
 } from '@gitroom/frontend/components/brands/brand.mark';
 import {
   Brand,
+  liveExamples,
+  liveLogo,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
 
@@ -177,13 +179,6 @@ export const useImageBrand = () => {
   };
 };
 
-// The brand's logo while it is still in Media: what goes along with a render,
-// taking one of its places, as the server counts it (FR-016).
-export const liveLogo = (brand?: Brand) => {
-  const logo = brand?.kit.logo;
-  return logo && !logo.missing ? logo : undefined;
-};
-
 // A kit image after "Goes along:" (board StudioBrand).
 const KIT_THUMBNAIL =
   'flex-none w-[36px] h-[36px] rounded-[8px] border border-line';
@@ -208,9 +203,7 @@ export const BrandField: FC<{
   const mediaDirectory = useMediaDirectory();
   const name = brand ? brand.name : t('brands_no_brand', 'No brand');
   const logoPath = liveLogo(brand)?.path;
-  const examples = (brand?.kit.examples || []).flatMap(
-    ({ id, path, missing }) => (path && !missing ? [{ id, path }] : [])
-  );
+  const examples = liveExamples(brand);
 
   return (
     <div className="flex flex-col gap-[6px]">

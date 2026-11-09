@@ -50,9 +50,9 @@ import {
   BrandField,
   brandRefusal,
   BrandRefusal,
-  liveLogo,
   useImageBrand,
 } from '@gitroom/frontend/components/launches/ai.image.brand';
+import { liveLogo } from '@gitroom/frontend/components/brands/use.brands';
 
 const useImageCredits = () => {
   const fetch = useFetch();
