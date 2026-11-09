@@ -73,6 +73,10 @@ export const MetricChart: FC<{
     // ChartSocial's tooltip colours; its border and body are the line and
     // muted tokens, which the gridlines and the ticks take
     const tooltip = chartTooltipColors(mode);
+    // The page's face (font-sans: IBM Plex Sans, and Plex Sans Arabic for
+    // Arabic letters), which chart.js doesn't take from the canvas: it draws
+    // in its own 12px Helvetica otherwise
+    const family = getComputedStyle(ref.current!).fontFamily;
 
     active.current = null;
     chart.current = new DrawChart(ref.current!, {
@@ -100,6 +104,7 @@ export const MetricChart: FC<{
             },
             ticks: {
               color: tooltip.bodyColor,
+              font: { family, size: 11 },
               maxRotation: 0,
               maxTicksLimit: 7,
             },
@@ -114,6 +119,7 @@ export const MetricChart: FC<{
             },
             ticks: {
               color: tooltip.bodyColor,
+              font: { family, size: 11 },
               maxTicksLimit: 5,
               callback: (tick) => format.thousands.format(Number(tick)),
             },
@@ -131,10 +137,12 @@ export const MetricChart: FC<{
             cornerRadius: 8,
             displayColors: false,
             titleFont: {
+              family,
               size: 12,
               weight: 'normal',
             },
             bodyFont: {
+              family,
               size: 14,
               weight: 'bold',
             },
