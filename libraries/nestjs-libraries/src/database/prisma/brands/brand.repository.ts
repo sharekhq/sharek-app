@@ -14,6 +14,12 @@ const kitFields = {
   bodyFont: true,
 } as const;
 
+const brandFields = {
+  id: true,
+  name: true,
+  brandKit: { select: kitFields },
+} as const;
+
 @Injectable()
 export class BrandRepository {
   constructor(
@@ -28,7 +34,14 @@ export class BrandRepository {
     return this._customer.model.customer.findMany({
       where: { orgId: org, deletedAt: null },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, brandKit: { select: kitFields } },
+      select: brandFields,
+    });
+  }
+
+  findLive(org: string, id: string) {
+    return this._customer.model.customer.findFirst({
+      where: { id, orgId: org, deletedAt: null },
+      select: brandFields,
     });
   }
 
