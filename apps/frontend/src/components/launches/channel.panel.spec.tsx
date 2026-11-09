@@ -1812,8 +1812,9 @@ describe('the row menu and the customer pencil', () => {
 
   // The menu opens inside the wrapper, so the wrapper stays shown while it is
   // open too, or a click that doesn't focus the ⋯ (Safari's) would leave it
-  // open and unseen once the pointer leaves the row.
-  it('shows the ⋯ while its own row is hovered, while it has focus or its menu is open, and always on a touch screen', async () => {
+  // open and unseen once the pointer leaves the row. The focus is the row's,
+  // so a Tab onto the row's main button shows it too, as a chat's ⋯ does.
+  it('shows the ⋯ while its own row is hovered, while focus is anywhere in its row or its menu is open, and always on a touch screen', async () => {
     await render(CAL, { rowMenu });
 
     CAL.forEach(({ id, name }) => {
@@ -1823,12 +1824,14 @@ describe('the row menu and the customer pencil', () => {
         expect.arrayContaining([
           'opacity-0',
           'group-hover:opacity-100',
-          'focus-within:opacity-100',
+          'group-focus-within:opacity-100',
           'has-[[aria-expanded=true]]:opacity-100',
           'coarse:opacity-100',
           'transition-opacity',
         ])
       );
+      // the row's focus covers the ⋯'s own, so no rule of its own for it
+      expect(classes(wrapper)).not.toContain('focus-within:opacity-100');
       // its row is the group it answers to, and nothing around the row is
       // one, so another row's hover leaves it hidden
       expect(closestWith(wrapper, 'group')).toBe(rowOf(name));
