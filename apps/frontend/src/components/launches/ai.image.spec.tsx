@@ -1991,6 +1991,71 @@ describe('the Brand field', () => {
     expect(counters()).toContain('3 / 3');
   });
 
+  // Four of the user's images, then a brand whose logo takes the fourth
+  // place: the window holds the render until one is removed or No brand is
+  // picked, saying so where it says the other limits, under the images.
+  const TOO_MANY_LINE =
+    "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.";
+  const overTheCap = async () => {
+    renders(done);
+    await compose();
+    await attach(ref('a'), ref('b'), ref('c'), ref('d'));
+    await type(field(), 'A Ramadan night menu post');
+    await pick('Bayt Al Qahwa');
+  };
+  const counter = (text: string) =>
+    Array.from(document.querySelectorAll('span[dir="ltr"]')).find(
+      (node) => node.textContent === text
+    );
+
+  it("holds Generate while more of the user's images are attached than fit beside the logo", async () => {
+    await overTheCap();
+
+    expect(thumbnails()).toHaveLength(4);
+    expect(counter('4 / 3')?.classList.contains('text-error')).toBe(true);
+    expect(counter('4 / 3')?.classList.contains('font-[600]')).toBe(true);
+    expect(lines()).toContain(TOO_MANY_LINE);
+    expect(lines()).not.toContain(OWN_LINE);
+    expect(button('Add image')).toBeUndefined();
+    expect(button('Generate')?.disabled).toBe(true);
+
+    await click(button('Generate'));
+
+    expect(asked('/media/generate-image/allowed')).toHaveLength(0);
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
+  });
+
+  it('lets Generate go with the brand once one of the images is removed', async () => {
+    await overTheCap();
+    await click(
+      document.querySelector('button[aria-label="Remove reference image 4"]')
+    );
+
+    expect(counter('3 / 3')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).toContain(OWN_LINE);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(button('Generate')?.disabled).toBe(false);
+
+    await click(button('Generate'));
+
+    expect(body().references).toEqual(['a', 'b', 'c']);
+    expect(body().brand).toBe('bq');
+  });
+
+  it('lets Generate go with every image once No brand is picked', async () => {
+    await overTheCap();
+    await pick('No brand');
+
+    expect(counter('4 / 4')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(button('Generate')?.disabled).toBe(false);
+
+    await click(button('Generate'));
+
+    expect(body().references).toEqual(['a', 'b', 'c', 'd']);
+    expect(body()).not.toHaveProperty('brand');
+  });
+
   // Only a logo that goes along takes a place, as the server counts them: a
   // logo deleted from Media is skipped, and a kit without one has none.
   const LOGO_GONE: Brand = {

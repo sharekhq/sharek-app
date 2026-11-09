@@ -205,6 +205,14 @@ const STRINGS = [
     "Optional. Your images take the place of the brand's examples; its logo stays.",
     'اختياري. تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
   ],
+  // Not on the canvas: the same line while a brand picked after the user's
+  // images leaves one more of them than fits beside its logo, which holds
+  // Generate.
+  [
+    'brands_ref_too_many',
+    "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.",
+    'لا تتسع صورك كلها بجانب شعار العلامة. أزل إحداها، أو اختر «بلا علامة تجارية».',
+  ],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename
