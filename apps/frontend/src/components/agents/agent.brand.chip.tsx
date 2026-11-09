@@ -158,7 +158,9 @@ export const BrandChip: FC = () => {
 /**
  * The note under the attached images while a brand is chosen (FR-024; board
  * ChipStates, state E): they go in place of the brand's examples, and its
- * logo still goes along. A video is no example, so only images count.
+ * logo, while still in Media, goes along all the same. A brand with no
+ * example in Media has none to step aside, so no note. A video is no example,
+ * so only images count.
  */
 export const BrandNote: FC = () => {
   const t = useT();
@@ -170,7 +172,10 @@ export const BrandNote: FC = () => {
   const images = attached.filter(
     (media) => !hasExtension(media.path, 'mp4')
   ).length;
-  const showing = !!current && images > 0;
+  const showing =
+    !!current &&
+    current.kit.examples.some(({ path, missing }) => path && !missing) &&
+    images > 0;
 
   // It takes its room from the chat, as the attachments' row does, and the
   // chat's own scrolling watches only its messages.
@@ -186,6 +191,12 @@ export const BrandNote: FC = () => {
   if (!showing) {
     return null;
   }
+
+  const values = {
+    count: images,
+    brand: isolate(current.name),
+    interpolation: { escapeValue: false },
+  };
 
   return (
     <p
@@ -208,15 +219,17 @@ export const BrandNote: FC = () => {
         <path d="M12 11v5M12 8h.01" />
       </svg>
       <span>
-        {t(
-          'brands_attach_note',
-          "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
-          {
-            count: images,
-            brand: isolate(current.name),
-            interpolation: { escapeValue: false },
-          }
-        )}
+        {current.kit.logo && !current.kit.logo.missing
+          ? t(
+              'brands_attach_note',
+              "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
+              values
+            )
+          : t(
+              'brands_attach_note_no_logo',
+              "Your {{count}} images go in place of {{brand}}'s examples.",
+              values
+            )}
       </span>
     </p>
   );
