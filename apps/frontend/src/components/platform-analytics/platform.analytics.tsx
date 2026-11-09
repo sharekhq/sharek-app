@@ -297,7 +297,7 @@ export const PlatformAnalytics = () => {
                 role="radiogroup"
                 aria-label={t('period', 'Period')}
                 onKeyDown={onRadioGroupKeyDown}
-                className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full"
+                className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full mobile:min-h-[44px]"
               >
                 {options.map((option) => (
                   <button
