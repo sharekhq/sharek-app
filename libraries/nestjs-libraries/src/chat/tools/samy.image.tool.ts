@@ -160,7 +160,7 @@ export class SamyImageTool implements AgentToolInterface {
           return made.brand
             ? {
                 ...made,
-                say: `Name ${made.brand} in your reply, exactly as written here, and say its kit went with this image: its logo, colours and example posts.`,
+                say: `Name ${made.brand} in your reply, exactly as written here, and say its brand kit went with this image.`,
               }
             : made;
         } catch (err) {
