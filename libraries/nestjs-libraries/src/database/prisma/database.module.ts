@@ -33,6 +33,7 @@ import { WebhooksRepository } from '@gitroom/nestjs-libraries/database/prisma/we
 import { WebhooksService } from '@gitroom/nestjs-libraries/database/prisma/webhooks/webhooks.service';
 import { SignatureRepository } from '@gitroom/nestjs-libraries/database/prisma/signatures/signature.repository';
 import { SignatureService } from '@gitroom/nestjs-libraries/database/prisma/signatures/signature.service';
+import { BrandRepository } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
 import { SetsService } from '@gitroom/nestjs-libraries/database/prisma/sets/sets.service';
@@ -78,6 +79,7 @@ import { AdminStatsService } from '@gitroom/nestjs-libraries/database/prisma/adm
     PaymentProviderManager,
     RevenueCatProvider,
     SignatureRepository,
+    BrandRepository,
     AutopostRepository,
     AutopostService,
     SignatureService,
