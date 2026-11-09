@@ -72,6 +72,8 @@ const STRINGS = [
   ['brands_colours', 'Colours', 'الألوان'],
   ['brands_add_colour', 'Add a colour', 'إضافة لون'],
   ['brands_hex_code', 'Hex code', 'رمز اللون'],
+  // A colour's × names the code it removes.
+  ['brands_remove_colour', 'Remove colour {{code}}', 'إزالة اللون {{code}}'],
   [
     'brands_colours_help',
     'Up to 6. Samy names them in each image request.',
@@ -103,6 +105,18 @@ const STRINGS = [
     'إزالة من العلامة التجارية',
   ],
   ['brands_add_channels', 'Add channels', 'إضافة قنوات'],
+  // Add channels opens a picker titled brands_add_channels, with no canvas
+  // board: its line on what a pick does, and what it says with nothing left.
+  [
+    'brands_add_channels_hint',
+    'A channel in another brand moves to this one.',
+    'تنتقل القناة الموجودة في علامة تجارية أخرى إلى هذه العلامة.',
+  ],
+  [
+    'brands_no_other_channels',
+    'No other channels to add.',
+    'لا توجد قنوات أخرى لإضافتها.',
+  ],
   [
     'brands_channels_help',
     'Tick these channels in Samy and it uses this kit.',
