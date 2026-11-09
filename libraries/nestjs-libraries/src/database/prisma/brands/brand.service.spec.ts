@@ -292,12 +292,10 @@ describe('BrandService.saveKit', () => {
           deleted('example-2'),
           live('example-3'),
         ]),
-      upsertKit: jest
-        .fn()
-        .mockResolvedValue({
-          ...stored,
-          exampleIds: ['example-3', 'example-2'],
-        }),
+      upsertKit: jest.fn().mockResolvedValue({
+        ...stored,
+        exampleIds: ['example-3', 'example-2'],
+      }),
     });
 
     const brand = await service.saveKit('org-1', 'brand-1', {
