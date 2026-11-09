@@ -193,7 +193,7 @@ export const RenderAnalytics: FC<{
   const load = useCallback(async () => {
     const response = await fetch(`/analytics/${integration.id}?date=${date}`);
     if (!response.ok) {
-      throw new Error(`Analytics answered ${response.status}`);
+      throw new Error('Failed to load analytics');
     }
     return response.json();
   }, [integration, date]);

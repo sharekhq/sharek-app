@@ -247,6 +247,12 @@ const EXEMPT: readonly Exemption[] = [
       "Thrown, never rendered: the invoices fetcher's Error becomes SWR's `error`, and the history renders nothing while it is set.",
   },
   {
+    file: 'components/platform-analytics/render.analytics.tsx',
+    text: 'Failed to load analytics',
+    reason:
+      "Thrown, never rendered: the analytics fetcher's Error becomes SWR's `error`, which RenderAnalytics never reads; the body stays empty until SWR's retry brings the numbers.",
+  },
+  {
     file: 'components/launches/calendar.tsx',
     text: 'YYYY-MM-DD HH:mm',
     reason:
