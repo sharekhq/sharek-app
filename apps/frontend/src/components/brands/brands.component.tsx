@@ -3,6 +3,7 @@
 import { FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { NO_BRAND } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import {
   MOBILE_QUERY,
   useMediaQuery,
@@ -37,9 +38,6 @@ import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
-
-// No brand's place in the list, beside the brands' ids, which are UUIDs.
-const NO_BRAND = 'none';
 
 // A brand's mark in its list row, and at the top of its page (board Main).
 const LIST_MARK = 'w-[32px] h-[32px] rounded-[8px] text-[13px]';
