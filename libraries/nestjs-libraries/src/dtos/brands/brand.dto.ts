@@ -16,6 +16,10 @@ import {
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
+// An emptied font field clears the font, as null does, rather than saving "".
+const trimOrClear = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim() || null : value;
+
 export class CreateBrandDto {
   // The page's field stops at 60; the existing rename route keeps its own rule.
   @Transform(trim)
@@ -57,13 +61,13 @@ export class BrandKitDto {
   colours?: string[];
 
   @IsOptional()
-  @Transform(trim)
+  @Transform(trimOrClear)
   @IsString()
   @MaxLength(60)
   headingFont?: string | null;
 
   @IsOptional()
-  @Transform(trim)
+  @Transform(trimOrClear)
   @IsString()
   @MaxLength(60)
   bodyFont?: string | null;
