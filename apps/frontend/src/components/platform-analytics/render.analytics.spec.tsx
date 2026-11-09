@@ -22,18 +22,20 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 // MetricChart draws on chart.js, which needs a canvas the test DOM doesn't
 // have, and metric.chart.spec covers what it draws; the stand-in shows the
-// name and the points it was given. The page's locale is the real one.
+// name, the points and the colour it was given. The page's locale is the real
+// one.
 jest.mock(
   '@gitroom/frontend/components/platform-analytics/metric.chart',
   () => ({
     ...jest.requireActual(
       '@gitroom/frontend/components/platform-analytics/metric.chart'
     ),
-    MetricChart: (props: { label: string; data: unknown }) => (
+    MetricChart: (props: { label: string; data: unknown; color: string }) => (
       <div
         data-testid="metric-chart"
         data-label={props.label}
         data-points={JSON.stringify(props.data)}
+        data-color={props.color}
       />
     ),
   })
@@ -290,6 +292,27 @@ describe('tiles and charts', () => {
         expect(tile!.closest('figure')).toBeNull();
       }
     );
+  });
+
+  // Each chart takes the supporting brand hue of its metric's place in the
+  // list, as the cards did before spec 051 and post statistics still do, so a
+  // metric keeps its colour whether the ones before it are tiles or charts.
+  it("colours each chart by its metric's place in the list, cycling the six hues", async () => {
+    const host = await render([
+      metric('Followers', [480]),
+      metric('Page Impressions', [1, 2, 3]),
+      metric('Page followers', [4, 5, 6]),
+      metric('Reach', [7, 8, 9]),
+      metric('Likes', [1]),
+      metric('Views', [1]),
+      metric('Page Impressions', [2, 3, 4]),
+    ]);
+
+    expect(
+      Array.from(host.querySelectorAll('[data-testid="metric-chart"]')).map(
+        (chart) => chart.getAttribute('data-color')
+      )
+    ).toEqual(['saffron', 'fayrouz', 'palm', 'pomegranate']);
   });
 
   // A totals platform always sends its one point, so a metric with none this
