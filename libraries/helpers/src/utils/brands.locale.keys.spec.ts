@@ -11,6 +11,9 @@
 // eight languages. Part 2 (tasks.md T051) adds the brand chip in Samy's message
 // box, its list, the note on attached images, and the AI image dialog's Brand
 // field (the parts BrandMenu, Composer and StudioBrand), in en and ar only.
+// Part 3 (tasks.md T072) adds the "Fill from my website" card on a brand's page
+// (BrandKit's web strings) and onboarding's "Your brand" step (OnboardBrand),
+// in en and ar only, with no font suggestions (research R15).
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -266,6 +269,57 @@ const STRINGS = [
     'That brand no longer exists. Pick another or No brand.',
     'لم تعد هذه العلامة التجارية موجودة. اختر علامة أخرى أو «بلا علامة تجارية».',
   ],
+  // Part 3. The "Fill from my website" card on a brand's page, and the button
+  // beside Rename it folds into once the kit has a logo; its suggestions show
+  // in onboarding's step too. The help line names a logo and colours, not the
+  // canvas's fonts (research R15). {{address}} is the site they were found on.
+  ['brands_fill_from_website', 'Fill from my website', 'املأ من موقعي'],
+  [
+    'brands_fill_from_website_help',
+    'Sharek reads your site and suggests a logo and colours. You choose what goes in.',
+    'يقرأ شارك موقعك ويقترح شعارًا وألوانًا، وتختار أنت ما يضاف.',
+  ],
+  ['brands_look_up', 'Look up', 'ابحث'],
+  ['brands_found_on', 'Found on {{address}}', 'وجدنا في {{address}}'],
+  ['brands_pick_a_logo', 'Pick a logo', 'اختر شعارًا'],
+  ['brands_add_to_kit', 'Add to kit', 'أضف إلى الهوية'],
+  ['brands_not_now', 'Not now', 'ليس الآن'],
+  [
+    'brands_nothing_saved',
+    'Nothing is saved until you add it.',
+    'لا يحفظ شيء حتى تضيفه.',
+  ],
+  // Not on the canvas: a lookup that fails (an unreadable site, no web
+  // service, no credits left, spec FR-029), one that finds nothing, and a
+  // picked logo that can't be saved.
+  [
+    'brands_website_failed',
+    "Sharek couldn't read this site. Check the address, or try again later.",
+    'تعذر على شارك قراءة هذا الموقع. تحقق من العنوان، أو حاول لاحقًا.',
+  ],
+  [
+    'brands_website_nothing_found',
+    'Nothing was found on this site. Try another address.',
+    'لم نجد شيئًا في هذا الموقع. جرب عنوانًا آخر.',
+  ],
+  [
+    'brands_website_logo_failed',
+    "This logo couldn't be saved, so nothing was added. Pick another logo or try again.",
+    'تعذر حفظ هذا الشعار، فلم يضف شيء. اختر شعارًا آخر أو حاول مرة أخرى.',
+  ],
+  // Onboarding's "Your brand" step (OnboardBrand): the step's name, its
+  // heading, the line that names Samy and no tool, the name and website
+  // fields, and Skip.
+  ['brands_onboard_step', 'Your brand', 'علامتك التجارية'],
+  ['brands_onboard_title', 'Set up your brand', 'جهز علامتك التجارية'],
+  [
+    'brands_onboard_body',
+    "Samy and Sharek's AI use its logo and look to keep your images on-brand. Add more brands later from Brands.",
+    'يستخدم سامي والذكاء الاصطناعي في شارك شعارها ومظهرها لتبقى صورك متسقة مع علامتك. أضف علامات أخرى لاحقًا من صفحة العلامات التجارية.',
+  ],
+  ['brands_onboard_name', 'Brand name', 'اسم العلامة التجارية'],
+  ['brands_onboard_website', 'Your website', 'موقعك'],
+  ['brands_onboard_skip', 'Skip', 'تخطي'],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename
@@ -283,6 +337,13 @@ const REUSED = [
   ['select_customer_label', 'Brand', 'العلامة التجارية'],
   // A disabled channel in a brand's kit reads as the channel list reads it.
   ['channel_disabled', 'Channel Disabled', 'تم تعطيل القناة'],
+  // Part 3: onboarding's other steps and its Back and Continue, beside the
+  // new step.
+  ['connect_channels', 'Connect Channels', 'ربط القنوات'],
+  ['connect_agents', 'Connect Agents', 'ربط الوكلاء'],
+  ['watch_tutorial', 'Watch Tutorial', 'مشاهدة الدليل'],
+  ['back', 'Back', 'رجوع'],
+  ['continue', 'Continue', 'متابعة'],
 ] as const;
 
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
@@ -422,6 +483,40 @@ const PLURALS = [
       few: 'تحل صورك محل المنشورات النموذجية للعلامة.',
       many: 'تحل صورك محل المنشورات النموذجية للعلامة.',
       other: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+    },
+  ],
+  // Part 3. Onboarding's offer to put the channels just connected in the new
+  // brand, ticked, and the line under it, whose them and it follow the count.
+  // ar's _two says the two channels rather than قناتي, which without its
+  // shadda reads as one.
+  [
+    'brands_onboard_put_channels',
+    {
+      one: 'Put my 1 channel in this brand',
+      other: 'Put my {{count}} channels in this brand',
+    },
+    {
+      zero: 'ضع قنواتي في هذه العلامة',
+      one: 'ضع قناتي في هذه العلامة',
+      two: 'ضع القناتين في هذه العلامة',
+      few: 'ضع قنواتي الـ{{count}} في هذه العلامة',
+      many: 'ضع قنواتي الـ{{count}} في هذه العلامة',
+      other: 'ضع قنواتي الـ{{count}} في هذه العلامة',
+    },
+  ],
+  [
+    'brands_onboard_move_later',
+    {
+      one: 'You can move it later from Brands.',
+      other: 'You can move them later from Brands.',
+    },
+    {
+      zero: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
+      one: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
+      two: 'يمكنك نقلهما لاحقًا من صفحة العلامات التجارية.',
+      few: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
+      many: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
+      other: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
     },
   ],
 ] as const;
@@ -592,9 +687,10 @@ const componentsIn = (dir: string) => {
 // The files that render these strings: the Brands components, among them the
 // brand list part 2 shares, the page, which sets the title, and the sidebar;
 // for part 2, Samy's components, where the chip and the note sit, and the AI
-// image dialog with its Brand field and reference images. A file not written
-// yet reads as empty, so its keys fail to be found rather than the suite
-// failing to load.
+// image dialog with its Brand field and reference images; for part 3, the
+// onboarding components, where the "Your brand" step sits (the website card is
+// among the Brands components). A file not written yet reads as empty, so its
+// keys fail to be found rather than the suite failing to load.
 const SOURCES = () =>
   [
     ...componentsIn('components/brands'),
@@ -604,6 +700,7 @@ const SOURCES = () =>
     path.join(FRONTEND_DIR, 'components/launches/ai.image.tsx'),
     path.join(FRONTEND_DIR, 'components/launches/ai.image.brand.tsx'),
     path.join(FRONTEND_DIR, 'components/launches/ai.image.references.tsx'),
+    ...componentsIn('components/onboarding'),
   ]
     .filter((file) => fs.existsSync(file))
     .map((file) => fs.readFileSync(file, 'utf8'))
@@ -666,9 +763,9 @@ describe('Brands locale keys', () => {
     }
   );
 
-  // Red until the components exist (T018 to T026, and for part 2 T053, T055
-  // and T060): a key no t() call reads is a string the app shows in English or
-  // not at all.
+  // Red until the components exist (T018 to T026, for part 2 T053, T055 and
+  // T060, and for part 3 T074 and T076): a key no t() call reads is a string
+  // the app shows in English or not at all.
   describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
@@ -678,7 +775,7 @@ describe('Brands locale keys', () => {
     );
 
     it.each([...STRINGS, ...REUSED, ...PLURALS].map(([key]) => key))(
-      'is read by a t() call in the Brands page, the sidebar, Samy or the AI image dialog: %s',
+      'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog or onboarding: %s',
       (key) => {
         expect(referenced).toContain(key);
       }
