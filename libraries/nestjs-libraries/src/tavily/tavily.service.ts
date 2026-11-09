@@ -55,6 +55,19 @@ const cut = (text: string) =>
     ? `${text.slice(0, TEXT_LIMIT)}\n\n[Cut at 8,000 characters.]`
     : text;
 
+// `![alt](address)`, or a link whose whole text is one, which goes with it.
+const IMAGE =
+  /\[!\[[^\]\n]*\]\([^)\n]*\)\]\([^)\n]*\)|!\[[^\]\n]*\]\([^)\n]*\)/g;
+
+// Samy reads a page's words only: the addresses of its images aren't Samy's to
+// use, and on a page full of them they used up the 8,000 characters. A page's
+// own links stay, since Samy follows them to find the page it needs.
+const words = (text: string) =>
+  text
+    .replace(IMAGE, '')
+    .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n')
+    .trim();
+
 // Tavily may answer with another form of the address asked (a trailing slash
 // added or dropped, an upper-case scheme or host, the default port), so the
 // two are compared once parsed. An address that doesn't parse is its own text.
@@ -126,7 +139,7 @@ export class TavilyService {
       const pages: WebPage[] = urls.map((url) => {
         const asked = comparable(url);
         const match = (p: any) => comparable(p.url) === asked;
-        const text = results?.find(match)?.raw_content;
+        const text = words(results?.find(match)?.raw_content || '');
         if (text) {
           return { url, text: cut(text) };
         }
