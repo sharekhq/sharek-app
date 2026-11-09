@@ -57,6 +57,11 @@ export const SMALL_BUTTON = clsx(
 // part 5).
 const CHECK = 'color-mix(in srgb, var(--ink) 6%, transparent)';
 
+// The × on a colour and on an example: the AI image window's reference chip,
+// darkening with its button's hover.
+const REMOVE_CHIP =
+  'flex items-center justify-center w-[22px] h-[22px] rounded-full bg-surface border border-line text-inkSoft group-hover:text-ink group-hover:border-inkSoft transition-colors';
+
 // One of the kit's cards: its heading with a count, its own parts, then the
 // line that says what it is for.
 const Card: FC<{
@@ -134,12 +139,12 @@ const RemoveExample: FC<{ onClick: () => void }> = ({ onClick }) => {
       aria-label={t('brands_remove_example', 'Remove example')}
       onClick={onClick}
       className={clsx(
-        'absolute top-[6px] end-[6px] coarse:top-0 coarse:end-0 w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center rounded-[8px] cursor-pointer',
+        'group absolute top-[6px] end-[6px] coarse:top-0 coarse:end-0 w-[28px] h-[28px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center rounded-full cursor-pointer',
         FOCUS_RING
       )}
     >
-      <span className="flex items-center justify-center w-[28px] h-[28px] rounded-[8px] bg-[rgba(0,0,0,0.55)] text-white">
-        <CloseIcon size={14} aria-hidden="true" />
+      <span className={REMOVE_CHIP}>
+        <CloseIcon size={10} aria-hidden="true" />
       </span>
     </button>
   );
@@ -494,7 +499,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
                         FOCUS_RING
                       )}
                     >
-                      <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-surface border border-line text-inkSoft group-hover:text-ink group-hover:border-inkSoft transition-colors">
+                      <span className={REMOVE_CHIP}>
                         <CloseIcon size={10} aria-hidden="true" />
                       </span>
                     </button>
