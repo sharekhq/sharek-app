@@ -638,6 +638,22 @@ describe('the Channels card (scenario 7)', () => {
 });
 
 describe('saving the kit', () => {
+  it('puts the brand the server answers with in its place in the brands list, without loading the list again', async () => {
+    const before = brand({ colours: ['#3B2417', '#C8913A'] });
+    const saved = brand({ colours: ['#C8913A'] });
+    const other = { ...brand(), id: 'b2', name: 'Noor Dental' };
+    request.mockResolvedValueOnce({ ok: true, json: async () => saved });
+    await mount(before);
+
+    await click(button(card('Colours'), 'Remove colour #3B2417'));
+
+    expect(reloadBrands).toHaveBeenCalledTimes(1);
+    const [update, revalidate] = reloadBrands.mock.calls[0];
+    expect(revalidate).toBe(false);
+    expect(update([before, other])).toEqual([saved, other]);
+    expect(update(undefined)).toBeUndefined();
+  });
+
   it('sends only the field each change made, so two members editing one kit lose nothing', async () => {
     await mount(
       brand({
