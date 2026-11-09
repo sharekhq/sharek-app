@@ -57,8 +57,12 @@ const makeService = (repository: Record<string, jest.Mock> = {}) => {
   return { service, repository: mocks };
 };
 
+// The refusal, or undefined when the call went through
 const failure = (pending: Promise<unknown>) =>
-  pending.catch((err: unknown) => err as HttpException);
+  pending.then(
+    () => undefined,
+    (err: unknown) => err as HttpException
+  );
 
 describe('BrandService.list', () => {
   // An image deleted elsewhere stays in the kit, shown as missing (FR-012, R5)
@@ -279,10 +283,10 @@ describe('BrandService.saveKit', () => {
   // mediaByIds reads only the organization's rows, so another organization's
   // item comes back as no row at all.
   describe.each([
-    ["gone from the library, or another organization's", () => []],
+    ["gone from the library, or another organization's", []],
     [
       'deleted from Media',
-      () => [deleted('media-9'), live('logo-1'), live('example-1')],
+      [deleted('media-9'), live('logo-1'), live('example-1')],
     ],
   ])('with an image %s', (_how, rows) => {
     it.each([
@@ -291,7 +295,7 @@ describe('BrandService.saveKit', () => {
     ])(
       '404s naming %s, and saves nothing',
       async (field, body: BrandKitDto) => {
-        const mediaByIds = jest.fn().mockResolvedValue(rows());
+        const mediaByIds = jest.fn().mockResolvedValue(rows);
         const { service, repository } = makeService({ mediaByIds });
 
         const err = await failure(service.saveKit('org-1', 'brand-1', body));
