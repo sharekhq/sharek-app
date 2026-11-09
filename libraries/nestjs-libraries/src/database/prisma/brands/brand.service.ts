@@ -20,11 +20,12 @@ export type Brand = {
   };
 };
 
-// The kit as image generation uses it: only the images still in Media
+// The kit as image generation uses it: only the images still in Media, each
+// example with its number on the Brands page, a missing one counted
 export type KitForImage = {
   name: string;
   logoId?: string;
-  exampleIds: string[];
+  examples: { id: string; n: number }[];
   colours: string[];
   headingFont?: string;
   bodyFont?: string;
@@ -169,9 +170,9 @@ export class BrandService {
     return {
       name,
       logoId: kit.logo && !kit.logo.missing ? kit.logo.id : undefined,
-      exampleIds: kit.examples
-        .filter((example) => !example.missing)
-        .map((example) => example.id),
+      examples: kit.examples.flatMap((example, position) =>
+        example.missing ? [] : [{ id: example.id, n: position + 1 }]
+      ),
       colours: kit.colours,
       headingFont: kit.headingFont ?? undefined,
       bodyFont: kit.bodyFont ?? undefined,
