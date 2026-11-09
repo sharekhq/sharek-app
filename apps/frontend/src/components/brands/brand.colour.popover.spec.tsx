@@ -16,6 +16,11 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 
+// react-colorful's square falls back to the global `self` for its window when
+// it unmounts; jest.setup.js lifts a fixed list of globals onto globalThis and
+// that is not one of them.
+globalThis.self = window;
+
 const onAdd = jest.fn();
 const mounted: Root[] = [];
 
