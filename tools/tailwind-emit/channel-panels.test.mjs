@@ -4,15 +4,19 @@
 // (post.actions.menu.tsx), the build number in Settings
 // (settings.component.tsx), the post card's preview (calendar.post.card.tsx),
 // and Samy's page (agent.tsx): its chats (agent.chats.tsx) in the start-side
-// drawer, and the chat's header (agent.chat.header.tsx). The last test reads
-// global.scss itself, for the chat's face, which is no class.
+// drawer, and the chat's header (agent.chat.header.tsx); and Analytics' page
+// (platform.analytics.tsx), its tiles and charts (render.analytics.tsx) and a
+// chart's canvas (metric.chart.tsx). The last test reads global.scss itself,
+// for the chat's face, which is no class.
 // A variant or arbitrary value that Tailwind can't use emits nothing and the
 // page just doesn't change, so this file asserts what Tailwind emitted for each
 // of them, with the project's own config (see emit.mjs). Each class is added
 // here by the task that first uses it.
 //
-// The picture's 16px platform badge is sized by its width and height
-// attributes, not a class, so it has nothing to emit.
+// The picture's 16px platform badge, and Analytics' 40px picture in its top
+// bar (28px, its badge 13px, on the phone's channel button), are sized by
+// their width and height attributes, not a class, so they have nothing to
+// emit.
 //
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { test } from 'node:test';
@@ -261,6 +265,16 @@ const ARBITRARY = {
   'pb-[10px]': [['padding-bottom', '10px']],
   'rounded-[14px]': [['border-radius', '14px']],
   'mt-[10px]': [['margin-top', '10px']],
+  // the loading state's 48px, and the "needs to be refreshed" state's insets,
+  // its 48px icon and the 16px and 12px under the icon and its line
+  'py-[48px]': py('padding', '48px'),
+  'px-[24px]': px('padding', '24px'),
+  'w-[48px]': [['width', '48px']],
+  'h-[48px]': [['height', '48px']],
+  'mb-[16px]': [['margin-bottom', '16px']],
+  'mb-[12px]': [['margin-bottom', '12px']],
+  // platform.analytics.tsx — the page's 20px, and its loading state's
+  'p-[20px]': [['padding', '20px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -378,6 +392,8 @@ const MOBILE_CLASSES = {
   'mobile:px-[12px]': px('padding', '12px'),
   'mobile:py-[10px]': py('padding', '10px'),
   'mobile:text-[20px]': [['font-size', '20px']],
+  // platform.analytics.tsx — the page 12px in from a phone's edges
+  'mobile:p-[12px]': [['padding', '12px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
@@ -694,6 +710,14 @@ test('every colour the list and the top bar name maps to its token', async () =>
       // the summary's pictures, ringed in its pill's colour
       // (agent.chat.header.tsx)
       'border-surface2': [['border-color', 'var(--surface-2)']],
+      // Analytics' tiles and charts, a rise's green, and the "needs to be
+      // refreshed" state's box, line and icon (render.analytics.tsx), the
+      // icon's colour also the empty page's last bar (platform.analytics.tsx)
+      'bg-surface': [['background-color', 'var(--surface)']],
+      'text-success': [['color', 'var(--success)']],
+      'bg-newTableHeader': [['background-color', 'var(--new-table-header)']],
+      'text-newTableText': [['color', 'var(--new-table-text)']],
+      'text-brand': [['color', 'var(--brand)']],
     },
     null
   );
@@ -815,6 +839,8 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     // the full width
     ['items-center', 'mobile:items-stretch'],
     ['ms-auto', 'mobile:ms-0'],
+    // and the page 12px in from the screen's edges
+    ['p-[20px]', 'mobile:p-[12px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);
