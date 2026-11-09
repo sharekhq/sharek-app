@@ -91,6 +91,15 @@ export const chartColorSchemes = (mode: string) => ({
   },
 });
 
+// The tooltip's per-theme colours, literal for the canvas too. Exported for
+// Analytics' MetricChart, whose gridlines and ticks take its border and body.
+export const chartTooltipColors = (mode: string) => ({
+  backgroundColor: mode === 'dark' ? '#1D1518' : '#F7F5F4',
+  titleColor: mode === 'dark' ? '#F7F1EF' : '#1A1413',
+  bodyColor: mode === 'dark' ? '#AEA09D' : '#6F635F',
+  borderColor: mode === 'dark' ? 'rgba(255,255,255,0.14)' : '#CFC9C6',
+});
+
 export const ChartSocial: FC<{
   data: TotalList[];
   color?:
@@ -170,10 +179,7 @@ export const ChartSocial: FC<{
           },
           tooltip: {
             enabled: true,
-            backgroundColor: mode === 'dark' ? '#1D1518' : '#F7F5F4',
-            titleColor: mode === 'dark' ? '#F7F1EF' : '#1A1413',
-            bodyColor: mode === 'dark' ? '#AEA09D' : '#6F635F',
-            borderColor: mode === 'dark' ? 'rgba(255,255,255,0.14)' : '#CFC9C6',
+            ...chartTooltipColors(mode),
             borderWidth: 1,
             padding: 10,
             cornerRadius: 8,

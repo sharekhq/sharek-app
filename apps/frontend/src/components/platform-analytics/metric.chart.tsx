@@ -5,7 +5,10 @@ import DrawChart from 'chart.js/auto';
 import i18next from 'i18next';
 import useCookie from 'react-use-cookie';
 import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
-import { chartColorSchemes } from '@gitroom/frontend/components/analytics/chart-social';
+import {
+  chartColorSchemes,
+  chartTooltipColors,
+} from '@gitroom/frontend/components/analytics/chart-social';
 import {
   REDUCED_MOTION_QUERY,
   useMediaQuery,
@@ -61,10 +64,7 @@ export const MetricChart: FC<{
     const colors = chartColorSchemes(mode).purple;
     // ChartSocial's tooltip colours; its border and body are the line and
     // muted tokens, which the gridlines and the ticks take
-    const surface = mode === 'dark' ? '#1D1518' : '#F7F5F4';
-    const ink = mode === 'dark' ? '#F7F1EF' : '#1A1413';
-    const muted = mode === 'dark' ? '#AEA09D' : '#6F635F';
-    const line = mode === 'dark' ? 'rgba(255,255,255,0.14)' : '#CFC9C6';
+    const tooltip = chartTooltipColors(mode);
 
     active.current = null;
     chart.current = new DrawChart(ref.current!, {
@@ -91,7 +91,7 @@ export const MetricChart: FC<{
               display: false,
             },
             ticks: {
-              color: muted,
+              color: tooltip.bodyColor,
               maxRotation: 0,
               maxTicksLimit: 7,
             },
@@ -99,13 +99,13 @@ export const MetricChart: FC<{
           y: {
             beginAtZero: true,
             grid: {
-              color: line,
+              color: tooltip.borderColor,
             },
             border: {
               display: false,
             },
             ticks: {
-              color: muted,
+              color: tooltip.bodyColor,
               maxTicksLimit: 5,
               callback: (tick) => format.thousands.format(Number(tick)),
             },
@@ -117,10 +117,7 @@ export const MetricChart: FC<{
           },
           tooltip: {
             enabled: true,
-            backgroundColor: surface,
-            titleColor: ink,
-            bodyColor: muted,
-            borderColor: line,
+            ...tooltip,
             borderWidth: 1,
             padding: 10,
             cornerRadius: 8,
@@ -151,7 +148,7 @@ export const MetricChart: FC<{
             pointRadius: 0,
             pointHoverRadius: 6,
             pointHoverBackgroundColor: colors.border,
-            pointHoverBorderColor: surface,
+            pointHoverBorderColor: tooltip.backgroundColor,
             pointHoverBorderWidth: 2,
           },
         ],
