@@ -1,0 +1,386 @@
+// The repository opens a database client at import; the service reads and
+// writes only through it, so each test hands it the rows it holds.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository',
+  () => ({ BrandRepository: class {} })
+);
+
+import { HttpException } from '@nestjs/common';
+import { BrandService } from './brand.service';
+import { BrandKitDto } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+
+const stored = {
+  logoId: 'logo-1',
+  exampleIds: ['example-1', 'example-2'],
+  colours: ['#B5542C', '#1F3A5F'],
+  headingFont: 'Amiri',
+  bodyFont: 'IBM Plex Sans Arabic',
+};
+
+const rawda = { id: 'brand-1', name: 'Rawda', brandKit: stored };
+
+const live = (id: string) => ({
+  id,
+  path: `https://uploads.example.com/${id}.png`,
+  deletedAt: null as Date | null,
+});
+const deleted = (id: string) => ({ ...live(id), deletedAt: new Date() });
+
+const image = (id: string) => ({
+  id,
+  path: `https://uploads.example.com/${id}.png`,
+  missing: false,
+});
+
+const makeService = (repository: Record<string, jest.Mock> = {}) => {
+  const mocks = {
+    list: jest.fn().mockResolvedValue([]),
+    findLive: jest.fn().mockResolvedValue(rawda),
+    mediaByIds: jest
+      .fn()
+      .mockResolvedValue([
+        live('logo-1'),
+        live('example-1'),
+        live('example-2'),
+      ]),
+    countLive: jest.fn().mockResolvedValue(0),
+    findLiveByName: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({ id: 'brand-1' }),
+    softDelete: jest.fn().mockResolvedValue({ id: 'brand-1' }),
+    upsertKit: jest.fn().mockResolvedValue(stored),
+    ...repository,
+  };
+  const service = new BrandService(
+    mocks as unknown as ConstructorParameters<typeof BrandService>[0]
+  );
+
+  return { service, repository: mocks };
+};
+
+const failure = (pending: Promise<unknown>) =>
+  pending.catch((err: unknown) => err as HttpException);
+
+describe('BrandService.list', () => {
+  // An image deleted elsewhere stays in the kit, shown as missing (FR-012, R5)
+  it('returns each brand with its kit, an image deleted from Media missing with its path and one gone from the library missing with none', async () => {
+    const { service } = makeService({
+      list: jest
+        .fn()
+        .mockResolvedValue([
+          rawda,
+          { id: 'brand-2', name: 'Sanabel', brandKit: null },
+        ]),
+      mediaByIds: jest
+        .fn()
+        .mockResolvedValue([live('logo-1'), deleted('example-1')]),
+    });
+
+    await expect(service.list('org-1')).resolves.toEqual([
+      {
+        id: 'brand-1',
+        name: 'Rawda',
+        kit: {
+          logo: image('logo-1'),
+          examples: [
+            { ...image('example-1'), missing: true },
+            { id: 'example-2', path: null, missing: true },
+          ],
+          colours: ['#B5542C', '#1F3A5F'],
+          headingFont: 'Amiri',
+          bodyFont: 'IBM Plex Sans Arabic',
+        },
+      },
+      {
+        id: 'brand-2',
+        name: 'Sanabel',
+        kit: {
+          logo: null,
+          examples: [],
+          colours: [],
+          headingFont: null,
+          bodyFont: null,
+        },
+      },
+    ]);
+  });
+
+  it("reads every kit's images in one query, however many brands there are", async () => {
+    const mediaByIds = jest.fn().mockResolvedValue([]);
+    const { service } = makeService({
+      list: jest.fn().mockResolvedValue([
+        rawda,
+        {
+          id: 'brand-2',
+          name: 'Sanabel',
+          brandKit: { ...stored, logoId: 'logo-2', exampleIds: ['example-3'] },
+        },
+      ]),
+      mediaByIds,
+    });
+
+    await service.list('org-1');
+
+    expect(mediaByIds).toHaveBeenCalledTimes(1);
+    const [org, ids] = mediaByIds.mock.calls[0];
+    expect(org).toBe('org-1');
+    expect([...ids].sort()).toEqual([
+      'example-1',
+      'example-2',
+      'example-3',
+      'logo-1',
+      'logo-2',
+    ]);
+  });
+});
+
+describe('BrandService.create', () => {
+  it('refuses a name a live brand of the organization already has, with a 400, and creates nothing', async () => {
+    const { service, repository } = makeService({
+      findLiveByName: jest.fn().mockResolvedValue({ id: 'brand-9' }),
+    });
+
+    const err = await failure(service.create('org-1', { name: 'Rawda' }));
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(400);
+    expect(err.message).toBe('A brand with this name already exists');
+    expect(repository.findLiveByName).toHaveBeenCalledWith('org-1', 'Rawda');
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  // The first-brand move only (data-model, State changes)
+  it.each([
+    ['asked for the first brand', true, 0, true],
+    ['asked once the organization has a live brand', true, 1, false],
+    ['not asked', undefined, 0, false],
+  ])(
+    'moves the channels with no brand into it only when %s, and returns its id',
+    async (_when, moveUngrouped, liveBrands, moved) => {
+      const { service, repository } = makeService({
+        countLive: jest.fn().mockResolvedValue(liveBrands),
+      });
+
+      await expect(
+        service.create('org-1', { name: 'Rawda', moveUngrouped })
+      ).resolves.toEqual({ id: 'brand-1' });
+      expect(repository.create).toHaveBeenCalledWith('org-1', 'Rawda', moved);
+    }
+  );
+});
+
+describe('BrandService.remove', () => {
+  it("404s on an id that isn't a live brand of the organization, and deletes nothing", async () => {
+    const { service, repository } = makeService({
+      findLive: jest.fn().mockResolvedValue(null),
+    });
+
+    const err = await failure(service.remove('org-1', 'brand-9'));
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(404);
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-9');
+    expect(repository.softDelete).not.toHaveBeenCalled();
+  });
+
+  it('soft-deletes the brand and returns its id', async () => {
+    const { service, repository } = makeService();
+
+    await expect(service.remove('org-1', 'brand-1')).resolves.toEqual({
+      id: 'brand-1',
+    });
+    expect(repository.softDelete).toHaveBeenCalledWith('org-1', 'brand-1');
+  });
+});
+
+// Two members editing different parts of one kit don't overwrite each other
+// (spec, Edge Cases): only the fields sent reach the database.
+describe('BrandService.saveKit', () => {
+  it('saves colours alone, leaving the logo, the examples and the fonts as stored, and returns the saved brand', async () => {
+    const saved = { ...stored, colours: ['#2E7D5B'] };
+    const { service, repository } = makeService({
+      upsertKit: jest.fn().mockResolvedValue(saved),
+    });
+
+    await expect(
+      service.saveKit('org-1', 'brand-1', { colours: ['#2E7D5B'] })
+    ).resolves.toEqual({
+      id: 'brand-1',
+      name: 'Rawda',
+      kit: {
+        logo: image('logo-1'),
+        examples: [image('example-1'), image('example-2')],
+        colours: ['#2E7D5B'],
+        headingFont: 'Amiri',
+        bodyFont: 'IBM Plex Sans Arabic',
+      },
+    });
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      colours: ['#2E7D5B'],
+    });
+  });
+
+  it('stores colours uppercase', async () => {
+    const { service, repository } = makeService();
+
+    await service.saveKit('org-1', 'brand-1', {
+      colours: ['#b5542c', '#1f3A5f'],
+    });
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      colours: ['#B5542C', '#1F3A5F'],
+    });
+  });
+
+  // The global ValidationPipe has no whitelist, so a body keeps keys the DTO
+  // doesn't declare; none of them may reach the kit's row.
+  it("passes on none of the body's keys but the kit's own", async () => {
+    const { service, repository } = makeService();
+
+    await service.saveKit('org-1', 'brand-1', {
+      colours: ['#2E7D5B'],
+      customerId: 'brand-9',
+      id: 'kit-9',
+    } as BrandKitDto);
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      colours: ['#2E7D5B'],
+    });
+  });
+
+  it('clears the logo and a font with null', async () => {
+    const { service, repository } = makeService();
+
+    await service.saveKit('org-1', 'brand-1', {
+      logoId: null,
+      headingFont: null,
+    });
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      logoId: null,
+      headingFont: null,
+    });
+  });
+
+  it("404s on an id that isn't a live brand of the organization, and saves nothing", async () => {
+    const { service, repository } = makeService({
+      findLive: jest.fn().mockResolvedValue(null),
+    });
+
+    const err = await failure(
+      service.saveKit('org-1', 'brand-9', { colours: ['#2E7D5B'] })
+    );
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(404);
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-9');
+    expect(repository.upsertKit).not.toHaveBeenCalled();
+  });
+
+  // mediaByIds reads only the organization's rows, so another organization's
+  // item comes back as no row at all.
+  describe.each([
+    ["gone from the library, or another organization's", () => []],
+    [
+      'deleted from Media',
+      () => [deleted('media-9'), live('logo-1'), live('example-1')],
+    ],
+  ])('with an image %s', (_how, rows) => {
+    it.each([
+      ['logoId', { logoId: 'media-9' }],
+      ['exampleIds', { exampleIds: ['example-1', 'media-9'] }],
+    ])(
+      '404s naming %s, and saves nothing',
+      async (field, body: BrandKitDto) => {
+        const mediaByIds = jest.fn().mockResolvedValue(rows());
+        const { service, repository } = makeService({ mediaByIds });
+
+        const err = await failure(service.saveKit('org-1', 'brand-1', body));
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(404);
+        expect(err.message).toContain(field);
+        expect(mediaByIds).toHaveBeenCalledWith(
+          'org-1',
+          expect.arrayContaining(['media-9'])
+        );
+        expect(repository.upsertKit).not.toHaveBeenCalled();
+      }
+    );
+  });
+});
+
+// Every image render asks for the kit; an image deleted from Media is skipped,
+// never refused (FR-012, C5).
+describe('BrandService.kitFor', () => {
+  it("gives the brand's name and words and only its live images, in order", async () => {
+    const { service, repository } = makeService({
+      findLive: jest.fn().mockResolvedValue({
+        ...rawda,
+        brandKit: {
+          ...stored,
+          exampleIds: ['example-1', 'example-2', 'example-3'],
+        },
+      }),
+      mediaByIds: jest
+        .fn()
+        .mockResolvedValue([
+          live('logo-1'),
+          deleted('example-1'),
+          live('example-3'),
+          live('example-2'),
+        ]),
+    });
+
+    await expect(service.kitFor('org-1', 'brand-1')).resolves.toEqual({
+      name: 'Rawda',
+      logoId: 'logo-1',
+      exampleIds: ['example-2', 'example-3'],
+      colours: ['#B5542C', '#1F3A5F'],
+      headingFont: 'Amiri',
+      bodyFont: 'IBM Plex Sans Arabic',
+    });
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-1');
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['deleted from Media', [deleted('logo-1')]],
+    ['gone from the library', []],
+  ])('leaves out a logo %s', async (_how, rows) => {
+    const { service } = makeService({
+      mediaByIds: jest.fn().mockResolvedValue(rows),
+    });
+
+    const kit = await service.kitFor('org-1', 'brand-1');
+
+    expect(kit.logoId).toBeUndefined();
+    expect(kit.exampleIds).toEqual([]);
+  });
+
+  it('gives the name alone for a brand with no kit', async () => {
+    const { service } = makeService({
+      findLive: jest.fn().mockResolvedValue({ ...rawda, brandKit: null }),
+    });
+
+    await expect(service.kitFor('org-1', 'brand-1')).resolves.toEqual({
+      name: 'Rawda',
+      exampleIds: [],
+      colours: [],
+    });
+  });
+
+  it("404s for an id that isn't a live brand of the organization", async () => {
+    const { service, repository } = makeService({
+      findLive: jest.fn().mockResolvedValue(null),
+    });
+
+    const err = await failure(service.kitFor('org-1', 'brand-9'));
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(404);
+    expect(err.message).toBe(
+      'That brand no longer exists. Pick another or No brand.'
+    );
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+});
