@@ -13,6 +13,7 @@ import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
@@ -100,8 +101,9 @@ const NewBrand: FC<{
           aria-checked={move}
           onClick={() => setMove(!move)}
           className={clsx(
-            'flex items-start gap-[12px] p-[12px] rounded-[10px] border text-start cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand',
-            move ? 'border-brand bg-brandSoft' : 'border-line'
+            'flex items-start gap-[12px] p-[12px] rounded-[10px] border text-start cursor-pointer transition-colors',
+            move ? 'border-brand bg-brandSoft' : 'border-line',
+            FOCUS_RING
           )}
         >
           {/* the look of the channel list's Check */}

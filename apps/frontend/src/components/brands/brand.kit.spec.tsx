@@ -65,10 +65,12 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
 }));
-// The channel list's picture and order, which have their own spec.
+// The channel list's picture and order, which have their own spec, and its
+// focus ring.
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
   ChannelPicture: () => null,
   compareChannels: () => 0,
+  FOCUS_RING: 'focus-visible:ring-2 focus-visible:ring-brand',
 }));
 
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';

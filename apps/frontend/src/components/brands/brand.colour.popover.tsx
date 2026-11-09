@@ -7,6 +7,7 @@ import { HexColorInput, HexColorPicker } from 'react-colorful';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { Button } from '@gitroom/react/form/button';
+import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
 
 // The popover's width on boards ColourPicker and ColourPickerAR:
@@ -149,10 +150,11 @@ export const BrandColourPopover: FC<{
         aria-expanded={!!open}
         onClick={toggle}
         className={clsx(
-          'flex items-center justify-center w-[44px] h-[44px] rounded-[10px] border-[1.5px] border-dashed cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand',
+          'flex items-center justify-center w-[44px] h-[44px] rounded-[10px] border-[1.5px] border-dashed cursor-pointer transition-colors',
           open
             ? 'border-brand bg-brandSoft text-brandText'
-            : 'border-line text-muted hover:text-ink'
+            : 'border-line text-muted hover:text-ink',
+          FOCUS_RING
         )}
       >
         <PlusIcon size={16} aria-hidden="true" />

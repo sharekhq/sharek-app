@@ -21,6 +21,7 @@ import { platformLabel } from '@gitroom/frontend/components/launches/helpers/pla
 import {
   ChannelPicture,
   compareChannels,
+  FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   CheckmarkIcon,
@@ -49,8 +50,6 @@ type KitChange = Partial<{
 type KitChannel = ComponentProps<typeof ChannelPicture>['channel'];
 
 type Picked = { id: string; path: string }[];
-
-const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 
 // The boards' small ghost button: Replace, Remove and Upload logo, and the
 // brand's Rename.
