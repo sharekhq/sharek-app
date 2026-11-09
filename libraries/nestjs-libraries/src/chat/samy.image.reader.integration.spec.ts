@@ -174,7 +174,10 @@ const moduleRef = {
   get: (token: any) =>
     token === SamyImageReader
       ? new SamyImageReader(media as any)
-      : new SamyImageTool(),
+      : token === SamyImageTool
+      ? new SamyImageTool()
+      : // A web tool. These runs are about images, so it's left off.
+        { available: () => false },
 } as any;
 
 let threads = 0;

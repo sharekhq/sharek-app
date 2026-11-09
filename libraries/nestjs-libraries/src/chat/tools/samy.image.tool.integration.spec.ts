@@ -110,7 +110,10 @@ const runTurn = async (steps: number[], credits: number) => {
     get: (token: unknown) =>
       token === SamyImageReader
         ? new SamyImageReader()
-        : new SamyImageTool(media as any),
+        : token === SamyImageTool
+        ? new SamyImageTool(media as any)
+        : // A web tool. These runs are about images, so it's left off.
+          { available: () => false },
   } as any;
 
   const agent = await new LoadToolsService(moduleRef).agent();
