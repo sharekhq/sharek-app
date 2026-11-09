@@ -190,6 +190,11 @@ export class BrandService {
     };
   }
 
+  // The brand chip's choice, checked before every Samy run (R14)
+  async isLive(org: string, id: string) {
+    return !!(await this._brandRepository.findLive(org, id));
+  }
+
   // FR-017's order (R8). Names, not ids, because they are what the user sees
   // and Samy says back; a refusal makes no image and spends no credit.
   async resolveForSamy(
