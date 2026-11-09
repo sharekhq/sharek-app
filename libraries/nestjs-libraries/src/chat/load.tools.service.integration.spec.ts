@@ -71,6 +71,11 @@ jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
     processAPIError() {}
   },
 }));
+// The web tools are the real ones, with nothing behind them: the stand-in model
+// never calls them, and tavily.service.spec covers Tavily.
+jest.mock('@gitroom/nestjs-libraries/tavily/tavily.service', () => ({
+  TavilyService: class TavilyService {},
+}));
 
 // Samy's own instructions: every step of a turn carries them, the background
 // request for the thread's title does not.
@@ -273,4 +278,57 @@ describe('The image tool a run offers the model', () => {
   it('with no ui takes a prompt alone', async () => {
     expect(await offered(false)).toEqual(['prompt']);
   }, 30000);
+});
+
+// Samy reads the web in its chat only, while Tavily's key is set (spec 052), and
+// MCP, which lists the tools with no context, gets what it has today.
+describe('The web tools a run offers the model', () => {
+  const saved = process.env.TAVILY_API_KEY;
+  let spy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // Availability is read when the agent is built, so the key comes first.
+    process.env.TAVILY_API_KEY = 'tvly-test';
+    spy = jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    spy.mockRestore();
+    if (saved === undefined) {
+      delete process.env.TAVILY_API_KEY;
+    } else {
+      process.env.TAVILY_API_KEY = saved;
+    }
+  });
+
+  const offered = async (chat: boolean) => {
+    const turn = await runTurn(0, chat);
+    return turn.steps[0].tools.map((entry: any) => entry.name).sort();
+  };
+
+  it("in Samy's chat include readWebPageTool and webSearchTool", async () => {
+    expect(await offered(true)).toEqual([
+      'generateImageTool',
+      'readWebPageTool',
+      'scheduleOnePost',
+      'webSearchTool',
+    ]);
+  }, 30000);
+
+  it('with no ui leave them out', async () => {
+    expect(await offered(false)).toEqual([
+      'generateImageTool',
+      'scheduleOnePost',
+    ]);
+  }, 30000);
+
+  it('are not listed with no context, as MCP lists them', async () => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const tools = await agent.listTools();
+
+    expect(Object.keys(tools).sort()).toEqual([
+      'generateImageTool',
+      'scheduleOnePost',
+    ]);
+  });
 });
