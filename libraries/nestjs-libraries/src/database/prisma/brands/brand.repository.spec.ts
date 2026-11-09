@@ -68,7 +68,7 @@ describe('BrandRepository.findLive', () => {
 // The kit keeps an image the user later deleted from Media, so the read has no
 // deletedAt filter: the service marks that image missing (FR-012).
 describe('BrandRepository.mediaByIds', () => {
-  it("reads the asking organization's rows by id, deleted ones too, with only their id, path and deletion", async () => {
+  it("reads the asking organization's rows by id, deleted ones too, with only their id, path, deletion and type", async () => {
     const findMany = jest.fn().mockResolvedValue([]);
 
     await repositoryWith({ media: { findMany } }).repository.mediaByIds(
@@ -78,7 +78,7 @@ describe('BrandRepository.mediaByIds', () => {
 
     expect(findMany).toHaveBeenCalledWith({
       where: { organizationId: 'org-1', id: { in: ['media-1', 'media-2'] } },
-      select: { id: true, path: true, deletedAt: true },
+      select: { id: true, path: true, deletedAt: true, type: true },
     });
   });
 });

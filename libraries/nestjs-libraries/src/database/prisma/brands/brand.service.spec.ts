@@ -23,8 +23,10 @@ const live = (id: string) => ({
   id,
   path: `https://uploads.example.com/${id}.png`,
   deletedAt: null as Date | null,
+  type: 'image',
 });
 const deleted = (id: string) => ({ ...live(id), deletedAt: new Date() });
+const video = (id: string) => ({ ...live(id), type: 'video' });
 
 const image = (id: string) => ({
   id,
@@ -358,6 +360,32 @@ describe('BrandService.saveKit', () => {
       }
     );
   });
+
+  // Media holds videos too, and a kit's images go to the image model
+  it.each([
+    ['logoId', { logoId: 'media-9' }],
+    ['exampleIds', { exampleIds: ['example-1', 'media-9'] }],
+  ])(
+    "400s naming %s for a Media item that isn't an image, and saves nothing",
+    async (field, body: BrandKitDto) => {
+      const { service, repository } = makeService({
+        mediaByIds: jest
+          .fn()
+          .mockResolvedValue([
+            live('logo-1'),
+            live('example-1'),
+            video('media-9'),
+          ]),
+      });
+
+      const err = await failure(service.saveKit('org-1', 'brand-1', body));
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(400);
+      expect(err.message).toBe(`${field} must be an image`);
+      expect(repository.upsertKit).not.toHaveBeenCalled();
+    }
+  );
 });
 
 // Every image render asks for the kit; an image deleted from Media is skipped,
