@@ -280,6 +280,54 @@ describe('BrandService.saveKit', () => {
     expect(repository.upsertKit).not.toHaveBeenCalled();
   });
 
+  // Replacing one missing image keeps the other missing tiles (FR-012): an
+  // image already in the kit is saved again even when it's missing.
+  it('keeps an example already in the kit that is missing from Media, beside a new live one', async () => {
+    const { service, repository } = makeService({
+      mediaByIds: jest
+        .fn()
+        .mockResolvedValue([
+          live('logo-1'),
+          deleted('example-2'),
+          live('example-3'),
+        ]),
+      upsertKit: jest
+        .fn()
+        .mockResolvedValue({
+          ...stored,
+          exampleIds: ['example-3', 'example-2'],
+        }),
+    });
+
+    const brand = await service.saveKit('org-1', 'brand-1', {
+      exampleIds: ['example-3', 'example-2'],
+    });
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      exampleIds: ['example-3', 'example-2'],
+    });
+    expect(brand.kit.examples).toEqual([
+      image('example-3'),
+      { ...image('example-2'), missing: true },
+    ]);
+  });
+
+  it('keeps the logo already in the kit when it is sent again though gone from the library', async () => {
+    const { service, repository } = makeService({
+      mediaByIds: jest.fn().mockResolvedValue([]),
+    });
+
+    const brand = await service.saveKit('org-1', 'brand-1', {
+      logoId: 'logo-1',
+    });
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      logoId: 'logo-1',
+    });
+    expect(brand.kit.logo).toEqual({ id: 'logo-1', path: null, missing: true });
+  });
+
+  // An image not yet in this kit must be a live item of the organization:
   // mediaByIds reads only the organization's rows, so another organization's
   // item comes back as no row at all.
   describe.each([
