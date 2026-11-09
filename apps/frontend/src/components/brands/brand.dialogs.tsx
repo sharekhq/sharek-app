@@ -12,6 +12,7 @@ import { Button } from '@gitroom/react/form/button';
 import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
@@ -30,12 +31,6 @@ const EditGroupNameModal = dynamic(() =>
 // The boards' dialogs are 520px wide, so a long sentence wraps rather than
 // widening the card.
 const DIALOG_WIDTH = 520;
-
-// A brand's name inside a translated sentence, isolated (FSI…PDI, the
-// plain-text <bdi>) as manage.modal.tsx isolates a channel's, so a Latin name
-// in an Arabic sentence keeps its own direction. The call passes
-// `escapeValue: false`: React escapes the text it renders.
-const isolate = (text: string) => `⁨${text}⁩`;
 
 // A channel as GET /integrations/list gives it: its brand, if any.
 type ListedChannel = { customer?: { id: string } | null };

@@ -96,9 +96,15 @@ jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ closeAll, openModal: () => {} }),
 }));
-jest.mock('@gitroom/frontend/components/launches/helpers/platform-label', () => ({
-  platformLabel: (identifier: string) => identifier,
-}));
+jest.mock(
+  '@gitroom/frontend/components/launches/helpers/platform-label',
+  () => ({
+    ...jest.requireActual(
+      '@gitroom/frontend/components/launches/helpers/platform-label'
+    ),
+    platformLabel: (identifier: string) => identifier,
+  })
+);
 jest.mock('@gitroom/frontend/components/launches/select.customer', () => ({
   SelectCustomer: () => null,
 }));
