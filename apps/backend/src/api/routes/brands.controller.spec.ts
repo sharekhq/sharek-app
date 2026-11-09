@@ -15,11 +15,12 @@ import {
   BrandKitDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import type { Brand } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { BrandsController } from './brands.controller';
 
 const org = { id: 'org-1' } as any;
 
-const brand = {
+const brand: Brand = {
   id: 'brand-1',
   name: 'Cold Brew Co',
   kit: {
