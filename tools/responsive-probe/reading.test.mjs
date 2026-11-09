@@ -158,6 +158,23 @@ test('an unqualified verdict says what would satisfy the precondition', () => {
   assert.ok(remedy && remedy.length > 0, 'unqualified must carry a remedy (FR-002)');
 });
 
+// Since spec 051 the calendar's top bar has no Select Customer: the customer
+// control is the channel list's customer group. A verdict that still names the
+// top bar's control sends the operator after something no account can have.
+test("a verdict names the channel list's customer group, not the top bar's Select Customer", () => {
+  for (const customerControlPresent of [true, false]) {
+    const { reason, remedy } = preconditionVerdict({
+      pageRendered: true,
+      customerControlPresent,
+    });
+    assert.match(reason, /customer's group rendered in the channel list/);
+    assert.doesNotMatch(
+      `${reason} ${remedy ?? ''}`,
+      /Select Customer|select\.customer/
+    );
+  }
+});
+
 // FR-003 — the two failures must never be confused for one another.
 test('a broken check is never reported as an account problem', () => {
   const broken = preconditionVerdict({ pageRendered: false, customerControlPresent: false });

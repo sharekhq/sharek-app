@@ -19,16 +19,16 @@
 //
 // Requires agent-browser: npm i -g agent-browser && agent-browser install
 //
-// THE ACCOUNT MUST SPAN MORE THAN ONE CUSTOMER GROUPING. This is enforced, not
+// THE ACCOUNT MUST HAVE A CHANNEL ASSIGNED TO A CUSTOMER. This is enforced, not
 // advised: a pre-flight runs before any reading is recorded, and a run on an
 // account that cannot reproduce the failure stops and says so.
 //
 // Layout failures land on whichever element loses the fight for width, and that
-// depends on account contents. Concretely: `Select Customer` renders only when
-// integrations span 2+ customer values — an unassigned channel counts as one
-// (select.customer.tsx:48-58). That single control is ~157px, and it is what
-// pushes the calendar column's minimum past the point where the channels rail
-// collapses and takes Create Post with it.
+// depends on account contents. Concretely, until spec 051: `Select Customer`
+// rendered in the calendar's top bar only when integrations spanned 2+
+// customer values — an unassigned channel counted as one. That single control
+// was ~157px, and it pushed the calendar column's minimum past the point where
+// the channels rail collapsed and took Create Post with it.
 //
 // Measured 2026-08-15 at 1024px, same account before and after adding a
 // customer:
@@ -36,7 +36,11 @@
 //   1 channel,  0 customers  →  rail 221px, Create Post clickable   FALSE GREEN
 //   2 channels, 1 customer   →  rail  64px, Create Post COVERED     correct
 //
-// So do not "tidy up" the probe account. Unassign its customer and the probe
+// Since 051 (increment 2, 8bd1bb5b9) the top bar has no customer control: the
+// shared channel list draws each customer's channels as a group under a header
+// of its own, and that group is what the pre-flight looks for.
+//
+// So do not "tidy up" the probe account. Unassign its customers and the probe
 // now refuses to run rather than going quiet while the app stays broken.
 // Measuring such an environment deliberately is still possible:
 //
@@ -423,26 +427,29 @@ function measureTarget(target, viewport) {
   return { ...reading, openedAt: target.route };
 }
 
-// One navigation, before anything is recorded, to establish that this account
-// can still reproduce the failure the probe exists to catch. /launches at
-// desktop width because that is where the control lives and where it is
-// certain to have room to render — the point is whether the account has it at
-// all, not whether it survives a narrow viewport.
+// Two navigations, before anything is recorded. /launches establishes that
+// this account can still reproduce the failure the probe exists to catch, at
+// desktop width because that is where the channel list is certain to have room
+// to render — the point is whether the account has a customer's group at all,
+// not whether it survives a narrow viewport. /settings reads the build, which
+// is printed there under Log out.
 function preflight() {
-  let reading;
-  try {
-    reading = measure('/launches', { w: 1440, h: 900 });
-  } catch (err) {
-    // Not a precondition answer at all — we never got to ask. Kept distinct
-    // from both failing verdicts so the three are never confused.
-    console.error(`could not reach ${BASE}/launches — ${err.message.split('\n')[0]}`);
-    process.exit(1);
-  }
+  const at = (route) => {
+    try {
+      return measure(route, { w: 1440, h: 900 });
+    } catch (err) {
+      // Not a precondition answer at all — we never got to ask. Kept distinct
+      // from both failing verdicts so the three are never confused.
+      console.error(`could not reach ${BASE}${route} — ${err.message.split('\n')[0]}`);
+      process.exit(1);
+    }
+  };
+  const reading = at('/launches');
   return {
     precondition: preconditionVerdict({ ...reading.precondition, waived: WAIVED }),
-    // Read here rather than in the loop: the rail is on screen at desktop width
-    // and this is the one navigation guaranteed to happen on every run.
-    build: reading.build,
+    // Read here rather than in the loop: this is the one navigation to Settings
+    // guaranteed to happen on every run, a narrowed one included.
+    build: at('/settings').build,
   };
 }
 
@@ -670,7 +677,7 @@ const run = {
 console.log('\n--- provenance ---');
 console.log(`account     ${run.provenance.account}`);
 console.log(`target      ${run.provenance.baseUrl}`);
-console.log(`build       ${run.provenance.build || 'unknown — the rail printed no commit SHA'}`);
+console.log(`build       ${run.provenance.build || 'unknown — Settings printed no commit SHA'}`);
 console.log(`captured    ${run.provenance.capturedAt}`);
 console.log(`routes      ${run.provenance.routes.join(' ')}`);
 console.log(`widths      ${run.provenance.viewports.join(' ')}`);
