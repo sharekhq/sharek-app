@@ -509,9 +509,9 @@ describe('BrandService.resolveForSamy', () => {
   const resolver = (repository: Record<string, jest.Mock> = {}) =>
     makeService({ list: jest.fn().mockResolvedValue(brands), ...repository });
 
-  // The brand chip's choice comes first. The copilot controller keeps only
-  // none, each or a live brand of the organization (R14), so a brand id is
-  // trusted; one deleted since is refused by kitFor before any render.
+  // The brand chip's choice comes first, checked against the brand list read
+  // for the steps below (R14): none, each or a live brand of the organization.
+  // One deleted after the check is refused by kitFor before any render.
   describe('with the brand chip', () => {
     it.each([
       ["another brand's name", 'Sanabel'],
@@ -540,7 +540,7 @@ describe('BrandService.resolveForSamy', () => {
       ["'none'", 'none'],
       ['no name', undefined],
     ])(
-      'takes the brand it holds over the channels, given %s, and reads nothing',
+      'takes the live brand it holds over the channels, given %s, reading only the brand list',
       async (_gives, input) => {
         const { service, repository } = resolver({
           customerIdsOfChannels: jest
@@ -555,9 +555,84 @@ describe('BrandService.resolveForSamy', () => {
             channelIds: ['int-1', 'int-2'],
           })
         ).resolves.toEqual({ brandId: 'brand-3' });
-        expect(repository.list).not.toHaveBeenCalled();
+        expect(repository.list).toHaveBeenCalledTimes(1);
+        expect(repository.list).toHaveBeenCalledWith('org-1');
         expect(repository.findLive).not.toHaveBeenCalled();
         expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+      }
+    );
+
+    // The browser sends what it holds, so the chip may name another
+    // organization's brand, one deleted since it was picked, or nothing at all
+    const notLive = [
+      [
+        "another organization's or a deleted brand",
+        'c2b8e4f1-5a3d-4e7b-8f90-1d6a2c4e8b35',
+      ],
+      ["a brand's name rather than its id", 'Sanabel'],
+    ];
+
+    it.each(notLive)(
+      'takes %s as no chip, leaving the brand to the input',
+      async (_what, chip) => {
+        const { service, repository } = resolver({
+          customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+        });
+
+        await expect(
+          service.resolveForSamy('org-1', {
+            chip,
+            input: 'نخيل',
+            channelIds: ['int-1'],
+          })
+        ).resolves.toEqual({ brandId: 'brand-3' });
+        expect(repository.list).toHaveBeenCalledTimes(1);
+        expect(repository.findLive).not.toHaveBeenCalled();
+        expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(notLive)(
+      "takes %s as no chip, going without a kit for 'none'",
+      async (_what, chip) => {
+        const { service } = resolver({
+          customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+        });
+
+        await expect(
+          service.resolveForSamy('org-1', {
+            chip,
+            input: 'none',
+            channelIds: ['int-1'],
+          })
+        ).resolves.toEqual({});
+      }
+    );
+
+    it.each(notLive)(
+      'takes %s as no chip, leaving the brand to the selected channels',
+      async (_what, chip) => {
+        const { service, repository } = resolver({
+          customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-2']),
+        });
+
+        await expect(
+          service.resolveForSamy('org-1', { chip, channelIds: ['int-1'] })
+        ).resolves.toEqual({ brandId: 'brand-2' });
+        expect(repository.list).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it.each(notLive)(
+      'takes %s as no chip, asking which brand when no channel is selected',
+      async (_what, chip) => {
+        const { service } = resolver();
+
+        await expect(
+          service.resolveForSamy('org-1', { chip, channelIds: [] })
+        ).resolves.toEqual({
+          error: `This workspace has 3 brands: Rawda, Sanabel, نخيل. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.`,
+        });
       }
     );
 
