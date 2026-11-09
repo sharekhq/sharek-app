@@ -458,3 +458,134 @@ describe('a channel with no data at all', () => {
     expect(request).toHaveBeenCalledTimes(1);
   });
 });
+
+// The page draws RenderAnalytics anew for each channel and period, by its key,
+// and SWR keeps each one's numbers under its own key. So a channel shows its
+// own numbers or its own loading, never another's: from the cache on a quick
+// switch back, which SWR doesn't ask again within its 2s dedupe interval, and
+// past that interval fetched again on mount, its cached numbers kept on screen
+// meanwhile.
+describe('switching channels', () => {
+  const IG = '/analytics/ig?date=7';
+  const AF = '/analytics/af?date=7';
+  // The requests not yet answered, which a case answers in its own order.
+  const pending: Array<{ url: string; answer: (items: unknown[]) => void }> =
+    [];
+
+  beforeEach(() => {
+    request.mockImplementation(
+      (url: string) =>
+        new Promise((resolve) =>
+          pending.push({
+            url,
+            answer: (items) => resolve({ json: async () => items }),
+          })
+        )
+    );
+  });
+  afterEach(() => {
+    pending.length = 0;
+  });
+
+  // RenderAnalytics in one SWR cache, drawn for a channel over 7 days with the
+  // page's key, or without it as the same component.
+  const page = (dedupingInterval?: number) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    const cache = new Map();
+    const config = dedupingInterval === undefined ? {} : { dedupingInterval };
+    const show = async (id: string, keyed = true) => {
+      await act(async () => {
+        root.render(
+          <SWRConfig value={{ provider: () => cache, ...config }}>
+            <RenderAnalytics
+              key={keyed ? `${id}-7` : undefined}
+              integration={{ id } as Integration}
+              date={7}
+            />
+          </SWRConfig>
+        );
+      });
+    };
+    return { host, show };
+  };
+  const wait = (ms: number) =>
+    act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+  const answer = async (url: string, totals: number[]) => {
+    const index = pending.findIndex((request) => request.url === url);
+    expect(index).toBeGreaterThan(-1);
+    const [{ answer: reply }] = pending.splice(index, 1);
+    await act(async () => {
+      reply([metric('Reach', totals)]);
+    });
+    await wait(0);
+  };
+  // The chart's headline, or null with no chart drawn.
+  const headline = (host: Element) => {
+    const figure = host.querySelector('figure');
+    return figure
+      ? Array.from(figure.querySelectorAll('span')).find((span) =>
+          classes(span).includes('text-[26px]')
+        )!.textContent
+      : null;
+  };
+  // LoadingComponent's spinner.
+  const spinning = (host: Element) =>
+    Array.from(host.querySelectorAll('div')).some((el) =>
+      (el.getAttribute('style') ?? '').includes('spin')
+    );
+
+  it('shows a channel switched back to within the interval from its cache at once, with no spinner left', async () => {
+    const { host, show } = page();
+    await show('ig');
+    await answer(IG, [1, 2, 3]);
+    await show('af');
+    await answer(AF, [10, 20, 30]);
+    expect(headline(host)).toBe('60');
+
+    await show('ig');
+    await wait(20);
+
+    expect(headline(host)).toBe('6');
+    expect(spinning(host)).toBe(false);
+    // asked once each
+    expect(request.mock.calls.map(([url]) => url)).toEqual([IG, AF]);
+  });
+
+  it('fetches a channel switched back to past the interval again on mount, keeping its numbers on screen meanwhile', async () => {
+    // the interval gone by at once
+    const { host, show } = page(0);
+    await show('ig');
+    await answer(IG, [1, 2, 3]);
+    await show('af');
+    await answer(AF, [10, 20, 30]);
+
+    await show('ig');
+    // SWR asks again for a cached key on the next frame
+    await wait(20);
+
+    expect(request.mock.calls.map(([url]) => url)).toEqual([IG, AF, IG]);
+    expect(headline(host)).toBe('6');
+    expect(spinning(host)).toBe(false);
+
+    await answer(IG, [2, 3, 4]);
+    expect(headline(host)).toBe('9');
+  });
+
+  it("keeps a channel's spinner when another channel's slower answer comes in, even drawn as the same component", async () => {
+    const { host, show } = page();
+    await show('ig', false);
+    await show('af', false);
+
+    // Instagram answers after the switch
+    await answer(IG, [1, 2, 3]);
+    expect(spinning(host)).toBe(true);
+    expect(headline(host)).toBeNull();
+
+    await answer(AF, [10, 20, 30]);
+    expect(spinning(host)).toBe(false);
+    expect(headline(host)).toBe('60');
+  });
+});

@@ -41,6 +41,8 @@ const mockT = jest.fn((key: string) => `tr:${key}`);
 let mockSplit: ComponentProps<typeof SplitPanel> | undefined;
 let mockPanel: AnalyticsPanel | undefined;
 let mockShown: { id: string; date: number } | undefined;
+// Each mount of the numbers, by the channel's id and the period.
+const mockMounts: string[] = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => mockT,
@@ -110,21 +112,25 @@ jest.mock(
   })
 );
 // The tiles and charts are T089's; only what they are drawn for is under
-// test here.
+// test here, and each time they are drawn anew, as SWR loads on mount.
 jest.mock(
   '@gitroom/frontend/components/platform-analytics/render.analytics',
-  () => ({
-    RenderAnalytics: ({
-      integration,
-      date,
-    }: {
-      integration: { id: string };
-      date: number;
-    }) => {
-      mockShown = { id: integration.id, date };
-      return <div data-chart={integration.id} data-date={date} />;
-    },
-  })
+  () => {
+    const { useState } = jest.requireActual('react');
+    return {
+      RenderAnalytics: ({
+        integration,
+        date,
+      }: {
+        integration: { id: string };
+        date: number;
+      }) => {
+        useState(() => mockMounts.push(`${integration.id}-${date}`));
+        mockShown = { id: integration.id, date };
+        return <div data-chart={integration.id} data-date={date} />;
+      },
+    };
+  }
 );
 
 import i18next from 'i18next';
@@ -280,6 +286,7 @@ beforeEach(() => {
   mockSplit = undefined;
   mockPanel = undefined;
   mockShown = undefined;
+  mockMounts.length = 0;
 });
 
 afterEach(() => {
@@ -438,6 +445,20 @@ describe('the chosen channel (R21, C20, FR-030)', () => {
 
     expect(mockShown!.id).toBe('ig');
     expect(mockPanel!.selected).toBe('ig');
+  });
+
+  it('draws the numbers anew for each channel and period, so a switch back loads them again, and a list refresh does not', async () => {
+    const render = await mount();
+    expect(mockMounts).toEqual(['ig-7']);
+
+    await run(() => mockPanel!.onChange('af'));
+    await run(() => mockPanel!.onChange('ig'));
+    await click(radios()[1]);
+    expect(mockMounts).toEqual(['ig-7', 'af-7', 'ig-7', 'ig-30']);
+
+    mockChannels = [...mockChannels].reverse();
+    await render();
+    expect(mockMounts).toHaveLength(4);
   });
 
   it("shows today's empty state beside the list when no channel can be picked", async () => {
