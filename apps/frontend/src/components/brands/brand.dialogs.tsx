@@ -1,0 +1,254 @@
+'use client';
+
+import { FC, FormEvent, useState } from 'react';
+import clsx from 'clsx';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { Button } from '@gitroom/react/form/button';
+import { Input } from '@gitroom/react/form/input';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
+import {
+  Brand,
+  useBrands,
+} from '@gitroom/frontend/components/brands/use.brands';
+
+// A brand's name is 1 to 60 characters, as CreateBrandDto keeps it.
+const MAX_NAME = 60;
+
+// The boards' dialogs are 520px wide, so a long sentence wraps rather than
+// widening the card.
+const DIALOG_WIDTH = 520;
+
+// A brand's name inside a translated sentence, isolated (FSI…PDI, the
+// plain-text <bdi>) as manage.modal.tsx isolates a channel's, so a Latin name
+// in an Arabic sentence keeps its own direction. The call passes
+// `escapeValue: false`: React escapes the text it renders.
+const isolate = (text: string) => `⁨${text}⁩`;
+
+// A channel as GET /integrations/list gives it: its brand, if any.
+type ListedChannel = { customer?: { id: string } | null };
+
+// New brand (board BrandsNew): the name, and on the organization's first
+// brand only, the offer to move the channels in no brand into it, ticked
+// (FR-005). A taken name keeps the dialog open with the page's own words for
+// the API's 400.
+const NewBrand: FC<{
+  ungrouped: number;
+  close: () => void;
+  onCreated: (id: string) => void;
+}> = ({ ungrouped, close, onCreated }) => {
+  const t = useT();
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const [name, setName] = useState('');
+  const [move, setMove] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const response = await fetch('/brands', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: name.trim(),
+          moveUngrouped: !!ungrouped && move,
+        }),
+      });
+      if (!response.ok) {
+        toaster.show(
+          response.status === 400
+            ? t('brands_name_taken', 'A brand with this name already exists.')
+            : t('could_not_save_group', 'Could not save the group.'),
+          'warning'
+        );
+        return;
+      }
+      const { id } = await response.json();
+      close();
+      onCreated(id);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={create} className="flex flex-col gap-[16px]">
+      {/* An empty field keeps the interface's direction: dir="auto" with
+          nothing typed resolves left to right. */}
+      <Input
+        name="name"
+        disableForm={true}
+        label={t('name', 'Name')}
+        value={name}
+        maxLength={MAX_NAME}
+        dir={name ? 'auto' : undefined}
+        autoFocus
+        onChange={(e) => setName(e.target.value)}
+      />
+      {!!ungrouped && (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={move}
+          onClick={() => setMove(!move)}
+          className={clsx(
+            'flex items-start gap-[12px] p-[12px] rounded-[10px] border text-start cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand',
+            move ? 'border-brand bg-brandSoft' : 'border-line'
+          )}
+        >
+          {/* the look of the channel list's Check */}
+          <span
+            aria-hidden="true"
+            className={clsx(
+              'flex-none flex border rounded-[6px] w-[20px] h-[20px] justify-center items-center transition-colors',
+              move ? 'bg-brand border-brand' : 'border-muted'
+            )}
+          >
+            {move && <CheckmarkIcon className="text-white" />}
+          </span>
+          <span className="flex flex-col gap-[3px]">
+            <span className="text-[14px] font-[600] text-ink">
+              {t(
+                'brands_move_ungrouped',
+                'Move my {{count}} channels with no brand into it',
+                { count: ungrouped }
+              )}
+            </span>
+            <span className="text-[12.5px] leading-[1.45] text-muted">
+              {t(
+                'brands_move_ungrouped_hint',
+                'Offered with your first brand only. You can move channels out later.'
+              )}
+            </span>
+          </span>
+        </button>
+      )}
+      <div className="flex justify-end gap-[8px]">
+        <Button variant="ghost" onClick={close}>
+          {t('cancel', 'Cancel')}
+        </Button>
+        <Button type="submit" loading={saving} disabled={!name.trim()}>
+          {t('brands_create_brand', 'Create brand')}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+// Delete (board BrandsDelete): what happens to the brand's channels and kit
+// images, then the delete (FR-006).
+const DeleteBrand: FC<{
+  id: string;
+  channels: number;
+  close: () => void;
+  onDeleted: () => void;
+}> = ({ id, channels, close, onDeleted }) => {
+  const t = useT();
+  const fetch = useFetch();
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = async () => {
+    setDeleting(true);
+    await fetch(`/brands/${id}`, { method: 'DELETE' });
+    close();
+    onDeleted();
+  };
+
+  return (
+    <div className="flex flex-col gap-[16px]">
+      <p className="text-[14px] leading-[1.55] text-inkSoft">
+        {t(
+          'brands_delete_body',
+          'Its {{count}} channels stay connected and move to No brand. The logo and example posts stay in your Media library.',
+          { count: channels }
+        )}
+      </p>
+      <div className="flex justify-end gap-[8px]">
+        <Button variant="ghost" onClick={close}>
+          {t('cancel', 'Cancel')}
+        </Button>
+        <Button variant="danger" loading={deleting} onClick={remove}>
+          {t('brands_delete_brand', 'Delete brand')}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// The Brands page's dialogs, for its New brand button, its Rename button and
+// its ⋯ menu. Each change reloads GET /brands and the channel list, which says
+// each channel's brand everywhere in the app.
+export const useBrandDialogs = () => {
+  const t = useT();
+  const modals = useModals();
+  const { data: brands, mutate: reloadBrands } = useBrands();
+  const { data: integrations, mutate: reloadChannels } = useIntegrationList();
+  const channels: ListedChannel[] = integrations;
+
+  const reload = () => {
+    reloadBrands();
+    reloadChannels();
+  };
+
+  const openNewBrand = (onCreated?: (id: string) => void) =>
+    modals.openModal({
+      title: t('brands_new_brand', 'New brand'),
+      size: DIALOG_WIDTH,
+      children: (close) => (
+        <NewBrand
+          ungrouped={
+            brands?.length
+              ? 0
+              : channels.filter((channel) => !channel.customer?.id).length
+          }
+          close={close}
+          onCreated={(id) => {
+            reload();
+            onCreated?.(id);
+          }}
+        />
+      ),
+    });
+
+  const openDeleteBrand = (brand: Pick<Brand, 'id' | 'name'>) =>
+    modals.openModal({
+      title: t('brands_delete_named', 'Delete {{name}}?', {
+        name: isolate(brand.name),
+        interpolation: { escapeValue: false },
+      }),
+      size: DIALOG_WIDTH,
+      children: (close) => (
+        <DeleteBrand
+          id={brand.id}
+          channels={
+            channels.filter((channel) => channel.customer?.id === brand.id)
+              .length
+          }
+          close={close}
+          onDeleted={reload}
+        />
+      ),
+    });
+
+  // The calendar's own rename dialog, on the route it uses (C3).
+  const openRenameBrand = (brand: Pick<Brand, 'id' | 'name'>) =>
+    modals.openModal({
+      title: t('edit_group_name', 'Edit group name'),
+      size: DIALOG_WIDTH,
+      children: (close) => (
+        <EditGroupNameModal
+          id={brand.id}
+          name={brand.name}
+          close={close}
+          resolve={reload}
+        />
+      ),
+    });
+
+  return { openNewBrand, openDeleteBrand, openRenameBrand };
+};

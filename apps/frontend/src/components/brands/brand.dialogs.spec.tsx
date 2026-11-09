@@ -44,6 +44,22 @@ jest.mock(
     useIntegrationList: () => ({ data: channels, mutate: reloadChannels }),
   })
 );
+// The rename dialog lives in the calendar page's module, which imports the
+// calendar and its filters, and through them the post composer. They aren't
+// rendered here, so they are markers, as launches.component.spec.tsx makes
+// them.
+jest.mock('@gitroom/frontend/components/launches/filters', () => ({
+  Filters: () => null,
+}));
+jest.mock('@gitroom/frontend/components/launches/calendar', () => ({
+  Calendar: () => null,
+}));
+jest.mock('@gitroom/frontend/components/launches/menu/menu', () => ({
+  Menu: () => null,
+}));
+jest.mock('@gitroom/helpers/utils/use.fire.events', () => ({
+  useFireEvents: () => () => undefined,
+}));
 
 import i18next from 'i18next';
 import {
@@ -191,9 +207,18 @@ describe('New brand', () => {
     expect(text()).toContain('New brand');
     expect(text()).toContain('Name');
     expect(field().maxLength).toBe(60);
-    expect(field().getAttribute('dir')).toBe('auto');
     expect(button('Cancel')).toBeDefined();
     expect(button('Create brand')).toBeDefined();
+  });
+
+  it('keeps the interface’s direction while the name is empty, and the name’s own once typed', async () => {
+    await mount();
+    await open(() => dialogs.openNewBrand());
+
+    // dir="auto" on an empty field resolves left to right, even in Arabic
+    expect(field().hasAttribute('dir')).toBe(false);
+    await type(field(), 'بيت القهوة');
+    expect(field().getAttribute('dir')).toBe('auto');
   });
 
   it('with no brand yet, offers to move the channels in no brand into it, ticked, and Create sends the name and the move (scenario 2)', async () => {
@@ -243,7 +268,7 @@ describe('New brand', () => {
     ['ar', 2, 'انقل إليها القناتين اللتين بلا علامة تجارية'],
     ['ar', 3, 'انقل إليها القنوات التي بلا علامة تجارية (3 قنوات)'],
     ['ar', 11, 'انقل إليها القنوات التي بلا علامة تجارية (11 قناة)'],
-  ])('in %s, words the offer for %i channels', async (lng, n, words) => {
+  ])('in %s, words the offer for a count of %i', async (lng, n, words) => {
     await i18next.changeLanguage(lng);
     channels = inBrand(n, null);
     await mount();
@@ -393,7 +418,7 @@ describe('Delete', () => {
       'تبقى قنواتها الـ3 متصلة وتنتقل إلى «بلا علامة تجارية»، ويبقى الشعار والمنشورات النموذجية في مكتبة الوسائط.',
     ],
   ])(
-    'in %s, words the sentence for a brand with %i channels',
+    'in %s, words the sentence for a brand whose count is %i',
     async (lng, n, words) => {
       await i18next.changeLanguage(lng);
       brands = [BAYT];

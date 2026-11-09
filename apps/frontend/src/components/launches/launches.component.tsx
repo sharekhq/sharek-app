@@ -40,7 +40,7 @@ import {
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
 
-const EditGroupNameModal: FC<{
+export const EditGroupNameModal: FC<{
   name: string;
   id: string;
   close: () => void;
