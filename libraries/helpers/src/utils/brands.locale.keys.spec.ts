@@ -6,7 +6,9 @@
 // canvas writes a curly one. Part 1 adds the keys to en and ar only (tasks.md
 // T016); the six other languages fall back to English. The words that change
 // elsewhere, customer and group becoming brand (board Rename), change in all
-// eight languages.
+// eight languages. Part 2 (tasks.md T051) adds the brand chip in Samy's message
+// box, its list, the note on attached images, and the AI image dialog's Brand
+// field (the parts BrandMenu, Composer and StudioBrand), in en and ar only.
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -155,6 +157,48 @@ const STRINGS = [
   ],
   // The Delete dialog's title (BrandsDelete).
   ['brands_delete_named', 'Delete {{name}}?', 'حذف {{name}}؟'],
+  // Part 2. The list (BrandMenu), titled for a message in Samy and for an
+  // image in the AI image dialog. A brand's row says its channels with
+  // channels_count; No brand's row is brands_no_brand over brands_no_brand_sub.
+  [
+    'brands_for_this_message',
+    'Brand for this message',
+    'العلامة التجارية لهذه الرسالة',
+  ],
+  [
+    'brands_for_this_image',
+    'Brand for this image',
+    'العلامة التجارية لهذه الصورة',
+  ],
+  ['brands_each_channel', "Each channel's brand", 'علامة كل قناة'],
+  [
+    'brands_each_channel_sub',
+    'One image per brand, a credit each',
+    'صورة لكل علامة، برصيد لكل صورة',
+  ],
+  [
+    'brands_no_brand_sub',
+    'Sends no logo, examples or colours',
+    'لا يرسل شعارًا ولا منشورات نموذجية ولا ألوانًا',
+  ],
+  ['brands_manage_brands', 'Manage brands', 'إدارة العلامات التجارية'],
+  // The chip in Samy's message box (Composer): the label while it waits, and
+  // its accessible name, which says the chip's label and what choosing does.
+  ['brands_choose_a_brand', 'Choose a brand', 'اختر علامة تجارية'],
+  [
+    'brands_chip_label',
+    'Brand for this message: {{brand}}. Change brand',
+    'العلامة التجارية لهذه الرسالة: {{brand}}. تغيير العلامة',
+  ],
+  // The AI image dialog's Brand field (StudioBrand): what goes along with the
+  // brand, and the reference images' help line while a brand is picked and
+  // none of the user's own images is attached.
+  ['brands_goes_along', 'Goes along:', 'يرسل معها:'],
+  [
+    'brands_ref_help',
+    "Optional. Your images take the place of the brand's examples; its logo stays.",
+    'اختياري. تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+  ],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename
@@ -167,6 +211,9 @@ const REUSED = [
   ['cancel', 'Cancel', 'إلغاء'],
   ['channels', 'Channels', 'القنوات'],
   ['name', 'Name', 'الاسم'],
+  // Part 2: the AI image dialog's Brand field is labelled as the post
+  // editor's brand select is (board Rename's select_customer_label).
+  ['select_customer_label', 'Brand', 'العلامة التجارية'],
 ] as const;
 
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
@@ -221,6 +268,57 @@ const PLURALS = [
       many: 'تبقى قنواتها الـ{{count}} متصلة وتنتقل إلى «بلا علامة تجارية»، ويبقى الشعار والمنشورات النموذجية في مكتبة الوسائط.',
       other:
         'تبقى قنواتها الـ{{count}} متصلة وتنتقل إلى «بلا علامة تجارية»، ويبقى الشعار والمنشورات النموذجية في مكتبة الوسائط.',
+    },
+  ],
+  // Part 2. "2 brands" while the picked channels span brands (spec FR-023).
+  [
+    'brands_count',
+    { one: '1 brand', other: '{{count}} brands' },
+    {
+      zero: 'لا علامات',
+      one: 'علامة واحدة',
+      two: 'علامتان',
+      few: '{{count}} علامات',
+      many: '{{count}} علامة',
+      other: '{{count}} علامة',
+    },
+  ],
+  // The note inside Samy's message box while images are attached and a brand
+  // is chosen; {{brand}} is its name.
+  [
+    'brands_attach_note',
+    {
+      one: "Your 1 image goes in place of {{brand}}'s examples. Its logo still goes along.",
+      other:
+        "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      one: 'تحل صورتك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      two: 'تحل صورتاك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      few: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      many: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      other:
+        'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+    },
+  ],
+  // The AI image dialog's help line once the user's own images are attached
+  // beside a brand, up to 3. It says no number, so the forms differ only in
+  // image and images.
+  [
+    'brands_ref_help_own',
+    {
+      one: "Your image takes the place of the brand's examples; its logo stays.",
+      other:
+        "Your images take the place of the brand's examples; its logo stays.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      one: 'تحل صورتك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      two: 'تحل صورتاك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      few: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      many: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      other: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
     },
   ],
 ] as const;
@@ -377,29 +475,36 @@ const UNCHANGED: Record<string, Record<string, string | undefined>> = {
 const forms = (lng: string) =>
   new Intl.PluralRules(lng).resolvedOptions().pluralCategories;
 
-// The files that render these strings: the Brands components (their specs
-// aside), the page, which sets the title, and the sidebar. A file not written
-// yet reads as empty, so its keys fail to be found rather than the suite
-// failing to load.
-const SOURCES = () => {
-  const brandsDir = path.join(FRONTEND_DIR, 'components/brands');
-  const components = fs.existsSync(brandsDir)
+// A directory's components, their specs aside.
+const componentsIn = (dir: string) => {
+  const full = path.join(FRONTEND_DIR, dir);
+  return fs.existsSync(full)
     ? fs
-        .readdirSync(brandsDir)
+        .readdirSync(full)
         .filter((file) => /\.tsx?$/.test(file) && !/\.spec\./.test(file))
-        .map((file) => path.join(brandsDir, file))
+        .map((file) => path.join(full, file))
     : [];
-  return [
-    ...components,
+};
+
+// The files that render these strings: the Brands components, among them the
+// brand list part 2 shares, the page, which sets the title, and the sidebar;
+// for part 2, Samy's components, where the chip and the note sit, and the AI
+// image dialog with its reference images. A file not written yet reads as
+// empty, so its keys fail to be found rather than the suite failing to load.
+const SOURCES = () =>
+  [
+    ...componentsIn('components/brands'),
     path.join(FRONTEND_DIR, 'app/(app)/(site)/brands/page.tsx'),
     path.join(FRONTEND_DIR, 'components/layout/top.menu.tsx'),
+    ...componentsIn('components/agents'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.tsx'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.references.tsx'),
   ]
     .filter((file) => fs.existsSync(file))
     .map((file) => fs.readFileSync(file, 'utf8'))
     .join('\n');
-};
 
-describe('Brands page locale keys', () => {
+describe('Brands locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
@@ -456,9 +561,10 @@ describe('Brands page locale keys', () => {
     }
   );
 
-  // Red until the components exist (T018 to T026): a key no t() call reads is
-  // a string the page shows in English or not at all.
-  describe('every string the page renders', () => {
+  // Red until the components exist (T018 to T026, and for part 2 T053, T055
+  // and T060): a key no t() call reads is a string the app shows in English or
+  // not at all.
+  describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
         /(?:\bi18next\.t|(?<![A-Za-z0-9_$.])t)\(\s*'([A-Za-z0-9_]+)'/g
@@ -467,7 +573,7 @@ describe('Brands page locale keys', () => {
     );
 
     it.each([...STRINGS, ...REUSED, ...PLURALS].map(([key]) => key))(
-      'is read by a t() call in the Brands page or the sidebar: %s',
+      'is read by a t() call in the Brands page, the sidebar, Samy or the AI image dialog: %s',
       (key) => {
         expect(referenced).toContain(key);
       }
