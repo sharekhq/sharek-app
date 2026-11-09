@@ -880,6 +880,29 @@ describe('the note on attached images (FR-024, state E)', () => {
     expect(chat.scrollTop).toBe(100);
   });
 
+  // Its words change while it shows, as a second image joins or another
+  // brand is picked, and a longer line can take another row from the chat.
+  it('keeps the chat at the bottom when its words change and it grows', async () => {
+    const height = jest
+      .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+      .mockReturnValue(52);
+    await mount();
+    await pick('ig');
+    const chat = document.querySelector<HTMLElement>('.copilotKitMessages')!;
+    Object.defineProperty(chat, 'scrollHeight', { value: 1000 });
+    Object.defineProperty(chat, 'clientHeight', { value: 400 });
+    await attach('a', 'png');
+    expect(note()).not.toBeNull();
+    // the row the note grows by is all that's below the fold
+    height.mockReturnValue(70);
+    chat.scrollTop = 1000 - 400 - 18;
+
+    await attach('b', 'png');
+
+    expect(note()!.textContent).toContain('Your 2 images go in place of');
+    expect(chat.scrollTop).toBe(1000);
+  });
+
   it('uses the shapes and colours of the box, on logical sides only', async () => {
     await mount();
     await pick('ig');
