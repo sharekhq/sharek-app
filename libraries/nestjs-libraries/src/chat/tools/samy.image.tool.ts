@@ -40,7 +40,7 @@ export class SamyImageTool implements AgentToolInterface {
     return createTool({
       id: 'generateImageTool',
       description:
-        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, or { error } when it couldn't be made. The chat shows the image by itself.",
+        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.",
       inputSchema: z.object({
         // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
