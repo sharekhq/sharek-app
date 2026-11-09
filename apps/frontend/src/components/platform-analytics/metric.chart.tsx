@@ -47,14 +47,16 @@ export const MetricChart: FC<{
 
   const locale = pageLocale();
   const format = useMemo(() => {
-    // a day as the providers send it, YYYY-MM-DD, parses as midnight UTC
+    // A point is the calendar day it names, its first 10 characters,
+    // YYYY-MM-DD, whatever time follows: alone they parse as midnight UTC, so
+    // the browser's zone never moves the day
     const day = new Intl.DateTimeFormat(locale, {
       day: 'numeric',
       month: 'short',
       timeZone: 'UTC',
     });
     return {
-      dates: data.map((point) => day.format(new Date(point.date))),
+      dates: data.map((point) => day.format(new Date(point.date.slice(0, 10)))),
       value: new Intl.NumberFormat(locale),
       thousands: new Intl.NumberFormat(locale, {
         notation: 'compact',
