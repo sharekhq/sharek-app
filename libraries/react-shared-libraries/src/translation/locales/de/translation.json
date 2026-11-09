@@ -350,6 +350,8 @@
   "scheduled": "Geplant",
   "draft": "Entwurf",
   "published": "Veröffentlicht",
+  "page": "Seite",
+  "of": "von",
   "week_number": "Woche {{number}}",
   "top_title_edit_webhook": "Webhook bearbeiten",
   "top_title_add_webhook": "Webhook hinzufügen",

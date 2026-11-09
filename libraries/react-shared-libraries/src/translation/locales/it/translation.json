@@ -350,6 +350,8 @@
   "scheduled": "Programmato",
   "draft": "Bozza",
   "published": "Pubblicato",
+  "page": "Pagina",
+  "of": "di",
   "week_number": "Settimana {{number}}",
   "top_title_edit_webhook": "Modifica webhook",
   "top_title_add_webhook": "Aggiungi webhook",

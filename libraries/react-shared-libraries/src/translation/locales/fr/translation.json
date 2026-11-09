@@ -350,6 +350,8 @@
   "scheduled": "Planifiée",
   "draft": "Brouillon",
   "published": "Publiée",
+  "page": "Page",
+  "of": "sur",
   "week_number": "Semaine {{number}}",
   "top_title_edit_webhook": "Modifier le webhook",
   "top_title_add_webhook": "Ajouter un webhook",

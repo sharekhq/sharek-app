@@ -350,6 +350,8 @@
   "scheduled": "Запланировано",
   "draft": "Черновик",
   "published": "Опубликовано",
+  "page": "Страница",
+  "of": "из",
   "week_number": "Неделя {{number}}",
   "top_title_edit_webhook": "Редактировать вебхук",
   "top_title_add_webhook": "Добавить вебхук",
