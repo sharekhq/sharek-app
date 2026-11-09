@@ -493,6 +493,20 @@ describe('a channel with no data at all', () => {
     // the analytics read, and no fetch of the page's own
     expect(request).toHaveBeenCalledTimes(1);
   });
+
+  // FR-052 and SC-007: 44px on a touch screen, and a ring on keyboard focus,
+  // which global.scss's outline: none leaves to a class (M22)
+  it('sizes its Reconnect 44px tall on touch, with the focus ring', async () => {
+    const host = await render([]);
+
+    expect(classes(host.querySelector('button'))).toEqual(
+      expect.arrayContaining([
+        'coarse:min-h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
 });
 
 // The page draws RenderAnalytics anew for each channel and period, by its key,
