@@ -442,7 +442,9 @@ describe('a row', () => {
 });
 
 describe('the ⋯ Chat options', () => {
-  it('shows on its row hover, on focus and always on a touch screen', async () => {
+  // pages-ui: shown on hover and focus, so while the row's link has the focus
+  // too, not only the ⋯ itself (walk 3, step 13)
+  it('shows on its row hover, while focus is anywhere in its row and always on a touch screen', async () => {
     const host = await render();
     const trigger = options(host, 'today-1');
 
@@ -452,9 +454,13 @@ describe('the ⋯ Chat options', () => {
       expect.arrayContaining([
         'opacity-0',
         'group-hover:opacity-100',
-        'focus-within:opacity-100',
+        'group-focus-within:opacity-100',
         'coarse:opacity-100',
       ])
+    );
+    // the row's focus covers the ⋯'s own, so no rule of its own for it
+    expect(classes(trigger.parentElement!)).not.toContain(
+      'focus-within:opacity-100'
     );
     expect(classes(trigger)).toEqual(
       expect.arrayContaining([

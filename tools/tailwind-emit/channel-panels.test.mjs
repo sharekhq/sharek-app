@@ -615,6 +615,8 @@ test('the states of the rows and controls emit, on the custom colours too', asyn
     // a row's ⋯ (menu/menu.tsx's trigger), shown on its own focus and while
     // its menu, which opens inside the wrapper, is open
     'focus-within:opacity-100': [['opacity', '1']],
+    // a chat's ⋯ (agent.chats.tsx), shown while focus is anywhere in its row
+    'group-focus-within:opacity-100': [['opacity', '1']],
     'has-[[aria-expanded=true]]:opacity-100': [['opacity', '1']],
     'disabled:opacity-50': [['opacity', '0.5']],
     'hover:bg-surface2': [['background-color', 'var(--surface-2)']],
@@ -642,6 +644,10 @@ test('the states of the rows and controls emit, on the custom colours too', asyn
   assert.equal(
     selector('focus-within:opacity-100'),
     '.focus-within:opacity-100:focus-within'
+  );
+  assert.equal(
+    selector('group-focus-within:opacity-100'),
+    '.group:focus-within .group-focus-within:opacity-100'
   );
   assert.equal(
     selector('has-[[aria-expanded=true]]:opacity-100'),
@@ -796,6 +802,7 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['opacity-0', 'group-hover:opacity-100'],
     ['opacity-0', 'focus-visible:opacity-100'],
     ['opacity-0', 'focus-within:opacity-100'],
+    ['opacity-0', 'group-focus-within:opacity-100'],
     ['opacity-0', 'has-[[aria-expanded=true]]:opacity-100'],
     // Samy's chats: a row and New chat at 44px on touch, the rename field too
     ['min-h-[36px]', 'coarse:min-h-[44px]'],
