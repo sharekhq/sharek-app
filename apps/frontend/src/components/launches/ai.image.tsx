@@ -31,7 +31,6 @@ import {
   IMAGE_STYLE_CATEGORY_LABELS,
   IMAGE_STYLES,
   ImageAspectId,
-  ImageReferenceRefusal,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import {
@@ -47,6 +46,13 @@ import {
   CheckmarkIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
+import {
+  BrandField,
+  brandRefusal,
+  BrandRefusal,
+  useImageBrand,
+} from '@gitroom/frontend/components/launches/ai.image.brand';
+import { liveLogo } from '@gitroom/frontend/components/brands/use.brands';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -122,13 +128,19 @@ const chipClasses = (selected: boolean) =>
 /**
  * A refused reference comes back named by the number on its thumbnail, and is
  * said in the window's language rather than the server's English (research
- * R13). Anything else keeps the server's message.
+ * R13), as are the brand's. Anything else keeps the server's message.
  */
 const referenceRefusal = (
   t: ReturnType<typeof useT>,
-  payload: { code?: ImageReferenceRefusal; index?: number } | null,
+  payload: (BrandRefusal & { index?: number }) | null,
   edit: boolean
 ) => {
+  // A refused kit image carries a reference's code, so the brand's refusals
+  // are read first.
+  const refusal = brandRefusal(t, payload);
+  if (refusal) {
+    return refusal;
+  }
   switch (payload?.code) {
     case 'reference_missing':
       // In an edit, image 1 is the image being edited. It has no remove
@@ -207,6 +219,7 @@ const AiImageModal: FC<{
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: credits, mutate: mutateCredits } = useImageCredits();
+  const { brands, brand, pickBrand } = useImageBrand();
 
   // A generation outlives the modal: the closure keeps running after an early
   // close and attaches the image itself, so it has to know whether anyone is
@@ -456,6 +469,8 @@ const AiImageModal: FC<{
       ...(references.length
         ? { references: references.map((reference) => reference.id) }
         : {}),
+      // No brand sends nothing from any kit (FR-020).
+      ...(brand && { brand: brand.id }),
     });
   };
 
@@ -480,6 +495,7 @@ const AiImageModal: FC<{
         ...(editReferences.length
           ? { references: editReferences.map((reference) => reference.id) }
           : {}),
+        ...(brand && { brand: brand.id }),
       },
       true
     );
@@ -528,6 +544,13 @@ const AiImageModal: FC<{
       )
     );
   };
+
+  const places = IMAGE_REFERENCE_MAX - (liveLogo(brand) ? 1 : 0);
+  // A brand picked after the user's images can leave one more than fits; the
+  // row under them says so, and nothing goes until it fits. The image being
+  // edited takes one of an edit's places.
+  const overflow = references.length > places;
+  const editOverflow = editReferences.length > places - 1;
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
@@ -663,10 +686,18 @@ const AiImageModal: FC<{
             {promptCounter(prompt.length)}
           </div>
         </div>
+        <BrandField
+          brands={brands}
+          brand={brand}
+          own={references.length > 0}
+          onPick={pickBrand}
+        />
         <ReferenceImages
           value={references}
           onChange={setReferences}
-          max={IMAGE_REFERENCE_MAX}
+          max={places}
+          branded={!!brand}
+          logo={!!liveLogo(brand)}
         />
         <div className="flex flex-col gap-[6px]">
           <div className="text-[14px] font-[600]">
@@ -1022,9 +1053,14 @@ const AiImageModal: FC<{
               lead={version.media}
               value={editReferences}
               onChange={setEditReferences}
-              max={IMAGE_REFERENCE_MAX - 1}
+              max={places - 1}
+              branded={!!brand}
               action={
-                <Button variant="quiet" onClick={applyEdit}>
+                <Button
+                  variant="quiet"
+                  onClick={applyEdit}
+                  disabled={editOverflow}
+                >
                   {t('image_edit_apply', 'Apply edit')}
                   <span className="ms-[6px] font-[500] opacity-75">
                     · {t('one_credit', '1 credit')}
@@ -1061,7 +1097,7 @@ const AiImageModal: FC<{
                 {t('image_uses_one_credit', 'Uses 1 image credit')}
               </CostNote>
               <div className="flex-1" />
-              <Button type="button" onClick={generate}>
+              <Button type="button" onClick={generate} disabled={overflow}>
                 {t('generate', 'Generate')}
               </Button>
             </>

@@ -24,10 +24,84 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) => select({ setLocked }),
 }));
-// The credits pill reads SWR; the count is not what this spec is about.
+// A kit image as GET /brands gives it; one deleted from Media has no path.
+const kitImage = (id: string, missing = false) => ({
+  id,
+  path: missing ? null : `https://media/${id}.png`,
+  missing,
+});
+
+// Bayt Al Qahwa's kit has its logo and three examples, the second deleted
+// from Media; Rawda Florist's has colours and no image. Listed Z to A, not in
+// the order the brand list shows them.
+const BAYT: Brand = {
+  id: 'bq',
+  name: 'Bayt Al Qahwa',
+  kit: {
+    logo: kitImage('bq-logo'),
+    examples: [
+      kitImage('bq-ex1'),
+      kitImage('bq-ex2', true),
+      kitImage('bq-ex3'),
+    ],
+    colours: ['#5B3A29', '#D9A441'],
+    headingFont: null,
+    bodyFont: null,
+  },
+};
+const RAWDA: Brand = {
+  id: 'rf',
+  name: 'Rawda Florist',
+  kit: {
+    logo: null,
+    examples: [],
+    colours: ['#C0392B'],
+    headingFont: null,
+    bodyFont: null,
+  },
+};
+const BRANDS = [RAWDA, BAYT];
+// Two channels in Bayt Al Qahwa, three in Rawda Florist, one in no brand.
+const CHANNELS = [
+  { id: 'c1', customer: { id: 'bq', name: 'Bayt Al Qahwa' } },
+  { id: 'c2', customer: { id: 'bq', name: 'Bayt Al Qahwa' } },
+  { id: 'c3', customer: { id: 'rf', name: 'Rawda Florist' } },
+  { id: 'c4', customer: { id: 'rf', name: 'Rawda Florist' } },
+  { id: 'c5', customer: { id: 'rf', name: 'Rawda Florist' } },
+  { id: 'c6', customer: null },
+];
+// What GET /brands has answered: undefined while it loads.
+let brandList: Brand[] | undefined = BRANDS;
+
+// The credits pill, the Brand field's brands and their channels read SWR,
+// each by its key. The credit count is not what this spec is about.
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({ data: { credits: 0 }, mutate: jest.fn() }),
+  default: (key: string) => ({
+    data:
+      key === '/brands'
+        ? brandList
+        : key === '/integrations/list'
+        ? CHANNELS
+        : { credits: 0 },
+    mutate: jest.fn(),
+  }),
+}));
+// The brand list's Manage brands is a next/link.
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: ReactNode;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 // The Media library the reference row opens. Its own behaviour, the limit
 // included, has its own spec; here it only records what it was opened with,
@@ -54,7 +128,12 @@ import {
 } from '@gitroom/frontend/components/layout/new-modal';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
+import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
+
+// happy-dom has a localStorage; jest.setup.js does not lift it onto globalThis,
+// and the Brand field keeps the brand picked last in it.
+globalThis.localStorage = window.localStorage;
 
 const answer = (status: number, body: any) => ({
   ok: status >= 200 && status < 300,
@@ -201,6 +280,8 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   picker.length = 0;
+  brandList = BRANDS;
+  localStorage.clear();
   jest.clearAllMocks();
 });
 
@@ -1634,5 +1715,638 @@ describe('the style search under a finger', () => {
     expect(search.className.split(' ')).toEqual(
       expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
     );
+  });
+});
+
+// Spec 053, US5 (FR-016, FR-020, FR-025; contracts/pages-ui.md part 2; boards
+// StudioBrand, StudioBrandOpen and StudioBrandOwn): a Brand field under the
+// prompt with the brand list titled for an image, what goes along with the
+// brand picked, and that brand on every render. It starts on the brand picked
+// last in this browser, else No brand, and never stands in Generate's way.
+describe('the Brand field', () => {
+  const realMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    // A wide window, where the list hangs from its button; brand.menu.spec
+    // has the sheet it opens as at 1025px and below.
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+  });
+
+  const compose = async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+  };
+
+  // Closes the window and opens it again from the same button.
+  const reopen = async () => {
+    act(() => {
+      closeEveryModal?.();
+    });
+    await click(document.querySelector('.bg-ai'));
+  };
+
+  const brandButton = () =>
+    document.querySelector<HTMLButtonElement>(
+      'button[aria-haspopup="listbox"]'
+    );
+  const options = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="option"]'));
+  const pick = async (name: string) => {
+    await click(brandButton());
+    await click(options().find((node) => node.textContent?.includes(name)));
+  };
+
+  // A field's label, by its words.
+  const label = (text: string) =>
+    Array.from(document.querySelectorAll('div')).find(
+      (node) => node.textContent === text
+    )!;
+  const before = (first: Node, second: Node) =>
+    !!(
+      first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+
+  // "Goes along:" and the kit's images after it, each faded or not.
+  const goesAlong = () =>
+    Array.from(document.querySelectorAll('span')).find(
+      (node) => node.textContent === 'Goes along:'
+    )?.parentElement;
+  const kit = () =>
+    Array.from(goesAlong()?.querySelectorAll('img') ?? []).map((img) => ({
+      src: img.getAttribute('src'),
+      faded:
+        img.classList.contains('opacity-30') &&
+        img.classList.contains('grayscale'),
+    }));
+
+  // The lines of text on the window, the one under the reference images
+  // among them, and its counters, the prompt's and the references'.
+  const lines = () =>
+    Array.from(document.querySelectorAll('span')).map(
+      (node) => node.textContent
+    );
+  const counters = () =>
+    Array.from(document.querySelectorAll('span[dir="ltr"]')).map(
+      (node) => node.textContent
+    );
+  const OWN_LINE =
+    "Your images take the place of the brand's examples; its logo stays.";
+  const BRAND_LINE = `Optional. ${OWN_LINE}`;
+
+  const body = () =>
+    JSON.parse(asked('/media/generate-image-with-prompt')[0][1].body);
+
+  const generateNow = async () => {
+    renders(done);
+    await type(field(), 'A Ramadan night menu post');
+    await click(button('Generate'));
+  };
+
+  it('sits under the prompt, labelled Brand, and starts on No brand', async () => {
+    await compose();
+
+    expect(before(label('Prompt'), label('Brand'))).toBe(true);
+    expect(before(label('Brand'), label('Reference images'))).toBe(true);
+    expect(brandButton()?.textContent).toBe('No brand');
+    // Its name says what it is for and what it shows, as the chip's does.
+    expect(brandButton()?.getAttribute('aria-label')).toBe(
+      'Brand for this image: ⁨No brand⁩. Change brand'
+    );
+    expect(goesAlong()).toBeUndefined();
+  });
+
+  // FR-020: No brand sends nothing from any kit.
+  it('generates as today on No brand, with no brand on the request', async () => {
+    await compose();
+    await generateNow();
+
+    expect(body()).not.toHaveProperty('brand');
+  });
+
+  it('stays on No brand and generates while the brands are loading', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    brandList = undefined;
+    await reopen();
+
+    expect(brandButton()?.textContent).toBe('No brand');
+
+    await generateNow();
+
+    expect(body()).not.toHaveProperty('brand');
+  });
+
+  it('opens the brand list titled for an image, No brand ticked', async () => {
+    await compose();
+    await click(brandButton());
+
+    expect(
+      document.querySelector('[role="listbox"]')?.getAttribute('aria-label')
+    ).toBe('Brand for this image');
+    // A to Z, each with its channel count; Rawda Florist shows its initial.
+    expect(options().map((node) => node.textContent)).toEqual([
+      'Bayt Al Qahwa2 channels',
+      'RRawda Florist3 channels',
+      'No brandSends no logo, examples or colours',
+    ]);
+    expect(options().map((node) => node.getAttribute('aria-selected'))).toEqual(
+      ['false', 'false', 'true']
+    );
+  });
+
+  it('names the brand picked on the button and sends it with the render', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
+    expect(brandButton()?.querySelector('[dir="auto"]')?.textContent).toBe(
+      'Bayt Al Qahwa'
+    );
+    expect(brandButton()?.getAttribute('aria-label')).toBe(
+      'Brand for this image: ⁨Bayt Al Qahwa⁩. Change brand'
+    );
+
+    await generateNow();
+
+    expect(body().brand).toBe('bq');
+  });
+
+  it('starts on the brand picked last in this browser', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await reopen();
+
+    expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
+
+    await generateNow();
+
+    expect(body().brand).toBe('bq');
+  });
+
+  it('starts on No brand when the brand picked last has been deleted', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    brandList = [RAWDA];
+    await reopen();
+
+    expect(brandButton()?.textContent).toBe('No brand');
+
+    await generateNow();
+
+    expect(body()).not.toHaveProperty('brand');
+  });
+
+  it('starts on No brand once No brand is picked, and sends nothing', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await pick('No brand');
+    await reopen();
+
+    expect(brandButton()?.textContent).toBe('No brand');
+
+    await generateNow();
+
+    expect(body()).not.toHaveProperty('brand');
+  });
+
+  // A private window or blocked site data refuses the storage itself: the
+  // window still opens on No brand, and a pick holds while it is open.
+  it('opens and takes a brand when the browser refuses its storage', async () => {
+    const storage = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'localStorage'
+    )!;
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('The operation is insecure.');
+      },
+    });
+    try {
+      await compose();
+
+      expect(brandButton()?.textContent).toBe('No brand');
+
+      await pick('Bayt Al Qahwa');
+
+      expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
+
+      await generateNow();
+
+      expect(body().brand).toBe('bq');
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', storage);
+    }
+  });
+
+  it("shows what goes along: the brand's logo and its examples still in Media", async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(kit()).toEqual([
+      { src: 'https://media/bq-logo.png', faded: false },
+      { src: 'https://media/bq-ex1.png', faded: false },
+      { src: 'https://media/bq-ex3.png', faded: false },
+    ]);
+    expect(goesAlong()?.querySelector('img')?.getAttribute('alt')).toBe('Logo');
+    expect(
+      goesAlong()?.querySelector('[role="img"]')?.getAttribute('aria-label')
+    ).toBe('Example posts');
+  });
+
+  it('shows nothing going along for a brand with no logo or example', async () => {
+    await compose();
+    await pick('Rawda Florist');
+
+    expect(brandButton()?.textContent).toBe('RRawda Florist');
+    expect(goesAlong()).toBeUndefined();
+  });
+
+  // FR-016: the logo takes one of the render's four places.
+  it("stops the user's own images at 3 beside a brand", async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(counters()).toContain('0 / 3');
+
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].max).toBe(3);
+
+    await act(async () => {
+      picker[picker.length - 1].setMedia([ref('a'), ref('b'), ref('c')]);
+    });
+
+    expect(thumbnails()).toHaveLength(3);
+    expect(button('Add image')).toBeUndefined();
+    expect(counters()).toContain('3 / 3');
+  });
+
+  // Four of the user's images, then a brand whose logo takes the fourth
+  // place: the window holds the render until one is removed or No brand is
+  // picked, saying so where it says the other limits, under the images.
+  const TOO_MANY_LINE =
+    "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.";
+  const overTheCap = async () => {
+    renders(done);
+    await compose();
+    await attach(ref('a'), ref('b'), ref('c'), ref('d'));
+    await type(field(), 'A Ramadan night menu post');
+    await pick('Bayt Al Qahwa');
+  };
+  const counter = (text: string) =>
+    Array.from(document.querySelectorAll('span[dir="ltr"]')).find(
+      (node) => node.textContent === text
+    );
+
+  it("holds Generate while more of the user's images are attached than fit beside the logo", async () => {
+    await overTheCap();
+
+    expect(thumbnails()).toHaveLength(4);
+    expect(counter('4 / 3')?.classList.contains('text-error')).toBe(true);
+    expect(counter('4 / 3')?.classList.contains('font-[600]')).toBe(true);
+    expect(lines()).toContain(TOO_MANY_LINE);
+    expect(lines()).not.toContain(OWN_LINE);
+    expect(button('Add image')).toBeUndefined();
+    expect(button('Generate')?.disabled).toBe(true);
+
+    await click(button('Generate'));
+
+    expect(asked('/media/generate-image/allowed')).toHaveLength(0);
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
+  });
+
+  it('lets Generate go with the brand once one of the images is removed', async () => {
+    await overTheCap();
+    await click(
+      document.querySelector('button[aria-label="Remove reference image 4"]')
+    );
+
+    expect(counter('3 / 3')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).toContain(OWN_LINE);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(button('Generate')?.disabled).toBe(false);
+
+    await click(button('Generate'));
+
+    expect(body().references).toEqual(['a', 'b', 'c']);
+    expect(body().brand).toBe('bq');
+  });
+
+  it('lets Generate go with every image once No brand is picked', async () => {
+    await overTheCap();
+    await pick('No brand');
+
+    expect(counter('4 / 4')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(button('Generate')?.disabled).toBe(false);
+
+    await click(button('Generate'));
+
+    expect(body().references).toEqual(['a', 'b', 'c', 'd']);
+    expect(body()).not.toHaveProperty('brand');
+  });
+
+  // Three images added to an edit on No brand, then, back at the prompt, a
+  // brand whose logo takes one of the edit's places and a new image: the
+  // edit is held as Generate is, saying so under its images.
+  const editOverTheCap = async () => {
+    renders(done);
+    await compose();
+    await type(field(), 'A Ramadan night menu post');
+    await click(button('Generate'));
+    await attach(ref('a'), ref('b'), ref('c'));
+    await click(button('Back to prompt'));
+    await pick('Bayt Al Qahwa');
+    renders({
+      name: 'done',
+      media: { id: 'media-2', path: 'https://media/second.png' },
+    });
+    await click(button('Generate'));
+    await type(field(), 'put the logo on the cup');
+  };
+
+  it('holds Apply edit while more images are added to it than fit beside the logo', async () => {
+    await editOverTheCap();
+
+    expect(thumbnails()).toHaveLength(4);
+    expect(counter('4 / 3')?.classList.contains('text-error')).toBe(true);
+    expect(lines()).toContain(TOO_MANY_LINE);
+    expect(button('Add image')).toBeUndefined();
+    expect(apply()?.disabled).toBe(true);
+
+    request.mockClear();
+    await click(apply());
+
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('lets Apply edit go with the brand once one of the images is removed', async () => {
+    await editOverTheCap();
+    await click(
+      document.querySelector('button[aria-label="Remove reference image 4"]')
+    );
+
+    expect(counter('3 / 3')?.classList.contains('text-error')).toBe(false);
+    expect(lines()).not.toContain(TOO_MANY_LINE);
+    expect(apply()?.disabled).toBe(false);
+
+    await click(apply());
+
+    expect(editBody().references).toEqual(['a', 'b']);
+    expect(editBody().brand).toBe('bq');
+  });
+
+  // Only a logo that goes along takes a place, as the server counts them: a
+  // logo deleted from Media is skipped, and a kit without one has none.
+  const LOGO_GONE: Brand = {
+    ...BAYT,
+    kit: { ...BAYT.kit, logo: kitImage('bq-logo', true) },
+  };
+
+  it.each([
+    ['whose logo is gone from Media', 'Bayt Al Qahwa', [RAWDA, LOGO_GONE]],
+    ['with no logo', 'Rawda Florist', BRANDS],
+  ])(
+    "keeps the user's four places beside a brand %s",
+    async (_case, name, list) => {
+      brandList = list;
+      await compose();
+      await pick(name);
+
+      expect(counters()).toContain('0 / 4');
+
+      await click(button('Add image'));
+
+      expect(picker[picker.length - 1].max).toBe(4);
+    }
+  );
+
+  // Nor does the line under the images say a logo stays.
+  const NO_LOGO_OWN_LINE =
+    "Your images take the place of the brand's examples.";
+
+  it.each([
+    ['whose logo is gone from Media', 'Bayt Al Qahwa', [RAWDA, LOGO_GONE]],
+    ['with no logo', 'Rawda Florist', BRANDS],
+  ])(
+    'says nothing of a logo under the images beside a brand %s',
+    async (_case, name, list) => {
+      brandList = list;
+      await compose();
+      await pick(name);
+
+      expect(lines()).toContain(`Optional. ${NO_LOGO_OWN_LINE}`);
+      expect(lines()).not.toContain(BRAND_LINE);
+
+      await attach(ref('a'));
+
+      expect(lines()).toContain(NO_LOGO_OWN_LINE);
+      expect(lines()).not.toContain(OWN_LINE);
+    }
+  );
+
+  it("keeps an edit's three places beside a brand whose logo is gone from Media", async () => {
+    brandList = [RAWDA, LOGO_GONE];
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await generateNow();
+
+    expect(counters()).toContain('1 / 4');
+
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].max).toBe(3);
+  });
+
+  it("keeps today's four places and line under the images on No brand", async () => {
+    await compose();
+
+    expect(counters()).toContain('0 / 4');
+    expect(lines()).toContain(
+      'Optional: add images for the new one to draw on — a character, a product or a look. Refer to them in your prompt as image 1, image 2…'
+    );
+  });
+
+  it("fades the brand's examples and says so once the user adds images of their own", async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(lines()).toContain(BRAND_LINE);
+
+    await attach(ref('a'));
+
+    expect(lines()).toContain(OWN_LINE);
+    expect(lines()).not.toContain(BRAND_LINE);
+    // The logo goes along all the same.
+    expect(kit()).toEqual([
+      { src: 'https://media/bq-logo.png', faded: false },
+      { src: 'https://media/bq-ex1.png', faded: true },
+      { src: 'https://media/bq-ex3.png', faded: true },
+    ]);
+  });
+
+  it('sends the brand with an edit, which keeps 2 places for images of its own', async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await generateNow();
+    renders({
+      name: 'done',
+      media: { id: 'media-2', path: 'https://media/edited.png' },
+    });
+
+    expect(counters()).toContain('1 / 3');
+
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].max).toBe(2);
+
+    await applyEdit('put the logo on the cup');
+
+    expect(editBody().brand).toBe('bq');
+  });
+
+  // The route's refusals of a brand's kit, in the window's language rather
+  // than the server's English, the brand's name isolated so its own direction
+  // can't reorder the sentence: one of the kit's images, named by its part of
+  // the kit and an example's number on the Brands page; more of the user's
+  // images than fit beside the logo; a brand deleted since it was picked.
+  const isolated = (name: string) => `\u2068${name}\u2069`;
+  const BAYT_NAMED = isolated('Bayt Al Qahwa');
+  const REPLACE = 'Replace it on the Brands page, or pick No brand.';
+  const refusedWith = (status: number, body: Record<string, unknown>) =>
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/allowed')
+          ? answer(200, true)
+          : answer(status, { message: 'server words', ...body })
+      )
+    );
+
+  it.each([
+    [
+      'its logo gone from Media',
+      404,
+      { code: 'reference_missing', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo is no longer in your Media library. ${REPLACE}`,
+    ],
+    [
+      'its logo in a format it cannot read',
+      422,
+      { code: 'reference_unreadable', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo can't be used — its file format isn't supported. ${REPLACE}`,
+    ],
+    [
+      'its logo over the bound',
+      422,
+      { code: 'reference_too_large', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo is larger than 30 MB. ${REPLACE}`,
+    ],
+    [
+      'an example gone from Media',
+      404,
+      {
+        code: 'reference_missing',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 3,
+      },
+      `${BAYT_NAMED}'s example post 3 is no longer in your Media library. ${REPLACE}`,
+    ],
+    [
+      'an example in a format it cannot read',
+      422,
+      {
+        code: 'reference_unreadable',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 1,
+      },
+      `${BAYT_NAMED}'s example post 1 can't be used — its file format isn't supported. ${REPLACE}`,
+    ],
+    [
+      'an example over the bound',
+      422,
+      {
+        code: 'reference_too_large',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 1,
+      },
+      `${BAYT_NAMED}'s example post 1 is larger than 30 MB. ${REPLACE}`,
+    ],
+    [
+      'more of the images than fit beside its logo',
+      400,
+      { code: 'brand_logo_place', brand: 'Bayt Al Qahwa' },
+      `With ${BAYT_NAMED}'s logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.`,
+    ],
+    [
+      'a brand deleted since it was picked',
+      404,
+      { code: 'brand_missing' },
+      'That brand no longer exists. Pick another or No brand.',
+    ],
+  ])(
+    'says a refusal for %s in its own words',
+    async (_case, status, body, words) => {
+      refusedWith(status, body);
+      await compose();
+      await pick('Bayt Al Qahwa');
+      await type(field(), 'A Ramadan night menu post');
+      await click(button('Generate'));
+
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalledWith(words, 'warning');
+    }
+  );
+
+  // An edit's image 1 is the image being edited; a kit image has no number,
+  // so its refusal names the brand's logo, never the image on screen.
+  it("says an edit's refusal of the brand's logo as the logo's", async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await generateNow();
+    refusedWith(404, {
+      code: 'reference_missing',
+      brand: 'Bayt Al Qahwa',
+      part: 'logo',
+    });
+
+    await applyEdit('put the logo on the cup');
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(
+      `${BAYT_NAMED}'s logo is no longer in your Media library. ${REPLACE}`,
+      'warning'
+    );
+  });
+
+  // A new tab, so the window, and a post editor under it, keep what is in
+  // them.
+  it('opens Manage brands in a new tab and keeps the window as it was', async () => {
+    await compose();
+    await type(field(), 'A Ramadan night menu post');
+    await pick('Bayt Al Qahwa');
+    await click(brandButton());
+    const manage = document.querySelector('a[href="/brands"]');
+
+    expect(manage?.textContent).toBe('Manage brands');
+    expect(manage?.getAttribute('target')).toBe('_blank');
+
+    await click(manage);
+
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
+    expect(field()?.value).toBe('A Ramadan night menu post');
+    expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
   });
 });

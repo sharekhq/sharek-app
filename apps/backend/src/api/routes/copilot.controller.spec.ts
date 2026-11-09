@@ -125,6 +125,35 @@ describe('CopilotController agent request context', () => {
     expect(context.get('integrations')).toEqual([]);
   });
 
+  // The brand chip's choice decides the kit before the channels do
+  // (contracts/samy-brand.md). BrandService checks it against the
+  // organization's brands, so a string goes on as the browser sent it.
+  describe('the brand chip', () => {
+    it.each([
+      ['none', 'none'],
+      ['each', 'each'],
+      ['a brand id', '7f1c3a52-0d4e-4b8a-9c61-2e5f8a9b3d70'],
+      ['a string that is no brand id', 'Rawda'],
+    ])('carries %s as sent', async (_what, brand) => {
+      const context = await run({ integrations: [], brand });
+      expect(context.get('brand')).toBe(brand);
+    });
+
+    // The request context holds a string, as BrandService reads it
+    it.each([42, true, null, {}, ['7f1c3a52-0d4e-4b8a-9c61-2e5f8a9b3d70']])(
+      'drops %p',
+      async (brand) => {
+        const context = await run({ integrations: [], brand });
+        expect(context.get('brand')).toBeUndefined();
+      }
+    );
+
+    it('sets no brand when the browser sends none, as while the chip waits', async () => {
+      const context = await run({ language: 'en', integrations: [] });
+      expect(context.get('brand')).toBeUndefined();
+    });
+  });
+
   // Samy runs on its own agents, so a service adapter here would only name a
   // model nothing calls.
   it('gives the agent route no fallback model', async () => {

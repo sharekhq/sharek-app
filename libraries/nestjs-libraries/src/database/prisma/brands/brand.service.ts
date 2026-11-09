@@ -7,7 +7,10 @@ import {
 import {
   BrandKitDto,
   CreateBrandDto,
+  EACH_BRAND,
+  NO_BRAND,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import { ImageBrandRefusal } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 export type BrandImage = { id: string; path: string | null; missing: boolean };
 
@@ -166,13 +169,14 @@ export class BrandService {
     return toBrand({ ...brand, brandKit: saved }, rows);
   }
 
-  // Runs before every image render with a brand: one brand, never the list
+  // Runs before every image render with a brand: one brand, never the list.
+  // A deleted one is refused with a code the AI image dialog says in its own
+  // words; Samy reads the message
   async kitFor(org: string, brandId: string): Promise<KitForImage> {
-    const brand = await this.liveBrand(
-      org,
-      brandId,
-      'That brand no longer exists. Pick another or No brand.'
-    );
+    const brand = await this.liveBrand(org, brandId, {
+      message: 'That brand no longer exists. Pick another or No brand.',
+      code: 'brand_missing',
+    });
     const { name, kit } = toBrand(
       brand,
       await this.images(org, imageIds(brand.brandKit))
@@ -194,17 +198,37 @@ export class BrandService {
   // and Samy says back; a refusal makes no image and spends no credit.
   async resolveForSamy(
     org: string,
-    { input, channelIds }: { input?: string; channelIds: string[] }
+    {
+      chip,
+      input,
+      channelIds,
+    }: { chip?: string; input?: string; channelIds: string[] }
   ): Promise<SamyBrand> {
-    // In any case, as brandNamed matches a name
+    // The brand chip's choice comes first (R14): none goes without a kit, and
+    // a live brand of the organization, checked against the list below, wins
+    // over the input. Each, or anything else the browser sent (another
+    // organization's brand, a deleted one), leaves the brand to the input and
+    // the channels, as no chip does.
+    if (chip === NO_BRAND) {
+      return {};
+    }
+    const picked = !!chip && chip !== EACH_BRAND;
+
+    // In any case, as brandNamed matches a name. A brand on the chip outranks
+    // it, so then it waits for the list.
     const wanted = input?.trim();
-    if (wanted?.toLowerCase() === 'none') {
+    const noBrand = wanted?.toLowerCase() === NO_BRAND;
+    if (noBrand && !picked) {
       return {};
     }
 
-    // An organization with no brands goes without a kit, as today
     const brands = await this._brandRepository.list(org);
-    if (!brands.length) {
+    if (brands.some(({ id }) => id === chip)) {
+      return { brandId: chip };
+    }
+
+    // An organization with no brands goes without a kit, as today
+    if (noBrand || !brands.length) {
       return {};
     }
     const names = namesOf(brands);
@@ -248,7 +272,9 @@ export class BrandService {
   private async liveBrand(
     org: string,
     id: string,
-    notFound = 'Brand not found'
+    notFound:
+      | string
+      | { message: string; code: ImageBrandRefusal } = 'Brand not found'
   ) {
     const brand = await this._brandRepository.findLive(org, id);
     if (!brand) {

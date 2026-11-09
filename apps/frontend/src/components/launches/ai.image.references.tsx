@@ -30,12 +30,25 @@ export const ReferenceImages: FC<{
   lead?: Reference;
   /** Ends the row of thumbnails: the edit's Apply action. */
   action?: ReactNode;
-}> = ({ value, onChange, max, lead, action }) => {
+  /**
+   * A brand is picked: the hint says the images take the place of its
+   * examples, and, with `logo`, that its logo goes along all the same (spec
+   * 053, FR-016). Under the edit field, where no example goes, it says only
+   * when the images don't all fit beside the logo.
+   */
+  branded?: boolean;
+  /** The brand's logo is still in Media, so it goes along. */
+  logo?: boolean;
+}> = ({ value, onChange, max, lead, action, branded, logo }) => {
   const t = useT();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
   // In the order the render receives them.
   const images = lead ? [lead, ...value] : value;
+  // More than fit: a brand picked after they were attached took a place for
+  // its logo. The window holds the render until one is removed, or No brand
+  // gives the place back.
+  const over = value.length > max;
 
   // Opened the way MultiMediaComponent opens the library, and limited to the
   // slots left, so a pick that will not fit is refused there with a reason
@@ -158,19 +171,54 @@ export const ReferenceImages: FC<{
       </div>
       <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
         <span className="text-muted">
-          {lead
+          {branded && over
+            ? t(
+                'brands_ref_too_many',
+                "Your images don't all fit beside the brand's logo. Remove one, or pick No brand."
+              )
+            : lead
             ? t(
                 'image_edit_reference_hint',
                 "Image 1 is the one you're editing. Add more to bring something in, like a logo."
               )
+            : branded && value.length
+            ? logo
+              ? t(
+                  'brands_ref_help_own',
+                  "Your images take the place of the brand's examples; its logo stays.",
+                  { count: value.length }
+                )
+              : t(
+                  'brands_ref_help_own_no_logo',
+                  "Your images take the place of the brand's examples.",
+                  { count: value.length }
+                )
+            : branded
+            ? logo
+              ? t(
+                  'brands_ref_help',
+                  "Optional. Your images take the place of the brand's examples; its logo stays."
+                )
+              : t(
+                  'brands_ref_help_no_logo',
+                  "Optional. Your images take the place of the brand's examples."
+                )
             : t(
                 'image_reference_hint',
                 'Optional: add images for the new one to draw on — a character, a product or a look. Refer to them in your prompt as image 1, image 2…'
               )}
         </span>
         {/* Fixed direction, as the prompt's counter has. Counts every image
-            the render takes, the one being edited included. */}
-        <span dir="ltr" className="flex-none tabular-nums text-muted">
+            the render takes, the one being edited included. Over the limit
+            it is in the error tone: unlike the prompt's ceiling, the count
+            isn't one the render takes. */}
+        <span
+          dir="ltr"
+          className={clsx(
+            'flex-none tabular-nums',
+            over ? 'text-error font-[600]' : 'text-muted'
+          )}
+        >
           {t('prompt_counter', '{{used}} / {{max}}', {
             used: images.length,
             max: max + (lead ? 1 : 0),

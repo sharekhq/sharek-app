@@ -20,6 +20,7 @@ let channels: Array<{
   identifier: string;
   picture: string | null;
   customer: { id: string; name: string } | null;
+  disabled?: boolean;
 }> = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -67,9 +68,11 @@ jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
 }));
 // The channel list's picture and order, which have their own spec, and its
-// focus ring.
+// focus ring. The picture is a bare box with the classes its row gives it.
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
-  ChannelPicture: () => null,
+  ChannelPicture: ({ className }: { className?: string }) => (
+    <span data-picture="" className={className} />
+  ),
   compareChannels: () => 0,
   FOCUS_RING: 'focus-visible:ring-2 focus-visible:ring-brand',
 }));
@@ -216,6 +219,8 @@ const kitSaves = () =>
       expect(init.method).toBe('PUT');
       return JSON.parse(init.body);
     });
+
+const classesOf = (node: Element | null) => node?.className.split(' ') ?? [];
 
 const font = (name: string) =>
   Array.from(card('Fonts').querySelectorAll('label'))
@@ -635,6 +640,123 @@ describe('the Channels card (scenario 7)', () => {
 
     expect(document.querySelector('[role="checkbox"]')).toBeNull();
     expect(document.body.textContent).toContain('No other channels to add.');
+  });
+
+  // jsdom lays nothing out, so this pins the structure that sets a name beside
+  // its picture. A <bdi> stretched across its column takes its name's own
+  // direction and lines it up at that direction's start: a Latin name went to
+  // the far side of an Arabic row, an Arabic one to the far side of an English
+  // row. The column lines each of its lines up at its own start instead
+  // (items-start), each as wide as its words and no wider than the column
+  // (max-w-full), cut at its own end, as the brands list's names are.
+  it('sets each name beside its picture on an Arabic page, in the brand’s channels and in Add channels', async () => {
+    document.documentElement.setAttribute('dir', 'rtl');
+    try {
+      await mount(brand());
+      const beside = (name: Element) => {
+        const column = name.parentElement!;
+        expect(name.tagName).toBe('BDI');
+        expect(classesOf(column)).toEqual(
+          expect.arrayContaining(['flex', 'flex-col', 'items-start'])
+        );
+        Array.from(column.children).forEach((line) =>
+          expect(classesOf(line)).toEqual(
+            expect.arrayContaining(['max-w-full', 'truncate'])
+          )
+        );
+      };
+
+      const own = Array.from(card('Channels').querySelectorAll('bdi'));
+      expect(own.map((name) => name.textContent)).toEqual([
+        'بيت القهوة',
+        'baytalqahwa',
+      ]);
+      own.forEach(beside);
+
+      await click(button(card('Channels'), 'Add channels'));
+
+      const rows = Array.from(document.querySelectorAll('[role="checkbox"]'));
+      expect(rows.map((row) => row.querySelector('bdi')!.textContent)).toEqual([
+        'Noor Dental',
+        'Rawda Florist',
+      ]);
+      rows.forEach((row) => beside(row.querySelector('bdi')!));
+    } finally {
+      document.documentElement.removeAttribute('dir');
+    }
+  });
+
+  it('keeps a disabled channel in the brand and its count, dimmed as the channel list dims one, its line saying so in place of its platform (spec, Edge Cases)', async () => {
+    channels = [
+      ...channels,
+      { ...channel('c5', 'Swanky Outlet', BAYT), disabled: true },
+    ];
+    await mount(brand());
+    const row = (name: string) =>
+      Array.from(card('Channels').querySelectorAll('bdi')).find(
+        (node) => node.textContent === name
+      )!;
+
+    expect(
+      card('Channels').querySelector('h3')!.nextElementSibling!.textContent
+    ).toBe('3');
+    const swanky = row('Swanky Outlet');
+    expect(classesOf(swanky)).toContain('opacity-50');
+    expect(
+      classesOf(swanky.closest('div')!.querySelector('[data-picture]'))
+    ).toContain('opacity-50');
+    expect(swanky.nextElementSibling!.textContent).toBe('Channel Disabled');
+
+    const bayt = row('baytalqahwa');
+    expect(classesOf(bayt)).not.toContain('opacity-50');
+    expect(
+      classesOf(bayt.closest('div')!.querySelector('[data-picture]'))
+    ).not.toContain('opacity-50');
+    expect(bayt.nextElementSibling!.textContent).not.toBe('Channel Disabled');
+
+    // it can still leave the brand
+    expect(buttons(card('Channels'), 'Remove from brand')).toHaveLength(3);
+  });
+
+  it('Add channels marks a disabled channel as the channel list does, beside the brand it is in, and still adds it', async () => {
+    channels = [
+      ...channels,
+      { ...channel('c5', 'Swanky Outlet', NOOR), disabled: true },
+    ];
+    await mount(brand());
+
+    await click(button(card('Channels'), 'Add channels'));
+
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="checkbox"]')
+    );
+    const row = (name: string) =>
+      rows.find((node) => node.querySelector('bdi')!.textContent === name)!;
+    const swanky = row('Swanky Outlet');
+    expect(classesOf(swanky.querySelector('bdi'))).toContain('opacity-50');
+    expect(classesOf(swanky.querySelector('[data-picture]'))).toContain(
+      'opacity-50'
+    );
+    expect(swanky.querySelector('bdi')!.nextElementSibling!.textContent).toBe(
+      'Noor Dental · Channel Disabled'
+    );
+
+    const noor = row('Noor Dental');
+    expect(classesOf(noor.querySelector('bdi'))).not.toContain('opacity-50');
+    expect(classesOf(noor.querySelector('[data-picture]'))).not.toContain(
+      'opacity-50'
+    );
+    expect(noor.querySelector('bdi')!.nextElementSibling!.textContent).toBe(
+      'Noor Dental'
+    );
+
+    await click(swanky);
+    await click(inModal('Add'));
+
+    expect(request).toHaveBeenCalledWith('/integrations/c5/group', {
+      method: 'PUT',
+      body: JSON.stringify({ group: 'b1' }),
+    });
   });
 });
 

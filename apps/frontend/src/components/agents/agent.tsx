@@ -6,6 +6,10 @@ import useCookie from 'react-use-cookie';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ChatsPanel } from '@gitroom/frontend/components/agents/agent.chats';
+import {
+  BrandChoice,
+  useBrandChoice,
+} from '@gitroom/frontend/components/agents/agent.brand.chip';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import {
   ChannelPanel,
@@ -16,6 +20,8 @@ import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 
 export const PropertiesContext = createContext({
   properties: [],
+  // the brand chip's choice among the picked channels' brands (useBrandChoice)
+  brand: undefined as BrandChoice | undefined,
   // the open chat, which the chat header reads from CopilotKit and sets here,
   // so a chat started at /agents/new has its id too (C21)
   threadId: '',
@@ -51,6 +57,7 @@ export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
       ),
     [data, ids]
   );
+  const brand = useBrandChoice(properties);
   const [threadId, setThreadId] = useState('');
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [channelsOpen, setChannelsOpen] = useState(false);
@@ -89,6 +96,7 @@ export const Agent: FC<{ children: ReactNode }> = ({ children }) => {
     <PropertiesContext.Provider
       value={{
         properties,
+        brand,
         threadId,
         setThreadId,
         chatsHidden,

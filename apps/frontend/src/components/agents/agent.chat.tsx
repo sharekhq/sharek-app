@@ -72,11 +72,15 @@ import {
   ChannelSummary,
   ChatHeader,
 } from '@gitroom/frontend/components/agents/agent.chat.header';
+import {
+  BrandChip,
+  BrandNote,
+} from '@gitroom/frontend/components/agents/agent.brand.chip';
 
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
   const params = useParams<{ id: string }>();
-  const { properties } = useContext(PropertiesContext);
+  const { properties, brand } = useContext(PropertiesContext);
   const t = useT();
   // A chat started at /agents/new gets its id here, as an open chat gets its
   // own from the address. Given none, CopilotKit makes one for its context,
@@ -100,6 +104,10 @@ export const AgentChat: FC = () => {
         // Samy states this language in its system prompt instead of inferring
         // it from the conversation, which it got wrong (Spanish, unprompted).
         language: i18next.language,
+        // The user's pick in the brand chip, for Samy's images. Left out
+        // without one, so the image tool goes by a brand the user names, then
+        // the selected channels (R14).
+        ...(brand?.picked ? { brand: brand.picked } : {}),
       }}
     >
       <Hooks />
@@ -390,8 +398,21 @@ const NewInput: FC<InputProps> = (props) => {
       <Input
         {...props}
         onChange={setValue}
-        summary={<ChannelSummary />}
-        attachments={<AttachmentsTray />}
+        summary={
+          // The box's own inset, above the images and the text. The brand
+          // chip follows the pill and wraps under it where both don't fit,
+          // as on a phone (FR-026).
+          <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[6px] pt-[10px] px-[12px]">
+            <ChannelSummary />
+            <BrandChip />
+          </div>
+        }
+        attachments={
+          <>
+            <AttachmentsTray />
+            <BrandNote />
+          </>
+        }
         tools={<AttachmentTools value={value} />}
         uploading={uploading}
         onPasteFiles={addFiles}

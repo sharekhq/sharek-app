@@ -20,6 +20,10 @@ export const BRAND_EXAMPLES_MAX = 3;
 export const BRAND_COLOURS_MAX = 6;
 export const BRAND_FONT_MAX = 60;
 
+// The brand chip's choices besides a brand's id: no kit, or each channel's own.
+export const NO_BRAND = 'none';
+export const EACH_BRAND = 'each';
+
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 

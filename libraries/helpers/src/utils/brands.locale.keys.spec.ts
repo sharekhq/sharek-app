@@ -4,9 +4,13 @@
 // (version 4, the `T = { en, ar }` table of BrandsList, BrandKit, BrandDialog
 // and Main's empty state), with the locale files' straight apostrophe where the
 // canvas writes a curly one. Part 1 adds the keys to en and ar only (tasks.md
-// T016); the six other languages fall back to English. The words that change
+// T016); the six other languages fall back to English, but for the sidebar
+// item, the page's header and its title, which sit beside their own reworded
+// customers and say brand in all eight (part 1's walk). The words that change
 // elsewhere, customer and group becoming brand (board Rename), change in all
-// eight languages.
+// eight languages. Part 2 (tasks.md T051) adds the brand chip in Samy's message
+// box, its list, the note on attached images, and the AI image dialog's Brand
+// field (the parts BrandMenu, Composer and StudioBrand), in en and ar only.
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -155,6 +159,113 @@ const STRINGS = [
   ],
   // The Delete dialog's title (BrandsDelete).
   ['brands_delete_named', 'Delete {{name}}?', 'حذف {{name}}؟'],
+  // Part 2. The list (BrandMenu), titled for a message in Samy and for an
+  // image in the AI image dialog. A brand's row says its channels with
+  // channels_count; No brand's row is brands_no_brand over brands_no_brand_sub.
+  [
+    'brands_for_this_message',
+    'Brand for this message',
+    'العلامة التجارية لهذه الرسالة',
+  ],
+  [
+    'brands_for_this_image',
+    'Brand for this image',
+    'العلامة التجارية لهذه الصورة',
+  ],
+  ['brands_each_channel', "Each channel's brand", 'علامة كل قناة'],
+  [
+    'brands_each_channel_sub',
+    'One image per brand, a credit each',
+    'صورة لكل علامة، برصيد لكل صورة',
+  ],
+  [
+    'brands_no_brand_sub',
+    'Sends no logo, examples or colours',
+    'لا يرسل شعارًا ولا منشورات نموذجية ولا ألوانًا',
+  ],
+  ['brands_manage_brands', 'Manage brands', 'إدارة العلامات التجارية'],
+  // The chip in Samy's message box (Composer): the label while it waits, and
+  // its accessible name, which says the chip's label and what choosing does.
+  ['brands_choose_a_brand', 'Choose a brand', 'اختر علامة تجارية'],
+  [
+    'brands_chip_label',
+    'Brand for this message: {{brand}}. Change brand',
+    'العلامة التجارية لهذه الرسالة: {{brand}}. تغيير العلامة',
+  ],
+  // The AI image dialog's Brand field (StudioBrand): its button's accessible
+  // name, said as the chip's is, what goes along with the brand, and the
+  // reference images' help line while a brand is picked and none of the
+  // user's own images is attached.
+  [
+    'brands_field_label',
+    'Brand for this image: {{brand}}. Change brand',
+    'العلامة التجارية لهذه الصورة: {{brand}}. تغيير العلامة',
+  ],
+  ['brands_goes_along', 'Goes along:', 'يرسل معها:'],
+  [
+    'brands_ref_help',
+    "Optional. Your images take the place of the brand's examples; its logo stays.",
+    'اختياري. تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+  ],
+  // Not on the canvas: the same line for a brand whose logo doesn't go along,
+  // none in its kit or one gone from Media, without the logo's clause.
+  [
+    'brands_ref_help_no_logo',
+    "Optional. Your images take the place of the brand's examples.",
+    'اختياري. تحل صورك محل المنشورات النموذجية للعلامة.',
+  ],
+  // Not on the canvas: the same line while a brand picked after the user's
+  // images leaves one more of them than fits beside its logo, which holds
+  // Generate.
+  [
+    'brands_ref_too_many',
+    "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.",
+    'لا تتسع صورك كلها بجانب شعار العلامة. أزل إحداها، أو اختر «بلا علامة تجارية».',
+  ],
+  // Not on the canvas: the image routes' refusals of a brand's kit, said in
+  // the dialog's language. {{brand}} is the brand's name, {{n}} an example's
+  // number on the Brands page; the English is the routes', worded as the
+  // dialog words a refused reference.
+  [
+    'brands_refused_logo_missing',
+    "{{brand}}'s logo is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+    'لم يعد شعار {{brand}} موجودًا في مكتبة الوسائط. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_unreadable',
+    "{{brand}}'s logo can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+    'لا يمكن استخدام شعار {{brand}} لأن صيغة ملفه غير مدعومة. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_too_large',
+    "{{brand}}'s logo is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+    'حجم شعار {{brand}} أكبر من 30 ميجابايت. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_missing',
+    "{{brand}}'s example post {{n}} is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+    'لم يعد المنشور النموذجي {{n}} لـ{{brand}} موجودًا في مكتبة الوسائط. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_unreadable',
+    "{{brand}}'s example post {{n}} can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+    'لا يمكن استخدام المنشور النموذجي {{n}} لـ{{brand}} لأن صيغة ملفه غير مدعومة. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_too_large',
+    "{{brand}}'s example post {{n}} is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+    'حجم المنشور النموذجي {{n}} لـ{{brand}} أكبر من 30 ميجابايت. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_place',
+    "With {{brand}}'s logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.",
+    'مع شعار {{brand}}، لا مكان إلا لـ3 من صورك (2 عند التعديل). أزل إحداها، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_brand_missing',
+    'That brand no longer exists. Pick another or No brand.',
+    'لم تعد هذه العلامة التجارية موجودة. اختر علامة أخرى أو «بلا علامة تجارية».',
+  ],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename
@@ -167,6 +278,11 @@ const REUSED = [
   ['cancel', 'Cancel', 'إلغاء'],
   ['channels', 'Channels', 'القنوات'],
   ['name', 'Name', 'الاسم'],
+  // Part 2: the AI image dialog's Brand field is labelled as the post
+  // editor's brand select is (board Rename's select_customer_label).
+  ['select_customer_label', 'Brand', 'العلامة التجارية'],
+  // A disabled channel in a brand's kit reads as the channel list reads it.
+  ['channel_disabled', 'Channel Disabled', 'تم تعطيل القناة'],
 ] as const;
 
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
@@ -221,6 +337,91 @@ const PLURALS = [
       many: 'تبقى قنواتها الـ{{count}} متصلة وتنتقل إلى «بلا علامة تجارية»، ويبقى الشعار والمنشورات النموذجية في مكتبة الوسائط.',
       other:
         'تبقى قنواتها الـ{{count}} متصلة وتنتقل إلى «بلا علامة تجارية»، ويبقى الشعار والمنشورات النموذجية في مكتبة الوسائط.',
+    },
+  ],
+  // Part 2. "2 brands" while the picked channels span brands (spec FR-023).
+  [
+    'brands_count',
+    { one: '1 brand', other: '{{count}} brands' },
+    {
+      zero: 'لا علامات',
+      one: 'علامة واحدة',
+      two: 'علامتان',
+      few: '{{count}} علامات',
+      many: '{{count}} علامة',
+      other: '{{count}} علامة',
+    },
+  ],
+  // The note inside Samy's message box while images are attached and a brand
+  // is chosen; {{brand}} is its name.
+  [
+    'brands_attach_note',
+    {
+      one: "Your 1 image goes in place of {{brand}}'s examples. Its logo still goes along.",
+      other:
+        "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      one: 'تحل صورتك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      two: 'تحل صورتاك محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      few: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      many: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+      other:
+        'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}، ويبقى شعارها مرافقًا.',
+    },
+  ],
+  // Not on the canvas: the same for a brand whose logo doesn't go along, none
+  // in its kit or one gone from Media, without the logo's clause.
+  [
+    'brands_attach_note_no_logo',
+    {
+      one: "Your 1 image goes in place of {{brand}}'s examples.",
+      other: "Your {{count}} images go in place of {{brand}}'s examples.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية لـ{{brand}}.',
+      one: 'تحل صورتك محل المنشورات النموذجية لـ{{brand}}.',
+      two: 'تحل صورتاك محل المنشورات النموذجية لـ{{brand}}.',
+      few: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+      many: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+      other: 'تحل صورك الـ{{count}} محل المنشورات النموذجية لـ{{brand}}.',
+    },
+  ],
+  // The AI image dialog's help line once the user's own images are attached
+  // beside a brand, up to 3. It says no number, so the forms differ only in
+  // image and images.
+  [
+    'brands_ref_help_own',
+    {
+      one: "Your image takes the place of the brand's examples; its logo stays.",
+      other:
+        "Your images take the place of the brand's examples; its logo stays.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      one: 'تحل صورتك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      two: 'تحل صورتاك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      few: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      many: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+      other: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+    },
+  ],
+  // Not on the canvas: the same for a brand whose logo doesn't go along,
+  // without the logo's clause.
+  [
+    'brands_ref_help_own_no_logo',
+    {
+      one: "Your image takes the place of the brand's examples.",
+      other: "Your images take the place of the brand's examples.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      one: 'تحل صورتك محل المنشورات النموذجية للعلامة.',
+      two: 'تحل صورتاك محل المنشورات النموذجية للعلامة.',
+      few: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      many: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      other: 'تحل صورك محل المنشورات النموذجية للعلامة.',
     },
   ],
 ] as const;
@@ -377,29 +578,38 @@ const UNCHANGED: Record<string, Record<string, string | undefined>> = {
 const forms = (lng: string) =>
   new Intl.PluralRules(lng).resolvedOptions().pluralCategories;
 
-// The files that render these strings: the Brands components (their specs
-// aside), the page, which sets the title, and the sidebar. A file not written
+// A directory's components, their specs aside.
+const componentsIn = (dir: string) => {
+  const full = path.join(FRONTEND_DIR, dir);
+  return fs.existsSync(full)
+    ? fs
+        .readdirSync(full)
+        .filter((file) => /\.tsx?$/.test(file) && !/\.spec\./.test(file))
+        .map((file) => path.join(full, file))
+    : [];
+};
+
+// The files that render these strings: the Brands components, among them the
+// brand list part 2 shares, the page, which sets the title, and the sidebar;
+// for part 2, Samy's components, where the chip and the note sit, and the AI
+// image dialog with its Brand field and reference images. A file not written
 // yet reads as empty, so its keys fail to be found rather than the suite
 // failing to load.
-const SOURCES = () => {
-  const brandsDir = path.join(FRONTEND_DIR, 'components/brands');
-  const components = fs.existsSync(brandsDir)
-    ? fs
-        .readdirSync(brandsDir)
-        .filter((file) => /\.tsx?$/.test(file) && !/\.spec\./.test(file))
-        .map((file) => path.join(brandsDir, file))
-    : [];
-  return [
-    ...components,
+const SOURCES = () =>
+  [
+    ...componentsIn('components/brands'),
     path.join(FRONTEND_DIR, 'app/(app)/(site)/brands/page.tsx'),
     path.join(FRONTEND_DIR, 'components/layout/top.menu.tsx'),
+    ...componentsIn('components/agents'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.tsx'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.brand.tsx'),
+    path.join(FRONTEND_DIR, 'components/launches/ai.image.references.tsx'),
   ]
     .filter((file) => fs.existsSync(file))
     .map((file) => fs.readFileSync(file, 'utf8'))
     .join('\n');
-};
 
-describe('Brands page locale keys', () => {
+describe('Brands locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
@@ -456,9 +666,10 @@ describe('Brands page locale keys', () => {
     }
   );
 
-  // Red until the components exist (T018 to T026): a key no t() call reads is
-  // a string the page shows in English or not at all.
-  describe('every string the page renders', () => {
+  // Red until the components exist (T018 to T026, and for part 2 T053, T055
+  // and T060): a key no t() call reads is a string the app shows in English or
+  // not at all.
+  describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
         /(?:\bi18next\.t|(?<![A-Za-z0-9_$.])t)\(\s*'([A-Za-z0-9_]+)'/g
@@ -467,7 +678,7 @@ describe('Brands page locale keys', () => {
     );
 
     it.each([...STRINGS, ...REUSED, ...PLURALS].map(([key]) => key))(
-      'is read by a t() call in the Brands page or the sidebar: %s',
+      'is read by a t() call in the Brands page, the sidebar, Samy or the AI image dialog: %s',
       (key) => {
         expect(referenced).toContain(key);
       }
@@ -505,4 +716,25 @@ describe('the words that change: customer and group become brand', () => {
   )('keeps %s.%s as it was', (lng, key) => {
     expect(locales[lng][key]).toBe(UNCHANGED[key][lng]);
   });
+});
+
+// The sidebar item, the page's header (the phone's link back to it too) and
+// its title: in the six they sit beside customers, which says each language's
+// own word for brand, so they say it as well rather than English.
+const IN_ALL_EIGHT = ['brands', 'brands_all_brands', 'page_title_brands'];
+
+describe('the Brands page in the six upstream languages', () => {
+  const locales = Object.fromEntries(
+    ['en', ...UPSTREAM].map((lng) => [lng, readLocale(lng)])
+  );
+
+  it.each(UPSTREAM.flatMap((lng) => IN_ALL_EIGHT.map((key) => [lng, key])))(
+    'translates %s.%s with its own word for brand',
+    (lng, key) => {
+      const value = locales[lng][key];
+      expect(typeof value).toBe('string');
+      expect(value).not.toBe(locales.en[key]);
+      expect(value).toMatch(BRAND_WORD[lng as Upstream]);
+    }
+  );
 });

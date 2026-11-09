@@ -77,16 +77,23 @@ jest.mock('i18next', () => ({ __esModule: true, default: { language: 'en' } }));
 
 import i18next from 'i18next';
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
+import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { ASSISTANT_LABELS } from '@gitroom/frontend/components/ui/assistant.labels';
 
-const render = () => {
+// brand: the brand chip's choice, which the agent page keeps beside the
+// channels: what the chip shows, and what the user picked in it.
+const render = (brand?: { shown?: string; picked?: string }) => {
   capturedProperties.length = 0;
   capturedSingleEndpoint.length = 0;
   capturedLabels.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
   act(() => {
-    createRoot(container).render(<AgentChat />);
+    createRoot(container).render(
+      <PropertiesContext.Provider value={{ properties: [], brand }}>
+        <AgentChat />
+      </PropertiesContext.Provider>
+    );
   });
   expect(capturedProperties.length).toBeGreaterThan(0);
   return capturedProperties[capturedProperties.length - 1];
@@ -109,6 +116,31 @@ describe('AgentChat properties', () => {
 
   it('still sends the selected channels', () => {
     expect(render().integrations).toEqual([]);
+  });
+
+  // Samy's image tool reads the user's pick in the chip from the request: no
+  // brand, each channel's own, or one brand by its id (spec 053, R14). The
+  // server checks it.
+  it.each(['none', 'each', 'brand-1'])(
+    'sends the brand the user picked in the chip: %s',
+    (brand) => {
+      expect(render({ shown: brand, picked: brand }).brand).toBe(brand);
+    }
+  );
+
+  // What the chip shows without a pick is what the server finds from the
+  // selected channels, so sending it would only outrank a brand the user
+  // names to Samy.
+  it.each(['none', 'each', 'brand-1'])(
+    'sends no brand while the chip only shows what the channels give: %s',
+    (brand) => {
+      expect(Object.keys(render({ shown: brand }))).not.toContain('brand');
+    }
+  );
+
+  // With no choice yet the tool falls back to the selected channels' brand.
+  it('sends no brand while the chip waits for one', () => {
+    expect(Object.keys(render())).not.toContain('brand');
   });
 
   // The backend's /copilot/agent is CopilotKit 1.72's single endpoint; the

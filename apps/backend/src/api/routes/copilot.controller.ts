@@ -38,6 +38,9 @@ export type ChannelsContext = {
   integrations: unknown[];
   // The interface language as an i18next code, straight from the browser.
   language: string;
+  // The brand chip's choice as the browser sent it, when a string: none, each
+  // or a brand id, which BrandService checks.
+  brand?: string;
   organization: string;
   ui: string;
 };
@@ -113,6 +116,14 @@ export class CopilotController {
     // rather than leave the model to infer. Same untrusted browser payload as
     // the channels above: the prompt validates it and falls back on its own.
     requestContext.set('language', forwardedProps?.language || '');
+
+    // The brand chip's choice, which the image tool follows before the
+    // channels (R14). The same untrusted payload: BrandService checks it
+    // against the organization's brands, and only a string is kept.
+    const brand = forwardedProps?.brand;
+    if (typeof brand === 'string') {
+      requestContext.set('brand', brand);
+    }
 
     requestContext.set('organization', JSON.stringify(organization));
     requestContext.set('ui', 'true');

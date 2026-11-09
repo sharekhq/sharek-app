@@ -30,6 +30,10 @@ const org = { id: 'org-1', name: 'Sharek' };
 
 const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
+// What the result tells Samy to say beside a brand's image (FR-019).
+const sayFor = (brand: string) =>
+  `Name ${brand} in your reply, exactly as written here, and say its brand kit went with this image.`;
+
 const makeTool = (
   generateImageFromLinks?: jest.Mock,
   imageCreditsLeft?: jest.Mock,
@@ -55,13 +59,17 @@ const makeTool = (
 // checkAuth only writes to the request context when it finds an authInfo, and
 // there is no async-storage context in a unit test, so the organization the tool
 // reads back is the one seeded here. The channels are what the browser sent as
-// selected, left off when a test sends none.
-const context = (integrations?: unknown) => {
+// selected, and the brand the chip's choice as the copilot controller kept it,
+// each left off when a test sends none.
+const context = (integrations?: unknown, brand?: string) => {
   const requestContext = new Map<string, unknown>([
     ['organization', JSON.stringify(org)],
   ]);
   if (integrations !== undefined) {
     requestContext.set('integrations', integrations);
+  }
+  if (brand !== undefined) {
+    requestContext.set('brand', brand);
   }
   return { requestContext } as any;
 };
@@ -92,7 +100,7 @@ describe('SamyImageTool', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
     );
   });
 
@@ -202,14 +210,15 @@ describe('SamyImageTool', () => {
       'error',
       'id',
       'path',
+      'say',
     ]);
     expect(tool.outputSchema.safeParse({ error: 'no' }).success).toBe(true);
     expect(tool.outputSchema.safeParse(made).success).toBe(true);
   });
 
   // Samy names the brand in its reply only from this (FR-019).
-  it("keeps the brand's name beside the image", () => {
-    const named = { ...made, brand: 'Acme' };
+  it("keeps the brand's name and what to say of it beside the image", () => {
+    const named = { ...made, brand: 'Acme', say: sayFor('Acme') };
 
     expect(makeTool().tool.outputSchema.parse(named)).toEqual(named);
   });
@@ -267,6 +276,30 @@ describe('SamyImageTool', () => {
       });
     });
 
+    // The copilot controller keeps only none, each or a live brand id of the
+    // organization, so the brand service takes it as it is (research R14).
+    it.each([
+      ['none', 'none'],
+      ['each', 'each'],
+      ['a brand', ACME],
+    ])(
+      "asks with the brand chip's choice, %s, beside the name and the channels",
+      async (_name, chip) => {
+        const { tool, brands } = makeTool();
+
+        await tool.execute(
+          { prompt: 'a cat', brand: 'Bloom' },
+          context([{ id: 'channel-1', identifier: 'instagram' }], chip)
+        );
+
+        expect(brands.resolveForSamy).toHaveBeenCalledWith('org-1', {
+          chip,
+          input: 'Bloom',
+          channelIds: ['channel-1'],
+        });
+      }
+    );
+
     it.each([
       ['none were sent', undefined],
       ['they are not a list', { id: 'channel-1' }],
@@ -313,17 +346,37 @@ describe('SamyImageTool', () => {
       }
     );
 
-    it("returns the brand's name when the render names it", async () => {
-      const named = { ...made, brand: 'Acme' };
-      const { tool } = makeTool(
-        jest.fn().mockResolvedValue(named),
-        undefined,
-        picks({ brandId: ACME })
-      );
+    // The instruction line alone left the brand out of 1 reply in 2 on the
+    // walk, so the result says it beside the image, the name as stored.
+    it.each([
+      ['a Latin name', 'Acme'],
+      ['an Arabic name', 'مخبز النور'],
+    ])(
+      "returns the brand's name and what to say of it when the render names %s",
+      async (_name, name) => {
+        const named = { ...made, brand: name };
+        const { tool } = makeTool(
+          jest.fn().mockResolvedValue(named),
+          undefined,
+          picks({ brandId: ACME })
+        );
 
-      expect(
-        await tool.execute({ prompt: 'a cat', brand: 'Acme' }, context())
-      ).toEqual(named);
+        expect(
+          await tool.execute({ prompt: 'a cat', brand: name }, context())
+        ).toStrictEqual({ ...named, say: sayFor(name) });
+      }
+    );
+
+    // A brand whose kit sent nothing comes back unnamed, so nothing credits it.
+    it.each([
+      ['no brand is picked', {}],
+      ["the brand's kit sent nothing", { brandId: ACME }],
+    ])('returns the image alone when %s', async (_name, answer) => {
+      const { tool } = makeTool(undefined, undefined, picks(answer));
+
+      expect(await tool.execute({ prompt: 'a cat' }, context())).toStrictEqual(
+        made
+      );
     });
 
     describe('when it refuses', () => {
@@ -389,6 +442,31 @@ describe('SamyImageTool', () => {
           run
         )
       ).toEqual({ error: words });
+      expect(run.requestContext.get('samyImagesMade')).toBe(0);
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
+    });
+
+    // The chip's brand is checked when the message is sent, so it may be
+    // deleted before the render reads its kit. kitFor's refusal is coded for
+    // the AI image dialog; Samy gets its words.
+    it("hands back kitFor's words when the chip's brand was deleted since, and gives the slot and credit back", async () => {
+      const words = 'That brand no longer exists. Pick another or No brand.';
+      const render = jest
+        .fn()
+        .mockRejectedValueOnce(
+          new HttpException({ message: words, code: 'brand_missing' }, 404)
+        )
+        .mockResolvedValue(made);
+      const { tool } = makeTool(
+        render,
+        jest.fn().mockResolvedValue({ credits: 1, resetsAt: RESETS_AT }),
+        picks({ brandId: ACME })
+      );
+      const run = context(undefined, ACME);
+
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual({
+        error: words,
+      });
       expect(run.requestContext.get('samyImagesMade')).toBe(0);
       expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
     });

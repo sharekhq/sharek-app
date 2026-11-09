@@ -1936,16 +1936,31 @@ describe('with a brand', () => {
   const TOO_MANY_FOR_SAMY =
     "With Rawda Florist's logo, only 3 of the user's images fit (2 when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.";
   const GONE = 'That brand no longer exists. Pick another or No brand.';
+  // kitFor's refusal of a brand deleted since it was picked, coded so the
+  // window can say it in its own words
+  const gone = () =>
+    new HttpException({ message: GONE, code: 'brand_missing' }, 404);
+  // The cap's body: the code and the brand it names, for the window to say
+  const TOO_MANY_BODY = {
+    message: TOO_MANY,
+    code: 'brand_logo_place',
+    brand: 'Rawda Florist',
+  };
 
   // One of the kit's images that can't go along: over the bound, no picture,
   // or gone from Media since kitFor read the kit. Example 2 was deleted, so
-  // the one that can't be decoded is the Brands page's third.
-  const unusable: Array<[string, KitForImage, 404 | 422, string]> = [
+  // the one that can't be decoded is the Brands page's third. Last, what its
+  // refusal names for the window: the reason's code, the brand, the part of
+  // the kit and an example's number.
+  const unusable: Array<
+    [string, KitForImage, 404 | 422, string, Record<string, unknown>]
+  > = [
     [
       'a logo over the bound',
       kit({ logoId: 'big' }),
       422,
       "Rawda Florist's logo is larger than 30 MB",
+      { code: 'reference_too_large', brand: 'Rawda Florist', part: 'logo' },
     ],
     [
       'an example it cannot decode',
@@ -1958,12 +1973,19 @@ describe('with a brand', () => {
       }),
       422,
       "Rawda Florist's example post 3 can't be used because its file format isn't supported",
+      {
+        code: 'reference_unreadable',
+        brand: 'Rawda Florist',
+        part: 'example',
+        n: 3,
+      },
     ],
     [
       'a logo gone from Media',
       kit({ logoId: 'gone' }),
       404,
       "Rawda Florist's logo is no longer in the Media library",
+      { code: 'reference_missing', brand: 'Rawda Florist', part: 'logo' },
     ],
   ];
   // The library has big and bad; gone is nowhere.
@@ -2186,6 +2208,7 @@ describe('with a brand', () => {
         expect(err).toBeInstanceOf(HttpException);
         expect(err.getStatus()).toBe(400);
         expect(err.message).toBe(TOO_MANY);
+        expect(err.getResponse()).toEqual(TOO_MANY_BODY);
         expect(repository.getMediaByIds).not.toHaveBeenCalled();
         expect(read).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
@@ -2197,7 +2220,7 @@ describe('with a brand', () => {
         const { service, repository, subscription } = makeService({
           openAi: ai,
           references: library,
-          kit: new HttpException(GONE, 404),
+          kit: gone(),
         });
         const request = dto({ references: ['a'], brand });
 
@@ -2206,6 +2229,10 @@ describe('with a brand', () => {
         expect(err).toBeInstanceOf(HttpException);
         expect(err.getStatus()).toBe(404);
         expect(err.message).toBe(GONE);
+        expect(err.getResponse()).toEqual({
+          message: GONE,
+          code: 'brand_missing',
+        });
         expect(repository.getMediaByIds).not.toHaveBeenCalled();
         expect(read).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
@@ -2213,11 +2240,12 @@ describe('with a brand', () => {
       });
 
       // A kit image has no thumbnail, so its refusal names its part of the
-      // kit, and carries no code or number the window would word as one of
-      // the user's images.
+      // kit, and carries no index the window would word as one of the user's
+      // images: the reason's code goes with the brand, the part and an
+      // example's number.
       it.each(unusable)(
         'for %s, naming its part of the kit',
-        async (_case, answer, status, words) => {
+        async (_case, answer, status, words, named) => {
           const { service, subscription } = makeService({
             openAi: openAi(),
             references: withUnusable,
@@ -2230,11 +2258,9 @@ describe('with a brand', () => {
 
           expect(err).toBeInstanceOf(HttpException);
           expect(err.getStatus()).toBe(status);
-          expect(err.message).toBe(
-            `${words}. Replace it on the Brands page, or pick No brand.`
-          );
-          expect(err.getResponse()).not.toHaveProperty('code');
-          expect(err.getResponse()).not.toHaveProperty('index');
+          const message = `${words}. Replace it on the Brands page, or pick No brand.`;
+          expect(err.message).toBe(message);
+          expect(err.getResponse()).toEqual({ message, ...named });
           expect(subscription.useCredit).not.toHaveBeenCalled();
         }
       );
@@ -2381,6 +2407,7 @@ describe('with a brand', () => {
         expect(err).toBeInstanceOf(HttpException);
         expect(err.getStatus()).toBe(400);
         expect(err.message).toBe(TOO_MANY);
+        expect(err.getResponse()).toEqual(TOO_MANY_BODY);
         expect(repository.getMediaByIds).not.toHaveBeenCalled();
         expect(read).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
@@ -2390,13 +2417,17 @@ describe('with a brand', () => {
         const { service, repository, subscription } = makeService({
           openAi: openAi(),
           references: library,
-          kit: new HttpException(GONE, 404),
+          kit: gone(),
         });
 
         const err = await editWith(service, edit()).catch((e) => e);
 
         expect(err.getStatus()).toBe(404);
         expect(err.message).toBe(GONE);
+        expect(err.getResponse()).toEqual({
+          message: GONE,
+          code: 'brand_missing',
+        });
         expect(repository.getMediaByIds).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
       });
@@ -2415,7 +2446,13 @@ describe('with a brand', () => {
         expect(err.message).toBe(
           "Rawda Florist's logo is larger than 30 MB. Replace it on the Brands page, or pick No brand."
         );
-        expect(err.getResponse()).not.toHaveProperty('index');
+        expect(err.getResponse()).toEqual({
+          message:
+            "Rawda Florist's logo is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+          code: 'reference_too_large',
+          brand: 'Rawda Florist',
+          part: 'logo',
+        });
         expect(subscription.useCredit).not.toHaveBeenCalled();
       });
     });
@@ -2541,9 +2578,34 @@ describe('with a brand', () => {
         expect(err).toBeInstanceOf(HttpException);
         expect(err.getStatus()).toBe(400);
         expect(err.message).toBe(TOO_MANY_FOR_SAMY);
+        expect(err.getResponse()).toBe(TOO_MANY_FOR_SAMY);
         expect(subscription.useCredit).not.toHaveBeenCalled();
       }
     );
+
+    // The brand chip's brand, deleted since the message was sent: Samy is
+    // handed kitFor's words as they are.
+    it("refuses a brand deleted since it was picked in kitFor's words, with no credit", async () => {
+      const { service, subscription } = makeService({
+        openAi: openAi(),
+        references: library,
+        kit: gone(),
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a')],
+          brand,
+        })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(404);
+      expect(err.message).toBe(GONE);
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
 
     // The kit's images aren't among Samy's links, so Samy is told which part
     // of whose kit it is and what the user can do.
@@ -2566,9 +2628,9 @@ describe('with a brand', () => {
 
         expect(err).toBeInstanceOf(HttpException);
         expect(err.getStatus()).toBe(status);
-        expect(err.message).toBe(
-          `${words}, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`
-        );
+        const message = `${words}, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`;
+        expect(err.message).toBe(message);
+        expect(err.getResponse()).toBe(message);
         expect(subscription.useCredit).not.toHaveBeenCalled();
       }
     );

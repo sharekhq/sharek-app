@@ -29,6 +29,7 @@ import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   Brand,
+  isLive,
   useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
@@ -174,28 +175,50 @@ const FontField: FC<{
   </label>
 );
 
-// A channel on a brand's page or on No brand's: its picture, its name in its
-// own direction and its platform, then what the row offers (a brand's ×).
+// A channel on a brand's page, on No brand's or in Add channels: its picture,
+// its name in its own direction and a line under it, its platform unless the
+// row gives a line of its own, then what the row offers (a brand's ×, the
+// picker's tick). The name lines up with the start beside the picture,
+// whatever its own direction, as the brands list's names do. A disabled
+// channel stays in its brand, dimmed as the channel list dims one, its line
+// saying so in place of its platform.
 export const BrandChannel: FC<{
   channel: Channel;
+  line?: ReactNode;
   children?: ReactNode;
-}> = ({ channel, children }) => (
-  <div className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors">
-    <ChannelPicture channel={channel} />
-    <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-      <bdi className="text-[14px] font-[500] text-ink truncate">
-        {channel.name}
-      </bdi>
-      <span className="text-[12px] text-muted truncate">
-        {platformLabel(channel.identifier)}
+}> = ({ channel, line, children }) => {
+  const t = useT();
+  return (
+    <div className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors">
+      <ChannelPicture
+        channel={channel}
+        className={clsx(channel.disabled && 'opacity-50')}
+      />
+      <span className="flex-1 min-w-0 flex flex-col items-start gap-[1px]">
+        <bdi
+          className={clsx(
+            'max-w-full text-[14px] font-[500] text-ink truncate',
+            channel.disabled && 'opacity-50'
+          )}
+        >
+          {channel.name}
+        </bdi>
+        <span className="max-w-full text-[12px] text-muted truncate">
+          {line ??
+            (channel.disabled
+              ? t('channel_disabled', 'Channel Disabled')
+              : platformLabel(channel.identifier))}
+        </span>
       </span>
-    </span>
-    {children}
-  </div>
-);
+      {children}
+    </div>
+  );
+};
 
 // Add channels' picker: the organization's channels in no brand or another
-// one, each saying which, ticked to move into this brand.
+// one, each saying which, ticked to move into this brand. Each row is a
+// BrandChannel in a button, its line the brand in place of the platform, and
+// a disabled channel's saying so after it.
 const ChannelPicker: FC<{
   channels: Channel[];
   onAdd: (ids: string[]) => void;
@@ -236,25 +259,27 @@ const ChannelPicker: FC<{
               aria-checked={checked}
               onClick={() => toggle(channel.id)}
               className={clsx(
-                'flex items-center gap-[12px] min-h-[52px] px-[8px] rounded-[10px] text-start cursor-pointer hover:bg-boxHover transition-colors',
+                'rounded-[10px] text-start cursor-pointer',
                 FOCUS_RING
               )}
             >
-              <ChannelPicture channel={channel} />
-              <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-                <bdi className="text-[14px] font-[500] text-ink truncate">
-                  {channel.name}
-                </bdi>
-                <span className="text-[12px] text-muted truncate">
-                  {channel.customer?.id ? (
-                    <bdi>{channel.customer.name}</bdi>
-                  ) : (
-                    t('brands_no_brand', 'No brand')
-                  )}
-                </span>
-              </span>
-              {/* the channel list's Check, which the row's button ticks */}
-              <Check value={checked} onChange={() => {}} />
+              <BrandChannel
+                channel={channel}
+                line={
+                  <>
+                    {channel.customer?.id ? (
+                      <bdi>{channel.customer.name}</bdi>
+                    ) : (
+                      t('brands_no_brand', 'No brand')
+                    )}
+                    {channel.disabled &&
+                      ` · ${t('channel_disabled', 'Channel Disabled')}`}
+                  </>
+                }
+              >
+                {/* the channel list's Check, which the row's button ticks */}
+                <Check value={checked} onChange={() => {}} />
+              </BrandChannel>
             </button>
           );
         })}
@@ -531,7 +556,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
         >
           <div className="grid grid-cols-3 gap-[12px] phone:gap-[8px] max-w-[474px]">
             {examples.map((example, index) =>
-              !example.missing && example.path ? (
+              isLive(example) ? (
                 <div
                   key={example.id}
                   className="relative aspect-square rounded-[10px] overflow-hidden border border-line bg-panel"
