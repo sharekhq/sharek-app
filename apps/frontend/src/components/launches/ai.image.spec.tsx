@@ -1991,6 +1991,44 @@ describe('the Brand field', () => {
     expect(counters()).toContain('3 / 3');
   });
 
+  // Only a logo that goes along takes a place, as the server counts them: a
+  // logo deleted from Media is skipped, and a kit without one has none.
+  const LOGO_GONE: Brand = {
+    ...BAYT,
+    kit: { ...BAYT.kit, logo: kitImage('bq-logo', true) },
+  };
+
+  it.each([
+    ['whose logo is gone from Media', 'Bayt Al Qahwa', [RAWDA, LOGO_GONE]],
+    ['with no logo', 'Rawda Florist', BRANDS],
+  ])(
+    "keeps the user's four places beside a brand %s",
+    async (_case, name, list) => {
+      brandList = list;
+      await compose();
+      await pick(name);
+
+      expect(counters()).toContain('0 / 4');
+
+      await click(button('Add image'));
+
+      expect(picker[picker.length - 1].max).toBe(4);
+    }
+  );
+
+  it("keeps an edit's three places beside a brand whose logo is gone from Media", async () => {
+    brandList = [RAWDA, LOGO_GONE];
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await generateNow();
+
+    expect(counters()).toContain('1 / 4');
+
+    await click(button('Add image'));
+
+    expect(picker[picker.length - 1].max).toBe(3);
+  });
+
   it("keeps today's four places and line under the images on No brand", async () => {
     await compose();
 
