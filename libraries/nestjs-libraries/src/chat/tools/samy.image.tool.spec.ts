@@ -32,7 +32,7 @@ const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
 // What the result tells Samy to say beside a brand's image (FR-019).
 const sayFor = (brand: string) =>
-  `Name ${brand} in your reply, exactly as written here, and say its kit went with this image: its logo, colours and example posts.`;
+  `Name ${brand} in your reply, exactly as written here, and say its brand kit went with this image.`;
 
 const makeTool = (
   generateImageFromLinks?: jest.Mock,
