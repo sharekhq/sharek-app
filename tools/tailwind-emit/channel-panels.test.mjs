@@ -246,6 +246,21 @@ const ARBITRARY = {
   '-ms-[7px]': [['margin-inline-start', '-7px']],
   // metric.chart.tsx — Analytics' chart, as tall with no data as with it
   'h-[340px]': [['height', '340px']],
+  // render.analytics.tsx — the tiles' columns of at least 150px and the
+  // charts' 16px, 20px between them, a tile's insets, 12px corners and 26px
+  // value, and a chart's insets, 14px corners and 10px above its canvas
+  'grid-cols-[repeat(auto-fill,minmax(150px,1fr))]': [
+    ['grid-template-columns', 'repeat(auto-fill,minmax(150px,1fr))'],
+  ],
+  'gap-[16px]': [['gap', '16px']],
+  'gap-[20px]': [['gap', '20px']],
+  'py-[14px]': py('padding', '14px'),
+  'rounded-[12px]': [['border-radius', '12px']],
+  'text-[26px]': [['font-size', '26px']],
+  'pt-[16px]': [['padding-top', '16px']],
+  'pb-[10px]': [['padding-bottom', '10px']],
+  'rounded-[14px]': [['border-radius', '14px']],
+  'mt-[10px]': [['margin-top', '10px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -350,6 +365,19 @@ const MOBILE_CLASSES = {
   'mobile:rounded-[8px]': [['border-radius', '8px']],
   // metric.chart.tsx — Analytics' chart on a phone, the AnalyticsBody board's
   'mobile:h-[200px]': [['height', '200px']],
+  // render.analytics.tsx — the AnalyticsBody board's phone: tiles two to a
+  // row and charts one, closer together, and a tile's smaller insets and value
+  'mobile:grid-cols-2': [
+    ['grid-template-columns', 'repeat(2, minmax(0, 1fr))'],
+  ],
+  'mobile:grid-cols-1': [
+    ['grid-template-columns', 'repeat(1, minmax(0, 1fr))'],
+  ],
+  'mobile:gap-[12px]': [['gap', '12px']],
+  'mobile:gap-[10px]': [['gap', '10px']],
+  'mobile:px-[12px]': px('padding', '12px'),
+  'mobile:py-[10px]': py('padding', '10px'),
+  'mobile:text-[20px]': [['font-size', '20px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
@@ -774,6 +802,15 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['hidden', 'mobile:block'],
     // Analytics' chart, shorter on a phone
     ['h-[340px]', 'mobile:h-[200px]'],
+    // Analytics' tiles and charts on a phone
+    ['grid-cols-[repeat(auto-fill,minmax(150px,1fr))]', 'mobile:grid-cols-2'],
+    ['grid-cols-2', 'mobile:grid-cols-1'],
+    ['gap-[20px]', 'mobile:gap-[12px]'],
+    ['gap-[12px]', 'mobile:gap-[8px]'],
+    ['gap-[16px]', 'mobile:gap-[10px]'],
+    ['px-[16px]', 'mobile:px-[12px]'],
+    ['py-[14px]', 'mobile:py-[10px]'],
+    ['text-[26px]', 'mobile:text-[20px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);

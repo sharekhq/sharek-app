@@ -2,11 +2,8 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import {
-  ChartSocial,
-  CHART_CARD_HUES as CARD_HUES,
-  CHART_CARD_DOTS as CARD_DOTS,
-} from '@gitroom/frontend/components/analytics/chart-social';
+import { MetricChart } from '@gitroom/frontend/components/platform-analytics/metric.chart';
+import { useReconnectChannel } from '@gitroom/frontend/components/launches/channel.panel';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import i18next from 'i18next';
@@ -61,68 +58,70 @@ const TrendIndicator: FC<{ value: number; average?: boolean }> = ({
   );
 };
 
-const AnalyticsCard: FC<{
+// Instagram and Threads send a total as one point, and X pads each of its
+// totals with a 0 at the period's start, so 1 or 2 points are a total. A
+// series has a point a day, and one with none this period is still a chart,
+// which says it has no data (R19).
+const isTotal = (item: AnalyticsDataItem) =>
+  item.data.length > 0 && item.data.length < 3;
+
+const AnalyticsTile: FC<{
   item: AnalyticsDataItem;
-  total: string | number;
-  index: number;
-}> = ({ item, total, index }) => {
-  const color = CARD_HUES[index % CARD_HUES.length];
-  const dotClass = CARD_DOTS[index % CARD_DOTS.length];
-
-  const hasDataPoints = item.data.length >= 1;
-
+  total: string;
+}> = ({ item, total }) => {
   return (
-    <div className="group relative">
-      <div
-        className={`
-          flex flex-col h-full
-          bg-surface
-          border border-line
-          rounded-[14px]
-          shadow-soft
-          overflow-hidden
-        `}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[8px]">
-          <div className="flex items-center gap-[10px]">
-            <div className={`w-[8px] h-[8px] rounded-full ${dotClass}`} />
-            <span className="text-[15px] font-medium text-newTableText">
-              {metricLabel(item.label)}
-            </span>
-          </div>
-          {item.percentageChange !== undefined && (
-            <TrendIndicator value={item.percentageChange} average={item.average} />
-          )}
-        </div>
-
-        {/* Content */}
-        {hasDataPoints ? (
-          <>
-            {/* Chart */}
-            <div className="flex-1 px-[12px] py-[8px]">
-              <div className="h-[120px] relative">
-                <ChartSocial data={item.data} color={color} key={`chart-${index}`} />
-              </div>
-            </div>
-
-            {/* Value */}
-            <div className="px-[16px] pb-[14px]">
-              <div className="text-[36px] leading-[42px] font-semibold tracking-tight">
-                {total}
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Single value display */
-          <div className="flex-1 flex flex-col items-center justify-center py-[32px] px-[16px]">
-            <div className="text-[48px] leading-[56px] font-semibold tracking-tight">
-              {total}
-            </div>
-          </div>
+    <div className="flex flex-col gap-[4px] px-[16px] py-[14px] mobile:px-[12px] mobile:py-[10px] bg-surface border border-line rounded-[12px]">
+      <span className="text-[13px] font-medium text-muted">
+        {metricLabel(item.label)}
+      </span>
+      <div className="flex items-baseline gap-[10px]">
+        <span className="text-[26px] mobile:text-[20px] leading-tight font-semibold tracking-tight text-ink">
+          {total}
+        </span>
+        {item.percentageChange !== undefined && (
+          <TrendIndicator
+            value={item.percentageChange}
+            average={item.average}
+          />
         )}
       </div>
     </div>
+  );
+};
+
+const AnalyticsChart: FC<{
+  item: AnalyticsDataItem;
+  total: string;
+  date: number;
+}> = ({ item, total, date }) => {
+  const t = useT();
+  const name = metricLabel(item.label);
+
+  return (
+    <figure className="flex flex-col gap-[2px] min-w-0 px-[16px] pt-[16px] pb-[10px] bg-surface border border-line rounded-[14px]">
+      <figcaption className="text-[14px] font-semibold text-ink">
+        {name}
+      </figcaption>
+      <div className="flex items-baseline gap-[10px]">
+        <span className="text-[26px] leading-tight font-semibold tracking-tight text-ink">
+          {total}
+        </span>
+        {item.percentageChange !== undefined && (
+          <TrendIndicator
+            value={item.percentageChange}
+            average={item.average}
+          />
+        )}
+      </div>
+      <span className="text-[12px] text-muted">
+        {item.average
+          ? t(`average_last_${date}_days`, `Average for the last ${date} days`)
+          : t(`total_last_${date}_days`, `Total for the last ${date} days`)}
+      </span>
+      <div className="mt-[10px]">
+        <MetricChart label={name} data={item.data} />
+      </div>
+    </figure>
   );
 };
 
@@ -130,7 +129,7 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
   const t = useT();
 
   return (
-    <div className="col-span-full flex flex-col items-center justify-center py-[48px] px-[24px] bg-newTableHeader border border-newTableBorder rounded-[12px]">
+    <div className="flex flex-col items-center justify-center py-[48px] px-[24px] bg-newTableHeader border border-newTableBorder rounded-[12px]">
       <div className="w-[48px] h-[48px] mb-[16px] rounded-full bg-brandSoft flex items-center justify-center">
         <svg
           width="24"
@@ -166,7 +165,7 @@ const EmptyState: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
           <path d="M23 4v6h-6M1 20v-6h6" />
           <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
         </svg>
-        {t('refresh_channel', 'Refresh Channel')}
+        {t('reconnect', 'Reconnect')}
       </button>
     </div>
   );
@@ -199,25 +198,7 @@ export const RenderAnalytics: FC<{
     revalidateOnMount: true,
   });
 
-  const refreshChannel = useCallback(
-    (
-        integrationData: Integration & {
-          identifier: string;
-        }
-      ) =>
-      async () => {
-        const { url } = await (
-          await fetch(
-            `/integrations/social/${integrationData.identifier}?refresh=${integrationData.internalId}`,
-            {
-              method: 'GET',
-            }
-          )
-        ).json();
-        window.location.href = url;
-      },
-    []
-  );
+  const reconnect = useReconnectChannel();
 
   const t = useT();
 
@@ -242,18 +223,43 @@ export const RenderAnalytics: FC<{
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[16px]">
+    <div className="flex flex-col gap-[20px] mobile:gap-[12px]">
       {data?.length === 0 && (
-        <EmptyState onRefresh={refreshChannel(integration as any)} />
-      )}
-      {data?.map((item: AnalyticsDataItem, index: number) => (
-        <AnalyticsCard
-          key={`analytics-${index}`}
-          item={item}
-          total={totals[index]}
-          index={index}
+        <EmptyState
+          onRefresh={reconnect(
+            integration as Integration & { identifier: string }
+          )}
         />
-      ))}
+      )}
+      {data?.some(isTotal) && (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-[12px] mobile:grid-cols-2 mobile:gap-[8px]">
+          {data.map(
+            (item: AnalyticsDataItem, index: number) =>
+              isTotal(item) && (
+                <AnalyticsTile
+                  key={`analytics-${index}`}
+                  item={item}
+                  total={totals[index]}
+                />
+              )
+          )}
+        </div>
+      )}
+      {data?.some((item: AnalyticsDataItem) => !isTotal(item)) && (
+        <div className="grid grid-cols-2 gap-[16px] items-start mobile:grid-cols-1 mobile:gap-[10px]">
+          {data.map(
+            (item: AnalyticsDataItem, index: number) =>
+              !isTotal(item) && (
+                <AnalyticsChart
+                  key={`analytics-${index}`}
+                  item={item}
+                  total={totals[index]}
+                  date={date}
+                />
+              )
+          )}
+        </div>
+      )}
     </div>
   );
 };

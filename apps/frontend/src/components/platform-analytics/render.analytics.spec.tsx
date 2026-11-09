@@ -20,15 +20,9 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => mockT,
 }));
-// chart.js needs a canvas, which the test DOM doesn't have; what a card draws
-// in it isn't under test.
-jest.mock('@gitroom/frontend/components/analytics/chart-social', () => ({
-  ChartSocial: () => null,
-  CHART_CARD_HUES: ['pomegranate'],
-  CHART_CARD_DOTS: ['bg-catPomegranate'],
-}));
-// MetricChart draws on chart.js too, and metric.chart.spec covers what it
-// draws; the stand-in shows the name and the points it was given.
+// MetricChart draws on chart.js, which needs a canvas the test DOM doesn't
+// have, and metric.chart.spec covers what it draws; the stand-in shows the
+// name and the points it was given.
 jest.mock(
   '@gitroom/frontend/components/platform-analytics/metric.chart',
   () => ({
