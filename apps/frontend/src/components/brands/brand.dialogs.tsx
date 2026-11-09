@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { FC, FormEvent, useState } from 'react';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -9,12 +10,19 @@ import { Button } from '@gitroom/react/form/button';
 import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
-import { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
+
+// The calendar's rename dialog, loaded when it opens, so the calendar page's
+// module (the calendar, the composer) stays out of the Brands page.
+const EditGroupNameModal = dynamic(() =>
+  import('@gitroom/frontend/components/launches/launches.component').then(
+    (mod) => mod.EditGroupNameModal
+  )
+);
 
 // A brand's name is 1 to 60 characters, as CreateBrandDto keeps it.
 const MAX_NAME = 60;
