@@ -171,6 +171,60 @@ describe('the colours card +', () => {
     expect(onAdd).toHaveBeenCalledWith('#B5542C');
   });
 
+  // FR-013 and the spec's edge case: Add follows the code in the field, not
+  // the last colour it made, which the swatch keeps showing.
+  it('disables Add once a character of a whole code is deleted, until the code is whole again', async () => {
+    render([]);
+    await open();
+    await type(field(), '#B5542C');
+    expect(action('add').disabled).toBe(false);
+
+    await type(field(), '#B5542');
+
+    expect(action('add').disabled).toBe(true);
+    await click(action('add'));
+    expect(onAdd).not.toHaveBeenCalled();
+    // leaving the field keeps what it holds, and Add still refuses it
+    await act(async () => {
+      field().blur();
+    });
+    expect(field().value).toBe('#B5542');
+    expect(action('add').disabled).toBe(true);
+
+    await type(field(), '#B5542C');
+
+    expect(action('add').disabled).toBe(false);
+    await click(action('add'));
+    expect(onAdd).toHaveBeenCalledWith('#B5542C');
+  });
+
+  it('fills the field with a colour picked on the hue bar, and Add takes it', async () => {
+    render([]);
+    await open();
+    await type(field(), '#b5542c');
+    await type(field(), '#b5542');
+
+    await act(async () => {
+      dialog()!
+        .querySelector('.react-colorful__hue [role="slider"]')!
+        .dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'ArrowRight',
+            keyCode: 39,
+            bubbles: true,
+          })
+        );
+    });
+
+    const picked = field().value;
+    expect(picked).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(picked.toLowerCase()).not.toBe('#b5542c');
+    expect(swatch().style.backgroundColor).toBe(painted(picked));
+    expect(action('add').disabled).toBe(false);
+    await click(action('add'));
+    expect(onAdd).toHaveBeenCalledWith(picked.toUpperCase());
+  });
+
   it.each([
     ['five digits', '#b5542'],
     ['three digits', '#abc'],
