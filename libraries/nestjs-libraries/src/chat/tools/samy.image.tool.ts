@@ -3,6 +3,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { HttpException, Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
+import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { imageCreditRefusal } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { SubscriptionException } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
@@ -21,6 +22,16 @@ const IMAGE_BUDGET = 'samyImageBudget';
 
 type ImageBudget = { credits: number; resetsAt?: string };
 
+// The browser sends the selected channels (copilot.controller.ts), so nothing
+// about their shape is guaranteed. Only the ids are kept: the brand service
+// reads the channels again, for this organization (research R9).
+const selectedChannelIds = (integrations: unknown): string[] =>
+  Array.isArray(integrations)
+    ? integrations
+        .filter((channel) => typeof channel?.id === 'string')
+        .map((channel) => channel.id)
+    : [];
+
 /**
  * Samy's `generateImageTool`, which LoadToolsService swaps in for its runs only.
  * It stays out of `toolList`, because that is what every outside connection lists,
@@ -28,7 +39,10 @@ type ImageBudget = { credits: number; resetsAt?: string };
  */
 @Injectable()
 export class SamyImageTool implements AgentToolInterface {
-  constructor(private _mediaService: MediaService) {}
+  constructor(
+    private _mediaService: MediaService,
+    private _brandService: BrandService
+  ) {}
   name = 'generateImageTool';
 
   run() {
@@ -65,6 +79,12 @@ export class SamyImageTool implements AgentToolInterface {
               IMAGE_REFERENCE_MAX - 1
             }.`
           ),
+        brand: z
+          .string()
+          .optional()
+          .describe(
+            "A brand's name, to use its kit, or 'none' for no brand. Leave it out to use the brand of the selected channels."
+          ),
       }),
       // Mastra validates a tool's return against this schema, so it must also
       // allow the graceful { error } shape, as GenerateImageTool's does.
@@ -72,6 +92,8 @@ export class SamyImageTool implements AgentToolInterface {
         id: z.string().optional(),
         path: z.string().optional(),
         error: z.string().optional(),
+        // Only when part of the brand's kit went along, so Samy can name it
+        brand: z.string().optional(),
       }),
       execute: async (inputData, context) => {
         const run = context?.requestContext as any;
@@ -97,6 +119,17 @@ export class SamyImageTool implements AgentToolInterface {
           checkAuth(inputData, context);
           const org = JSON.parse(run?.get('organization') as string);
 
+          // A brand that can't be picked makes no image, and no credit is read.
+          const { brand, ...image } = inputData;
+          const picked = await this._brandService.resolveForSamy(org.id, {
+            input: brand,
+            channelIds: selectedChannelIds(run?.get('integrations')),
+          });
+          if ('error' in picked) {
+            giveSlotBack();
+            return { error: picked.error };
+          }
+
           // The promise and not its answer, so parallel calls share one read. The
           // credit check inside the render can't do this: it passes all of them
           // before the first one's usage is written.
@@ -111,10 +144,10 @@ export class SamyImageTool implements AgentToolInterface {
           budget.credits -= 1;
           creditFrom = budget;
 
-          return await this._mediaService.generateImageFromLinks(
-            org,
-            inputData
-          );
+          return await this._mediaService.generateImageFromLinks(org, {
+            ...image,
+            brand: picked.brandId,
+          });
         } catch (err) {
           giveSlotBack();
           if (creditFrom) {
