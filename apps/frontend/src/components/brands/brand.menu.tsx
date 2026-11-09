@@ -328,7 +328,7 @@ export const BrandMenu: FC<{
           <div
             ref={panelRef}
             style={{ left: show.x, top: show.y }}
-            className="fixed z-[100] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-card text-ink cursor-default"
+            className="fixed z-[100] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
           >
             {content}
           </div>
