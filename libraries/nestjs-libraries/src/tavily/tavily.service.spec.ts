@@ -388,6 +388,108 @@ describe('TavilyService.extract', () => {
       { url: 'https://b.example/', text: '# Menu\n\nKunafa' },
     ]);
   });
+
+  // Samy reads a page's words only: the addresses of its images aren't Samy's
+  // to use, and on a page full of them they used up the 8,000 characters.
+  it.each([
+    [
+      'images, keeping the words around them',
+      [
+        '# PKHUB',
+        '',
+        '![PKHUB](https://pkhub.info/logo.svg)',
+        '',
+        'Games and apps.',
+        '',
+        '![Banner](https://pkhub.info/banner.png)',
+        '',
+        '![Flag](https://pkhub.info/flag.svg)',
+        '',
+        'Download now.',
+      ].join('\n'),
+      '# PKHUB\n\nGames and apps.\n\nDownload now.',
+    ],
+    [
+      'an image whose address has a space',
+      'Welcome\n\n![PKHUB](https://pkhub.info/assets/app/Logo wrap.svg)\n\nGames and apps.',
+      'Welcome\n\nGames and apps.',
+    ],
+    [
+      'a linked image, link and all',
+      '[![PKHUB](https://pkhub.info/logo.svg)](https://pkhub.info/)\n\nGames and apps.',
+      'Games and apps.',
+    ],
+  ])('removes %s', async (_, raw_content, text) => {
+    fetchSpy.mockResolvedValue(
+      answer(200, { results: [{ url: 'https://a.example/', raw_content }] })
+    );
+
+    expect(
+      await new TavilyService().extract('org-1', ['https://a.example/'])
+    ).toEqual([{ url: 'https://a.example/', text }]);
+  });
+
+  // Samy follows a page's own links to find the page it needs.
+  it('keeps the links in the text', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content:
+              '[Menu](https://a.example/menu) | [Contact us](https://a.example/contact)\n\n![Logo](https://a.example/logo.svg)\n\nKunafa',
+          },
+        ],
+      })
+    );
+
+    const [page] = await new TavilyService().extract('org-1', [
+      'https://a.example/',
+    ]);
+
+    expect(page.text).toBe(
+      '[Menu](https://a.example/menu) | [Contact us](https://a.example/contact)\n\nKunafa'
+    );
+  });
+
+  it('cuts at 8,000 characters of words, not counting the images removed', async () => {
+    // 100 characters, the blank line after it included.
+    const image = `![Flag](https://a.example/${'f'.repeat(67)}.svg)\n\n`;
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content: `${image.repeat(10)}${'a'.repeat(7_500)}`,
+          },
+        ],
+      })
+    );
+
+    const [page] = await new TavilyService().extract('org-1', [
+      'https://a.example/',
+    ]);
+
+    expect(page.text).toBe('a'.repeat(7_500));
+  });
+
+  it('says a page with nothing but images could not be read', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content:
+              '![Logo](https://a.example/logo.svg)\n\n[![Sale](https://a.example/sale.png)](https://a.example/sale)\n',
+          },
+        ],
+      })
+    );
+
+    expect(
+      await new TavilyService().extract('org-1', ['https://a.example/'])
+    ).toEqual([{ url: 'https://a.example/', error: UNREADABLE }]);
+  });
 });
 
 describe.each(Object.keys(calls) as (keyof typeof calls)[])(
