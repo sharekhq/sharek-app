@@ -134,7 +134,14 @@ export class SamyImageTool implements AgentToolInterface {
           // credit check inside the render can't do this: it passes all of them
           // before the first one's usage is written.
           if (!run?.get(IMAGE_BUDGET)) {
-            run?.set(IMAGE_BUDGET, this._mediaService.imageCreditsLeft(org));
+            run?.set(
+              IMAGE_BUDGET,
+              this._mediaService.imageCreditsLeft(org).catch((err) => {
+                // A failed read stays failed if it's kept, and a later call can recover.
+                run.delete(IMAGE_BUDGET);
+                throw err;
+              })
+            );
           }
           const budget: ImageBudget = await run?.get(IMAGE_BUDGET);
           if (budget.credits <= 0) {
@@ -152,9 +159,6 @@ export class SamyImageTool implements AgentToolInterface {
           giveSlotBack();
           if (creditFrom) {
             creditFrom.credits += 1;
-          } else {
-            // A failed read stays failed if it's kept, and a later call can recover.
-            run?.delete(IMAGE_BUDGET);
           }
 
           if (err instanceof SubscriptionException) {
