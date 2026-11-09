@@ -1869,7 +1869,8 @@ describe('with a brand', () => {
   const change = 'اجعل الخلفية بيضاء';
 
   // What each stored file holds, by path. The logo keeps its transparency, so
-  // it can be told apart from the other images in the inputs.
+  // it can be told apart from the other images in the inputs; big is over the
+  // bound and bad is no picture at all.
   const stored: Record<string, Buffer> = {};
 
   beforeAll(async () => {
@@ -1878,10 +1879,16 @@ describe('with a brand', () => {
       stored[`https://media/${id}`] = jpeg;
     }
     stored['https://media/logo'] = await picture(16, 16, 4).png().toBuffer();
+    stored['https://media/bad'] = Buffer.from('not a picture');
   });
 
   beforeEach(() => {
-    read.mockImplementation(async (path: string) => stored[path]);
+    read.mockImplementation(async (path: string) => {
+      if (path === 'https://media/big') {
+        throw new MediaTooLargeError();
+      }
+      return stored[path];
+    });
   });
 
   // Every image the cases name is in the library, so a lookup finds what it
@@ -1897,13 +1904,16 @@ describe('with a brand', () => {
   const kit = (over: Partial<KitForImage> = {}): KitForImage => ({
     name: 'Rawda Florist',
     logoId: 'logo',
-    exampleIds: ['ex1', 'ex2'],
+    examples: [
+      { id: 'ex1', n: 1 },
+      { id: 'ex2', n: 2 },
+    ],
     ...words,
     ...over,
   });
   const empty = kit({
     logoId: undefined,
-    exampleIds: [],
+    examples: [],
     colours: [],
     headingFont: undefined,
     bodyFont: undefined,
@@ -1912,6 +1922,38 @@ describe('with a brand', () => {
   const TOO_MANY =
     "With Rawda Florist's logo, only 3 of the user's images fit (2 when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.";
   const GONE = 'That brand no longer exists. Pick another or No brand.';
+
+  // One of the kit's images that can't go along: over the bound, no picture,
+  // or gone from Media since kitFor read the kit. Example 2 was deleted, so
+  // the one that can't be decoded is the Brands page's third.
+  const unusable: Array<[string, KitForImage, 404 | 422, string]> = [
+    [
+      'a logo over the bound',
+      kit({ logoId: 'big' }),
+      422,
+      "Rawda Florist's logo is larger than 30 MB",
+    ],
+    [
+      'an example it cannot decode',
+      kit({
+        logoId: undefined,
+        examples: [
+          { id: 'ex1', n: 1 },
+          { id: 'bad', n: 3 },
+        ],
+      }),
+      422,
+      "Rawda Florist's example post 3 can't be used because its file format isn't supported",
+    ],
+    [
+      'a logo gone from Media',
+      kit({ logoId: 'gone' }),
+      404,
+      "Rawda Florist's logo is no longer in the Media library",
+    ],
+  ];
+  // The library has big and bad; gone is nowhere.
+  const withUnusable = [...library, row('big'), row('bad')];
 
   const mimes = (inputs: Array<{ mime: string }>) =>
     inputs.map((input) => input.mime);
@@ -2053,7 +2095,7 @@ describe('with a brand', () => {
         openAi: ai,
         references: library,
         // The logo and the first example were deleted.
-        kit: kit({ logoId: undefined, exampleIds: ['ex2'] }),
+        kit: kit({ logoId: undefined, examples: [{ id: 'ex2', n: 2 }] }),
       });
 
       await generateWithPrompt(service, dto({ brand }));
@@ -2153,6 +2195,51 @@ describe('with a brand', () => {
         expect(read).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
         expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
+      });
+
+      // A kit image has no thumbnail, so its refusal names its part of the
+      // kit, and carries no code or number the window would word as one of
+      // the user's images.
+      it.each(unusable)(
+        'for %s, naming its part of the kit',
+        async (_case, answer, status, words) => {
+          const { service, subscription } = makeService({
+            openAi: openAi(),
+            references: withUnusable,
+            kit: answer,
+          });
+
+          const err = await generateWithPrompt(service, dto({ brand })).catch(
+            (e) => e
+          );
+
+          expect(err).toBeInstanceOf(HttpException);
+          expect(err.getStatus()).toBe(status);
+          expect(err.message).toBe(
+            `${words}. Replace it on the Brands page, or pick No brand.`
+          );
+          expect(err.getResponse()).not.toHaveProperty('code');
+          expect(err.getResponse()).not.toHaveProperty('index');
+          expect(subscription.useCredit).not.toHaveBeenCalled();
+        }
+      );
+
+      it("for one of the user's images, by its number as without a brand", async () => {
+        const { service } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: kit(),
+        });
+        const request = dto({ references: ['a', 'big'], brand });
+
+        const err = await generateWithPrompt(service, request).catch((e) => e);
+
+        expect(err.getStatus()).toBe(422);
+        expect(err.getResponse()).toEqual({
+          message: 'Reference image 2 is larger than 30 MB.',
+          code: 'reference_too_large',
+          index: 2,
+        });
       });
     });
   });
@@ -2298,6 +2385,24 @@ describe('with a brand', () => {
         expect(repository.getMediaByIds).not.toHaveBeenCalled();
         expect(subscription.useCredit).not.toHaveBeenCalled();
       });
+
+      it('a logo over the bound, naming it as the logo', async () => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: kit({ logoId: 'big' }),
+        });
+        const request = edit({ references: ['a'] });
+
+        const err = await editWith(service, request).catch((e) => e);
+
+        expect(err.getStatus()).toBe(422);
+        expect(err.message).toBe(
+          "Rawda Florist's logo is larger than 30 MB. Replace it on the Brands page, or pick No brand."
+        );
+        expect(err.getResponse()).not.toHaveProperty('index');
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -2415,6 +2520,56 @@ describe('with a brand', () => {
       expect(err.getStatus()).toBe(400);
       expect(err.message).toBe(TOO_MANY);
       expect(subscription.useCredit).not.toHaveBeenCalled();
+    });
+
+    // The kit's images aren't among Samy's links, so Samy is told which part
+    // of whose kit it is and what the user can do.
+    it.each(unusable)(
+      'refuses %s naming its part of the kit, with no credit',
+      async (_case, answer, status, words) => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: answer,
+        });
+
+        const err = await service
+          .generateImageFromLinks(org, {
+            prompt,
+            aspectRatio: 'square',
+            brand,
+          })
+          .catch((e) => e);
+
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(status);
+        expect(err.message).toBe(
+          `${words}, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`
+        );
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      }
+    );
+
+    it("refuses one of the user's images by its link, as without a brand", async () => {
+      const { service } = makeService({
+        openAi: openAi(),
+        references: withUnusable,
+        kit: kit(),
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('big')],
+          brand,
+        })
+        .catch((e) => e);
+
+      expect(err.getStatus()).toBe(422);
+      expect(err.message).toBe(
+        'The image https://media/big is larger than 30 MB, so no image was made and no credit was spent.'
+      );
     });
   });
 });

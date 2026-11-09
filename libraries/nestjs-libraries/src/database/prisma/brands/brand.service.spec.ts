@@ -363,7 +363,9 @@ describe('BrandService.saveKit', () => {
 // Every image render asks for the kit; an image deleted from Media is skipped,
 // never refused (FR-012, C5).
 describe('BrandService.kitFor', () => {
-  it("gives the brand's name and words and only its live images, in order", async () => {
+  // An example keeps its number on the Brands page, a missing one counted, so
+  // a refusal can say which it is
+  it("gives the brand's name and words and only its live images, in order, each example with its number", async () => {
     const { service, repository } = makeService({
       findLive: jest.fn().mockResolvedValue({
         ...rawda,
@@ -385,7 +387,10 @@ describe('BrandService.kitFor', () => {
     await expect(service.kitFor('org-1', 'brand-1')).resolves.toEqual({
       name: 'Rawda',
       logoId: 'logo-1',
-      exampleIds: ['example-2', 'example-3'],
+      examples: [
+        { id: 'example-2', n: 2 },
+        { id: 'example-3', n: 3 },
+      ],
       colours: ['#B5542C', '#1F3A5F'],
       headingFont: 'Amiri',
       bodyFont: 'IBM Plex Sans Arabic',
@@ -405,7 +410,7 @@ describe('BrandService.kitFor', () => {
     const kit = await service.kitFor('org-1', 'brand-1');
 
     expect(kit.logoId).toBeUndefined();
-    expect(kit.exampleIds).toEqual([]);
+    expect(kit.examples).toEqual([]);
   });
 
   it('gives the name alone for a brand with no kit', async () => {
@@ -415,7 +420,7 @@ describe('BrandService.kitFor', () => {
 
     await expect(service.kitFor('org-1', 'brand-1')).resolves.toEqual({
       name: 'Rawda',
-      exampleIds: [],
+      examples: [],
       colours: [],
     });
   });
