@@ -730,7 +730,7 @@ describe('LoadToolsService brands', () => {
   };
 
   const LINES = [
-    "When an image result names a brand, say in your reply that the brand's kit went with it: its logo, colours and example posts.",
+    'When an image result names a brand, name that brand in your reply exactly as the result writes it, never translated or left out, and say its kit went with the image: its logo, colours and example posts.',
     'If the image tool says the channels belong to several brands, or asks which brand to use, do exactly what it says before making anything.',
     "Asked for an image in the user's brand style when no brand kit went along, say you have no brand kit to follow, suggest setting one up on the Brands page, and offer to make it from what they describe or attach.",
   ];
