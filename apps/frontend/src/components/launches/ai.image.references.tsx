@@ -30,7 +30,12 @@ export const ReferenceImages: FC<{
   lead?: Reference;
   /** Ends the row of thumbnails: the edit's Apply action. */
   action?: ReactNode;
-}> = ({ value, onChange, max, lead, action }) => {
+  /**
+   * A brand is picked: the hint says the images take the place of its
+   * examples, and that its logo goes along all the same (spec 053, FR-016).
+   */
+  branded?: boolean;
+}> = ({ value, onChange, max, lead, action, branded }) => {
   const t = useT();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
@@ -162,6 +167,17 @@ export const ReferenceImages: FC<{
             ? t(
                 'image_edit_reference_hint',
                 "Image 1 is the one you're editing. Add more to bring something in, like a logo."
+              )
+            : branded && value.length
+            ? t(
+                'brands_ref_help_own',
+                "Your images take the place of the brand's examples; its logo stays.",
+                { count: value.length }
+              )
+            : branded
+            ? t(
+                'brands_ref_help',
+                "Optional. Your images take the place of the brand's examples; its logo stays."
               )
             : t(
                 'image_reference_hint',

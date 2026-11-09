@@ -695,6 +695,7 @@
   "brands_count_other": "{{count}} brands",
   "brands_attach_note_one": "Your 1 image goes in place of {{brand}}'s examples. Its logo still goes along.",
   "brands_attach_note_other": "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",
+  "brands_field_label": "Brand for this image: {{brand}}. Change brand",
   "brands_goes_along": "Goes along:",
   "brands_ref_help": "Optional. Your images take the place of the brand's examples; its logo stays.",
   "brands_ref_help_own_one": "Your image takes the place of the brand's examples; its logo stays.",

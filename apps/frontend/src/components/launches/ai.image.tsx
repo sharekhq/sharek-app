@@ -45,8 +45,26 @@ import type { MediaDestination } from '@gitroom/frontend/components/ui/media.des
 import {
   AiImageIcon,
   CheckmarkIcon,
+  ChevronDownIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
+import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import SafeImage from '@gitroom/react/helpers/safe.image';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import type { Channel } from '@gitroom/frontend/components/launches/channel.panel';
+import {
+  BrandMenu,
+  NO_BRAND,
+} from '@gitroom/frontend/components/brands/brand.menu';
+import {
+  BrandMark,
+  NoBrandMark,
+} from '@gitroom/frontend/components/brands/brand.mark';
+import {
+  Brand,
+  useBrands,
+} from '@gitroom/frontend/components/brands/use.brands';
 
 const useImageCredits = () => {
   const fetch = useFetch();
@@ -159,6 +177,137 @@ const referenceRefusal = (
   }
 };
 
+// The brand picked last in this browser (research R13): a per-viewer
+// convenience, so storage the browser refuses leaves the window on No brand.
+const BRAND_KEY = 'aiImageBrand';
+
+const rememberedBrand = () => {
+  try {
+    return localStorage.getItem(BRAND_KEY);
+  } catch {
+    return null;
+  }
+};
+
+// A kit image after "Goes along:" (board StudioBrand).
+const KIT_THUMBNAIL =
+  'flex-none w-[36px] h-[36px] rounded-[8px] border border-line';
+
+/**
+ * The Brand field under the prompt (spec 053, US5; board StudioBrand): the
+ * brand list titled for an image, opened from a box that shows the brand
+ * picked, and beside it what goes along: the brand's logo and its examples
+ * still in Media. The examples fade once the user's own images take their
+ * place; the logo goes along either way. A brand with no image to send shows
+ * nothing beside the box, its colours and fonts going as words.
+ */
+const BrandField: FC<{
+  brands: Brand[];
+  // the brand picked; none for No brand
+  brand?: Brand;
+  // the user has attached images of their own
+  own: boolean;
+  onPick: (choice: string) => void;
+  onManage: () => void;
+}> = ({ brands, brand, own, onPick, onManage }) => {
+  const t = useT();
+  const mediaDirectory = useMediaDirectory();
+  const { data } = useIntegrationList();
+  const channels: Channel[] = data;
+  const name = brand ? brand.name : t('brands_no_brand', 'No brand');
+  const logo = brand?.kit.logo;
+  const logoPath = logo && !logo.missing ? logo.path : null;
+  const examples = (brand?.kit.examples || []).flatMap(
+    ({ id, path, missing }) => (path && !missing ? [{ id, path }] : [])
+  );
+
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <div className="text-[14px] font-[600]">
+        {t('select_customer_label', 'Brand')}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-[16px] gap-y-[8px]">
+        <div className="w-[340px] max-w-full">
+          <BrandMenu
+            brands={brands}
+            count={(id) =>
+              channels.filter((channel) => channel.customer?.id === id).length
+            }
+            value={brand ? brand.id : NO_BRAND}
+            variant="image"
+            onPick={onPick}
+            onManage={onManage}
+            label={t(
+              'brands_field_label',
+              'Brand for this image: {{brand}}. Change brand',
+              { brand: isolate(name), interpolation: { escapeValue: false } }
+            )}
+            trigger={
+              <>
+                {brand ? (
+                  <BrandMark
+                    brand={brand}
+                    className="w-[24px] h-[24px] rounded-[6px] text-[11px]"
+                  />
+                ) : (
+                  <NoBrandMark
+                    className="w-[24px] h-[24px] rounded-[6px]"
+                    size={12}
+                  />
+                )}
+                <span
+                  dir={brand ? 'auto' : undefined}
+                  className="flex-1 min-w-0 truncate"
+                >
+                  {name}
+                </span>
+                <ChevronDownIcon
+                  size={16}
+                  aria-hidden="true"
+                  className="flex-none text-muted"
+                />
+              </>
+            }
+            triggerClassName="flex-1 min-w-0 h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+          />
+        </div>
+        {(logoPath || examples.length > 0) && (
+          <div className="flex items-center gap-[6px] text-[12px] text-muted">
+            <span>{t('brands_goes_along', 'Goes along:')}</span>
+            {logoPath && (
+              <SafeImage
+                src={mediaDirectory.set(logoPath)}
+                alt={t('brands_logo', 'Logo')}
+                className={clsx(KIT_THUMBNAIL, 'object-contain')}
+              />
+            )}
+            {examples.length > 0 && (
+              <span
+                role="img"
+                aria-label={t('brands_example_posts', 'Example posts')}
+                className="flex gap-[6px]"
+              >
+                {examples.map((example) => (
+                  <SafeImage
+                    key={example.id}
+                    src={mediaDirectory.set(example.path)}
+                    alt=""
+                    className={clsx(
+                      KIT_THUMBNAIL,
+                      'object-cover',
+                      own && 'opacity-30 grayscale'
+                    )}
+                  />
+                ))}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /**
  * An image this window made, the preset it was made at, and the prompt and
  * style its caption names: the generation's, which an edit keeps.
@@ -207,6 +356,13 @@ const AiImageModal: FC<{
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { data: credits, mutate: mutateCredits } = useImageCredits();
+  const { data: brands } = useBrands();
+  // The brand picked, by its id; null for No brand.
+  const [brandId, setBrandId] = useState(rememberedBrand);
+  // The window starts on the brand picked last while it is still one of the
+  // organization's, else on No brand, as it is while the brands load
+  // (FR-025). Only this brand goes with a render.
+  const brand = brands?.find((item) => item.id === brandId);
 
   // A generation outlives the modal: the closure keeps running after an early
   // close and attaches the image itself, so it has to know whether anyone is
@@ -456,7 +612,23 @@ const AiImageModal: FC<{
       ...(references.length
         ? { references: references.map((reference) => reference.id) }
         : {}),
+      // No brand sends nothing from any kit (FR-020).
+      ...(brand && { brand: brand.id }),
     });
+  };
+
+  const pickBrand = (choice: string) => {
+    const id = choice === NO_BRAND ? null : choice;
+    setBrandId(id);
+    try {
+      if (id) {
+        localStorage.setItem(BRAND_KEY, id);
+      } else {
+        localStorage.removeItem(BRAND_KEY);
+      }
+    } catch {
+      // Refused: the pick holds while the window is open.
+    }
   };
 
   const applyEdit = async () => {
@@ -480,6 +652,7 @@ const AiImageModal: FC<{
         ...(editReferences.length
           ? { references: editReferences.map((reference) => reference.id) }
           : {}),
+        ...(brand && { brand: brand.id }),
       },
       true
     );
@@ -528,6 +701,9 @@ const AiImageModal: FC<{
       )
     );
   };
+
+  // A brand's logo takes one of the render's places (FR-016).
+  const places = IMAGE_REFERENCE_MAX - (brand ? 1 : 0);
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
@@ -663,10 +839,18 @@ const AiImageModal: FC<{
             {promptCounter(prompt.length)}
           </div>
         </div>
+        <BrandField
+          brands={brands || []}
+          brand={brand}
+          own={references.length > 0}
+          onPick={pickBrand}
+          onManage={close}
+        />
         <ReferenceImages
           value={references}
           onChange={setReferences}
-          max={IMAGE_REFERENCE_MAX}
+          max={places}
+          branded={!!brand}
         />
         <div className="flex flex-col gap-[6px]">
           <div className="text-[14px] font-[600]">
@@ -1022,7 +1206,7 @@ const AiImageModal: FC<{
               lead={version.media}
               value={editReferences}
               onChange={setEditReferences}
-              max={IMAGE_REFERENCE_MAX - 1}
+              max={places - 1}
               action={
                 <Button variant="quiet" onClick={applyEdit}>
                   {t('image_edit_apply', 'Apply edit')}
