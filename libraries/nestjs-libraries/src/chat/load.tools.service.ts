@@ -9,6 +9,7 @@ import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
 import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
+import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 import { languageName } from '@gitroom/helpers/utils/language.names';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import dayjs from 'dayjs';
@@ -121,7 +122,7 @@ const SAMY_LINES = [
 
 // Samy's tools that read the web. Like SamyImageTool they stay out of toolList,
 // and each is there only while this install has Tavily's key.
-const WEB_TOOLS = [ReadWebPageTool];
+const WEB_TOOLS = [ReadWebPageTool, WebSearchTool];
 
 // After SAMY_LINES, whose rules about the web hold either way: the set that
 // matches whether this agent has the web tools.

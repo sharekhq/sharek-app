@@ -9,6 +9,7 @@ import { ChatThreadsRepository } from '@gitroom/nestjs-libraries/chat/chat.threa
 import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
 import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
+import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 
 @Global()
 @Module({
@@ -21,6 +22,7 @@ import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.p
     SamyImageReader,
     TavilyService,
     ReadWebPageTool,
+    WebSearchTool,
     ChatThreadsRepository,
     ChatThreadsService,
     ...toolList,
