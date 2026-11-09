@@ -217,6 +217,36 @@ describe('MetricChart', () => {
     expect(config.data.labels.join(' ')).not.toMatch(/[٠-٩]/);
   });
 
+  // A provider may send a day as a datetime with no offset, which Date reads in
+  // the browser's zone, so east of UTC it would be the day before at UTC. A
+  // point is the calendar day its date names.
+  it('labels each point with the day it names, east of UTC too, whatever time follows', async () => {
+    const RealDate = Date;
+    // a browser three hours east of UTC, where a time with no offset is local
+    class EastOfUtc extends RealDate {
+      constructor(...args: [] | [string | number | Date]) {
+        const [value] = args;
+        if (typeof value === 'string' && /T[\d:.]+$/.test(value)) {
+          super(`${value}+03:00`);
+        } else {
+          super(...args);
+        }
+      }
+    }
+    globalThis.Date = EastOfUtc as DateConstructor;
+    try {
+      await mount([
+        { total: 1, date: '2026-11-01T00:00:00' },
+        { total: 2, date: '2026-11-02T23:30:00' },
+        { total: 3, date: '2026-11-03' },
+      ]);
+    } finally {
+      globalThis.Date = RealDate;
+    }
+
+    expect(drawn().config.data.labels).toEqual(['Nov 1', 'Nov 2', 'Nov 3']);
+  });
+
   it('labels the value axis in thousands', async () => {
     await mount(days(REACH));
     const { y } = drawn().config.options.scales;
