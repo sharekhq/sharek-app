@@ -256,7 +256,7 @@ const EXEMPT: readonly Exemption[] = [
     file: 'components/brands/use.brands.tsx',
     text: 'Failed to load brands',
     reason:
-      "Thrown, never rendered: the brands fetcher's Error becomes SWR's `error`, which no Brands component reads. BrandsComponent lists no brands and shows its no-brands empty state until SWR's retry brings them, useBrandDialogs counts New brand's ungrouped channels as with no brands, and BrandKit uses only `mutate`.",
+      "Thrown, never rendered: the brands fetcher's Error becomes SWR's `error`, which no Brands component reads. BrandsComponent shows itself loading until SWR's retry brings them, useBrandDialogs counts New brand's ungrouped channels as with no brands, and BrandKit uses only `mutate`.",
   },
   {
     file: 'components/launches/calendar.tsx',

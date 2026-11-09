@@ -251,7 +251,7 @@ const PageTop: FC<{
 export const BrandsComponent: FC = () => {
   const t = useT();
   const isMobile = useMediaQuery(MOBILE_QUERY);
-  const { data, isLoading } = useBrands();
+  const { data } = useBrands();
   const { data: integrations, isLoading: loadingChannels } =
     useIntegrationList();
   const { openNewBrand, openRenameBrand, openDeleteBrand } = useBrandDialogs();
@@ -259,7 +259,9 @@ export const BrandsComponent: FC = () => {
   // Analytics keeps its channel.
   const [chosen, setChosen] = useState<string | null>(null);
 
-  if (isLoading || loadingChannels) {
+  // Loading until the brands come, after a failed answer too, which SWR asks
+  // again for: only an answer can say there are no brands.
+  if (!data || loadingChannels) {
     return (
       <div className="bg-newBgColorInner p-[20px] flex flex-1 flex-col gap-[15px] transition-all items-center justify-center">
         <LoadingComponent />
@@ -267,7 +269,7 @@ export const BrandsComponent: FC = () => {
     );
   }
 
-  const brands = [...(data || [])].sort(compareCustomers);
+  const brands = [...data].sort(compareCustomers);
   const channels: ListedChannel[] = integrations;
   const channelsOf = (id: string) =>
     channels.filter((channel) => (channel.customer?.id || NO_BRAND) === id);
