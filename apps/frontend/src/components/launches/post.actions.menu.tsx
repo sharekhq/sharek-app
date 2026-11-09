@@ -43,35 +43,11 @@ export interface PostActionsMenuHandle {
   close: () => void;
 }
 
-// The week grid gives a day a 58px column (`minmax(58px, 1fr)`, calendar.tsx:358),
-// and the post card's actions have never fitted it: finding 69 of the 2026-08
-// responsive audit measured ~200px of unshrinkable controls under a coarse
-// pointer and ~79px on the mouse path, centred, so they painted over the day
-// before and the day after. Nothing that has to sit inside the cell can fix
-// that — so the actions leave it. The strip becomes the button and the list
-// opens as a `fixed` panel measured against the viewport, which is the shape
-// the channel menu already uses (menu/menu.tsx:347).
-//
-// A month chip at 1025px and below has no room for the button, so it holds a
-// `held` menu instead: no button, opened and closed through the ref by what
-// owns it (a finger held still on the chip opens it, a drag closes it,
-// calendar.tsx). It covers the chip, hangs the list from it, and lets every
-// touch and click through to it.
-//
-// A menu that is a button of its own, not a card's strip, passes `trigger`
-// and `triggerClassName`, and the button draws them in place of the strip's ⋯
-// (the channel list's +, the chat's ⋯).
-export const PostActionsMenu = forwardRef<
-  PostActionsMenuHandle,
-  {
-    actions: PostAction[];
-    label: string;
-    held?: boolean;
-    trigger?: ReactNode;
-    triggerClassName?: string;
-  }
->(function PostActionsMenu(props, handle) {
-  const { actions, label, held, trigger, triggerClassName } = props;
+// A list `fixed` against the viewport, so no box that clips its content hides
+// it, hung from the box `ref` is on, which holds the list too: a press outside
+// that box closes it. `show` is where the list sits while it is open, from
+// `below()`. PostActionsMenu's, and the brand list's (brands/brand.menu.tsx).
+export const useHangingPanel = () => {
   const [show, setShow] = useState<false | { x: number; y: number }>(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const ref = useClickOutside<HTMLDivElement>(() => setShow(false));
@@ -81,27 +57,6 @@ export const PostActionsMenu = forwardRef<
     const box = ref.current?.getBoundingClientRect();
     return { x: box?.left || 0, y: (box?.bottom || 0) + 4 };
   }, [ref]);
-
-  const open = useCallback(() => {
-    setShow((current) => (current ? false : below()));
-  }, [below]);
-
-  useImperativeHandle(
-    handle,
-    () => ({
-      open: () => setShow(below()),
-      close: () => setShow(false),
-    }),
-    [below]
-  );
-
-  const toggle = useCallback(
-    (e: ReactMouseEvent) => {
-      e.stopPropagation();
-      open();
-    },
-    [open]
-  );
 
   // The panel is placed against the viewport, so it has to be pulled back
   // inside one when the card sits near an edge — and in Arabic it hangs from
@@ -137,18 +92,88 @@ export const PostActionsMenu = forwardRef<
   }, [show, ref]);
 
   // A fixed panel does not travel with the card, and the calendar grid scrolls
-  // (calendar.tsx:358). Closing is the honest answer to that, and to Escape.
-  // While the list is open Escape is the list's alone: it is heard on the way
-  // down and goes no further, because SplitPanel closes the sheet a menu can
-  // open in on an Escape that reaches the document (split.panel.tsx). Only an
-  // Escape pressed in the list, on its trigger or with nothing focused, as a
-  // held menu's is: a field or a dialog that has the focus meanwhile keeps its
-  // own.
+  // (calendar.tsx:358). Closing is the honest answer to that. A scroll inside
+  // the box, a list that scrolls its own options, is no reason to.
   useEffect(() => {
     if (!show) {
       return;
     }
-    const close = () => setShow(false);
+    const close = (e: Event) => {
+      if (!(e.target instanceof Node && ref.current?.contains(e.target))) {
+        setShow(false);
+      }
+    };
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [show, ref]);
+
+  return { ref, panelRef, show, setShow, below };
+};
+
+// The week grid gives a day a 58px column (`minmax(58px, 1fr)`, calendar.tsx:358),
+// and the post card's actions have never fitted it: finding 69 of the 2026-08
+// responsive audit measured ~200px of unshrinkable controls under a coarse
+// pointer and ~79px on the mouse path, centred, so they painted over the day
+// before and the day after. Nothing that has to sit inside the cell can fix
+// that — so the actions leave it. The strip becomes the button and the list
+// opens as a `fixed` panel measured against the viewport, which is the shape
+// the channel menu already uses (menu/menu.tsx:347).
+//
+// A month chip at 1025px and below has no room for the button, so it holds a
+// `held` menu instead: no button, opened and closed through the ref by what
+// owns it (a finger held still on the chip opens it, a drag closes it,
+// calendar.tsx). It covers the chip, hangs the list from it, and lets every
+// touch and click through to it.
+//
+// A menu that is a button of its own, not a card's strip, passes `trigger`
+// and `triggerClassName`, and the button draws them in place of the strip's ⋯
+// (the channel list's +, the chat's ⋯).
+export const PostActionsMenu = forwardRef<
+  PostActionsMenuHandle,
+  {
+    actions: PostAction[];
+    label: string;
+    held?: boolean;
+    trigger?: ReactNode;
+    triggerClassName?: string;
+  }
+>(function PostActionsMenu(props, handle) {
+  const { actions, label, held, trigger, triggerClassName } = props;
+  const { ref, panelRef, show, setShow, below } = useHangingPanel();
+
+  const open = useCallback(() => {
+    setShow((current) => (current ? false : below()));
+  }, [below, setShow]);
+
+  useImperativeHandle(
+    handle,
+    () => ({
+      open: () => setShow(below()),
+      close: () => setShow(false),
+    }),
+    [below, setShow]
+  );
+
+  const toggle = useCallback(
+    (e: ReactMouseEvent) => {
+      e.stopPropagation();
+      open();
+    },
+    [open]
+  );
+
+  // Escape closes the list too (a scroll does, useHangingPanel). While the
+  // list is open Escape is the list's alone: it is heard on the way down and
+  // goes no further, because SplitPanel closes the sheet a menu can open in on
+  // an Escape that reaches the document (split.panel.tsx). Only an Escape
+  // pressed in the list, on its trigger or with nothing focused, as a held
+  // menu's is: a field or a dialog that has the focus meanwhile keeps its own.
+  useEffect(() => {
+    if (!show) {
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       // a key pressed with nothing focused comes from the body
       const elsewhere =
@@ -159,15 +184,13 @@ export const PostActionsMenu = forwardRef<
         return;
       }
       e.stopPropagation();
-      close();
+      setShow(false);
     };
-    window.addEventListener('scroll', close, true);
     window.addEventListener('keydown', onKey, true);
     return () => {
-      window.removeEventListener('scroll', close, true);
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [show, ref]);
+  }, [show, ref, setShow]);
 
   const choose = (action: PostAction) => {
     setShow(false);

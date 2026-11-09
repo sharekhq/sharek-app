@@ -3,12 +3,10 @@
 import { FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import {
   MOBILE_QUERY,
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
-import SafeImage from '@gitroom/react/helpers/safe.image';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import {
@@ -32,6 +30,10 @@ import {
 } from '@gitroom/frontend/components/brands/brand.kit';
 import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 import {
+  BrandMark,
+  NoBrandMark,
+} from '@gitroom/frontend/components/brands/brand.mark';
+import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
@@ -43,65 +45,6 @@ const NO_BRAND = 'none';
 const LIST_MARK = 'w-[32px] h-[32px] rounded-[8px] text-[13px]';
 const PAGE_MARK =
   'w-[56px] h-[56px] rounded-[13px] text-[20px] mobile:w-[44px] mobile:h-[44px] mobile:text-[17px]';
-
-// A brand's logo, or its initial while it has none or the logo was deleted
-// from Media. Decoration: the brand's name is beside it.
-const BrandMark: FC<{ brand: Brand; className: string }> = ({
-  brand,
-  className,
-}) => {
-  const mediaDirectory = useMediaDirectory();
-  const { logo } = brand.kit;
-
-  if (logo?.path && !logo.missing) {
-    return (
-      <SafeImage
-        src={mediaDirectory.set(logo.path)}
-        alt=""
-        className={clsx('flex-none object-contain', className)}
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className={clsx(
-        'flex-none flex items-center justify-center bg-surface2 text-inkSoft font-[700]',
-        className
-      )}
-    >
-      {[...brand.name][0]?.toUpperCase()}
-    </span>
-  );
-};
-
-// No brand's mark: an empty dashed tile with a crossed circle.
-const NoBrandMark: FC<{ className: string; size: number }> = ({
-  className,
-  size,
-}) => (
-  <span
-    aria-hidden="true"
-    className={clsx(
-      'flex-none flex items-center justify-center border-[1.5px] border-dashed border-line text-muted',
-      className
-    )}
-  >
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M6.5 17.5l11-11" />
-    </svg>
-  </span>
-);
 
 // A row of the list: the mark, the name and the channel count. The open page's
 // row has the selected tint; the others show a hover. A brand's name keeps its
