@@ -17,9 +17,15 @@ const WIDTH = 234;
 // The phone page's side gutter, which the popover keeps clear of.
 const GUTTER = 16;
 
-// The only code a kit takes. react-colorful's field passes a three-digit
-// code on as well, which the kit refuses.
+// A whole colour. react-colorful's field passes a three-digit code on as
+// well, which the kit refuses.
 const FULL_CODE = /^#[0-9a-f]{6}$/i;
+
+// What HexColorInput shows after its # of what is typed or pasted: the hex
+// digits, the first six. It tells its onChange only once they make a colour,
+// so Add reads them here and follows the code in the field (FR-013).
+const fieldDigits = (value: string) =>
+  value.replace(/[^0-9a-f]/gi, '').slice(0, 6);
 
 // Mounted only while open, so each opening starts from an empty field.
 const ColourForm: FC<{
@@ -29,13 +35,20 @@ const ColourForm: FC<{
   onCancel: () => void;
 }> = ({ colours, align, onAdd, onCancel }) => {
   const t = useT();
-  // The picker's and the field's last colour, as react-colorful gives it.
+  // The last colour the square or the field made, which the square and the
+  // swatch keep showing while the field holds less than a colour.
   const [code, setCode] = useState('');
-  const full = FULL_CODE.test(code);
+  // The field's digits, which also give it its text back: leaving a field
+  // that holds less than a colour keeps what it holds.
+  const [digits, setDigits] = useState('');
+  const typed = `#${digits}`.toUpperCase();
   // A colour the kit holds already is refused quietly: Add stays disabled.
-  const held = colours.some(
-    (colour) => colour.toUpperCase() === code.toUpperCase()
-  );
+  const held = colours.some((colour) => colour.toUpperCase() === typed);
+
+  const pick = (colour: string) => {
+    setCode(colour);
+    setDigits(colour.slice(1));
+  };
 
   return (
     <div
@@ -51,19 +64,20 @@ const ColourForm: FC<{
         {t('brands_add_colour', 'Add a colour')}
       </div>
       {/* A colour square reads the same in either language. */}
-      <HexColorPicker dir="ltr" color={code || undefined} onChange={setCode} />
+      <HexColorPicker dir="ltr" color={code || undefined} onChange={pick} />
       <div className="flex items-center gap-[8px]">
         <span
           aria-hidden="true"
           className="flex-none w-[40px] h-[40px] rounded-[8px] ring-1 ring-inset ring-line bg-surface2"
-          style={{ backgroundColor: full ? code : undefined }}
+          style={{ backgroundColor: FULL_CODE.test(code) ? code : undefined }}
         />
         <HexColorInput
           prefixed
           autoFocus
           dir="ltr"
-          color={code}
+          color={`#${digits}`}
           onChange={setCode}
+          onInput={(e) => setDigits(fieldDigits(e.currentTarget.value))}
           aria-label={t('brands_hex_code', 'Hex code')}
           className="flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] tracking-[0.02em] tabular-nums uppercase outline-none focus:border-brand focus:ring-[3px] focus:ring-brandSoft"
         />
@@ -73,8 +87,8 @@ const ColourForm: FC<{
           {t('cancel', 'Cancel')}
         </Button>
         <Button
-          disabled={!full || held}
-          onClick={() => onAdd(code.toUpperCase())}
+          disabled={digits.length < 6 || held}
+          onClick={() => onAdd(typed)}
         >
           {t('add', 'Add')}
         </Button>
