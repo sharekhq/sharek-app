@@ -10,7 +10,10 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 
 import { IntegrationRepository } from './integration.repository';
 
-const makeRepository = (integration: Record<string, jest.Mock>) =>
+const makeRepository = (
+  integration: Record<string, jest.Mock>,
+  customer: Record<string, jest.Mock> = {}
+) =>
   new IntegrationRepository(
     { model: { integration } } as unknown as ConstructorParameters<
       typeof IntegrationRepository
@@ -18,7 +21,9 @@ const makeRepository = (integration: Record<string, jest.Mock>) =>
     {} as unknown as ConstructorParameters<typeof IntegrationRepository>[1],
     {} as unknown as ConstructorParameters<typeof IntegrationRepository>[2],
     {} as unknown as ConstructorParameters<typeof IntegrationRepository>[3],
-    {} as unknown as ConstructorParameters<typeof IntegrationRepository>[4],
+    { model: { customer } } as unknown as ConstructorParameters<
+      typeof IntegrationRepository
+    >[4],
     {} as unknown as ConstructorParameters<typeof IntegrationRepository>[5]
   );
 
@@ -109,6 +114,33 @@ describe('IntegrationRepository.updateOnCustomerName', () => {
       select: { id: true },
       where: { id: 'int-1', organizationId: 'org-1' },
       data: { customer: { disconnect: true } },
+    });
+  });
+
+  // A deleted brand keeps its name on a soft-deleted customer row, so saving
+  // that name in the move dialog must start a new customer, never reconnect the
+  // channel to the deleted one (feature 053-brands, R4).
+  it('creates a new customer when the only one with the name was deleted', async () => {
+    const findFirst = jest.fn(({ where }: { where: { deletedAt?: null } }) =>
+      Promise.resolve(
+        where.deletedAt === null ? null : { id: 'customer-deleted' }
+      )
+    );
+    const create = jest.fn().mockResolvedValue({ id: 'customer-new' });
+    const update = jest.fn().mockResolvedValue({ id: 'int-1' });
+
+    await makeRepository(
+      { update },
+      { findFirst, create }
+    ).updateOnCustomerName('org-1', 'int-1', 'Rawda');
+
+    expect(create).toHaveBeenCalledWith({
+      data: { name: 'Rawda', orgId: 'org-1' },
+    });
+    expect(update).toHaveBeenCalledWith({
+      select: { id: true },
+      where: { id: 'int-1', organizationId: 'org-1' },
+      data: { customer: { connect: { id: 'customer-new' } } },
     });
   });
 });
