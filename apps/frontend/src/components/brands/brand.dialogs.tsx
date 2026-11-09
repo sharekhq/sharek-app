@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { Button } from '@gitroom/react/form/button';
 import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -148,51 +149,12 @@ const NewBrand: FC<{
   );
 };
 
-// Delete (board BrandsDelete): what happens to the brand's channels and kit
-// images, then the delete (FR-006).
-const DeleteBrand: FC<{
-  id: string;
-  channels: number;
-  close: () => void;
-  onDeleted: () => void;
-}> = ({ id, channels, close, onDeleted }) => {
-  const t = useT();
-  const fetch = useFetch();
-  const [deleting, setDeleting] = useState(false);
-
-  const remove = async () => {
-    setDeleting(true);
-    await fetch(`/brands/${id}`, { method: 'DELETE' });
-    close();
-    onDeleted();
-  };
-
-  return (
-    <div className="flex flex-col gap-[16px]">
-      <p className="text-[14px] leading-[1.55] text-inkSoft">
-        {t(
-          'brands_delete_body',
-          'Its {{count}} channels stay connected and move to No brand. The logo and example posts stay in your Media library.',
-          { count: channels }
-        )}
-      </p>
-      <div className="flex justify-end gap-[8px]">
-        <Button variant="ghost" onClick={close}>
-          {t('cancel', 'Cancel')}
-        </Button>
-        <Button variant="danger" loading={deleting} onClick={remove}>
-          {t('brands_delete_brand', 'Delete brand')}
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 // The Brands page's dialogs, for its New brand button, its Rename button and
 // its ⋯ menu. Each change reloads GET /brands and the channel list, which says
 // each channel's brand everywhere in the app.
 export const useBrandDialogs = () => {
   const t = useT();
+  const fetch = useFetch();
   const modals = useModals();
   const { data: brands, mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
@@ -223,25 +185,36 @@ export const useBrandDialogs = () => {
       ),
     });
 
-  const openDeleteBrand = (brand: Pick<Brand, 'id' | 'name'>) =>
-    modals.openModal({
-      title: t('brands_delete_named', 'Delete {{name}}?', {
-        name: isolate(brand.name),
-        interpolation: { escapeValue: false },
-      }),
-      size: DIALOG_WIDTH,
-      children: (close) => (
-        <DeleteBrand
-          id={brand.id}
-          channels={
-            channels.filter((channel) => channel.customer?.id === brand.id)
-              .length
+  // Delete (board BrandsDelete) in the app's confirmation: what happens to the
+  // brand's channels and kit images, then the delete (FR-006). Its buttons
+  // keep the app's order, Delete brand before Cancel, where the board ends
+  // with Delete brand.
+  const openDeleteBrand = async (brand: Pick<Brand, 'id' | 'name'>) => {
+    if (
+      !(await deleteDialog(
+        t(
+          'brands_delete_body',
+          'Its {{count}} channels stay connected and move to No brand. The logo and example posts stay in your Media library.',
+          {
+            count: channels.filter(
+              (channel) => channel.customer?.id === brand.id
+            ).length,
           }
-          close={close}
-          onDeleted={reload}
-        />
-      ),
-    });
+        ),
+        t('brands_delete_brand', 'Delete brand'),
+        t('brands_delete_named', 'Delete {{name}}?', {
+          name: isolate(brand.name),
+          interpolation: { escapeValue: false },
+        }),
+        t('cancel', 'Cancel'),
+        true
+      ))
+    ) {
+      return;
+    }
+    await fetch(`/brands/${brand.id}`, { method: 'DELETE' });
+    reload();
+  };
 
   // The calendar's own rename dialog, on the route it uses (C3).
   const openRenameBrand = (brand: Pick<Brand, 'id' | 'name'>) =>

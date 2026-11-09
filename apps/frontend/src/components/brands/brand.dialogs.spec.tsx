@@ -5,11 +5,11 @@ import * as path from 'path';
 
 // The Brands page's dialogs (spec 053, US1 scenarios 2, 3 and 8, FR-004 to
 // FR-006; boards BrandsNew and BrandsDelete): New brand, which offers the first
-// brand the channels in no brand, ticked, and sends POST /brands; Delete, which
-// says what happens to the brand's channels and images and sends
-// DELETE /brands/:id; and Rename, which is the calendar's own rename dialog on
-// PUT /integrations/customers/:id (C3). After each change both GET /brands and
-// the channel list reload.
+// brand the channels in no brand, ticked, and sends POST /brands; Delete, the
+// app's confirmation, which says what happens to the brand's channels and
+// images and sends DELETE /brands/:id; and Rename, which is the calendar's own
+// rename dialog on PUT /integrations/customers/:id (C3). After each change both
+// GET /brands and the channel list reload.
 //
 // t() is the real i18next on the en and ar files, so a counted phrase renders
 // the plural form each language picks.
@@ -59,6 +59,8 @@ jest.mock('next/dynamic', () => ({
 import i18next from 'i18next';
 import type { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
 import {
+  DecisionEverywhere,
+  decisionModalEmitter,
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
@@ -127,6 +129,7 @@ const mount = async () => {
     root.render(
       <>
         <ModalManagerInner />
+        <DecisionEverywhere />
         <Page />
       </>
     );
@@ -191,6 +194,8 @@ afterEach(async () => {
     closeEveryModal?.();
     mounted.splice(0).forEach((root) => root.unmount());
   });
+  // DecisionEverywhere never unsubscribes, so each mount would add a listener.
+  decisionModalEmitter.removeAllListeners('open');
   document.body.innerHTML = '';
   await i18next.changeLanguage('en');
   jest.clearAllMocks();
