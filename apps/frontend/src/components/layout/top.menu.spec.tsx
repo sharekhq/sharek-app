@@ -2,8 +2,8 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // The rail as Settings left it: Plugs and Integrations moved into Settings, and
-// Make UGC left with its modal. Each case starts from these switches; the
-// beforeEach resets the three a case changes.
+// Make UGC left with its modal. Each case starts from these switches, this
+// user and no translations; the beforeEach resets what a case changes.
 const variables = {
   isGeneral: true,
   billingEnabled: true,
@@ -11,20 +11,28 @@ const variables = {
   showThirdParty: false,
   supportEnabled: false,
 };
+const user = { orgId: 'org-1', tier: 'STANDARD', role: 'ADMIN' };
+// A key with no translation here reads as its English default.
+const translations: Record<string, string> = {};
 
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => variables,
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ orgId: 'org-1', tier: 'STANDARD', role: 'ADMIN' }),
+  useUser: () => user,
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (_key: string, fallback?: string) => fallback ?? _key,
+  useT: () => (key: string, fallback?: string) =>
+    translations[key] ?? fallback ?? key,
 }));
-// The rail item is replaced by its label: what is under test is which entries
-// the menu decides to render, not how an entry looks.
+// The rail item is replaced by its label and its path: what is under test is
+// which entries the menu decides to render, not how an entry looks.
 jest.mock('@gitroom/frontend/components/new-layout/menu-item', () => ({
-  MenuItem: ({ label }: { label: string }) => <div data-menu-item>{label}</div>,
+  MenuItem: ({ label, path }: { label: string; path: string }) => (
+    <div data-menu-item data-path={path}>
+      {label}
+    </div>
+  ),
 }));
 
 import { TopMenu } from '@gitroom/frontend/components/layout/top.menu';
@@ -47,9 +55,13 @@ const menu = async () => {
 };
 
 beforeEach(() => {
+  variables.billingEnabled = true;
   variables.showUpstreamExtras = false;
   variables.showThirdParty = false;
   variables.supportEnabled = false;
+  user.tier = 'STANDARD';
+  user.role = 'ADMIN';
+  Object.keys(translations).forEach((key) => delete translations[key]);
 });
 
 afterEach(() => {
@@ -61,14 +73,58 @@ afterEach(() => {
 
 describe('the side menu', () => {
   // Analytics stays where Sharek put it, after Media; Plugs moved into Settings.
-  it('runs Calendar, Studio, Samy, Media and Analytics, then Billing and Settings', async () => {
+  // Brands ends the top group, after Analytics (spec 053, FR-002).
+  it('runs Calendar, Studio, Samy, Media, Analytics and Brands, then Billing and Settings', async () => {
     expect(await menu()).toEqual([
       'Calendar',
       'Studio',
       'Samy',
       'Media',
       'Analytics',
+      'Brands',
       'Billing',
+      'Settings',
+    ]);
+  });
+
+  // The rail's short word is the brands key's, العلامات in Arabic.
+  it('leads Brands to /brands, labelled by the brands key', async () => {
+    translations.brands = 'العلامات';
+    await menu();
+
+    expect(document.querySelector('[data-path="/brands"]')?.textContent).toBe(
+      'العلامات'
+    );
+  });
+
+  // Brands has no switch, plan or role of its own: it shows exactly when the
+  // other top items do (FR-008, FR-009). The top group is hidden for a free
+  // tier while billing is on, and Billing is for admins only.
+  it('shows Brands exactly when the rest of the top group shows', async () => {
+    user.tier = 'FREE';
+    expect(await menu()).toEqual(['Billing', 'Settings']);
+
+    variables.billingEnabled = false;
+    expect(await menu()).toEqual([
+      'Calendar',
+      'Studio',
+      'Samy',
+      'Media',
+      'Analytics',
+      'Brands',
+      'Settings',
+    ]);
+
+    user.tier = 'STANDARD';
+    user.role = 'USER';
+    variables.billingEnabled = true;
+    expect(await menu()).toEqual([
+      'Calendar',
+      'Studio',
+      'Samy',
+      'Media',
+      'Analytics',
+      'Brands',
       'Settings',
     ]);
   });
