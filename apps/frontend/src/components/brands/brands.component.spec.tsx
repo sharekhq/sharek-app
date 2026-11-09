@@ -200,8 +200,8 @@ beforeEach(() => {
       return smallWindow && query === MOBILE_QUERY;
     },
     media: query,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
   })) as unknown as typeof window.matchMedia;
 });
 
@@ -325,8 +325,11 @@ describe('the list', () => {
   it('gives each brand its channel count, disabled channels included, and No brand the channels in no brand', async () => {
     const host = await render();
 
+    // the row's last line
     expect(
-      rows(host).map((node) => node.textContent?.match(/\d+ channels?/)?.[0])
+      rows(host).map(
+        (node) => Array.from(node.querySelectorAll('span')).pop()?.textContent
+      )
     ).toEqual([
       '3 channels',
       '0 channels',

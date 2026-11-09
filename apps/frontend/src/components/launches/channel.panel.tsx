@@ -73,6 +73,13 @@ export const compareChannels = (a: Channel, b: Channel) =>
   collate(a.name, b.name) ||
   byValue(a.id, b.id);
 
+// Customers A to Z, the id breaking a tie, as the list orders its groups (R2)
+// and the Brands page its brands.
+export const compareCustomers = (
+  a: { id: string; name: string },
+  b: { id: string; name: string }
+) => collate(a.name, b.name) || byValue(a.id, b.id);
+
 // The list's groups: the channels with no customer first, then each customer
 // A to Z, each group's channels in compareChannels order (R2). A customer
 // with no channel has no group.
@@ -92,8 +99,7 @@ export const orderChannels = (list: Channel[]) =>
         ? -1
         : !b.customer
         ? 1
-        : collate(a.customer.name, b.customer.name) ||
-          byValue(a.customer.id, b.customer.id)
+        : compareCustomers(a.customer, b.customer)
     );
 
 // data-model.md's usable table, one rule per page (C20): whether a row can be

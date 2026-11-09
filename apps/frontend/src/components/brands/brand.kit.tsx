@@ -55,8 +55,9 @@ type Picked = { id: string; path: string }[];
 
 const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 
-// The boards' small ghost button: Replace, Remove and Upload logo.
-const SMALL_BUTTON = clsx(
+// The boards' small ghost button: Replace, Remove and Upload logo, and the
+// brand's Rename.
+export const SMALL_BUTTON = clsx(
   'inline-flex items-center justify-center h-[36px] coarse:h-[44px] px-[12px] rounded-[8px] border border-line text-ink text-[13px] font-[600] whitespace-nowrap cursor-pointer hover:border-inkSoft transition-colors',
   FOCUS_RING
 );
@@ -177,6 +178,26 @@ const FontField: FC<{
       className="h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] placeholder:text-muted outline-none placeholder-shown:[direction:inherit] focus:border-brand focus:ring-[3px] focus:ring-brandSoft"
     />
   </label>
+);
+
+// A channel on a brand's page or on No brand's: its picture, its name in its
+// own direction and its platform, then what the row offers (a brand's ×).
+export const BrandChannel: FC<{
+  channel: KitChannel;
+  children?: ReactNode;
+}> = ({ channel, children }) => (
+  <div className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors">
+    <ChannelPicture channel={channel} />
+    <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
+      <bdi className="text-[14px] font-[500] text-ink truncate">
+        {channel.name}
+      </bdi>
+      <span className="text-[12px] text-muted truncate">
+        {platformLabel(channel.identifier)}
+      </span>
+    </span>
+    {children}
+  </div>
 );
 
 // Add channels' picker: the organization's channels in no brand or another
@@ -571,19 +592,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
           {!!own.length && (
             <div className="flex flex-col gap-[2px]">
               {own.map((channel) => (
-                <div
-                  key={channel.id}
-                  className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors"
-                >
-                  <ChannelPicture channel={channel} />
-                  <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
-                    <bdi className="text-[14px] font-[500] text-ink truncate">
-                      {channel.name}
-                    </bdi>
-                    <span className="text-[12px] text-muted truncate">
-                      {platformLabel(channel.identifier)}
-                    </span>
-                  </span>
+                <BrandChannel key={channel.id} channel={channel}>
                   <button
                     type="button"
                     aria-label={removeFromBrand}
@@ -596,7 +605,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
                   >
                     <CloseIcon size={16} aria-hidden="true" />
                   </button>
-                </div>
+                </BrandChannel>
               ))}
             </div>
           )}
