@@ -795,6 +795,22 @@ describe('ChannelSummary', () => {
     ]);
   });
 
+  // The down arrow promises something opens. At 1025px and below choosing the
+  // pill opens the channel sheet; on a wide screen it only moves the focus to
+  // the list beside it, so the arrow shows on the narrow side alone (walk 4,
+  // maintainer).
+  it('shows its down arrow only at 1025px and below, where it opens the channel sheet', async () => {
+    const { host } = await render(<ChannelSummary />, {
+      properties: [channel('a', BAYT)],
+    });
+    const arrow = summary(host).querySelector('svg')!;
+
+    expect(arrow.getAttribute('aria-hidden')).toBe('true');
+    expect(classes(arrow)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:block'])
+    );
+  });
+
   it('shows the first three pictures, as decoration', async () => {
     const { host } = await render(<ChannelSummary />, {
       properties: ['a', 'b', 'c', 'd'].map((id) => channel(id, BAYT)),
