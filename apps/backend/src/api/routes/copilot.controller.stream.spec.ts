@@ -122,7 +122,8 @@ describe('CopilotController /copilot/chat reply delivery', () => {
     const controller = new CopilotController(
       {} as unknown as ConstructorParameters<typeof CopilotController>[0],
       {} as unknown as ConstructorParameters<typeof CopilotController>[1],
-      {} as unknown as ConstructorParameters<typeof CopilotController>[2]
+      {} as unknown as ConstructorParameters<typeof CopilotController>[2],
+      {} as unknown as ConstructorParameters<typeof CopilotController>[3]
     );
     const app = express();
     // main.ts parses the copilot routes' bodies before CopilotKit sees them.
