@@ -1,7 +1,11 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { WorkflowNotFoundError } from '@temporalio/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
-import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
+import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import {
+  BrandBlock,
+  OpenaiService,
+} from '@gitroom/nestjs-libraries/openai/openai.service';
 import {
   generationError,
   isSafetyRejection,
@@ -142,7 +146,8 @@ export class MediaService {
     private _openAi: OpenaiService,
     private _subscriptionService: SubscriptionService,
     private _videoManager: VideoManager,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _brandService: BrandService
   ) {}
 
   async deleteMedia(org: string, id: string) {
@@ -240,9 +245,12 @@ export class MediaService {
     dto: GenerateImageWithPromptDto
   ) {
     await this.resolveImage(org);
+    const references = dto.references || [];
+    const kit = await this.resolveBrand(org, dto.brand, references.length);
     return {
       size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
-      inputs: await this.loadReferences(org, dto.references || []),
+      inputs: await this.loadReferences(org, [...references, ...kit.ids]),
+      brand: kit.brand,
     };
   }
 
@@ -324,6 +332,69 @@ export class MediaService {
   }
 
   /**
+   * What a render takes from a brand's kit (research R6): its images, numbered
+   * after the `before` images the render already has so the user's keep their
+   * numbers, and the block the improver is told. The logo comes first; the
+   * examples go only when nothing comes before them, since the user's
+   * references take their place and an edit's image already carries the
+   * brand's look. kitFor answers only the images still in Media, so a deleted
+   * one is skipped rather than refused (FR-012), and `brand` is left out when
+   * nothing of the kit goes along.
+   */
+  private async resolveBrand(
+    org: Organization,
+    brandId: string | undefined,
+    before: number
+  ): Promise<{ ids: string[]; brand?: { name: string; block: BrandBlock } }> {
+    if (!brandId) {
+      return { ids: [] };
+    }
+
+    const kit = await this._brandService.kitFor(org.id, brandId);
+    const logo = kit.logoId ? [kit.logoId] : [];
+
+    // The logo takes one of the render's places. Worded for Samy, as the edit
+    // limit in generateImageFromLinks is.
+    if (before + logo.length > IMAGE_REFERENCE_MAX) {
+      throw new HttpException(
+        `With ${kit.name}'s logo, only ${
+          IMAGE_REFERENCE_MAX - 1
+        } of the user's images fit (${
+          IMAGE_REFERENCE_MAX - 2
+        } when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.`,
+        400
+      );
+    }
+
+    const examples = before ? [] : kit.exampleIds;
+    const ids = [...logo, ...examples];
+    if (
+      !ids.length &&
+      !kit.colours.length &&
+      !kit.headingFont &&
+      !kit.bodyFont
+    ) {
+      return { ids };
+    }
+
+    return {
+      ids,
+      brand: {
+        name: kit.name,
+        block: {
+          logo: logo.length ? before + 1 : undefined,
+          examples: examples.map(
+            (_, position) => before + logo.length + position + 1
+          ),
+          colours: kit.colours,
+          headingFont: kit.headingFont,
+          bodyFont: kit.bodyFont,
+        },
+      },
+    };
+  }
+
+  /**
    * The AI image modal's render as a stream, shaped like `processVideo`: the
    * single frame is the terminal one, and the controller's heartbeat wrapper
    * supplies the keep-alives in between. The render cannot be cancelled
@@ -338,6 +409,9 @@ export class MediaService {
     // The wire carries a style id; the phrase behind it is resolved here so the
     // client cannot hand the model instructions of its own.
     const style = IMAGE_STYLES.find((entry) => entry.id === dto.style)?.prompt;
+    // Handed on only when part of a kit goes along, so without one the
+    // improver is asked exactly what it always was.
+    const brand: [BrandBlock?] = prepared.brand ? [prepared.brand.block] : [];
 
     let saved;
     try {
@@ -352,7 +426,8 @@ export class MediaService {
           (await this._openAi.generatePromptForPicture(
             dto.prompt,
             style,
-            prepared.inputs.length
+            prepared.inputs.length,
+            ...brand
           )) || dto.prompt
       );
     } catch (err) {
@@ -380,12 +455,14 @@ export class MediaService {
       );
     }
 
+    const images = [dto.imageId, ...(dto.references || [])];
+    const kit = await this.resolveBrand(org, dto.brand, images.length);
     return {
       size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
-      inputs: await this.loadReferences(org, [
-        dto.imageId,
-        ...(dto.references || []),
-      ]),
+      inputs: await this.loadReferences(org, [...images, ...kit.ids]),
+      // An edit is improved as a change that keeps the image's own colours
+      // and type, so the kit goes along only with its logo.
+      brand: kit.brand?.block.logo ? kit.brand : undefined,
     };
   }
 
@@ -399,6 +476,9 @@ export class MediaService {
     dto: EditImageWithPromptDto,
     prepared: Awaited<ReturnType<MediaService['resolveImageEdit']>>
   ) {
+    // As for a generation: without a kit, today's exact request.
+    const brand: [BrandBlock?] = prepared.brand ? [prepared.brand.block] : [];
+
     let saved;
     try {
       saved = await this.renderImage(
@@ -409,7 +489,8 @@ export class MediaService {
         async () =>
           (await this._openAi.generateEditPrompt(
             dto.prompt,
-            prepared.inputs.length
+            prepared.inputs.length,
+            ...brand
           )) || dto.prompt
       );
     } catch (err) {
@@ -432,9 +513,11 @@ export class MediaService {
       aspectRatio: ImageAspectId;
       references?: string[];
       editOf?: string;
+      // A live brand's id, whose kit goes along
+      brand?: string;
     }
   ) {
-    const { prompt, aspectRatio, editOf } = input;
+    const { prompt, aspectRatio, editOf, brand } = input;
     const others = [...new Set(input.references)].filter(
       (link) => link !== editOf
     );
@@ -466,22 +549,17 @@ export class MediaService {
     }
 
     try {
+      let prepared;
       let frames;
       if (editOf) {
         const [imageId, ...references] = ids;
-        const dto = { imageId, prompt, aspectRatio, references };
-        frames = this.editImageWithPrompt(
-          org,
-          dto,
-          await this.resolveImageEdit(org, dto)
-        );
+        const dto = { imageId, prompt, aspectRatio, references, brand };
+        prepared = await this.resolveImageEdit(org, dto);
+        frames = this.editImageWithPrompt(org, dto, prepared);
       } else {
-        const dto = { prompt, aspectRatio, references: ids };
-        frames = this.generateImageWithPrompt(
-          org,
-          dto,
-          await this.resolveImageWithPrompt(org, dto)
-        );
+        const dto = { prompt, aspectRatio, references: ids, brand };
+        prepared = await this.resolveImageWithPrompt(org, dto);
+        frames = this.generateImageWithPrompt(org, dto, prepared);
       }
 
       let saved;
@@ -489,7 +567,13 @@ export class MediaService {
         saved = frame.media;
       }
 
-      return { id: saved.id, path: saved.path };
+      // The brand is named only when part of its kit went along, so a reply
+      // never credits a kit that sent nothing.
+      return {
+        id: saved.id,
+        path: saved.path,
+        ...(prepared.brand && { brand: prepared.brand.name }),
+      };
     } catch (err) {
       const { code, index } = (
         err instanceof HttpException ? err.getResponse() : {}
