@@ -109,6 +109,7 @@ afterEach(async () => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  document.body.removeAttribute('style');
   mockCharts.length = 0;
   window.matchMedia = realMatchMedia;
   await i18next.changeLanguage('en');
@@ -318,6 +319,35 @@ describe('MetricChart', () => {
       expect(
         options.plugins.tooltip.callbacks.label({ parsed: { y: 3410 } })
       ).toBe('3,410');
+    }
+  );
+
+  // The page's face, which layout.tsx's font-sans gives the body: IBM Plex Sans,
+  // and IBM Plex Sans Arabic for Arabic letters. chart.js draws in its own
+  // 12px Helvetica unless told (M20).
+  const PAGE_FONT =
+    '"IBM Plex Sans", "IBM Plex Sans Arabic", "Helvetica Neue", sans-serif';
+
+  it.each(['en', 'ar'])(
+    "writes the axes at 11px and the tooltip in the page's face, in %s",
+    async (lng) => {
+      await i18next.changeLanguage(lng);
+      document.body.style.fontFamily = PAGE_FONT;
+      await mount(days(REACH));
+      const { scales, plugins } = drawn().config.options;
+
+      expect(scales.x.ticks.font).toEqual({ family: PAGE_FONT, size: 11 });
+      expect(scales.y.ticks.font).toEqual({ family: PAGE_FONT, size: 11 });
+      expect(plugins.tooltip.titleFont).toEqual({
+        family: PAGE_FONT,
+        size: 12,
+        weight: 'normal',
+      });
+      expect(plugins.tooltip.bodyFont).toEqual({
+        family: PAGE_FONT,
+        size: 14,
+        weight: 'bold',
+      });
     }
   );
 
