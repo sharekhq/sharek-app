@@ -2,12 +2,13 @@ import { act, FC, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // A brand's kit on the Brands page (spec 053, US1 scenarios 4, 5, 7, 9 and 10,
-// FR-010 to FR-014; board Main's parts 5 to 8, BrandsMissing): the line that
-// says what the kit is for, the Logo, Example posts, Colours, Channels and
-// Fonts cards, and the note that anyone in the team can edit it. Each kit save
-// sends PUT /brands/:id/kit with only the field it changed, so two members
-// editing different parts of one kit don't overwrite each other (spec, Edge
-// Cases); a channel moves with the existing PUT /integrations/:id/group.
+// FR-010 to FR-014; board Main's parts 5 to 8, BrandsMissing): the Logo,
+// Example posts, Colours, Channels and Fonts cards, and the note that anyone in
+// the team can edit it. Each kit save sends PUT /brands/:id/kit with only the
+// field it changed, so two members editing different parts of one kit don't
+// overwrite each other (spec, Edge Cases); a channel moves with the existing
+// PUT /integrations/:id/group. The line that says what the kit is for is the
+// brand header's, which the page draws.
 
 const request = jest.fn();
 const reloadBrands = jest.fn();
@@ -233,10 +234,10 @@ afterEach(() => {
 });
 
 describe('a brand kit', () => {
-  it('says the kit is what Samy and Sharek’s AI use, naming no tool (FR-014)', async () => {
+  it('leaves the line that says what the kit is for to the brand’s header, which the page draws', async () => {
     await mount(brand());
 
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent).not.toContain(
       "Samy and Sharek's AI use this kit to keep your images on-brand."
     );
   });
@@ -398,6 +399,20 @@ describe('the Example posts card', () => {
     await pick({ id: 'm9', path: 'https://media/m9.png' });
 
     expect(kitSaves()).toEqual([{ exampleIds: ['e1', 'm9', 'e3'] }]);
+  });
+
+  it('removes one deleted from Media with its × too, saving the rest', async () => {
+    await mount(
+      brand({ examples: [image('e1'), image('e2', true), image('e3')] })
+    );
+
+    // the deleted one's tile is the one holding Replace
+    const tile = button(card('Example posts'), 'Replace')!.parentElement!;
+    expect(button(tile, 'Remove example')).toBeDefined();
+
+    await click(button(tile, 'Remove example'));
+
+    expect(kitSaves()).toEqual([{ exampleIds: ['e1', 'e3'] }]);
   });
 
   it('keeps the help line for a kit with nothing missing', async () => {
