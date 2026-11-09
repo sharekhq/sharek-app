@@ -134,7 +134,7 @@ export const BrandMenu: FC<{
   variant: 'message' | 'image';
   onPick: (choice: string) => void;
   // Manage brands opens the Brands page in a new tab, so a dialog around the
-  // list, and a post editor under it, keep what is in them
+  // list, a post editor under it, or Samy's message box keep what is in them
   manageInNewTab?: boolean;
   // the button's accessible name, what it shows, and its classes
   label: string;
