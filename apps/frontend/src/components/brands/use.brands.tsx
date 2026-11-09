@@ -25,9 +25,15 @@ export type Brand = {
 export const useBrands = () => {
   const fetch = useFetch();
 
+  // A failed answer (a 500 has a JSON body too) is an error SWR asks again
+  // for, never brands to list
   const load = useCallback(
     async (path: string) => {
-      return (await fetch(path)).json();
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error('Failed to load brands');
+      }
+      return response.json();
     },
     [fetch]
   );
