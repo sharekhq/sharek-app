@@ -243,18 +243,21 @@ describe('SamyImageTool', () => {
       });
     });
 
-    // The browser sends them, so nothing about their shape is guaranteed.
-    it('keeps only the channel ids that are text', async () => {
+    // The browser sends them, so nothing about their shape is guaranteed. A
+    // channel counts only as Samy's instructions list it, with a text id and
+    // identifier.
+    it('keeps only the channels Samy is told are selected', async () => {
       const { tool, brands } = makeTool();
 
       await tool.execute(
         { prompt: 'a cat' },
         context([
-          { id: 'channel-1' },
+          { id: 'channel-1', identifier: 'instagram' },
           null,
-          { id: 7 },
+          { id: 7, identifier: 'x' },
           'channel-2',
           { identifier: 'x' },
+          { id: 'channel-3' },
         ])
       );
 
