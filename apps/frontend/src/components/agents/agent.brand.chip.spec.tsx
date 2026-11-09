@@ -1,4 +1,4 @@
-import { act, ReactNode, useContext, useEffect } from 'react';
+import { act, ComponentType, ReactNode, useContext, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,7 +24,6 @@ import * as path from 'path';
 // test DOM has no layout, so the wrap and the shapes are pinned by the
 // classes that carry them.
 
-type Brand = ReturnType<typeof brand>;
 type Channel = ReturnType<typeof channel>;
 
 const mockSent = jest.fn();
@@ -36,7 +35,14 @@ let mockAiImage: { onChange: (media: { id: string; path: string }) => void };
 jest.mock('@copilotkit/react-ui', () => ({
   // The chat's own messages, which the note scrolls as the tray does, then
   // the message box Samy's page draws in CopilotChat's Input slot.
-  CopilotChat: ({ Input }: { Input: any }) => (
+  CopilotChat: ({
+    Input,
+  }: {
+    Input: ComponentType<{
+      inProgress: boolean;
+      onSend: (text: string) => void;
+    }>;
+  }) => (
     <>
       <div className="copilotKitMessages" />
       <Input inProgress={false} onSend={mockSent} />
@@ -64,14 +70,14 @@ jest.mock('@gitroom/frontend/components/agents/agent.chat.header', () => ({
   ...jest.requireActual(
     '@gitroom/frontend/components/agents/agent.chat.header'
   ),
-  ChatHeader: () => null,
+  ChatHeader: (): null => null,
 }));
 jest.mock('@gitroom/frontend/components/agents/agent.chats', () => ({
-  ChatsPanel: () => null,
+  ChatsPanel: (): null => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
   ...jest.requireActual('@gitroom/frontend/components/launches/channel.panel'),
-  ChannelPanel: (props: { onChange: (ids: string[]) => void }) => {
+  ChannelPanel: (props: { onChange: (ids: string[]) => void }): null => {
     mockPanel = props;
     return null;
   },
@@ -161,6 +167,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 
 import i18next from 'i18next';
+import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import {
   Agent,
@@ -198,8 +205,8 @@ beforeAll(async () => {
 function brand(
   id: string,
   name: string,
-  logo: { id: string; path: string | null; missing: boolean } | null = null
-) {
+  logo: Brand['kit']['logo'] = null
+): Brand {
   return {
     id,
     name,
@@ -265,7 +272,7 @@ const listeners = new Set<() => void>();
 // What the chip has chosen, as Samy will be sent it, kept once each render
 // commits.
 let chosen: string | undefined;
-const Probe = () => {
+const Probe = (): null => {
   const { brand: choice } = useContext(PropertiesContext) as {
     brand?: string;
   };
@@ -305,8 +312,6 @@ beforeEach(() => {
   chosen = 'not read';
   smallWindow = false;
   listeners.clear();
-  (URL as any).createObjectURL = jest.fn(() => 'blob:x');
-  (URL as any).revokeObjectURL = jest.fn();
   window.matchMedia = ((query: string) => ({
     get matches() {
       return smallWindow && query === MOBILE_QUERY;

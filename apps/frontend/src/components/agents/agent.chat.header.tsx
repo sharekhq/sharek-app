@@ -149,7 +149,8 @@ export const ChatHeader: FC = () => {
  * The message box's "Samy will use" line (contracts/pages-ui.md, R16): the
  * first three pictures of the channels Samy will use, the customer's name
  * when they're all one customer's, else the first channel's, and how many.
- * Choosing it opens the channel list (FR-026).
+ * Choosing it opens the channel list (FR-026). It heads the message box's
+ * summary row, beside the brand chip.
  */
 export const ChannelSummary: FC = () => {
   const t = useT();
@@ -165,83 +166,80 @@ export const ChannelSummary: FC = () => {
   });
 
   return (
-    // the box's own inset, above the images and the text
-    <div className="flex pt-[10px] px-[12px]">
-      <button
-        type="button"
-        onClick={openChannels}
-        aria-label={
-          picks.length
-            ? t(
-                'samy_will_use_label',
-                'Samy will use {{names}}, {{channels}}. Change channels',
-                {
-                  names,
-                  channels,
-                  // React escapes the label, so i18next mustn't first
-                  interpolation: { escapeValue: false },
-                }
-              )
-            : undefined
-        }
-        className={clsx(
-          'flex items-center gap-[8px] min-w-0 h-[30px] coarse:h-[44px] rounded-full bg-surface2 text-[13px] text-inkSoft whitespace-nowrap hover:text-ink transition-colors cursor-pointer',
-          picks.length ? 'ps-[6px] pe-[10px]' : 'px-[10px]',
-          FOCUS_RING
-        )}
+    <button
+      type="button"
+      onClick={openChannels}
+      aria-label={
+        picks.length
+          ? t(
+              'samy_will_use_label',
+              'Samy will use {{names}}, {{channels}}. Change channels',
+              {
+                names,
+                channels,
+                // React escapes the label, so i18next mustn't first
+                interpolation: { escapeValue: false },
+              }
+            )
+          : undefined
+      }
+      className={clsx(
+        'flex items-center gap-[8px] min-w-0 h-[30px] coarse:h-[44px] rounded-full bg-surface2 text-[13px] text-inkSoft whitespace-nowrap hover:text-ink transition-colors cursor-pointer',
+        picks.length ? 'ps-[6px] pe-[10px]' : 'px-[10px]',
+        FOCUS_RING
+      )}
+    >
+      {picks.length ? (
+        <>
+          {/* overlapped from the start edge, the right in Arabic */}
+          <span aria-hidden="true" className="flex flex-none">
+            {picks.slice(0, 3).map((pick, index) => (
+              <ImageWithFallback
+                key={pick.id}
+                fallbackSrc={`/icons/platforms/${pick.identifier}.png`}
+                src={pick.picture}
+                alt=""
+                width={22}
+                height={22}
+                className={clsx(
+                  'rounded-[6px] border-2 border-surface2',
+                  index > 0 && '-ms-[7px]'
+                )}
+              />
+            ))}
+          </span>
+          {t('samy_will_use', 'Samy will use')}
+          {/* A name in either script, cut before the count is. A phone's
+              composer, and the chat with both side panels open from 1026px,
+              left it a few letters, so below 1280px the label alone says
+              it. */}
+          <bdi className="min-w-0 truncate font-[600] text-ink [@media(max-width:1279px)]:hidden">
+            {names}
+          </bdi>
+          {/* its own flex item, so the gap stays without the name */}
+          <span>{`· ${channels}`}</span>
+        </>
+      ) : (
+        t('no_channels_picked', 'No channels picked')
+      )}
+      {/* Where choosing the pill opens the channel sheet, 1025px and below;
+          a wide screen has the list beside it, which it only focuses.
+          Important, as CopilotKit's `.copilotKitChat svg` sets a display of
+          its own and outranks a plain class. */}
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="flex-none [@media(min-width:1026px)]:!hidden"
       >
-        {picks.length ? (
-          <>
-            {/* overlapped from the start edge, the right in Arabic */}
-            <span aria-hidden="true" className="flex flex-none">
-              {picks.slice(0, 3).map((pick, index) => (
-                <ImageWithFallback
-                  key={pick.id}
-                  fallbackSrc={`/icons/platforms/${pick.identifier}.png`}
-                  src={pick.picture}
-                  alt=""
-                  width={22}
-                  height={22}
-                  className={clsx(
-                    'rounded-[6px] border-2 border-surface2',
-                    index > 0 && '-ms-[7px]'
-                  )}
-                />
-              ))}
-            </span>
-            {t('samy_will_use', 'Samy will use')}
-            {/* A name in either script, cut before the count is. A phone's
-                composer, and the chat with both side panels open from 1026px,
-                left it a few letters, so below 1280px the label alone says
-                it. */}
-            <bdi className="min-w-0 truncate font-[600] text-ink [@media(max-width:1279px)]:hidden">
-              {names}
-            </bdi>
-            {/* its own flex item, so the gap stays without the name */}
-            <span>{`· ${channels}`}</span>
-          </>
-        ) : (
-          t('no_channels_picked', 'No channels picked')
-        )}
-        {/* Where choosing the pill opens the channel sheet, 1025px and below;
-            a wide screen has the list beside it, which it only focuses.
-            Important, as CopilotKit's `.copilotKitChat svg` sets a display of
-            its own and outranks a plain class. */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          className="flex-none [@media(min-width:1026px)]:!hidden"
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-    </div>
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
   );
 };

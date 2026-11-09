@@ -402,11 +402,13 @@ describe('the channel list (FR-025, C6)', () => {
 });
 
 describe('the strips are gone (FR-008, FR-041, C10)', () => {
-  it('reads the channels only through useIntegrationList, loads nothing itself, and draws neither strip', async () => {
+  it('reads the channels only through useIntegrationList, loads nothing itself but the brands, and draws neither strip', async () => {
     await mount();
 
-    // the list comes from the shared hook, the chats from the chats panel
-    expect(mockKeys).toEqual([]);
+    // the list comes from the shared hook, the chats from the chats panel,
+    // and the brands, which the brand chip chooses among, from useBrands
+    // (spec 053)
+    expect(new Set(mockKeys)).toEqual(new Set(['/brands']));
     expect(
       Object.keys(
         jest.requireActual('@gitroom/frontend/components/agents/agent')

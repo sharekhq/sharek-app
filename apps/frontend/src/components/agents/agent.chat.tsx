@@ -72,6 +72,10 @@ import {
   ChannelSummary,
   ChatHeader,
 } from '@gitroom/frontend/components/agents/agent.chat.header';
+import {
+  BrandChip,
+  BrandNote,
+} from '@gitroom/frontend/components/agents/agent.brand.chip';
 
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
@@ -390,8 +394,21 @@ const NewInput: FC<InputProps> = (props) => {
       <Input
         {...props}
         onChange={setValue}
-        summary={<ChannelSummary />}
-        attachments={<AttachmentsTray />}
+        summary={
+          // The box's own inset, above the images and the text. The brand
+          // chip follows the pill and wraps under it where both don't fit,
+          // as on a phone (FR-026).
+          <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[6px] pt-[10px] px-[12px]">
+            <ChannelSummary />
+            <BrandChip />
+          </div>
+        }
+        attachments={
+          <>
+            <AttachmentsTray />
+            <BrandNote />
+          </>
+        }
         tools={<AttachmentTools value={value} />}
         uploading={uploading}
         onPasteFiles={addFiles}
