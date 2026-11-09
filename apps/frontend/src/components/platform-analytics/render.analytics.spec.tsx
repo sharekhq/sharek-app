@@ -305,6 +305,19 @@ describe('tiles and charts', () => {
     expect(figure!.textContent).toContain('Total for the last 7 days');
   });
 
+  // An average over no days is 0 too, not 0 / 0 (quickstart, walk 4 step 8).
+  it('heads an average with no points 0.00%', async () => {
+    const host = await render([
+      metric('Average View Percentage', [], { average: true }),
+    ]);
+
+    const figure = host.querySelector('figure');
+    expect(figure).not.toBeNull();
+    expect(leaf(figure!, '0.00%')).toBeDefined();
+    expect(figure!.textContent).not.toContain('NaN');
+    expect(figure!.textContent).toContain('Average for the last 7 days');
+  });
+
   // A tile is its name and value; only a chart says what the value covers.
   it.each([7, 30, 90])(
     'heads a tile with its sum, and a chart with its sum and "Total for the last %i days"',
