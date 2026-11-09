@@ -22,6 +22,7 @@ import {
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import useSWR from 'swr';
 import {
+  BrandKitPart,
   IMAGE_ASPECT_IDS,
   IMAGE_ASPECT_PRESETS,
   IMAGE_POPULAR_STYLES,
@@ -31,7 +32,7 @@ import {
   IMAGE_STYLE_CATEGORY_LABELS,
   IMAGE_STYLES,
   ImageAspectId,
-  ImageReferenceRefusal,
+  ImageBrandRefusal,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import {
@@ -137,17 +138,109 @@ const chipClasses = (selected: boolean) =>
       : 'bg-newBgColorInner border-newColColor text-textItemBlur hover:border-textItemFocused'
   );
 
+// A brand's kit is named by the brand, isolated so the name's own direction
+// can't reorder the sentence around it, and one of its images by its part of
+// the kit and an example's number on the Brands page (spec 053).
+type KitNames = {
+  brand: string;
+  n?: number;
+  interpolation: { escapeValue: false };
+};
+
+/**
+ * One of a brand's kit images, refused for a reference's reason. It has no
+ * thumbnail, so it is named by its part of the kit rather than a number.
+ */
+const kitImageRefusal = (
+  t: ReturnType<typeof useT>,
+  code: ImageBrandRefusal | undefined,
+  part: BrandKitPart,
+  names: KitNames
+) => {
+  if (part === 'logo') {
+    switch (code) {
+      case 'reference_missing':
+        return t(
+          'brands_refused_logo_missing',
+          "{{brand}}'s logo is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+          names
+        );
+      case 'reference_unreadable':
+        return t(
+          'brands_refused_logo_unreadable',
+          "{{brand}}'s logo can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+          names
+        );
+      case 'reference_too_large':
+        return t(
+          'brands_refused_logo_too_large',
+          "{{brand}}'s logo is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+          names
+        );
+    }
+    return;
+  }
+  switch (code) {
+    case 'reference_missing':
+      return t(
+        'brands_refused_example_missing',
+        "{{brand}}'s example post {{n}} is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+        names
+      );
+    case 'reference_unreadable':
+      return t(
+        'brands_refused_example_unreadable',
+        "{{brand}}'s example post {{n}} can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+        names
+      );
+    case 'reference_too_large':
+      return t(
+        'brands_refused_example_too_large',
+        "{{brand}}'s example post {{n}} is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+        names
+      );
+  }
+};
+
 /**
  * A refused reference comes back named by the number on its thumbnail, and is
  * said in the window's language rather than the server's English (research
- * R13). Anything else keeps the server's message.
+ * R13), as are the refusals of a brand's kit. Anything else keeps the server's
+ * message.
  */
 const referenceRefusal = (
   t: ReturnType<typeof useT>,
-  payload: { code?: ImageReferenceRefusal; index?: number } | null,
+  payload: {
+    code?: ImageBrandRefusal;
+    index?: number;
+    brand?: string;
+    part?: BrandKitPart;
+    n?: number;
+  } | null,
   edit: boolean
 ) => {
+  const names: KitNames = {
+    brand: isolate(payload?.brand),
+    n: payload?.n,
+    interpolation: { escapeValue: false },
+  };
+  // A kit image carries a reference's code and no number, so its part of the
+  // kit is read first.
+  if (payload?.part) {
+    return kitImageRefusal(t, payload.code, payload.part, names);
+  }
   switch (payload?.code) {
+    case 'brand_logo_place':
+      return t(
+        'brands_refused_logo_place',
+        "With {{brand}}'s logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.",
+        names
+      );
+    case 'brand_missing':
+      return t(
+        'brands_refused_brand_missing',
+        'That brand no longer exists. Pick another or No brand.'
+      );
     case 'reference_missing':
       // In an edit, image 1 is the image being edited. It has no remove
       // control, so removing it is not advice the window can give.

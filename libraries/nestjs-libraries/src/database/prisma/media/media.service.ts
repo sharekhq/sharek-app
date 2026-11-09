@@ -18,11 +18,13 @@ import {
   GenerateImageWithPromptDto,
 } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
 import {
+  BrandKitPart,
   IMAGE_ASPECT_PRESETS,
   IMAGE_REFERENCE_MAX,
   IMAGE_REFERENCE_MAX_BYTES,
   IMAGE_STYLES,
   ImageAspectId,
+  ImageBrandRefusal,
   ImageReferenceRefusal,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import {
@@ -143,8 +145,13 @@ const refusalOf = (err: unknown) =>
     index?: number;
   };
 
-// One of a brand's kit images, with the part of the kit it is.
-type KitImage = { id: string; part: string };
+// One of a brand's kit images: its logo, or its example post n on the Brands
+// page.
+type KitImage = { id: string; brand: string; part: BrandKitPart; n?: number };
+
+// A kit image's part, said after its brand ("Rawda's logo").
+const partOf = ({ brand, part, n }: KitImage) =>
+  part === 'logo' ? `${brand}'s logo` : `${brand}'s example post ${n}`;
 
 // Why a kit image can't go along, said after its part ("Rawda's logo").
 const REFUSED_KIT_IMAGE: Record<ImageReferenceRefusal, string> = {
@@ -155,33 +162,46 @@ const REFUSED_KIT_IMAGE: Record<ImageReferenceRefusal, string> = {
   reference_unreadable: "can't be used because its file format isn't supported",
 };
 
-// A kit image has no thumbnail, so its refusal names its part of the kit and
-// carries no code or index the window would word as one of the user's images.
-// The message is for the person at the window; generateImageFromLinks words it
-// for Samy.
+// A kit image has no thumbnail, so its refusal carries no index the window
+// would word as one of the user's images: beside the reason's code, it names
+// the brand, its part of the kit and an example's number, which the window
+// says in its own words. The message is for the person at the window;
+// generateImageFromLinks words it for Samy.
 class KitImageRefusal extends HttpException {
   constructor(
-    readonly part: string,
+    readonly image: KitImage,
     readonly reason: ImageReferenceRefusal,
     status: number
   ) {
     super(
-      `${part} ${REFUSED_KIT_IMAGE[reason]}. Replace it on the Brands page, or pick No brand.`,
+      {
+        message: `${partOf(image)} ${
+          REFUSED_KIT_IMAGE[reason]
+        }. Replace it on the Brands page, or pick No brand.`,
+        code: reason,
+        brand: image.brand,
+        part: image.part,
+        ...(image.n && { n: image.n }),
+      },
       status
     );
   }
 }
 
-// More of the user's images than fit beside the brand's logo, worded as
-// KitImageRefusal is.
+// More of the user's images than fit beside the brand's logo, worded and
+// coded as KitImageRefusal is.
 class LogoPlaceRefusal extends HttpException {
   constructor(readonly brand: string) {
     super(
-      `With ${brand}'s logo, only ${
-        IMAGE_REFERENCE_MAX - 1
-      } of your images fit (${
-        IMAGE_REFERENCE_MAX - 2
-      } when editing). Remove one, or pick No brand.`,
+      {
+        message: `With ${brand}'s logo, only ${
+          IMAGE_REFERENCE_MAX - 1
+        } of your images fit (${
+          IMAGE_REFERENCE_MAX - 2
+        } when editing). Remove one, or pick No brand.`,
+        code: 'brand_logo_place' satisfies ImageBrandRefusal,
+        brand,
+      },
       400
     );
   }
@@ -402,7 +422,7 @@ export class MediaService {
       }
 
       throw new KitImageRefusal(
-        image.part,
+        image,
         code,
         (err as HttpException).getStatus()
       );
@@ -432,8 +452,8 @@ export class MediaService {
     }
 
     const kit = await this._brandService.kitFor(org.id, brandId);
-    const logo = kit.logoId
-      ? [{ id: kit.logoId, part: `${kit.name}'s logo` }]
+    const logo: KitImage[] = kit.logoId
+      ? [{ id: kit.logoId, brand: kit.name, part: 'logo' }]
       : [];
 
     // The logo takes one of the render's places.
@@ -441,10 +461,9 @@ export class MediaService {
       throw new LogoPlaceRefusal(kit.name);
     }
 
-    const examples = (before ? [] : kit.examples).map(({ id, n }) => ({
-      id,
-      part: `${kit.name}'s example post ${n}`,
-    }));
+    const examples = (before ? [] : kit.examples).map(
+      ({ id, n }): KitImage => ({ id, brand: kit.name, part: 'example', n })
+    );
     const images = [...logo, ...examples];
     if (
       !images.length &&
@@ -652,7 +671,7 @@ export class MediaService {
       // the kit.
       if (err instanceof KitImageRefusal) {
         throw new HttpException(
-          `${err.part} ${
+          `${partOf(err.image)} ${
             REFUSED_KIT_IMAGE[err.reason]
           }, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`,
           err.getStatus()

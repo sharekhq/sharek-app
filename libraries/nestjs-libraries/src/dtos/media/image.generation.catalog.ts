@@ -63,6 +63,20 @@ export type ImageReferenceRefusal =
   | 'reference_unreadable'
   | 'reference_too_large';
 
+/**
+ * Why a brand's kit kept a render from starting, the same way (spec 053): one
+ * of its images, refused for a reference's reason; more of the user's images
+ * than fit beside its logo; a brand deleted since it was picked. In place of
+ * an `index`, the body names the `brand` and, for one of its images, its
+ * `part` of the kit and an example's number `n` on the Brands page.
+ */
+export type ImageBrandRefusal =
+  | ImageReferenceRefusal
+  | 'brand_logo_place'
+  | 'brand_missing';
+
+export type BrandKitPart = 'logo' | 'example';
+
 export const IMAGE_STYLE_CATEGORIES = [
   'photography',
   'illustration',

@@ -8,6 +8,7 @@ import {
   BrandKitDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import { ImageBrandRefusal } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 export type BrandImage = { id: string; path: string | null; missing: boolean };
 
@@ -166,13 +167,14 @@ export class BrandService {
     return toBrand({ ...brand, brandKit: saved }, rows);
   }
 
-  // Runs before every image render with a brand: one brand, never the list
+  // Runs before every image render with a brand: one brand, never the list.
+  // A deleted one is refused with a code the AI image dialog says in its own
+  // words; Samy reads the message
   async kitFor(org: string, brandId: string): Promise<KitForImage> {
-    const brand = await this.liveBrand(
-      org,
-      brandId,
-      'That brand no longer exists. Pick another or No brand.'
-    );
+    const brand = await this.liveBrand(org, brandId, {
+      message: 'That brand no longer exists. Pick another or No brand.',
+      code: 'brand_missing',
+    });
     const { name, kit } = toBrand(
       brand,
       await this.images(org, imageIds(brand.brandKit))
@@ -267,7 +269,9 @@ export class BrandService {
   private async liveBrand(
     org: string,
     id: string,
-    notFound = 'Brand not found'
+    notFound:
+      | string
+      | { message: string; code: ImageBrandRefusal } = 'Brand not found'
   ) {
     const brand = await this._brandRepository.findLive(org, id);
     if (!brand) {
