@@ -2141,6 +2141,122 @@ describe('the Brand field', () => {
     expect(editBody().brand).toBe('bq');
   });
 
+  // The route's refusals of a brand's kit, in the window's language rather
+  // than the server's English, the brand's name isolated so its own direction
+  // can't reorder the sentence: one of the kit's images, named by its part of
+  // the kit and an example's number on the Brands page; more of the user's
+  // images than fit beside the logo; a brand deleted since it was picked.
+  const isolated = (name: string) => `\u2068${name}\u2069`;
+  const BAYT_NAMED = isolated('Bayt Al Qahwa');
+  const REPLACE = 'Replace it on the Brands page, or pick No brand.';
+  const refusedWith = (status: number, body: Record<string, unknown>) =>
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/allowed')
+          ? answer(200, true)
+          : answer(status, { message: 'server words', ...body })
+      )
+    );
+
+  it.each([
+    [
+      'its logo gone from Media',
+      404,
+      { code: 'reference_missing', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo is no longer in your Media library. ${REPLACE}`,
+    ],
+    [
+      'its logo in a format it cannot read',
+      422,
+      { code: 'reference_unreadable', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo can't be used — its file format isn't supported. ${REPLACE}`,
+    ],
+    [
+      'its logo over the bound',
+      422,
+      { code: 'reference_too_large', brand: 'Bayt Al Qahwa', part: 'logo' },
+      `${BAYT_NAMED}'s logo is larger than 30 MB. ${REPLACE}`,
+    ],
+    [
+      'an example gone from Media',
+      404,
+      {
+        code: 'reference_missing',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 3,
+      },
+      `${BAYT_NAMED}'s example post 3 is no longer in your Media library. ${REPLACE}`,
+    ],
+    [
+      'an example in a format it cannot read',
+      422,
+      {
+        code: 'reference_unreadable',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 1,
+      },
+      `${BAYT_NAMED}'s example post 1 can't be used — its file format isn't supported. ${REPLACE}`,
+    ],
+    [
+      'an example over the bound',
+      422,
+      {
+        code: 'reference_too_large',
+        brand: 'Bayt Al Qahwa',
+        part: 'example',
+        n: 1,
+      },
+      `${BAYT_NAMED}'s example post 1 is larger than 30 MB. ${REPLACE}`,
+    ],
+    [
+      'more of the images than fit beside its logo',
+      400,
+      { code: 'brand_logo_place', brand: 'Bayt Al Qahwa' },
+      `With ${BAYT_NAMED}'s logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.`,
+    ],
+    [
+      'a brand deleted since it was picked',
+      404,
+      { code: 'brand_missing' },
+      'That brand no longer exists. Pick another or No brand.',
+    ],
+  ])(
+    'says a refusal for %s in its own words',
+    async (_case, status, body, words) => {
+      refusedWith(status, body);
+      await compose();
+      await pick('Bayt Al Qahwa');
+      await type(field(), 'A Ramadan night menu post');
+      await click(button('Generate'));
+
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalledWith(words, 'warning');
+    }
+  );
+
+  // An edit's image 1 is the image being edited; a kit image has no number,
+  // so its refusal names the brand's logo, never the image on screen.
+  it("says an edit's refusal of the brand's logo as the logo's", async () => {
+    await compose();
+    await pick('Bayt Al Qahwa');
+    await generateNow();
+    refusedWith(404, {
+      code: 'reference_missing',
+      brand: 'Bayt Al Qahwa',
+      part: 'logo',
+    });
+
+    await applyEdit('put the logo on the cup');
+
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(
+      `${BAYT_NAMED}'s logo is no longer in your Media library. ${REPLACE}`,
+      'warning'
+    );
+  });
+
   // A new tab, so the window, and a post editor under it, keep what is in
   // them.
   it('opens Manage brands in a new tab and keeps the window as it was', async () => {

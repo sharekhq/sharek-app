@@ -213,6 +213,50 @@ const STRINGS = [
     "Your images don't all fit beside the brand's logo. Remove one, or pick No brand.",
     'لا تتسع صورك كلها بجانب شعار العلامة. أزل إحداها، أو اختر «بلا علامة تجارية».',
   ],
+  // Not on the canvas: the image routes' refusals of a brand's kit, said in
+  // the dialog's language. {{brand}} is the brand's name, {{n}} an example's
+  // number on the Brands page; the English is the routes', worded as the
+  // dialog words a refused reference.
+  [
+    'brands_refused_logo_missing',
+    "{{brand}}'s logo is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+    'لم يعد شعار {{brand}} موجودًا في مكتبة الوسائط. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_unreadable',
+    "{{brand}}'s logo can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+    'لا يمكن استخدام شعار {{brand}} لأن صيغة ملفه غير مدعومة. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_too_large',
+    "{{brand}}'s logo is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+    'حجم شعار {{brand}} أكبر من 30 ميجابايت. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_missing',
+    "{{brand}}'s example post {{n}} is no longer in your Media library. Replace it on the Brands page, or pick No brand.",
+    'لم يعد المنشور النموذجي {{n}} لـ{{brand}} موجودًا في مكتبة الوسائط. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_unreadable',
+    "{{brand}}'s example post {{n}} can't be used — its file format isn't supported. Replace it on the Brands page, or pick No brand.",
+    'لا يمكن استخدام المنشور النموذجي {{n}} لـ{{brand}} لأن صيغة ملفه غير مدعومة. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_example_too_large',
+    "{{brand}}'s example post {{n}} is larger than 30 MB. Replace it on the Brands page, or pick No brand.",
+    'حجم المنشور النموذجي {{n}} لـ{{brand}} أكبر من 30 ميجابايت. استبدله في صفحة العلامات التجارية، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_logo_place',
+    "With {{brand}}'s logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.",
+    'مع شعار {{brand}}، لا مكان إلا لـ3 من صورك (2 عند التعديل). أزل إحداها، أو اختر «بلا علامة تجارية».',
+  ],
+  [
+    'brands_refused_brand_missing',
+    'That brand no longer exists. Pick another or No brand.',
+    'لم تعد هذه العلامة التجارية موجودة. اختر علامة أخرى أو «بلا علامة تجارية».',
+  ],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename

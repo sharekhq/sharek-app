@@ -422,12 +422,15 @@ describe('SamyImageTool', () => {
     });
 
     // The chip's brand is checked when the message is sent, so it may be
-    // deleted before the render reads its kit.
+    // deleted before the render reads its kit. kitFor's refusal is coded for
+    // the AI image dialog; Samy gets its words.
     it("hands back kitFor's words when the chip's brand was deleted since, and gives the slot and credit back", async () => {
       const words = 'That brand no longer exists. Pick another or No brand.';
       const render = jest
         .fn()
-        .mockRejectedValueOnce(new HttpException(words, 404))
+        .mockRejectedValueOnce(
+          new HttpException({ message: words, code: 'brand_missing' }, 404)
+        )
         .mockResolvedValue(made);
       const { tool } = makeTool(
         render,

@@ -454,6 +454,8 @@ describe('BrandService.kitFor', () => {
     });
   });
 
+  // Coded, so the AI image dialog can say it in its own words; Samy reads the
+  // message.
   it("404s for an id that isn't a live brand of the organization", async () => {
     const { service, repository } = makeService({
       findLive: jest.fn().mockResolvedValue(null),
@@ -466,6 +468,10 @@ describe('BrandService.kitFor', () => {
     expect(err.message).toBe(
       'That brand no longer exists. Pick another or No brand.'
     );
+    expect(err.getResponse()).toEqual({
+      message: 'That brand no longer exists. Pick another or No brand.',
+      code: 'brand_missing',
+    });
     expect(repository.mediaByIds).not.toHaveBeenCalled();
   });
 });
