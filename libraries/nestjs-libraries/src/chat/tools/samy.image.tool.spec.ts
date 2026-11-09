@@ -30,6 +30,10 @@ const org = { id: 'org-1', name: 'Sharek' };
 
 const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
+// What the result tells Samy to say beside a brand's image (FR-019).
+const sayFor = (brand: string) =>
+  `Name ${brand} in your reply, exactly as written here, and say its kit went with this image: its logo, colours and example posts.`;
+
 const makeTool = (
   generateImageFromLinks?: jest.Mock,
   imageCreditsLeft?: jest.Mock,
@@ -96,7 +100,7 @@ describe('SamyImageTool', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
     );
   });
 
@@ -206,14 +210,15 @@ describe('SamyImageTool', () => {
       'error',
       'id',
       'path',
+      'say',
     ]);
     expect(tool.outputSchema.safeParse({ error: 'no' }).success).toBe(true);
     expect(tool.outputSchema.safeParse(made).success).toBe(true);
   });
 
   // Samy names the brand in its reply only from this (FR-019).
-  it("keeps the brand's name beside the image", () => {
-    const named = { ...made, brand: 'Acme' };
+  it("keeps the brand's name and what to say of it beside the image", () => {
+    const named = { ...made, brand: 'Acme', say: sayFor('Acme') };
 
     expect(makeTool().tool.outputSchema.parse(named)).toEqual(named);
   });
@@ -341,17 +346,37 @@ describe('SamyImageTool', () => {
       }
     );
 
-    it("returns the brand's name when the render names it", async () => {
-      const named = { ...made, brand: 'Acme' };
-      const { tool } = makeTool(
-        jest.fn().mockResolvedValue(named),
-        undefined,
-        picks({ brandId: ACME })
-      );
+    // The instruction line alone left the brand out of 1 reply in 2 on the
+    // walk, so the result says it beside the image, the name as stored.
+    it.each([
+      ['a Latin name', 'Acme'],
+      ['an Arabic name', 'مخبز النور'],
+    ])(
+      "returns the brand's name and what to say of it when the render names %s",
+      async (_name, name) => {
+        const named = { ...made, brand: name };
+        const { tool } = makeTool(
+          jest.fn().mockResolvedValue(named),
+          undefined,
+          picks({ brandId: ACME })
+        );
 
-      expect(
-        await tool.execute({ prompt: 'a cat', brand: 'Acme' }, context())
-      ).toEqual(named);
+        expect(
+          await tool.execute({ prompt: 'a cat', brand: name }, context())
+        ).toStrictEqual({ ...named, say: sayFor(name) });
+      }
+    );
+
+    // A brand whose kit sent nothing comes back unnamed, so nothing credits it.
+    it.each([
+      ['no brand is picked', {}],
+      ["the brand's kit sent nothing", { brandId: ACME }],
+    ])('returns the image alone when %s', async (_name, answer) => {
+      const { tool } = makeTool(undefined, undefined, picks(answer));
+
+      expect(await tool.execute({ prompt: 'a cat' }, context())).toStrictEqual(
+        made
+      );
     });
 
     describe('when it refuses', () => {
