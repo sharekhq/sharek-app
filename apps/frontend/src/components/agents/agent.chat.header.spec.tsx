@@ -799,17 +799,19 @@ describe('ChannelSummary', () => {
   // The down arrow promises something opens. At 1025px and below choosing the
   // pill opens the channel sheet; on a wide screen it only moves the focus to
   // the list beside it, so the arrow shows on the narrow side alone (walk 4,
-  // maintainer).
-  it('shows its down arrow only at 1025px and below, where it opens the channel sheet', async () => {
+  // maintainer). Hidden from 1026px with !important, because CopilotKit's
+  // `.copilotKitChat svg` sets a display of its own and outranks a plain
+  // class: `hidden` left it showing on the live site (207's live look).
+  it("hides its down arrow from 1026px, over CopilotKit's own rule, leaving it where it opens the channel sheet", async () => {
     const { host } = await render(<ChannelSummary />, {
       properties: [channel('a', BAYT)],
     });
     const arrow = summary(host).querySelector('svg')!;
 
     expect(arrow.getAttribute('aria-hidden')).toBe('true');
-    expect(classes(arrow)).toEqual(
-      expect.arrayContaining(['hidden', 'mobile:block'])
-    );
+    expect(classes(arrow)).toContain('[@media(min-width:1026px)]:!hidden');
+    expect(classes(arrow)).not.toContain('hidden');
+    expect(classes(arrow)).not.toContain('mobile:block');
   });
 
   it('shows the first three pictures, as decoration', async () => {

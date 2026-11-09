@@ -606,6 +606,44 @@ test("the summary's name hides below 1280px, at 1025px and below too", async () 
   );
 });
 
+// The summary's down arrow (agent.chat.header.tsx), hidden from 1026px, where
+// choosing the pill opens nothing. CopilotKit's `.copilotKitChat svg` sets a
+// display of its own and outranks a plain class, so `hidden` left the arrow
+// showing on the live site (207's live look); the rule needs !important.
+test("the summary's arrow hides from 1026px, over CopilotKit's own svg rule", async () => {
+  const vendor = postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+  const displays = [];
+  vendor.walkDecls('display', (decl) => {
+    if (collapse(decl.parent.selector) === '.copilotKitChat svg') {
+      displays.push(decl.value);
+    }
+  });
+  assert.ok(
+    displays.length > 0,
+    'CopilotKit no longer sets a display on .copilotKitChat svg; re-check the arrow'
+  );
+
+  const css = await emit(['[@media(min-width:1026px)]:!hidden']);
+  const found = [];
+  postcss.parse(css).walkDecls('display', (decl) => {
+    if (
+      names(
+        unescape(decl.parent.selector),
+        '[@media(min-width:1026px)]:!hidden'
+      )
+    ) {
+      found.push([
+        collapse(decl.parent.parent.params),
+        decl.value,
+        decl.important,
+      ]);
+    }
+  });
+  assert.deepEqual(found, [['(min-width:1026px)', 'none', true]]);
+});
+
 test('the states of the rows and controls emit, on the custom colours too', async () => {
   const table = {
     'focus-visible:ring-2': ring('2px'),

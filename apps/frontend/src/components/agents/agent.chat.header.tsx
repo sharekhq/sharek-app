@@ -224,7 +224,9 @@ export const ChannelSummary: FC = () => {
           t('no_channels_picked', 'No channels picked')
         )}
         {/* Where choosing the pill opens the channel sheet, 1025px and below;
-            a wide screen has the list beside it, which it only focuses */}
+            a wide screen has the list beside it, which it only focuses.
+            Important, as CopilotKit's `.copilotKitChat svg` sets a display of
+            its own and outranks a plain class. */}
         <svg
           width="14"
           height="14"
@@ -235,7 +237,7 @@ export const ChannelSummary: FC = () => {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="flex-none hidden mobile:block"
+          className="flex-none [@media(min-width:1026px)]:!hidden"
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
