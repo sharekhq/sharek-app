@@ -16,6 +16,7 @@ import {
   ChannelPanel,
   FOCUS_RING,
   isUsable,
+  onRadioGroupKeyDown,
   orderChannels,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
@@ -290,10 +291,12 @@ export const PlatformAnalytics = () => {
                 <ChosenChannel channel={currentIntegration} />
               </div>
               {channelButton}
-              {/* the calendar's view control, as one-click radios */}
+              {/* the calendar's view control, as one-click radios, one Tab
+                  stop with arrow keys as the channel list's */}
               <div
                 role="radiogroup"
                 aria-label={t('period', 'Period')}
+                onKeyDown={onRadioGroupKeyDown}
                 className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full"
               >
                 {options.map((option) => (
@@ -302,6 +305,7 @@ export const PlatformAnalytics = () => {
                     type="button"
                     role="radio"
                     aria-checked={keys === option.key}
+                    tabIndex={keys === option.key ? 0 : -1}
                     onClick={() => setKey(option.key)}
                     className={clsx(
                       'pt-[6px] pb-[5px] px-[12px] rounded-[6px] text-center whitespace-nowrap cursor-pointer coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] mobile:flex-1',

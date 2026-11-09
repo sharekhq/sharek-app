@@ -3,6 +3,7 @@
 import {
   ComponentProps,
   FC,
+  KeyboardEvent,
   ReactNode,
   useCallback,
   useMemo,
@@ -241,6 +242,8 @@ const ChannelRow: FC<{
   usable: boolean;
   /** one choice among the rows, Analytics' */
   radio: boolean;
+  /** the radios' one Tab stop */
+  tabStop: boolean;
   /** the page says the channel's platform has no numbers (C7) */
   noStatistics: boolean;
   /** the enabled channels fill the plan, the old rail's tooltip condition */
@@ -257,6 +260,7 @@ const ChannelRow: FC<{
   dimmed,
   usable,
   radio,
+  tabStop,
   noStatistics,
   atPlanLimit,
   onToggle,
@@ -288,14 +292,16 @@ const ChannelRow: FC<{
   const toggle = () => usable && onToggle();
   const named = fix ? `${channel.name} · ${fix.state}` : channel.name;
 
-  // aria-disabled, not disabled, keeps a disabled row in the Tab order, so its
-  // reason can be reached
+  // aria-disabled, not disabled, keeps a disabled checkbox in the Tab order, so
+  // its reason can be reached; the radios are one Tab stop, and their arrow
+  // keys pass a disabled one over
   const main = (
     <button
       type="button"
       role={radio ? 'radio' : 'checkbox'}
       aria-checked={checked}
       aria-disabled={!usable}
+      tabIndex={radio ? (tabStop ? 0 : -1) : undefined}
       onClick={toggle}
       {...(collapsed
         ? {
@@ -695,6 +701,38 @@ const fold = (text: string) =>
 export const matchesSearch = (text: string, query: string) =>
   fold(text).includes(fold(query));
 
+// A radiogroup's arrow keys (the ARIA radio pattern), on Analytics' list and
+// its Period alike: Down and Right go to the next radio, Up and Left to the
+// one before, wrapping, and pick it with its own click. The radios run right
+// to left in Arabic, so the horizontal pair mirrors, as the support form's
+// category chips have it. A radio that can't be picked is passed over, and so
+// is one that can't take the focus, as in a closed customer group.
+export const onRadioGroupKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+  const forward = document.dir === 'rtl' ? -1 : 1;
+  const step =
+    { ArrowRight: forward, ArrowDown: 1, ArrowLeft: -forward, ArrowUp: -1 }[
+      event.key
+    ] || 0;
+  const radios = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')
+  );
+  const from = radios.indexOf(event.target as HTMLElement);
+  if (!step || from < 0) {
+    return;
+  }
+  event.preventDefault();
+  for (let i = 1; i < radios.length; i++) {
+    const radio = radios[(from + step * i + radios.length) % radios.length];
+    if (radio.getAttribute('aria-disabled') !== 'true') {
+      radio.focus();
+      if (document.activeElement === radio) {
+        radio.click();
+        return;
+      }
+    }
+  }
+};
+
 /**
  * The channel list Calendar, Samy and Analytics share
  * (contracts/channel-panel.md): a header with the count, + and the rail's or
@@ -832,6 +870,10 @@ export const ChannelPanel: FC<
       ),
     }))
     .filter((group) => group.channels.length);
+  // Analytics' radios are one Tab stop: the chosen channel, or the first shown
+  // that can be picked
+  const shown = groups.flatMap((group) => group.channels);
+  const tabStop = (shown.find(ticked) ?? shown.find(usable))?.id;
 
   const rows = (list: Channel[]) =>
     list.map((channel) => {
@@ -844,6 +886,7 @@ export const ChannelPanel: FC<
           dimmed={mode === 'calendar' && !ticked(channel)}
           usable={usable(channel)}
           radio={mode === 'analytics'}
+          tabStop={channel.id === tabStop}
           noStatistics={!!hasStatistics && !hasStatistics(channel)}
           atPlanLimit={atPlanLimit}
           onToggle={() =>
@@ -891,6 +934,7 @@ export const ChannelPanel: FC<
       <div
         role="radiogroup"
         aria-label={t('channels', 'Channels')}
+        onKeyDown={onRadioGroupKeyDown}
         className="flex flex-col gap-[8px]"
       >
         {content}
