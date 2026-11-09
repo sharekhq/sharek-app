@@ -512,6 +512,21 @@ describe('the Fonts card', () => {
     expect(font('Headings').getAttribute('dir')).toBe('auto');
   });
 
+  it('focuses each field with the app focus ring, not a ring of its own', async () => {
+    await mount(brand());
+
+    for (const name of ['Headings', 'Body text']) {
+      const classes = font(name).className.split(' ');
+      expect(classes).toEqual(
+        expect.arrayContaining([
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+      expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
+    }
+  });
+
   it('saves a font when its field is left, only the one that changed, trimmed', async () => {
     await mount(brand({ bodyFont: 'IBM Plex Sans Arabic' }));
 

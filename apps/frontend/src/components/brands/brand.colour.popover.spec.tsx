@@ -141,6 +141,20 @@ describe('the colours card +', () => {
     expect(field().getAttribute('dir')).toBe('ltr');
   });
 
+  it('focuses the hex field with the app focus ring, not a ring of its own', async () => {
+    render([]);
+    await open();
+
+    const classes = field().className.split(' ');
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(classes.filter((name) => name.startsWith('focus:'))).toEqual([]);
+  });
+
   it('paints a typed code in the swatch, and Add hands it on uppercase and closes', async () => {
     render(['#3B2417']);
     await open();
