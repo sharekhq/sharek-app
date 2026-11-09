@@ -36,7 +36,8 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
 }));
-// The page's two lists, which the kit refreshes after each save.
+// The page's two lists: the kit puts each saved brand in the first, and
+// refreshes the second after a channel moves.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
   ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: [], mutate: reloadBrands }),

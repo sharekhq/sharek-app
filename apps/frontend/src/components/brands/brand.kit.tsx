@@ -275,15 +275,15 @@ const ChannelPicker: FC<{
 
 // A brand's kit on the Brands page (board Main, parts 5 to 8): the logo, the
 // example posts, the colours, the fonts and the brand's channels. Every member
-// edits it (FR-008). Each kit change saves at once and refreshes GET /brands;
-// a channel move refreshes the channel list. A refused change says why and
-// changes nothing.
+// edits it (FR-008). Each kit change saves at once and puts the saved brand in
+// GET /brands' list; a channel move refreshes the channel list. A refused
+// change says why and changes nothing.
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
-  const { mutate: reloadBrands } = useBrands();
+  const { mutate: setBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
 
   const { logo, examples, colours, headingFont, bodyFont } = brand.kit;
@@ -297,14 +297,19 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
     .sort(compareChannels);
 
   const save = async (change: KitChange) => {
-    if (
-      await send(`/brands/${brand.id}/kit`, {
-        method: 'PUT',
-        body: JSON.stringify(change),
-      })
-    ) {
-      reloadBrands();
+    const response = await send(`/brands/${brand.id}/kit`, {
+      method: 'PUT',
+      body: JSON.stringify(change),
+    });
+    if (!response) {
+      return;
     }
+    const saved: Brand = await response.json();
+    setBrands(
+      (list) =>
+        list && list.map((item) => (item.id === saved.id ? saved : item)),
+      false
+    );
   };
 
   // Into a brand, or to No brand with '', through the route the calendar's
