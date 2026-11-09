@@ -3,6 +3,7 @@
 import {
   ComponentProps,
   FC,
+  KeyboardEvent,
   ReactNode,
   useCallback,
   useMemo,
@@ -51,8 +52,8 @@ interface Channel {
 
 // What a tick means on the page the list is on (contracts/channel-panel.md):
 // on the calendar, that the channel's posts show; on Samy, that Samy may use
-// the channel.
-type PanelMode = 'calendar' | 'samy';
+// the channel; on Analytics, that its numbers show.
+type PanelMode = 'calendar' | 'samy' | 'analytics';
 
 // Code-unit order, as lodash's orderBy compares, so the calendar keeps
 // today's order wherever today's had no tie (C14).
@@ -97,21 +98,33 @@ export const orderChannels = (list: Channel[]) =>
 
 // data-model.md's usable table, one rule per page (C20): whether a row can be
 // ticked or picked. It takes only the fields the rules read, so the calendar's
-// top bar can ask it of the calendar's channels too.
+// top bar can ask it of the calendar's channels too, and on Analytics the
+// page's word on which platforms have statistics (C7).
 type UsableFields = Pick<
   Channel,
   'disabled' | 'refreshNeeded' | 'inBetweenSteps'
 >;
-const USABLE: Record<PanelMode, (channel: UsableFields) => boolean> = {
+type UsableRule = <T extends UsableFields>(
+  channel: T,
+  hasStatistics?: (channel: T) => boolean
+) => boolean;
+const USABLE: Record<PanelMode, UsableRule> = {
   // a disabled channel's posts always show, so it can't be hidden (C5)
   calendar: (channel) => !channel.disabled,
   // Samy can't post to a channel over the plan, disconnected or not set up
   samy: (channel) =>
     !channel.disabled && !channel.refreshNeeded && !channel.inBetweenSteps,
+  // Analytics reads no numbers from such a channel, nor from a platform that
+  // has none (C7)
+  analytics: (channel, hasStatistics) =>
+    USABLE.samy(channel) && !!hasStatistics?.(channel),
 };
 
-export const isUsable = (channel: UsableFields, mode: PanelMode) =>
-  USABLE[mode](channel);
+export const isUsable = <T extends UsableFields>(
+  channel: T,
+  mode: PanelMode,
+  hasStatistics?: (channel: T) => boolean
+) => USABLE[mode](channel, hasStatistics);
 
 // Reconnect from any page (R4): the calendar's refreshChannel, moved here so
 // its ⋯ menu and every page's rows share it. A channel in, a handler out.
@@ -216,16 +229,23 @@ const ChannelPicture: FC<{ channel: Channel; className?: string }> = ({
 // the picture alone, named by the channel and any state it needs fixed.
 //
 // The main button is the row's checkbox, checked while the channel's posts
-// show, or on Samy while it's picked. A dimmed row, the calendar's hidden one,
-// greys only its picture and sets its name in text-muted, so its text keeps
-// AA; a row that can't change keeps today's opacity-50 on its picture, its
-// name and its Check (C25).
+// show, or on Samy while it's picked. On Analytics it's a radio, checked while
+// the channel's numbers show, and that row is tinted, its name bold. A dimmed
+// row, the calendar's hidden one, greys only its picture and sets its name in
+// text-muted, so its text keeps AA; a row that can't change keeps today's
+// opacity-50 on its picture, its name and its Check or radio (C25).
 const ChannelRow: FC<{
   channel: Channel;
   collapsed: boolean;
   checked: boolean;
   dimmed: boolean;
   usable: boolean;
+  /** one choice among the rows, Analytics' */
+  radio: boolean;
+  /** the radios' one Tab stop */
+  tabStop: boolean;
+  /** the page says the channel's platform has no numbers (C7) */
+  noStatistics: boolean;
   /** the enabled channels fill the plan, the old rail's tooltip condition */
   atPlanLimit: boolean;
   onToggle: () => void;
@@ -239,6 +259,9 @@ const ChannelRow: FC<{
   checked,
   dimmed,
   usable,
+  radio,
+  tabStop,
+  noStatistics,
   atPlanLimit,
   onToggle,
   onReconnect,
@@ -265,17 +288,20 @@ const ChannelRow: FC<{
       }
     : null;
   const overPlan = !!channel.disabled && atPlanLimit;
+  const chosen = radio && checked;
   const toggle = () => usable && onToggle();
   const named = fix ? `${channel.name} · ${fix.state}` : channel.name;
 
-  // aria-disabled, not disabled, keeps a disabled row in the Tab order, so its
-  // reason can be reached
+  // aria-disabled, not disabled, keeps a disabled checkbox in the Tab order, so
+  // its reason can be reached; the radios are one Tab stop, and their arrow
+  // keys pass a disabled one over
   const main = (
     <button
       type="button"
-      role="checkbox"
+      role={radio ? 'radio' : 'checkbox'}
       aria-checked={checked}
       aria-disabled={!usable}
+      tabIndex={radio ? (tabStop ? 0 : -1) : undefined}
       onClick={toggle}
       {...(collapsed
         ? {
@@ -306,7 +332,8 @@ const ChannelRow: FC<{
         <span className="flex-1 min-w-0 flex flex-col gap-[1px]">
           <bdi
             className={clsx(
-              'text-[14px] font-[500] truncate',
+              'text-[14px] truncate',
+              chosen ? 'font-[600]' : 'font-[500]',
               dimmed ? 'text-muted' : 'text-ink',
               !usable && 'opacity-50'
             )}
@@ -327,6 +354,11 @@ const ChannelRow: FC<{
               ? t('channel_disabled', 'Channel Disabled')
               : fix
               ? fix.state
+              : noStatistics
+              ? t(
+                  'no_statistics_for_platform',
+                  'No statistics for this platform'
+                )
               : platformLabel(channel.identifier)}
           </span>
         </span>
@@ -337,7 +369,9 @@ const ChannelRow: FC<{
   return (
     <div
       className={clsx(
-        'group flex items-center gap-[6px] min-h-[52px] mobile:min-h-[56px] rounded-[10px] hover:bg-boxHover transition-colors',
+        'group flex items-center gap-[6px] min-h-[52px] mobile:min-h-[56px] rounded-[10px] transition-colors',
+        // a hover tint would replace the chosen row's
+        chosen ? 'bg-brandSoft2' : 'hover:bg-boxHover',
         collapsed ? 'justify-center' : 'px-[8px]'
       )}
     >
@@ -369,17 +403,32 @@ const ChannelRow: FC<{
           {fix.label}
         </button>
       )}
-      {/* The ⋯ shows on its row's hover, on its own focus and always on a
-          touch screen, as the customer's pencil does. Its menu opens inside
-          it, so it also shows while that is open. */}
+      {/* The ⋯ shows on its row's hover, while the focus is anywhere in its
+          row, its own included, and always on a touch screen. Its menu opens
+          inside it, so it also shows while that is open. */}
       {!collapsed && menu && (
-        <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
+        <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
           {menu}
         </span>
       )}
       {!collapsed && (
         <span className={clsx('flex', !usable && 'opacity-50')}>
-          <Check value={checked} onChange={toggle} />
+          {radio ? (
+            // the look of the app's radios, at the Check's 20px
+            <span
+              onClick={toggle}
+              className={clsx(
+                'flex w-[20px] h-[20px] rounded-full border-[1.5px] justify-center items-center transition-colors',
+                checked ? 'border-brand' : 'border-muted'
+              )}
+            >
+              {checked && (
+                <span className="w-[10px] h-[10px] rounded-full bg-brand" />
+              )}
+            </span>
+          ) : (
+            <Check value={checked} onChange={toggle} />
+          )}
         </span>
       )}
     </div>
@@ -447,7 +496,8 @@ const CustomerDropZone: FC<{
 // it's open is kept under '<name>_isOpen', as the calendar always has, so
 // people's choices carry over and the three pages share them (R5). Beside the
 // chevron, today's rename pencil when the page passes onRename, and the
-// customer's tick over its usable channels: on, off or mixed.
+// customer's tick over its usable channels when it passes onToggle: on, off or
+// mixed.
 const CustomerGroup: FC<{
   customer: { id: string; name: string };
   count: number;
@@ -455,7 +505,7 @@ const CustomerGroup: FC<{
   checked: boolean | 'mixed';
   /** no usable channel to tick */
   disabled: boolean;
-  onToggle: () => void;
+  onToggle?: () => void;
   onRename?: () => void;
   children: ReactNode;
 }> = ({
@@ -553,7 +603,7 @@ const CustomerGroup: FC<{
             <PencilIcon size={14} aria-hidden="true" />
           </button>
         )}
-        {!collapsed && (
+        {!collapsed && onToggle && (
           <button
             type="button"
             role="checkbox"
@@ -635,7 +685,7 @@ export const SearchField: FC<{
       placeholder={label}
       aria-label={label}
       className={clsx(
-        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
         FOCUS_RING
       )}
     />
@@ -651,6 +701,38 @@ const fold = (text: string) =>
 export const matchesSearch = (text: string, query: string) =>
   fold(text).includes(fold(query));
 
+// A radiogroup's arrow keys (the ARIA radio pattern), on Analytics' list and
+// its Period alike: Down and Right go to the next radio, Up and Left to the
+// one before, wrapping, and pick it with its own click. The radios run right
+// to left in Arabic, so the horizontal pair mirrors, as the support form's
+// category chips have it. A radio that can't be picked is passed over, and so
+// is one that can't take the focus, as in a closed customer group.
+export const onRadioGroupKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+  const forward = document.dir === 'rtl' ? -1 : 1;
+  const step =
+    { ArrowRight: forward, ArrowDown: 1, ArrowLeft: -forward, ArrowUp: -1 }[
+      event.key
+    ] || 0;
+  const radios = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')
+  );
+  const from = radios.indexOf(event.target as HTMLElement);
+  if (!step || from < 0) {
+    return;
+  }
+  event.preventDefault();
+  for (let i = 1; i < radios.length; i++) {
+    const radio = radios[(from + step * i + radios.length) % radios.length];
+    if (radio.getAttribute('aria-disabled') !== 'true') {
+      radio.focus();
+      if (document.activeElement === radio) {
+        radio.click();
+        return;
+      }
+    }
+  }
+};
+
 /**
  * The channel list Calendar, Samy and Analytics share
  * (contracts/channel-panel.md): a header with the count, + and the rail's or
@@ -659,45 +741,62 @@ export const matchesSearch = (text: string, query: string) =>
  *
  * It draws its own header, because `SplitPanel` draws none (C6), and keeps
  * only its own state: the search, which groups are open, and the + menu. The
- * page keeps the selection.
+ * page keeps the selection: ids on the calendar and Samy, one id on Analytics.
  */
-export const ChannelPanel: FC<{
-  mode: PanelMode;
-  /** the page's `useIntegrationList()` data */
-  channels: Channel[];
-  /** calendar: the ids whose posts show, or null for all; samy: the picks */
-  selected: string[] | null;
-  /**
-   * calendar: the ids that show next, or null once every usable channel does
-   * (C5); samy: the ids picked next
-   */
-  onChange: (selected: string[] | null) => void;
-  /** the row's ⋯ menu */
-  rowMenu?: (channel: Channel) => ReactNode;
-  /** a channel dropped on a customer, '' for none; enables the drag (C16) */
-  onMoveToCustomer?: (channelId: string, customerId: string) => void;
-  /** shows the pencil on a customer's header */
-  onRenameCustomer?: (customer: { id: string; name: string }) => void;
-  /** refreshes the list after Add Channel or Invite a customer */
-  update: () => void;
-  /** the rail's pictures-only state; never the sheet */
-  collapsed?: boolean;
-  onToggleCollapse: () => void;
-  /** closes the sheet */
-  onDone: () => void;
-}> = ({
-  mode,
-  channels,
-  selected,
-  onChange,
-  rowMenu,
-  onMoveToCustomer,
-  onRenameCustomer,
-  update,
-  collapsed = false,
-  onToggleCollapse,
-  onDone,
-}) => {
+export const ChannelPanel: FC<
+  (
+    | {
+        mode: 'calendar' | 'samy';
+        /**
+         * calendar: the ids whose posts show, or null for all; samy: the
+         * picks
+         */
+        selected: string[] | null;
+        /**
+         * calendar: the ids that show next, or null once every usable channel
+         * does (C5); samy: the ids picked next
+         */
+        onChange: (selected: string[] | null) => void;
+      }
+    | {
+        mode: 'analytics';
+        /** the channel whose numbers show */
+        selected: string | null;
+        /** the channel chosen next */
+        onChange: (id: string) => void;
+        /** the page's word on whether a channel's platform has numbers (C7) */
+        hasStatistics: (channel: Channel) => boolean;
+      }
+  ) & {
+    /** the page's `useIntegrationList()` data */
+    channels: Channel[];
+    /** the row's ⋯ menu */
+    rowMenu?: (channel: Channel) => ReactNode;
+    /** a channel dropped on a customer, '' for none; enables the drag (C16) */
+    onMoveToCustomer?: (channelId: string, customerId: string) => void;
+    /** shows the pencil on a customer's header */
+    onRenameCustomer?: (customer: { id: string; name: string }) => void;
+    /** refreshes the list after Add Channel or Invite a customer */
+    update: () => void;
+    /** the rail's pictures-only state; never the sheet */
+    collapsed?: boolean;
+    onToggleCollapse: () => void;
+    /** closes the sheet */
+    onDone: () => void;
+  }
+> = (props) => {
+  // the selection is read through props, so its mode narrows it
+  const {
+    mode,
+    channels,
+    rowMenu,
+    onMoveToCustomer,
+    onRenameCustomer,
+    update,
+    collapsed = false,
+    onToggleCollapse,
+    onDone,
+  } = props;
   const t = useT();
   const user = useUser();
   const router = useRouter();
@@ -710,31 +809,44 @@ export const ChannelPanel: FC<{
   const hints: Record<PanelMode, string> = {
     calendar: t('channel_hint_calendar', 'Untick a channel to hide its posts.'),
     samy: t('channel_hint_samy', 'Samy schedules to the channels you tick.'),
+    analytics: t(
+      'channel_hint_analytics',
+      'Pick a channel to see its numbers.'
+    ),
   };
 
   const atPlanLimit =
     channels.filter((channel) => !channel.disabled).length ===
     user?.totalChannels;
-  const usable = (channel: Channel) => isUsable(channel, mode);
+  const hasStatistics =
+    props.mode === 'analytics' ? props.hasStatistics : undefined;
+  const usable = (channel: Channel) => isUsable(channel, mode, hasStatistics);
   // On the calendar a channel that can't be ticked always shows (C5); on Samy
-  // one that can't be picked never is, even while the page holds its id (C20).
+  // and Analytics one that can't be picked never is, even while the page holds
+  // its id (C20).
   const ticked = (channel: Channel) =>
-    mode === 'calendar'
-      ? !usable(channel) || !selected || selected.includes(channel.id)
-      : usable(channel) && selected.includes(channel.id);
+    props.mode === 'calendar'
+      ? !usable(channel) ||
+        !props.selected ||
+        props.selected.includes(channel.id)
+      : usable(channel) &&
+        (props.mode === 'samy'
+          ? props.selected.includes(channel.id)
+          : props.selected === channel.id);
   // only the calendar hides channels, so only it offers Show all
-  const hiding =
-    mode === 'calendar' && channels.some((channel) => !ticked(channel));
-  // The page's next selection: the ids ticked next, a channel that can't be
-  // ticked staying as it reads, so the calendar's holds every disabled id,
-  // even one the array was missing, and is null once every channel shows.
-  const select = (next: (channel: Channel) => boolean) => {
+  const showAll =
+    props.mode === 'calendar' && channels.some((channel) => !ticked(channel))
+      ? () => props.onChange(null)
+      : undefined;
+  // The calendar's or Samy's next selection: the ids ticked next, a channel
+  // that can't be ticked staying as it reads, so the calendar's holds every
+  // disabled id, even one the array was missing, and is null once every
+  // channel shows.
+  const selection = (next: (channel: Channel) => boolean) => {
     const ids = channels
       .filter((channel) => (usable(channel) ? next(channel) : ticked(channel)))
       .map(({ id }) => id);
-    onChange(
-      mode === 'calendar' && ids.length === channels.length ? null : ids
-    );
+    return mode === 'calendar' && ids.length === channels.length ? null : ids;
   };
 
   // Past six channels a search helps find one (FR-006). It matches a channel's
@@ -758,6 +870,10 @@ export const ChannelPanel: FC<{
       ),
     }))
     .filter((group) => group.channels.length);
+  // Analytics' radios are one Tab stop: the chosen channel, or the first shown
+  // that can be picked
+  const shown = groups.flatMap((group) => group.channels);
+  const tabStop = (shown.find(ticked) ?? shown.find(usable))?.id;
 
   const rows = (list: Channel[]) =>
     list.map((channel) => {
@@ -769,11 +885,18 @@ export const ChannelPanel: FC<{
           checked={ticked(channel)}
           dimmed={mode === 'calendar' && !ticked(channel)}
           usable={usable(channel)}
+          radio={mode === 'analytics'}
+          tabStop={channel.id === tabStop}
+          noStatistics={!!hasStatistics && !hasStatistics(channel)}
           atPlanLimit={atPlanLimit}
           onToggle={() =>
-            select((other) =>
-              other.id === channel.id ? !ticked(other) : ticked(other)
-            )
+            props.mode === 'analytics'
+              ? props.onChange(channel.id)
+              : props.onChange(
+                  selection((other) =>
+                    other.id === channel.id ? !ticked(other) : ticked(other)
+                  )
+                )
           }
           onReconnect={reconnect(channel)}
           onFinishSetup={() =>
@@ -804,6 +927,20 @@ export const ChannelPanel: FC<{
       </CustomerDropZone>
     ) : (
       group
+    );
+  // the groups, Analytics' radios all in one radiogroup around them
+  const radioGroup = (content: ReactNode) =>
+    mode === 'analytics' ? (
+      <div
+        role="radiogroup"
+        aria-label={t('channels', 'Channels')}
+        onKeyDown={onRadioGroupKeyDown}
+        className="flex flex-col gap-[8px]"
+      >
+        {content}
+      </div>
+    ) : (
+      content
     );
 
   return (
@@ -943,12 +1080,12 @@ export const ChannelPanel: FC<{
         {!collapsed && channels.length > 0 && (
           <p className="px-[8px] text-[12px] text-muted">
             {hints[mode]}
-            {hiding && (
+            {showAll && (
               <>
                 {' '}
                 <button
                   type="button"
-                  onClick={() => onChange(null)}
+                  onClick={showAll}
                   className={clsx(
                     'inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2',
                     FOCUS_RING
@@ -979,38 +1116,48 @@ export const ChannelPanel: FC<{
           </div>
         </div>
       )}
-      {groups.map(({ customer, members, channels: list }) => {
-        if (!customer) {
+      {radioGroup(
+        groups.map(({ customer, members, channels: list }) => {
+          if (!customer) {
+            return dropZone(
+              '',
+              <div key="" className="flex flex-col gap-[2px]">
+                {rows(list)}
+              </div>
+            );
+          }
+          const ticks = members.filter(ticked).length;
+          const checked =
+            ticks === members.length ? true : ticks ? 'mixed' : false;
           return dropZone(
-            '',
-            <div key="" className="flex flex-col gap-[2px]">
+            customer.id,
+            <CustomerGroup
+              key={customer.id}
+              customer={customer}
+              count={list.length}
+              collapsed={collapsed}
+              checked={checked}
+              disabled={!members.length}
+              // one choice on Analytics, so no customer's tick
+              onToggle={
+                props.mode === 'analytics'
+                  ? undefined
+                  : () =>
+                      props.onChange(
+                        selection((channel) =>
+                          members.includes(channel)
+                            ? checked !== true
+                            : ticked(channel)
+                        )
+                      )
+              }
+              onRename={onRenameCustomer && (() => onRenameCustomer(customer))}
+            >
               {rows(list)}
-            </div>
+            </CustomerGroup>
           );
-        }
-        const ticks = members.filter(ticked).length;
-        const checked =
-          ticks === members.length ? true : ticks ? 'mixed' : false;
-        return dropZone(
-          customer.id,
-          <CustomerGroup
-            key={customer.id}
-            customer={customer}
-            count={list.length}
-            collapsed={collapsed}
-            checked={checked}
-            disabled={!members.length}
-            onToggle={() =>
-              select((channel) =>
-                members.includes(channel) ? checked !== true : ticked(channel)
-              )
-            }
-            onRename={onRenameCustomer && (() => onRenameCustomer(customer))}
-          >
-            {rows(list)}
-          </CustomerGroup>
-        );
-      })}
+        })
+      )}
       {!!query && !groups.length && (
         <p className="py-[24px] px-[16px] text-center text-[13px] text-muted">
           {t('no_channel_matches', 'No channel matches')}

@@ -4,15 +4,19 @@
 // (post.actions.menu.tsx), the build number in Settings
 // (settings.component.tsx), the post card's preview (calendar.post.card.tsx),
 // and Samy's page (agent.tsx): its chats (agent.chats.tsx) in the start-side
-// drawer, and the chat's header (agent.chat.header.tsx). The last test reads
-// global.scss itself, for the chat's face, which is no class.
+// drawer, and the chat's header (agent.chat.header.tsx); and Analytics' page
+// (platform.analytics.tsx), its tiles and charts (render.analytics.tsx) and a
+// chart's canvas (metric.chart.tsx). The last test reads global.scss itself,
+// for the chat's face, which is no class.
 // A variant or arbitrary value that Tailwind can't use emits nothing and the
 // page just doesn't change, so this file asserts what Tailwind emitted for each
 // of them, with the project's own config (see emit.mjs). Each class is added
 // here by the task that first uses it.
 //
-// The picture's 16px platform badge is sized by its width and height
-// attributes, not a class, so it has nothing to emit.
+// The picture's 16px platform badge, and Analytics' 40px picture in its top
+// bar (28px, its badge 13px, on the phone's channel button), are sized by
+// their width and height attributes, not a class, so they have nothing to
+// emit.
 //
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { test } from 'node:test';
@@ -166,6 +170,11 @@ const ARBITRARY = {
   'h-[28px]': [['height', '28px']],
   'w-[20px]': [['width', '20px']],
   'h-[20px]': [['height', '20px']],
+  // Analytics' radio at a row's end, the Check's 20px (above): its ring and
+  // its mark
+  'border-[1.5px]': [['border-width', '1.5px']],
+  'w-[10px]': [['width', '10px']],
+  'h-[10px]': [['height', '10px']],
   // the sticky header, its count and its hint; past SplitPanel's 8px, the
   // header's own 8px and 2px (4px on the sheet, below), the hint's 8px
   // (px-[8px], above) and the search's 4px
@@ -239,6 +248,33 @@ const ARBITRARY = {
   'ps-[6px]': [['padding-inline-start', '6px']],
   'pe-[10px]': [['padding-inline-end', '10px']],
   '-ms-[7px]': [['margin-inline-start', '-7px']],
+  // metric.chart.tsx — Analytics' chart, as tall with no data as with it
+  'h-[340px]': [['height', '340px']],
+  // render.analytics.tsx — the tiles' columns of at least 150px and the
+  // charts' 16px, 20px between them, a tile's insets, 12px corners and 26px
+  // value, and a chart's insets, 14px corners and 10px above its canvas
+  'grid-cols-[repeat(auto-fill,minmax(150px,1fr))]': [
+    ['grid-template-columns', 'repeat(auto-fill,minmax(150px,1fr))'],
+  ],
+  'gap-[16px]': [['gap', '16px']],
+  'gap-[20px]': [['gap', '20px']],
+  'py-[14px]': py('padding', '14px'),
+  'rounded-[12px]': [['border-radius', '12px']],
+  'text-[26px]': [['font-size', '26px']],
+  'pt-[16px]': [['padding-top', '16px']],
+  'pb-[10px]': [['padding-bottom', '10px']],
+  'rounded-[14px]': [['border-radius', '14px']],
+  'mt-[10px]': [['margin-top', '10px']],
+  // the loading state's 48px, and the "needs to be refreshed" state's insets,
+  // its 48px icon and the 16px and 12px under the icon and its line
+  'py-[48px]': py('padding', '48px'),
+  'px-[24px]': px('padding', '24px'),
+  'w-[48px]': [['width', '48px']],
+  'h-[48px]': [['height', '48px']],
+  'mb-[16px]': [['margin-bottom', '16px']],
+  'mb-[12px]': [['margin-bottom', '12px']],
+  // platform.analytics.tsx — the page's 20px, and its loading state's
+  'p-[20px]': [['padding', '20px']],
 };
 
 test('every arbitrary value of the list, its page and the top bar emits its one rule', async () => {
@@ -341,6 +377,23 @@ const MOBILE_CLASSES = {
   'mobile:pe-[6px]': [['padding-inline-end', '6px']],
   'mobile:gap-[4px]': [['gap', '4px']],
   'mobile:rounded-[8px]': [['border-radius', '8px']],
+  // metric.chart.tsx — Analytics' chart on a phone, the AnalyticsBody board's
+  'mobile:h-[200px]': [['height', '200px']],
+  // render.analytics.tsx — the AnalyticsBody board's phone: tiles two to a
+  // row and charts one, closer together, and a tile's smaller insets and value
+  'mobile:grid-cols-2': [
+    ['grid-template-columns', 'repeat(2, minmax(0, 1fr))'],
+  ],
+  'mobile:grid-cols-1': [
+    ['grid-template-columns', 'repeat(1, minmax(0, 1fr))'],
+  ],
+  'mobile:gap-[12px]': [['gap', '12px']],
+  'mobile:gap-[10px]': [['gap', '10px']],
+  'mobile:px-[12px]': px('padding', '12px'),
+  'mobile:py-[10px]': py('padding', '10px'),
+  'mobile:text-[20px]': [['font-size', '20px']],
+  // platform.analytics.tsx — the page 12px in from a phone's edges
+  'mobile:p-[12px]': [['padding', '12px']],
 };
 
 test('every mobile: change emits, and only inside the mobile screen', async () => {
@@ -559,9 +612,10 @@ test('the states of the rows and controls emit, on the custom colours too', asyn
     'focus-visible:ring-brand': [['--tw-ring-color', 'var(--brand)']],
     'focus-visible:opacity-100': [['opacity', '1']],
     'group-hover:opacity-100': [['opacity', '1']],
-    // a row's ⋯ (menu/menu.tsx's trigger), shown on its own focus and while
-    // its menu, which opens inside the wrapper, is open
-    'focus-within:opacity-100': [['opacity', '1']],
+    // a row's ⋯ (menu/menu.tsx's trigger), the list's and a chat's, shown
+    // while focus is anywhere in its row and while its menu, which opens
+    // inside the wrapper, is open
+    'group-focus-within:opacity-100': [['opacity', '1']],
     'has-[[aria-expanded=true]]:opacity-100': [['opacity', '1']],
     'disabled:opacity-50': [['opacity', '0.5']],
     'hover:bg-surface2': [['background-color', 'var(--surface-2)']],
@@ -587,8 +641,8 @@ test('the states of the rows and controls emit, on the custom colours too', asyn
     '.group:hover .group-hover:opacity-100'
   );
   assert.equal(
-    selector('focus-within:opacity-100'),
-    '.focus-within:opacity-100:focus-within'
+    selector('group-focus-within:opacity-100'),
+    '.group:focus-within .group-focus-within:opacity-100'
   );
   assert.equal(
     selector('has-[[aria-expanded=true]]:opacity-100'),
@@ -650,12 +704,21 @@ test('every colour the list and the top bar name maps to its token', async () =>
       'scrollbar-track-newBgColor': [
         ['--scrollbar-track', 'var(--new-bgColor)'],
       ],
-      // the open chat's tint, and the rename field's ring (agent.chats.tsx)
+      // the open chat's tint, and the rename field's ring (agent.chats.tsx);
+      // Analytics' chosen row (channel.panel.tsx)
       'bg-brandSoft2': [['background-color', 'var(--brand-soft-2)']],
       'ring-brandSoft': [['--tw-ring-color', 'var(--brand-soft)']],
       // the summary's pictures, ringed in its pill's colour
       // (agent.chat.header.tsx)
       'border-surface2': [['border-color', 'var(--surface-2)']],
+      // Analytics' tiles and charts, a rise's green, and the "needs to be
+      // refreshed" state's box, line and icon (render.analytics.tsx), the
+      // icon's colour also the empty page's last bar (platform.analytics.tsx)
+      'bg-surface': [['background-color', 'var(--surface)']],
+      'text-success': [['color', 'var(--success)']],
+      'bg-newTableHeader': [['background-color', 'var(--new-table-header)']],
+      'text-newTableText': [['color', 'var(--new-table-text)']],
+      'text-brand': [['color', 'var(--brand)']],
     },
     null
   );
@@ -690,6 +753,8 @@ test('the core forms the list, the menu and the card lean on emit', async () => 
       'underline-offset-2': [['text-underline-offset', '2px']],
       // a chat's rename field (agent.chats.tsx)
       'ring-[3px]': ring('3px'),
+      // the search field's placeholder and text cut with an ellipsis
+      'text-ellipsis': [['text-overflow', 'ellipsis']],
     },
     null
   );
@@ -733,7 +798,7 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['opacity-0', 'coarse:opacity-100'],
     ['opacity-0', 'group-hover:opacity-100'],
     ['opacity-0', 'focus-visible:opacity-100'],
-    ['opacity-0', 'focus-within:opacity-100'],
+    ['opacity-0', 'group-focus-within:opacity-100'],
     ['opacity-0', 'has-[[aria-expanded=true]]:opacity-100'],
     // Samy's chats: a row and New chat at 44px on touch, the rename field too
     ['min-h-[36px]', 'coarse:min-h-[44px]'],
@@ -762,6 +827,23 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['h-full', 'mobile:h-auto'],
     ['pb-[20px]', 'mobile:pb-[80px]'],
     ['hidden', 'mobile:block'],
+    // Analytics' chart, shorter on a phone
+    ['h-[340px]', 'mobile:h-[200px]'],
+    // Analytics' tiles and charts on a phone
+    ['grid-cols-[repeat(auto-fill,minmax(150px,1fr))]', 'mobile:grid-cols-2'],
+    ['grid-cols-2', 'mobile:grid-cols-1'],
+    ['gap-[20px]', 'mobile:gap-[12px]'],
+    ['gap-[12px]', 'mobile:gap-[8px]'],
+    ['gap-[16px]', 'mobile:gap-[10px]'],
+    ['px-[16px]', 'mobile:px-[12px]'],
+    ['py-[14px]', 'mobile:py-[10px]'],
+    ['text-[26px]', 'mobile:text-[20px]'],
+    // Analytics' top bar on a phone: the period under the channel button,
+    // the full width
+    ['items-center', 'mobile:items-stretch'],
+    ['ms-auto', 'mobile:ms-0'],
+    // and the page 12px in from the screen's edges
+    ['p-[20px]', 'mobile:p-[12px]'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);

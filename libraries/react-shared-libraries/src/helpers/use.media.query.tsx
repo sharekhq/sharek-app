@@ -22,6 +22,14 @@ export const MOBILE_QUERY = '(max-width: 1025px)';
 export const NO_HOVER_QUERY = '(hover: none)';
 
 /**
+ * People who asked their system for less motion. The reduced-motion rule in
+ * `global.scss` stills CSS animation, but chart.js animates a canvas from
+ * JavaScript, out of that rule's reach, so a chart reads this and draws itself
+ * without animating.
+ */
+export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/**
  * SSR-safe media-query hook. Returns false on the server and on the first
  * client render (so it matches the desktop-first SSR markup), then syncs to the
  * real match after mount — avoiding hydration mismatches. Use for render-time

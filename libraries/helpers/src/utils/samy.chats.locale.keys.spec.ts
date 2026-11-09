@@ -49,6 +49,83 @@ const STRINGS = [
     'Samy schedules to the channels you tick.',
     'يجدول سامي المنشورات على القنوات التي تحددها.',
   ],
+  // Older than spec 051, in en and ar alone until walk 3 (T077), with en and
+  // ar as they are. The chat's title and welcome (agent.chat.tsx), and
+  // CopilotKit's eight labels, shared with the composer's assistant
+  // (assistant.labels.ts): the box's placeholder, the reply buttons' names.
+  ['samy', 'Samy', 'سامي'],
+  [
+    'samy_welcome_message',
+    "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers.",
+    'مرحبًا، أنا سامي 👋 — مساعدك في شارك. أستطيع جدولة منشور واحد أو عدة منشورات على قنواتك المتصلة، وتوليد الصور والفيديوهات لها. اختر القنوات التي تريدها من لوحة القنوات، وستجد محادثاتنا السابقة في لوحة المحادثات. يمكنك أيضًا استخدامي كخادم MCP — راجع الإعدادات ← المطورون.',
+  ],
+  ['assistant_placeholder', 'Type a message...', 'اكتب رسالة...'],
+  [
+    'assistant_error',
+    '❌ An error occurred. Please try again.',
+    '❌ حدث خطأ. يرجى المحاولة من جديد.',
+  ],
+  ['assistant_stop_generating', 'Stop generating', 'إيقاف التوليد'],
+  ['assistant_regenerate_response', 'Regenerate response', 'إعادة توليد الرد'],
+  ['assistant_copy_to_clipboard', 'Copy to clipboard', 'نسخ إلى الحافظة'],
+  ['assistant_thumbs_up', 'Thumbs up', 'إعجاب'],
+  ['assistant_thumbs_down', 'Thumbs down', 'عدم إعجاب'],
+  ['assistant_copied', 'Copied!', 'تم النسخ'],
+  // The message box's attachments (agent.attachments.tsx).
+  ['samy_ai_image', 'AI Image', 'توليد صورة'],
+  ['samy_drop_title', 'Drop your images here', 'أفلت صورك هنا'],
+  [
+    'samy_drop_subtitle',
+    "They'll be added to your message",
+    'ستضاف إلى رسالتك',
+  ],
+  ['samy_attached_image', 'Attached image {{n}}', 'الصورة المرفقة {{n}}'],
+  ['samy_attached_video', 'Attached video {{n}}', 'الفيديو المرفق {{n}}'],
+  ['samy_remove_attachment', 'Remove attachment {{n}}', 'إزالة المرفق {{n}}'],
+  [
+    'upload_size_limit_exceeded',
+    'Upload size limit exceeded. Maximum 1 GB per upload session.',
+    'تم تجاوز حد حجم الرفع. بحد أقصى 1 جيجابايت لكل جلسة رفع.',
+  ],
+  // The chat's pictures and videos (agent.created.media.tsx), and the line
+  // while Samy opens the post editor (agent.chat.tsx).
+  [
+    'samy_image_unavailable',
+    'This image is no longer available',
+    'هذه الصورة لم تعد متاحة',
+  ],
+  [
+    'samy_video_unavailable',
+    'This video is no longer available',
+    'هذا الفيديو لم يعد متاحًا',
+  ],
+  ['samy_created_image', 'Image Samy made', 'صورة أنشأها سامي'],
+  ['creating_your_image', 'Creating your image…', 'جاري إنشاء صورتك…'],
+  [
+    'usually_takes_half_minute',
+    'Usually takes about half a minute',
+    'يستغرق ذلك عادةً نصف دقيقة تقريباً',
+  ],
+  ['samy_video_rendering', 'Your video is rendering', 'جاري تجهيز الفيديو'],
+  [
+    'samy_video_rendering_sub',
+    "It will play here when it's ready. You can keep chatting.",
+    'سيعمل هنا عند اكتماله، ويمكنك متابعة المحادثة.',
+  ],
+  [
+    'samy_video_failed',
+    "This video couldn't be made",
+    'تعذر إنشاء هذا الفيديو',
+  ],
+  [
+    'samy_video_pointer',
+    "If this video finished, it's in your Media library",
+    'إذا اكتمل هذا الفيديو فستجده في مكتبة الوسائط',
+  ],
+  ['opening_post_editor', 'Opening the post editor…', 'جاري فتح محرر المنشور…'],
+  // Settings' tab (settings.component.tsx), which the welcome's "Settings →
+  // Developers" names, so the tab reads as the welcome does.
+  ['developers', 'Developers', 'المطورون'],
 ] as const;
 
 // C4 gives the toast's English. No document gives its Arabic, so ar's existing

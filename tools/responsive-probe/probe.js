@@ -34,15 +34,18 @@
   ];
 
   // The account precondition, observed rather than assumed — run.mjs gates a
-  // run on it. `Select Customer` renders only when the account's integrations
-  // span more than one customer grouping, and that one control is what decides
-  // whether the tablet failure reproduces at all.
+  // run on it. Since spec 051 the customer control is the channel list's: each
+  // customer's channels are a role="group" whose first row is a header with a
+  // button that opens and closes it (channel.panel.tsx, CustomerGroup), drawn
+  // only for a customer some channel has. Until then it was `Select Customer`
+  // in the calendar's top bar, matched by its tooltip.
   //
-  // Match the tooltip attribute, not the visible text: the text becomes the
-  // customer's own name once one is selected (select.customer.tsx:81), while
-  // the tooltip is set unconditionally from a translation key (:64) and never
-  // carries account data. Localised, like the patterns above.
-  const CUSTOMER_CONTROL = /select customer|اختر العميل/i;
+  // Match the structure, not the text: the group's label and the header's are
+  // the customer's own name, which is account data. No other group opens with
+  // such a button — Samy's chat groups open with a plain label, the image
+  // versions' strip with its own buttons.
+  const CUSTOMER_GROUP =
+    '[role="group"] > :first-child > button[aria-expanded]';
 
   // A closed off-canvas drawer is meant to sit outside the viewport, so it is
   // not a bug. Detect that by geometry (the box is wholly outside) rather than
@@ -183,16 +186,17 @@
     }
   }
 
-  const customerControlPresent = [...document.querySelectorAll('[data-tooltip-content]')].some(
-    (el) => CUSTOMER_CONTROL.test(el.getAttribute('data-tooltip-content') || '') && !hidden(el)
+  const customerControlPresent = [...document.querySelectorAll(CUSTOMER_GROUP)].some(
+    (el) => !hidden(el)
   );
 
-  // Which build was measured. The channels rail prints NEXT_PUBLIC_VERSION into
-  // a div of its own (launches.component.tsx:582-586), and a real build stamps
-  // that with the commit SHA. Only leaves are scanned, so the token is read
-  // once from the element that holds nothing else rather than from every
-  // ancestor that contains it. Absent — a local build, or a page without the
-  // rail — is reported as absent, never guessed.
+  // Which build was measured. Settings prints NEXT_PUBLIC_VERSION into a div of
+  // its own under Log out (settings.component.tsx:182-186), as the channels
+  // rail did until spec 051, and a real build stamps that with the commit SHA.
+  // Only leaves are scanned, so the token is read once from the element that
+  // holds nothing else rather than from every ancestor that contains it.
+  // Absent — a local build, or a page other than Settings — is reported as
+  // absent, never guessed.
   const build = (() => {
     for (const el of document.querySelectorAll('div')) {
       if (el.children.length) continue;

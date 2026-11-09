@@ -269,9 +269,9 @@ const ChatRow: FC<{ chat: Chat; current: boolean; onPin: () => void }> = ({
         </span>
       </Link>
       {chat.pinned && <PinIcon size={14} className="flex-none text-muted" />}
-      {/* The ⋯ shows on its row's hover, on its own focus and always on a
-          touch screen, as the channel list's does. */}
-      <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
+      {/* The ⋯ shows on its row's hover, while the focus is anywhere in its
+          row, on the link or on itself, and always on a touch screen. */}
+      <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
         <ChatOptions
           chat={chat}
           onRename={() => setRenaming(true)}

@@ -221,12 +221,18 @@ export const reachableWidths = (target, viewports) =>
 // ---------------------------------------------------------------------------
 
 // Layout failures land on whichever element loses the fight for width, so what
-// the account contains decides what the probe sees. `Select Customer` renders
-// only when integrations span more than one customer value — an unassigned
-// channel counts as one (select.customer.tsx:48-58) — and that one ~157px
-// control is what pushes the calendar column past the point where the channels
-// rail collapses and takes Create Post with it. An account without it reports
-// green on a page that is broken for everyone else.
+// the account contains decides what the probe sees. Until spec 051 the control
+// that decided it was `Select Customer` in the calendar's top bar: it rendered
+// only when integrations spanned more than one customer value, and that one
+// ~157px control pushed the calendar column past the point where the channels
+// rail collapsed and took Create Post with it. An account without it reported
+// green on a page that was broken for everyone else.
+//
+// Since 051 (increment 2, 8bd1bb5b9) the top bar has no customer control. The
+// shared channel list draws each customer's channels as a group under a header
+// of its own (channel.panel.tsx, CustomerGroup), only for a customer some
+// channel has, and that group is the customer control the precondition asks
+// for now.
 //
 // Four answers, and the order they are tested in is the meaning:
 //
@@ -247,8 +253,8 @@ export function preconditionVerdict({
   const observed = !pageRendered
     ? 'the anchor control was not found, so the page did not render'
     : customerControlPresent
-    ? 'the Select Customer control rendered'
-    : 'the Select Customer control did not render';
+    ? "a customer's group rendered in the channel list"
+    : "no customer's group rendered in the channel list";
 
   if (waived) {
     return {
@@ -285,11 +291,11 @@ export function preconditionVerdict({
     blames: 'account',
     reason: `this account cannot reproduce the failure being measured — ${observed}`,
     remedy:
-      "the account's integrations span only one customer grouping, so Select Customer is not " +
-      'rendered at all (select.customer.tsx:56) and the widths where Create Post is covered will ' +
-      'read as clean. Assign a customer to one channel and leave another unassigned — that is two ' +
-      'groupings — then run again. Or set PROBE_WAIVE_PRECONDITION=1 to measure anyway, ' +
-      'accepting that the run can never be a baseline.',
+      'no channel of the account is assigned to a customer, so the channel list draws no ' +
+      "customer's group and the probe would measure a list without one. Assign a customer to one " +
+      'channel and leave another unassigned, as the probe account has them, then run again. Or ' +
+      'set PROBE_WAIVE_PRECONDITION=1 to measure anyway, accepting that the run can never be a ' +
+      'baseline.',
   };
 }
 
