@@ -315,11 +315,13 @@ describe('the list', () => {
     ).toBe(true);
   });
 
+  // In the tab the list is in, for Samy's chip.
   it('links Manage brands to the Brands page, outside the options', async () => {
     await open();
 
     expect(manage()?.textContent).toBe('Manage brands');
     expect(listbox()!.contains(manage())).toBe(false);
+    expect(manage()!.hasAttribute('target')).toBe(false);
   });
 
   it('closes when Manage brands is followed', async () => {
@@ -330,14 +332,16 @@ describe('the list', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
-  // The AI image dialog closes on it, so it doesn't stay open over the
-  // Brands page.
-  it('tells the caller when Manage brands is followed', async () => {
-    const onManage = jest.fn();
-    await open({ onManage });
+  // The AI image dialog asks for it, so the dialog, and a post editor under
+  // it, stay open with everything in them.
+  it('opens the Brands page in a new tab when asked, closing the list', async () => {
+    await open({ manageInNewTab: true });
+
+    expect(manage()?.getAttribute('target')).toBe('_blank');
+    expect(manage()?.getAttribute('rel')).toBe('noreferrer');
 
     await click(manage());
-    expect(onManage).toHaveBeenCalledTimes(1);
+    expect(listbox()).toBeNull();
     expect(onPick).not.toHaveBeenCalled();
   });
 

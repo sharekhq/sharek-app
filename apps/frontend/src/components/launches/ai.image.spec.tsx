@@ -2038,15 +2038,22 @@ describe('the Brand field', () => {
     expect(editBody().brand).toBe('bq');
   });
 
-  it('closes the window on its way to Manage brands', async () => {
+  // A new tab, so the window, and a post editor under it, keep what is in
+  // them.
+  it('opens Manage brands in a new tab and keeps the window as it was', async () => {
     await compose();
+    await type(field(), 'A Ramadan night menu post');
+    await pick('Bayt Al Qahwa');
     await click(brandButton());
     const manage = document.querySelector('a[href="/brands"]');
 
     expect(manage?.textContent).toBe('Manage brands');
+    expect(manage?.getAttribute('target')).toBe('_blank');
 
     await click(manage);
 
-    expect(document.querySelector('textarea')).toBeNull();
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
+    expect(field()?.value).toBe('A Ramadan night menu post');
+    expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
   });
 });
