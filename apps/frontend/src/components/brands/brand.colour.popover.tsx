@@ -5,11 +5,9 @@ import clsx from 'clsx';
 import { useClickOutside } from '@mantine/hooks';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { Button } from '@gitroom/react/form/button';
 import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
-
-// A kit holds up to 6 colours, as BrandKitDto's ArrayMaxSize(6) keeps it.
-export const MAX_COLOURS = 6;
 
 // The popover's width on boards ColourPicker and ColourPickerAR:
 // react-colorful's 200px square, 16px inside each edge.
@@ -137,7 +135,7 @@ export const BrandColourPopover: FC<{
     close();
   };
 
-  if (colours.length >= MAX_COLOURS) {
+  if (colours.length >= BRAND_COLOURS_MAX) {
     return null;
   }
 

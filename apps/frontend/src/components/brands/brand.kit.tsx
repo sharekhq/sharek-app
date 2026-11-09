@@ -3,6 +3,11 @@
 import { ComponentProps, FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  BRAND_COLOURS_MAX,
+  BRAND_EXAMPLES_MAX,
+  BRAND_FONT_MAX,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { Button } from '@gitroom/react/form/button';
@@ -22,20 +27,12 @@ import {
   CloseIcon,
   PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
-import {
-  BrandColourPopover,
-  MAX_COLOURS,
-} from '@gitroom/frontend/components/brands/brand.colour.popover';
+import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   Brand,
   useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
-
-// A kit holds up to 3 example posts, and font names up to 60 characters, as
-// BrandKitDto keeps them.
-const MAX_EXAMPLES = 3;
-const MAX_FONT = 60;
 
 // PUT /brands/:id/kit's body: only the field a change touches, so two members
 // editing different parts of one kit don't overwrite each other (spec, Edge
@@ -166,7 +163,7 @@ const FontField: FC<{
     <input
       key={value ?? ''}
       dir="auto"
-      maxLength={MAX_FONT}
+      maxLength={BRAND_FONT_MAX}
       defaultValue={value ?? ''}
       placeholder="—"
       onBlur={(e) => {
@@ -360,7 +357,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
 
   // An image already in the kit is the same example, not a second one.
   const addExamples = () =>
-    pickImages(MAX_EXAMPLES - examples.length, (picked) => {
+    pickImages(BRAND_EXAMPLES_MAX - examples.length, (picked) => {
       const added = picked
         .map((item) => item.id)
         .filter((id) => !exampleIds.includes(id));
@@ -466,7 +463,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
           </Card>
           <Card
             title={t('brands_colours', 'Colours')}
-            count={<Count n={colours.length} max={MAX_COLOURS} />}
+            count={<Count n={colours.length} max={BRAND_COLOURS_MAX} />}
             help={t(
               'brands_colours_help',
               'Up to 6. Samy names them in each image request.'
@@ -525,7 +522,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
         </div>
         <Card
           title={t('brands_example_posts', 'Example posts')}
-          count={<Count n={examples.length} max={MAX_EXAMPLES} />}
+          count={<Count n={examples.length} max={BRAND_EXAMPLES_MAX} />}
           help={
             examples.some((example) => example.missing)
               ? t(
@@ -565,7 +562,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
                 </Missing>
               )
             )}
-            {examples.length < MAX_EXAMPLES && (
+            {examples.length < BRAND_EXAMPLES_MAX && (
               <button
                 type="button"
                 onClick={addExamples}

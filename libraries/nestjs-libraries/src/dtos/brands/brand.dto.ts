@@ -13,6 +13,13 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+// The Brands page's limits. Exported so its fields and cards bound
+// themselves to the same numbers rather than to a second copy of them.
+export const BRAND_NAME_MAX = 60;
+export const BRAND_EXAMPLES_MAX = 3;
+export const BRAND_COLOURS_MAX = 6;
+export const BRAND_FONT_MAX = 60;
+
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
@@ -24,7 +31,7 @@ export class CreateBrandDto {
   // The page's field stops at 60; the existing rename route keeps its own rule.
   @Transform(trim)
   @IsString()
-  @Length(1, 60)
+  @Length(1, BRAND_NAME_MAX)
   name: string;
 
   /** Honoured only when the organization has no live brand yet. */
@@ -47,7 +54,7 @@ export class BrandKitDto {
   /** Media ids of the example posts, in display order. */
   @ValidateIf((o) => o.exampleIds !== undefined)
   @IsArray()
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(BRAND_EXAMPLES_MAX)
   @ArrayUnique()
   @IsUUID('all', { each: true })
   exampleIds?: string[];
@@ -55,7 +62,7 @@ export class BrandKitDto {
   /** Stored uppercase, so two cases of one code are the same colour twice. */
   @ValidateIf((o) => o.colours !== undefined)
   @IsArray()
-  @ArrayMaxSize(6)
+  @ArrayMaxSize(BRAND_COLOURS_MAX)
   @ArrayUnique((colour: unknown) => String(colour).toUpperCase())
   @Matches(/^#[0-9A-Fa-f]{6}$/, { each: true })
   colours?: string[];
@@ -63,12 +70,12 @@ export class BrandKitDto {
   @IsOptional()
   @Transform(trimOrClear)
   @IsString()
-  @MaxLength(60)
+  @MaxLength(BRAND_FONT_MAX)
   headingFont?: string | null;
 
   @IsOptional()
   @Transform(trimOrClear)
   @IsString()
-  @MaxLength(60)
+  @MaxLength(BRAND_FONT_MAX)
   bodyFont?: string | null;
 }

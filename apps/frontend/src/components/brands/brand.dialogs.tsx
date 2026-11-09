@@ -5,6 +5,7 @@ import { FC, FormEvent, useState } from 'react';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { BRAND_NAME_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { Button } from '@gitroom/react/form/button';
@@ -25,9 +26,6 @@ const EditGroupNameModal = dynamic(() =>
     (mod) => mod.EditGroupNameModal
   )
 );
-
-// A brand's name is 1 to 60 characters, as CreateBrandDto keeps it.
-const MAX_NAME = 60;
 
 // The boards' dialogs are 520px wide, so a long sentence wraps rather than
 // widening the card.
@@ -95,7 +93,7 @@ const NewBrand: FC<{
         disableForm={true}
         label={t('name', 'Name')}
         value={name}
-        maxLength={MAX_NAME}
+        maxLength={BRAND_NAME_MAX}
         dir={name ? 'auto' : undefined}
         autoFocus
         onChange={(e) => setName(e.target.value)}
