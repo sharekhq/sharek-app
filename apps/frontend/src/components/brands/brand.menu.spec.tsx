@@ -333,31 +333,20 @@ describe('the list', () => {
     ).toBe(true);
   });
 
-  // In the tab the list is in, unless a caller asks for a new one.
-  it('links Manage brands to the Brands page, outside the options', async () => {
+  // In a new tab, from either caller: the AI image dialog, and a post editor
+  // under it, stay open with everything in them, and a message half typed in
+  // Samy's box stays.
+  it('links Manage brands to the Brands page in a new tab, outside the options', async () => {
     await open();
 
     expect(manage()?.textContent).toBe('Manage brands');
     expect(listbox()!.contains(manage())).toBe(false);
-    expect(manage()!.hasAttribute('target')).toBe(false);
+    expect(manage()?.getAttribute('target')).toBe('_blank');
+    expect(manage()?.getAttribute('rel')).toBe('noreferrer');
   });
 
   it('closes when Manage brands is followed', async () => {
     await open();
-
-    await click(manage());
-    expect(listbox()).toBeNull();
-    expect(onPick).not.toHaveBeenCalled();
-  });
-
-  // The AI image dialog asks for it, so the dialog, and a post editor under
-  // it, stay open with everything in them, and Samy's chip, so a message half
-  // typed in the box stays.
-  it('opens the Brands page in a new tab when asked, closing the list', async () => {
-    await open({ manageInNewTab: true });
-
-    expect(manage()?.getAttribute('target')).toBe('_blank');
-    expect(manage()?.getAttribute('rel')).toBe('noreferrer');
 
     await click(manage());
     expect(listbox()).toBeNull();
