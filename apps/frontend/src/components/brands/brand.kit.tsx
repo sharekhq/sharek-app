@@ -2,7 +2,6 @@
 
 import { ComponentProps, FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import SafeImage from '@gitroom/react/helpers/safe.image';
@@ -29,6 +28,7 @@ import {
 } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   Brand,
+  useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
 
@@ -288,10 +288,11 @@ const ChannelPicker: FC<{
 // A brand's kit on the Brands page (board Main, parts 5 to 8): the logo, the
 // example posts, the colours, the fonts and the brand's channels. Every member
 // edits it (FR-008). Each kit change saves at once and refreshes GET /brands;
-// a channel move refreshes the channel list.
+// a channel move refreshes the channel list. A refused change says why and
+// changes nothing.
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
-  const fetch = useFetch();
+  const send = useBrandChange();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
   const { mutate: reloadBrands } = useBrands();
@@ -308,19 +309,23 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
     .sort(compareChannels);
 
   const save = async (change: KitChange) => {
-    await fetch(`/brands/${brand.id}/kit`, {
-      method: 'PUT',
-      body: JSON.stringify(change),
-    });
-    reloadBrands();
+    if (
+      await send(`/brands/${brand.id}/kit`, {
+        method: 'PUT',
+        body: JSON.stringify(change),
+      })
+    ) {
+      reloadBrands();
+    }
   };
 
   // Into a brand, or to No brand with '', through the route the calendar's
-  // channel list uses (C3).
+  // channel list uses (C3). The list reloads after a refusal too, since the
+  // others may have moved.
   const move = async (ids: string[], group: string) => {
     await Promise.all(
       ids.map((id) =>
-        fetch(`/integrations/${id}/group`, {
+        send(`/integrations/${id}/group`, {
           method: 'PUT',
           body: JSON.stringify({ group }),
         })

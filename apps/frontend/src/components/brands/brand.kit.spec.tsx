@@ -38,6 +38,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 }));
 // The page's two lists, which the kit refreshes after each save.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: [], mutate: reloadBrands }),
 }));
 jest.mock(

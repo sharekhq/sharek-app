@@ -36,6 +36,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 }));
 // The page's two lists, which every dialog refreshes after a change.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: brands, mutate: reloadBrands }),
 }));
 jest.mock(

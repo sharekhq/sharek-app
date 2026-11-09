@@ -14,6 +14,7 @@ import { useIntegrationList } from '@gitroom/frontend/components/launches/helper
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
+  useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
 
@@ -154,7 +155,7 @@ const NewBrand: FC<{
 // each channel's brand everywhere in the app.
 export const useBrandDialogs = () => {
   const t = useT();
-  const fetch = useFetch();
+  const send = useBrandChange();
   const modals = useModals();
   const { data: brands, mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
@@ -186,7 +187,8 @@ export const useBrandDialogs = () => {
     });
 
   // Delete (board BrandsDelete) in the app's confirmation: what happens to the
-  // brand's channels and kit images, then the delete (FR-006). Its buttons
+  // brand's channels and kit images, then the delete (FR-006), whose refusal
+  // says why and changes nothing. Its buttons
   // keep the app's order, Delete brand before Cancel, where the board ends
   // with Delete brand.
   const openDeleteBrand = async (brand: Pick<Brand, 'id' | 'name'>) => {
@@ -212,8 +214,9 @@ export const useBrandDialogs = () => {
     ) {
       return;
     }
-    await fetch(`/brands/${brand.id}`, { method: 'DELETE' });
-    reload();
+    if (await send(`/brands/${brand.id}`, { method: 'DELETE' })) {
+      reload();
+    }
   };
 
   // The calendar's own rename dialog, on the route it uses (C3).

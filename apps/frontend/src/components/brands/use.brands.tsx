@@ -1,6 +1,9 @@
 'use client';
 
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useCallback } from 'react';
 import useSWR from 'swr';
 
@@ -39,4 +42,35 @@ export const useBrands = () => {
   );
 
   return useSWR<Brand[]>('/brands', load);
+};
+
+// A change to a brand or to its channels: the answer once the server takes
+// it. A refusal says why in a toast, in the server's words when it has some
+// (a 400 lists them; the first goes), else the app's, as does a request that
+// fails; one the fetch interceptor answered already (the limit modal, a
+// redirect) says nothing more. Either way there is no answer.
+export const useBrandChange = () => {
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const t = useT();
+
+  return async (url: string, init: RequestInit) => {
+    const failed = t('error_occurred', 'An error occurred. Please try again.');
+    try {
+      const response = await fetch(url, init);
+      if (response.ok) {
+        return response;
+      }
+      const { message } = await response.json().catch(() => ({}));
+      toaster.show(
+        (Array.isArray(message) ? message[0] : message) || failed,
+        'warning'
+      );
+    } catch (e) {
+      if (!isAlreadyAnswered(e)) {
+        toaster.show(failed, 'warning');
+      }
+    }
+    return undefined;
+  };
 };
