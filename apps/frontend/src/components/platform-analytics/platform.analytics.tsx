@@ -325,24 +325,35 @@ export const PlatformAnalytics = () => {
               />
             </div>
           </>
-        ) : (
+        ) : data.length ? (
+          // Channels, but none to pick: their rows say why and offer the fix,
+          // so the page says to pick one; on a phone the button says it.
           <>
-            {!!data.length && channelButton}
+            {channelButton}
             <EmptyState
               illustration={<AnalyticsEmptyIllustration />}
               title={t(
-                'analytics_empty_title',
-                'Track how your content performs'
+                'channel_hint_analytics',
+                'Pick a channel to see its numbers.'
               )}
-              description={t(
-                'analytics_empty_description',
-                'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
-              )}
-              note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
-              actionLabel={t('connect_a_channel', 'Connect a channel')}
-              onAction={() => router.push('/launches')}
+              className="mobile:hidden"
             />
           </>
+        ) : (
+          <EmptyState
+            illustration={<AnalyticsEmptyIllustration />}
+            title={t(
+              'analytics_empty_title',
+              'Track how your content performs'
+            )}
+            description={t(
+              'analytics_empty_description',
+              'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
+            )}
+            note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
+            actionLabel={t('connect_a_channel', 'Connect a channel')}
+            onAction={() => router.push('/launches')}
+          />
         )}
       </div>
       <SplitPanel
