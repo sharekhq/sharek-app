@@ -2081,6 +2081,30 @@ describe('the Brand field', () => {
     }
   );
 
+  // Nor does the line under the images say a logo stays.
+  const NO_LOGO_OWN_LINE =
+    "Your images take the place of the brand's examples.";
+
+  it.each([
+    ['whose logo is gone from Media', 'Bayt Al Qahwa', [RAWDA, LOGO_GONE]],
+    ['with no logo', 'Rawda Florist', BRANDS],
+  ])(
+    'says nothing of a logo under the images beside a brand %s',
+    async (_case, name, list) => {
+      brandList = list;
+      await compose();
+      await pick(name);
+
+      expect(lines()).toContain(`Optional. ${NO_LOGO_OWN_LINE}`);
+      expect(lines()).not.toContain(BRAND_LINE);
+
+      await attach(ref('a'));
+
+      expect(lines()).toContain(NO_LOGO_OWN_LINE);
+      expect(lines()).not.toContain(OWN_LINE);
+    }
+  );
+
   it("keeps an edit's three places beside a brand whose logo is gone from Media", async () => {
     brandList = [RAWDA, LOGO_GONE];
     await compose();

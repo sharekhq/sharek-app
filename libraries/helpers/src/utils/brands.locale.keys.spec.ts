@@ -207,6 +207,13 @@ const STRINGS = [
     "Optional. Your images take the place of the brand's examples; its logo stays.",
     'اختياري. تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
   ],
+  // Not on the canvas: the same line for a brand whose logo doesn't go along,
+  // none in its kit or one gone from Media, without the logo's clause.
+  [
+    'brands_ref_help_no_logo',
+    "Optional. Your images take the place of the brand's examples.",
+    'اختياري. تحل صورك محل المنشورات النموذجية للعلامة.',
+  ],
   // Not on the canvas: the same line while a brand picked after the user's
   // images leaves one more of them than fits beside its logo, which holds
   // Generate.
@@ -381,6 +388,23 @@ const PLURALS = [
       few: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
       many: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
       other: 'تحل صورك محل المنشورات النموذجية للعلامة، ويبقى شعارها.',
+    },
+  ],
+  // Not on the canvas: the same for a brand whose logo doesn't go along,
+  // without the logo's clause.
+  [
+    'brands_ref_help_own_no_logo',
+    {
+      one: "Your image takes the place of the brand's examples.",
+      other: "Your images take the place of the brand's examples.",
+    },
+    {
+      zero: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      one: 'تحل صورتك محل المنشورات النموذجية للعلامة.',
+      two: 'تحل صورتاك محل المنشورات النموذجية للعلامة.',
+      few: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      many: 'تحل صورك محل المنشورات النموذجية للعلامة.',
+      other: 'تحل صورك محل المنشورات النموذجية للعلامة.',
     },
   ],
 ] as const;
