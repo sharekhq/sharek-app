@@ -199,8 +199,22 @@ export class BrandService {
   // and Samy says back; a refusal makes no image and spends no credit.
   async resolveForSamy(
     org: string,
-    { input, channelIds }: { input?: string; channelIds: string[] }
+    {
+      chip,
+      input,
+      channelIds,
+    }: { chip?: string; input?: string; channelIds: string[] }
   ): Promise<SamyBrand> {
+    // The brand chip's choice comes first. The copilot controller keeps only
+    // none, each or a live brand of the organization (R14), so a brand id is
+    // taken as it is, and each leaves the brand to the steps below.
+    if (chip === 'none') {
+      return {};
+    }
+    if (chip && chip !== 'each') {
+      return { brandId: chip };
+    }
+
     // In any case, as brandNamed matches a name
     const wanted = input?.trim();
     if (wanted?.toLowerCase() === 'none') {

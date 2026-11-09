@@ -111,10 +111,12 @@ export class SamyImageTool implements AgentToolInterface {
           const org = JSON.parse(run?.get('organization') as string);
 
           // A brand that can't be picked makes no image, and no credit is read.
-          // Only the channels' ids go: the brand service reads the channels
-          // again, for this organization (research R9).
+          // The brand chip's choice goes as the copilot controller kept it, and
+          // only the channels' ids: the brand service reads the channels
+          // again, for this organization (research R9, R14).
           const { brand, ...image } = inputData;
           const picked = await this._brandService.resolveForSamy(org.id, {
+            chip: run?.get('brand'),
             input: brand,
             channelIds: selectedChannels(run?.get('integrations')).map(
               (channel) => channel.id
