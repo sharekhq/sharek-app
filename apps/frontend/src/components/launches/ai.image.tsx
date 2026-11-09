@@ -189,6 +189,13 @@ const rememberedBrand = () => {
   }
 };
 
+// The brand's logo while it is still in Media: what goes along with a render,
+// taking one of its places, as the server counts it (FR-016).
+const liveLogo = (brand?: Brand) => {
+  const logo = brand?.kit.logo;
+  return logo && !logo.missing ? logo : undefined;
+};
+
 // A kit image after "Goes along:" (board StudioBrand).
 const KIT_THUMBNAIL =
   'flex-none w-[36px] h-[36px] rounded-[8px] border border-line';
@@ -214,8 +221,7 @@ const BrandField: FC<{
   const { data } = useIntegrationList();
   const channels: Channel[] = data;
   const name = brand ? brand.name : t('brands_no_brand', 'No brand');
-  const logo = brand?.kit.logo;
-  const logoPath = logo && !logo.missing ? logo.path : null;
+  const logoPath = liveLogo(brand)?.path;
   const examples = (brand?.kit.examples || []).flatMap(
     ({ id, path, missing }) => (path && !missing ? [{ id, path }] : [])
   );
@@ -701,8 +707,7 @@ const AiImageModal: FC<{
     );
   };
 
-  // A brand's logo takes one of the render's places (FR-016).
-  const places = IMAGE_REFERENCE_MAX - (brand ? 1 : 0);
+  const places = IMAGE_REFERENCE_MAX - (liveLogo(brand) ? 1 : 0);
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
