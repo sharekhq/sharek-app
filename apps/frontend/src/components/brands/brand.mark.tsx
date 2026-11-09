@@ -42,6 +42,28 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
   );
 };
 
+// No brand's crossed circle, on its mark and on Samy's brand chip.
+// Decoration, as No brand's name is beside it.
+export const NoBrandIcon: FC<{ size: number; className?: string }> = ({
+  size,
+  className,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    aria-hidden="true"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="8" />
+    <path d="M6.5 17.5l11-11" />
+  </svg>
+);
+
 // No brand's mark: an empty dashed tile with a crossed circle.
 export const NoBrandMark: FC<{ className: string; size: number }> = ({
   className,
@@ -54,17 +76,6 @@ export const NoBrandMark: FC<{ className: string; size: number }> = ({
       className
     )}
   >
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M6.5 17.5l11-11" />
-    </svg>
+    <NoBrandIcon size={size} />
   </span>
 );

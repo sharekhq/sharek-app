@@ -7,7 +7,10 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { useAttachments } from '@gitroom/frontend/components/agents/agent.attachments';
 import { followChatBottom } from '@gitroom/frontend/components/agents/agent.created.media';
-import { BrandMark } from '@gitroom/frontend/components/brands/brand.mark';
+import {
+  BrandMark,
+  NoBrandIcon,
+} from '@gitroom/frontend/components/brands/brand.mark';
 import {
   BrandMenu,
   EACH_BRAND,
@@ -165,20 +168,7 @@ export const BrandChip: FC = () => {
               </span>
             )}
             {shown === NO_BRAND && (
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden="true"
-                className="flex-none"
-              >
-                <circle cx="12" cy="12" r="8" />
-                <path d="M6.5 17.5l11-11" />
-              </svg>
+              <NoBrandIcon size={15} className="flex-none" />
             )}
             {/* a brand's name keeps its own direction, and a long one is cut */}
             <span
