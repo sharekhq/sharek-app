@@ -408,6 +408,39 @@ describe('SamyImageTool', () => {
       expect(run.requestContext.get('samyImagesMade')).toBe(0);
       logged.mockRestore();
     });
+
+    // Dropping it would read the credits again before the first call's usage is
+    // written, and spend past them (research R29).
+    it("keeps the run's credit read when one call's brands can't be read", async () => {
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const resolve = jest
+        .fn()
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new Error('database is down'))
+        .mockResolvedValue({});
+      // A fresh answer each read, as the database gives, so a second read
+      // would find the credit the first call is spending.
+      const { tool, media } = makeTool(
+        undefined,
+        jest.fn(async () => ({ credits: 1, resetsAt: RESETS_AT })),
+        resolve
+      );
+      const run = context();
+
+      const [first, failed] = await Promise.all([
+        tool.execute({ prompt: 'a cat' }, run),
+        tool.execute({ prompt: 'a cat' }, run),
+      ]);
+
+      expect(first).toEqual(made);
+      expect(failed.error).toMatch(/offer to try again/);
+      expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual({
+        error: imageCreditRefusal(RESETS_AT),
+      });
+      expect(media.imageCreditsLeft).toHaveBeenCalledTimes(1);
+      expect(media.generateImageFromLinks).toHaveBeenCalledTimes(1);
+      logged.mockRestore();
+    });
   });
 
   // Enforced rather than instructed, because the model can miss a line. Parallel
