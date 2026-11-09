@@ -342,6 +342,22 @@ describe('MetricChart', () => {
     expect(dataset.backgroundColor).toBe(chartColorSchemes('dark')[color].end);
   });
 
+  // the same points, so only the colour changes
+  it('draws again in a new colour when given one', async () => {
+    const data = days(REACH);
+    const host = await mount(data, 'Reach', 'saffron');
+    await act(async () => {
+      mounted[0].render(
+        <MetricChart label="Reach" data={data} color="lapis" />
+      );
+    });
+
+    expect(host.querySelector('canvas')).not.toBeNull();
+    expect(drawn().config.data.datasets[0].borderColor).toBe(
+      chartColorSchemes('dark').lapis.border
+    );
+  });
+
   it.each([
     ['dark', '#1D1518', '#F7F1EF', '#AEA09D', 'rgba(255,255,255,0.14)'],
     ['light', '#F7F5F4', '#1A1413', '#6F635F', '#CFC9C6'],
