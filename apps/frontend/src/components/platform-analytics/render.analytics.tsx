@@ -182,8 +182,14 @@ export const RenderAnalytics: FC<{
   const { integration, date } = props;
   const fetch = useFetch();
 
+  // A failed answer (a 502 while the backend restarts has a JSON body too) is
+  // an error SWR asks again for, never numbers to draw
   const load = useCallback(async () => {
-    return (await fetch(`/analytics/${integration.id}?date=${date}`)).json();
+    const response = await fetch(`/analytics/${integration.id}?date=${date}`);
+    if (!response.ok) {
+      throw new Error(`Analytics answered ${response.status}`);
+    }
+    return response.json();
   }, [integration, date]);
 
   // SWR's own loading, per channel and period, so a slower answer for another
