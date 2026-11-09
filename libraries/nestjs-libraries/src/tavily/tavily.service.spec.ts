@@ -123,6 +123,48 @@ describe('TavilyService.search', () => {
 
     expect(await new TavilyService().search('org-1', 'سوق الخبر')).toEqual([]);
   });
+
+  // Mastra checks the tool's answer against its output schema, so one result
+  // with no title or snippet would fail the whole search.
+  it('answers a missing title or snippet as an empty one', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            title: 'Souq Al Khobar',
+            url: 'https://a.example/souq',
+            content: null,
+            score: 0.81,
+          },
+          {
+            url: 'https://b.example/guide',
+            content: 'Where to eat and shop.',
+            score: 0.64,
+          },
+          {
+            title: 'Khobar corniche',
+            url: 'https://c.example/corniche',
+            content: 'A walk by the sea.',
+            score: 0.52,
+          },
+        ],
+      })
+    );
+
+    expect(await new TavilyService().search('org-1', 'سوق الخبر')).toEqual([
+      { title: 'Souq Al Khobar', url: 'https://a.example/souq', snippet: '' },
+      {
+        title: '',
+        url: 'https://b.example/guide',
+        snippet: 'Where to eat and shop.',
+      },
+      {
+        title: 'Khobar corniche',
+        url: 'https://c.example/corniche',
+        snippet: 'A walk by the sea.',
+      },
+    ]);
+  });
 });
 
 describe('TavilyService.extract', () => {
@@ -195,6 +237,93 @@ describe('TavilyService.extract', () => {
       { url: 'https://b.example/', error: 'Failed to fetch url' },
       { url: 'https://a.example/', text: 'Page A' },
     ]);
+  });
+
+  // Tavily may answer with another form of the address asked, so the two are
+  // compared once parsed, and the answer keeps the address as asked.
+  it.each([
+    [
+      'a trailing slash added',
+      'https://a.example/menu',
+      'https://a.example/menu/',
+    ],
+    [
+      'a trailing slash dropped',
+      'https://a.example/menu/',
+      'https://a.example/menu',
+    ],
+    [
+      'the host in another case',
+      'https://Shop.Example/menu',
+      'https://shop.example/menu',
+    ],
+    [
+      'the default port spelled out',
+      'https://a.example/menu',
+      'https://a.example:443/menu',
+    ],
+  ])('matches a page Tavily answers with %s', async (_, asked, answered) => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [{ url: answered, raw_content: 'Menu' }],
+        failed_results: [],
+      })
+    );
+
+    expect(await new TavilyService().extract('org-1', [asked])).toEqual([
+      { url: asked, text: 'Menu' },
+    ]);
+  });
+
+  it("gives a page that failed under another form of its address Tavily's own reason", async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [],
+        failed_results: [
+          { url: 'https://b.example/menu/', error: 'Failed to fetch url' },
+        ],
+      })
+    );
+
+    expect(
+      await new TavilyService().extract('org-1', ['https://b.example/menu'])
+    ).toEqual([
+      { url: 'https://b.example/menu', error: 'Failed to fetch url' },
+    ]);
+  });
+
+  it('still tells apart two pages whose paths differ', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          { url: 'https://a.example/menu/drinks', raw_content: 'Drinks' },
+        ],
+        failed_results: [],
+      })
+    );
+
+    expect(
+      await new TavilyService().extract('org-1', [
+        'https://a.example/menu',
+        'https://a.example/menu/drinks',
+      ])
+    ).toEqual([
+      { url: 'https://a.example/menu', error: UNREADABLE },
+      { url: 'https://a.example/menu/drinks', text: 'Drinks' },
+    ]);
+  });
+
+  it('matches an address that is not a full URL by its text', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [{ url: 'a.example/menu', raw_content: 'Menu' }],
+        failed_results: [],
+      })
+    );
+
+    expect(
+      await new TavilyService().extract('org-1', ['a.example/menu'])
+    ).toEqual([{ url: 'a.example/menu', text: 'Menu' }]);
   });
 
   it('says a page returned with no text, or not returned at all, could not be read', async () => {
