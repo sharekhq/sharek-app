@@ -64,6 +64,9 @@ jest.mock('@gitroom/frontend/components/brands/brand.kit', () => ({
 jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
   useBrandDialogs: () => mockDialogs,
 }));
+jest.mock('@gitroom/frontend/components/layout/loading', () => ({
+  LoadingComponent: () => <div data-testid="loading" />,
+}));
 jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
   SplitPanel: (props: ComponentProps<typeof SplitPanel>) => {
     mockSplit = props;
@@ -501,6 +504,35 @@ describe('with no brands', () => {
 
     expect(heading(host)?.textContent).toBe('No brand');
     expect(host.querySelectorAll('[data-testid="channel"]')).toHaveLength(9);
+  });
+});
+
+describe("while the brands don't load", () => {
+  beforeEach(() => {
+    // a 500 comes back with a JSON body; SWR asks again for the brands later
+    mockFetch.mockImplementation(async (url: string) =>
+      url === '/brands'
+        ? {
+            ok: false,
+            status: 500,
+            json: async () => ({
+              statusCode: 500,
+              message: 'Internal server error',
+            }),
+          }
+        : answer({ integrations: mockChannels })
+    );
+  });
+
+  it('shows the page loading, never that there are no brands', async () => {
+    const host = await render();
+
+    expect(mockFetch).toHaveBeenCalledWith('/brands');
+    expect(host.querySelector('[data-testid="loading"]')).not.toBeNull();
+    expect(list(host)).toBeNull();
+    expect(host.textContent).not.toContain('No brands yet.');
+    expect(heading(host)).toBeNull();
+    expect(button(host, 'New brand')).toBeUndefined();
   });
 });
 
