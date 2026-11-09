@@ -248,6 +248,32 @@ describe('MetricChart', () => {
     expect(drawn().config.data.labels).toEqual(['Nov 1', 'Nov 2', 'Nov 3']);
   });
 
+  // A day alone parses as midnight UTC, which west of UTC is the evening
+  // before, so the day is formatted at UTC and not in the browser's zone.
+  it('labels each point with the day it names, west of UTC too', async () => {
+    const RealFormat = Intl.DateTimeFormat;
+    // a browser in New York, west of UTC, the zone a format given none takes
+    class WestOfUtc extends RealFormat {
+      constructor(
+        locales?: string | string[],
+        options?: Intl.DateTimeFormatOptions
+      ) {
+        super(locales, { timeZone: 'America/New_York', ...options });
+      }
+    }
+    Intl.DateTimeFormat = WestOfUtc as typeof Intl.DateTimeFormat;
+    try {
+      await mount([
+        { total: 1, date: '2026-11-01' },
+        { total: 2, date: '2026-11-02' },
+      ]);
+    } finally {
+      Intl.DateTimeFormat = RealFormat;
+    }
+
+    expect(drawn().config.data.labels).toEqual(['Nov 1', 'Nov 2']);
+  });
+
   it('labels the value axis in thousands', async () => {
     await mount(days(REACH));
     const { y } = drawn().config.options.scales;
