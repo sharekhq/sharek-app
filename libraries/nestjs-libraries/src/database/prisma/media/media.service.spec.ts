@@ -1929,7 +1929,11 @@ describe('with a brand', () => {
     bodyFont: undefined,
   });
 
+  // The limit the logo sets, for the person at the window and for Samy, who
+  // asks the user
   const TOO_MANY =
+    "With Rawda Florist's logo, only 3 of your images fit (2 when editing). Remove one, or pick No brand.";
+  const TOO_MANY_FOR_SAMY =
     "With Rawda Florist's logo, only 3 of the user's images fit (2 when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.";
   const GONE = 'That brand no longer exists. Pick another or No brand.';
 
@@ -2168,7 +2172,6 @@ describe('with a brand', () => {
     });
 
     describe('refuses before any credit exists', () => {
-      // Worded as the edit limit is, for Samy to ask which to keep.
       it("a fourth image of the user's beside the logo, naming the brand", async () => {
         const ai = openAi();
         const { service, repository, subscription } = makeService({
@@ -2512,27 +2515,35 @@ describe('with a brand', () => {
       });
     });
 
-    it('lets the refusal for too many images through as its message, with no credit', async () => {
-      const { service, subscription } = makeService({
-        openAi: openAi(),
-        references: library,
-        kit: kit(),
-      });
+    // Worded as the edit limit is, for Samy to ask which to keep.
+    it.each([
+      ['a generation', undefined, ['a', 'b', 'c', 'd']],
+      ['an edit', link('shown'), ['a', 'b', 'c']],
+    ])(
+      'words the refusal for too many images in %s for Samy, with no credit',
+      async (_case, editOf, references) => {
+        const { service, subscription } = makeService({
+          openAi: openAi(),
+          references: library,
+          kit: kit(),
+        });
 
-      const err = await service
-        .generateImageFromLinks(org, {
-          prompt,
-          aspectRatio: 'square',
-          references: ['a', 'b', 'c', 'd'].map(link),
-          brand,
-        })
-        .catch((e) => e);
+        const err = await service
+          .generateImageFromLinks(org, {
+            prompt,
+            aspectRatio: 'square',
+            editOf,
+            references: references.map(link),
+            brand,
+          })
+          .catch((e) => e);
 
-      expect(err).toBeInstanceOf(HttpException);
-      expect(err.getStatus()).toBe(400);
-      expect(err.message).toBe(TOO_MANY);
-      expect(subscription.useCredit).not.toHaveBeenCalled();
-    });
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.getStatus()).toBe(400);
+        expect(err.message).toBe(TOO_MANY_FOR_SAMY);
+        expect(subscription.useCredit).not.toHaveBeenCalled();
+      }
+    );
 
     // The kit's images aren't among Samy's links, so Samy is told which part
     // of whose kit it is and what the user can do.
