@@ -131,8 +131,6 @@ export const BrandChip: FC = () => {
         each={among.map(({ id }) => id)}
         variant="message"
         onPick={pick}
-        // so a message half typed in the box isn't lost
-        manageInNewTab
         label={t(
           'brands_chip_label',
           'Brand for this message: {{brand}}. Change brand',

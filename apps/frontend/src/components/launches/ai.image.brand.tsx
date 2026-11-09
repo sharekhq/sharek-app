@@ -215,7 +215,6 @@ export const BrandField: FC<{
             value={brand ? brand.id : NO_BRAND}
             variant="image"
             onPick={onPick}
-            manageInNewTab
             label={t(
               'brands_field_label',
               'Brand for this image: {{brand}}. Change brand',
