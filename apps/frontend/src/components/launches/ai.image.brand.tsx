@@ -5,14 +5,12 @@ import {
   BrandKitPart,
   ImageBrandRefusal,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import { NO_BRAND } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { ChevronDownIcon } from '@gitroom/frontend/components/ui/icons';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import {
-  BrandMenu,
-  NO_BRAND,
-} from '@gitroom/frontend/components/brands/brand.menu';
+import { BrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import {
   BrandMark,
   NoBrandMark,

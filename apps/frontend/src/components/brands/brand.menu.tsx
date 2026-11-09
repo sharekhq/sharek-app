@@ -30,11 +30,6 @@ import {
 } from '@gitroom/frontend/components/brands/brand.mark';
 import { Brand } from '@gitroom/frontend/components/brands/use.brands';
 
-// The choices besides a brand's id: no kit at all, or each picked channel's
-// own brand, as Samy's request context takes them (brand.dto.ts), handed on
-// to the list's callers.
-export { EACH_BRAND, NO_BRAND };
-
 // A brand's mark in its row (board BrandMenu), and the smaller overlapping
 // marks of Each channel's brand.
 const MARK = 'w-[28px] h-[28px] rounded-[7px] text-[12px]';

@@ -4,6 +4,10 @@ import { FC, useContext, useLayoutEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  EACH_BRAND,
+  NO_BRAND,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { useAttachments } from '@gitroom/frontend/components/agents/agent.attachments';
 import { followChatBottom } from '@gitroom/frontend/components/agents/agent.created.media';
@@ -11,11 +15,7 @@ import {
   BrandMark,
   NoBrandIcon,
 } from '@gitroom/frontend/components/brands/brand.mark';
-import {
-  BrandMenu,
-  EACH_BRAND,
-  NO_BRAND,
-} from '@gitroom/frontend/components/brands/brand.menu';
+import { BrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import {
   Brand,
   liveExamples,
