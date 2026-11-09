@@ -47,19 +47,22 @@ jest.mock('chart.js/auto', () => ({
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string) => key,
 }));
-// The theme, as the mode cookie holds it.
+// The theme, as the mode cookie holds it when a chart mounts. The hook keeps
+// its own state, as react-use-cookie does, so a set value draws again.
 let mockMode = 'dark';
-jest.mock('react-use-cookie', () => ({
-  __esModule: true,
-  default: (key: string, initial: string) => [
-    key === 'mode' ? mockMode : initial,
-    () => undefined,
-  ],
-}));
+jest.mock('react-use-cookie', () => {
+  const { useState } = jest.requireActual('react');
+  return {
+    __esModule: true,
+    default: (key: string, initial: string) =>
+      useState(key === 'mode' ? mockMode : initial),
+  };
+});
 
 import i18next from 'i18next';
 import { chartColorSchemes } from '@gitroom/frontend/components/analytics/chart-social';
 import { REDUCED_MOTION_QUERY } from '@gitroom/react/helpers/use.media.query';
+import { modeEmitter } from '@gitroom/frontend/components/layout/mode.component';
 import { MetricChart } from '@gitroom/frontend/components/platform-analytics/metric.chart';
 
 // The device, as its reduced-motion media query reports it.
@@ -347,6 +350,34 @@ describe('MetricChart', () => {
       ).toBe('3,410');
     }
   );
+
+  // The top bar's switch tells the open page through modeEmitter; the cookie
+  // a chart read on mounting stays as it was (walk 4).
+  it('draws again in the light theme when the theme is switched on the page', async () => {
+    await mount(days(REACH));
+    await act(async () => {
+      modeEmitter.emit('mode', 'light');
+    });
+    const { options } = drawn().config;
+
+    expect(options.scales.y.grid.color).toBe('#CFC9C6');
+    expect(options.scales.x.ticks.color).toBe('#6F635F');
+    expect(options.plugins.tooltip.backgroundColor).toBe('#F7F5F4');
+  });
+
+  it('still follows the theme after another chart unmounts, as a channel switch unmounts them', async () => {
+    await mount(days(REACH), 'Reach');
+    const other = mounted.shift()!;
+    await mount(days(REACH), 'Views');
+    act(() => {
+      other.unmount();
+    });
+    await act(async () => {
+      modeEmitter.emit('mode', 'light');
+    });
+
+    expect(drawn().config.options.scales.y.grid.color).toBe('#CFC9C6');
+  });
 
   // The page's face, which layout.tsx's font-sans gives the body: IBM Plex Sans,
   // and IBM Plex Sans Arabic for Arabic letters. chart.js draws in its own
