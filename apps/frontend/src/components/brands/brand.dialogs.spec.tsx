@@ -1,4 +1,4 @@
-import { act, FC } from 'react';
+import { act, ComponentProps, FC } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -44,24 +44,20 @@ jest.mock(
     useIntegrationList: () => ({ data: channels, mutate: reloadChannels }),
   })
 );
-// The rename dialog lives in the calendar page's module, which imports the
-// calendar and its filters, and through them the post composer. They aren't
-// rendered here, so they are markers, as launches.component.spec.tsx makes
-// them.
-jest.mock('@gitroom/frontend/components/launches/filters', () => ({
-  Filters: () => null,
-}));
-jest.mock('@gitroom/frontend/components/launches/calendar', () => ({
-  Calendar: () => null,
-}));
-jest.mock('@gitroom/frontend/components/launches/menu/menu', () => ({
-  Menu: () => null,
-}));
-jest.mock('@gitroom/helpers/utils/use.fire.events', () => ({
-  useFireEvents: () => () => undefined,
+// The rename dialog is the calendar page's, loaded only when it opens, so the
+// page's module (the calendar, the composer) stays out of the Brands page. It
+// is the only dynamic import here: a marker that records what it is handed.
+let mockRename: ComponentProps<typeof EditGroupNameModal> | undefined;
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => (props: ComponentProps<typeof EditGroupNameModal>) => {
+    mockRename = props;
+    return <span data-testid="rename" />;
+  },
 }));
 
 import i18next from 'i18next';
+import type { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
 import {
   ModalManagerInner,
   useModals,
@@ -187,6 +183,7 @@ beforeEach(() => {
   });
   brands = [];
   channels = [];
+  mockRename = undefined;
 });
 
 afterEach(async () => {
@@ -452,22 +449,23 @@ describe('Delete', () => {
 });
 
 describe('Rename', () => {
-  it('is the calendar’s rename dialog, which saves through PUT /integrations/customers/:id, then both lists reload (C3)', async () => {
+  it('opens the calendar’s rename dialog for the brand, and once it saves both lists reload (C3)', async () => {
     brands = [BAYT];
     await mount();
     await open(() => dialogs.openRenameBrand(BAYT));
 
     expect(text()).toContain(i18next.t('edit_group_name'));
-    expect(field().value).toBe('Bayt Al Qahwa');
+    expect(mockRename).toMatchObject({ id: 'b1', name: 'Bayt Al Qahwa' });
+    expect(reloadBrands).not.toHaveBeenCalled();
 
-    await type(field(), 'Bayt Al Qahwa Riyadh');
-    await click(button('Save'));
+    // what the dialog does after its PUT /integrations/customers/:id
+    await act(async () => {
+      mockRename!.resolve('Bayt Al Qahwa Riyadh');
+      mockRename!.close();
+    });
 
-    expect(sent('/integrations/customers/b1')).toEqual([
-      ['PUT', { name: 'Bayt Al Qahwa Riyadh' }],
-    ]);
     expect(reloadBrands).toHaveBeenCalled();
     expect(reloadChannels).toHaveBeenCalled();
-    expect(button('Save')).toBeUndefined();
+    expect(document.querySelector('[data-testid="rename"]')).toBeNull();
   });
 });
