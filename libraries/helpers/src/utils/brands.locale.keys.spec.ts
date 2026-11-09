@@ -4,7 +4,9 @@
 // (version 4, the `T = { en, ar }` table of BrandsList, BrandKit, BrandDialog
 // and Main's empty state), with the locale files' straight apostrophe where the
 // canvas writes a curly one. Part 1 adds the keys to en and ar only (tasks.md
-// T016); the six other languages fall back to English. The words that change
+// T016); the six other languages fall back to English, but for the sidebar
+// item, the page's header and its title, which sit beside their own reworded
+// customers and say brand in all eight (part 1's walk). The words that change
 // elsewhere, customer and group becoming brand (board Rename), change in all
 // eight languages. Part 2 (tasks.md T051) adds the brand chip in Samy's message
 // box, its list, the note on attached images, and the AI image dialog's Brand
@@ -272,6 +274,8 @@ const REUSED = [
   // Part 2: the AI image dialog's Brand field is labelled as the post
   // editor's brand select is (board Rename's select_customer_label).
   ['select_customer_label', 'Brand', 'العلامة التجارية'],
+  // A disabled channel in a brand's kit reads as the channel list reads it.
+  ['channel_disabled', 'Channel Disabled', 'تم تعطيل القناة'],
 ] as const;
 
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
@@ -669,4 +673,25 @@ describe('the words that change: customer and group become brand', () => {
   )('keeps %s.%s as it was', (lng, key) => {
     expect(locales[lng][key]).toBe(UNCHANGED[key][lng]);
   });
+});
+
+// The sidebar item, the page's header (the phone's link back to it too) and
+// its title: in the six they sit beside customers, which says each language's
+// own word for brand, so they say it as well rather than English.
+const IN_ALL_EIGHT = ['brands', 'brands_all_brands', 'page_title_brands'];
+
+describe('the Brands page in the six upstream languages', () => {
+  const locales = Object.fromEntries(
+    ['en', ...UPSTREAM].map((lng) => [lng, readLocale(lng)])
+  );
+
+  it.each(UPSTREAM.flatMap((lng) => IN_ALL_EIGHT.map((key) => [lng, key])))(
+    'translates %s.%s with its own word for brand',
+    (lng, key) => {
+      const value = locales[lng][key];
+      expect(typeof value).toBe('string');
+      expect(value).not.toBe(locales.en[key]);
+      expect(value).toMatch(BRAND_WORD[lng as Upstream]);
+    }
+  );
 });
