@@ -114,14 +114,17 @@ export class BrandService {
     const kit: BrandKitDto = pick(body, KIT_FIELDS);
 
     // One read for the images sent and the ones the kit keeps
-    const rows = await this.images(org, [
-      ...imageIds(kit),
-      ...imageIds(brand.brandKit),
-    ]);
-    if (kit.logoId && imageOf(rows, kit.logoId).missing) {
+    const kept = imageIds(brand.brandKit);
+    const rows = await this.images(org, [...imageIds(kit), ...kept]);
+
+    // An image already in the kit may be missing, so replacing one missing
+    // image keeps the others (FR-012); a new one must be in the org's Media
+    const refused = (imageId: string) =>
+      !kept.includes(imageId) && imageOf(rows, imageId).missing;
+    if (kit.logoId && refused(kit.logoId)) {
       throw notInMedia('logoId');
     }
-    if (kit.exampleIds?.some((exampleId) => imageOf(rows, exampleId).missing)) {
+    if (kit.exampleIds?.some(refused)) {
       throw notInMedia('exampleIds');
     }
 
