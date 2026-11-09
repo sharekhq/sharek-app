@@ -88,11 +88,11 @@ describe('SamyImageTool', () => {
     expect(tool.id).toBe('generateImageTool');
   });
 
-  it('says what it does, what it returns and that the chat shows the image', () => {
+  it('says what it does, what it returns, the brand included, and that the chat shows the image', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
     );
   });
 
