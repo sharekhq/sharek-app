@@ -48,6 +48,7 @@ const makeService = (repository: Record<string, jest.Mock> = {}) => {
     create: jest.fn().mockResolvedValue({ id: 'brand-1' }),
     softDelete: jest.fn().mockResolvedValue({ id: 'brand-1' }),
     upsertKit: jest.fn().mockResolvedValue(stored),
+    customerIdsOfChannels: jest.fn().mockResolvedValue([]),
     ...repository,
   };
   const service = new BrandService(
@@ -435,4 +436,160 @@ describe('BrandService.kitFor', () => {
     );
     expect(repository.mediaByIds).not.toHaveBeenCalled();
   });
+});
+
+// Samy's brand for one image, in FR-017's order (data-model, R8). A refusal is
+// words for Samy, with the names as stored and in the list's order.
+describe('BrandService.resolveForSamy', () => {
+  // Sorted by name, as the repository lists them
+  const brands = [
+    rawda,
+    { id: 'brand-2', name: 'Sanabel', brandKit: null },
+    { id: 'brand-3', name: 'نخيل', brandKit: null },
+  ];
+
+  const resolver = (repository: Record<string, jest.Mock> = {}) =>
+    makeService({ list: jest.fn().mockResolvedValue(brands), ...repository });
+
+  it("goes without a kit for 'none', whatever the channels, and reads nothing", async () => {
+    const { service, repository } = resolver({
+      customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { input: 'none', channelIds: ['int-1'] })
+    ).resolves.toEqual({});
+    expect(repository.list).not.toHaveBeenCalled();
+    expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+  });
+
+  it('takes the brand the input names over the brand of the selected channels', async () => {
+    const { service, repository } = resolver({
+      customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { input: 'نخيل', channelIds: ['int-1'] })
+    ).resolves.toEqual({ brandId: 'brand-3' });
+    expect(repository.list).toHaveBeenCalledWith('org-1');
+    expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+  });
+
+  // The model may change a name's case or pad it
+  it('matches a name in another case or with spaces around it', async () => {
+    const { service } = resolver();
+
+    await expect(
+      service.resolveForSamy('org-1', { input: ' sanabel ', channelIds: [] })
+    ).resolves.toEqual({ brandId: 'brand-2' });
+  });
+
+  it('takes the exact name when two brands differ only in case, and asks when neither is exact', async () => {
+    const { service } = resolver({
+      list: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'brand-4', name: 'RAWDA', brandKit: null },
+          rawda,
+        ]),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { input: 'Rawda', channelIds: [] })
+    ).resolves.toEqual({ brandId: 'brand-1' });
+    await expect(
+      service.resolveForSamy('org-1', { input: 'rawda', channelIds: [] })
+    ).resolves.toEqual({
+      error: `There's no brand called "rawda". The brands are: RAWDA, Rawda. Ask the user which one, or none.`,
+    });
+  });
+
+  it('names every brand when the input names none of them', async () => {
+    const { service } = resolver();
+
+    await expect(
+      service.resolveForSamy('org-1', { input: 'Rawdah', channelIds: [] })
+    ).resolves.toEqual({
+      error: `There's no brand called "Rawdah". The brands are: Rawda, Sanabel, نخيل. Ask the user which one, or none.`,
+    });
+  });
+
+  // The repository leaves out the channels in no brand (FR-017)
+  it('takes the brand of the selected channels when they share exactly one', async () => {
+    const customerIdsOfChannels = jest.fn().mockResolvedValue(['brand-2']);
+    const { service } = resolver({ customerIdsOfChannels });
+
+    await expect(
+      service.resolveForSamy('org-1', { channelIds: ['int-1', 'int-2'] })
+    ).resolves.toEqual({ brandId: 'brand-2' });
+    expect(customerIdsOfChannels).toHaveBeenCalledWith('org-1', [
+      'int-1',
+      'int-2',
+    ]);
+  });
+
+  it('refuses when the selected channels belong to several brands, counting and naming them', async () => {
+    const { service, repository } = resolver({
+      customerIdsOfChannels: jest
+        .fn()
+        .mockResolvedValue(['brand-3', 'brand-1']),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { channelIds: ['int-1', 'int-2'] })
+    ).resolves.toEqual({
+      error: `The selected channels belong to 2 brands: Rawda, نخيل. Tell the user you'll make one image per brand, each in its own look, at one credit each, and wait for a yes. Then call once per brand with brand set to its name.`,
+    });
+    expect(repository.list).toHaveBeenCalledTimes(1);
+  });
+
+  // Acceptance scenario 5: as today
+  it('goes without a kit when every selected channel is in no brand, though the workspace has several', async () => {
+    const { service } = resolver({
+      customerIdsOfChannels: jest.fn().mockResolvedValue([]),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { channelIds: ['int-1'] })
+    ).resolves.toEqual({});
+  });
+
+  it('takes the only brand of the workspace when no channel is selected', async () => {
+    const { service, repository } = resolver({
+      list: jest.fn().mockResolvedValue([rawda]),
+    });
+
+    await expect(
+      service.resolveForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual({ brandId: 'brand-1' });
+    expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+  });
+
+  it('asks which brand, counting and naming them, when no channel is selected and the workspace has several', async () => {
+    const { service } = resolver();
+
+    await expect(
+      service.resolveForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual({
+      error: `This workspace has 3 brands: Rawda, Sanabel, نخيل. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.`,
+    });
+  });
+
+  it.each([
+    ['a name', { input: 'Rawda', channelIds: [] }],
+    ['channels', { channelIds: ['int-1'] }],
+    ['neither', { channelIds: [] }],
+  ])(
+    'goes without a kit, as today, when the workspace has no brands and the call gives %s',
+    async (_gives, request) => {
+      const { service, repository } = resolver({
+        list: jest.fn().mockResolvedValue([]),
+      });
+
+      await expect(service.resolveForSamy('org-1', request)).resolves.toEqual(
+        {}
+      );
+      expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+    }
+  );
 });
