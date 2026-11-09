@@ -493,6 +493,15 @@ describe('on a wide screen', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  // As the post's ⋯ menu (PostActionsMenu) and the launches menu cast it:
+  // the shadow of a list that opens from a button, not a card's.
+  it('casts the shadow of the lists that open from a button', async () => {
+    await open();
+
+    expect(classes(surface())).toContain('shadow-menu');
+    expect(classes(surface())).not.toContain('shadow-card');
+  });
+
   it('opens above a button near the bottom of the screen, clear of it', async () => {
     const HEIGHT = 300;
     const bottom = window.innerHeight - 20;
