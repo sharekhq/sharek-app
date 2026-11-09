@@ -135,7 +135,9 @@ export const BrandChip: FC = () => {
           'brands_chip_label',
           'Brand for this message: {{brand}}. Change brand',
           {
-            brand: label,
+            // in its own direction, as the AI image dialog's Brand field
+            // and the note isolate it
+            brand: isolate(label),
             // React escapes the label, so i18next mustn't first
             interpolation: { escapeValue: false },
           }
