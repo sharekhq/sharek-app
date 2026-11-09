@@ -4,9 +4,12 @@
 // (version 4, the `T = { en, ar }` table of BrandsList, BrandKit, BrandDialog
 // and Main's empty state), with the locale files' straight apostrophe where the
 // canvas writes a curly one. Part 1 adds the keys to en and ar only (tasks.md
-// T016); the six other languages fall back to English.
+// T016); the six other languages fall back to English. The words that change
+// elsewhere, customer and group becoming brand (board Rename), change in all
+// eight languages.
 import * as fs from 'fs';
 import * as path from 'path';
+import { languages } from '@gitroom/react/translation/i18n.config';
 
 const LOCALES_DIR = path.join(
   __dirname,
@@ -222,6 +225,152 @@ const PLURALS = [
   ],
 ] as const;
 
+// The words that change (contracts/pages-ui.md, board Rename): today's screens
+// say customer and group for one thing, and both become brand. Values change
+// in all eight languages and the keys stay (research R12). [key, en, ar], the
+// canvas's words.
+const RENAMED = [
+  ['move_add_to_group', 'Move to brand', 'نقل إلى علامة تجارية'],
+  ['select_customer_label', 'Brand', 'العلامة التجارية'],
+  ['remove_from_customer', 'Remove from brand', 'إزالة من العلامة التجارية'],
+  ['customer_updated', 'Brand updated', 'تم تحديث العلامة التجارية'],
+  ['edit_group_name', 'Rename brand', 'إعادة تسمية العلامة التجارية'],
+  ['group_updated', 'Brand updated', 'تم تحديث العلامة التجارية'],
+  [
+    'could_not_save_group',
+    'Could not save the brand.',
+    'تعذر حفظ العلامة التجارية.',
+  ],
+  ['select_customer', 'Select brand', 'اختر علامة تجارية'],
+  ['select_customer_tooltip', 'Select brand', 'اختر علامة تجارية'],
+  ['customers', 'Brands', 'العلامات التجارية'],
+  [
+    'customer_socials_selected',
+    "Brand's channels selected",
+    'تم اختيار قنوات العلامة التجارية',
+  ],
+  ['customer', 'Brand:', 'العلامة التجارية:'],
+] as const;
+
+const UPSTREAM = ['de', 'fr', 'es', 'it', 'pt', 'ru'] as const;
+
+type Upstream = (typeof UPSTREAM)[number];
+
+// The six upstream languages' values before the rename, copied from the files.
+// select_customer and customer_socials_selected are in en and ar only, so the
+// six read them in English today.
+const BEFORE: Record<string, Partial<Record<Upstream, string>>> = {
+  move_add_to_group: {
+    de: 'Verschieben / Zur Gruppe hinzufügen',
+    fr: 'Déplacer / ajouter au groupe',
+    es: 'Mover / agregar al grupo',
+    it: 'Sposta / aggiungi al gruppo',
+    pt: 'Mover / adicionar ao grupo',
+    ru: 'Переместить / добавить в группу',
+  },
+  select_customer_label: {
+    de: 'Kunden auswählen',
+    fr: 'Sélectionner un client',
+    es: 'Seleccionar cliente',
+    it: 'Seleziona cliente',
+    pt: 'Selecionar cliente',
+    ru: 'Выберите клиента',
+  },
+  remove_from_customer: {
+    de: 'Vom Kunden entfernen',
+    fr: 'Retirer du client',
+    es: 'Eliminar del cliente',
+    it: 'Rimuovi dal cliente',
+    pt: 'Remover do cliente',
+    ru: 'Удалить от клиента',
+  },
+  customer_updated: {
+    de: 'Kunde aktualisiert',
+    fr: 'Client mis à jour',
+    es: 'Cliente actualizado',
+    it: 'Cliente aggiornato',
+    pt: 'Cliente Atualizado',
+    ru: 'Клиент обновлён',
+  },
+  edit_group_name: {
+    de: 'Gruppennamen bearbeiten',
+    fr: 'Modifier le nom du groupe',
+    es: 'Editar nombre del grupo',
+    it: 'Modifica nome del gruppo',
+    pt: 'Editar nome do grupo',
+    ru: 'Редактировать имя группы',
+  },
+  group_updated: {
+    de: 'Gruppe aktualisiert',
+    fr: 'Groupe mis à jour',
+    es: 'Grupo actualizado',
+    it: 'Gruppo aggiornato',
+    pt: 'Grupo atualizado',
+    ru: 'Группа обновлена',
+  },
+  could_not_save_group: {
+    de: 'Die Gruppe konnte nicht gespeichert werden.',
+    fr: "Impossible d'enregistrer le groupe.",
+    es: 'No se pudo guardar el grupo.',
+    it: 'Impossibile salvare il gruppo.',
+    pt: 'Não foi possível salvar o grupo.',
+    ru: 'Не удалось сохранить группу.',
+  },
+  select_customer: {},
+  select_customer_tooltip: {
+    de: 'Kunden auswählen',
+    fr: 'Sélectionner un client',
+    es: 'Seleccionar cliente',
+    it: 'Seleziona cliente',
+    pt: 'Selecionar cliente',
+    ru: 'Выберите клиента',
+  },
+  customers: {
+    de: 'Kunden',
+    fr: 'Clients',
+    es: 'Clientes',
+    it: 'Clienti',
+    pt: 'Clientes',
+    ru: 'Клиенты',
+  },
+  customer_socials_selected: {},
+  customer: {
+    de: 'Kunde:',
+    fr: 'Client :',
+    es: 'Cliente:',
+    it: 'Cliente:',
+    pt: 'Cliente:',
+    ru: 'Клиент:',
+  },
+};
+
+// Each language's word for brand, by its stem, so the forms a sentence needs
+// pass: Marken, marques, marchi, бренда.
+const BRAND_WORD: Record<Upstream, RegExp> = {
+  de: /marke/i,
+  fr: /marque/i,
+  es: /marca/i,
+  it: /marchi/i,
+  pt: /marca/i,
+  ru: /бренд/iu,
+};
+
+// Unchanged in all eight (tasks.md C13): the invite link goes to a person, and
+// label_group is MeWe's Group, a different thing, in en and ar only.
+const UNCHANGED: Record<string, Record<string, string | undefined>> = {
+  invite_a_customer: {
+    en: 'Invite a customer',
+    ar: 'دعوة عميل',
+    de: 'Kunden einladen',
+    fr: 'Inviter un client',
+    es: 'Invitar a un cliente',
+    it: 'Invita un cliente',
+    pt: 'Convidar um cliente',
+    ru: 'Пригласить клиента',
+  },
+  label_group: { en: 'Group', ar: 'مجموعة' },
+};
+
 // i18next 25 reads <key>_<category>, the category Intl.PluralRules picks for
 // the count (and <key>_zero first when the count is 0), so a language missing
 // one of its forms renders that count in English.
@@ -323,5 +472,37 @@ describe('Brands page locale keys', () => {
         expect(referenced).toContain(key);
       }
     );
+  });
+});
+
+describe('the words that change: customer and group become brand', () => {
+  const locales = Object.fromEntries(
+    languages.map((lng) => [lng, readLocale(lng)])
+  );
+
+  it.each(RENAMED)(
+    'rewords %s as "%s" in en and "%s" in ar',
+    (key, enText, arText) => {
+      expect(locales.en[key]).toBe(enText);
+      expect(locales.ar[key]).toBe(arText);
+    }
+  );
+
+  // Rewording en and ar alone would leave the six saying customer and group,
+  // or, for a key they lack, English.
+  it.each(UPSTREAM.flatMap((lng) => RENAMED.map(([key]) => [lng, key])))(
+    'rewords %s.%s with its own word for brand',
+    (lng, key) => {
+      const value = locales[lng][key];
+      expect(typeof value).toBe('string');
+      expect(value).not.toBe(BEFORE[key][lng as Upstream]);
+      expect(value).toMatch(BRAND_WORD[lng as Upstream]);
+    }
+  );
+
+  it.each(
+    languages.flatMap((lng) => Object.keys(UNCHANGED).map((key) => [lng, key]))
+  )('keeps %s.%s as it was', (lng, key) => {
+    expect(locales[lng][key]).toBe(UNCHANGED[key][lng]);
   });
 });
