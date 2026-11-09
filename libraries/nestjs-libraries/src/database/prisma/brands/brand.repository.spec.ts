@@ -48,6 +48,23 @@ describe('BrandRepository.list', () => {
   });
 });
 
+// A delete, a kit save and every image render read one brand: never the list.
+describe('BrandRepository.findLive', () => {
+  it("reads one of the asking organization's live brands by id, with its name and its kit's fields only", async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+
+    await repositoryWith({ customer: { findFirst } }).repository.findLive(
+      'org-1',
+      'brand-1'
+    );
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'brand-1', orgId: 'org-1', deletedAt: null },
+      select: { id: true, name: true, brandKit: { select: kitFields } },
+    });
+  });
+});
+
 // The kit keeps an image the user later deleted from Media, so the read has no
 // deletedAt filter: the service marks that image missing (FR-012).
 describe('BrandRepository.mediaByIds', () => {
