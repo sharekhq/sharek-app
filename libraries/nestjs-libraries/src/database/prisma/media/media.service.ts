@@ -172,6 +172,21 @@ class KitImageRefusal extends HttpException {
   }
 }
 
+// More of the user's images than fit beside the brand's logo, worded as
+// KitImageRefusal is.
+class LogoPlaceRefusal extends HttpException {
+  constructor(readonly brand: string) {
+    super(
+      `With ${brand}'s logo, only ${
+        IMAGE_REFERENCE_MAX - 1
+      } of your images fit (${
+        IMAGE_REFERENCE_MAX - 2
+      } when editing). Remove one, or pick No brand.`,
+      400
+    );
+  }
+}
+
 @Injectable()
 export class MediaService {
   private storage = UploadFactory.createStorage();
@@ -421,17 +436,9 @@ export class MediaService {
       ? [{ id: kit.logoId, part: `${kit.name}'s logo` }]
       : [];
 
-    // The logo takes one of the render's places. Worded for Samy, as the edit
-    // limit in generateImageFromLinks is.
+    // The logo takes one of the render's places.
     if (before + logo.length > IMAGE_REFERENCE_MAX) {
-      throw new HttpException(
-        `With ${kit.name}'s logo, only ${
-          IMAGE_REFERENCE_MAX - 1
-        } of the user's images fit (${
-          IMAGE_REFERENCE_MAX - 2
-        } when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.`,
-        400
-      );
+      throw new LogoPlaceRefusal(kit.name);
     }
 
     const examples = (before ? [] : kit.examples).map(({ id, n }) => ({
@@ -640,14 +647,25 @@ export class MediaService {
         ...(prepared.brand && { brand: prepared.brand.name }),
       };
     } catch (err) {
-      // The kit's images aren't among the links, so one is named by its part
-      // of the kit.
+      // The brand's refusals in Samy's words, as the edit limit above is. The
+      // kit's images aren't among the links, so one is named by its part of
+      // the kit.
       if (err instanceof KitImageRefusal) {
         throw new HttpException(
           `${err.part} ${
             REFUSED_KIT_IMAGE[err.reason]
           }, so no image was made and no credit was spent. Tell the user to replace it on the Brands page, or ask whether to make the image with no brand.`,
           err.getStatus()
+        );
+      }
+      if (err instanceof LogoPlaceRefusal) {
+        throw new HttpException(
+          `With ${err.brand}'s logo, only ${
+            IMAGE_REFERENCE_MAX - 1
+          } of the user's images fit (${
+            IMAGE_REFERENCE_MAX - 2
+          } when editing), so no image was made and no credit was spent. Ask which to keep, or whether to use no brand.`,
+          400
         );
       }
 
