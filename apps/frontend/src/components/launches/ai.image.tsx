@@ -950,6 +950,7 @@ const AiImageModal: FC<{
           onChange={setReferences}
           max={places}
           branded={!!brand}
+          logo={!!liveLogo(brand)}
         />
         <div className="flex flex-col gap-[6px]">
           <div className="text-[14px] font-[600]">

@@ -32,10 +32,13 @@ export const ReferenceImages: FC<{
   action?: ReactNode;
   /**
    * A brand is picked: the hint says the images take the place of its
-   * examples, and that its logo goes along all the same (spec 053, FR-016).
+   * examples, and, with `logo`, that its logo goes along all the same (spec
+   * 053, FR-016).
    */
   branded?: boolean;
-}> = ({ value, onChange, max, lead, action, branded }) => {
+  /** The brand's logo is still in Media, so it goes along. */
+  logo?: boolean;
+}> = ({ value, onChange, max, lead, action, branded, logo }) => {
   const t = useT();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
@@ -178,16 +181,27 @@ export const ReferenceImages: FC<{
                 "Your images don't all fit beside the brand's logo. Remove one, or pick No brand."
               )
             : branded && value.length
-            ? t(
-                'brands_ref_help_own',
-                "Your images take the place of the brand's examples; its logo stays.",
-                { count: value.length }
-              )
+            ? logo
+              ? t(
+                  'brands_ref_help_own',
+                  "Your images take the place of the brand's examples; its logo stays.",
+                  { count: value.length }
+                )
+              : t(
+                  'brands_ref_help_own_no_logo',
+                  "Your images take the place of the brand's examples.",
+                  { count: value.length }
+                )
             : branded
-            ? t(
-                'brands_ref_help',
-                "Optional. Your images take the place of the brand's examples; its logo stays."
-              )
+            ? logo
+              ? t(
+                  'brands_ref_help',
+                  "Optional. Your images take the place of the brand's examples; its logo stays."
+                )
+              : t(
+                  'brands_ref_help_no_logo',
+                  "Optional. Your images take the place of the brand's examples."
+                )
             : t(
                 'image_reference_hint',
                 'Optional: add images for the new one to draw on — a character, a product or a look. Refer to them in your prompt as image 1, image 2…'
