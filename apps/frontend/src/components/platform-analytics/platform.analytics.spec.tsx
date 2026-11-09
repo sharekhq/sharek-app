@@ -255,6 +255,9 @@ const checked = () =>
   radios().map((radio) => radio.getAttribute('aria-checked'));
 const channelButton = () =>
   host.querySelector('button[aria-label="tr:change_channel_named"]');
+// Whatever opens the sheet, named or not: the only button that says whether
+// it is open.
+const sheetButton = () => host.querySelector('button[aria-expanded]');
 // The leaf that reads exactly `text`.
 const leaf = (root: Element, text: string) =>
   Array.from(root.querySelectorAll('*')).find(
@@ -460,6 +463,8 @@ describe('the chosen channel (R21, C20, FR-030)', () => {
     expect(layout()).toEqual(['content', 'channel-panel']);
     expect(row().children[0].textContent).toContain('tr:analytics_empty_title');
     expect(mockPanel!.channels).toEqual([]);
+    // nothing to pick from, so no channel button on a phone
+    expect(sheetButton()).toBeNull();
 
     const connect = Array.from(host.querySelectorAll('button')).find((node) =>
       node.textContent?.includes('tr:connect_a_channel')
@@ -616,6 +621,52 @@ describe('at 1025px and below (FR-042, FR-043)', () => {
     await click(channelButton()!);
     await run(() => mockSplit!.onClose());
     expect(mockSplit!.open).toBe(false);
+  });
+
+  it('closes the sheet when a row is picked, as there is one choice, and on a wide screen leaves the rail as it was', async () => {
+    mockCollapse = '1';
+    await mount();
+
+    // the rail: picking changes the numbers and nothing else
+    await run(() => mockPanel!.onChange('af'));
+    expect(mockShown!.id).toBe('af');
+    expect(mockSplit!.open).toBe(false);
+    expect(mockSplit!.collapsed).toBe(true);
+    expect(mockPanel!.collapsed).toBe(true);
+    expect(mockSetCookie).not.toHaveBeenCalled();
+
+    // the sheet
+    await click(channelButton()!);
+    expect(mockSplit!.open).toBe(true);
+    await run(() => mockPanel!.onChange('bf'));
+    expect(mockShown!.id).toBe('bf');
+    expect(mockSplit!.open).toBe(false);
+    expect(mockSetCookie).not.toHaveBeenCalled();
+  });
+
+  it('keeps a channel button reading channel_hint_analytics when no channel can be picked, so the sheet and its Reconnect still open', async () => {
+    mockChannels = [
+      channel('ln', 'linkedin', 'Moataz'),
+      channel('dc', 'instagram', 'Gone Gram', { refreshNeeded: true }),
+    ];
+    await mount();
+
+    // today's empty state stays under it
+    expect(row().children[0].textContent).toContain('tr:analytics_empty_title');
+    const button = sheetButton()!;
+    expect(classes(button)).toEqual(
+      expect.arrayContaining(['hidden', 'mobile:flex'])
+    );
+    // named by its text, with no channel to name
+    expect(button.textContent).toBe('tr:channel_hint_analytics');
+    expect(button.hasAttribute('aria-label')).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+
+    await click(button);
+    expect(mockSplit!.open).toBe(true);
+    expect(sheetButton()!.getAttribute('aria-expanded')).toBe('true');
+    // the list there holds the disconnected channel, whose row has Reconnect
+    expect(mockPanel!.channels).toEqual(mockChannels);
   });
 
   it('spans the period control across the width, and draws no picture strip', async () => {
