@@ -2,7 +2,10 @@ import { FC, useCallback, useMemo } from 'react';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { MetricChart } from '@gitroom/frontend/components/platform-analytics/metric.chart';
+import {
+  MetricChart,
+  pageLocale,
+} from '@gitroom/frontend/components/platform-analytics/metric.chart';
 import { useReconnectChannel } from '@gitroom/frontend/components/launches/channel.panel';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -202,6 +205,8 @@ export const RenderAnalytics: FC<{
 
   const t = useT();
 
+  // the chart's numbers, in the page's language
+  const locale = pageLocale();
   const totals = useMemo(() => {
     return data?.map((p: AnalyticsDataItem) => {
       const value =
@@ -210,9 +215,9 @@ export const RenderAnalytics: FC<{
       if (p.average) {
         return value.toFixed(2) + '%';
       }
-      return new Intl.NumberFormat().format(Math.round(value));
+      return new Intl.NumberFormat(locale).format(Math.round(value));
     });
-  }, [data]);
+  }, [data, locale]);
 
   if (isLoading) {
     return (

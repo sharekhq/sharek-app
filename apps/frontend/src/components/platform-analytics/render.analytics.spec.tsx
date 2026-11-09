@@ -22,10 +22,13 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 // MetricChart draws on chart.js, which needs a canvas the test DOM doesn't
 // have, and metric.chart.spec covers what it draws; the stand-in shows the
-// name and the points it was given.
+// name and the points it was given. The page's locale is the real one.
 jest.mock(
   '@gitroom/frontend/components/platform-analytics/metric.chart',
   () => ({
+    ...jest.requireActual(
+      '@gitroom/frontend/components/platform-analytics/metric.chart'
+    ),
     MetricChart: (props: { label: string; data: unknown }) => (
       <div
         data-testid="metric-chart"

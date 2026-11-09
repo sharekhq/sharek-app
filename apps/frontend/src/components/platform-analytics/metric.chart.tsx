@@ -19,6 +19,14 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 // right in both languages
 const STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
+// The page's language for Analytics' numbers and dates, the chart's and the
+// headlines' alike, with Latin digits in Arabic too, as formatResetDate has
+// them
+export const pageLocale = () => {
+  const language = i18next.resolvedLanguage || 'en';
+  return language === 'ar' ? 'ar-u-nu-latn' : language;
+};
+
 // One metric over its period on Analytics (spec 051, R20): every daily point,
 // on axes labelled with short dates and numbers in thousands in the page's
 // language, in the brand's colour. The canvas takes the keyboard too: the
@@ -37,9 +45,7 @@ export const MetricChart: FC<{
   const active = useRef<number | null>(null);
   const [readout, setReadout] = useState('');
 
-  // Latin digits in Arabic too, as formatResetDate has them
-  const language = i18next.resolvedLanguage || 'en';
-  const locale = language === 'ar' ? 'ar-u-nu-latn' : language;
+  const locale = pageLocale();
   const format = useMemo(() => {
     // a day as the providers send it, YYYY-MM-DD, parses as midnight UTC
     const day = new Intl.DateTimeFormat(locale, {
