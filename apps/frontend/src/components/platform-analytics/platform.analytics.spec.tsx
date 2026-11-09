@@ -777,6 +777,11 @@ describe('at 1025px and below (FR-042, FR-043)', () => {
     expect(classes(periods())).toEqual(
       expect.arrayContaining(['mobile:w-full', 'mobile:ms-0'])
     );
+    // 54px on a wide touch screen, 44px on a phone, as the calendar's state
+    // pills are
+    expect(classes(periods())).toEqual(
+      expect.arrayContaining(['coarse:min-h-[54px]', 'mobile:min-h-[44px]'])
+    );
     for (const radio of radios()) {
       expect(classes(radio)).toContain('mobile:flex-1');
     }
