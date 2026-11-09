@@ -23,6 +23,12 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
 }));
+jest.mock(
+  '@gitroom/frontend/components/launches/helpers/use.integration.list',
+  () => ({
+    useIntegrationList: () => ({ data: mockChannels }),
+  })
+);
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({
@@ -98,7 +104,20 @@ const BRANDS = [
     missing: false,
   }),
 ];
-const COUNTS: Record<string, number> = { bq: 3, nd: 2, rf: 1 };
+// The channel list the counts come from: Bayt Al Qahwa's three channels,
+// Noor Dental's two, Rawda Florist's one, and one in no brand.
+const mockChannels = [
+  ['ig', 'bq'],
+  ['fb', 'bq'],
+  ['x', 'bq'],
+  ['li', 'nd'],
+  ['yt', 'nd'],
+  ['pin', 'rf'],
+  ['tt', null],
+].map(([id, customer]) => ({
+  id,
+  customer: customer && { id: customer, name: customer },
+}));
 
 const LABEL = 'Brand for this message: Bayt Al Qahwa. Change brand';
 
@@ -149,7 +168,6 @@ const render = async (
     root.render(
       <BrandMenu
         brands={BRANDS}
-        count={(id) => COUNTS[id] ?? 0}
         value="bq"
         variant="message"
         onPick={onPick}

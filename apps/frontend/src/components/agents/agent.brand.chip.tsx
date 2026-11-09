@@ -22,7 +22,6 @@ import {
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 
 // A brand's mark on the chip (board SamyChip).
 const MARK = 'w-[22px] h-[22px] rounded-[6px] text-[11px]';
@@ -101,7 +100,6 @@ export const BrandChip: FC = () => {
   const t = useT();
   const { brand } = useContext(PropertiesContext);
   const { data: brands } = useBrands();
-  const { data: channels } = useIntegrationList();
 
   if (!brands?.length || !brand) {
     return null;
@@ -126,11 +124,6 @@ export const BrandChip: FC = () => {
     <div className="flex min-w-0" onClick={(event) => event.stopPropagation()}>
       <BrandMenu
         brands={brands}
-        count={(id) =>
-          channels.filter(
-            (channel: Integrations) => channel.customer?.id === id
-          ).length
-        }
         value={shown}
         each={among.map(({ id }) => id)}
         variant="message"

@@ -9,9 +9,11 @@ import {
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
 import {
+  Channel,
   compareCustomers,
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { useHangingPanel } from '@gitroom/frontend/components/launches/post.actions.menu';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import {
@@ -122,8 +124,6 @@ const Option: FC<{
 export const BrandMenu: FC<{
   // the organization's brands, as useBrands() gives them
   brands: Brand[];
-  // how many channels a brand has
-  count: (id: string) => number;
   // the current choice, a brand's id, NO_BRAND or EACH_BRAND; none while
   // the chip waits for one
   value?: string;
@@ -142,7 +142,6 @@ export const BrandMenu: FC<{
   triggerClassName: string;
 }> = ({
   brands,
-  count,
   value,
   each,
   variant,
@@ -154,6 +153,9 @@ export const BrandMenu: FC<{
 }) => {
   const t = useT();
   const isMobile = useMediaQuery(MOBILE_QUERY);
+  // A brand's channels come from the channel list, a disabled one too (C4).
+  const { data } = useIntegrationList();
+  const channels: Channel[] = data;
   const { ref, panelRef, show, setShow, below } = useHangingPanel();
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -260,7 +262,9 @@ export const BrandMenu: FC<{
             name={brand.name}
             dir="auto"
             sub={t('channels_count', '{{count}} channels', {
-              count: count(brand.id),
+              count: channels.filter(
+                (channel) => channel.customer?.id === brand.id
+              ).length,
             })}
             selected={value === brand.id}
             sheet={isMobile}

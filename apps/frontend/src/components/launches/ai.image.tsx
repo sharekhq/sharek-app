@@ -51,9 +51,7 @@ import {
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import type { Channel } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   BrandMenu,
   NO_BRAND,
@@ -311,8 +309,6 @@ const BrandField: FC<{
 }> = ({ brands, brand, own, onPick }) => {
   const t = useT();
   const mediaDirectory = useMediaDirectory();
-  const { data } = useIntegrationList();
-  const channels: Channel[] = data;
   const name = brand ? brand.name : t('brands_no_brand', 'No brand');
   const logoPath = liveLogo(brand)?.path;
   const examples = (brand?.kit.examples || []).flatMap(
@@ -328,9 +324,6 @@ const BrandField: FC<{
         <div className="w-[340px] max-w-full">
           <BrandMenu
             brands={brands}
-            count={(id) =>
-              channels.filter((channel) => channel.customer?.id === id).length
-            }
             value={brand ? brand.id : NO_BRAND}
             variant="image"
             onPick={onPick}
