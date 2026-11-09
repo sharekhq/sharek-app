@@ -753,6 +753,26 @@ describe('a change the server refuses or that fails', () => {
   });
 });
 
+describe('the ×', () => {
+  it('draws an example’s × as a colour’s, the AI image window’s reference chip', async () => {
+    await mount(
+      brand({
+        examples: [image('e1'), image('e2', true)],
+        colours: ['#3B2417'],
+      })
+    );
+
+    const chip = (control: Element) => control.querySelector('span')!.className;
+    const colour = chip(button(card('Colours'), 'Remove colour #3B2417')!);
+    expect(colour.split(' ')).toEqual(
+      expect.arrayContaining(['rounded-full', 'bg-surface', 'border-line'])
+    );
+    for (const example of buttons(card('Example posts'), 'Remove example')) {
+      expect(chip(example)).toBe(colour);
+    }
+  });
+});
+
 describe('touch', () => {
   it('grows each small control to 44px under a coarse pointer, with the app focus ring', async () => {
     await mount(
