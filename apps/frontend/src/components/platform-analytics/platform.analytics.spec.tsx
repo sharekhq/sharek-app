@@ -461,7 +461,9 @@ describe('the chosen channel (R21, C20, FR-030)', () => {
     expect(mockMounts).toHaveLength(4);
   });
 
-  it("shows today's empty state beside the list when no channel can be picked", async () => {
+  // The listed channels are there, so connecting one isn't the way: their rows
+  // say why each can't be picked and offer Reconnect or Finish setup.
+  it('says to pick a channel beside the list when none can be picked, with no call to connect one', async () => {
     mockChannels = [
       channel('ln', 'linkedin', 'Moataz'),
       channel('off', 'facebook', 'Off Page', { disabled: true }),
@@ -470,7 +472,20 @@ describe('the chosen channel (R21, C20, FR-030)', () => {
     await mount();
 
     expect(layout()).toEqual(['content', 'channel-panel']);
-    expect(row().children[0].textContent).toContain('tr:analytics_empty_title');
+    const content = row().children[0];
+    const hint = Array.from(content.querySelectorAll('h2')).find(
+      (heading) => heading.textContent === 'tr:channel_hint_analytics'
+    );
+    expect(hint).toBeDefined();
+    // the phone's channel button says it there
+    expect(withClass(hint!, 'mobile:hidden')).not.toBeNull();
+    [
+      'tr:analytics_empty_title',
+      'tr:analytics_empty_description',
+      'tr:works_with',
+      'tr:connect_a_channel',
+    ].forEach((text) => expect(content.textContent).not.toContain(text));
+    expect(mockPush).not.toHaveBeenCalled();
     expect(chart()).toBeNull();
     expect(periods()).toBeNull();
     expect(mockPanel!.channels).toEqual(mockChannels);
@@ -672,9 +687,23 @@ describe('at 1025px and below (FR-042, FR-043)', () => {
     ];
     await mount();
 
-    // today's empty state stays under it
-    expect(row().children[0].textContent).toContain('tr:analytics_empty_title');
     const button = sheetButton()!;
+    // it alone says to pick a channel there: the content's own line is the
+    // wide screen's
+    const lines = Array.from(row().children[0].querySelectorAll('*')).filter(
+      (node) =>
+        node.children.length === 0 &&
+        node.textContent === 'tr:channel_hint_analytics'
+    );
+    expect(lines).toHaveLength(2);
+    expect(
+      lines.filter(
+        (node) => !button.contains(node) && !withClass(node, 'mobile:hidden')
+      )
+    ).toEqual([]);
+    expect(row().children[0].textContent).not.toContain(
+      'tr:analytics_empty_title'
+    );
     expect(classes(button)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:flex'])
     );
