@@ -758,6 +758,8 @@ test('the core forms the list, the menu and the card lean on emit', async () => 
       'underline-offset-2': [['text-underline-offset', '2px']],
       // a chat's rename field (agent.chats.tsx)
       'ring-[3px]': ring('3px'),
+      // the search field's placeholder and text cut with an ellipsis
+      'text-ellipsis': [['text-overflow', 'ellipsis']],
     },
     null
   );

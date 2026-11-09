@@ -686,6 +686,14 @@ describe('the search', () => {
     expect(search().getAttribute('dir')).toBe('auto');
   });
 
+  // The field the chats panel shares (agent.chats.tsx), where French's
+  // "Rechercher des conversations" was cut with no ellipsis at 272px (walk 3)
+  it('ends a placeholder or a name too long for it with an ellipsis', async () => {
+    await render(SEARCH);
+
+    expect(classes(search())).toContain('text-ellipsis');
+  });
+
   it.each([
     [
       'a channel name, ignoring case',
