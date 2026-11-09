@@ -25,18 +25,23 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => ({
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
   SamyImageReader: class SamyImageReader {},
 }));
-// The real one pulls in TavilyService.
+// The real ones pull in TavilyService.
 jest.mock('@gitroom/nestjs-libraries/chat/tools/read.web.page.tool', () => ({
   ReadWebPageTool: class ReadWebPageTool {},
+}));
+jest.mock('@gitroom/nestjs-libraries/chat/tools/web.search.tool', () => ({
+  WebSearchTool: class WebSearchTool {},
 }));
 
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
+import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 
 // The web tools go by their own names, and are there only while Tavily's key
 // is set, as the real ones are.
 const WEB_TOOL_NAMES = new Map<unknown, string>([
   [ReadWebPageTool, 'readWebPageTool'],
+  [WebSearchTool, 'webSearchTool'],
 ]);
 
 // agent() resolves each tool class through ModuleRef, and each stands in as a tool
@@ -805,29 +810,41 @@ describe('LoadToolsService web tools', () => {
     })) as string;
   };
 
-  it("offers readWebPageTool in Samy's chat while the key is set", async () => {
-    expect((await toolsFor(true, 'true')).readWebPageTool).toEqual({
-      id: 'ReadWebPageTool',
-    });
+  // Each web tool's name, and the class it comes from.
+  const TOOLS = [
+    ['readWebPageTool', 'ReadWebPageTool'],
+    ['webSearchTool', 'WebSearchTool'],
+  ];
+
+  it.each(TOOLS)(
+    "offers %s in Samy's chat while the key is set",
+    async (name, id) => {
+      expect((await toolsFor(true, 'true'))[name]).toEqual({ id });
+    }
+  );
+
+  it.each(TOOLS)(
+    'lists no %s with no context, as MCP lists it',
+    async (name) => {
+      const agent = await agentWith(true);
+      const tools = (await agent.listTools()) as any;
+
+      expect(tools[name]).toBeUndefined();
+    }
+  );
+
+  it.each(TOOLS)('offers no %s with no ui or a ui of false', async (name) => {
+    for (const ui of [undefined, 'false']) {
+      expect((await toolsFor(true, ui))[name]).toBeUndefined();
+    }
   });
 
-  it('lists no readWebPageTool with no context, as MCP lists it', async () => {
-    const agent = await agentWith(true);
-    const tools = (await agent.listTools()) as any;
-
-    expect(tools.readWebPageTool).toBeUndefined();
-  });
-
-  it.each([
-    ['no ui', undefined],
-    ['a ui of false', 'false'],
-  ])('offers no readWebPageTool with %s', async (_name, ui) => {
-    expect((await toolsFor(true, ui)).readWebPageTool).toBeUndefined();
-  });
-
-  it("offers no readWebPageTool in Samy's chat without the key", async () => {
-    expect((await toolsFor(false, 'true')).readWebPageTool).toBeUndefined();
-  });
+  it.each(TOOLS)(
+    "offers no %s in Samy's chat without the key",
+    async (name) => {
+      expect((await toolsFor(false, 'true'))[name]).toBeUndefined();
+    }
+  );
 
   // contracts/instructions.md, word for word.
   const ALWAYS = [

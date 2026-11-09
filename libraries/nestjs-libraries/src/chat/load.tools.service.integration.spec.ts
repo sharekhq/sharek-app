@@ -306,15 +306,16 @@ describe('The web tools a run offers the model', () => {
     return turn.steps[0].tools.map((entry: any) => entry.name).sort();
   };
 
-  it("in Samy's chat include readWebPageTool", async () => {
+  it("in Samy's chat include readWebPageTool and webSearchTool", async () => {
     expect(await offered(true)).toEqual([
       'generateImageTool',
       'readWebPageTool',
       'scheduleOnePost',
+      'webSearchTool',
     ]);
   }, 30000);
 
-  it('with no ui leave it out', async () => {
+  it('with no ui leave them out', async () => {
     expect(await offered(false)).toEqual([
       'generateImageTool',
       'scheduleOnePost',
