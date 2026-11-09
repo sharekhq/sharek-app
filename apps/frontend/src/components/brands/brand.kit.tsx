@@ -175,15 +175,18 @@ const FontField: FC<{
   </label>
 );
 
-// A channel on a brand's page or on No brand's: its picture, its name in its
-// own direction and its platform, then what the row offers (a brand's ×). The
-// name lines up with the start beside the picture, whatever its own direction,
-// as the brands list's names do. A disabled channel stays in its brand, dimmed
-// as the channel list dims one, its line saying so in place of its platform.
+// A channel on a brand's page, on No brand's or in Add channels: its picture,
+// its name in its own direction and a line under it, its platform unless the
+// row gives a line of its own, then what the row offers (a brand's ×, the
+// picker's tick). The name lines up with the start beside the picture,
+// whatever its own direction, as the brands list's names do. A disabled
+// channel stays in its brand, dimmed as the channel list dims one, its line
+// saying so in place of its platform.
 export const BrandChannel: FC<{
   channel: Channel;
+  line?: ReactNode;
   children?: ReactNode;
-}> = ({ channel, children }) => {
+}> = ({ channel, line, children }) => {
   const t = useT();
   return (
     <div className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors">
@@ -201,9 +204,10 @@ export const BrandChannel: FC<{
           {channel.name}
         </bdi>
         <span className="max-w-full text-[12px] text-muted truncate">
-          {channel.disabled
-            ? t('channel_disabled', 'Channel Disabled')
-            : platformLabel(channel.identifier)}
+          {line ??
+            (channel.disabled
+              ? t('channel_disabled', 'Channel Disabled')
+              : platformLabel(channel.identifier))}
         </span>
       </span>
       {children}
@@ -212,9 +216,9 @@ export const BrandChannel: FC<{
 };
 
 // Add channels' picker: the organization's channels in no brand or another
-// one, each saying which, ticked to move into this brand. A row is drawn as
-// BrandChannel's, with the brand in place of the platform, and a disabled
-// channel's says so after it.
+// one, each saying which, ticked to move into this brand. Each row is a
+// BrandChannel in a button, its line the brand in place of the platform, and
+// a disabled channel's saying so after it.
 const ChannelPicker: FC<{
   channels: Channel[];
   onAdd: (ids: string[]) => void;
@@ -255,35 +259,27 @@ const ChannelPicker: FC<{
               aria-checked={checked}
               onClick={() => toggle(channel.id)}
               className={clsx(
-                'flex items-center gap-[12px] min-h-[52px] px-[8px] rounded-[10px] text-start cursor-pointer hover:bg-boxHover transition-colors',
+                'rounded-[10px] text-start cursor-pointer',
                 FOCUS_RING
               )}
             >
-              <ChannelPicture
+              <BrandChannel
                 channel={channel}
-                className={clsx(channel.disabled && 'opacity-50')}
-              />
-              <span className="flex-1 min-w-0 flex flex-col items-start gap-[1px]">
-                <bdi
-                  className={clsx(
-                    'max-w-full text-[14px] font-[500] text-ink truncate',
-                    channel.disabled && 'opacity-50'
-                  )}
-                >
-                  {channel.name}
-                </bdi>
-                <span className="max-w-full text-[12px] text-muted truncate">
-                  {channel.customer?.id ? (
-                    <bdi>{channel.customer.name}</bdi>
-                  ) : (
-                    t('brands_no_brand', 'No brand')
-                  )}
-                  {channel.disabled &&
-                    ` · ${t('channel_disabled', 'Channel Disabled')}`}
-                </span>
-              </span>
-              {/* the channel list's Check, which the row's button ticks */}
-              <Check value={checked} onChange={() => {}} />
+                line={
+                  <>
+                    {channel.customer?.id ? (
+                      <bdi>{channel.customer.name}</bdi>
+                    ) : (
+                      t('brands_no_brand', 'No brand')
+                    )}
+                    {channel.disabled &&
+                      ` · ${t('channel_disabled', 'Channel Disabled')}`}
+                  </>
+                }
+              >
+                {/* the channel list's Check, which the row's button ticks */}
+                <Check value={checked} onChange={() => {}} />
+              </BrandChannel>
             </button>
           );
         })}
