@@ -35,7 +35,10 @@ jest.mock('@gitroom/frontend/components/new-layout/menu-item', () => ({
   ),
 }));
 
-import { TopMenu } from '@gitroom/frontend/components/layout/top.menu';
+import {
+  TopMenu,
+  useMenuItem,
+} from '@gitroom/frontend/components/layout/top.menu';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -95,6 +98,28 @@ describe('the side menu', () => {
     expect(document.querySelector('[data-path="/brands"]')?.textContent).toBe(
       'العلامات'
     );
+  });
+
+  // The page's heading names Brands in full, العلامات التجارية, where the rail
+  // has room only for العلامات (spec 053, US1 scenario 11). No other item has a
+  // title of its own, so every other heading stays its rail label.
+  it('titles the Brands page by the brands_all_brands key, and no other page', async () => {
+    translations.brands = 'العلامات';
+    translations.brands_all_brands = 'العلامات التجارية';
+    let items: ReturnType<typeof useMenuItem>['all'] = [];
+    const Probe = () => {
+      items = useMenuItem().all;
+      return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    mounted.push(root);
+    await act(async () => {
+      root.render(<Probe />);
+    });
+
+    expect(
+      items.filter((item) => item.title).map(({ path, title }) => [path, title])
+    ).toEqual([['/brands', 'العلامات التجارية']]);
   });
 
   // Brands has no switch, plan or role of its own: it shows exactly when the
