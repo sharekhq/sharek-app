@@ -104,9 +104,10 @@ export const AgentChat: FC = () => {
         // Samy states this language in its system prompt instead of inferring
         // it from the conversation, which it got wrong (Spanish, unprompted).
         language: i18next.language,
-        // The brand chip's choice, for Samy's images. Left out while the chip
-        // waits, so the image tool goes by the selected channels (R14).
-        ...(brand?.shown ? { brand: brand.shown } : {}),
+        // The user's pick in the brand chip, for Samy's images. Left out
+        // without one, so the image tool goes by a brand the user names, then
+        // the selected channels (R14).
+        ...(brand?.picked ? { brand: brand.picked } : {}),
       }}
     >
       <Hooks />

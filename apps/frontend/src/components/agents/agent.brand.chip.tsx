@@ -47,9 +47,12 @@ const derived = (brands: Brand[], channels: Integrations[], among: Brand[]) => {
 
 /**
  * The brand chip's choice (FR-017, FR-023; contracts/pages-ui.md part 2),
- * which Agent keeps beside the picked channels: the brands among them, and
- * what the chip shows, the user's own pick, else the choice the channels
- * give. An organization with no brands has nothing to choose.
+ * which Agent keeps beside the picked channels: the brands among them, what
+ * the chip shows, the user's own pick, else the choice the channels give, and
+ * the pick alone, which is what Samy is sent. Without one the server makes the
+ * same choice from the channels, and honours a brand the user names to Samy,
+ * which a choice sent for them would outrank. An organization with no brands
+ * has nothing to choose.
  */
 export const useBrandChoice = (channels: Integrations[]) => {
   const { data: brands = [] } = useBrands();
@@ -76,6 +79,7 @@ export const useBrandChoice = (channels: Integrations[]) => {
     shown: brands.length
       ? picked ?? derived(brands, channels, among)
       : undefined,
+    picked,
     pick: (next: string) => setPick({ choice: next, among: amongIds }),
   };
 };
