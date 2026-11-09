@@ -190,9 +190,15 @@ const STRINGS = [
     'Brand for this message: {{brand}}. Change brand',
     'العلامة التجارية لهذه الرسالة: {{brand}}. تغيير العلامة',
   ],
-  // The AI image dialog's Brand field (StudioBrand): what goes along with the
-  // brand, and the reference images' help line while a brand is picked and
-  // none of the user's own images is attached.
+  // The AI image dialog's Brand field (StudioBrand): its button's accessible
+  // name, said as the chip's is, what goes along with the brand, and the
+  // reference images' help line while a brand is picked and none of the
+  // user's own images is attached.
+  [
+    'brands_field_label',
+    'Brand for this image: {{brand}}. Change brand',
+    'العلامة التجارية لهذه الصورة: {{brand}}. تغيير العلامة',
+  ],
   ['brands_goes_along', 'Goes along:', 'يرسل معها:'],
   [
     'brands_ref_help',

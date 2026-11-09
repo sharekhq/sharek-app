@@ -330,6 +330,17 @@ describe('the list', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  // The AI image dialog closes on it, so it doesn't stay open over the
+  // Brands page.
+  it('tells the caller when Manage brands is followed', async () => {
+    const onManage = jest.fn();
+    await open({ onManage });
+
+    await click(manage());
+    expect(onManage).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it("offers no Each channel's brand unless the pick spans brands", async () => {
     await open();
 
