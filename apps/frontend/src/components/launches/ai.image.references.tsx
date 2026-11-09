@@ -33,7 +33,8 @@ export const ReferenceImages: FC<{
   /**
    * A brand is picked: the hint says the images take the place of its
    * examples, and, with `logo`, that its logo goes along all the same (spec
-   * 053, FR-016).
+   * 053, FR-016). Under the edit field, where no example goes, it says only
+   * when the images don't all fit beside the logo.
    */
   branded?: boolean;
   /** The brand's logo is still in Media, so it goes along. */
@@ -170,15 +171,15 @@ export const ReferenceImages: FC<{
       </div>
       <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
         <span className="text-muted">
-          {lead
-            ? t(
-                'image_edit_reference_hint',
-                "Image 1 is the one you're editing. Add more to bring something in, like a logo."
-              )
-            : branded && over
+          {branded && over
             ? t(
                 'brands_ref_too_many',
                 "Your images don't all fit beside the brand's logo. Remove one, or pick No brand."
+              )
+            : lead
+            ? t(
+                'image_edit_reference_hint',
+                "Image 1 is the one you're editing. Add more to bring something in, like a logo."
               )
             : branded && value.length
             ? logo

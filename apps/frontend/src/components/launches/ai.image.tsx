@@ -547,8 +547,10 @@ const AiImageModal: FC<{
 
   const places = IMAGE_REFERENCE_MAX - (liveLogo(brand) ? 1 : 0);
   // A brand picked after the user's images can leave one more than fits; the
-  // row under them says so, and nothing goes until it fits.
+  // row under them says so, and nothing goes until it fits. The image being
+  // edited takes one of an edit's places.
   const overflow = references.length > places;
+  const editOverflow = editReferences.length > places - 1;
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
@@ -1052,8 +1054,13 @@ const AiImageModal: FC<{
               value={editReferences}
               onChange={setEditReferences}
               max={places - 1}
+              branded={!!brand}
               action={
-                <Button variant="quiet" onClick={applyEdit}>
+                <Button
+                  variant="quiet"
+                  onClick={applyEdit}
+                  disabled={editOverflow}
+                >
                   {t('image_edit_apply', 'Apply edit')}
                   <span className="ms-[6px] font-[500] opacity-75">
                     · {t('one_credit', '1 credit')}
