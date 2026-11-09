@@ -171,7 +171,10 @@ const FontField: FC<{
           onSave(next);
         }
       }}
-      className="h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] placeholder:text-muted outline-none placeholder-shown:[direction:inherit] focus:border-brand focus:ring-[3px] focus:ring-brandSoft"
+      className={clsx(
+        'h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+        FOCUS_RING
+      )}
     />
   </label>
 );

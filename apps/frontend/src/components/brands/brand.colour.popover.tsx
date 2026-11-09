@@ -78,7 +78,10 @@ const ColourForm: FC<{
           onChange={setCode}
           onInput={(e) => setDigits(fieldDigits(e.currentTarget.value))}
           aria-label={t('brands_hex_code', 'Hex code')}
-          className="flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] tracking-[0.02em] tabular-nums uppercase outline-none focus:border-brand focus:ring-[3px] focus:ring-brandSoft"
+          className={clsx(
+            'flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] tracking-[0.02em] tabular-nums uppercase outline-none',
+            FOCUS_RING
+          )}
         />
       </div>
       <div className="flex justify-end gap-[8px]">
