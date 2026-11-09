@@ -6,7 +6,7 @@ import { Injectable } from '@nestjs/common';
 import { BrandKitDto } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 // A brand is a Customer, the group of channels; its kit is a BrandKit row.
-const kitFields = {
+export const kitFields = {
   logoId: true,
   exampleIds: true,
   colours: true,

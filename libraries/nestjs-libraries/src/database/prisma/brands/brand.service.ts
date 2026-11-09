@@ -1,6 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { pick, uniq } from 'lodash';
-import { BrandRepository } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository';
+import {
+  BrandRepository,
+  kitFields,
+} from '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository';
 import {
   BrandKitDto,
   CreateBrandDto,
@@ -38,13 +41,7 @@ type StoredBrand = Awaited<ReturnType<BrandRepository['findLive']>>;
 type MediaRow = Awaited<ReturnType<BrandRepository['mediaByIds']>>[number];
 
 // The global ValidationPipe keeps keys the DTO doesn't declare
-const KIT_FIELDS = [
-  'logoId',
-  'exampleIds',
-  'colours',
-  'headingFont',
-  'bodyFont',
-] as const;
+const KIT_FIELDS = Object.keys(kitFields) as (keyof typeof kitFields)[];
 
 const imageIds = (kit: Pick<BrandKitDto, 'logoId' | 'exampleIds'> | null) =>
   [kit?.logoId, ...(kit?.exampleIds ?? [])].filter(Boolean);

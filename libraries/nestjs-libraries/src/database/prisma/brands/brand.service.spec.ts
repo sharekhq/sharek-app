@@ -1,9 +1,10 @@
-// The repository opens a database client at import; the service reads and
-// writes only through it, so each test hands it the rows it holds.
-jest.mock(
-  '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository',
-  () => ({ BrandRepository: class {} })
-);
+// The database module opens a client at import, so only it is swapped out: the
+// service reads the kit's fields from the real repository module, and reads and
+// writes only through the repository each test hands the rows it holds.
+jest.mock('@gitroom/nestjs-libraries/database/prisma/prisma.service', () => ({
+  PrismaRepository: class {},
+  PrismaTransaction: class {},
+}));
 
 import { HttpException } from '@nestjs/common';
 import { BrandService } from './brand.service';
