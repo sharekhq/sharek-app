@@ -226,6 +226,12 @@ const minHeight = (node: Element) =>
       (name) => Number(/^min-h-\[(\d+)px\]$/.exec(name)?.[1]) || 0
     )
   );
+// The z-index a class gives the element.
+const zIndex = (node: Element) =>
+  Math.max(
+    0,
+    ...classes(node).map((name) => Number(/^z-\[(\d+)\]$/.exec(name)?.[1]) || 0)
+  );
 
 describe('the button', () => {
   it('shows what it is given, named by its label, with the list closed', async () => {
@@ -417,6 +423,21 @@ describe('picking', () => {
     expect(listbox()).toBeNull();
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  // A press comes before the click that picks, so a press in the list must
+  // not close it, wherever the list renders.
+  it('stays open on a press in the list', async () => {
+    await open();
+
+    await act(async () => {
+      option('Noor Dental')!.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true })
+      );
+    });
+
+    expect(listbox()).toBeTruthy();
+    expect(onPick).not.toHaveBeenCalled();
+  });
 });
 
 describe('the keyboard', () => {
@@ -430,6 +451,29 @@ describe('the keyboard', () => {
     await open({ value: undefined, each: ['bq', 'rf'] });
 
     expect(document.activeElement).toBe(option("Each channel's brand"));
+  });
+
+  // On Samy's page the button sits in boxes that clip their content and can
+  // scroll (the layout's blurMe wrapper), a browser scrolls such boxes to show
+  // what takes the focus unless told not to, and the list closes on a scroll
+  // outside it. happy-dom scrolls nothing, so here the focus scrolls the box
+  // around the button as a browser's does.
+  it('opens with the focus on a choice without scrolling the boxes around the button, so it stays open', async () => {
+    const host = await render();
+    const focus = HTMLElement.prototype.focus;
+    jest
+      .spyOn(HTMLElement.prototype, 'focus')
+      .mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+        focus.call(this, options);
+        if (!options?.preventScroll) {
+          host.dispatchEvent(new Event('scroll'));
+        }
+      });
+
+    await click(trigger(host));
+
+    expect(listbox()).toBeTruthy();
+    expect(document.activeElement).toBe(option('Bayt Al Qahwa'));
   });
 
   it('moves down and up through the options with the arrows, wrapping', async () => {
@@ -481,6 +525,21 @@ describe('on a wide screen', () => {
 
     expect(classes(surface())).toContain('fixed');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  // `fixed` measures from a transformed ancestor, not the viewport, and
+  // Samy's chat is one (`trz`, agent.chat.tsx): there the list painted off by
+  // the chat's own offset. Out of the button's tree it hangs where it is put
+  // wherever the button sits, and over the modals (200 and up,
+  // new-modal.tsx), the AI image dialog among them, which it no longer
+  // renders inside. happy-dom lays nothing out, so where the list renders is
+  // what pins it.
+  it('renders into the body, out of the button’s tree, over the modals', async () => {
+    const host = await open();
+
+    expect(surface().parentElement?.tagName).toBe('BODY');
+    expect(host.contains(listbox())).toBe(false);
+    expect(zIndex(surface())).toBeGreaterThan(200);
   });
 
   // As the post's ⋯ menu (PostActionsMenu) and the launches menu cast it:
@@ -596,11 +655,12 @@ describe('under reduced motion', () => {
       classes(node).some((name) => /(?:^|:)animate-/.test(name))
     );
 
+  // the list renders into the body, outside the button's host
   it('opens the list without animation', async () => {
-    const host = await open();
+    await open();
 
     expect(listbox()).toBeTruthy();
-    expect(animated(host)).toEqual([]);
+    expect(animated(document.body)).toEqual([]);
   });
 
   it('opens the sheet and its scrim without animation', async () => {
@@ -635,9 +695,10 @@ describe('the look', () => {
   });
 
   it('uses no physical-side classes, so it mirrors in Arabic', async () => {
-    const host = await open({ each: ['bq', 'rf'] });
+    await open({ each: ['bq', 'rf'] });
 
-    const nodes = [host, ...Array.from(host.querySelectorAll('*'))];
+    // the button's host and the list, which renders into the body
+    const nodes = Array.from(document.body.querySelectorAll('*'));
     expect(nodes.flatMap((node) => classes(node).filter(physical))).toEqual([]);
   });
 
