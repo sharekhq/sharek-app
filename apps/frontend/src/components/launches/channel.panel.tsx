@@ -685,7 +685,7 @@ export const SearchField: FC<{
       placeholder={label}
       aria-label={label}
       className={clsx(
-        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
         FOCUS_RING
       )}
     />
