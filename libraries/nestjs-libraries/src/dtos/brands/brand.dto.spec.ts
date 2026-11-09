@@ -199,6 +199,16 @@ describe('BrandKitDto', () => {
       expect(await failures({ [font]: `  ${'a'.repeat(60)}  ` })).toEqual([]);
     });
 
+    // An emptied field clears the font as null does, rather than saving "".
+    it.each([
+      ['empty', ''],
+      ['only spaces', '   '],
+    ])('clears it when it is %s', async (_case, value) => {
+      const kit = plainToInstance(BrandKitDto, { [font]: value });
+      expect(kit[font as keyof BrandKitDto]).toBeNull();
+      expect(await failures({ [font]: value })).toEqual([]);
+    });
+
     it('accepts exactly 60 characters', async () => {
       expect(await failures({ [font]: 'a'.repeat(60) })).toEqual([]);
     });
