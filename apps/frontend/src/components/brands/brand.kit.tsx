@@ -1,6 +1,6 @@
 'use client';
 
-import { ComponentProps, FC, ReactNode, useState } from 'react';
+import { FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
@@ -19,6 +19,7 @@ import {
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import {
+  Channel,
   ChannelPicture,
   compareChannels,
   FOCUS_RING,
@@ -42,9 +43,6 @@ type KitChange = Partial<{
   headingFont: string | null;
   bodyFont: string | null;
 }>;
-
-// A channel as GET /integrations/list gives it, as the channel list reads it.
-type KitChannel = ComponentProps<typeof ChannelPicture>['channel'];
 
 type Picked = { id: string; path: string }[];
 
@@ -179,7 +177,7 @@ const FontField: FC<{
 // A channel on a brand's page or on No brand's: its picture, its name in its
 // own direction and its platform, then what the row offers (a brand's ×).
 export const BrandChannel: FC<{
-  channel: KitChannel;
+  channel: Channel;
   children?: ReactNode;
 }> = ({ channel, children }) => (
   <div className="flex items-center gap-[12px] min-h-[52px] ps-[8px] pe-[4px] py-[6px] rounded-[10px] hover:bg-boxHover transition-colors">
@@ -199,7 +197,7 @@ export const BrandChannel: FC<{
 // Add channels' picker: the organization's channels in no brand or another
 // one, each saying which, ticked to move into this brand.
 const ChannelPicker: FC<{
-  channels: KitChannel[];
+  channels: Channel[];
   onAdd: (ids: string[]) => void;
   onCancel: () => void;
 }> = ({ channels, onAdd, onCancel }) => {
@@ -288,7 +286,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
 
   const { logo, examples, colours, headingFont, bodyFont } = brand.kit;
   const exampleIds = examples.map((example) => example.id);
-  const list: KitChannel[] = integrations;
+  const list: Channel[] = integrations;
   const own = list
     .filter((channel) => channel.customer?.id === brand.id)
     .sort(compareChannels);

@@ -34,8 +34,8 @@ import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 
 // A channel as GET /integrations/list gives it: the fields the list reads
-// (data-model.md).
-interface Channel {
+// (data-model.md), and the Brands page.
+export interface Channel {
   id: string;
   internalId: string;
   name: string;

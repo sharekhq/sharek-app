@@ -13,7 +13,10 @@ import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
+import {
+  Channel,
+  FOCUS_RING,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import {
   Brand,
@@ -32,9 +35,6 @@ const EditGroupNameModal = dynamic(() =>
 // The boards' dialogs are 520px wide, so a long sentence wraps rather than
 // widening the card.
 const DIALOG_WIDTH = 520;
-
-// A channel as GET /integrations/list gives it: its brand, if any.
-type ListedChannel = { customer?: { id: string } | null };
 
 // New brand (board BrandsNew): the name, and on the organization's first
 // brand only, the offer to move the channels in no brand into it, ticked
@@ -146,7 +146,7 @@ export const useBrandDialogs = () => {
   const modals = useModals();
   const { data: brands, mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
-  const channels: ListedChannel[] = integrations;
+  const channels: Channel[] = integrations;
 
   const reload = () => {
     reloadBrands();

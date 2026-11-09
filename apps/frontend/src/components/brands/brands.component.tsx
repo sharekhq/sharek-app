@@ -1,6 +1,6 @@
 'use client';
 
-import { ComponentProps, FC, ReactNode, useState } from 'react';
+import { FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
@@ -12,6 +12,7 @@ import SafeImage from '@gitroom/react/helpers/safe.image';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import {
+  Channel,
   compareChannels,
   compareCustomers,
   FOCUS_RING,
@@ -34,9 +35,6 @@ import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
-
-// A channel as GET /integrations/list gives it: its brand, if any.
-type ListedChannel = ComponentProps<typeof BrandChannel>['channel'];
 
 // No brand's place in the list, beside the brands' ids, which are UUIDs.
 const NO_BRAND = 'none';
@@ -270,7 +268,7 @@ export const BrandsComponent: FC = () => {
   }
 
   const brands = [...data].sort(compareCustomers);
-  const channels: ListedChannel[] = integrations;
+  const channels: Channel[] = integrations;
   const channelsOf = (id: string) =>
     channels.filter((channel) => (channel.customer?.id || NO_BRAND) === id);
   // The open page: No brand, or the brand picked while it is still there.
