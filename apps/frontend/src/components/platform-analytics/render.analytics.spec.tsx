@@ -507,6 +507,13 @@ describe('a channel with no data at all', () => {
       ])
     );
   });
+
+  // a plain button, never a form's submit, as the panel's buttons are
+  it('makes its Reconnect a button of type "button"', async () => {
+    const host = await render([]);
+
+    expect(host.querySelector('button')!.getAttribute('type')).toBe('button');
+  });
 });
 
 // The page draws RenderAnalytics anew for each channel and period, by its key,
