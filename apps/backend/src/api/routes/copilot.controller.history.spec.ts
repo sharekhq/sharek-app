@@ -62,8 +62,7 @@ const reopenThreadOf = async (count: number) => {
         getAgent: () => ({ getMemory: async () => memory }),
       }),
     } as unknown as ConstructorParameters<typeof CopilotController>[1],
-    {} as unknown as ConstructorParameters<typeof CopilotController>[2],
-    {} as unknown as ConstructorParameters<typeof CopilotController>[3]
+    {} as unknown as ConstructorParameters<typeof CopilotController>[2]
   );
   return controller.getMessagesList(
     { id: 'org-1' } as unknown as Parameters<GetMessagesList>[0],

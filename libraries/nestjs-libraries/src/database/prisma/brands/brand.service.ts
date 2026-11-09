@@ -7,6 +7,8 @@ import {
 import {
   BrandKitDto,
   CreateBrandDto,
+  EACH_BRAND,
+  NO_BRAND,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { ImageBrandRefusal } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
@@ -192,11 +194,6 @@ export class BrandService {
     };
   }
 
-  // The brand chip's choice, checked before every Samy run (R14)
-  async isLive(org: string, id: string) {
-    return !!(await this._brandRepository.findLive(org, id));
-  }
-
   // FR-017's order (R8). Names, not ids, because they are what the user sees
   // and Samy says back; a refusal makes no image and spends no credit.
   async resolveForSamy(
@@ -207,25 +204,31 @@ export class BrandService {
       channelIds,
     }: { chip?: string; input?: string; channelIds: string[] }
   ): Promise<SamyBrand> {
-    // The brand chip's choice comes first. The copilot controller keeps only
-    // none, each or a live brand of the organization (R14), so a brand id is
-    // taken as it is, and each leaves the brand to the steps below.
-    if (chip === 'none') {
+    // The brand chip's choice comes first (R14): none goes without a kit, and
+    // a live brand of the organization, checked against the list below, wins
+    // over the input. Each, or anything else the browser sent (another
+    // organization's brand, a deleted one), leaves the brand to the input and
+    // the channels, as no chip does.
+    if (chip === NO_BRAND) {
       return {};
     }
-    if (chip && chip !== 'each') {
+    const picked = !!chip && chip !== EACH_BRAND;
+
+    // In any case, as brandNamed matches a name. A brand on the chip outranks
+    // it, so then it waits for the list.
+    const wanted = input?.trim();
+    const noBrand = wanted?.toLowerCase() === NO_BRAND;
+    if (noBrand && !picked) {
+      return {};
+    }
+
+    const brands = await this._brandRepository.list(org);
+    if (brands.some(({ id }) => id === chip)) {
       return { brandId: chip };
     }
 
-    // In any case, as brandNamed matches a name
-    const wanted = input?.trim();
-    if (wanted?.toLowerCase() === 'none') {
-      return {};
-    }
-
     // An organization with no brands goes without a kit, as today
-    const brands = await this._brandRepository.list(org);
-    if (!brands.length) {
+    if (noBrand || !brands.length) {
       return {};
     }
     const names = namesOf(brands);

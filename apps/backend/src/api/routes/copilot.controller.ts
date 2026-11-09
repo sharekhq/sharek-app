@@ -26,7 +26,6 @@ import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
 import { ChatTitleDto } from '@gitroom/nestjs-libraries/dtos/chat/chat.title.dto';
 import { ChatPinDto } from '@gitroom/nestjs-libraries/dtos/chat/chat.pin.dto';
-import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { Request, Response } from 'express';
 import { RequestContext } from '@mastra/core/di';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -39,8 +38,8 @@ export type ChannelsContext = {
   integrations: unknown[];
   // The interface language as an i18next code, straight from the browser.
   language: string;
-  // The brand chip's choice: none, each or a live brand id of the
-  // organization, checked here; unset for anything else.
+  // The brand chip's choice as the browser sent it, when a string: none, each
+  // or a brand id, which BrandService checks.
   brand?: string;
   organization: string;
   ui: string;
@@ -64,8 +63,7 @@ export class CopilotController {
   constructor(
     private _subscriptionService: SubscriptionService,
     private _mastraService: MastraService,
-    private _chatThreadsService: ChatThreadsService,
-    private _brandService: BrandService
+    private _chatThreadsService: ChatThreadsService
   ) {}
   @Post('/chat')
   chatAgent(@Req() req: Request, @Res() res: Response) {
@@ -120,22 +118,11 @@ export class CopilotController {
     requestContext.set('language', forwardedProps?.language || '');
 
     // The brand chip's choice, which the image tool follows before the
-    // channels (R14), so unlike the payload above it is checked here. Only a
-    // string is looked up, as an object would reach Prisma as a filter, and a
-    // failed check drops the brand rather than the chat.
+    // channels (R14). The same untrusted payload: BrandService checks it
+    // against the organization's brands, and only a string is kept.
     const brand = forwardedProps?.brand;
-    if (brand === 'none' || brand === 'each') {
+    if (typeof brand === 'string') {
       requestContext.set('brand', brand);
-    } else if (typeof brand === 'string') {
-      try {
-        if (await this._brandService.isLive(organization.id, brand)) {
-          requestContext.set('brand', brand);
-        }
-      } catch (err) {
-        Logger.warn(
-          `Could not check the chat's brand for ${organization.id}: ${err}`
-        );
-      }
     }
 
     requestContext.set('organization', JSON.stringify(organization));

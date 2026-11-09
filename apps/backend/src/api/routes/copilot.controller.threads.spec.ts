@@ -47,8 +47,7 @@ const makeController = () => {
   const controller = new CopilotController(
     {} as unknown as ConstructorParameters<typeof CopilotController>[0],
     {} as unknown as ConstructorParameters<typeof CopilotController>[1],
-    service as unknown as ConstructorParameters<typeof CopilotController>[2],
-    {} as unknown as ConstructorParameters<typeof CopilotController>[3]
+    service as unknown as ConstructorParameters<typeof CopilotController>[2]
   );
   return { controller, service };
 };

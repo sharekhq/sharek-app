@@ -34,10 +34,6 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service',
   () => ({ SubscriptionService: class {} })
 );
-jest.mock(
-  '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
-  () => ({ BrandService: class {} })
-);
 // @mastra/core ships an ESM-only transitive dependency that this tree's jest
 // config does not transform (libraries/nestjs-libraries/jest.config.ts carries
 // the exemption). RequestContext is a keyed bag; that much is easy to stand in.
@@ -55,15 +51,12 @@ jest.mock('@mastra/core/di', () => ({
 
 import { CopilotController } from './copilot.controller';
 
-const isLive = jest.fn();
-
 const send = async (body: unknown) => {
   capturedContexts.length = 0;
   const controller = new CopilotController(
     {} as any,
     { mastra: async () => ({}) } as any,
-    {} as unknown as ConstructorParameters<typeof CopilotController>[2],
-    { isLive } as unknown as ConstructorParameters<typeof CopilotController>[3]
+    {} as unknown as ConstructorParameters<typeof CopilotController>[2]
   );
   await controller.agent({ body } as any, {} as any, { id: 'org-1' } as any);
   expect(capturedContexts).toHaveLength(1);
