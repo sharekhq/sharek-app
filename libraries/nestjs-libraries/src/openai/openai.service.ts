@@ -48,6 +48,34 @@ When the description points to one of them, by number in any script ("image 2", 
 A reference the description does not mention is used for what the description implies: its subject, its product or its look.
 When the description asks for the look of a reference, set any new words the way that reference sets its own, not on a new object.`;
 
+// A brand's kit as the improver is told it: the image numbers of its logo and
+// examples among the references, and the rest as words.
+export type BrandBlock = {
+  logo?: number;
+  examples: number[];
+  colours: string[];
+  headingFont?: string;
+  bodyFont?: string;
+};
+
+// Added after REFERENCE_RULES only when part of a brand's kit goes along
+// (spec 053, research R6); without a brand the prompt stays byte for byte what
+// it was. The kit's images follow the user's own references, so "image 2"
+// still means the user's image 2, and the user message names only the parts of
+// the kit that go along: which images are the brand's, its colours, its fonts.
+// The no-text rules would strip the logo, so they spare the brand's own, and
+// only it.
+const BRAND_RULES = `The image is for a brand, and the user message names the parts of the brand's kit that go along: only those apply, and they decide how the brand's images are used.
+When the user message names a reference image as the brand's logo, show that logo once, exactly as given, where a brand's own post carries it, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
+When the user message names reference images as the brand's examples, they are posts the brand has published: follow their layout, their type and their use of colour, but take the subject and the words from the description, never from them.
+When the user message names the brand's colours, use them as the image's main colours.
+When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
+
+// generateEditPrompt's counterpart, added only when the logo goes along: an
+// edit takes the logo alone, because the image being changed already carries
+// the brand's look.
+const BRAND_EDIT_RULES = `When the user message names one of the images as the brand's logo, the change also puts that logo on the image being edited once, exactly as given, where a brand's own post carries it, unless that image already shows it; name it by its image number instead of describing it.`;
+
 const VoicePrompt = z.object({
   voice: z.string(),
 });
@@ -285,13 +313,28 @@ Clips must not overlap. Write the title and the post in this language, whatever 
    *
    * `references` is how many reference images the render receives
    * (REFERENCE_RULES); at 0 the request is exactly what it was before
-   * references existed.
+   * references existed. `brand` says which of them are the brand's and gives
+   * the rest of its kit (BRAND_RULES); without it, or with nothing in it, the
+   * request is unchanged.
    */
   async generatePromptForPicture(
     prompt: string,
     style?: string,
-    references = 0
+    references = 0,
+    brand?: BrandBlock
   ) {
+    const brandLines = [
+      ...(brand?.logo ? [`Brand logo: image ${brand.logo}`] : []),
+      ...(brand?.examples.map((n) => `Brand example: image ${n}`) || []),
+      ...(brand?.colours.length
+        ? [`Brand colours: ${brand.colours.join(', ')}`]
+        : []),
+      ...(brand?.headingFont
+        ? [`Brand heading font: ${brand.headingFont}`]
+        : []),
+      ...(brand?.bodyFont ? [`Brand body font: ${brand.bodyFont}`] : []),
+    ];
+
     return (
       (
         await openai.chat.completions.parse({
@@ -312,6 +355,7 @@ When the user asks for no words, or mentions none, the image must contain no tex
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
                 ...(references ? [REFERENCE_RULES] : []),
+                ...(brandLines.length ? [BRAND_RULES] : []),
               ].join('\n'),
             },
             {
@@ -320,6 +364,7 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
                 `prompt: ${prompt}`,
                 ...(style ? [`Render in this style: ${style}`] : []),
                 ...(references ? [`Reference images: ${references}`] : []),
+                ...brandLines,
               ].join('\n'),
             },
           ],
@@ -340,9 +385,14 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
    * the image being edited is image 1 and the ones added to the edit follow
    * it, as the window numbers them. Same model, reasoning and schema as
    * generatePromptForPicture, for the same reasons, and the same rule for the
-   * words to print.
+   * words to print. Of a `brand`, only the logo's number is used
+   * (BRAND_EDIT_RULES); without a logo the request is unchanged.
    */
-  async generateEditPrompt(instruction: string, inputs: number) {
+  async generateEditPrompt(
+    instruction: string,
+    inputs: number,
+    brand?: BrandBlock
+  ) {
     return (
       (
         await openai.chat.completions.parse({
@@ -351,18 +401,22 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
           messages: [
             {
               role: 'system',
-              content: `You rewrite a change a user asks for into one instruction for an AI image editing model.
+              content: [
+                `You rewrite a change a user asks for into one instruction for an AI image editing model.
 The editing model receives the image to edit as image 1 and any images the user added to the edit as image 2 onwards, in the order given; the user message says how many.
 Return one instruction, in English regardless of the request's language.
 State the change and only the change, and say that everything else stays exactly as it is: the composition, the subjects and their faces, any existing text, the colours and the framing. Never describe a new scene.
 ${IN_IMAGE_TEXT_RULES} — and say where in the scene they appear.
 When the change points to one of the images, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries.`,
+                ...(brand?.logo ? [BRAND_EDIT_RULES] : []),
+              ].join('\n'),
             },
             {
               role: 'user',
               content: [
                 `change: ${instruction}`,
                 `Images: ${inputs}, image 1 is the image being edited.`,
+                ...(brand?.logo ? [`Brand logo: image ${brand.logo}`] : []),
               ].join('\n'),
             },
           ],
