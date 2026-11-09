@@ -232,6 +232,15 @@ const run = async (callback: () => unknown) => {
 };
 const click = (node: Element) =>
   run(() => node.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+const press = async (node: Element, key: string) => {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  await run(() => node.dispatchEvent(event));
+  return event;
+};
 
 const classes = (node: Element | null | undefined) =>
   (node?.getAttribute('class') ?? '').split(/\s+/);
@@ -292,6 +301,7 @@ beforeEach(() => {
 afterEach(() => {
   unmountAll();
   jest.clearAllMocks();
+  document.dir = 'ltr';
 });
 
 describe('the layout (FR-001, C6)', () => {
@@ -596,6 +606,47 @@ describe('the top bar (FR-031, R22)', () => {
     );
     expect(classes(radios()[0])).not.toContain('bg-brandSoft');
   });
+
+  // The ARIA radio pattern: Period is one Tab stop, the checked period, and
+  // the arrow keys move to the next period or the one before and pick it,
+  // wrapping, the horizontal pair the other way in Arabic, as the radios run.
+  it.each([
+    ['ltr', 'ArrowRight', 'ArrowLeft'],
+    ['rtl', 'ArrowLeft', 'ArrowRight'],
+  ])(
+    'makes Period one Tab stop, and in %s moves on with %s and back with %s, picking as it goes, wrapping',
+    async (dir, next, back) => {
+      document.dir = dir;
+      await mount();
+      await run(() => mockPanel!.onChange('af'));
+      const tabStops = () =>
+        radios().map((radio) => radio.getAttribute('tabindex'));
+      expect(tabStops()).toEqual(['0', '-1', '-1']);
+
+      const first = await press(radios()[0], next);
+      expect(first.defaultPrevented).toBe(true);
+      expect(mockShown).toEqual({ id: 'af', date: 30 });
+      expect(document.activeElement).toBe(radios()[1]);
+      expect(tabStops()).toEqual(['-1', '0', '-1']);
+
+      await press(radios()[1], 'ArrowDown');
+      expect(mockShown!.date).toBe(90);
+      // past the last, the first
+      await press(radios()[2], next);
+      expect(mockShown!.date).toBe(7);
+      expect(document.activeElement).toBe(radios()[0]);
+      // and back past the first, the last
+      await press(radios()[0], back);
+      expect(mockShown!.date).toBe(90);
+      await press(radios()[2], 'ArrowUp');
+      expect(mockShown!.date).toBe(30);
+      expect(checked()).toEqual(['false', 'true', 'false']);
+      expect(document.activeElement).toBe(radios()[1]);
+
+      expect((await press(radios()[1], 'Enter')).defaultPrevented).toBe(false);
+      expect(mockShown!.date).toBe(30);
+    }
+  );
 
   it('keeps the period on a channel switch where the platform has it, and takes its first where it has not', async () => {
     await mount();

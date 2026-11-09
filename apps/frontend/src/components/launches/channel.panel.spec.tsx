@@ -2661,6 +2661,141 @@ describe('the analytics choice (C20, FR-030)', () => {
   });
 });
 
+// The ARIA radio pattern: the radios are one Tab stop, and the arrow keys move
+// to the next channel that can be picked, or the one before, and pick it,
+// wrapping. In the list's order: Noor Pages, Lamsa Studio, Mona Saeed, Rawda
+// Profile, Zed, Archive, then Client 2's Two Shop and Two Cafe, then Noor
+// Dental's Noor Clinic; Lamsa Studio, Two Shop and Two Cafe can be picked.
+describe('the analytics radios from the keyboard (FR-052)', () => {
+  const press = async (node: Element, key: string) => {
+    const event = new KeyboardEvent('keydown', {
+      key,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      node.dispatchEvent(event);
+    });
+    return event;
+  };
+  const tabStops = () =>
+    radios()
+      .filter((radio) => radio.getAttribute('tabindex') === '0')
+      .map(rowName);
+
+  afterEach(() => {
+    document.dir = 'ltr';
+  });
+
+  it.each([
+    ['the chosen channel', 'two-shop', 'Two Shop'],
+    ['the first that can be picked with none chosen', null, 'Lamsa Studio'],
+    [
+      'the first that can be picked with the chosen one unusable',
+      'dc',
+      'Lamsa Studio',
+    ],
+  ])('makes them one Tab stop, %s', async (_, selected, name) => {
+    await renderAnalytics(selected);
+
+    expect(tabStops()).toEqual([name]);
+    radios()
+      .filter((radio) => rowName(radio) !== name)
+      .forEach((radio) => expect(radio.getAttribute('tabindex')).toBe('-1'));
+    // a row's fix and a customer's header keep their own Tab stops
+    expect(
+      besideButtons('Noor Pages', 'reconnect')[0].hasAttribute('tabindex')
+    ).toBe(false);
+    expect(chevrons(groupOf('Client 2'))[0].hasAttribute('tabindex')).toBe(
+      false
+    );
+  });
+
+  it("leaves the calendar's checkboxes each a Tab stop", async () => {
+    await render(CAL);
+
+    expect(
+      rowButtons(host).filter((button) => button.hasAttribute('tabindex'))
+    ).toEqual([]);
+  });
+
+  it('moves with ArrowDown and ArrowRight to the next channel that can be picked, focusing and picking it, wrapping', async () => {
+    await renderAnalytics('lamsa');
+
+    const first = await press(mainButton('Lamsa Studio'), 'ArrowDown');
+    expect(first.defaultPrevented).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith('two-shop');
+    expect(document.activeElement).toBe(mainButton('Two Shop'));
+
+    await press(mainButton('Two Shop'), 'ArrowRight');
+    expect(onChange).toHaveBeenLastCalledWith('two-cafe');
+    expect(document.activeElement).toBe(mainButton('Two Cafe'));
+
+    // past Noor Clinic, then round to the top, past Noor Pages
+    await press(mainButton('Two Cafe'), 'ArrowDown');
+    expect(onChange).toHaveBeenLastCalledWith('lamsa');
+    expect(document.activeElement).toBe(mainButton('Lamsa Studio'));
+    expect(onChange).toHaveBeenCalledTimes(3);
+  });
+
+  it("moves back with ArrowUp and ArrowLeft, wrapping, and from a row that can't be picked too", async () => {
+    await renderAnalytics('lamsa');
+
+    await press(mainButton('Lamsa Studio'), 'ArrowUp');
+    expect(onChange).toHaveBeenLastCalledWith('two-cafe');
+    expect(document.activeElement).toBe(mainButton('Two Cafe'));
+
+    await press(mainButton('Two Cafe'), 'ArrowLeft');
+    expect(onChange).toHaveBeenLastCalledWith('two-shop');
+
+    // a disabled row a click focused
+    await press(mainButton('Mona Saeed'), 'ArrowDown');
+    expect(onChange).toHaveBeenLastCalledWith('two-shop');
+    await press(mainButton('Mona Saeed'), 'ArrowUp');
+    expect(onChange).toHaveBeenLastCalledWith('lamsa');
+  });
+
+  it('runs the horizontal pair the other way in Arabic, and Down and Up as before', async () => {
+    document.dir = 'rtl';
+    await renderAnalytics('lamsa');
+
+    await press(mainButton('Lamsa Studio'), 'ArrowLeft');
+    expect(onChange).toHaveBeenLastCalledWith('two-shop');
+    await press(mainButton('Two Shop'), 'ArrowRight');
+    expect(onChange).toHaveBeenLastCalledWith('lamsa');
+    await press(mainButton('Lamsa Studio'), 'ArrowDown');
+    expect(onChange).toHaveBeenLastCalledWith('two-shop');
+    await press(mainButton('Two Shop'), 'ArrowUp');
+    expect(onChange).toHaveBeenLastCalledWith('lamsa');
+  });
+
+  // A radio in a closed customer group is display:none in a browser, so it
+  // can't take the focus; the test DOM has no CSS, so its focus is held back.
+  it("passes over a radio that can't take the focus", async () => {
+    await renderAnalytics('lamsa');
+    mainButton('Two Shop').focus = () => undefined;
+
+    await press(mainButton('Lamsa Studio'), 'ArrowDown');
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('two-cafe');
+    expect(document.activeElement).toBe(mainButton('Two Cafe'));
+  });
+
+  it("leaves other keys, and the arrows on a row's fix, to the browser", async () => {
+    await renderAnalytics('lamsa');
+
+    expect(
+      (await press(mainButton('Lamsa Studio'), 'Enter')).defaultPrevented
+    ).toBe(false);
+    expect(
+      (await press(besideButtons('Noor Pages', 'reconnect')[0], 'ArrowDown'))
+        .defaultPrevented
+    ).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
 describe('the hint on Analytics (FR-007)', () => {
   it('says what a choice means on Analytics, in one 12px muted line', async () => {
     await renderAnalytics(null);
