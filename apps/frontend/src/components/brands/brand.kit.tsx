@@ -29,6 +29,7 @@ import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   Brand,
+  isLive,
   useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
@@ -559,7 +560,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
         >
           <div className="grid grid-cols-3 gap-[12px] phone:gap-[8px] max-w-[474px]">
             {examples.map((example, index) =>
-              !example.missing && example.path ? (
+              isLive(example) ? (
                 <div
                   key={example.id}
                   className="relative aspect-square rounded-[10px] overflow-hidden border border-line bg-panel"

@@ -108,6 +108,7 @@ jest.mock(
   })
 );
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: mockBrands }),
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({

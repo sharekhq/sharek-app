@@ -4,7 +4,10 @@ import { FC } from 'react';
 import clsx from 'clsx';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  Brand,
+  liveLogo,
+} from '@gitroom/frontend/components/brands/use.brands';
 
 // A brand's logo, or its initial while it has none or the logo was deleted
 // from Media. Decoration: the brand's name is beside it. The Brands page's
@@ -14,9 +17,9 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
   className,
 }) => {
   const mediaDirectory = useMediaDirectory();
-  const { logo } = brand.kit;
+  const logo = liveLogo(brand);
 
-  if (logo?.path && !logo.missing) {
+  if (logo) {
     return (
       <SafeImage
         src={mediaDirectory.set(logo.path)}

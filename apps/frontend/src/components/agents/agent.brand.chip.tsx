@@ -15,6 +15,8 @@ import {
 } from '@gitroom/frontend/components/brands/brand.menu';
 import {
   Brand,
+  liveExamples,
+  liveLogo,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
 import { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
@@ -233,10 +235,7 @@ export const BrandNote: FC = () => {
   const images = attached.filter(
     (media) => !hasExtension(media.path, 'mp4')
   ).length;
-  const showing =
-    !!current &&
-    current.kit.examples.some(({ path, missing }) => path && !missing) &&
-    images > 0;
+  const showing = !!current && liveExamples(current).length > 0 && images > 0;
 
   // It takes its room from the chat, as the attachments' row does, and the
   // chat's own scrolling watches only its messages.
@@ -280,7 +279,7 @@ export const BrandNote: FC = () => {
         <path d="M12 11v5M12 8h.01" />
       </svg>
       <span>
-        {current.kit.logo && !current.kit.logo.missing
+        {liveLogo(current)
           ? t(
               'brands_attach_note',
               "Your {{count}} images go in place of {{brand}}'s examples. Its logo still goes along.",

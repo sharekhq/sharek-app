@@ -25,6 +25,22 @@ export type Brand = {
   };
 };
 
+// A kit image still in Media: it has a path and isn't missing (FR-012).
+export const isLive = (image?: BrandImage | null) =>
+  !!image?.path && !image.missing;
+
+// The brand's logo while it is still in Media: what goes along with a render,
+// taking one of its places, as the server counts it (FR-016), and what the
+// brand's mark shows.
+export const liveLogo = (brand?: Brand) => {
+  const logo = brand?.kit.logo;
+  return isLive(logo) ? logo : undefined;
+};
+
+// The brand's examples still in Media, the ones that go along.
+export const liveExamples = (brand?: Brand) =>
+  (brand?.kit.examples ?? []).filter(isLive);
+
 export const useBrands = () => {
   const fetch = useFetch();
 
