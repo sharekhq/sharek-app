@@ -811,6 +811,10 @@ test('each small-screen and touch change is emitted after the rule it replaces',
     ['px-[16px]', 'mobile:px-[12px]'],
     ['py-[14px]', 'mobile:py-[10px]'],
     ['text-[26px]', 'mobile:text-[20px]'],
+    // Analytics' top bar on a phone: the period under the channel button,
+    // the full width
+    ['items-center', 'mobile:items-stretch'],
+    ['ms-auto', 'mobile:ms-0'],
   ];
   const css = await emit(pairs.flat());
   for (const [earlier, later] of pairs) order(css, earlier, later);

@@ -1,22 +1,25 @@
 'use client';
 
-import useSWR from 'swr';
-import { useCallback, useMemo, useState } from 'react';
-import { orderBy } from 'lodash';
+import { FC, useCallback, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { RenderAnalytics } from '@gitroom/frontend/components/platform-analytics/render.analytics';
-import { Select } from '@gitroom/react/form/select';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { useRouter } from 'next/navigation';
-import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import useCookie from 'react-use-cookie';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import {
+  ChannelPanel,
+  FOCUS_RING,
+  isUsable,
+  orderChannels,
+} from '@gitroom/frontend/components/launches/channel.panel';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 const allowedIntegrations = [
   'facebook',
   'instagram',
@@ -55,8 +58,64 @@ const AnalyticsEmptyIllustration = () => (
     <rect x="102" y="28" width="14" height="60" rx="3" className="text-brand" fill="currentColor" />
   </svg>
 );
+// The chosen channel: its picture with the platform's badge, its name in its
+// own direction, and "Platform · Customer". 40px in the top bar, and 28px in
+// the channel button that takes its place at 1025px and below.
+const ChosenChannel: FC<{
+  channel: {
+    name: string;
+    identifier: string;
+    picture?: string | null;
+    customer?: { name?: string } | null;
+  };
+  phone?: boolean;
+}> = ({ channel, phone = false }) => (
+  <>
+    <span className="relative flex flex-none">
+      <ImageWithFallback
+        fallbackSrc={`/icons/platforms/${channel.identifier}.png`}
+        src={channel.picture}
+        className="rounded-[8px]"
+        alt=""
+        width={phone ? 28 : 40}
+        height={phone ? 28 : 40}
+      />
+      <SafeImage
+        src={`/icons/platforms/${channel.identifier}.png`}
+        className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
+        alt=""
+        width={phone ? 13 : 16}
+        height={phone ? 13 : 16}
+      />
+    </span>
+    <span className="flex-1 min-w-0 flex flex-col text-start">
+      <bdi
+        className={clsx(
+          'font-[600] text-ink truncate',
+          phone ? 'text-[15px]' : 'text-[18px]'
+        )}
+      >
+        {channel.name}
+      </bdi>
+      <span
+        className={clsx(
+          'text-muted truncate',
+          phone ? 'text-[12px]' : 'text-[13px]'
+        )}
+      >
+        {[platformLabel(channel.identifier), channel.customer?.name]
+          .filter(Boolean)
+          .join(' · ')}
+      </span>
+    </span>
+  </>
+);
+/**
+ * Analytics (contracts/pages-ui.md): the numbers, then the shared channel list
+ * in analytics mode at the end. At 1025px and below the list opens as
+ * SplitPanel's sheet, from the channel button in the top bar.
+ */
 export const PlatformAnalytics = () => {
-  const fetch = useFetch();
   const t = useT();
   const router = useRouter();
   const { disableXAnalytics } = useVariables();
@@ -65,41 +124,31 @@ export const PlatformAnalytics = () => {
     new Set(allowedIntegrations.map((p) => platformLabel(p)))
   ).join(', ');
 
-  const [current, setCurrent] = useState(0);
+  const [chosen, setChosen] = useState<string | null>(null);
   const [key, setKey] = useState(7);
-  const [refresh, setRefresh] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
-  const toaster = useToaster();
-  const load = useCallback(async () => {
-    const int = (
-      await (await fetch('/integrations/list')).json()
-    ).integrations.filter((f: any) => {
-      if (f.identifier === 'x' && disableXAnalytics) {
-        return false;
-      }
-      return true;
-    });
-    return int.filter((f: any) => allowedIntegrations.includes(f.identifier));
-  }, []);
-  const { data, isLoading } = useSWR('analytics-list', load, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
-    revalidateOnMount: true,
-    refreshWhenHidden: false,
-    refreshWhenOffline: false,
-    fallbackData: [],
-  });
-  const sortedIntegrations = useMemo(() => {
-    return orderBy(
-      data,
-      ['type', 'disabled', 'identifier'],
-      ['desc', 'asc', 'asc']
-    );
-  }, [data]);
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const railCollapsed = collapseMenu === '1' && !channelsOpen;
+  const { data, isLoading, mutate } = useIntegrationList();
+  // Whether a channel's platform has numbers: upstream's list, without X while
+  // its analytics are off (C7).
+  const hasStatistics = useCallback(
+    ({ identifier }: { identifier: string }) =>
+      allowedIntegrations.includes(identifier) &&
+      !(identifier === 'x' && disableXAnalytics),
+    [disableXAnalytics]
+  );
+  // The chosen channel while it can be picked, otherwise the first that can in
+  // the list's order, so a change in the list never moves the choice (R21,
+  // C20).
   const currentIntegration = useMemo(() => {
-    return sortedIntegrations[current];
-  }, [current, sortedIntegrations]);
+    const picked = data.find(({ id }: { id: string }) => id === chosen);
+    return picked && isUsable(picked, 'analytics', hasStatistics)
+      ? picked
+      : orderChannels(data)
+          .flatMap(({ channels }) => channels)
+          .find((channel) => isUsable(channel, 'analytics', hasStatistics));
+  }, [data, chosen, hasStatistics]);
   // t is a dependency because the range labels are translated: a language switch
   // re-creates it, and never changes the integration this is otherwise keyed on.
   const options = useMemo(() => {
@@ -124,7 +173,7 @@ export const PlatformAnalytics = () => {
     ) {
       arr.push({
         key: 7,
-        value: t('7_days', '7 Days'),
+        value: t('last_7_days', 'Last 7 days'),
       });
     }
     if (
@@ -144,7 +193,7 @@ export const PlatformAnalytics = () => {
     ) {
       arr.push({
         key: 30,
-        value: t('30_days', '30 Days'),
+        value: t('last_30_days', 'Last 30 days'),
       });
     }
     if (
@@ -154,7 +203,7 @@ export const PlatformAnalytics = () => {
     ) {
       arr.push({
         key: 90,
-        value: t('90_days', '90 Days'),
+        value: t('last_90_days', 'Last 90 days'),
       });
     }
     return arr;
@@ -177,154 +226,120 @@ export const PlatformAnalytics = () => {
     );
   }
 
-  if (!sortedIntegrations.length && !isLoading) {
-    return (
-      <div className="bg-newBgColorInner flex flex-1">
-        <EmptyState
-          illustration={<AnalyticsEmptyIllustration />}
-          title={t('analytics_empty_title', 'Track how your content performs')}
-          description={t(
-            'analytics_empty_description',
-            'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
-          )}
-          note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
-          actionLabel={t('connect_a_channel', 'Connect a channel')}
-          onAction={() => router.push('/launches')}
-        />
-      </div>
-    );
-  }
   return (
     <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
-      <div
-        className={clsx(
-          'bg-newBgColorInner p-[20px] mobile:p-[12px] flex flex-col gap-[15px] transition-all mobile:w-full',
-          collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-        )}
-      >
-        <div className="flex gap-[12px] flex-col">
-          <div className="flex items-center mobile:hidden">
-            <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-              {t('channels')}
-            </h2>
-            <div
-              onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
-              className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] coarse:w-[44px] coarse:h-[44px] flex items-center justify-center cursor-pointer select-none"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="7"
-                height="13"
-                viewBox="0 0 7 13"
-                fill="none"
-              >
-                <path
-                  d="M6 11.5L1 6.5L6 1.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="flex flex-col gap-[12px] mobile:flex-row mobile:overflow-x-auto mobile:overflow-y-hidden mobile:ps-[12px] mobile:pt-[6px] mobile:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-            {sortedIntegrations.map((integration, index) => (
-              <div
-                key={integration.id}
-                onClick={() => {
-                  if (integration.refreshNeeded) {
-                    toaster.show(
-                      t(
-                        'please_refresh_the_integration_from_the_calendar',
-                        'Please refresh the integration from the calendar'
-                      ),
-                      'warning'
-                    );
-                    return;
+      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px]">
+        {currentIntegration ? (
+          <>
+            {/* The top bar. At 1025px and below the channel button takes the
+                channel's place, and the period sits under it, the full
+                width. */}
+            <div className="flex items-center gap-[12px] mobile:flex-col mobile:items-stretch">
+              <div className="flex items-center gap-[12px] min-w-0 mobile:hidden">
+                <ChosenChannel channel={currentIntegration} />
+              </div>
+              <button
+                type="button"
+                onClick={() => setChannelsOpen(true)}
+                aria-expanded={channelsOpen}
+                aria-label={t(
+                  'change_channel_named',
+                  'Channel: {{name}} on {{platform}}. Change channel',
+                  {
+                    name: currentIntegration.name,
+                    platform: platformLabel(currentIntegration.identifier),
+                    // React escapes the label, so i18next mustn't first
+                    interpolation: { escapeValue: false },
                   }
-                  setRefresh(true);
-                  setTimeout(() => {
-                    setRefresh(false);
-                  }, 10);
-                  setCurrent(index);
-                }}
+                )}
                 className={clsx(
-                  'flex gap-[12px] items-center justify-center hover:bg-boxHover rounded-[10px] coarse:min-h-[44px] coarse:min-w-[44px] mobile:shrink-0 mobile:coarse:-m-[4px]',
-                  currentIntegration.id !== integration.id &&
-                    'opacity-20 hover:opacity-100 cursor-pointer'
+                  'hidden mobile:flex items-center gap-[10px] h-[56px] px-[12px] rounded-[10px] border border-line cursor-pointer',
+                  FOCUS_RING
                 )}
               >
-                <div
-                  className={clsx(
-                    'relative rounded-full flex justify-center items-center gap-[6px]',
-                    integration.disabled && 'opacity-50'
-                  )}
+                <ChosenChannel channel={currentIntegration} phone />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="text-muted"
                 >
-                  {(integration.inBetweenSteps ||
-                    integration.refreshNeeded) && (
-                    <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                      <div className="bg-error w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                        !
-                      </div>
-                      <div className="bg-[color-mix(in_srgb,var(--color-primary)_60%,transparent)] w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
-                    </div>
-                  )}
-                  <ImageWithFallback
-                    fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
-                    src={integration.picture}
-                    className="rounded-[8px]"
-                    alt={integration.identifier}
-                    width={36}
-                    height={36}
-                  />
-                  <SafeImage
-                    src={`/icons/platforms/${integration.identifier}.png`}
-                    className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                    alt={integration.identifier}
-                    width={18.41}
-                    height={18.41}
-                  />
-                </div>
-                <div
-                  className={clsx(
-                    'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden mobile:hidden',
-                    integration.disabled && 'opacity-50'
-                  )}
-                >
-                  {integration.name}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] mobile:p-[12px] gap-[12px]">
-        {!!options.length && (
-          <div className="flex-1 flex flex-col gap-[14px]">
-            <div className="max-w-[200px]">
-              <Select
-                label=""
-                name="date"
-                disableForm={true}
-                hideErrors={true}
-                onChange={(e) => setKey(+e.target.value)}
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {/* the calendar's view control, as one-click radios */}
+              <div
+                role="radiogroup"
+                aria-label={t('period', 'Period')}
+                className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full"
               >
                 {options.map((option) => (
-                  <option key={option.key} value={option.key}>
+                  <button
+                    key={option.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={keys === option.key}
+                    onClick={() => setKey(option.key)}
+                    className={clsx(
+                      'pt-[6px] pb-[5px] px-[12px] rounded-[6px] text-center whitespace-nowrap cursor-pointer coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] mobile:flex-1',
+                      FOCUS_RING,
+                      keys === option.key &&
+                        'text-brandText bg-brandSoft font-[600]'
+                    )}
+                  >
                     {option.value}
-                  </option>
+                  </button>
                 ))}
-              </Select>
+              </div>
             </div>
             <div className="flex-1">
-              {!!keys && !!currentIntegration && !refresh && (
-                <RenderAnalytics integration={currentIntegration} date={keys} />
-              )}
+              <RenderAnalytics integration={currentIntegration} date={keys} />
             </div>
-          </div>
+          </>
+        ) : (
+          <EmptyState
+            illustration={<AnalyticsEmptyIllustration />}
+            title={t(
+              'analytics_empty_title',
+              'Track how your content performs'
+            )}
+            description={t(
+              'analytics_empty_description',
+              'Connect a channel and Sharek shows your reach, engagement, and follower growth — all in one place.'
+            )}
+            note={`${t('works_with', 'Works with')} ${supportedPlatforms}`}
+            actionLabel={t('connect_a_channel', 'Connect a channel')}
+            onAction={() => router.push('/launches')}
+          />
         )}
       </div>
+      <SplitPanel
+        open={channelsOpen}
+        onClose={() => setChannelsOpen(false)}
+        collapsed={railCollapsed}
+        width="w-[288px]"
+        label={t('channels', 'Channels')}
+      >
+        <ChannelPanel
+          mode="analytics"
+          channels={data}
+          selected={currentIntegration?.id ?? null}
+          onChange={setChosen}
+          hasStatistics={hasStatistics}
+          update={mutate}
+          collapsed={railCollapsed}
+          onToggleCollapse={() =>
+            setCollapseMenu(collapseMenu === '1' ? '0' : '1')
+          }
+          onDone={() => setChannelsOpen(false)}
+        />
+      </SplitPanel>
     </div>
   );
 };
