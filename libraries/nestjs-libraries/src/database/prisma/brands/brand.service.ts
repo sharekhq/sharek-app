@@ -199,8 +199,9 @@ export class BrandService {
     org: string,
     { input, channelIds }: { input?: string; channelIds: string[] }
   ): Promise<SamyBrand> {
+    // In any case, as brandNamed matches a name
     const wanted = input?.trim();
-    if (wanted === 'none') {
+    if (wanted?.toLowerCase() === 'none') {
       return {};
     }
 
