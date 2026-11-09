@@ -470,6 +470,26 @@ describe('BrandService.kitFor', () => {
   });
 });
 
+// The brand chip's choice, checked before every Samy run (R14): one brand's
+// row, never its images
+describe('BrandService.isLive', () => {
+  it('answers yes for a live brand of the organization', async () => {
+    const { service, repository } = makeService();
+
+    await expect(service.isLive('org-1', 'brand-1')).resolves.toBe(true);
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-1');
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+
+  it("answers no for an id that isn't a live brand of the organization", async () => {
+    const { service } = makeService({
+      findLive: jest.fn().mockResolvedValue(null),
+    });
+
+    await expect(service.isLive('org-1', 'brand-9')).resolves.toBe(false);
+  });
+});
+
 // Samy's brand for one image, in FR-017's order (data-model, R8). A refusal is
 // words for Samy, with the names as stored and in the list's order.
 describe('BrandService.resolveForSamy', () => {
