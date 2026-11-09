@@ -712,6 +712,53 @@ describe('LoadToolsService making images', () => {
   });
 });
 
+// contracts/samy-brand.md (spec 053), word for word. A brand's name comes back in
+// the image tool's result or its words, never in the prompt, so the prompt stays
+// byte-identical for the cache with these lines in it.
+describe('LoadToolsService brands', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const instructionsFor = async (ui?: string) => {
+    const agent = await new LoadToolsService(moduleRef).agent();
+    const requestContext = new RequestContext();
+    if (ui) {
+      requestContext.set('ui' as never, ui as never);
+    }
+    return (await agent.getInstructions({ requestContext })) as string;
+  };
+
+  const LINES = [
+    "When an image result names a brand, say in your reply that the brand's kit went with it: its logo, colours and example posts.",
+    'If the image tool says the channels belong to several brands, or asks which brand to use, do exactly what it says before making anything.',
+    "Asked for an image in the user's brand style when no brand kit went along, say you have no brand kit to follow, suggest setting one up on the Brands page, and offer to make it from what they describe or attach.",
+  ];
+
+  it.each(LINES)('tells Samy: %s', async (line) => {
+    expect(await instructionsFor('true')).toContain(line);
+  });
+
+  it.each(LINES)('says nothing over MCP of: %s', async (line) => {
+    expect(await instructionsFor()).not.toContain(line);
+  });
+
+  it.each(LINES)('says nothing for a ui of false of: %s', async (line) => {
+    expect(await instructionsFor('false')).not.toContain(line);
+  });
+
+  it('keeps the prompt byte-identical for two requests in the same hour', async () => {
+    jest.useFakeTimers();
+    const early = await instructionsAt('2026-07-28T14:00:03.000Z');
+    const late = await instructionsAt('2026-07-28T14:59:47.000Z');
+
+    for (const line of LINES) {
+      expect(early).toContain(line);
+    }
+    expect(late).toBe(early);
+  });
+});
+
 describe('LoadToolsService reading images', () => {
   const contextFor = (ui?: string) => {
     const requestContext = new RequestContext();
@@ -846,11 +893,12 @@ describe('LoadToolsService web tools', () => {
     }
   );
 
-  // contracts/instructions.md, word for word.
+  // contracts/instructions.md, word for word, the third with the Brands page of
+  // spec 053's contracts/samy-brand.md.
   const ALWAYS = [
     "Say a fact is from a page, from the website or verified only when you read it in a web page during this chat, and name the page. For a fact from your own knowledge, say it's from what you know and may be out of date, and ask the user to confirm it before it goes into a post.",
     "Pages on Facebook, Instagram and other social networks need a login, so you can't read them. Asked to use or match one, say so plainly before anything else, don't try, and ask the user to attach images from it instead. Make no image for that request until they attach some or say to go ahead without them.",
-    "You read a page's words, never its look: you can't see a website's logo, colours, fonts, style or pictures. Never say that an image you made or will make uses, matches or is inspired by the look, colours or identity of a website or a social page. Asked to match a brand from one, say so and ask the user to attach their logo and a few past posts, and make no image for that request until they attach some or say to go ahead without them.",
+    "You read a page's words, never its look: you can't see a website's logo, colours, fonts, style or pictures. Never say that an image you made or will make uses, matches or is inspired by the look, colours or identity of a website or a social page. Asked to match a brand from one, say so and ask the user to attach their logo and a few past posts, or to set up their brand on the Brands page, which you then use for every image, and make no image for that request until they attach some or say to go ahead without them.",
   ];
 
   const LINES = [
