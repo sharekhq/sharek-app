@@ -55,9 +55,9 @@ jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
   },
 }));
 // The web tools are the real ones, with nothing behind them: the stand-in model
-// never calls them, and tavily.service.spec covers Tavily.
-jest.mock('@gitroom/nestjs-libraries/tavily/tavily.service', () => ({
-  TavilyService: class TavilyService {},
+// never calls them, and firecrawl.service.spec covers Firecrawl.
+jest.mock('@gitroom/nestjs-libraries/firecrawl/firecrawl.service', () => ({
+  FirecrawlService: class FirecrawlService {},
 }));
 
 // Samy's own instructions: every step of a turn carries them, the background
@@ -274,24 +274,30 @@ describe('The image tool a run offers the model', () => {
   });
 });
 
-// Samy reads the web in its chat only, while Tavily's key is set (spec 052), and
-// MCP, which lists the tools with no context, gets what it has today.
+// Samy reads the web in its chat only, while Firecrawl's key is set (specs 052
+// and 054), and MCP, which lists the tools with no context, gets what it has
+// today.
 describe('The web tools a run offers the model', () => {
-  const saved = process.env.TAVILY_API_KEY;
+  const saved = {
+    FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY,
+    TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+  };
   let spy: jest.SpyInstance;
 
   beforeEach(() => {
     // Availability is read when the agent is built, so the key comes first.
-    process.env.TAVILY_API_KEY = 'tvly-test';
+    process.env.FIRECRAWL_API_KEY = 'fc-test';
     spy = jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
     spy.mockRestore();
-    if (saved === undefined) {
-      delete process.env.TAVILY_API_KEY;
-    } else {
-      process.env.TAVILY_API_KEY = saved;
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
     }
   });
 
@@ -311,6 +317,17 @@ describe('The web tools a run offers the model', () => {
 
   it('with no ui leave them out', async () => {
     expect(await offered(false)).toEqual([
+      'generateImageTool',
+      'scheduleOnePost',
+    ]);
+  }, 30000);
+
+  // The Tavily key that brought them before spec 054 brings nothing now.
+  it("in Samy's chat with a Tavily key alone leave them out", async () => {
+    delete process.env.FIRECRAWL_API_KEY;
+    process.env.TAVILY_API_KEY = 'tvly-test';
+
+    expect(await offered(true)).toEqual([
       'generateImageTool',
       'scheduleOnePost',
     ]);
