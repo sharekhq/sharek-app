@@ -3,14 +3,16 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Param,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { Organization } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { ThrottlerRealIpGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { BrandWebsiteService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.website.service';
 import {
@@ -42,9 +44,11 @@ export class BrandsController {
     return this._brandService.create(org.id, body);
   }
 
-  // The lookups save nothing, so they answer 200 rather than POST's 201
+  // Each lookup reads a site or an image for whoever asks, so it is capped per
+  // client, as the other routes that send requests out are
+  @UseGuards(ThrottlerRealIpGuard)
+  @Throttle({ default: { limit: 30, ttl: 3600000 } })
   @Post('/website')
-  @HttpCode(200)
   async suggestFromWebsite(
     @GetOrgFromRequest() org: Organization,
     @Body() body: BrandWebsiteDto
@@ -52,8 +56,9 @@ export class BrandsController {
     return this._brandWebsiteService.suggestFromWebsite(org.id, body.url);
   }
 
+  @UseGuards(ThrottlerRealIpGuard)
+  @Throttle({ default: { limit: 30, ttl: 3600000 } })
   @Post('/website/colours')
-  @HttpCode(200)
   async coloursFromLogo(@Body() body: BrandWebsiteColoursDto) {
     return {
       colours: await this._brandWebsiteService.coloursFromLogo(body.logo),
