@@ -5,6 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { partition, uniq } from 'lodash';
+import { extname } from 'path';
 import sharp from 'sharp';
 import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
@@ -36,6 +37,9 @@ const COLOUR_READS = 3;
 // A logo is sampled inside this many pixels, enough to count its colours
 const SAMPLE_EDGE = 64;
 
+// An SVG logo is saved as a PNG this many pixels on its long side
+const SVG_EDGE = 1024;
+
 // The Media library takes an image up to this size, so a larger logo couldn't
 // be saved to the kit
 const LOGO_MAX_BYTES = getMaxSize('image/png');
@@ -54,12 +58,29 @@ const UNSAVED_LOGO = "This logo couldn't be saved.";
 // and the query say nothing about the image itself.
 const namesLogo = (link: string) => /logo/i.test(new URL(link).pathname);
 
+// The type a link's path ends in ("/brand/Logo.SVG?v=2" is ".svg"), the only
+// one a page's image link carries
+const typeOf = (link: string) => extname(new URL(link).pathname).toLowerCase();
+
 const candidatesOf = ({ images = [], favicon }: WebPage) => {
   const [named, others] = partition(images, namesLogo);
-  return uniq([...named, ...others, ...(favicon ? [favicon] : [])]).slice(
-    0,
-    LOGOS_MAX
+  return (
+    uniq([...named, ...others, ...(favicon ? [favicon] : [])])
+      // Neither sharp nor the Media library takes an ICO, a favicon's usual type
+      .filter((link) => typeOf(link) !== '.ico')
+      .slice(0, LOGOS_MAX)
   );
+};
+
+// The PNG an SVG draws, SVG_EDGE pixels on its long side and transparent where
+// it draws nothing. It is drawn at that size, since one drawn at its own size
+// and enlarged would be blurred.
+const pngOf = async (svg: Buffer) => {
+  const { width, height } = await sharp(svg).metadata();
+  return sharp(svg, { density: (72 * SVG_EDGE) / Math.max(width, height) })
+    .resize(SVG_EDGE, SVG_EDGE, { fit: 'inside' })
+    .png()
+    .toBuffer();
 };
 
 // Pixels are counted in boxes 32 values wide on each channel. The lightest box
@@ -218,10 +239,23 @@ export class BrandWebsiteService {
       throw new HttpException('Brand not found', HttpStatus.NOT_FOUND);
     }
 
-    let logoId: string | undefined;
-    if (logo) {
+    const saved = logo ? await this.saveLogo(org, logo) : undefined;
+
+    return this._brandService.saveKit(org, brandId, {
+      ...(saved ? { logoId: saved.id } : {}),
+      colours: uniq([
+        ...brand.kit.colours,
+        ...colours.map((colour) => colour.toUpperCase()),
+      ]).slice(0, BRAND_COLOURS_MAX),
+    });
+  }
+
+  // The Media library takes no SVG, which can carry a script, so an SVG logo is
+  // saved as the PNG it draws, its bytes read as the colours' are
+  private async saveLogo(org: string, logo: string) {
+    if (typeOf(logo) !== '.svg') {
       try {
-        ({ id: logoId } = await this._mediaService.uploadFromUrl(org, logo));
+        return await this._mediaService.uploadFromUrl(org, logo);
       } catch (err) {
         if (err instanceof BadRequestException) {
           throw new HttpException(
@@ -233,13 +267,17 @@ export class BrandWebsiteService {
       }
     }
 
-    return this._brandService.saveKit(org, brandId, {
-      ...(logoId ? { logoId } : {}),
-      colours: uniq([
-        ...brand.kit.colours,
-        ...colours.map((colour) => colour.toUpperCase()),
-      ]).slice(0, BRAND_COLOURS_MAX),
-    });
+    let png: Buffer;
+    try {
+      png = await pngOf(
+        await readOrFetch(logo, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
+      );
+    } catch {
+      // A link the site doesn't serve, or bytes that draw nothing
+      throw new HttpException(UNSAVED_LOGO, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    return this._mediaService.saveImage(org, png, 'image/png');
   }
 
   // An image sharp can't read (an ICO, a page that isn't one) or a link that
