@@ -291,6 +291,7 @@ describe('the full card', () => {
       'Sharek reads your site and suggests a logo and colours. You choose what goes in.'
     );
     expect(field().getAttribute('dir')).toBe('ltr');
+    expect(field().getAttribute('placeholder')).toBe('yourbrand.com');
     expect(
       document.querySelector(`label[for="${field().id}"]`)?.textContent
     ).toBe(TITLE);
@@ -719,6 +720,8 @@ describe('the full card', () => {
     expect(section.textContent).toContain('أضف إلى الهوية');
     expect(section.textContent).toContain('ليس الآن');
     expect(field().getAttribute('dir')).toBe('ltr');
+    // the example is a Latin domain in either language
+    expect(field().getAttribute('placeholder')).toBe('yourbrand.com');
   });
 });
 

@@ -357,6 +357,11 @@ const REUSED = [
   ['continue', 'Continue', 'متابعة'],
 ] as const;
 
+// Keys whose Arabic is their English on purpose: [key, text]. Part 3's walk:
+// the website's address field had no example; a domain is typed in Latin, and
+// the field keeps it left to right, so its example is the same in both.
+const SAME = [['brands_website_placeholder', 'yourbrand.com']] as const;
+
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
 // _zero, _one and _two say the number in words, as media_selection_limit does.
 // A brand with no channels can be deleted, so brands_delete_body has an en
@@ -757,6 +762,11 @@ describe('Brands locale keys', () => {
     }
   );
 
+  it.each(SAME)('reads %s as "%s" in en and ar alike', (key, text) => {
+    expect(en[key]).toBe(text);
+    expect(ar[key]).toBe(text);
+  });
+
   it.each(PLURALS)(
     'reads %s in every plural form en and ar have, as the canvas words it',
     (key, enForms, arForms) => {
@@ -805,7 +815,7 @@ describe('Brands locale keys', () => {
       (match) => match[1]
     );
 
-    it.each([...STRINGS, ...REUSED, ...PLURALS].map(([key]) => key))(
+    it.each([...STRINGS, ...REUSED, ...SAME, ...PLURALS].map(([key]) => key))(
       'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog or onboarding: %s',
       (key) => {
         expect(referenced).toContain(key);
