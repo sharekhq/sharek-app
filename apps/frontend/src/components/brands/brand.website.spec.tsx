@@ -1037,6 +1037,12 @@ describe('the fonts the site names', () => {
       'No logo was found on this site. You can upload your own.'
     );
     expect(noteOf('Colours')).toBe('No colours were found on this site.');
+    // the kit has no font, so both are offered, ticked
+    expect(fontNames()).toEqual([
+      [HEADINGS, 'Playfair Display'],
+      [BODY, 'Noto Sans'],
+    ]);
+    expect([fontTicked(HEADINGS), fontTicked(BODY)]).toEqual([true, true]);
     expect(button('Add to kit')!.hasAttribute('disabled')).toBe(false);
 
     await click(fontTick(HEADINGS));
@@ -1048,6 +1054,27 @@ describe('the fonts the site names', () => {
     await click(button('Add to kit'));
 
     expect(added()).toEqual([{ colours: [], bodyFont: 'Noto Sans' }]);
+  });
+
+  // The same site on a kit that has those two names already: its fonts aren't
+  // offered, and it gave nothing else, so there is nothing to add. "Found on"
+  // over a line that there is no logo and one that there are no colours, with
+  // an Add to kit nothing could enable, would say something was found.
+  it('says nothing was found when all the site gave is the fonts the kit has already, with no suggestions and no Add to kit', async () => {
+    answers['/brands/website'] = () =>
+      answer({ foundOn: 'rawda.sa', logos: [], colours: [], ...FONTS });
+    await mountCard(brand(FONTS));
+
+    await lookUp();
+
+    expect(card()!.querySelector('[role="alert"]')?.textContent).toBe(
+      'Nothing was found at this address. Try another address, or upload your logo yourself.'
+    );
+    expect(card()!.textContent).not.toContain('Found on');
+    expect(card()!.textContent).not.toContain('No logo was found');
+    expect(button('Add to kit')).toBeUndefined();
+    // the address stays, to try another
+    expect(field().value).toBe('rawda.sa');
   });
 
   it('reads in Arabic, each font name and the kit name under it kept left to right', async () => {
