@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -286,6 +286,7 @@ export const StudioComponent: FC = () => {
   const [lastSaved, setLastSaved] = useState<Media | null>(null);
   const [chip, setChip] = useState<StudioChip['id']>('all');
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const catalog = useMemo(
     () =>
@@ -303,10 +304,13 @@ export const StudioComponent: FC = () => {
     [catalog, chip, query, t]
   );
 
-  // Clear search starts over: no text, and every category (FR-007).
+  // Clear search starts over: no text, and every category (FR-007). The
+  // button leaves with the no-match block, so the focus goes to the field,
+  // ready for another word, rather than falling to the page.
   const clearSearch = useCallback(() => {
     setQuery('');
     setChip('all');
+    searchRef.current?.focus();
   }, []);
 
   // The tool has already put its output in the Media library; here it is only
@@ -432,6 +436,7 @@ export const StudioComponent: FC = () => {
         </p>
         <div className="w-[340px] shrink-0 phone:w-full">
           <SearchField
+            ref={searchRef}
             label={t('studio_search', 'Search tools and models')}
             value={query}
             onChange={setQuery}

@@ -3,6 +3,7 @@
 import {
   ComponentProps,
   FC,
+  forwardRef,
   KeyboardEvent,
   ReactNode,
   useCallback,
@@ -661,12 +662,16 @@ const CustomerGroup: FC<{
 // script, keeps its own direction. Empty, the field has no letter to take one
 // from, and dir="auto" would turn an Arabic placeholder left to right, so it
 // follows the page until something is typed. The padding is the icon's on
-// both sides, because typed text may run either way.
-export const SearchField: FC<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ label, value, onChange }) => (
+// both sides, because typed text may run either way. Its ref is the input's,
+// so Studio can put the focus back in it after Clear search.
+export const SearchField = forwardRef<
+  HTMLInputElement,
+  {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }
+>(({ label, value, onChange }, ref) => (
   // a margin, since the icon is placed from this box's edge
   <div className="relative mx-[4px]">
     <svg
@@ -684,6 +689,7 @@ export const SearchField: FC<{
       <path d="M20 20l-3.5-3.5" />
     </svg>
     <input
+      ref={ref}
       type="search"
       dir="auto"
       value={value}
@@ -696,7 +702,7 @@ export const SearchField: FC<{
       )}
     />
   </div>
-);
+));
 
 // case and accents aside, so "cafe" finds "Café"
 const fold = (text: string) =>
