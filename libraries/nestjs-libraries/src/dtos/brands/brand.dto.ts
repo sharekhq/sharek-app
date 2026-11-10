@@ -32,7 +32,10 @@ const trim = ({ value }: { value: unknown }) =>
 const trimOrClear = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || null : value;
 
-const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
+// A colour a kit takes: a 6-digit hex code, in either case. Exported so the
+// website lookup offers a colour by the same rule rather than by a second
+// copy of it.
+export const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 // The addresses "Fill from my website" fetches: absolute http(s) only, since
 // readOrFetch reads any other string as a local file's path.

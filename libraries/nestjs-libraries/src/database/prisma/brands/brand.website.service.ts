@@ -4,6 +4,7 @@ import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
   FirecrawlService,
   SiteBranding,
+  UNREADABLE_SITE,
 } from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import {
@@ -15,6 +16,7 @@ import { getMaxSize } from '@gitroom/nestjs-libraries/upload/custom.upload.valid
 import {
   BRAND_COLOURS_MAX,
   BRAND_FONT_MAX,
+  HEX_COLOUR,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 type WebsiteSuggestions = {
@@ -43,8 +45,7 @@ const LOGO_MAX_BYTES = getMaxSize('image/png');
 // time is a link that can't be read.
 const LOGO_READ_TIMEOUT = 5_000;
 
-// The card says each of these in its own words.
-const UNREADABLE_SITE = "This site couldn't be read.";
+// The card says this, and the lookup's UNREADABLE_SITE, in its own words.
 const UNSAVED_LOGO = "This logo couldn't be saved.";
 
 // What sharp reads of the image at a link; nothing when the link can't be
@@ -65,12 +66,9 @@ const imageAt = async (link: string): Promise<Metadata | undefined> => {
 const worksAsLogo = ({ format, width, height }: Metadata) =>
   format === 'svg' || Math.min(width, height) >= ICON_EDGE;
 
-// A colour a kit takes: a 6-digit hex code, here in capitals
-const HEX_COLOUR = /^#[0-9A-F]{6}$/;
-
-// The site's colours a kit can take, in capitals and each once, in the order
-// given. Firecrawl's answer is handed on as it came, so a colour may be no hex
-// code, or no text at all.
+// The site's colours a kit can take, by the DTO's own rule, in capitals and
+// each once, in the order given. Firecrawl's answer is handed on as it came,
+// so a colour may be no hex code, or no text at all.
 const coloursOf = (colours: unknown[]): string[] =>
   uniq(
     colours

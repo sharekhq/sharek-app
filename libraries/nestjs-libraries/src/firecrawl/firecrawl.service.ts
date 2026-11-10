@@ -17,9 +17,10 @@ const TOO_LONG =
   'The web lookup took too long. Say it failed and offer to try again.';
 
 // What Firecrawl says of the site itself, which a caller tells apart by
-// status.
+// status. The second is exported so Brands, which says it of every failure
+// but a refused site, has no second copy of it.
 const REFUSED_SITE = "This kind of site can't be read.";
-const UNREADABLE_SITE = "This site couldn't be read.";
+export const UNREADABLE_SITE = "This site couldn't be read.";
 
 // Firecrawl counts the time a call waits in its queue against `timeout`, so
 // its own limit sits under ours: a queued call fails as one that took too
