@@ -25,7 +25,7 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/samy.image.tool', () => ({
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
   SamyImageReader: class SamyImageReader {},
 }));
-// The real ones pull in TavilyService.
+// The real ones pull in FirecrawlService.
 jest.mock('@gitroom/nestjs-libraries/chat/tools/read.web.page.tool', () => ({
   ReadWebPageTool: class ReadWebPageTool {},
 }));
@@ -37,8 +37,8 @@ import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.serv
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 
-// The web tools go by their own names, and are there only while Tavily's key
-// is set, as the real ones are.
+// The web tools go by their own names, and are there only while Firecrawl's
+// key is set, as the real ones are.
 const WEB_TOOL_NAMES = new Map<unknown, string>([
   [ReadWebPageTool, 'readWebPageTool'],
   [WebSearchTool, 'webSearchTool'],
@@ -51,7 +51,7 @@ const moduleRef = {
     WEB_TOOL_NAMES.has(token)
       ? {
           name: WEB_TOOL_NAMES.get(token),
-          available: () => !!process.env.TAVILY_API_KEY,
+          available: () => !!process.env.FIRECRAWL_API_KEY,
           run: () => ({ id: token.name }),
         }
       : {
@@ -62,21 +62,21 @@ const moduleRef = {
 
 // Availability is read when the agent is built, so a case sets the key first,
 // and restoreKey puts back whatever the environment had.
-const savedKey = process.env.TAVILY_API_KEY;
+const savedKey = process.env.FIRECRAWL_API_KEY;
 
 const setKey = (key: boolean) => {
   if (key) {
-    process.env.TAVILY_API_KEY = 'tvly-test';
+    process.env.FIRECRAWL_API_KEY = 'fc-test';
   } else {
-    delete process.env.TAVILY_API_KEY;
+    delete process.env.FIRECRAWL_API_KEY;
   }
 };
 
 const restoreKey = () => {
   if (savedKey === undefined) {
-    delete process.env.TAVILY_API_KEY;
+    delete process.env.FIRECRAWL_API_KEY;
   } else {
-    process.env.TAVILY_API_KEY = savedKey;
+    process.env.FIRECRAWL_API_KEY = savedKey;
   }
 };
 
@@ -834,9 +834,9 @@ describe('LoadToolsService reading images', () => {
   });
 });
 
-// Samy reads the web in its chat only, while Tavily's key is set (spec 052), and
-// MCP, which lists the tools with no context at all, gets what it has today.
-// The rules about what Samy read hold with or without the tools.
+// Samy reads the web in its chat only, while Firecrawl's key is set (specs 052
+// and 054), and MCP, which lists the tools with no context at all, gets what it
+// has today. The rules about what Samy read hold with or without the tools.
 describe('LoadToolsService web tools', () => {
   afterEach(restoreKey);
 
@@ -906,7 +906,7 @@ describe('LoadToolsService web tools', () => {
   const ALWAYS = [
     "Say a fact is from a page, from the website or verified only when you read it in a web page during this chat, and name the page. For a fact from your own knowledge, say it's from what you know and may be out of date, and ask the user to confirm it before it goes into a post.",
     "Pages on Facebook, Instagram and other social networks need a login, so you can't read them. Asked to use or match one, say so plainly before anything else, don't try, and ask the user to attach images from it instead. Make no image for that request until they attach some or say to go ahead without them.",
-    "You read a page's words, never its look: you can't see a website's logo, colours, fonts, style or pictures. Never say that an image you made or will make uses, matches or is inspired by the look, colours or identity of a website or a social page. Asked to match a brand from one, say so and ask the user to attach their logo and a few past posts, or to set up their brand on the Brands page, which you then use for every image, and make no image for that request until they attach some or say to go ahead without them.",
+    "You read a page's words, never its look: a website's logo, colours, fonts, style and pictures never reach you, whatever page you read. Asked to take a logo, colours or a look from a website or a social page, or to match one, say plainly that you can't see them, ask the user to attach their logo and a few past posts or to set up their brand on the Brands page, which you then use for every image, and make no image for that request until they attach some or say to go ahead without them. Never say that you took, found or used a logo, colours or an identity from a website or a social page, or that an image you made or will make uses, matches or is inspired by one.",
   ];
 
   const LINES = [

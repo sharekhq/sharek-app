@@ -1,16 +1,17 @@
-// Nothing here reaches Tavily (same shell pattern as samy.image.tool.spec).
-jest.mock('@gitroom/nestjs-libraries/tavily/tavily.service', () => ({
-  TavilyService: class {},
+// Nothing here reaches Firecrawl (same shell pattern as samy.image.tool.spec).
+jest.mock('@gitroom/nestjs-libraries/firecrawl/firecrawl.service', () => ({
+  FirecrawlService: class {},
 }));
 
 import { HttpException } from '@nestjs/common';
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
+import { FirecrawlService } from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 
 const org = { id: 'org-1', name: 'Sharek' };
 
 const pages = [
   { url: 'https://a.example/', text: 'Fees: 4,200 a term.' },
-  { url: 'https://b.example/', error: 'Failed to fetch url' },
+  { url: 'https://b.example/', error: "This page couldn't be read." },
 ];
 
 const LIMIT =
@@ -19,9 +20,12 @@ const LIMIT =
 const FAILED =
   "The web lookup failed. Say it failed and offer to try again; don't answer from memory as if you had read it.";
 
-const makeTool = (extract?: jest.Mock) => {
-  const tavily = { extract: extract ?? jest.fn().mockResolvedValue(pages) };
-  return { tool: new ReadWebPageTool(tavily as any).run() as any, tavily };
+const makeTool = (read?: jest.Mock) => {
+  const firecrawl = { read: read ?? jest.fn().mockResolvedValue(pages) };
+  return {
+    tool: new ReadWebPageTool(firecrawl as any).run() as any,
+    firecrawl,
+  };
 };
 
 // checkAuth only writes to the request context when it finds an authInfo, and
@@ -42,6 +46,14 @@ describe('ReadWebPageTool', () => {
 
     expect(new ReadWebPageTool({} as any).name).toBe('readWebPageTool');
     expect(tool.id).toBe('readWebPageTool');
+  });
+
+  // What Nest gives the tool, which a test that builds the tool itself can't
+  // see.
+  it('is given FirecrawlService', () => {
+    expect(Reflect.getMetadata('design:paramtypes', ReadWebPageTool)).toEqual([
+      FirecrawlService,
+    ]);
   });
 
   it('says what it reads, what it returns, what it cuts and what it can’t read', () => {
@@ -79,6 +91,12 @@ describe('ReadWebPageTool', () => {
       expect(parse(['a.example/about']).success).toBe(false);
       expect(parse(['ftp://a.example/file.txt']).success).toBe(false);
     });
+
+    it('addresses the model is told must be absolute', () => {
+      expect(makeTool().tool.inputSchema.shape.urls.description).toBe(
+        'Each an absolute http/https URL.'
+      );
+    });
   });
 
   // Mastra validates the return against this schema, so without the error field
@@ -94,42 +112,62 @@ describe('ReadWebPageTool', () => {
     expect(tool.outputSchema.safeParse({ error: 'no' }).success).toBe(true);
   });
 
+  it('declares each page as its url, with its text or its error', () => {
+    const page = makeTool().tool.outputSchema.shape.pages.unwrap().element;
+
+    expect(Object.keys(page.shape).sort()).toEqual(['error', 'text', 'url']);
+    expect(page.safeParse({ text: 'Fees: 4,200 a term.' }).success).toBe(false);
+  });
+
   describe('is offered', () => {
-    const saved = process.env.TAVILY_API_KEY;
+    const saved = {
+      FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY,
+      TAVILY_API_KEY: process.env.TAVILY_API_KEY,
+    };
 
     afterEach(() => {
-      if (saved === undefined) {
-        delete process.env.TAVILY_API_KEY;
-      } else {
-        process.env.TAVILY_API_KEY = saved;
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
       }
     });
 
-    it('while a Tavily key is set', () => {
-      process.env.TAVILY_API_KEY = 'tvly-test';
+    it('while a Firecrawl key is set', () => {
+      process.env.FIRECRAWL_API_KEY = 'fc-test';
 
       expect(new ReadWebPageTool({} as any).available()).toBe(true);
     });
 
     it('not without one', () => {
-      delete process.env.TAVILY_API_KEY;
+      delete process.env.FIRECRAWL_API_KEY;
 
       expect(new ReadWebPageTool({} as any).available()).toBe(false);
     });
 
     it('not with an empty one', () => {
-      process.env.TAVILY_API_KEY = '';
+      process.env.FIRECRAWL_API_KEY = '';
+
+      expect(new ReadWebPageTool({} as any).available()).toBe(false);
+    });
+
+    // The Tavily key that offered it before part 2 offers nothing now.
+    it('not with a Tavily key alone', () => {
+      delete process.env.FIRECRAWL_API_KEY;
+      process.env.TAVILY_API_KEY = 'tvly-test';
 
       expect(new ReadWebPageTool({} as any).available()).toBe(false);
     });
   });
 
   it('reads the addresses for this organization, and returns the pages', async () => {
-    const { tool, tavily } = makeTool();
+    const { tool, firecrawl } = makeTool();
 
     const result = await tool.execute(call, context());
 
-    expect(tavily.extract).toHaveBeenCalledWith('org-1', call.urls);
+    expect(firecrawl.read).toHaveBeenCalledWith('org-1', call.urls);
     expect(result).toEqual({ pages });
   });
 
@@ -172,14 +210,14 @@ describe('ReadWebPageTool', () => {
       });
 
       it('the same with no organization to read', async () => {
-        const { tool, tavily } = makeTool();
+        const { tool, firecrawl } = makeTool();
 
         const result = await tool.execute(call, {
           requestContext: new Map(),
         } as any);
 
         expect(result).toEqual({ error: FAILED });
-        expect(tavily.extract).not.toHaveBeenCalled();
+        expect(firecrawl.read).not.toHaveBeenCalled();
       });
     });
   });
@@ -188,8 +226,8 @@ describe('ReadWebPageTool', () => {
   // calls in one step and calls across steps share one request context, and each
   // POST builds a new one.
   describe('makes at most 5 web lookups in one message', () => {
-    it('refuses a sixth call without reaching Tavily, and says what to tell the user', async () => {
-      const { tool, tavily } = makeTool();
+    it('refuses a sixth call without reaching Firecrawl, and says what to tell the user', async () => {
+      const { tool, firecrawl } = makeTool();
       const run = context();
 
       for (let lookup = 0; lookup < 5; lookup++) {
@@ -197,11 +235,11 @@ describe('ReadWebPageTool', () => {
       }
 
       expect(await tool.execute(call, run)).toEqual({ error: LIMIT });
-      expect(tavily.extract).toHaveBeenCalledTimes(5);
+      expect(firecrawl.read).toHaveBeenCalledTimes(5);
     });
 
     it('lets exactly five of six calls started together through', async () => {
-      const { tool, tavily } = makeTool();
+      const { tool, firecrawl } = makeTool();
       const run = context();
 
       const results = await Promise.all(
@@ -212,12 +250,12 @@ describe('ReadWebPageTool', () => {
       expect(results.filter((result) => result.error === LIMIT)).toHaveLength(
         1
       );
-      expect(tavily.extract).toHaveBeenCalledTimes(5);
+      expect(firecrawl.read).toHaveBeenCalledTimes(5);
     });
 
     // Unlike an image, a lookup that failed may still have spent a credit.
     it('keeps the slot of a call that failed', async () => {
-      const extract = jest
+      const read = jest
         .fn()
         .mockRejectedValueOnce(
           new HttpException(
@@ -226,7 +264,7 @@ describe('ReadWebPageTool', () => {
           )
         )
         .mockResolvedValue(pages);
-      const { tool, tavily } = makeTool(extract);
+      const { tool, firecrawl } = makeTool(read);
       const run = context();
 
       await tool.execute(call, run);
@@ -235,7 +273,7 @@ describe('ReadWebPageTool', () => {
       }
 
       expect(await tool.execute(call, run)).toEqual({ error: LIMIT });
-      expect(tavily.extract).toHaveBeenCalledTimes(5);
+      expect(firecrawl.read).toHaveBeenCalledTimes(5);
     });
 
     it('starts again on a new context, as a regenerate does', async () => {
