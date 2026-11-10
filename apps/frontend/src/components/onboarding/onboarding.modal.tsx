@@ -25,7 +25,10 @@ import {
 } from '@gitroom/frontend/components/public-api/public.component';
 import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
 import { tutorialVideoEmbedUrl } from '@gitroom/frontend/components/ui/tutorial.video';
-import { OnboardingBrand } from '@gitroom/frontend/components/onboarding/onboarding.brand';
+import {
+  OnboardingBrand,
+  OnboardingBrandDraft,
+} from '@gitroom/frontend/components/onboarding/onboarding.brand';
 
 interface OnboardingModalProps {
   onClose: () => void;
@@ -33,6 +36,7 @@ interface OnboardingModalProps {
 
 export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
   const [step, setStep] = useState(1);
+  const [brand, setBrand] = useState<OnboardingBrandDraft>({ name: '' });
   const modals = useModals();
   const t = useT();
 
@@ -113,6 +117,8 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
             )}
             {step === 2 && (
               <OnboardingBrand
+                draft={brand}
+                setDraft={setBrand}
                 onBack={() => setStep(1)}
                 onNext={() => setStep(3)}
               />

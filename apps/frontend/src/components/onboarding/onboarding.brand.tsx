@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useId, useState } from 'react';
+import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
@@ -19,6 +19,12 @@ import {
   WebsiteLookupFields,
 } from '@gitroom/frontend/components/brands/brand.website';
 
+// What the step has done, which the modal keeps for it, as each step change
+// unmounts the step left: the name typed and, once Continue has created the
+// brand, its id. Coming back shows that brand, its name read-only, and
+// Continue then only saves suggestions to it.
+export type OnboardingBrandDraft = { name: string; id?: string };
+
 // "Your brand" (boards OnboardBrand and OnboardBrandPhone, FR-030): a name,
 // the Brands page's website lookup, and on the organization's first brand the
 // offer to put its channels in it, ticked. Skip creates nothing. Continue
@@ -27,9 +33,11 @@ import {
 // again saves to the brand already created. Sharek's own step, so it lives
 // here and upstream's onboarding.modal.tsx only names it in its steps.
 export const OnboardingBrand: FC<{
+  draft: OnboardingBrandDraft;
+  setDraft: Dispatch<SetStateAction<OnboardingBrandDraft>>;
   onBack: () => void;
   onNext: () => void;
-}> = ({ onBack, onNext }) => {
+}> = ({ draft, setDraft, onBack, onNext }) => {
   const t = useT();
   const fetch = useFetch();
   const id = useId();
@@ -37,11 +45,10 @@ export const OnboardingBrand: FC<{
   const { data: brands, mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
   const channels: Channel[] = integrations;
-  const [name, setName] = useState('');
+  const { name, id: created } = draft;
   const [move, setMove] = useState(true);
   const [creating, setCreating] = useState(false);
   const [problem, setProblem] = useState<'taken' | 'error'>();
-  const [created, setCreated] = useState<string>();
   const saving = creating || lookup.busy === 'save';
 
   // The server moves the channels in no brand only into the organization's
@@ -89,7 +96,7 @@ export const OnboardingBrand: FC<{
     if (!brandId) {
       return;
     }
-    setCreated(brandId);
+    setDraft((current) => ({ ...current, id: brandId }));
     const saved = !lookup.kept || !!(await lookup.save(brandId));
     reloadBrands();
     reloadChannels();
@@ -127,7 +134,7 @@ export const OnboardingBrand: FC<{
             maxLength={BRAND_NAME_MAX}
             dir={name ? 'auto' : undefined}
             readOnly={!!created}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setDraft({ name: e.target.value })}
             className={clsx(
               'h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
               FOCUS_RING
