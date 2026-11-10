@@ -112,7 +112,7 @@ const SAMY_LINES = [
 ];
 
 // Samy's tools that read the web. Like SamyImageTool they stay out of toolList,
-// and each is there only while this install has Tavily's key.
+// and each is there only while this install has Firecrawl's key.
 const WEB_TOOLS = [ReadWebPageTool, WebSearchTool];
 
 // After SAMY_LINES, whose rules about the web hold either way: the set that
