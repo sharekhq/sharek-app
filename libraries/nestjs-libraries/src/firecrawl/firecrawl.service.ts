@@ -244,13 +244,21 @@ export class FirecrawlService {
   // answer belongs to the address its call asked for. A page that failed keeps
   // its reason as its error while the others are read; only the service
   // failing every page fails the read, with the first page's reason, since
-  // nothing could be read. The log line counts the pages that came back with
-  // text.
+  // nothing could be read. Anything else that fails, such as an answer off
+  // Firecrawl's documented shape, fails the read for the tool to word. The log
+  // line counts the pages that came back with text.
   async read(org: string, urls: string[]): Promise<WebPage[]> {
     const started = Date.now();
     try {
       const answers = await Promise.all(
-        urls.map((url) => this.page(url).catch((err: HttpException) => err))
+        urls.map((url) =>
+          this.page(url).catch((err) => {
+            if (err instanceof HttpException) {
+              return err;
+            }
+            throw err;
+          })
+        )
       );
       if (
         answers.every(
