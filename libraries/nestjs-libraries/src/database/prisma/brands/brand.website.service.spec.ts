@@ -19,6 +19,7 @@ import { BadRequestException, HttpException } from '@nestjs/common';
 import sharp from 'sharp';
 import { BrandWebsiteService } from './brand.website.service';
 import { readOrFetch } from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
+import type { Brand } from './brand.service';
 
 const read = readOrFetch as jest.Mock;
 
@@ -69,7 +70,7 @@ const ico = () => {
   return bytes;
 };
 
-const rawda = {
+const rawda: Brand = {
   id: 'brand-1',
   name: 'Rawda',
   kit: {

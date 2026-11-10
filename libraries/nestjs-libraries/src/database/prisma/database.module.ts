@@ -23,6 +23,7 @@ import { RevenueCatProvider } from '@gitroom/nestjs-libraries/services/payment/p
 import { ExtractContentService } from '@gitroom/nestjs-libraries/openai/extract.content.service';
 import { OpenaiService } from '@gitroom/nestjs-libraries/openai/openai.service';
 import { DeepgramService } from '@gitroom/nestjs-libraries/deepgram/deepgram.service';
+import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
 import { ClippingService } from '@gitroom/nestjs-libraries/database/prisma/clipping/clipping.service';
 import { ClippingRepository } from '@gitroom/nestjs-libraries/database/prisma/clipping/clipping.repository';
 import { AgenciesService } from '@gitroom/nestjs-libraries/database/prisma/agencies/agencies.service';
@@ -35,6 +36,7 @@ import { SignatureRepository } from '@gitroom/nestjs-libraries/database/prisma/s
 import { SignatureService } from '@gitroom/nestjs-libraries/database/prisma/signatures/signature.service';
 import { BrandRepository } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository';
 import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import { BrandWebsiteService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.website.service';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
 import { SetsService } from '@gitroom/nestjs-libraries/database/prisma/sets/sets.service';
@@ -85,6 +87,7 @@ import { AdminStatsService } from '@gitroom/nestjs-libraries/database/prisma/adm
     AutopostService,
     SignatureService,
     BrandService,
+    BrandWebsiteService,
     MediaService,
     MediaRepository,
     AgenciesService,
@@ -94,6 +97,7 @@ import { AdminStatsService } from '@gitroom/nestjs-libraries/database/prisma/adm
     ExtractContentService,
     OpenaiService,
     DeepgramService,
+    TavilyService,
     ClippingService,
     ClippingRepository,
     FalService,
