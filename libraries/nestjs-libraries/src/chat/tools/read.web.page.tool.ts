@@ -3,7 +3,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { HttpException, Injectable } from '@nestjs/common';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
+import { FirecrawlService } from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 
 export const WEB_LOOKUPS_PER_MESSAGE = 5;
 
@@ -13,7 +13,7 @@ export const WEB_LOOKUPS_MADE = 'samyWebLookupsMade';
 
 // Read and raised before anything awaits, because a step's parallel calls all
 // start together. Each POST builds a new context, so a regenerate starts again.
-// A call that then fails keeps its slot, since Tavily may have billed it.
+// A call that then fails keeps its slot, since Firecrawl may have billed it.
 export const takeWebLookup = (run: any): string | undefined => {
   const lookupsMade: number = run?.get(WEB_LOOKUPS_MADE) ?? 0;
   if (lookupsMade >= WEB_LOOKUPS_PER_MESSAGE) {
@@ -29,11 +29,11 @@ export const takeWebLookup = (run: any): string | undefined => {
  */
 @Injectable()
 export class ReadWebPageTool implements AgentToolInterface {
-  constructor(private _tavilyService: TavilyService) {}
+  constructor(private _firecrawlService: FirecrawlService) {}
   name = 'readWebPageTool';
 
   available() {
-    return !!process.env.TAVILY_API_KEY;
+    return !!process.env.FIRECRAWL_API_KEY;
   }
 
   run() {
@@ -82,7 +82,7 @@ export class ReadWebPageTool implements AgentToolInterface {
           const org = JSON.parse(run?.get('organization') as string);
 
           return {
-            pages: await this._tavilyService.extract(org.id, inputData.urls),
+            pages: await this._firecrawlService.read(org.id, inputData.urls),
           };
         } catch (err) {
           // The service's failures are already written for the model to relay.

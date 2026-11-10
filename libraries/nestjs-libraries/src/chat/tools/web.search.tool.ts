@@ -3,7 +3,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { HttpException, Injectable } from '@nestjs/common';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
+import { FirecrawlService } from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 import { takeWebLookup } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
 
 /**
@@ -12,11 +12,11 @@ import { takeWebLookup } from '@gitroom/nestjs-libraries/chat/tools/read.web.pag
  */
 @Injectable()
 export class WebSearchTool implements AgentToolInterface {
-  constructor(private _tavilyService: TavilyService) {}
+  constructor(private _firecrawlService: FirecrawlService) {}
   name = 'webSearchTool';
 
   available() {
-    return !!process.env.TAVILY_API_KEY;
+    return !!process.env.FIRECRAWL_API_KEY;
   }
 
   run() {
@@ -61,7 +61,10 @@ export class WebSearchTool implements AgentToolInterface {
           const org = JSON.parse(run?.get('organization') as string);
 
           return {
-            results: await this._tavilyService.search(org.id, inputData.query),
+            results: await this._firecrawlService.search(
+              org.id,
+              inputData.query
+            ),
           };
         } catch (err) {
           // The service's failures are already written for the model to relay.
