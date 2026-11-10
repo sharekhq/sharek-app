@@ -483,12 +483,14 @@ describe('the bell', () => {
     expect(buttonIn(host).querySelector('circle')).toBeNull();
   });
 
+  // The button sizes the target and takes the pointer cursor, so the wrapper
+  // carries neither: over the open popup's empty space nothing is clickable.
   it('keeps the wrapper that places the popup and holds the click-away ref', async () => {
     const host = await render(<NotificationComponent />);
     const wrapper = host.firstElementChild!;
 
     expect(wrapper.getAttribute('class')).toBe(
-      'relative mobile:static cursor-pointer select-none coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center'
+      'relative mobile:static select-none'
     );
     expect(mockClickAway.current).toBe(wrapper);
   });
