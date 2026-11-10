@@ -2,18 +2,16 @@
 
 import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
 import clsx from 'clsx';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Button } from '@gitroom/react/form/button';
 import { BRAND_NAME_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
-import {
-  Channel,
-  FOCUS_RING,
-} from '@gitroom/frontend/components/launches/channel.panel';
-import { Check } from '@gitroom/frontend/components/launches/tags.component';
+import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  MoveChannelsOffer,
+  useCreateBrand,
+} from '@gitroom/frontend/components/brands/brand.new';
 import {
   useWebsiteLookup,
   WebsiteLookupFields,
@@ -39,64 +37,39 @@ export const OnboardingBrand: FC<{
   onNext: () => void;
 }> = ({ draft, setDraft, onBack, onNext }) => {
   const t = useT();
-  const fetch = useFetch();
   const id = useId();
   const lookup = useWebsiteLookup();
-  const { data: brands, mutate: reloadBrands } = useBrands();
-  const { data: integrations, mutate: reloadChannels } = useIntegrationList();
-  const channels: Channel[] = integrations;
+  const { ungrouped, create } = useCreateBrand();
+  const { mutate: reloadBrands } = useBrands();
+  const { mutate: reloadChannels } = useIntegrationList();
   const { name, id: created } = draft;
   const [move, setMove] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [problem, setProblem] = useState<'taken' | 'error'>();
+  const [problem, setProblem] = useState<string>();
   const saving = creating || lookup.busy === 'save';
 
-  // The server moves the channels in no brand only into the organization's
-  // first brand (FR-005), so the offer is made only then, as New brand does.
-  const ungrouped = brands?.length
-    ? 0
-    : channels.filter((channel) => !channel.customer?.id).length;
-
-  const messages = {
-    taken: t('brands_name_taken', 'A brand with this name already exists.'),
-    error: t('could_not_save_group', 'Could not save the group.'),
-  };
-
-  // POST /brands, answering the new brand's id. A taken name (400) says so in
-  // New brand's words; one the fetch interceptor answered says nothing more.
-  const create = async () => {
+  // New brand's POST /brands, answering the new brand's id, which the draft
+  // keeps; a refusal says why under the name, in New brand's words.
+  const createBrand = async () => {
     setProblem(undefined);
     setCreating(true);
-    try {
-      const response = await fetch('/brands', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: name.trim(),
-          moveUngrouped: !!ungrouped && move,
-        }),
-      });
-      if (response.ok) {
-        return (await response.json()).id as string;
-      }
-      setProblem(response.status === 400 ? 'taken' : 'error');
-    } catch (e) {
-      if (!isAlreadyAnswered(e)) {
-        setProblem('error');
-      }
-    } finally {
-      setCreating(false);
+    const answer = await create(name, move);
+    setCreating(false);
+    if ('id' in answer) {
+      setDraft((current) => ({ ...current, id: answer.id }));
+      return answer.id;
     }
+    setProblem(answer.problem);
     return undefined;
   };
 
   // The brand list and the channel list reload once the kit is saved, so the
   // new brand's kit and its channels show everywhere in the app.
   const next = async () => {
-    const brandId = created ?? (await create());
+    const brandId = created ?? (await createBrand());
     if (!brandId) {
       return;
     }
-    setDraft((current) => ({ ...current, id: brandId }));
     const saved = !lookup.kept || !!(await lookup.save(brandId));
     reloadBrands();
     reloadChannels();
@@ -142,7 +115,7 @@ export const OnboardingBrand: FC<{
           />
           {problem && (
             <p role="alert" className="text-[13px] leading-[1.5] text-error">
-              {messages[problem]}
+              {problem}
             </p>
           )}
         </div>
@@ -151,37 +124,21 @@ export const OnboardingBrand: FC<{
           label={t('brands_onboard_website', 'Your website')}
         />
         {!!ungrouped && (
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={move}
+          <MoveChannelsOffer
+            checked={move}
+            onToggle={() => setMove(!move)}
             disabled={!!created}
-            onClick={() => setMove(!move)}
-            className={clsx(
-              'flex items-start gap-[12px] p-[12px] rounded-[10px] border text-start cursor-pointer disabled:cursor-default transition-colors',
-              move ? 'border-brand bg-brandSoft' : 'border-line',
-              FOCUS_RING
+            title={t(
+              'brands_onboard_put_channels',
+              'Put my {{count}} channels in this brand',
+              { count: ungrouped }
             )}
-          >
-            {/* the channel list's Check, which the offer's button ticks */}
-            <Check value={move} onChange={() => {}} />
-            <span className="flex flex-col gap-[3px]">
-              <span className="text-[14px] font-[600] text-ink">
-                {t(
-                  'brands_onboard_put_channels',
-                  'Put my {{count}} channels in this brand',
-                  { count: ungrouped }
-                )}
-              </span>
-              <span className="text-[12.5px] leading-[1.45] text-muted">
-                {t(
-                  'brands_onboard_move_later',
-                  'You can move them later from Brands.',
-                  { count: ungrouped }
-                )}
-              </span>
-            </span>
-          </button>
+            hint={t(
+              'brands_onboard_move_later',
+              'You can move them later from Brands.',
+              { count: ungrouped }
+            )}
+          />
         )}
       </div>
 

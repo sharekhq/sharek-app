@@ -2,8 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import { FC, FormEvent, useState } from 'react';
-import clsx from 'clsx';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { BRAND_NAME_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -13,16 +11,16 @@ import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import {
-  Channel,
-  FOCUS_RING,
-} from '@gitroom/frontend/components/launches/channel.panel';
-import { Check } from '@gitroom/frontend/components/launches/tags.component';
+import { Channel } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   Brand,
   useBrandChange,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  MoveChannelsOffer,
+  useCreateBrand,
+} from '@gitroom/frontend/components/brands/brand.new';
 
 // The calendar's rename dialog, loaded when it opens, so the calendar page's
 // module (the calendar, the composer) stays out of the Brands page.
@@ -38,50 +36,34 @@ const DIALOG_WIDTH = 520;
 
 // New brand (board BrandsNew): the name, and on the organization's first
 // brand only, the offer to move the channels in no brand into it, ticked
-// (FR-005). A taken name keeps the dialog open with the page's own words for
-// the API's 400.
+// (FR-005). A refusal, a taken name among them, keeps the dialog open and
+// says why in a toast.
 const NewBrand: FC<{
-  ungrouped: number;
   close: () => void;
   onCreated: (id: string) => void;
-}> = ({ ungrouped, close, onCreated }) => {
+}> = ({ close, onCreated }) => {
   const t = useT();
-  const fetch = useFetch();
   const toaster = useToaster();
+  const { ungrouped, create } = useCreateBrand();
   const [name, setName] = useState('');
   const [move, setMove] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const create = async (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      const response = await fetch('/brands', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: name.trim(),
-          moveUngrouped: !!ungrouped && move,
-        }),
-      });
-      if (!response.ok) {
-        toaster.show(
-          response.status === 400
-            ? t('brands_name_taken', 'A brand with this name already exists.')
-            : t('could_not_save_group', 'Could not save the group.'),
-          'warning'
-        );
-        return;
-      }
-      const { id } = await response.json();
+    const created = await create(name, move);
+    setSaving(false);
+    if ('id' in created) {
       close();
-      onCreated(id);
-    } finally {
-      setSaving(false);
+      onCreated(created.id);
+    } else if (created.problem) {
+      toaster.show(created.problem, 'warning');
     }
   };
 
   return (
-    <form onSubmit={create} className="flex flex-col gap-[16px]">
+    <form onSubmit={submit} className="flex flex-col gap-[16px]">
       {/* An empty field keeps the interface's direction: dir="auto" with
           nothing typed resolves left to right. */}
       <Input
@@ -95,35 +77,19 @@ const NewBrand: FC<{
         onChange={(e) => setName(e.target.value)}
       />
       {!!ungrouped && (
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={move}
-          onClick={() => setMove(!move)}
-          className={clsx(
-            'flex items-start gap-[12px] p-[12px] rounded-[10px] border text-start cursor-pointer transition-colors',
-            move ? 'border-brand bg-brandSoft' : 'border-line',
-            FOCUS_RING
+        <MoveChannelsOffer
+          checked={move}
+          onToggle={() => setMove(!move)}
+          title={t(
+            'brands_move_ungrouped',
+            'Move my {{count}} channels with no brand into it',
+            { count: ungrouped }
           )}
-        >
-          {/* the channel list's Check, which the offer's button ticks */}
-          <Check value={move} onChange={() => {}} />
-          <span className="flex flex-col gap-[3px]">
-            <span className="text-[14px] font-[600] text-ink">
-              {t(
-                'brands_move_ungrouped',
-                'Move my {{count}} channels with no brand into it',
-                { count: ungrouped }
-              )}
-            </span>
-            <span className="text-[12.5px] leading-[1.45] text-muted">
-              {t(
-                'brands_move_ungrouped_hint',
-                'Offered with your first brand only. You can move channels out later.'
-              )}
-            </span>
-          </span>
-        </button>
+          hint={t(
+            'brands_move_ungrouped_hint',
+            'Offered with your first brand only. You can move channels out later.'
+          )}
+        />
       )}
       <div className="flex justify-end gap-[8px]">
         <Button variant="ghost" onClick={close}>
@@ -144,7 +110,7 @@ export const useBrandDialogs = () => {
   const t = useT();
   const send = useBrandChange();
   const modals = useModals();
-  const { data: brands, mutate: reloadBrands } = useBrands();
+  const { mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
   const channels: Channel[] = integrations;
 
@@ -159,11 +125,6 @@ export const useBrandDialogs = () => {
       size: DIALOG_WIDTH,
       children: (close) => (
         <NewBrand
-          ungrouped={
-            brands?.length
-              ? 0
-              : channels.filter((channel) => !channel.customer?.id).length
-          }
           close={close}
           onCreated={(id) => {
             reload();
