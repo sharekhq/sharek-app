@@ -1,5 +1,6 @@
-// readOrFetch has one caller, MediaService.loadReferences (spec 031): the AI
-// image references, which must not read an unbounded file. Providers read media
+// readOrFetch reads the AI image references in MediaService.loadReferences
+// (spec 031), which must not read an unbounded file, and a brand's logo links
+// in BrandWebsiteService (spec 053). Providers read media
 // through SocialAbstract.readOrFetch. The Media library's
 // multipart upload path never checks a size on the server, so a stored file
 // can be any size, and a reference is read into the memory of the one backend
@@ -168,6 +169,40 @@ describe('with a bound', () => {
     await expect(readOrFetch(LOCAL, BOUND)).resolves.toEqual(
       Buffer.from('LOCAL-BYTES')
     );
+  });
+});
+
+// A caller inside a deadline of its own, such as a brand's website lookup
+// inside nginx's 95 s, gives each request a shorter wait; every other caller
+// keeps SocialAbstract's 120 s.
+describe('the wait for each request', () => {
+  let timeout: jest.SpyInstance;
+
+  beforeEach(() => {
+    timeout = jest.spyOn(AbortSignal, 'timeout');
+    head.mockResolvedValue({ headers: { 'content-length': String(MB) } });
+  });
+
+  afterEach(() => {
+    timeout.mockRestore();
+  });
+
+  it('is 120 s for the HEAD and for the GET when the caller gives none', async () => {
+    await readOrFetch(URL, BOUND);
+
+    expect(timeout.mock.calls).toEqual([[120_000], [120_000]]);
+  });
+
+  it('is the one the caller gives, for the HEAD and for the GET', async () => {
+    await readOrFetch(URL, BOUND, 5_000);
+
+    expect(timeout.mock.calls).toEqual([[5_000], [5_000]]);
+  });
+
+  it('is the one the caller gives for a read with no bound', async () => {
+    await readOrFetch(URL, undefined, 5_000);
+
+    expect(timeout.mock.calls).toEqual([[5_000]]);
   });
 });
 

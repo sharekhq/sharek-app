@@ -123,7 +123,7 @@ beforeEach(() => {
 });
 
 describe('BrandWebsiteService.coloursFromLogo', () => {
-  it('reads the image at the link through readOrFetch, bounded by the size the Media library takes for an image', async () => {
+  it('reads the image at the link through readOrFetch, bounded by the size the Media library takes for an image, each request waiting at most 5 s', async () => {
     const { service } = makeService();
     site['https://cdn.example/logo.png'] = await mark(RED, CLEAR);
 
@@ -131,7 +131,8 @@ describe('BrandWebsiteService.coloursFromLogo', () => {
 
     expect(read).toHaveBeenCalledWith(
       'https://cdn.example/logo.png',
-      10 * 1024 * 1024
+      10 * 1024 * 1024,
+      5_000
     );
   });
 
@@ -444,6 +445,42 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
         'https://www.noordental.example/'
       )
     ).toEqual({ foundOn: 'www.noordental.example', logos: [], colours: [] });
+  });
+
+  // Each of a read's two requests waits at most 5 s, so the 3 reads end within
+  // 30 s beside Tavily's 20 s, well inside nginx's 95 s.
+  it('counts a link whose read ran out of time as one that can’t be read', async () => {
+    const { service, tavily } = makeService();
+    tavily.extract.mockResolvedValue(
+      page({
+        images: [
+          'https://cdn.example/slow-logo.png',
+          'https://cdn.example/mark.png',
+        ],
+      })
+    );
+    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
+    read.mockImplementationOnce(async () => {
+      // How axios rejects a request its signal aborted
+      throw Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' });
+    });
+
+    expect(
+      await service.suggestFromWebsite(
+        'org-1',
+        'https://www.noordental.example/'
+      )
+    ).toEqual({
+      foundOn: 'www.noordental.example',
+      logos: ['https://cdn.example/mark.png'],
+      colours: ['#E30613'],
+    });
+    expect(read).toHaveBeenNthCalledWith(
+      1,
+      'https://cdn.example/slow-logo.png',
+      10 * 1024 * 1024,
+      5_000
+    );
   });
 
   it('reads at most 3 links for the colours: past them, the links stay and there are no colours', async () => {
