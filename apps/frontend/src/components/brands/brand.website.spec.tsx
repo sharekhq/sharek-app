@@ -299,7 +299,9 @@ describe('the full card', () => {
     expect(card()!.textContent).not.toContain('Add to kit');
   });
 
-  it('looks up a bare domain on https, and an address with its own scheme as typed; Enter looks up too', async () => {
+  // The server looks a bare domain up on https:// (BrandWebsiteDto), so the
+  // card sends the address as typed, trimmed.
+  it('sends the address as typed, trimmed, a bare domain or one with its own scheme; Enter looks up too', async () => {
     await mountCard();
 
     await lookUp('  rawda.sa ');
@@ -307,7 +309,7 @@ describe('the full card', () => {
     await enter(field());
 
     expect(sent('/brands/website')).toEqual([
-      { method: 'POST', body: { url: 'https://rawda.sa' } },
+      { method: 'POST', body: { url: 'rawda.sa' } },
       { method: 'POST', body: { url: 'http://rawda.sa/ar' } },
     ]);
   });

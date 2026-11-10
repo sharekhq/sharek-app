@@ -357,7 +357,7 @@ describe('the brand step', () => {
     await lookUp();
 
     expect(sent('/brands/website')).toEqual([
-      { method: 'POST', body: { url: 'https://rawda.sa' } },
+      { method: 'POST', body: { url: 'rawda.sa' } },
     ]);
     expect(document.body.textContent).toContain('Found on ⁨rawda.sa⁩');
     expect(document.body.textContent).toContain('Pick a logo');
