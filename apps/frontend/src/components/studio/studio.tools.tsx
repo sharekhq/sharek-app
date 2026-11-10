@@ -13,6 +13,7 @@ import {
   videoTypeLabel,
 } from '@gitroom/frontend/components/launches/ai.video';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
+import type { StudioMaker } from '@gitroom/frontend/components/videos/video.wrapper';
 
 const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
@@ -21,7 +22,7 @@ const Polonto = dynamic(
 type Translate = ReturnType<typeof useT>;
 type StudioUser = ReturnType<typeof useUser>;
 
-export type StudioCategoryId = 'design' | 'ai_images' | 'ai_video';
+export type StudioCategoryId = 'images' | 'video' | 'edit' | 'branding';
 
 export interface StudioTriggerProps {
   onSaved: (media: Media) => void;
@@ -65,12 +66,20 @@ const ImageEditorTrigger: FC<StudioTriggerProps> = ({
  */
 export interface StudioToolEntry {
   id: string;
+  /** A tool is made for one job; a model is an AI model the member drives. */
+  kind: 'tool' | 'model';
   category: StudioCategoryId;
-  /** Drives the AI tile treatment; the tile pairs it with ✦, never colour alone. */
-  ai: boolean;
   name: (t: Translate) => string;
   description: (t: Translate) => string;
+  /** A public path, under `public/studio/covers/`. Absent: the placeholder. */
+  cover?: string;
   icon: ReactNode;
+  /** Models only. */
+  maker?: StudioMaker;
+  /** Models only: two or three short facts. */
+  facts?: (t: Translate) => string[];
+  /** Video models only, e.g. `0:08`; not translated. */
+  sampleLength?: string;
   entitled: (user: StudioUser) => boolean;
   /** Renders the tool's trigger around the card; opening is the tool's own. */
   trigger: (props: StudioTriggerProps) => ReactNode;
@@ -82,26 +91,30 @@ export interface StudioTool {
   state: 'entitled' | 'locked';
 }
 
-export interface StudioCategory {
-  id: StudioCategoryId;
+export interface StudioChip {
+  id: 'all' | StudioCategoryId;
   label: (t: Translate) => string;
-  tools: StudioTool[];
+  /** Tools and models together, over the whole catalogue. */
+  count: number;
 }
 
 export interface StudioCatalog {
-  /** Fixed order; a category with nothing listed is omitted. */
-  categories: StudioCategory[];
+  /** Every listing, in registry order: the fixed tools, then the providers. */
+  listings: StudioTool[];
+  /** All, then each category with a listing, in fixed order. */
+  chips: StudioChip[];
   hasLockedTools: boolean;
   empty: boolean;
 }
 
-const CATEGORIES: Array<Pick<StudioCategory, 'id' | 'label'>> = [
-  { id: 'design', label: (t) => t('studio_category_design', 'Design') },
-  {
-    id: 'ai_images',
-    label: (t) => t('studio_category_ai_images', 'AI images'),
-  },
-  { id: 'ai_video', label: (t) => t('studio_category_ai_video', 'AI video') },
+const CATEGORIES: Array<{
+  id: StudioCategoryId;
+  label: (t: Translate) => string;
+}> = [
+  { id: 'images', label: (t) => t('studio_category_images', 'Images') },
+  { id: 'video', label: (t) => t('studio_category_video', 'Video') },
+  { id: 'edit', label: (t) => t('studio_category_edit', 'Edit & enhance') },
+  { id: 'branding', label: (t) => t('studio_category_branding', 'Branding') },
 ];
 
 // The composer gates Design Media, AI Image and AI Video on this one flag
@@ -169,28 +182,30 @@ const AiVideoGlyph = () => (
 export const STUDIO_TOOLS: StudioToolEntry[] = [
   {
     id: 'image-editor',
-    category: 'design',
-    ai: false,
+    kind: 'tool',
+    category: 'edit',
     name: (t) => t('studio_tool_image_editor', 'Image editor'),
     description: (t) =>
       t(
         'studio_tool_image_editor_desc',
         'Design and edit images — text, your brand colors, layers.'
       ),
+    cover: '/studio/covers/image-editor.webp',
     icon: <ImageEditorGlyph />,
     entitled: needsAi,
     trigger: (props) => <ImageEditorTrigger {...props} />,
   },
   {
     id: 'ai-image',
-    category: 'ai_images',
-    ai: true,
+    kind: 'tool',
+    category: 'images',
     name: (t) => t('studio_tool_ai_image', 'AI image generator'),
     description: (t) =>
       t(
         'studio_tool_ai_image_desc',
         'Turn a written prompt into a post-ready image.'
       ),
+    cover: '/studio/covers/ai-image.webp',
     icon: <AiImageGlyph />,
     entitled: needsAi,
     trigger: ({ onSaved, renderTrigger }) => (
@@ -209,20 +224,28 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
  * the provider's own card — the chooser's source — so a new provider appears
  * here with no Studio change. One that ships before its card does is named by
  * the endpoint title and described by the generic copy; the endpoint's own
- * description is written for the agent and never shown.
+ * description is written for the agent and never shown. The card's `studio`
+ * part says whether it is a tool or a model and what its card shows; one that
+ * declares nothing is a model with no cover.
  */
 export const videoTool = (type: VideoType): StudioToolEntry => {
   const card = videoTypeCard(type.identifier);
+  const studio = card?.studio;
+  const facts = studio?.facts;
   return {
     id: `video:${type.identifier}`,
-    category: 'ai_video',
-    ai: true,
+    kind: studio?.kind ?? 'model',
+    category: 'video',
     name: (t) => videoTypeLabel(t, type),
     description: (t) =>
       card
         ? t(card.description.key, card.description.fallback)
         : t('studio_video_desc_generic', 'Generate a video with AI.'),
+    cover: studio?.cover,
     icon: <AiVideoGlyph />,
+    maker: studio?.maker,
+    facts: facts && ((t) => facts.map((fact) => t(fact.key, fact.fallback))),
+    sampleLength: studio?.sampleLength,
     entitled: needsAi,
     trigger: ({ onSaved, renderTrigger }) => (
       <AiVideo
@@ -250,28 +273,33 @@ export const buildStudioCatalog = (params: {
   showImageEditor: boolean;
 }): StudioCatalog => {
   const { tools, videoOptions, user, billingEnabled, showImageEditor } = params;
-  const listed = [
+  const listings = [
     ...tools.filter((entry) => showImageEditor || entry.id !== 'image-editor'),
     ...(videoOptions ?? []).map(videoTool),
+  ].map(
+    (entry): StudioTool => ({
+      entry,
+      state: billingEnabled && !entry.entitled(user) ? 'locked' : 'entitled',
+    })
+  );
+
+  const chips: StudioChip[] = [
+    {
+      id: 'all',
+      label: (t) => t('studio_chip_all', 'All'),
+      count: listings.length,
+    },
+    ...CATEGORIES.map((category) => ({
+      ...category,
+      count: listings.filter((tool) => tool.entry.category === category.id)
+        .length,
+    })).filter((chip) => chip.count > 0),
   ];
 
-  const categories = CATEGORIES.map((category) => ({
-    ...category,
-    tools: listed
-      .filter((entry) => entry.category === category.id)
-      .map(
-        (entry): StudioTool => ({
-          entry,
-          state: billingEnabled && !entry.entitled(user) ? 'locked' : 'entitled',
-        })
-      ),
-  })).filter((category) => category.tools.length > 0);
-
   return {
-    categories,
-    hasLockedTools: categories.some((category) =>
-      category.tools.some((tool) => tool.state === 'locked')
-    ),
-    empty: categories.length === 0,
+    listings,
+    chips,
+    hasLockedTools: listings.some((tool) => tool.state === 'locked'),
+    empty: listings.length === 0,
   };
 };
