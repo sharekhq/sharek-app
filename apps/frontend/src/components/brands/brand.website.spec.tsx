@@ -439,6 +439,65 @@ describe('the full card', () => {
     expect(field().value).toBe('rawda.sa');
   });
 
+  // What was found belongs to the address it was found on, so another address
+  // can never add one site's suggestions to the kit.
+  it('drops the suggestions once the address changes, so Add to kit is gone until the new one is looked up', async () => {
+    await mountCard();
+    await lookUp();
+    expect(logos()).toHaveLength(3);
+
+    await type(field(), 'bayt.sa');
+
+    expect(logos()).toHaveLength(0);
+    expect(colours()).toHaveLength(0);
+    expect(card()!.textContent).not.toContain('Found on');
+    expect(button('Add to kit')).toBeUndefined();
+    expect(sent('/brands/b1/kit/from-website')).toEqual([]);
+  });
+
+  it('drops a lookup answer that comes after the address changed', async () => {
+    let release: () => void = () => undefined;
+    answers['/brands/website'] = () =>
+      new Promise((resolve) => {
+        release = () => resolve(answer(SITE));
+      });
+    await mountCard();
+    await lookUp();
+
+    await type(field(), 'bayt.sa');
+    await act(async () => release());
+
+    expect(logos()).toHaveLength(0);
+    expect(card()!.textContent).not.toContain('Found on');
+    expect(button('Look up')!.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('stops saying the lookup failed once the address changes', async () => {
+    answers['/brands/website'] = () => answer({}, 500);
+    await mountCard();
+    await lookUp();
+    expect(card()!.textContent).toContain("Sharek couldn't read this site.");
+
+    await type(field(), 'rawda.sa/ar');
+
+    expect(card()!.textContent).not.toContain(
+      "Sharek couldn't read this site."
+    );
+  });
+
+  it("stops saying the logo couldn't be saved once another logo is picked", async () => {
+    answers['/brands/b1/kit/from-website'] = () => answer({}, 422);
+    await mountCard();
+    await lookUp();
+    await click(button('Add to kit'));
+    expect(card()!.textContent).toContain("This logo couldn't be saved");
+
+    await click(logos()[1]);
+
+    expect(card()!.textContent).not.toContain("This logo couldn't be saved");
+    expect(picked()).toEqual([SITE.logos[1]]);
+  });
+
   it.each([
     ['refuses it (422)', () => answer({ message: 'Unreadable' }, 422)],
     ['fails on the server', () => answer({}, 500)],
