@@ -165,7 +165,8 @@ const StudioCard: FC<{
             />
           </span>
         )}
-        {entry.sampleLength && (
+        {/* the length times the sample, so the placeholder has none */}
+        {entry.sampleLength && entry.cover && !coverFailed && (
           <span
             dir="ltr"
             className="absolute bottom-[10px] end-[10px] h-[22px] px-[6px] rounded-[6px] bg-black/70 text-white text-[12px] font-[600] tabular-nums flex items-center"
