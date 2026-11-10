@@ -239,3 +239,86 @@ describe('Studio (increment 1)', () => {
     );
   });
 });
+
+// The top bar (new-layout/layout.component.tsx): the header and its title, the
+// icon row, the streak and switcher's group and the one separator after it,
+// the mode, language and bell buttons' box (the menu button's) and the streak's
+// and the switcher's pills (layout/streak.component.tsx,
+// layout/organization.selector.tsx).
+describe('Top bar (increment 2)', () => {
+  const MOBILE = '(max-width: 1025px)';
+  const COARSE = '(pointer: coarse)';
+
+  test("the bar's, the title's, the row's, the boxes' and the pills' own forms emit their one rule, outside any query", async () => {
+    await assertEmits(
+      {
+        // the header at every width, and its title
+        'h-[64px]': [['height', '64px']],
+        'text-[20px]': [['font-size', '20px']],
+        // the icon row and the group: the 40px boxes carry the spacing
+        'gap-[4px]': [['gap', '4px']],
+        // a button's box, and a pill's height and corners
+        'h-[40px]': [['height', '40px']],
+        'w-[40px]': [['width', '40px']],
+        'rounded-[10px]': [['border-radius', '10px']],
+        // a pill's sides, and the separator's 8px on each side: symmetric, so
+        // the same in RTL
+        'px-[10px]': px('padding', '10px'),
+        'mx-[8px]': px('margin', '8px'),
+      },
+      null
+    );
+  });
+
+  test('a box and a pill tint and brighten on hover, outside any query', async () => {
+    const css = await assertEmits(
+      {
+        'hover:bg-boxFocused': [['background-color', 'var(--new-boxFocused)']],
+        'hover:text-newTextColor': [
+          ['--tw-text-opacity', '1'],
+          ['color', 'rgb(var(--new-textColor) / var(--tw-text-opacity, 1))'],
+        ],
+      },
+      null
+    );
+    for (const className of ['hover:bg-boxFocused', 'hover:text-newTextColor'])
+      assert.deepEqual(
+        rules(css, className).map((r) => r.selector),
+        [`.${className}:hover`]
+      );
+  });
+
+  test("the separator hides while the streak and switcher's group is empty, and the empty group leaves the row", async () => {
+    // With neither the streak nor the switcher the group is :empty, so it
+    // takes no gap, and the separator, its next sibling, hides with it.
+    const css = await assertEmits(
+      {
+        'empty:hidden': [['display', 'none']],
+        'peer-empty:hidden': [['display', 'none']],
+      },
+      null
+    );
+    assert.deepEqual(
+      rules(css, 'empty:hidden').map((r) => r.selector),
+      ['.empty:hidden:empty']
+    );
+    assert.deepEqual(
+      rules(css, 'peer-empty:hidden').map((r) => r.selector),
+      ['.peer:empty ~ .peer-empty:hidden']
+    );
+  });
+
+  test("the boxes' 44px touch size emits, and only under a coarse pointer", async () => {
+    await assertEmits(
+      {
+        'coarse:h-[44px]': [['height', '44px']],
+        'coarse:w-[44px]': [['width', '44px']],
+      },
+      COARSE
+    );
+  });
+
+  test("the separator's and Chrome's mobile:hidden emits, and only inside the mobile screen", async () => {
+    await assertEmits({ 'mobile:hidden': [['display', 'none']] }, MOBILE);
+  });
+});

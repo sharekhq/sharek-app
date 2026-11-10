@@ -43,12 +43,10 @@ const SHELL_MOBILE = [
   'mobile:-translate-x-full',
   'mobile:rtl:translate-x-full',
   // header, menu button, title, icon group
-  'mobile:h-[64px]',
   'mobile:px-[12px]',
   'mobile:gap-[12px]',
   'mobile:flex',
   'mobile:text-[18px]',
-  'mobile:gap-[14px]',
   'mobile:items-center',
   // notification.component.tsx — popup and bell wrapper
   'mobile:mt-0',
