@@ -282,6 +282,9 @@ const STRINGS = [
   ['brands_look_up', 'Look up', 'ابحث'],
   ['brands_found_on', 'Found on {{address}}', 'وجدنا في {{address}}'],
   ['brands_pick_a_logo', 'Pick a logo', 'اختر شعارًا'],
+  // Each logo choice's name, by its place among them, as brands_n_of_max
+  // reads a count (part 3's walk: every choice was named Logo).
+  ['brands_logo_n', 'Logo {{n}} of {{count}}', 'الشعار {{n}} من {{count}}'],
   ['brands_add_to_kit', 'Add to kit', 'أضف إلى الهوية'],
   ['brands_not_now', 'Not now', 'ليس الآن'],
   [

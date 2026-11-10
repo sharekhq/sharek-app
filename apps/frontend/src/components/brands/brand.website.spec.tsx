@@ -347,9 +347,10 @@ describe('the full card', () => {
     expect(
       logos().map((node) => node.querySelector('img')?.getAttribute('src'))
     ).toEqual(SITE.logos);
+    // each choice named apart, by its place among them
     expect(
       logos().map((node) => node.querySelector('img')?.getAttribute('alt'))
-    ).toEqual(['Logo', 'Logo', 'Logo']);
+    ).toEqual(['Logo 1 of 3', 'Logo 2 of 3', 'Logo 3 of 3']);
     expect(picked()).toEqual([SITE.logos[0]]);
     expect(colours().map((node) => node.getAttribute('aria-label'))).toEqual(
       SITE.colours
@@ -621,6 +622,34 @@ describe('the full card', () => {
     }
   });
 
+  // The picked logo's border is the brand's red, as the focus ring is, so the
+  // ring stands off each logo by a gap of the card's own surface, and only the
+  // picked one carries the ✓. The spec sees the classes and the ✓, not how
+  // they read side by side.
+  it('tells keyboard focus from the picked logo: the ring stands off with a gap, and the picked one has its border and ✓', async () => {
+    await mountCard();
+    await lookUp();
+
+    for (const node of logos()) {
+      expect(classesOf(node)).toEqual(
+        expect.arrayContaining([
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+          'focus-visible:ring-offset-2',
+          'focus-visible:ring-offset-surface',
+        ])
+      );
+    }
+    expect(
+      logos().map((node) => classesOf(node).includes('border-brand'))
+    ).toEqual([true, false, false]);
+    expect(logos().map((node) => !!node.querySelector('svg'))).toEqual([
+      true,
+      false,
+      false,
+    ]);
+  });
+
   it('reads in Arabic, the address kept left to right', async () => {
     await i18next.changeLanguage('ar');
     await mountCard();
@@ -637,6 +666,9 @@ describe('the full card', () => {
     );
     expect(section.textContent).toContain('وجدنا في ⁨rawda.sa⁩');
     expect(section.textContent).toContain('اختر شعارًا');
+    expect(
+      logos().map((node) => node.querySelector('img')?.getAttribute('alt'))
+    ).toEqual(['الشعار 1 من 3', 'الشعار 2 من 3', 'الشعار 3 من 3']);
     expect(section.textContent).toContain('أضف إلى الهوية');
     expect(section.textContent).toContain('ليس الآن');
     expect(field().getAttribute('dir')).toBe('ltr');
