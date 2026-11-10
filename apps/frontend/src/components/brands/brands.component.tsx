@@ -8,6 +8,7 @@ import {
   MOBILE_QUERY,
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import {
@@ -195,6 +196,7 @@ const PageTop: FC<{
 export const BrandsComponent: FC = () => {
   const t = useT();
   const isMobile = useMediaQuery(MOBILE_QUERY);
+  const { websiteLookup } = useVariables();
   const { data } = useBrands();
   const { data: integrations, isLoading: loadingChannels } =
     useIntegrationList();
@@ -248,7 +250,8 @@ export const BrandsComponent: FC = () => {
   const fillFromWebsite = t('brands_fill_from_website', 'Fill from my website');
   // Once the kit has something in it, the kit's Fill from my website card
   // folds into a button beside Rename (FR-027); on a phone, into the ⋯.
-  const folded = !!brand && !kitIsEmpty(brand);
+  // Neither while the server has no web lookup (TAVILY_API_KEY unset).
+  const folded = websiteLookup && !!brand && !kitIsEmpty(brand);
 
   const page =
     current === NO_BRAND ? (

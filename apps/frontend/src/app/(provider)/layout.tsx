@@ -45,6 +45,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           showUpstreamExtras={!!process.env.SHOW_UPSTREAM_EXTRAS}
           showThirdParty={!!process.env.SHOW_THIRD_PARTY}
           showImageEditor={!!process.env.SHOW_IMAGE_EDITOR}
+          websiteLookup={!!process.env.TAVILY_API_KEY}
           supportEnabled={isSupportConfigured()}
           discordUrl={process.env.NEXT_PUBLIC_DISCORD_SUPPORT!}
           frontEndUrl={process.env.FRONTEND_URL!}

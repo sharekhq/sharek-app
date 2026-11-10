@@ -3,6 +3,7 @@
 import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import {
   BRAND_COLOURS_MAX,
   BRAND_NAME_MAX,
@@ -40,6 +41,7 @@ export const OnboardingBrand: FC<{
 }> = ({ draft, setDraft, onBack, onNext }) => {
   const t = useT();
   const id = useId();
+  const { websiteLookup } = useVariables();
   const { name, id: created } = draft;
   const { ungrouped, create } = useCreateBrand();
   const { data: brands, mutate: reloadBrands } = useBrands();
@@ -126,10 +128,14 @@ export const OnboardingBrand: FC<{
             </p>
           )}
         </div>
-        <WebsiteLookupFields
-          lookup={lookup}
-          label={t('brands_onboard_website', 'Your website')}
-        />
+        {/* Without the server's web lookup (TAVILY_API_KEY unset) the step
+            asks for the name alone. */}
+        {websiteLookup && (
+          <WebsiteLookupFields
+            lookup={lookup}
+            label={t('brands_onboard_website', 'Your website')}
+          />
+        )}
         {!!ungrouped && (
           <MoveChannelsOffer
             checked={move}

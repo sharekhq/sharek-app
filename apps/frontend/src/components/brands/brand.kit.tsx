@@ -9,6 +9,7 @@ import {
   BRAND_FONT_MAX,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -305,12 +306,14 @@ const ChannelPicker: FC<{
 // edits it (FR-008). Each kit change saves at once and puts the saved brand in
 // GET /brands' list; a channel move refreshes the channel list. A refused
 // change says why and changes nothing. While the kit is empty, Fill from my
-// website comes first (board BrandsWebsite), a new one for each brand.
+// website comes first (board BrandsWebsite), a new one for each brand, unless
+// the server has no web lookup (TAVILY_API_KEY unset).
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
+  const { websiteLookup } = useVariables();
   const { mutate: setBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
 
@@ -424,7 +427,9 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   return (
     <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
       <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
-        {kitIsEmpty(brand) && <BrandWebsiteCard key={brand.id} brand={brand} />}
+        {websiteLookup && kitIsEmpty(brand) && (
+          <BrandWebsiteCard key={brand.id} brand={brand} />
+        )}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
           <Card
             title={t('brands_logo', 'Logo')}
