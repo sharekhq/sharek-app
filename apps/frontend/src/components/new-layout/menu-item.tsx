@@ -39,20 +39,26 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   }, [label]);
 
   const className = clsx(
-    'group w-full minCustom:min-h-[54px] custom:min-h-[44px] py-[8px] px-[4px] minCustom:gap-[4px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
-    // The hover pair lives on the inactive branch only: `hover:bg-boxFocused`
-    // outranks a plain `bg-*`, so on the current item it would grey the tile.
-    // The current tile's ring has its own token: in dark the tile is
+    'group w-full pt-[4px] pb-[6px] px-[4px] gap-[5px] custom:py-[2px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
+    // The mark sits on the icon's tile below, so no item has a background.
+    // The current item's ring has its own token: in dark its tile is
     // pomegranate, and a pomegranate ring beside it would vanish.
     isActive
-      ? 'bg-selectedBg text-selectedText focus-visible:ring-selectedRing'
-      : 'text-textItemBlur hover:text-textItemFocused hover:bg-boxFocused focus-visible:ring-brand'
+      ? 'text-textItemFocused focus-visible:ring-selectedRing'
+      : 'text-textItemBlur hover:text-textItemFocused focus-visible:ring-brand'
   );
   const current = isActive ? 'page' : undefined;
 
   const inner = (
     <>
-      <div className="custom:scale-90 transition-transform">{icon}</div>
+      <div
+        className={clsx(
+          'flex items-center justify-center w-[40px] h-[40px] custom:w-[36px] custom:h-[36px] rounded-[12px] transition-colors',
+          isActive && 'bg-selectedBg text-selectedText'
+        )}
+      >
+        {icon}
+      </div>
       <div
         ref={labelRef}
         className="text-[13px] leading-[1.1] text-center whitespace-nowrap max-w-full overflow-hidden text-ellipsis"

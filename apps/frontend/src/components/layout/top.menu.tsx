@@ -75,15 +75,32 @@ export const useMenuItem = () => {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="23"
-          height="23"
-          viewBox="0 0 32 32"
+          width="20"
+          height="21"
+          viewBox="0 0 20 21"
           fill="none"
         >
-          <path
-            d="M21.1963 9.07375C20.2913 6.95494 18.6824 5.21364 16.6416 4.14422C14.6009 3.0748 12.2534 2.74287 9.99616 3.20455C7.73891 3.66623 5.71031 4.8932 4.25334 6.67802C2.79637 8.46284 2.0004 10.696 2 13V21.25C2 21.7141 2.18437 22.1592 2.51256 22.4874C2.84075 22.8156 3.28587 23 3.75 23H10.8337C11.6141 24.7821 12.8964 26.2984 14.5241 27.3638C16.1519 28.4293 18.0546 28.9978 20 29H28.25C28.7141 29 29.1592 28.8156 29.4874 28.4874C29.8156 28.1592 30 27.7141 30 27.25V19C29.9995 16.5553 29.1036 14.1955 27.4814 12.3666C25.8593 10.5376 23.6234 9.36619 21.1963 9.07375ZM4 13C4 11.4177 4.46919 9.87103 5.34824 8.55544C6.22729 7.23984 7.47672 6.21446 8.93853 5.60896C10.4003 5.00346 12.0089 4.84504 13.5607 5.15372C15.1126 5.4624 16.538 6.22432 17.6569 7.34314C18.7757 8.46197 19.5376 9.88743 19.8463 11.4393C20.155 12.9911 19.9965 14.5997 19.391 16.0615C18.7855 17.5233 17.7602 18.7727 16.4446 19.6518C15.129 20.5308 13.5823 21 12 21H4V13ZM28 27H20C18.5854 26.9984 17.1964 26.6225 15.974 25.9106C14.7516 25.1986 13.7394 24.1759 13.04 22.9463C14.4096 22.8041 15.7351 22.3804 16.9333 21.7017C18.1314 21.023 19.1763 20.104 20.0024 19.0023C20.8284 17.9006 21.4179 16.6401 21.7337 15.2998C22.0495 13.9595 22.0848 12.5684 21.8375 11.2137C23.5916 11.6277 25.1545 12.6218 26.273 14.035C27.3915 15.4482 28 17.1977 28 19V27Z"
-            fill="currentColor"
+          <rect
+            x="2.67"
+            y="6.83"
+            width="14.67"
+            height="11"
+            rx="3.21"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
+          <path
+            d="M10 6.83V3.72M0.83 11.23V13.98M19.17 11.23V13.98M8.35 14.99H11.65"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="10" cy="2.62" r="1.19" fill="currentColor" />
+          <circle cx="7.43" cy="11.78" r="1.24" fill="currentColor" />
+          <circle cx="12.57" cy="11.78" r="1.24" fill="currentColor" />
         </svg>
       ),
       path: '/agents',
@@ -142,19 +159,16 @@ export const useMenuItem = () => {
           fill="none"
         >
           <path
-            d="M1.75 9.75V4.25C1.75 3.14543 2.64543 2.25 3.75 2.25H9.25L17.1893 10.1893C17.7751 10.7751 17.7751 11.7249 17.1893 12.3107L11.8107 17.6893C11.2249 18.2751 10.2751 18.2751 9.68934 17.6893L1.75 9.75Z"
+            d="M10 2.25A8.25 8.25 0 1 0 10 18.75C10.96 18.75 11.6 17.97 11.6 17.05C11.6 16.61 11.44 16.23 11.16 15.95C10.89 15.68 10.72 15.29 10.72 14.85C10.72 13.94 11.46 13.2 12.37 13.2H14.35A3.9 3.9 0 0 0 18.25 9.31C18.25 5.41 14.56 2.25 10 2.25Z"
             stroke="currentColor"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <circle
-            cx="6.25"
-            cy="6.75"
-            r="1.25"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
+          <circle cx="5.78" cy="9.77" r="1.24" fill="currentColor" />
+          <circle cx="7.8" cy="6.1" r="1.24" fill="currentColor" />
+          <circle cx="12.2" cy="6.1" r="1.24" fill="currentColor" />
+          <circle cx="14.77" cy="9.22" r="1.24" fill="currentColor" />
         </svg>
       ),
       path: '/brands',
@@ -326,10 +340,10 @@ export const TopMenu: FC = () => {
   const { isGeneral, billingEnabled } = useVariables();
   return (
     <>
-      {/* Under 800px tall this group had no gap at all while the group below
-          kept 8px, so the top items' hover and active pills butted together and
-          read as one unpadded block. Same gutter in both groups. */}
-      <div className="flex flex-1 flex-col minCustom:gap-[16px] custom:gap-[8px] blurMe">
+      {/* Each item marks only its icon tile, so both groups take the approved
+          canvas's gaps: 8px here and 4px below, 2px under 800px tall so the
+          rail stays as tall as today. */}
+      <div className="flex flex-1 flex-col minCustom:gap-[8px] custom:gap-[2px] blurMe">
         {
           // @ts-ignore
           user?.orgId &&
@@ -362,7 +376,7 @@ export const TopMenu: FC = () => {
               ))
         }
       </div>
-      <div className="flex flex-col minCustom:gap-[20px] custom:gap-[8px] blurMe">
+      <div className="flex flex-col minCustom:gap-[4px] custom:gap-[2px] blurMe">
         {secondMenu
           .filter((f) => {
             if (f.hide) {
