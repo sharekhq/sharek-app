@@ -640,6 +640,8 @@
   "no_statistics_for_platform": "No hay estadísticas para esta plataforma",
   "start_7_days_free_trial": "Comienza la prueba gratuita de 7 días",
   "change_language": "Cambiar idioma",
+  "switch_to_light_mode": "Cambiar al modo claro",
+  "switch_to_dark_mode": "Cambiar al modo oscuro",
   "that_a_wrap": "¡Eso es todo!\n\nSi te gustó este hilo:\n\n1. Sígueme en @{{username}} para más contenido como este\n2. Haz RT al tuit de abajo para compartir este hilo con tu audiencia\n",
   "post_as_images_carousel": "Publicar como carrusel de imágenes",
   "save_set": "Guardar conjunto",

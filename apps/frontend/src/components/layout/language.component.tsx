@@ -126,9 +126,11 @@ export const LanguageComponent = () => {
     });
   };
   return (
-    <div
+    <button
+      type="button"
       onClick={openModal}
-      className="cursor-pointer flex items-center justify-center coarse:min-w-[44px] coarse:min-h-[44px]"
+      aria-label={t('change_language', 'Select Language')}
+      className="flex h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand"
     >
       {/* The circle is its own box: `overflow-hidden` on a 22px round div is
           what crops the flag into a disc, so growing the target has to happen
@@ -149,6 +151,6 @@ export const LanguageComponent = () => {
           title={currentLanguage}
         />
       </div>
-    </div>
+    </button>
   );
 };

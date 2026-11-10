@@ -8,7 +8,7 @@ export const ChromeExtensionComponent = () => {
     <a
       href="https://chromewebstore.google.com/detail/postiz/cidhffagahknaeodkplfbcpfeielnkjl"
       target="_blank"
-      className="hover:text-newTextColor focus-visible:ring-2 focus-visible:ring-brand coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
+      className="flex h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

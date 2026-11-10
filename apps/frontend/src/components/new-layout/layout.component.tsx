@@ -50,7 +50,6 @@ import NotificationComponent from '@gitroom/frontend/components/notifications/no
 import { OrganizationSelector } from '@gitroom/frontend/components/layout/organization.selector';
 import { StreakComponent } from '@gitroom/frontend/components/layout/streak.component';
 import { PreConditionComponent } from '@gitroom/frontend/components/layout/pre-condition.component';
-import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/sentry.feedback.component';
 import { FirstBillingComponent } from '@gitroom/frontend/components/billing/first.billing.component';
 import { TrialTracker } from '@gitroom/frontend/components/layout/gtm.component';
 import { PostHogIdentify } from '@gitroom/react/helpers/posthog';
@@ -63,7 +62,6 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const { backendUrl, billingEnabled, isGeneral, showUpstreamExtras } =
     useVariables();
 
-  // Feedback icon component attaches Sentry feedback to a top-bar icon when DSN is present
   const searchParams = useSearchParams();
   const load = useCallback(async (path: string) => {
     return await (await fetch(path)).json();
@@ -208,7 +206,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe"
                     >
                       {/* relative: the notifications popup spans this bar on small screens */}
-                      <div className="relative flex bg-newBgColorInner h-[80px] mobile:h-[64px] px-[20px] mobile:px-[12px] mobile:gap-[12px] items-center">
+                      <div className="relative flex bg-newBgColorInner h-[64px] px-[20px] mobile:px-[12px] mobile:gap-[12px] items-center">
                         <button
                           ref={menuButtonRef}
                           type="button"
@@ -233,29 +231,25 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                             />
                           </svg>
                         </button>
-                        <div className="text-[24px] mobile:text-[18px] font-[600] flex flex-1 min-w-0">
+                        <div className="text-[20px] mobile:text-[18px] font-[600] flex flex-1 min-w-0">
                           <Title />
                         </div>
-                        <div className="flex gap-[20px] mobile:gap-[14px] mobile:items-center text-textItemBlur">
-                          <div className="phone:hidden">
+                        <div className="flex items-center gap-[4px] text-textItemBlur">
+                          {/* Nothing may wrap the streak or the switcher: with
+                              neither shown the group is :empty, and the
+                              separator after it hides. */}
+                          <div className="peer flex items-center gap-[4px] empty:hidden">
                             <StreakComponent />
+                            <OrganizationSelector />
                           </div>
-                          <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
-                          <OrganizationSelector />
-                          <div className="hover:text-newTextColor">
-                            <ModeComponent />
-                          </div>
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
+                          <div className="w-[1px] h-[20px] mx-[8px] bg-blockSeparator peer-empty:hidden mobile:hidden" />
+                          <ModeComponent />
                           <LanguageComponent />
                           {showUpstreamExtras && (
                             <div className="mobile:hidden">
                               <ChromeExtensionComponent />
                             </div>
                           )}
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <div className="mobile:hidden">
-                            <AttachToFeedbackIcon />
-                          </div>
                           <NotificationComponent />
                         </div>
                       </div>

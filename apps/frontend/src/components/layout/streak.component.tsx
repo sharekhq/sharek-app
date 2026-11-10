@@ -41,7 +41,7 @@ export const StreakComponent: FC = () => {
 
   return (
     <div
-      className="flex items-center gap-[6px] text-orange-500 hover:text-orange-400 cursor-default"
+      className="flex items-center gap-[6px] h-[40px] px-[10px] rounded-[10px] text-orange-500 hover:text-orange-400 hover:bg-boxFocused cursor-default phone:hidden"
       data-tooltip-id="tooltip"
       data-tooltip-content={tooltipContent}
     >

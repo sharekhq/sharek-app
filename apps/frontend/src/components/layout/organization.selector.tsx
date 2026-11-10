@@ -50,7 +50,12 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
             focuses it, a tap anywhere else blurs it, and the same stop lets a
             keyboard reach a switcher it could not reach before. */}
         <div
-          className="group text-[12px] relative rounded-[6px] focus-visible:ring-2 focus-visible:ring-brand coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
+          className={clsx(
+            'group text-[12px] relative focus-visible:ring-2 focus-visible:ring-brand coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center',
+            asOpenSelect
+              ? 'rounded-[6px]'
+              : 'flex items-center h-[40px] px-[10px] rounded-[10px] hover:bg-boxFocused'
+          )}
           tabIndex={0}
         >
           {asOpenSelect && (
@@ -114,9 +119,6 @@ export const OrganizationSelector: FC<{ asOpenSelect?: boolean }> = ({
           )}
         </div>
       </div>
-      {!asOpenSelect && (
-        <div className="w-[1px] h-[20px] bg-blockSeparator phone:hidden" />
-      )}
     </>
   );
 };
