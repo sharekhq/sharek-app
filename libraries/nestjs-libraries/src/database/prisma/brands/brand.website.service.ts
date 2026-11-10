@@ -102,14 +102,16 @@ const GENERIC_FONTS = [
   'initial',
 ];
 
-// A font's plain family name, as a person would type it: without its quotes
-// and outer spaces, and without a build's suffix. None for a generic family,
-// an empty name, one longer than a kit takes, or a value that is no text.
+// A font's plain family name, as a person would type it: the first family of
+// a CSS font stack, without its quotes and outer spaces, and without a build's
+// suffix. None for a generic family, an empty name, one longer than a kit
+// takes, or a value that is no text.
 const fontOf = (name: unknown): string | undefined => {
   if (typeof name !== 'string') {
     return undefined;
   }
   const plain = name
+    .split(',')[0]
     .replace(/^[\s"']+|[\s"']+$/g, '')
     .replace(BUILD_SUFFIX, '');
   return plain &&
