@@ -31,6 +31,11 @@ import {
 } from '@gitroom/frontend/components/brands/brand.kit';
 import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 import {
+  kitIsEmpty,
+  useFillFromWebsite,
+  WebsiteIcon,
+} from '@gitroom/frontend/components/brands/brand.website';
+import {
   BrandMark,
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
@@ -194,6 +199,7 @@ export const BrandsComponent: FC = () => {
   const { data: integrations, isLoading: loadingChannels } =
     useIntegrationList();
   const { openNewBrand, openRenameBrand, openDeleteBrand } = useBrandDialogs();
+  const openWebsite = useFillFromWebsite();
   // The brand picked in the list, or No brand; kept for the visit, as
   // Analytics keeps its channel.
   const [chosen, setChosen] = useState<string | null>(null);
@@ -239,6 +245,10 @@ export const BrandsComponent: FC = () => {
     });
 
   const rename = t('rename', 'Rename');
+  const fillFromWebsite = t('brands_fill_from_website', 'Fill from my website');
+  // Once the kit has something in it, the kit's Fill from my website card
+  // folds into a button beside Rename (FR-027); on a phone, into the ⋯.
+  const folded = !!brand && !kitIsEmpty(brand);
 
   const page =
     current === NO_BRAND ? (
@@ -268,6 +278,16 @@ export const BrandsComponent: FC = () => {
               "Samy and Sharek's AI use this kit to keep your images on-brand."
             )}`}
           >
+            {folded && (
+              <button
+                type="button"
+                onClick={() => openWebsite(brand)}
+                className={clsx(SMALL_BUTTON, 'gap-[6px] mobile:hidden')}
+              >
+                <WebsiteIcon size={15} />
+                {fillFromWebsite}
+              </button>
+            )}
             {/* on a phone, Rename is in the ⋯ alone */}
             <button
               type="button"
@@ -309,6 +329,16 @@ export const BrandsComponent: FC = () => {
                   label: rename,
                   onClick: () => openRenameBrand(brand),
                 },
+                ...(isMobile && folded
+                  ? [
+                      {
+                        key: 'website',
+                        icon: <WebsiteIcon size={16} className="text-muted" />,
+                        label: fillFromWebsite,
+                        onClick: () => openWebsite(brand),
+                      },
+                    ]
+                  : []),
                 {
                   key: 'delete',
                   icon: <TrashIcon size={16} aria-hidden="true" />,

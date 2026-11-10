@@ -1,4 +1,4 @@
-import { act, FC, ReactElement } from 'react';
+import { act, FC, ReactElement, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -28,7 +28,7 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 // The page's brand list, which a save writes the saved brand into.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
   ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
-  useBrands: () => ({ data: [], mutate: reloadBrands }),
+  useBrands: () => ({ mutate: reloadBrands }),
 }));
 // The channel list's focus ring; its module has its own spec.
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
@@ -130,14 +130,18 @@ beforeEach(() => {
   });
 });
 
-// The modal manager keeps its open modals in a module-level store, so a modal
-// one test leaves open is still there for the next one. This hands afterEach
-// a way to empty it.
+// What the page holds: the dialog's opener, as the button beside Rename uses
+// it, and a way for afterEach to empty the modal manager's module-level store,
+// where a modal one test leaves open is still there for the next one.
 let closeEveryModal: (() => void) | undefined;
 let openWebsite: ReturnType<typeof useFillFromWebsite>;
 const Page: FC = () => {
-  closeEveryModal = useModals().closeAll;
-  openWebsite = useFillFromWebsite();
+  const { closeAll } = useModals();
+  const open = useFillFromWebsite();
+  useEffect(() => {
+    closeEveryModal = closeAll;
+    openWebsite = open;
+  });
   return null;
 };
 
@@ -541,7 +545,8 @@ describe('the full card', () => {
     await i18next.changeLanguage('ar');
     await mountCard();
 
-    await lookUp();
+    await type(field(), 'rawda.sa');
+    await click(button('ابحث'));
 
     const title = 'املأ من موقعي';
     const section = Array.from(document.querySelectorAll('section')).find(

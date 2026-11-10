@@ -28,6 +28,10 @@ import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
+  BrandWebsiteCard,
+  kitIsEmpty,
+} from '@gitroom/frontend/components/brands/brand.website';
+import {
   Brand,
   isLive,
   useBrandChange,
@@ -300,7 +304,8 @@ const ChannelPicker: FC<{
 // example posts, the colours, the fonts and the brand's channels. Every member
 // edits it (FR-008). Each kit change saves at once and puts the saved brand in
 // GET /brands' list; a channel move refreshes the channel list. A refused
-// change says why and changes nothing.
+// change says why and changes nothing. While the kit is empty, Fill from my
+// website comes first (board BrandsWebsite), a new one for each brand.
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();
@@ -419,6 +424,9 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   return (
     <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
       <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
+        {kitIsEmpty(brand) && (
+          <BrandWebsiteCard key={brand.id} brandId={brand.id} />
+        )}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
           <Card
             title={t('brands_logo', 'Logo')}
