@@ -368,6 +368,7 @@ describe('the top bar', () => {
       expect.arrayContaining([
         'w-[1px]',
         'h-[20px]',
+        'mx-[8px]',
         'peer-empty:hidden',
         'mobile:hidden',
       ])

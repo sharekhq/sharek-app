@@ -242,7 +242,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                             <StreakComponent />
                             <OrganizationSelector />
                           </div>
-                          <div className="w-[1px] h-[20px] bg-blockSeparator peer-empty:hidden mobile:hidden" />
+                          <div className="w-[1px] h-[20px] mx-[8px] bg-blockSeparator peer-empty:hidden mobile:hidden" />
                           <ModeComponent />
                           <LanguageComponent />
                           {showUpstreamExtras && (
