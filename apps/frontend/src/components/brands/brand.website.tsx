@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -62,8 +63,11 @@ export const WebsiteIcon: FC<{ size: number; className?: string }> = ({
  * the user keeps of it, and the save. Nothing is saved before `save`, which
  * sends only the picked logo and the ticked colours to a brand the caller
  * names (onboarding's, once it has created it). One request at a time.
+ * `room` is how many more colours that brand's kit takes: the server keeps
+ * the kit's own first and drops what doesn't fit, so no more than that are
+ * ticked.
  */
-export const useWebsiteLookup = () => {
+export const useWebsiteLookup = (room: number) => {
   const fetch = useFetch();
   const { mutate: setBrands } = useBrands();
   const [address, setAddress] = useState('');
@@ -129,7 +133,7 @@ export const useWebsiteLookup = () => {
       }
       setFound(answer);
       setLogo(answer.logos[0]);
-      setTicked(answer.colours);
+      setTicked(answer.colours.slice(0, room));
     } catch (e) {
       if (asked() && !isAlreadyAnswered(e)) {
         setProblem('failed');
@@ -139,7 +143,8 @@ export const useWebsiteLookup = () => {
     }
   };
 
-  // Another logo brings its own colours, all ticked; a logo whose colours
+  // Another logo brings its own colours, ticked as far as the room goes; a
+  // logo whose colours
   // can't be read offers none. The picked logo clicked again goes, and the
   // colours can go in alone. Either way a logo that couldn't be saved is no
   // longer the one picked, so what the save said goes.
@@ -169,14 +174,17 @@ export const useWebsiteLookup = () => {
       setBusy(undefined);
     }
     setFound((current) => current && { ...current, colours: next });
-    setTicked(next);
+    setTicked(next.slice(0, room));
   };
 
+  // A colour is ticked only while the kit has room for it.
   const toggle = (code: string) =>
     setTicked((list) =>
       list.includes(code)
         ? list.filter((item) => item !== code)
-        : [...list, code]
+        : list.length < room
+        ? [...list, code]
+        : list
     );
 
   // The saved brand takes its place in GET /brands' list, as a kit change
@@ -217,6 +225,7 @@ export const useWebsiteLookup = () => {
     found,
     logo,
     ticked,
+    room,
     // whether anything would go in
     kept: !!logo || !!colours.length,
     lookUp,
@@ -240,13 +249,15 @@ const Tick: FC = () => (
   </span>
 );
 
-// A row of choices under its name, a group the name labels.
+// A row of choices under its name, a group the name labels, and a note under
+// it when there is one.
 const Choices: FC<{
   label: string;
   busy?: boolean;
+  note?: string;
   className: string;
   children: ReactNode;
-}> = ({ label, busy, className, children }) => {
+}> = ({ label, busy, note, className, children }) => {
   const id = useId();
   return (
     <div
@@ -259,6 +270,7 @@ const Choices: FC<{
         {label}
       </span>
       <div className="flex flex-wrap gap-[10px]">{children}</div>
+      {note && <p className="text-[12.5px] leading-[1.5] text-muted">{note}</p>}
     </div>
   );
 };
@@ -279,7 +291,7 @@ export const WebsiteLookupFields: FC<{
 }> = ({ lookup, label, hideLabel, children }) => {
   const t = useT();
   const id = useId();
-  const { address, busy, problem, found, logo, ticked } = lookup;
+  const { address, busy, problem, found, logo, ticked, room } = lookup;
 
   const messages: Record<Problem, string> = {
     failed: t(
@@ -387,6 +399,15 @@ export const WebsiteLookupFields: FC<{
             <Choices
               label={t('brands_colours', 'Colours')}
               busy={busy === 'colours'}
+              note={
+                room < found.colours.length
+                  ? t(
+                      'brands_website_colours_room',
+                      'Your kit has room for {{count}} more colours.',
+                      { count: room }
+                    )
+                  : undefined
+              }
               className="flex-[1_1_200px]"
             >
               {found.colours.map((code) => (
@@ -397,7 +418,9 @@ export const WebsiteLookupFields: FC<{
                   aria-checked={ticked.includes(code)}
                   aria-label={code}
                   title={code}
-                  disabled={!!busy}
+                  disabled={
+                    !!busy || (!ticked.includes(code) && ticked.length >= room)
+                  }
                   onClick={() => lookup.toggle(code)}
                   className={clsx(
                     'relative flex w-[44px] h-[44px] rounded-[10px] cursor-pointer disabled:cursor-default',
@@ -432,15 +455,15 @@ export const WebsiteLookupFields: FC<{
 // suggestions Add to kit, Not now and the line that nothing is saved before.
 // As a dialog, each closes it; as the kit's card, Not now goes back to the
 // address, and once something is added the kit drops the card (kitIsEmpty).
-const BrandWebsite: FC<{ brandId: string; onClose?: () => void }> = ({
-  brandId,
-  onClose,
-}) => {
+const BrandWebsite: FC<{
+  brand: Pick<Brand, 'id' | 'kit'>;
+  onClose?: () => void;
+}> = ({ brand, onClose }) => {
   const t = useT();
-  const lookup = useWebsiteLookup();
+  const lookup = useWebsiteLookup(BRAND_COLOURS_MAX - brand.kit.colours.length);
 
   const add = async () => {
-    if (await lookup.save(brandId)) {
+    if (await lookup.save(brand.id)) {
       lookup.reset();
       onClose?.();
     }
@@ -489,7 +512,9 @@ const BrandWebsite: FC<{ brandId: string; onClose?: () => void }> = ({
 };
 
 // The full card at the top of a kit while it is empty (board BrandsWebsite).
-export const BrandWebsiteCard: FC<{ brandId: string }> = ({ brandId }) => {
+export const BrandWebsiteCard: FC<{ brand: Pick<Brand, 'id' | 'kit'> }> = ({
+  brand,
+}) => {
   const t = useT();
   return (
     <section className="flex flex-col gap-[12px] min-w-0 p-[16px] rounded-[12px] border border-line bg-surface">
@@ -499,7 +524,7 @@ export const BrandWebsiteCard: FC<{ brandId: string }> = ({ brandId }) => {
           {t('brands_fill_from_website', 'Fill from my website')}
         </h3>
       </div>
-      <BrandWebsite brandId={brandId} />
+      <BrandWebsite brand={brand} />
     </section>
   );
 };
@@ -510,10 +535,10 @@ export const useFillFromWebsite = () => {
   const t = useT();
   const modals = useModals();
 
-  return (brand: Pick<Brand, 'id'>) =>
+  return (brand: Pick<Brand, 'id' | 'kit'>) =>
     modals.openModal({
       title: t('brands_fill_from_website', 'Fill from my website'),
       size: 600,
-      children: (close) => <BrandWebsite brandId={brand.id} onClose={close} />,
+      children: (close) => <BrandWebsite brand={brand} onClose={close} />,
     });
 };

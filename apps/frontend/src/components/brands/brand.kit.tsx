@@ -424,9 +424,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   return (
     <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
       <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
-        {kitIsEmpty(brand) && (
-          <BrandWebsiteCard key={brand.id} brandId={brand.id} />
-        )}
+        {kitIsEmpty(brand) && <BrandWebsiteCard key={brand.id} brand={brand} />}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
           <Card
             title={t('brands_logo', 'Logo')}

@@ -3,7 +3,10 @@
 import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { BRAND_NAME_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import {
+  BRAND_COLOURS_MAX,
+  BRAND_NAME_MAX,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
@@ -37,11 +40,16 @@ export const OnboardingBrand: FC<{
 }> = ({ draft, setDraft, onBack, onNext }) => {
   const t = useT();
   const id = useId();
-  const lookup = useWebsiteLookup();
-  const { ungrouped, create } = useCreateBrand();
-  const { mutate: reloadBrands } = useBrands();
-  const { mutate: reloadChannels } = useIntegrationList();
   const { name, id: created } = draft;
+  const { ungrouped, create } = useCreateBrand();
+  const { data: brands, mutate: reloadBrands } = useBrands();
+  const { mutate: reloadChannels } = useIntegrationList();
+  // A new brand's kit has room for every colour; one created already, come
+  // back to, for what its kit doesn't hold yet.
+  const lookup = useWebsiteLookup(
+    BRAND_COLOURS_MAX -
+      (brands?.find((brand) => brand.id === created)?.kit.colours.length ?? 0)
+  );
   const [move, setMove] = useState(true);
   const [creating, setCreating] = useState(false);
   const [problem, setProblem] = useState<string>();

@@ -163,7 +163,7 @@ const mount = async (children?: ReactElement) => {
   });
 };
 
-const mountCard = () => mount(<BrandWebsiteCard brandId="b1" />);
+const mountCard = () => mount(<BrandWebsiteCard brand={brand()} />);
 
 afterEach(async () => {
   act(() => {
@@ -630,7 +630,7 @@ describe('the dialog from the button beside Rename', () => {
   it('opens the same lookup, and Add to kit saves the kept suggestions and closes it', async () => {
     await mount();
 
-    await act(async () => openWebsite({ id: 'b1' }));
+    await act(async () => openWebsite(brand()));
 
     expect(dialogOpen()).toBe(true);
     expect(document.body.textContent).toContain(
@@ -651,12 +651,12 @@ describe('the dialog from the button beside Rename', () => {
   it('closes with Not now, and saves nothing then or when it is closed', async () => {
     await mount();
 
-    await act(async () => openWebsite({ id: 'b1' }));
+    await act(async () => openWebsite(brand()));
     await lookUp();
     await click(button('Not now'));
     expect(dialogOpen()).toBe(false);
 
-    await act(async () => openWebsite({ id: 'b1' }));
+    await act(async () => openWebsite(brand()));
     await lookUp();
     await click(document.querySelector('.mantine-Modal-close'));
     expect(dialogOpen()).toBe(false);
@@ -669,7 +669,7 @@ describe('the dialog from the button beside Rename', () => {
     answers['/brands/b1/kit/from-website'] = () => answer({}, 422);
     await mount();
 
-    await act(async () => openWebsite({ id: 'b1' }));
+    await act(async () => openWebsite(brand()));
     await lookUp();
     await click(button('Add to kit'));
 
@@ -685,10 +685,8 @@ describe('the dialog from the button beside Rename', () => {
 // kit has, and the card says how many fit.
 describe('a kit with less room for colours than the site suggests', () => {
   const KIT = ['#111111', '#222222', '#333333', '#444444', '#555555'];
-  const note = () =>
-    Array.from(document.querySelectorAll('p')).find((node) =>
-      /room for|colours are full/.test(node.textContent ?? '')
-    );
+  // the line under the colours, in either language
+  const note = () => document.querySelector('[role="group"] > p') ?? undefined;
   const disabled = () =>
     colours()
       .filter((node) => node.hasAttribute('disabled'))
