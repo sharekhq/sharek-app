@@ -21,7 +21,11 @@ const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
 // undefined while GET /brands is still loading
 let brands:
-  | Array<{ id: string; name: string; kit?: { colours: string[] } }>
+  | Array<{
+      id: string;
+      name: string;
+      kit?: { colours: string[]; headingFont?: string; bodyFont?: string };
+    }>
   | undefined = [];
 let channels: Array<{
   id: string;
@@ -448,6 +452,32 @@ describe('the brand step', () => {
     expect(fontTicked('Headings')).toBe(true);
   });
 
+  // The kit a suggestion is held against is the brand this step created, and
+  // on a first visit there is none: another brand's fonts are not this one's.
+  it("ticks each font on a first visit whatever fonts the organization's other brands have, with no kit name under it", async () => {
+    brands = [
+      {
+        id: 'b0',
+        name: 'Bayt Al Qahwa',
+        kit: { colours: [], headingFont: 'Tajawal', bodyFont: 'Noto Sans' },
+      },
+    ];
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+
+    await lookUp();
+
+    expect(fontNames()).toEqual([
+      ['Headings', 'Playfair Display'],
+      ['Body text', 'Noto Sans'],
+    ]);
+    expect([fontTicked('Headings'), fontTicked('Body text')]).toEqual([
+      true,
+      true,
+    ]);
+    expect(document.body.textContent).not.toContain('In your kit now');
+  });
+
   it('ticks every colour the site suggests, as a new brand has room for all six, and says nothing about room', async () => {
     const six = [...SITE.colours, '#1D2B36', '#FFFFFF', '#C0392B'];
     answers['/brands/website'] = () => answer({ ...SITE, colours: six });
@@ -860,6 +890,41 @@ describe('coming back to the step', () => {
     expect(document.body.textContent).toContain(
       'Your kit has room for 1 more colour.'
     );
+  });
+
+  // The fonts a first Continue saved are the brand's own now: a suggestion
+  // that came ticked again would take their place on the next Continue,
+  // unasked (spec 054, FR-006).
+  it("offers a font beside the created brand's own unticked, the kit's name under it, none for the name the kit has already, and Continue sends no font that wasn't ticked", async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Continue'));
+    // the reloaded list holds the new brand, its kit's fonts since filled:
+    // headings of its own, and the body text the site names
+    brands = [
+      {
+        id: 'new1',
+        name: 'Rawda Florist',
+        kit: { colours: [], headingFont: 'Tajawal', bodyFont: 'Noto Sans' },
+      },
+    ];
+
+    await click(button('Back'));
+    await lookUp();
+
+    expect(fontNames()).toEqual([['Headings', 'Playfair Display']]);
+    expect(fontTicked('Headings')).toBe(false);
+    expect(fontField('Headings').parentElement!.textContent).toContain(
+      'In your kit now: ⁨Tajawal⁩'
+    );
+
+    await click(button('Continue'));
+
+    expect(sent('/brands/new1/kit/from-website')).toEqual([
+      { method: 'PUT', body: { logo: SITE.logos[0], colours: SITE.colours } },
+    ]);
+    expect(current()).toBe(3);
   });
 
   it('keeps the name typed, still editable, when the step is skipped and come back to', async () => {
