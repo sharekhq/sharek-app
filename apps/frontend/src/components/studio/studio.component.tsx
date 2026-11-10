@@ -14,10 +14,16 @@ import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import {
   Media,
   useAiVideoTypes,
 } from '@gitroom/frontend/components/launches/ai.video';
+import {
+  FOCUS_RING,
+  onRadioGroupKeyDown,
+  SearchField,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import {
   CheckmarkIcon,
@@ -27,7 +33,9 @@ import {
 } from '@gitroom/frontend/components/ui/icons';
 import {
   buildStudioCatalog,
+  filterStudio,
   STUDIO_TOOLS,
+  StudioChip,
   StudioTool,
 } from '@gitroom/frontend/components/studio/studio.tools';
 
@@ -87,8 +95,7 @@ const useGoToBilling = () => {
 
 /**
  * The Tile card from the approved mockup: a 56px tile above the name and a
- * one-line description. AI tools get the saffron tile with ✦, so the
- * distinction never rests on colour alone.
+ * one-line description.
  */
 const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
   tool,
@@ -110,28 +117,11 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
       )}
     >
       <span className="w-full flex items-start justify-between gap-[8px]">
-        <span
-          className={clsx(
-            'relative w-[56px] h-[56px] rounded-[14px] flex items-center justify-center shrink-0',
-            // Out of reach, the tile drops the accent tint; the spark stays, so
-            // the AI mark never rested on colour.
-            entry.ai && !locked
-              ? 'bg-aiSoft text-aiAccent'
-              : 'bg-surface2 text-inkSoft'
-          )}
-        >
+        <span className="w-[56px] h-[56px] rounded-[14px] flex items-center justify-center shrink-0 bg-surface2 text-inkSoft">
           {loading ? (
             <Loading height={20} width={20} type="spin" color="currentColor" />
           ) : (
             entry.icon
-          )}
-          {entry.ai && (
-            <span
-              aria-hidden="true"
-              className="absolute top-[5px] end-[7px] text-[11px] leading-none"
-            >
-              ✦
-            </span>
           )}
         </span>
         {locked && (
@@ -159,6 +149,43 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
   );
 };
 
+/** Tools or Models: a heading with its subtitle beside it, then the cards. */
+const StudioSection: FC<{
+  title: string;
+  subtitle: string;
+  tools: StudioTool[];
+  onSaved: (media: Media) => void;
+}> = ({ title, subtitle, tools, onSaved }) => (
+  <section className="flex flex-col gap-[14px]">
+    <div className="flex items-baseline flex-wrap gap-x-[12px] gap-y-[4px]">
+      <h2 className="text-[18px] font-[600] text-ink">{title}</h2>
+      <p className="text-[13px] text-muted">{subtitle}</p>
+    </div>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] mobile:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[12px]">
+      {tools.map((tool) => (
+        <StudioCard key={tool.entry.id} tool={tool} onSaved={onSaved} />
+      ))}
+    </div>
+  </section>
+);
+
+// The search field's own magnifier, drawn larger.
+const NoMatchIllustration = () => (
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    className="text-muted"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </svg>
+);
+
 export const StudioComponent: FC = () => {
   const t = useT();
   const user = useUser();
@@ -169,6 +196,8 @@ export const StudioComponent: FC = () => {
   const { data: videoOptions } = useAiVideoTypes();
   const { data: integrations } = useIntegrationList();
   const [lastSaved, setLastSaved] = useState<Media | null>(null);
+  const [chip, setChip] = useState<StudioChip['id']>('all');
+  const [query, setQuery] = useState('');
 
   const catalog = useMemo(
     () =>
@@ -181,6 +210,16 @@ export const StudioComponent: FC = () => {
       }),
     [videoOptions, user, billingEnabled, showImageEditor]
   );
+  const sections = useMemo(
+    () => filterStudio(catalog, chip, query, t),
+    [catalog, chip, query, t]
+  );
+
+  // Clear search starts over: no text, and every category (FR-007).
+  const clearSearch = useCallback(() => {
+    setQuery('');
+    setChip('all');
+  }, []);
 
   // The tool has already put its output in the Media library; here it is only
   // confirmed and offered onward. Nothing opens by itself (FR-009).
@@ -238,22 +277,10 @@ export const StudioComponent: FC = () => {
 
   return (
     <div className="flex flex-col gap-[24px]">
-      <p className="text-[14px] text-muted">
-        {t(
-          'studio_intro',
-          'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
-        )}
-      </p>
-
-      {/* One banner for the whole page, and the only solid-brand action on it. */}
+      {/* One banner for the whole page, at its top, and the only solid-brand
+          action on it. */}
       {catalog.hasLockedTools && (
         <div className="flex items-center gap-[14px] flex-wrap bg-panel border border-line rounded-[12px] p-[16px]">
-          <span
-            aria-hidden="true"
-            className="w-[36px] h-[36px] rounded-[10px] bg-aiSoft text-aiAccent flex items-center justify-center shrink-0 text-[15px]"
-          >
-            ✦
-          </span>
           <span className="flex-1 min-w-[220px] flex flex-col gap-[2px]">
             <span className="text-[15px] font-[600] text-ink">
               {t('studio_upsell_title', 'Unlock AI images and video')}
@@ -306,16 +333,110 @@ export const StudioComponent: FC = () => {
         </div>
       )}
 
-      {catalog.categories.map((category) => (
-        <section key={category.id} className="flex flex-col gap-[12px]">
-          <h2 className="text-[16px] font-[600] text-ink">{category.label(t)}</h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] mobile:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[12px]">
-            {category.tools.map((tool) => (
-              <StudioCard key={tool.entry.id} tool={tool} onSaved={saved} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* The intro and the search share a row; on a phone they stack and
+          the search spans the width (FR-001, FR-016). */}
+      <div className="flex items-center gap-[16px] phone:flex-col phone:items-stretch phone:gap-[12px]">
+        <p className="flex-1 min-w-0 text-[14px] text-muted">
+          {t(
+            'studio_intro',
+            'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
+          )}
+        </p>
+        <div className="w-[340px] shrink-0 phone:w-full">
+          <SearchField
+            label={t('studio_search', 'Search tools and models')}
+            value={query}
+            onChange={setQuery}
+          />
+        </div>
+      </div>
+
+      {/* Exactly one chip is chosen, so the chips are radios: one Tab stop,
+          with arrow keys, as Analytics' Period. On a phone they keep one row
+          that scrolls sideways with no scrollbar, as Samy's attachment row,
+          padded so the scroll does not clip a focus ring. */}
+      <div
+        role="radiogroup"
+        aria-label={t('studio_chips_label', 'Filter by category')}
+        onKeyDown={onRadioGroupKeyDown}
+        className="flex flex-wrap gap-[8px] phone:flex-nowrap phone:overflow-x-auto phone:p-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {catalog.chips.map((item) => {
+          // the chip in force, which is All once the chosen one's category is
+          // gone
+          const checked = item.id === sections.chip;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              tabIndex={checked ? 0 : -1}
+              onClick={() => setChip(item.id)}
+              className={clsx(
+                'inline-flex items-center gap-[8px] h-[36px] coarse:h-[44px] ps-[14px] pe-[8px] rounded-full border text-[14px] font-[600] whitespace-nowrap cursor-pointer transition-colors',
+                FOCUS_RING,
+                checked
+                  ? 'bg-selectedBg text-selectedText border-transparent'
+                  : 'bg-surface text-inkSoft border-line hover:bg-panel'
+              )}
+            >
+              <span>{item.label(t)}</span>
+              <span
+                className={clsx(
+                  'min-w-[22px] h-[22px] px-[6px] rounded-full inline-flex items-center justify-center text-[12px] tabular-nums',
+                  checked ? 'bg-surface' : 'bg-panel text-muted'
+                )}
+              >
+                {item.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!!sections.tools.length && (
+        <StudioSection
+          title={t('studio_section_tools', 'Tools')}
+          subtitle={t(
+            'studio_section_tools_sub',
+            'Made for one job, like an image or a slideshow.'
+          )}
+          tools={sections.tools}
+          onSaved={saved}
+        />
+      )}
+      {!!sections.models.length && (
+        <StudioSection
+          title={t('studio_section_models', 'Models')}
+          subtitle={t(
+            'studio_section_models_sub',
+            'Choose the exact AI model when you want full control over the result.'
+          )}
+          tools={sections.models}
+          onSaved={saved}
+        />
+      )}
+      {!sections.tools.length && !sections.models.length && (
+        <EmptyState
+          className="border border-dashed border-line rounded-[14px]"
+          illustration={<NoMatchIllustration />}
+          title={t('studio_no_match_title', 'Nothing matches “{{query}}”', {
+            query: isolate(query.trim()),
+            // React escapes the title, so i18next mustn't first
+            interpolation: { escapeValue: false },
+          })}
+          description={t(
+            'studio_no_match_body',
+            'Try another word, or clear the search to see every tool.'
+          )}
+          actions={
+            <Button variant="quiet" onClick={clearSearch}>
+              {t('studio_clear_search', 'Clear search')}
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 };

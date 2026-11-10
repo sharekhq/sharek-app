@@ -517,13 +517,14 @@ describe('the search', () => {
 });
 
 describe('opening a card', () => {
-  // No chooser: each video card is its own provider's trigger.
+  // No chooser: each video card is its own provider's trigger, in the page's
+  // order, Image Text Slides under Tools before Veo 3 under Models.
   it('gives each video provider a card that opens that provider alone', async () => {
     await mount();
 
     expect(videoTriggers.map((props) => props.only)).toEqual([
-      'veo3',
       'image-text-slides',
+      'veo3',
     ]);
   });
 
