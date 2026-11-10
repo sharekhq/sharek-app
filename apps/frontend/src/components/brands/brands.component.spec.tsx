@@ -65,7 +65,7 @@ jest.mock('@gitroom/frontend/components/brands/brand.kit', () => ({
 jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
   useBrandDialogs: () => mockDialogs,
 }));
-// Whether the server can look a website up (TAVILY_API_KEY set), as the
+// Whether the server can look a website up (FIRECRAWL_API_KEY set), as the
 // layout reads it.
 const mockVariables = { websiteLookup: true };
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
@@ -471,7 +471,7 @@ describe("a brand's page", () => {
     expect(button(host, 'Rename')).toBeDefined();
   });
 
-  it('offers no Fill from my website while the server has no web lookup (TAVILY_API_KEY unset)', async () => {
+  it('offers no Fill from my website while the server has no web lookup (FIRECRAWL_API_KEY unset)', async () => {
     mockVariables.websiteLookup = false;
     const host = await render();
 

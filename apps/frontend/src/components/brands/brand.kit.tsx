@@ -306,7 +306,7 @@ const ChannelPicker: FC<{
 // GET /brands' list; a channel move refreshes the channel list. A refused
 // change says why and changes nothing. While the kit is empty, Fill from my
 // website comes first (board BrandsWebsite), a new one for each brand, unless
-// the server has no web lookup (TAVILY_API_KEY unset).
+// the server has no web lookup (FIRECRAWL_API_KEY unset).
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();

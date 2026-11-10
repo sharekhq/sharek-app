@@ -250,7 +250,7 @@ export const BrandsComponent: FC = () => {
   const fillFromWebsite = t('brands_fill_from_website', 'Fill from my website');
   // Once the kit has something in it, the kit's Fill from my website card
   // folds into a button beside Rename (FR-027); on a phone, into the ⋯.
-  // Neither while the server has no web lookup (TAVILY_API_KEY unset).
+  // Neither while the server has no web lookup (FIRECRAWL_API_KEY unset).
   const folded = websiteLookup && !!brand && !kitIsEmpty(brand);
 
   const page =

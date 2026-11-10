@@ -56,7 +56,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ publicApi: 'KEY', tier: { public_api: true } }),
 }));
-// websiteLookup: whether the server can look a website up (TAVILY_API_KEY
+// websiteLookup: whether the server can look a website up (FIRECRAWL_API_KEY
 // set), as the layout reads it.
 const mockVariables = {
   billingEnabled: true,
@@ -393,7 +393,7 @@ describe('the brand step', () => {
     expect(document.body.textContent).not.toMatch(/room for|colours are full/);
   });
 
-  it('asks for the name alone while the server has no web lookup (TAVILY_API_KEY unset), and Continue still creates the brand', async () => {
+  it('asks for the name alone while the server has no web lookup (FIRECRAWL_API_KEY unset), and Continue still creates the brand', async () => {
     mockVariables.websiteLookup = false;
     await toBrandStep();
 

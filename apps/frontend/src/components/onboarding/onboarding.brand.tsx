@@ -124,7 +124,7 @@ export const OnboardingBrand: FC<{
             </p>
           )}
         </div>
-        {/* Without the server's web lookup (TAVILY_API_KEY unset) the step
+        {/* Without the server's web lookup (FIRECRAWL_API_KEY unset) the step
             asks for the name alone. */}
         {websiteLookup && (
           <WebsiteLookupFields

@@ -38,7 +38,7 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
 }));
-// Whether the server can look a website up (TAVILY_API_KEY set), as the
+// Whether the server can look a website up (FIRECRAWL_API_KEY set), as the
 // layout reads it.
 const mockVariables = { websiteLookup: true };
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
@@ -290,7 +290,7 @@ describe('a brand kit', () => {
     expect(card('Logo')).toBeDefined();
   });
 
-  it('shows no Fill from my website card, even on an empty kit, while the server has no web lookup (TAVILY_API_KEY unset)', async () => {
+  it('shows no Fill from my website card, even on an empty kit, while the server has no web lookup (FIRECRAWL_API_KEY unset)', async () => {
     mockVariables.websiteLookup = false;
     await mount(brand());
 
