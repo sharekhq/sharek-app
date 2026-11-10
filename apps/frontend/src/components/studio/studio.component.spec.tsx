@@ -1,5 +1,5 @@
 import { act, ReactNode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, Root } from 'react-dom/client';
 
 type Media = { id: string; path: string };
 /** What the page hands each AI tool: a result sink and its own card as trigger. */
@@ -26,7 +26,12 @@ const imageTriggers: Trigger[] = [];
 const push = jest.fn();
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
-  useT: () => (key: string, fallback: string) => fallback,
+  // The fallback with {{var}} filled in, because that is what t() renders.
+  useT:
+    () => (key: string, fallback: string, params?: Record<string, unknown>) =>
+      fallback.replace(/{{(\w+)}}/g, (whole, name) =>
+        params && name in params ? String(params[name]) : whole
+      ),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
@@ -62,19 +67,48 @@ jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => ({
 // at once, so the page's own wiring — the trigger it renders, the provider it
 // seeds, what it does with a result — is all that is under test here. Their
 // own behaviour has specs of its own.
-// The registry knows Veo 3 and nothing else here, so a provider with a card
-// and a provider without one can be told apart.
-const veo3Card = {
-  name: { key: 'video_type_veo3', fallback: 'Veo 3' },
-  description: {
-    key: 'video_type_veo3_desc',
-    fallback: 'One continuous live-action shot.',
+// The registry knows Veo 3 and Image Text Slides, with the Studio parts their
+// providers declare (their own specs pin them), and nothing else, so a
+// provider with a card and a provider without one can be told apart.
+const registryCards: Record<
+  string,
+  { name: { key: string; fallback: string } } & Record<string, unknown>
+> = {
+  veo3: {
+    name: { key: 'video_type_veo3', fallback: 'Veo 3' },
+    description: {
+      key: 'video_type_veo3_desc',
+      fallback: 'One continuous live-action shot.',
+    },
+    pills: [],
+    diagram: null,
+    studio: {
+      kind: 'model',
+      cover: '/studio/covers/veo3.webp',
+      maker: { name: 'Google', logo: '/studio/makers/google.svg' },
+      facts: [
+        { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+        { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+        { key: 'video_type_veo3_fact_sound', fallback: 'Sound' },
+      ],
+      sampleLength: '0:08',
+    },
   },
-  pills: [],
-  diagram: null,
+  'image-text-slides': {
+    name: {
+      key: 'video_type_image_text_slides',
+      fallback: 'Image Text Slides',
+    },
+    description: {
+      key: 'video_type_slides_desc',
+      fallback: 'A narrated slideshow of AI images.',
+    },
+    pills: [],
+    diagram: null,
+    studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
+  },
 };
-const registryCard = (identifier: string) =>
-  identifier === 'veo3' ? veo3Card : undefined;
+const registryCard = (identifier: string) => registryCards[identifier];
 
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImage: (props: Trigger) => {
@@ -120,14 +154,14 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
     ...actual,
     buildStudioCatalog: (params: unknown) =>
       emptyCatalog
-        ? { categories: [], hasLockedTools: false, empty: true }
+        ? { listings: [], chips: [], hasLockedTools: false, empty: true }
         : actual.buildStudioCatalog(params),
   };
 });
 
 import { StudioComponent } from '@gitroom/frontend/components/studio/studio.component';
 
-const mounted: Array<{ unmount: () => void }> = [];
+const mounted: Root[] = [];
 
 const mount = async () => {
   const host = document.createElement('div');
@@ -137,6 +171,13 @@ const mount = async () => {
 
   await act(async () => {
     root.render(<StudioComponent />);
+  });
+};
+
+// The page drawn again, as when the provider list comes back from a reload.
+const rerender = async () => {
+  await act(async () => {
+    mounted[mounted.length - 1].render(<StudioComponent />);
   });
 };
 
@@ -159,9 +200,19 @@ const section = (heading: string) =>
   Array.from(document.querySelectorAll('section')).find(
     (node) => node.querySelector('h2')?.textContent?.trim() === heading
   );
-const videoCards = () =>
-  Array.from(section('AI video')?.querySelectorAll('button') ?? []);
-/** A card carrying the chip. Cards live in a category section; the banner does not. */
+const NAMES = [
+  'Image editor',
+  'AI image generator',
+  'Image Text Slides',
+  'Veo 3',
+  'Sora',
+];
+/** The listings a section shows, by name, in order: none while it is hidden. */
+const listed = (heading: string) =>
+  Array.from(section(heading)?.querySelectorAll('button') ?? []).map((node) =>
+    NAMES.find((name) => node.textContent?.includes(name))
+  );
+/** A card carrying the chip. Cards live in a section; the banner does not. */
 const lockedCards = () =>
   Array.from(document.querySelectorAll('section button')).filter((node) =>
     node.textContent?.includes('Upgrade')
@@ -169,10 +220,49 @@ const lockedCards = () =>
 /** The banner's Upgrade action: the chips carry the word too, inside a card. */
 const upgradeActions = () =>
   buttons().filter((node) => node.textContent?.trim() === 'Upgrade');
-const tile = (name: string) =>
-  Array.from(card(name)?.querySelectorAll('span') ?? []).find((node) =>
-    node.className.includes('w-[56px]')
+const introLine = () => document.querySelector('p');
+const search = () =>
+  document.querySelector<HTMLInputElement>('input[type="search"]');
+const chipGroup = () => document.querySelector('[role="radiogroup"]');
+const chips = () =>
+  Array.from(
+    chipGroup()?.querySelectorAll<HTMLElement>('[role="radio"]') ?? []
   );
+/** A chip is its label, then its count. */
+const chipLabels = () => chips().map((node) => node.children[0]?.textContent);
+const chip = (label: string) =>
+  chips().find((node) => node.children[0]?.textContent === label);
+const checkedChips = () =>
+  chips()
+    .filter((node) => node.getAttribute('aria-checked') === 'true')
+    .map((node) => node.children[0]?.textContent);
+const type = async (text: string) => {
+  const input = search()!;
+  // React tracks the last value it wrote, so assigning `.value` directly looks
+  // like no change at all; the native setter is what moves the tracker.
+  const setter = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(input),
+    'value'
+  )?.set;
+  await act(async () => {
+    setter?.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+};
+const press = async (node: Element, key: string) => {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(async () => {
+    node.dispatchEvent(event);
+  });
+};
+const classes = (node: Element | null | undefined) =>
+  (node?.getAttribute('class') ?? '').split(/\s+/);
+const precedes = (first: Node, then: Node) =>
+  !!(first.compareDocumentPosition(then) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 beforeEach(() => {
   providers = [
@@ -194,24 +284,239 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  document.dir = '';
   jest.clearAllMocks();
 });
 
-describe('the catalog', () => {
-  it('lists every category with its tools', async () => {
+// The page (spec 055, US1 scenarios 1 to 4 and 8, FR-001, FR-004 to FR-007,
+// FR-011, FR-016): the intro and the search on one row, the category chips,
+// then Tools and then Models, each section hidden while it has nothing to show.
+describe('the page', () => {
+  it('shows the intro and the search on one row, then the chips, then Tools, then Models', async () => {
     await mount();
 
-    expect(headings()).toEqual(['Design', 'AI images', 'AI video']);
-    for (const name of [
-      'Image editor',
-      'AI image generator',
-      'Veo 3',
-      'Image Text Slides',
-    ]) {
-      expect(card(name)).toBeTruthy();
-    }
+    const row = introLine()!.parentElement!;
+    expect(introLine()!.textContent).toBe(
+      'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
+    );
+    expect(row.contains(search())).toBe(true);
+    expect(search()!.getAttribute('aria-label')).toBe(
+      'Search tools and models'
+    );
+    expect(chipGroup()?.getAttribute('aria-label')).toBe('Filter by category');
+    expect(headings()).toEqual(['Tools', 'Models']);
+    expect(section('Tools')!.querySelector('p')?.textContent).toBe(
+      'Made for one job, like an image or a slideshow.'
+    );
+    expect(section('Models')!.querySelector('p')?.textContent).toBe(
+      'Choose the exact AI model when you want full control over the result.'
+    );
+    expect(precedes(row, chipGroup()!)).toBe(true);
+    expect(precedes(chipGroup()!, section('Tools')!)).toBe(true);
+    expect(precedes(section('Tools')!, section('Models')!)).toBe(true);
   });
 
+  // In category order, then registry order (research R2).
+  it('lists the tools under Tools and Veo 3 under Models', async () => {
+    await mount();
+
+    expect(listed('Tools')).toEqual([
+      'AI image generator',
+      'Image Text Slides',
+      'Image editor',
+    ]);
+    expect(listed('Models')).toEqual(['Veo 3']);
+  });
+
+  // FR-011: no coming-soon card, notify-me action, suggest bar, recently used
+  // row or made-for filter; the chips and the search are the only controls.
+  it('lists only what works today, with no other section or filter', async () => {
+    await mount();
+
+    expect(document.querySelectorAll('section')).toHaveLength(2);
+    expect(
+      document.querySelectorAll('[role="radiogroup"], [role="group"], select')
+    ).toHaveLength(1);
+    expect(document.querySelectorAll('input')).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(
+      /coming soon|notify me|suggest|recently used/i
+    );
+  });
+
+  // FR-010: no sparkle on a card or on the banner, which shows without AI.
+  it.each([true, false])(
+    'shows no sparkle anywhere, AI on the plan: %s',
+    async (ai) => {
+      user = { tier: { ai } };
+      await mount();
+
+      expect(document.body.textContent).not.toContain('✦');
+    }
+  );
+
+  // FR-016: on a phone the search spans the width and the chips scroll
+  // sideways in one row, with the scrollbar hidden as Samy's attachment row
+  // hides it.
+  it('stacks the row and keeps the chips in one sideways row on a phone', async () => {
+    await mount();
+
+    const row = introLine()!.parentElement!;
+    const searchBox = Array.from(row.children).find((node) =>
+      node.contains(search())
+    );
+    expect(classes(row)).toEqual(
+      expect.arrayContaining(['flex', 'phone:flex-col'])
+    );
+    expect(classes(searchBox)).toEqual(
+      expect.arrayContaining(['w-[340px]', 'phone:w-full'])
+    );
+    expect(classes(chipGroup())).toEqual(
+      expect.arrayContaining([
+        'flex-wrap',
+        'phone:flex-nowrap',
+        'phone:overflow-x-auto',
+        '[scrollbar-width:none]',
+        '[&::-webkit-scrollbar]:hidden',
+      ])
+    );
+  });
+});
+
+describe('the chips', () => {
+  it('offers All and each category holding a listing, with its count and no dot', async () => {
+    await mount();
+
+    expect(
+      chips().map((node) =>
+        Array.from(node.children).map((part) => part.textContent)
+      )
+    ).toEqual([
+      ['All', '4'],
+      ['Images', '1'],
+      ['Video', '2'],
+      ['Edit & enhance', '1'],
+    ]);
+    expect(chips().some((node) => node.querySelector('svg'))).toBe(false);
+  });
+
+  it('checks All on arrival', async () => {
+    await mount();
+
+    expect(chips().map((node) => node.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'false',
+      'false',
+      'false',
+    ]);
+  });
+
+  // the arrow keys move to the next chip or the one before and pick it,
+  // wrapping, the horizontal pair the other way in Arabic, as the chips run.
+  it.each([
+    ['ltr', 'ArrowRight', 'ArrowLeft'],
+    ['rtl', 'ArrowLeft', 'ArrowRight'],
+  ])(
+    'makes the chips one Tab stop, and in %s moves on with %s and back with %s, picking as it goes, wrapping',
+    async (dir, next, back) => {
+      document.dir = dir;
+      await mount();
+      const tabStops = () =>
+        chips().map((node) => node.getAttribute('tabindex'));
+      expect(tabStops()).toEqual(['0', '-1', '-1', '-1']);
+
+      await press(chips()[0], next);
+      expect(document.activeElement).toBe(chips()[1]);
+      expect(checkedChips()).toEqual(['Images']);
+      expect(tabStops()).toEqual(['-1', '0', '-1', '-1']);
+
+      await press(chips()[1], back);
+      expect(checkedChips()).toEqual(['All']);
+      // before the first, the last
+      await press(chips()[0], back);
+      expect(checkedChips()).toEqual(['Edit & enhance']);
+      expect(document.activeElement).toBe(chips()[3]);
+    }
+  );
+
+  it('narrows both sections to the Video chip', async () => {
+    await mount();
+
+    await click(chip('Video'));
+
+    expect(checkedChips()).toEqual(['Video']);
+    expect(listed('Tools')).toEqual(['Image Text Slides']);
+    expect(listed('Models')).toEqual(['Veo 3']);
+  });
+
+  it('hides the Models section under the Images chip', async () => {
+    await mount();
+
+    await click(chip('Images'));
+
+    expect(listed('Tools')).toEqual(['AI image generator']);
+    expect(section('Models')).toBeUndefined();
+    expect(headings()).toEqual(['Tools']);
+  });
+
+  // data-model §5: the chosen category may have no listing left once the
+  // provider list reloads, and its chip goes with it.
+  it('treats a chosen chip whose category is gone after a reload as All', async () => {
+    await mount();
+    await click(chip('Video'));
+
+    providers = [];
+    await rerender();
+
+    expect(chipLabels()).toEqual(['All', 'Images', 'Edit & enhance']);
+    expect(checkedChips()).toEqual(['All']);
+    expect(chip('All')!.getAttribute('tabindex')).toBe('0');
+    expect(listed('Tools')).toEqual(['AI image generator', 'Image editor']);
+  });
+});
+
+describe('the search', () => {
+  it('narrows the sections as it is typed, within the chosen chip', async () => {
+    await mount();
+
+    await type('image');
+    expect(listed('Tools')).toEqual([
+      'AI image generator',
+      'Image Text Slides',
+      'Image editor',
+    ]);
+    expect(section('Models')).toBeUndefined();
+
+    await type('image e');
+    expect(listed('Tools')).toEqual(['Image editor']);
+
+    await click(chip('Video'));
+    await type('image');
+    expect(listed('Tools')).toEqual(['Image Text Slides']);
+    expect(section('Models')).toBeUndefined();
+  });
+
+  it('says nothing matches, naming the typed text, and Clear search brings back every tool on All', async () => {
+    await mount();
+    await click(chip('Video'));
+
+    await type('  zzz ');
+
+    expect(document.querySelectorAll('section')).toHaveLength(0);
+    expect(headings()).toEqual(['Nothing matches “⁨zzz⁩”']);
+    expect(document.body.textContent).toContain(
+      'Try another word, or clear the search to see every tool.'
+    );
+
+    await click(button('Clear search'));
+
+    expect(search()!.value).toBe('');
+    expect(checkedChips()).toEqual(['All']);
+    expect(headings()).toEqual(['Tools', 'Models']);
+    expect(button('Clear search')).toBeUndefined();
+  });
+});
+
+describe('opening a card', () => {
   // No chooser: each video card is its own provider's trigger.
   it('gives each video provider a card that opens that provider alone', async () => {
     await mount();
@@ -313,17 +618,18 @@ describe('when a creation finishes', () => {
 });
 
 // SHOW_IMAGE_EDITOR unset: this deployment does not offer the editor, so it is
-// absent rather than locked, and Design, left with nothing, goes with it.
+// absent rather than locked, and Edit & enhance, left with nothing, goes with
+// it.
 describe('while the image editor is switched off', () => {
   beforeEach(() => {
     showImageEditor = false;
   });
 
-  it('lists neither the image editor nor its Design category', async () => {
+  it('lists neither the image editor nor its Edit & enhance chip', async () => {
     await mount();
 
     expect(card('Image editor')).toBeUndefined();
-    expect(headings()).toEqual(['AI images', 'AI video']);
+    expect(chipLabels()).toEqual(['All', 'Images', 'Video']);
   });
 
   it('does not show it locked to a plan that excludes the tools either', async () => {
@@ -342,6 +648,8 @@ describe('with nothing to list', () => {
 
     expect(headings()).toEqual(['No creative tools yet']);
     expect(card('Image editor')).toBeUndefined();
+    expect(search()).toBeNull();
+    expect(chipGroup()).toBeNull();
   });
 });
 
@@ -353,7 +661,7 @@ describe('when the plan excludes the tools', () => {
   it('keeps every excluded tool on the page rather than hiding it', async () => {
     await mount();
 
-    expect(headings()).toEqual(['Design', 'AI images', 'AI video']);
+    expect(headings()).toEqual(['Tools', 'Models']);
     expect(lockedCards()).toHaveLength(4);
     expect(card('Veo 3')?.textContent).toContain('Upgrade');
   });
@@ -364,16 +672,6 @@ describe('when the plan excludes the tools', () => {
     await mount();
 
     expect(card('Veo 3')?.querySelectorAll('svg')).toHaveLength(2);
-  });
-
-  // Colour alone never carries the AI mark (FR-004), so the tint goes and the
-  // spark stays when a tool is out of reach.
-  it('drops the AI tint but keeps the spark', async () => {
-    await mount();
-
-    expect(tile('Veo 3')?.className).not.toContain('bg-aiSoft');
-    expect(tile('Veo 3')?.className).toContain('bg-surface2');
-    expect(tile('Veo 3')?.textContent).toContain('\u2726');
   });
 
   it('leads a locked card to billing and never opens the tool', async () => {
@@ -387,18 +685,14 @@ describe('when the plan excludes the tools', () => {
     expect(videoTriggers).toHaveLength(0);
   });
 
-  it('carries exactly one upgrade action, above the categories', async () => {
+  it('carries exactly one upgrade action, at the top of the page', async () => {
     await mount();
 
     expect(document.body.textContent).toContain('Unlock AI images and video');
     expect(upgradeActions()).toHaveLength(1);
 
     const [banner] = upgradeActions();
-    const [firstCategory] = document.querySelectorAll('h2');
-    expect(
-      banner.compareDocumentPosition(firstCategory) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(precedes(banner, introLine()!)).toBe(true);
   });
 
   it('sends that action to billing', async () => {
@@ -432,14 +726,18 @@ describe('the video catalog follows the platform', () => {
   it('lists one card per provider offered', async () => {
     await mount();
 
-    expect(videoCards()).toHaveLength(2);
+    await click(chip('Video'));
+
+    expect(document.querySelectorAll('section button')).toHaveLength(2);
   });
 
   it('lists one when one is offered', async () => {
     providers = [{ identifier: 'veo3', title: 'Veo3 (Audio + Video)' }];
     await mount();
 
-    expect(videoCards()).toHaveLength(1);
+    await click(chip('Video'));
+
+    expect(document.querySelectorAll('section button')).toHaveLength(1);
     expect(card('Veo 3')).toBeTruthy();
   });
 
@@ -447,8 +745,8 @@ describe('the video catalog follows the platform', () => {
     providers = [];
     await mount();
 
-    expect(headings()).toEqual(['Design', 'AI images']);
-    expect(section('AI video')).toBeUndefined();
+    expect(chipLabels()).toEqual(['All', 'Images', 'Edit & enhance']);
+    expect(section('Models')).toBeUndefined();
   });
 
   // A provider that ships before its card does still gets a usable card: its
@@ -463,7 +761,9 @@ describe('the video catalog follows the platform', () => {
     ];
     await mount();
 
-    const [only] = videoCards();
+    // A provider that declares nothing for Studio is a model (FR-002).
+    expect(listed('Models')).toEqual(['Sora']);
+    const only = card('Sora')!;
     expect(only.textContent).toContain('Sora');
     expect(only.textContent).toContain('Generate a video with AI.');
     expect(only.textContent).not.toContain('Use this when');
@@ -474,7 +774,8 @@ describe('the video catalog follows the platform', () => {
     providersLoading = true;
     await mount();
 
-    expect(headings()).toEqual(['Design', 'AI images']);
+    expect(chipLabels()).toEqual(['All', 'Images', 'Edit & enhance']);
+    expect(headings()).toEqual(['Tools']);
     expect(card('Image editor')).toBeTruthy();
     expect(videoTriggers).toHaveLength(0);
   });
@@ -512,11 +813,15 @@ describe('the type scale', () => {
     ).toContain('text-[13px]');
   });
 
-  it('sets the section heading at 16px', async () => {
+  // The canvas's section head: an 18px heading, its subtitle at 13px beside it.
+  it('sets the section heading at 18px and its subtitle at 13px', async () => {
     await mount();
 
-    expect(section('AI images')!.querySelector('h2')!.className).toContain(
-      'text-[16px]'
+    expect(classes(section('Tools')!.querySelector('h2'))).toContain(
+      'text-[18px]'
+    );
+    expect(classes(section('Tools')!.querySelector('p'))).toContain(
+      'text-[13px]'
     );
   });
 
