@@ -121,7 +121,11 @@ export class FirecrawlService {
         BRAND_ABORT
       );
       const branding = answer?.data?.branding;
-      if (!branding) {
+      // Firecrawl answers 200, and charges for it, when the site's page itself
+      // answered an error (a 404, a block page), with the page's own status in
+      // the metadata. What it read then is the error page's, not the site's.
+      const page = answer?.data?.metadata?.statusCode;
+      if (!branding || (typeof page === 'number' && page >= 400)) {
         throw new HttpException(UNREADABLE_SITE, 422);
       }
       const { images, colors, typography } = branding;
