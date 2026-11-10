@@ -8,7 +8,8 @@ import { createRoot, Root } from 'react-dom/client';
 // field it changed, so two members editing different parts of one kit don't
 // overwrite each other (spec, Edge Cases); a channel moves with the existing
 // PUT /integrations/:id/group. The line that says what the kit is for is the
-// brand header's, which the page draws.
+// brand header's, which the page draws. While the kit is empty, the Fill from
+// my website card comes first (US6); the card has its own spec.
 
 const request = jest.fn();
 const reloadBrands = jest.fn();
@@ -262,6 +263,24 @@ describe('a brand kit', () => {
     expect(document.body.textContent).toContain(
       'Anyone in your team can edit this brand.'
     );
+  });
+
+  it('starts with the Fill from my website card while the kit is empty, and drops it once the kit has something in it (FR-027)', async () => {
+    await mount(brand({ headingFont: 'Tajawal' }));
+
+    expect(
+      document.querySelector('section')?.querySelector('h3')?.textContent
+    ).toBe('Fill from my website');
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    document.body.innerHTML = '';
+
+    await mount(brand({ colours: ['#0E7C86'] }));
+
+    expect(card('Fill from my website')).toBeUndefined();
+    expect(card('Logo')).toBeDefined();
   });
 
   it('shows its cards: Logo, Colours, Example posts, Channels and Fonts', async () => {

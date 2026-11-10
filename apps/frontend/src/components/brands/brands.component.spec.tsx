@@ -10,9 +10,10 @@ import * as path from 'path';
 // chats are, New brand first with no heading above it, each brand A to Z with
 // its logo or initial and its channel count, then No brand; with no brands an
 // empty state that explains them; a brand's page with its name, Rename, its ⋯
-// and the line on what the kit is for, then its kit; No brand's page with its
-// channels and no kit. At 1025px and below the list comes first and a brand's
-// page has a link back to it.
+// and the line on what the kit is for, then its kit, with Fill from my website
+// beside Rename once the kit has something in it (US6); No brand's page with
+// its channels and no kit. At 1025px and below the list comes first and a
+// brand's page has a link back to it.
 //
 // SWR runs for real on a cache of its own, so the brands come from GET /brands
 // and the channels from GET /integrations/list; only the requests are stubbed.
@@ -63,6 +64,12 @@ jest.mock('@gitroom/frontend/components/brands/brand.kit', () => ({
 }));
 jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
   useBrandDialogs: () => mockDialogs,
+}));
+// Fill from my website's dialog, which has its own spec, is a marker too.
+const mockOpenWebsite = jest.fn();
+jest.mock('@gitroom/frontend/components/brands/brand.website', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/brand.website'),
+  useFillFromWebsite: () => mockOpenWebsite,
 }));
 jest.mock('@gitroom/frontend/components/layout/loading', () => ({
   LoadingComponent: () => <div data-testid="loading" />,
@@ -426,6 +433,27 @@ describe("a brand's page", () => {
     );
   });
 
+  it('offers Fill from my website beside Rename once the kit has something in it, and none while it is empty (FR-027)', async () => {
+    const host = await render();
+
+    // Bayt Al Qahwa has a logo
+    const website = button(host, 'Fill from my website')!;
+    expect(website.nextElementSibling).toBe(button(host, 'Rename'));
+    await click(website);
+    expect(mockOpenWebsite).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'bq' })
+    );
+
+    // Noor Dental's logo was deleted from Media: it still has its place
+    await click(row(host, 'noor Dental'));
+    expect(button(host, 'Fill from my website')).toBeDefined();
+
+    // Rawda Florist's kit is empty: the kit shows the full card instead
+    await click(row(host, 'Rawda Florist'));
+    expect(button(host, 'Fill from my website')).toBeUndefined();
+    expect(button(host, 'Rename')).toBeDefined();
+  });
+
   it('opens a new brand once it is created', async () => {
     const host = await render();
 
@@ -573,6 +601,34 @@ describe('at 1025px and below', () => {
     expect(list(host)).not.toBeNull();
     expect(heading(host)).toBeNull();
     expect(kit(host)).toBeNull();
+  });
+
+  it('puts Fill from my website in the ⋯ with Rename, once the kit has something in it', async () => {
+    const host = await render();
+    const options = () =>
+      Array.from(host.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent
+      );
+
+    await click(row(host, 'Bayt Al Qahwa'));
+    expect(classes(button(host, 'Fill from my website')!)).toContain(
+      'mobile:hidden'
+    );
+    await click(button(host, 'Brand options'));
+    expect(options()).toEqual([
+      'Rename',
+      'Fill from my website',
+      'Delete brand',
+    ]);
+    await click(host.querySelectorAll('[role="menuitem"]')[1]);
+    expect(mockOpenWebsite).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'bq' })
+    );
+
+    await click(button(host, 'Brands'));
+    await click(row(host, 'Rawda Florist'));
+    await click(button(host, 'Brand options'));
+    expect(options()).toEqual(['Rename', 'Delete brand']);
   });
 
   it("opens No brand's page with the same link back", async () => {
