@@ -427,6 +427,8 @@ export const WebsiteLookupFields: FC<{
                 ))}
               </Choices>
             )}
+            {/* How many fit, or that the picked logo gave none, once its
+                colours are read. */}
             <Choices
               label={t('brands_colours', 'Colours')}
               busy={busy === 'colours'}
@@ -436,6 +438,11 @@ export const WebsiteLookupFields: FC<{
                       'brands_website_colours_room',
                       'Your kit has room for {{count}} more colours.',
                       { count: room }
+                    )
+                  : !found.colours.length && busy !== 'colours'
+                  ? t(
+                      'brands_website_no_colours',
+                      'No colours could be read from this logo.'
                     )
                   : undefined
               }
