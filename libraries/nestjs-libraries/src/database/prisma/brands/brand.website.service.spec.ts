@@ -57,6 +57,25 @@ const mark = (colour: Pixel, around: Pixel) =>
     x >= 10 && x < 30 && y >= 10 && y < 30 ? colour : around
   );
 
+// A navy image of a size and type, as opaque as `alpha` (a JPEG is opaque
+// whatever it is given; a PNG keeps an alpha channel).
+const plain = (
+  width: number,
+  height: number,
+  format: 'jpeg' | 'png',
+  alpha = 1
+) =>
+  sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r: 0x1f, g: 0x3a, b: 0x5f, alpha },
+    },
+  })
+    .toFormat(format)
+    .toBuffer();
+
 // A 40×40 SVG with a red square in its corner.
 const SQUARE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="20" height="20" fill="#E30613"/></svg>';
@@ -348,25 +367,27 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     );
   });
 
-  it('puts the links whose path names a logo first, then the rest in Tavily’s order, then the favicon, and gives the colours of the first', async () => {
+  it('orders the links by their paths: "logo" first, then the brand’s name in the file name, then an SVG, then the rest in Tavily’s order with the favicon after them, and last one naming another kind of image; the colours are the first’s', async () => {
     const { service, tavily } = makeService();
     tavily.extract.mockResolvedValue(
       page({
         images: [
-          'https://cdn.example/hero.jpg',
-          'https://cdn.example/img/Logo-White.png',
-          'https://cdn.example/team.jpg',
-          'https://cdn.example/brand/site-logo.svg',
+          'https://cdn.example/img/hero.jpg',
+          'https://cdn.example/img/mark.png',
+          'https://cdn.example/img/shape.svg',
+          'https://cdn.example/img/NoorDental-White.png',
+          'https://cdn.example/brand/site-logo.png',
         ],
         favicon: 'https://www.noordental.example/favicon.png',
       })
     );
-    site['https://cdn.example/img/Logo-White.png'] = await mark(RED, CLEAR);
+    site['https://cdn.example/brand/site-logo.png'] = await mark(RED, CLEAR);
     serve(
       await mark(NAVY, CLEAR),
-      'https://cdn.example/hero.jpg',
-      'https://cdn.example/team.jpg',
-      'https://cdn.example/brand/site-logo.svg',
+      'https://cdn.example/img/hero.jpg',
+      'https://cdn.example/img/mark.png',
+      'https://cdn.example/img/shape.svg',
+      'https://cdn.example/img/NoorDental-White.png',
       'https://www.noordental.example/favicon.png'
     );
 
@@ -378,14 +399,209 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     ).toEqual({
       foundOn: 'www.noordental.example',
       logos: [
-        'https://cdn.example/img/Logo-White.png',
-        'https://cdn.example/brand/site-logo.svg',
-        'https://cdn.example/hero.jpg',
-        'https://cdn.example/team.jpg',
+        'https://cdn.example/brand/site-logo.png',
+        'https://cdn.example/img/NoorDental-White.png',
+        'https://cdn.example/img/shape.svg',
+        'https://cdn.example/img/mark.png',
         'https://www.noordental.example/favicon.png',
+        'https://cdn.example/img/hero.jpg',
       ],
       colours: ['#E30613'],
     });
+  });
+
+  // The brand's name is the first part of the host, before its last, of 3
+  // characters or more and not "www": a shorter one ("ar", "en") is in too many
+  // file names to tell anything.
+  it('takes the brand’s name from the address’s host, past a language’s part, and looks for it in the file name only', async () => {
+    const { service, tavily } = makeService();
+    const links = [
+      'https://cdn.example/noordental/team.png',
+      'https://cdn.example/img/mark.png',
+      'https://cdn.example/img/NoorDental.png',
+    ];
+    tavily.extract.mockResolvedValue(page({ images: links }));
+    serve(await mark(RED, CLEAR), ...links);
+
+    expect(
+      (await service.suggestFromWebsite('org-1', 'https://ar.noordental.sa/'))
+        .logos
+    ).toEqual([
+      'https://cdn.example/img/NoorDental.png',
+      'https://cdn.example/noordental/team.png',
+      'https://cdn.example/img/mark.png',
+    ]);
+  });
+
+  it.each([
+    ['a hero image', 'img/hero.jpg'],
+    ['a banner', 'uploads/home-banner.webp'],
+    ['a slider', 'img/slider_02.jpg'],
+    ['slides', 'slides/1.jpg'],
+    ['a background', 'img/page-background.png'],
+    ['a background as bg', 'img/bg.png'],
+    ['photos', 'photos/team.jpg'],
+    ['a menu', 'img/menu.svg'],
+    ['a search', 'img/search.svg'],
+    ['a close button', 'img/close.svg'],
+    ['an arrow', 'img/arrow-left.svg'],
+    ['a hamburger', 'img/hamburger.svg'],
+    ['a cart', 'img/cart.svg'],
+    ['a user', 'img/user.svg'],
+    ['an icon', 'img/icon-instagram.svg'],
+    ['icons', 'icons/x.svg'],
+    ['a banner in a camelCase name', 'img/heroBanner.jpg'],
+  ])(
+    'puts a link whose path names %s last, after the favicon',
+    async (_, path) => {
+      const { service, tavily } = makeService();
+      const link = `https://cdn.example/${path}`;
+      tavily.extract.mockResolvedValue(
+        page({
+          images: [link, 'https://cdn.example/img/mark.png'],
+          favicon: 'https://www.noordental.example/favicon.png',
+        })
+      );
+      serve(
+        await mark(RED, CLEAR),
+        link,
+        'https://cdn.example/img/mark.png',
+        'https://www.noordental.example/favicon.png'
+      );
+
+      expect(
+        (
+          await service.suggestFromWebsite(
+            'org-1',
+            'https://www.noordental.example/'
+          )
+        ).logos
+      ).toEqual([
+        'https://cdn.example/img/mark.png',
+        'https://www.noordental.example/favicon.png',
+        link,
+      ]);
+    }
+  );
+
+  it('takes a word only as a whole one: a name that starts like one (cartier, iconic) is no hint', async () => {
+    const { service, tavily } = makeService();
+    const links = [
+      'https://cdn.example/img/cartier.png',
+      'https://cdn.example/img/iconic-mark.png',
+      'https://cdn.example/img/mark.png',
+    ];
+    tavily.extract.mockResolvedValue(page({ images: links }));
+    serve(await mark(RED, CLEAR), ...links);
+
+    expect(
+      (
+        await service.suggestFromWebsite(
+          'org-1',
+          'https://www.noordental.example/'
+        )
+      ).logos
+    ).toEqual(links);
+  });
+
+  // The favicon is the site's own mark, whatever its path names.
+  it('never puts the favicon with the page’s icons, as an "apple-touch-icon.png"', async () => {
+    const { service, tavily } = makeService();
+    tavily.extract.mockResolvedValue(
+      page({
+        images: ['https://cdn.example/icons/menu.svg'],
+        favicon: 'https://www.noordental.example/apple-touch-icon.png',
+      })
+    );
+    serve(
+      await mark(RED, CLEAR),
+      'https://cdn.example/icons/menu.svg',
+      'https://www.noordental.example/apple-touch-icon.png'
+    );
+
+    expect(
+      (
+        await service.suggestFromWebsite(
+          'org-1',
+          'https://www.noordental.example/'
+        )
+      ).logos
+    ).toEqual([
+      'https://www.noordental.example/apple-touch-icon.png',
+      'https://cdn.example/icons/menu.svg',
+    ]);
+  });
+
+  // A logo is mostly smaller, or transparent around its mark.
+  it('puts an image that is opaque and 800 pixels or more on its long side, more like a photo or a banner than a logo, after the others its path ranks alike, and takes the colours from the first of those', async () => {
+    const { service, tavily } = makeService();
+    tavily.extract.mockResolvedValue(
+      page({
+        images: [
+          'https://cdn.example/img/wide.jpg',
+          'https://cdn.example/img/mark.png',
+          'https://cdn.example/img/small.jpg',
+          'https://cdn.example/img/clear.png',
+        ],
+        favicon: 'https://www.noordental.example/favicon.png',
+      })
+    );
+    site['https://cdn.example/img/wide.jpg'] = await plain(1600, 600, 'jpeg');
+    site['https://cdn.example/img/mark.png'] = await mark(RED, CLEAR);
+    site['https://cdn.example/img/small.jpg'] = await plain(799, 400, 'jpeg');
+    site['https://cdn.example/img/clear.png'] = await plain(
+      1200,
+      1200,
+      'png',
+      0.5
+    );
+    site['https://www.noordental.example/favicon.png'] = await mark(
+      NAVY,
+      CLEAR
+    );
+
+    expect(
+      await service.suggestFromWebsite(
+        'org-1',
+        'https://www.noordental.example/'
+      )
+    ).toEqual({
+      foundOn: 'www.noordental.example',
+      logos: [
+        'https://cdn.example/img/mark.png',
+        'https://cdn.example/img/small.jpg',
+        'https://cdn.example/img/clear.png',
+        'https://www.noordental.example/favicon.png',
+        'https://cdn.example/img/wide.jpg',
+      ],
+      colours: ['#E30613'],
+    });
+  });
+
+  it('keeps a link whose path names a logo first, however large and opaque its image', async () => {
+    const { service, tavily } = makeService();
+    tavily.extract.mockResolvedValue(
+      page({
+        images: [
+          'https://cdn.example/img/mark.png',
+          'https://cdn.example/brand/logo.jpg',
+        ],
+      })
+    );
+    site['https://cdn.example/img/mark.png'] = await mark(RED, CLEAR);
+    site['https://cdn.example/brand/logo.jpg'] = await plain(1600, 600, 'jpeg');
+
+    expect(
+      (
+        await service.suggestFromWebsite(
+          'org-1',
+          'https://www.noordental.example/'
+        )
+      ).logos
+    ).toEqual([
+      'https://cdn.example/brand/logo.jpg',
+      'https://cdn.example/img/mark.png',
+    ]);
   });
 
   it('counts "logo" in the path only, not in the host or the query', async () => {
@@ -393,7 +609,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     tavily.extract.mockResolvedValue(
       page({
         images: [
-          'https://logo.cdn.example/hero.jpg',
+          'https://logo.cdn.example/team.jpg',
           'https://cdn.example/pic.jpg?name=logo',
           'https://cdn.example/LOGOS/mark.png',
         ],
@@ -401,7 +617,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     );
     serve(
       await mark(RED, CLEAR),
-      'https://logo.cdn.example/hero.jpg',
+      'https://logo.cdn.example/team.jpg',
       'https://cdn.example/pic.jpg?name=logo',
       'https://cdn.example/LOGOS/mark.png'
     );
@@ -413,7 +629,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
 
     expect(logos).toEqual([
       'https://cdn.example/LOGOS/mark.png',
-      'https://logo.cdn.example/hero.jpg',
+      'https://logo.cdn.example/team.jpg',
       'https://cdn.example/pic.jpg?name=logo',
     ]);
   });
@@ -421,10 +637,10 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
   it('gives at most 6 links, the favicon once when it is also one of the images', async () => {
     const { service, tavily } = makeService();
     const images = [1, 2, 3, 4, 5, 6, 7].map(
-      (n) => `https://cdn.example/photo-${n}.jpg`
+      (n) => `https://cdn.example/pic-${n}.jpg`
     );
     tavily.extract.mockResolvedValue(
-      page({ images, favicon: 'https://cdn.example/photo-7.jpg' })
+      page({ images, favicon: 'https://cdn.example/pic-7.jpg' })
     );
     tavily.extract.mockResolvedValueOnce(
       page({
@@ -495,12 +711,12 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       page({
         images: [
           'https://cdn.example/logo-gone.png',
-          'https://cdn.example/photo.jpg',
+          'https://cdn.example/team.jpg',
           'https://cdn.example/mark.png',
         ],
       })
     );
-    site['https://cdn.example/photo.jpg'] = await mark(NAVY, WHITE);
+    site['https://cdn.example/team.jpg'] = await mark(NAVY, WHITE);
     site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
     site['https://www.noordental.example/favicon.ico'] = ico();
 
@@ -511,7 +727,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       )
     ).toEqual({
       foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/photo.jpg', 'https://cdn.example/mark.png'],
+      logos: ['https://cdn.example/team.jpg', 'https://cdn.example/mark.png'],
       colours: ['#1F3A5F'],
     });
     // Nothing readable is left: the card says nothing was found
