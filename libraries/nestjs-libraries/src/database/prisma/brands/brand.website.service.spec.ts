@@ -49,6 +49,8 @@ const BLACK: Pixel = [0, 0, 0];
 const CLEAR: Pixel = [0, 0, 0, 0];
 const RED: Pixel = [0xe3, 0x06, 0x13];
 const NAVY: Pixel = [0x1f, 0x3a, 0x5f];
+const CYAN: Pixel = [0x1c, 0xac, 0xe4];
+const BLUE: Pixel = [0x00, 0x57, 0xb8];
 
 // A 40×40 mark: `colour` inside the 20×20 square at its centre, `around`
 // everywhere else.
@@ -56,6 +58,32 @@ const mark = (colour: Pixel, around: Pixel) =>
   png(40, 40, (x, y) =>
     x >= 10 && x < 30 && y >= 10 && y < 30 ? colour : around
   );
+
+// `colour` at `alpha`, as some exports write a logo's anti-aliased edge:
+// blended toward `matte` (0 black, 255 white) as much as it is transparent.
+const blend = ([r, g, b]: Pixel, alpha: number, matte: number): Pixel => {
+  const toward = (channel: number) =>
+    Math.round(channel + (matte - channel) * (1 - alpha / 255));
+  return [toward(r), toward(g), toward(b), alpha];
+};
+
+// A stroke of a logo's lettering, its rows from top to bottom: `colour` 2 rows
+// thick, a row of anti-aliased edge either side and one nearly opaque, all
+// blended toward `matte`.
+const stroke = (colour: Pixel, matte: number): Pixel[] => [
+  CLEAR,
+  blend(colour, 160, matte),
+  colour,
+  colour,
+  blend(colour, 252, matte),
+  blend(colour, 200, matte),
+];
+
+// Thin lettering on nothing: the strokes stacked, each 32 pixels long.
+const lettering = (...strokes: Pixel[][]) => {
+  const rows = strokes.flat();
+  return png(40, rows.length, (x, y) => (x < 4 || x >= 36 ? CLEAR : rows[y]));
+};
 
 // A navy image of a size and type, as opaque as `alpha` (a JPEG is opaque
 // whatever it is given; a PNG keeps an alpha channel).
@@ -301,6 +329,43 @@ describe('BrandWebsiteService.coloursFromLogo', () => {
     expect(
       await service.coloursFromLogo('https://cdn.example/logo.png')
     ).toEqual(['#E10613']);
+  });
+
+  // The colour is a pixel value the logo has, so it is the logo's exactly.
+  it('reads a thin cyan logo whose anti-aliased edges an export darkened as its own cyan, exactly', async () => {
+    const { service } = makeService();
+    site['https://cdn.example/logo.png'] = await lettering(
+      ...[1, 2, 3, 4].map(() => stroke(CYAN, 0))
+    );
+
+    expect(
+      await service.coloursFromLogo('https://cdn.example/logo.png')
+    ).toEqual(['#1CACE4']);
+  });
+
+  it('reads a thin blue logo with lighter shades along its edges as one colour, its blue', async () => {
+    const { service } = makeService();
+    // Each stroke also has an opaque row a lighter shade of the blue
+    site['https://cdn.example/logo.png'] = await lettering(
+      ...[1, 2, 3, 4].map(() => [...stroke(BLUE, 255), [20, 100, 190] as Pixel])
+    );
+
+    expect(
+      await service.coloursFromLogo('https://cdn.example/logo.png')
+    ).toEqual(['#0057B8']);
+  });
+
+  it('still reads a thin logo of two colours as the two, the one covering more first', async () => {
+    const { service } = makeService();
+    site['https://cdn.example/logo.png'] = await lettering(
+      stroke(CYAN, 0),
+      stroke(NAVY, 255),
+      stroke(CYAN, 0)
+    );
+
+    expect(
+      await service.coloursFromLogo('https://cdn.example/logo.png')
+    ).toEqual(['#1CACE4', '#1F3A5F']);
   });
 
   it('reads an SVG logo', async () => {
