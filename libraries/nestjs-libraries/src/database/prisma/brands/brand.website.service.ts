@@ -40,6 +40,11 @@ const SAMPLE_EDGE = 64;
 // be saved to the kit
 const LOGO_MAX_BYTES = getMaxSize('image/png');
 
+// Each request of a logo's read (its HEAD and its GET) waits at most this
+// long, so a lookup's reads end within 30 s beside Tavily's 20 s, well inside
+// nginx's 95 s. A read that runs out of time is a link that can't be read.
+const LOGO_READ_TIMEOUT = 5_000;
+
 // The card says each of these in its own words.
 const UNREADABLE_SITE = "This site couldn't be read.";
 const UNREADABLE_IMAGE = "This image couldn't be read.";
@@ -241,7 +246,9 @@ export class BrandWebsiteService {
   // can't be fetched is the site's, not a failure of ours
   private async pixelsOf(link: string): Promise<Pixels | undefined> {
     try {
-      return await sharp(await readOrFetch(link, LOGO_MAX_BYTES))
+      return await sharp(
+        await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
+      )
         .resize(SAMPLE_EDGE, SAMPLE_EDGE, {
           fit: 'inside',
           withoutEnlargement: true,
