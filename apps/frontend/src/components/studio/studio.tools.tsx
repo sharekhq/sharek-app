@@ -12,6 +12,7 @@ import {
   VideoType,
   videoTypeLabel,
 } from '@gitroom/frontend/components/launches/ai.video';
+import { matchesSearch } from '@gitroom/frontend/components/launches/channel.panel';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
 import type { StudioMaker } from '@gitroom/frontend/components/videos/video.wrapper';
 
@@ -105,6 +106,14 @@ export interface StudioCatalog {
   chips: StudioChip[];
   hasLockedTools: boolean;
   empty: boolean;
+}
+
+export interface StudioSections {
+  /** The chip in force: the chosen one, or All once its category is gone. */
+  chip: StudioChip['id'];
+  /** Each in category order, then registry order; either may be empty. */
+  tools: StudioTool[];
+  models: StudioTool[];
 }
 
 const CATEGORIES: Array<{
@@ -301,5 +310,42 @@ export const buildStudioCatalog = (params: {
     chips,
     hasLockedTools: listings.some((tool) => tool.state === 'locked'),
     empty: listings.length === 0,
+  };
+};
+
+/**
+ * What the page shows for a chip and a search: the listings of the chip's
+ * category whose name, description, category name or maker's name holds the
+ * typed text, split into Tools and Models. A chip whose category emptied when
+ * the provider list reloaded counts as All.
+ */
+export const filterStudio = (
+  catalog: StudioCatalog,
+  chip: StudioChip['id'],
+  query: string,
+  t: Translate
+): StudioSections => {
+  const chosen = catalog.chips.some((item) => item.id === chip) ? chip : 'all';
+  const text = query.trim();
+  const shown = CATEGORIES.filter(
+    (category) => chosen === 'all' || category.id === chosen
+  ).flatMap((category) =>
+    catalog.listings.filter(
+      ({ entry }) =>
+        entry.category === category.id &&
+        (!text ||
+          [
+            entry.name(t),
+            entry.description(t),
+            category.label(t),
+            entry.maker?.name || '',
+          ].some((field) => matchesSearch(field, text)))
+    )
+  );
+
+  return {
+    chip: chosen,
+    tools: shown.filter((tool) => tool.entry.kind === 'tool'),
+    models: shown.filter((tool) => tool.entry.kind === 'model'),
   };
 };
