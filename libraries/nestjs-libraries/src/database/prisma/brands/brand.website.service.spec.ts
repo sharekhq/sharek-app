@@ -701,6 +701,7 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
   it('saves a GIF logo as the PNG of its first frame, at its own size', async () => {
     const { service, media } = makeService();
     const gif = await twoFrameGif();
+    expect((await sharp(gif).metadata()).pages).toBe(2);
     site['https://cdn.example/logo.gif'] = gif;
 
     await service.saveFromWebsite('org-1', 'brand-1', {
@@ -714,11 +715,11 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
       'image/png'
     );
     const png: Buffer = media.saveImage.mock.calls[0][1];
+    // One frame, not the two stacked 40×80
     expect(await sharp(png).metadata()).toMatchObject({
       format: 'png',
       width: 40,
       height: 40,
-      pages: 1,
     });
     expect(await pixelsOf(png)).toEqual(await pixelsOf(gif));
   });

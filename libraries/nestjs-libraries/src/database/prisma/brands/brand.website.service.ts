@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { partition, uniq } from 'lodash';
 import { extname } from 'path';
 import sharp from 'sharp';
@@ -72,15 +67,39 @@ const candidatesOf = ({ images = [], favicon }: WebPage) => {
   );
 };
 
-// The PNG an SVG draws, SVG_EDGE pixels on its long side and transparent where
-// it draws nothing. It is drawn at that size, since one drawn at its own size
-// and enlarged would be blurred.
-const pngOf = async (svg: Buffer) => {
-  const { width, height } = await sharp(svg).metadata();
-  return sharp(svg, { density: (72 * SVG_EDGE) / Math.max(width, height) })
-    .resize(SVG_EDGE, SVG_EDGE, { fit: 'inside' })
+// A logo of these types is saved as the site serves it: the Media library
+// takes them and every browser and network shows them
+const KEPT_TYPES: Partial<Record<keyof sharp.FormatEnum, string>> = {
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+// The PNG an image draws, transparent where it draws nothing; a GIF's is its
+// first frame. An SVG is drawn SVG_EDGE pixels on its long side, at that size,
+// since one drawn at its own size and enlarged would be blurred; any other
+// image keeps its own size.
+const pngOf = (image: Buffer, { format, width, height }: sharp.Metadata) =>
+  (format === 'svg'
+    ? sharp(image, {
+        density: (72 * SVG_EDGE) / Math.max(width, height),
+      }).resize(SVG_EDGE, SVG_EDGE, { fit: 'inside' })
+    : sharp(image)
+  )
     .png()
     .toBuffer();
+
+// The file a logo is saved as, once sharp has read it, so bytes that are no
+// image (a page, a video, an ICO) are refused before anything is saved. Any
+// other type is saved as the PNG it draws: the Media library takes no SVG,
+// which can carry a script, and a GIF, AVIF or TIFF logo is then a still that
+// every network shows.
+const logoFileOf = async (image: Buffer) => {
+  const metadata = await sharp(image).metadata();
+  const kept = KEPT_TYPES[metadata.format];
+  return kept
+    ? { image, mime: kept }
+    : { image: await pngOf(image, metadata), mime: 'image/png' };
 };
 
 // Pixels are counted in boxes 32 values wide on each channel. The lightest box
@@ -244,34 +263,21 @@ export class BrandWebsiteService {
     });
   }
 
-  // The Media library takes no SVG, which can carry a script, so an SVG logo is
-  // saved as the PNG it draws, its bytes read as the colours' are
+  // A logo's bytes are read as the colours' are, bounded by what the Media
+  // library takes for an image
   private async saveLogo(org: string, logo: string) {
-    if (typeOf(logo) !== '.svg') {
-      try {
-        return await this._mediaService.uploadFromUrl(org, logo);
-      } catch (err) {
-        if (err instanceof BadRequestException) {
-          throw new HttpException(
-            UNSAVED_LOGO,
-            HttpStatus.UNPROCESSABLE_ENTITY
-          );
-        }
-        throw err;
-      }
-    }
-
-    let png: Buffer;
+    let file: { image: Buffer; mime: string };
     try {
-      png = await pngOf(
+      file = await logoFileOf(
         await readOrFetch(logo, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
       );
     } catch {
-      // A link the site doesn't serve, or bytes that draw nothing
+      // A link the site doesn't serve, a file over the bound, or bytes sharp
+      // can't read
       throw new HttpException(UNSAVED_LOGO, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
-    return this._mediaService.saveImage(org, png, 'image/png');
+    return this._mediaService.saveImage(org, file.image, file.mime);
   }
 
   // An image sharp can't read (an ICO, a page that isn't one) or a link that
