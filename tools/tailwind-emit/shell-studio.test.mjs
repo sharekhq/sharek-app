@@ -239,3 +239,89 @@ describe('Studio (increment 1)', () => {
     );
   });
 });
+
+describe('Sidebar (increment 3)', () => {
+  // tailwind.config.cjs's two height screens: custom: under 800px tall,
+  // minCustom: from 800px up.
+  const SHORT = '(max-height: 800px)';
+  const TALL = '(min-height: 800px)';
+
+  // menu-item.tsx's item, its class list as written.
+  const ITEM =
+    'group w-full pt-[4px] pb-[6px] px-[4px] gap-[5px] custom:py-[2px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2';
+
+  test("the item's and its tile's own forms emit their one rule, outside any query", async () => {
+    await assertEmits(
+      {
+        // the icon's tile, one size on every item, and the mark on the
+        // current item's tile, the colours colors.scss sets per theme
+        'w-[40px]': [['width', '40px']],
+        'h-[40px]': [['height', '40px']],
+        'rounded-[12px]': [['border-radius', '12px']],
+        'bg-selectedBg': [['background-color', 'var(--selected-bg)']],
+        'text-selectedText': [['color', 'var(--selected-text)']],
+        // the item: 4px above the tile, 6px under the label, 5px between
+        'pt-[4px]': [['padding-top', '4px']],
+        'pb-[6px]': [['padding-bottom', '6px']],
+        'gap-[5px]': [['gap', '5px']],
+      },
+      null
+    );
+  });
+
+  test('every custom: class of the tile, the item and the groups emits, and only under 800px tall', async () => {
+    await assertEmits(
+      {
+        // the tile at 36px
+        'custom:w-[36px]': [['width', '36px']],
+        'custom:h-[36px]': [['height', '36px']],
+        // the item's 2px above and below, and 2px between, in the item and
+        // in both groups
+        'custom:py-[2px]': py('padding', '2px'),
+        'custom:gap-[2px]': [['gap', '2px']],
+      },
+      SHORT
+    );
+  });
+
+  test("the groups' minCustom: gaps emit, and only from 800px tall", async () => {
+    await assertEmits(
+      {
+        // the top group, then the bottom one
+        'minCustom:gap-[8px]': [['gap', '8px']],
+        'minCustom:gap-[4px]': [['gap', '4px']],
+      },
+      TALL
+    );
+  });
+
+  test("in a short window the item's 2px wins: its custom: rules come after the plain ones", async () => {
+    // pt-[4px] and custom:py-[2px] both set padding-top, one class each, so
+    // the later rule wins. Tailwind sorts the stylesheet itself, whatever the
+    // order of the class list.
+    const css = await emit(ITEM.split(' '));
+    const selectors = [];
+    postcss
+      .parse(css)
+      .walkRules((rule) => selectors.push(unescape(rule.selector)));
+    const where = (className) =>
+      selectors.flatMap((selector, i) =>
+        names(selector, className) ? [i] : []
+      );
+
+    for (const [short, plain] of [
+      ['custom:py-[2px]', 'pt-[4px]'],
+      ['custom:py-[2px]', 'pb-[6px]'],
+      ['custom:gap-[2px]', 'gap-[5px]'],
+    ]) {
+      const late = where(short);
+      const early = where(plain);
+      assert.ok(late.length > 0, `${short} emitted no CSS`);
+      assert.ok(early.length > 0, `${plain} emitted no CSS`);
+      assert.ok(
+        Math.min(...late) > Math.max(...early),
+        `${short} comes before ${plain}, so ${plain} wins in a short window`
+      );
+    }
+  });
+});
