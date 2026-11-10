@@ -990,5 +990,6 @@ videoWrapper('image-text-slides', ImageSlidesComponent, {
       },
     ],
     diagram: SlidesDiagram,
+    studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
   },
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -14,10 +14,17 @@ import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import { PlayBadge } from '@gitroom/frontend/components/agents/agent.attachments';
 import {
   Media,
   useAiVideoTypes,
 } from '@gitroom/frontend/components/launches/ai.video';
+import {
+  FOCUS_RING,
+  onRadioGroupKeyDown,
+  SearchField,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import {
   CheckmarkIcon,
@@ -27,7 +34,9 @@ import {
 } from '@gitroom/frontend/components/ui/icons';
 import {
   buildStudioCatalog,
+  filterStudio,
   STUDIO_TOOLS,
+  StudioChip,
   StudioTool,
 } from '@gitroom/frontend/components/studio/studio.tools';
 
@@ -86,18 +95,27 @@ const useGoToBilling = () => {
 };
 
 /**
- * The Tile card from the approved mockup: a 56px tile above the name and a
- * one-line description. AI tools get the saffron tile with ✦, so the
- * distinction never rests on colour alone.
+ * A listing's sample picture in a 16:10 frame, then its text: a tool's
+ * category, name and description; a model's name, maker, description and
+ * facts. On a phone, a row with the picture on the start side.
  */
-const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
-  tool,
-  onSaved,
-}) => {
+const StudioCard: FC<{
+  tool: StudioTool;
+  /** The chip of the listing's category, which names it. */
+  category: StudioChip | undefined;
+  onSaved: (media: Media) => void;
+}> = ({ tool, category, onSaved }) => {
   const t = useT();
   const goToBilling = useGoToBilling();
   const { entry } = tool;
+  const { maker } = entry;
   const locked = tool.state === 'locked';
+  const video = entry.kind === 'model' && entry.category === 'video';
+  // A picture that does not load gives way to the placeholder, and a logo
+  // that does not takes its plate with it (FR-017, research R6).
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const facts = entry.facts?.(t);
 
   const card = (open: () => void, loading: boolean) => (
     <button
@@ -105,47 +123,99 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
       onClick={open}
       aria-busy={loading || undefined}
       className={clsx(
-        'flex flex-col items-start gap-[12px] p-[14px] text-start bg-surface border border-line rounded-[14px] transition-all focus-visible:ring-2 focus-visible:ring-brand',
-        !locked && 'hover:-translate-y-[1px] hover:shadow-soft'
+        'flex flex-col phone:flex-row text-start bg-surface border border-line rounded-[14px] overflow-hidden transition-all focus-visible:ring-2 focus-visible:ring-brand',
+        !locked && 'hover:shadow-card motion-safe:hover:-translate-y-[2px]'
       )}
     >
-      <span className="w-full flex items-start justify-between gap-[8px]">
-        <span
-          className={clsx(
-            'relative w-[56px] h-[56px] rounded-[14px] flex items-center justify-center shrink-0',
-            // Out of reach, the tile drops the accent tint; the spark stays, so
-            // the AI mark never rested on colour.
-            entry.ai && !locked
-              ? 'bg-aiSoft text-aiAccent'
-              : 'bg-surface2 text-inkSoft'
-          )}
-        >
-          {loading ? (
-            <Loading height={20} width={20} type="spin" color="currentColor" />
-          ) : (
-            entry.icon
-          )}
-          {entry.ai && (
-            <span
-              aria-hidden="true"
-              className="absolute top-[5px] end-[7px] text-[11px] leading-none"
-            >
-              ✦
+      <span className="relative block shrink-0 aspect-[16/10] overflow-hidden bg-surface2 phone:w-[128px] phone:aspect-auto phone:min-h-[100px]">
+        {entry.cover && !coverFailed ? (
+          <img
+            src={entry.cover}
+            width="640"
+            height="400"
+            loading="lazy"
+            decoding="async"
+            alt=""
+            onError={() => setCoverFailed(true)}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          // a video's play mark stands where the glyph would
+          !video && (
+            <span className="absolute inset-0 flex items-center justify-center text-muted">
+              {entry.icon}
             </span>
-          )}
-        </span>
+          )
+        )}
+        {loading ? (
+          <span className="absolute inset-0 m-auto w-[32px] h-[32px] rounded-full bg-black/70 text-white flex items-center justify-center">
+            <Loading height={20} width={20} type="spin" color="currentColor" />
+          </span>
+        ) : (
+          video && <PlayBadge />
+        )}
+        {maker?.logo && !logoFailed && (
+          <span className="absolute bottom-[10px] start-[10px] w-[30px] h-[30px] rounded-[8px] bg-white shadow-soft flex items-center justify-center">
+            <img
+              src={maker.logo}
+              width="18"
+              height="18"
+              alt=""
+              onError={() => setLogoFailed(true)}
+            />
+          </span>
+        )}
+        {/* the length times the sample, so the placeholder has none */}
+        {entry.sampleLength && entry.cover && !coverFailed && (
+          <span
+            dir="ltr"
+            className="absolute bottom-[10px] end-[10px] h-[22px] px-[6px] rounded-[6px] bg-black/70 text-white text-[12px] font-[600] tabular-nums flex items-center"
+          >
+            {entry.sampleLength}
+          </span>
+        )}
         {locked && (
-          <span className="flex items-center gap-[4px] shrink-0 h-[22px] px-[8px] rounded-full bg-brandSoft text-brandText text-[12px] font-[600]">
+          <span className="absolute top-[10px] start-[10px] h-[26px] px-[8px] rounded-full bg-black/70 text-white text-[12px] font-[600] flex items-center gap-[5px]">
             <LockIcon size={12} />
             {t('studio_upgrade', 'Upgrade')}
           </span>
         )}
       </span>
-      <span className="flex flex-col gap-[4px] min-w-0">
-        <span className="text-[15px] font-[600] text-ink">{entry.name(t)}</span>
-        <span className="text-[13px] leading-[1.5] text-muted">
+      <span className="flex-1 flex flex-col gap-[4px] min-w-0 pt-[12px] px-[14px] pb-[14px] phone:py-[10px] phone:px-[12px] phone:justify-center">
+        {/* A model with a maker names the category in its maker line. */}
+        {!maker && (
+          <span className="text-[12px] font-[600] text-muted phone:hidden">
+            {category?.label(t)}
+          </span>
+        )}
+        <span className="text-[15px] leading-[20px] font-[600] text-ink line-clamp-2">
+          {entry.name(t)}
+        </span>
+        {maker && (
+          <span className="text-[12px] text-muted">
+            {t('studio_model_by', 'by {{maker}} · {{category}}', {
+              maker: isolate(maker.name),
+              category: category?.label(t),
+              // React escapes the line, so i18next mustn't first
+              interpolation: { escapeValue: false },
+            })}
+          </span>
+        )}
+        <span className="text-[13px] leading-[1.5] text-muted line-clamp-2 min-h-[3em] phone:min-h-0">
           {entry.description(t)}
         </span>
+        {!!facts?.length && (
+          <span className="flex flex-wrap gap-[6px] mt-[6px] phone:hidden">
+            {facts.map((fact) => (
+              <span
+                key={fact}
+                className="h-[22px] px-[8px] rounded-[6px] bg-panel text-inkSoft text-[12px] inline-flex items-center whitespace-nowrap"
+              >
+                {fact}
+              </span>
+            ))}
+          </span>
+        )}
       </span>
     </button>
   );
@@ -159,6 +229,51 @@ const StudioCard: FC<{ tool: StudioTool; onSaved: (media: Media) => void }> = ({
   );
 };
 
+/** Tools or Models: a heading with its subtitle beside it, then the cards. */
+const StudioSection: FC<{
+  title: string;
+  subtitle: string;
+  tools: StudioTool[];
+  chips: StudioChip[];
+  onSaved: (media: Media) => void;
+}> = ({ title, subtitle, tools, chips, onSaved }) => (
+  <section className="flex flex-col gap-[14px]">
+    <div className="flex items-baseline flex-wrap gap-x-[12px] gap-y-[4px]">
+      <h2 className="text-[18px] font-[600] text-ink">{title}</h2>
+      <p className="text-[13px] text-muted">{subtitle}</p>
+    </div>
+    {/* Four across at 1440px, auto-fill so a short row keeps its widths; one
+        column of rows on a phone (FR-015, research R7). */}
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[16px] phone:grid-cols-1 phone:gap-[10px]">
+      {tools.map((tool) => (
+        <StudioCard
+          key={tool.entry.id}
+          tool={tool}
+          category={chips.find((item) => item.id === tool.entry.category)}
+          onSaved={onSaved}
+        />
+      ))}
+    </div>
+  </section>
+);
+
+// The search field's own magnifier, drawn larger.
+const NoMatchIllustration = () => (
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    className="text-muted"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </svg>
+);
+
 export const StudioComponent: FC = () => {
   const t = useT();
   const user = useUser();
@@ -169,6 +284,9 @@ export const StudioComponent: FC = () => {
   const { data: videoOptions } = useAiVideoTypes();
   const { data: integrations } = useIntegrationList();
   const [lastSaved, setLastSaved] = useState<Media | null>(null);
+  const [chip, setChip] = useState<StudioChip['id']>('all');
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const catalog = useMemo(
     () =>
@@ -181,6 +299,19 @@ export const StudioComponent: FC = () => {
       }),
     [videoOptions, user, billingEnabled, showImageEditor]
   );
+  const sections = useMemo(
+    () => filterStudio(catalog, chip, query, t),
+    [catalog, chip, query, t]
+  );
+
+  // Clear search starts over: no text, and every category (FR-007). The
+  // button leaves with the no-match block, so the focus goes to the field,
+  // ready for another word, rather than falling to the page.
+  const clearSearch = useCallback(() => {
+    setQuery('');
+    setChip('all');
+    searchRef.current?.focus();
+  }, []);
 
   // The tool has already put its output in the Media library; here it is only
   // confirmed and offered onward. Nothing opens by itself (FR-009).
@@ -238,22 +369,10 @@ export const StudioComponent: FC = () => {
 
   return (
     <div className="flex flex-col gap-[24px]">
-      <p className="text-[14px] text-muted">
-        {t(
-          'studio_intro',
-          'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
-        )}
-      </p>
-
-      {/* One banner for the whole page, and the only solid-brand action on it. */}
+      {/* One banner for the whole page, at its top, and the only solid-brand
+          action on it. */}
       {catalog.hasLockedTools && (
         <div className="flex items-center gap-[14px] flex-wrap bg-panel border border-line rounded-[12px] p-[16px]">
-          <span
-            aria-hidden="true"
-            className="w-[36px] h-[36px] rounded-[10px] bg-aiSoft text-aiAccent flex items-center justify-center shrink-0 text-[15px]"
-          >
-            ✦
-          </span>
           <span className="flex-1 min-w-[220px] flex flex-col gap-[2px]">
             <span className="text-[15px] font-[600] text-ink">
               {t('studio_upsell_title', 'Unlock AI images and video')}
@@ -306,16 +425,113 @@ export const StudioComponent: FC = () => {
         </div>
       )}
 
-      {catalog.categories.map((category) => (
-        <section key={category.id} className="flex flex-col gap-[12px]">
-          <h2 className="text-[16px] font-[600] text-ink">{category.label(t)}</h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] mobile:grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-[12px]">
-            {category.tools.map((tool) => (
-              <StudioCard key={tool.entry.id} tool={tool} onSaved={saved} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* The intro and the search share a row; on a phone they stack and
+          the search spans the width (FR-001, FR-016). */}
+      <div className="flex items-center gap-[16px] phone:flex-col phone:items-stretch phone:gap-[12px]">
+        <p className="flex-1 min-w-0 text-[14px] text-muted">
+          {t(
+            'studio_intro',
+            'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
+          )}
+        </p>
+        <div className="w-[340px] shrink-0 phone:w-full">
+          <SearchField
+            ref={searchRef}
+            label={t('studio_search', 'Search tools and models')}
+            value={query}
+            onChange={setQuery}
+          />
+        </div>
+      </div>
+
+      {/* Exactly one chip is chosen, so the chips are radios: one Tab stop,
+          with arrow keys, as Analytics' Period. On a phone they keep one row
+          that scrolls sideways with no scrollbar, as Samy's attachment row,
+          padded so the scroll does not clip a focus ring. */}
+      <div
+        role="radiogroup"
+        aria-label={t('studio_chips_label', 'Filter by category')}
+        onKeyDown={onRadioGroupKeyDown}
+        className="flex flex-wrap gap-[8px] phone:flex-nowrap phone:overflow-x-auto phone:p-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {catalog.chips.map((item) => {
+          // the chip in force, which is All once the chosen one's category is
+          // gone
+          const checked = item.id === sections.chip;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              tabIndex={checked ? 0 : -1}
+              onClick={() => setChip(item.id)}
+              className={clsx(
+                'inline-flex items-center gap-[8px] h-[36px] coarse:h-[44px] ps-[14px] pe-[8px] rounded-full border text-[14px] font-[600] whitespace-nowrap cursor-pointer transition-colors',
+                FOCUS_RING,
+                checked
+                  ? 'bg-selectedBg text-selectedText border-transparent'
+                  : 'bg-surface text-inkSoft border-line hover:bg-panel'
+              )}
+            >
+              <span>{item.label(t)}</span>
+              <span
+                className={clsx(
+                  'min-w-[22px] h-[22px] px-[6px] rounded-full inline-flex items-center justify-center text-[12px] tabular-nums',
+                  checked ? 'bg-surface' : 'bg-panel text-muted'
+                )}
+              >
+                {item.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!!sections.tools.length && (
+        <StudioSection
+          title={t('studio_section_tools', 'Tools')}
+          subtitle={t(
+            'studio_section_tools_sub',
+            'Made for one job, like an image or a slideshow.'
+          )}
+          tools={sections.tools}
+          chips={catalog.chips}
+          onSaved={saved}
+        />
+      )}
+      {!!sections.models.length && (
+        <StudioSection
+          title={t('studio_section_models', 'Models')}
+          subtitle={t(
+            'studio_section_models_sub',
+            'Choose the exact AI model when you want full control over the result.'
+          )}
+          tools={sections.models}
+          chips={catalog.chips}
+          onSaved={saved}
+        />
+      )}
+      {!sections.tools.length && !sections.models.length && (
+        <EmptyState
+          className="border border-dashed border-line rounded-[14px]"
+          illustration={<NoMatchIllustration />}
+          title={t('studio_no_match_title', 'Nothing matches “{{query}}”', {
+            query: isolate(query.trim()),
+            // React escapes the title, so i18next mustn't first
+            interpolation: { escapeValue: false },
+          })}
+          description={t(
+            'studio_no_match_body',
+            'Try another word, or clear the search to see every tool.'
+          )}
+          actions={
+            <Button variant="quiet" onClick={clearSearch}>
+              {t('studio_clear_search', 'Clear search')}
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 };

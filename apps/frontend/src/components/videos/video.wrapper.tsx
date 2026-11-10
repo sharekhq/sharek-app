@@ -11,6 +11,13 @@ export interface VideoTypeText {
   fallback: string;
 }
 
+/** The company behind a model, as Studio's "by" line shows it. */
+export interface StudioMaker {
+  name: string;
+  /** A path under `public/studio/makers/`. */
+  logo?: string;
+}
+
 /**
  * How the type chooser presents a provider. Declared by the provider itself so
  * the modal can describe every type without knowing any of them (FR-004).
@@ -22,6 +29,19 @@ export interface VideoTypeCard {
   pills: VideoTypeText[];
   /** Inline SVG drawn to a 52px box; inherits the AI accent from its tile. */
   diagram: ReactNode;
+  /**
+   * How Studio lists the provider. The provider presents itself, so Studio
+   * never names a provider. The chooser (`launches/ai.video.tsx`) doesn't
+   * read it.
+   */
+  studio?: {
+    kind: 'tool' | 'model';
+    /** A public path, under `public/studio/covers/`. */
+    cover?: string;
+    maker?: StudioMaker;
+    facts?: VideoTypeText[];
+    sampleLength?: string;
+  };
 }
 
 export const videosList: {

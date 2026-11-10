@@ -286,6 +286,12 @@ const EXEMPT: readonly Exemption[] = [
     reason:
       "A dayjs format pattern from upstream's timezone code (2f671180), the zoned dayjs's default for a bare `.format()`, never rendered.",
   },
+  {
+    file: 'components/videos/providers/veo3.provider.tsx',
+    text: 'Google',
+    reason:
+      "Veo 3's maker in its Studio declaration (studio.maker.name), which Studio's model card shows through studio_model_by's {{maker}}. A company's name, Latin in Arabic as the locale already writes it (platform_gmb, «الملف التجاري على Google») and as spec 055 decided (research R13). Not in KEEP_LATIN_PRODUCTS, whose set arabic.product.names.spec.ts pins to the platform_* labels left in Latin.",
+  },
 ];
 
 // Tables whose every value is already handed to t() as its DEFAULT, under a key built

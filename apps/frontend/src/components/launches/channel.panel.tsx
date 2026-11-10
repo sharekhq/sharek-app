@@ -3,6 +3,7 @@
 import {
   ComponentProps,
   FC,
+  forwardRef,
   KeyboardEvent,
   ReactNode,
   useCallback,
@@ -661,42 +662,50 @@ const CustomerGroup: FC<{
 // script, keeps its own direction. Empty, the field has no letter to take one
 // from, and dir="auto" would turn an Arabic placeholder left to right, so it
 // follows the page until something is typed. The padding is the icon's on
-// both sides, because typed text may run either way.
-export const SearchField: FC<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ label, value, onChange }) => (
-  // a margin, since the icon is placed from this box's edge
-  <div className="relative mx-[4px]">
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      aria-hidden="true"
-      className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-3.5-3.5" />
-    </svg>
-    <input
-      type="search"
-      dir="auto"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={label}
-      aria-label={label}
-      className={clsx(
-        'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-        FOCUS_RING
-      )}
-    />
-  </div>
-);
+// both sides, because typed text may run either way. Its ref is the input's,
+// so Studio can put the focus back in it after Clear search.
+export const SearchField = forwardRef<
+  HTMLInputElement,
+  {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }
+>(function SearchField(props, ref) {
+  const { label, value, onChange } = props;
+  return (
+    // a margin, since the icon is placed from this box's edge
+    <div className="relative mx-[4px]">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden="true"
+        className="absolute start-[12px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" />
+      </svg>
+      <input
+        ref={ref}
+        type="search"
+        dir="auto"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={label}
+        aria-label={label}
+        className={clsx(
+          'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+          FOCUS_RING
+        )}
+      />
+    </div>
+  );
+});
 
 // case and accents aside, so "cafe" finds "Café"
 const fold = (text: string) =>

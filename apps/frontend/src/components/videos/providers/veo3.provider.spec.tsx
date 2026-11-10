@@ -1,6 +1,8 @@
 import { FC, act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FormProvider, useForm, UseFormReturn } from 'react-hook-form';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /** The slice of the media picker's props this spec drives. */
 interface MediaRowProps {
@@ -130,5 +132,60 @@ describe('veo3 reference images', () => {
     await run.press();
 
     expect(Object.keys(run.values())).not.toContain('media');
+  });
+});
+
+// Public paths, as Studio draws them with `<img>`.
+const COVER = '/studio/covers/veo3.webp';
+const LOGO = '/studio/makers/google.svg';
+
+describe('its Studio listing', () => {
+  const card = videosList.find((p) => p.identifier === 'veo3')?.card;
+
+  it('lists itself as a model by Google, with its facts, length and cover', () => {
+    expect(card?.studio).toEqual({
+      kind: 'model',
+      cover: COVER,
+      maker: { name: 'Google', logo: LOGO },
+      facts: [
+        { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+        { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+        { key: 'video_type_veo3_fact_sound', fallback: 'Sound' },
+      ],
+      sampleLength: '0:08',
+    });
+  });
+
+  it('leaves the chooser card as it was', () => {
+    expect(card?.name).toEqual({ key: 'video_type_veo3', fallback: 'Veo 3' });
+    expect(card?.description).toEqual({
+      key: 'video_type_veo3_desc',
+      fallback:
+        'One continuous live-action shot with real camera movement and sound. No cuts, and it renders no readable text.',
+    });
+    expect(card?.pills).toEqual([
+      { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+      { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+      {
+        key: 'video_type_veo3_pill_refs',
+        fallback: 'Up to 3 reference images',
+      },
+      {
+        key: 'video_type_veo3_pill_bestfor',
+        fallback: 'Best for one vivid moment',
+      },
+    ]);
+  });
+});
+
+describe('its picture ships with the app', () => {
+  // Shipped with the app, never fetched from a third party (FR-018, SC-002).
+  const PUBLIC = path.join(__dirname, '../../../../public');
+
+  it.each([
+    ['cover', COVER],
+    ['maker logo', LOGO],
+  ])('its %s is under apps/frontend/public', (_, file) => {
+    expect(fs.existsSync(path.join(PUBLIC, file))).toBe(true);
   });
 });
