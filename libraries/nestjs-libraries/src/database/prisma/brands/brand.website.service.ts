@@ -137,7 +137,7 @@ const candidatesOf = ({ images = [], favicon }: WebPage, order: LogoOrder) =>
     uniq([...images, ...(favicon ? [favicon] : [])])
       // Neither sharp nor the Media library takes an ICO, a favicon's usual type
       .filter((link) => typeOf(link) !== '.ico')
-      .map((link) => ({ link })),
+      .map((link): Candidate => ({ link })),
     order
   ).slice(0, READS_MAX);
 
