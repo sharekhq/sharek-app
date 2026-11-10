@@ -11,7 +11,10 @@ import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
-import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
+import {
+  CheckmarkIcon,
+  IconProps,
+} from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
   useBrands,
@@ -46,9 +49,10 @@ export const TEXT_FIELD = clsx(
 
 // The canvas's globe, on the card's heading and the button beside Rename.
 // Decoration: the words are beside it.
-export const WebsiteIcon: FC<{ size: number; className?: string }> = ({
-  size,
+export const WebsiteIcon: FC<IconProps> = ({
+  size = 20,
   className,
+  ...props
 }) => (
   <svg
     width={size}
@@ -61,6 +65,7 @@ export const WebsiteIcon: FC<{ size: number; className?: string }> = ({
     strokeLinejoin="round"
     aria-hidden="true"
     className={className}
+    {...props}
   >
     <circle cx="12" cy="12" r="9" />
     <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
