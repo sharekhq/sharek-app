@@ -146,13 +146,6 @@ const failure = (pending: Promise<unknown>) =>
 // What each link holds; a link with nothing is one the site doesn't serve.
 let site: Record<string, Buffer> = {};
 
-// Each of the links holds the image.
-const serve = (image: Buffer, ...links: string[]) => {
-  for (const link of links) {
-    site[link] = image;
-  }
-};
-
 beforeEach(() => {
   site = {};
   read.mockReset().mockImplementation(async (link: string) => {
@@ -673,63 +666,58 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
 
     await expect(suggest(service)).rejects.toBe(bug);
   });
-});
 
-// readOrFetch reads any string that doesn't start with a lower-case "http" as
-// a local file's path, and a link in Firecrawl's answer is the site's own
-// text. The guard is FirecrawlService's, so these cases run the real one over
-// a mocked fetch: what it hands on is what is read here.
-describe('BrandWebsiteService.suggestFromWebsite over the real FirecrawlService', () => {
-  const ICON = 'https://www.noordental.example/apple-touch-icon.png';
+  // readOrFetch reads any string that doesn't start with a lower-case "http"
+  // as a local file's path, and a link in Firecrawl's answer is the site's own
+  // text. The guard is FirecrawlService's, so these cases run the real one
+  // over a mocked fetch: what it hands on is what is read here.
+  describe('over the real FirecrawlService', () => {
+    // Firecrawl's answer for a site whose logo is the link, in both places it
+    // names one, beside an icon at a link that can be read.
+    const answered = (logo: string) =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            branding: { logo, images: { logo, favicon: ICON } },
+            metadata: { url: 'https://www.noordental.example/' },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
 
-  // Firecrawl's answer for a site whose logo is the link, in both places it
-  // names one, beside an icon at a link that can be read.
-  const answered = (logo: string) =>
-    new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          branding: { logo, images: { logo, favicon: ICON } },
-          metadata: { url: 'https://www.noordental.example/' },
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    beforeEach(() => {
+      jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([
+      ['a data: address', 'data:image/svg+xml;base64,PHN2Zy8+'],
+      ['a relative path', '/assets/logo.png'],
+      ['a file: address', 'file:///etc/passwd'],
+      ['a path on this machine', '/etc/passwd'],
+    ])(
+      'only http(s) links are read: a logo Firecrawl gave as %s never reaches readOrFetch, and the icon beside it does',
+      async (_, logo) => {
+        // Firecrawl itself is answered for; nothing reaches the network.
+        jest.spyOn(global, 'fetch').mockResolvedValue(answered(logo));
+        site[ICON] = await navy(192);
+        const service = new BrandWebsiteService(
+          new FirecrawlService(),
+          {} as any,
+          {} as any
+        );
+
+        const { logos } = await suggest(service);
+
+        expect(read.mock.calls.map(([link]) => link)).toEqual([ICON]);
+        expect(logos).toEqual([ICON]);
+      }
     );
-
-  beforeEach(() => {
-    jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
   });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it.each([
-    ['a data: address', 'data:image/svg+xml;base64,PHN2Zy8+'],
-    ['a relative path', '/assets/logo.png'],
-    ['a file: address', 'file:///etc/passwd'],
-    ['a path on this machine', '/etc/passwd'],
-  ])(
-    'only http(s) links are read: a logo Firecrawl gave as %s never reaches readOrFetch, and the icon beside it does',
-    async (_, logo) => {
-      // Firecrawl itself is answered for; nothing reaches the network.
-      jest.spyOn(global, 'fetch').mockResolvedValue(answered(logo));
-      site[ICON] = await navy(192);
-      const service = new BrandWebsiteService(
-        new FirecrawlService(),
-        {} as any,
-        {} as any
-      );
-
-      const { logos } = await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      );
-
-      expect(read.mock.calls.map(([link]) => link)).toEqual([ICON]);
-      expect(logos).toEqual([ICON]);
-    }
-  );
 });
 
 describe('BrandWebsiteService.saveFromWebsite', () => {
