@@ -20,8 +20,14 @@ import {
   RequestMethod,
   ValidationPipe,
 } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import {
+  GUARDS_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+} from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerRealIpGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { CHECK_POLICIES_KEY } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import {
   BrandKitDto,
@@ -279,6 +285,27 @@ describe('BrandsController routes', () => {
     }
   );
 
+  // Each lookup reads a site or an image for whoever asks, so it takes 30 an
+  // hour, the cap of the backend's other routes that send requests out. The
+  // global ThrottlerBehindProxyGuard lets every route but the public API's
+  // posts through, so the route carries its own guard (as support.controller
+  // .spec notes); ThrottlerRealIpGuard counts by the address the proxy
+  // forwards.
+  it.each(['suggestFromWebsite', 'coloursFromLogo'] as const)(
+    '%s takes 30 requests an hour from one address',
+    (name) => {
+      const handler = BrandsController.prototype[name];
+
+      expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+        ThrottlerRealIpGuard,
+      ]);
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(30);
+      expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(
+        3_600_000
+      );
+    }
+  );
+
   // The global ValidationPipe validates a body against its parameter's type,
   // which is what turns a bad name or kit into a 400.
   it.each([
@@ -294,11 +321,12 @@ describe('BrandsController routes', () => {
   });
 });
 
-// Real routing and the global ValidationPipe, as main.ts sets it: "website"
-// must reach the lookups rather than be read as a brand's id, the lookups
-// create nothing so they answer 200 rather than POST's 201, and a bare domain
-// arrives with https:// while anything readOrFetch would read as a local path
-// stops at a 400.
+// Real routing, the routes' own throttler and the global ValidationPipe, as
+// main.ts sets it: "website" must reach the lookups rather than be read as a
+// brand's id, the lookups answer POST's 201 as the backend's other POSTs that
+// save nothing do, a bare domain arrives with https:// while anything
+// readOrFetch would read as a local path stops at a 400, and one address gets
+// 30 lookups an hour.
 describe('Fill from my website, through the router', () => {
   const website = {
     suggestFromWebsite: jest.fn(),
@@ -308,15 +336,20 @@ describe('Fill from my website, through the router', () => {
   let app: INestApplication;
   let url: string;
 
-  const send = (method: string, path: string, body: object) =>
+  const send = (method: string, path: string, body: object, headers = {}) =>
     fetch(url + path, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
     });
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot({
+          throttlers: [{ ttl: 3_600_000, limit: 90 }],
+        }),
+      ],
       controllers: [BrandsController],
       providers: [
         { provide: BrandService, useValue: {} },
@@ -343,12 +376,12 @@ describe('Fill from my website, through the router', () => {
     website.saveFromWebsite.mockReset().mockResolvedValue(brand);
   });
 
-  it('POST /brands/website looks a bare domain up on https:// and answers 200 with the suggestions', async () => {
+  it('POST /brands/website looks a bare domain up on https:// and answers 201 with the suggestions', async () => {
     const response = await send('POST', '/brands/website', {
       url: 'noordental.sa',
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual(suggestions);
     expect(website.suggestFromWebsite).toHaveBeenCalledWith(
       'org-1',
@@ -356,12 +389,12 @@ describe('Fill from my website, through the router', () => {
     );
   });
 
-  it('POST /brands/website/colours answers 200 with the logo’s colours', async () => {
+  it('POST /brands/website/colours answers 201 with the logo’s colours', async () => {
     const response = await send('POST', '/brands/website/colours', {
       logo: 'https://cdn.noordental.sa/logo.png',
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ colours: ['#E30613'] });
     expect(website.coloursFromLogo).toHaveBeenCalledWith(
       'https://cdn.noordental.sa/logo.png'
@@ -399,6 +432,32 @@ describe('Fill from my website, through the router', () => {
       expect(website.suggestFromWebsite).not.toHaveBeenCalled();
       expect(website.coloursFromLogo).not.toHaveBeenCalled();
       expect(website.saveFromWebsite).not.toHaveBeenCalled();
+    }
+  );
+
+  // Each route counts on its own, by the address the proxy forwards.
+  it.each([
+    [
+      '/brands/website',
+      { url: 'https://www.noordental.sa/' },
+      website.suggestFromWebsite,
+    ],
+    [
+      '/brands/website/colours',
+      { logo: 'https://cdn.noordental.sa/logo.png' },
+      website.coloursFromLogo,
+    ],
+  ])(
+    'POST %s refuses a 31st request within the hour from one address with a 429, before the service',
+    async (path, body, lookup) => {
+      const from = { 'x-forwarded-for': '203.0.113.7' };
+      const statuses: number[] = [];
+      for (let n = 0; n < 31; n++) {
+        statuses.push((await send('POST', path, body, from)).status);
+      }
+
+      expect(statuses).toEqual([...Array(30).fill(201), 429]);
+      expect(lookup).toHaveBeenCalledTimes(30);
     }
   );
 });
