@@ -18,7 +18,6 @@ import { BrandWebsiteService } from '@gitroom/nestjs-libraries/database/prisma/b
 import {
   BrandKitDto,
   BrandKitFromWebsiteDto,
-  BrandWebsiteColoursDto,
   BrandWebsiteDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
@@ -44,8 +43,8 @@ export class BrandsController {
     return this._brandService.create(org.id, body);
   }
 
-  // Each lookup reads a site or an image for whoever asks, so it is capped per
-  // client, as the other routes that send requests out are
+  // The lookup reads a site for whoever asks, so it is capped per client, as
+  // the other routes that send requests out are
   @UseGuards(ThrottlerRealIpGuard)
   @Throttle({ default: { limit: 30, ttl: 3600000 } })
   @Post('/website')
@@ -54,15 +53,6 @@ export class BrandsController {
     @Body() body: BrandWebsiteDto
   ) {
     return this._brandWebsiteService.suggestFromWebsite(org.id, body.url);
-  }
-
-  @UseGuards(ThrottlerRealIpGuard)
-  @Throttle({ default: { limit: 30, ttl: 3600000 } })
-  @Post('/website/colours')
-  async coloursFromLogo(@Body() body: BrandWebsiteColoursDto) {
-    return {
-      colours: await this._brandWebsiteService.coloursFromLogo(body.logo),
-    };
   }
 
   @Delete('/:id')
