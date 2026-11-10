@@ -519,6 +519,26 @@ const PLURALS = [
       other: 'يمكنك نقلها لاحقًا من صفحة العلامات التجارية.',
     },
   ],
+  // Not on the canvas: the card's note when the kit has less room for
+  // colours than the site suggests, the count being the room left. The kit
+  // keeps its own colours first, so with none left en's _zero says to
+  // remove one.
+  [
+    'brands_website_colours_room',
+    {
+      zero: "Your kit's colours are full: remove one to add from your site.",
+      one: 'Your kit has room for 1 more colour.',
+      other: 'Your kit has room for {{count}} more colours.',
+    },
+    {
+      zero: 'ألوان هويتك مكتملة: أزل لونًا لتضيف من موقعك.',
+      one: 'تتسع هويتك للون واحد آخر.',
+      two: 'تتسع هويتك للونين آخرين.',
+      few: 'تتسع هويتك لـ{{count}} ألوان أخرى.',
+      many: 'تتسع هويتك لـ{{count}} لونًا آخر.',
+      other: 'تتسع هويتك لـ{{count}} لون آخر.',
+    },
+  ],
 ] as const;
 
 // The words that change (contracts/pages-ui.md, board Rename): today's screens

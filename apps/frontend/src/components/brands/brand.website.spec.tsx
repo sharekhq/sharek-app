@@ -679,3 +679,98 @@ describe('the dialog from the button beside Rename', () => {
     );
   });
 });
+
+// The server keeps the kit's own colours first and drops what doesn't fit
+// (BRAND_COLOURS_MAX), so the suggestions are ticked only up to the room the
+// kit has, and the card says how many fit.
+describe('a kit with less room for colours than the site suggests', () => {
+  const KIT = ['#111111', '#222222', '#333333', '#444444', '#555555'];
+  const note = () =>
+    Array.from(document.querySelectorAll('p')).find((node) =>
+      /room for|colours are full/.test(node.textContent ?? '')
+    );
+  const disabled = () =>
+    colours()
+      .filter((node) => node.hasAttribute('disabled'))
+      .map((node) => node.getAttribute('aria-label'));
+
+  it('ticks the first ones the kit has room for, refuses ticking more, and says how many fit', async () => {
+    await mount();
+
+    await act(async () => openWebsite(brand({ colours: KIT.slice(0, 4) })));
+    await lookUp();
+
+    expect(ticked()).toEqual(SITE.colours.slice(0, 2));
+    expect(disabled()).toEqual([SITE.colours[2]]);
+    expect(note()?.textContent).toBe('Your kit has room for 2 more colours.');
+
+    // a ticked colour unticked makes room for another
+    await click(colours()[0]);
+    await click(colours()[2]);
+    expect(ticked()).toEqual([SITE.colours[1], SITE.colours[2]]);
+
+    await click(button('Add to kit'));
+
+    expect(sent('/brands/b1/kit/from-website')).toEqual([
+      {
+        method: 'PUT',
+        body: {
+          logo: SITE.logos[0],
+          colours: [SITE.colours[1], SITE.colours[2]],
+        },
+      },
+    ]);
+  });
+
+  it("ticks only that many of another logo's colours", async () => {
+    await mount();
+
+    await act(async () => openWebsite(brand({ colours: KIT })));
+    await lookUp();
+    await click(logos()[1]);
+
+    expect(ticked()).toEqual([FAVICON_COLOURS[0]]);
+    expect(note()?.textContent).toBe('Your kit has room for 1 more colour.');
+  });
+
+  it('with no room left ticks none, offers none, and says to remove one; the logo can still go in', async () => {
+    await mount();
+
+    await act(async () => openWebsite(brand({ colours: [...KIT, '#666666'] })));
+    await lookUp();
+
+    expect(ticked()).toEqual([]);
+    expect(disabled()).toEqual(SITE.colours);
+    expect(note()?.textContent).toBe(
+      "Your kit's colours are full: remove one to add from your site."
+    );
+
+    await click(button('Add to kit'));
+
+    expect(sent('/brands/b1/kit/from-website')).toEqual([
+      { method: 'PUT', body: { logo: SITE.logos[0], colours: [] } },
+    ]);
+  });
+
+  it('says nothing about room when every suggestion fits', async () => {
+    await mount();
+
+    await act(async () => openWebsite(brand({ colours: KIT.slice(0, 3) })));
+    await lookUp();
+
+    expect(ticked()).toEqual(SITE.colours);
+    expect(disabled()).toEqual([]);
+    expect(note()).toBeUndefined();
+  });
+
+  it('reads in Arabic', async () => {
+    await i18next.changeLanguage('ar');
+    await mount();
+
+    await act(async () => openWebsite(brand({ colours: KIT.slice(0, 4) })));
+    await type(field(), 'rawda.sa');
+    await click(button('ابحث'));
+
+    expect(note()?.textContent).toBe('تتسع هويتك للونين آخرين.');
+  });
+});

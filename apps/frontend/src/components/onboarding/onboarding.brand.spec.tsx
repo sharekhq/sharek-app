@@ -19,7 +19,9 @@ const request = jest.fn();
 const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
 // undefined while GET /brands is still loading
-let brands: Array<{ id: string; name: string }> | undefined = [];
+let brands:
+  | Array<{ id: string; name: string; kit?: { colours: string[] } }>
+  | undefined = [];
 let channels: Array<{
   id: string;
   name: string;
@@ -371,6 +373,17 @@ describe('the brand step', () => {
     expect(calls()).toEqual(['POST /brands/website']);
   });
 
+  it('ticks every colour the site suggests, as a new brand has room for all six, and says nothing about room', async () => {
+    const six = [...SITE.colours, '#1D2B36', '#FFFFFF', '#C0392B'];
+    answers['/brands/website'] = () => answer({ ...SITE, colours: six });
+    await toBrandStep();
+
+    await lookUp();
+
+    expect(ticked()).toEqual(six);
+    expect(document.body.textContent).not.toMatch(/room for|colours are full/);
+  });
+
   it("offers to put the organization's channels in the brand, ticked and counted", async () => {
     await toBrandStep();
 
@@ -620,6 +633,30 @@ describe('coming back to the step', () => {
       'A brand with this name already exists.'
     );
     expect(current()).toBe(3);
+  });
+
+  it("ticks only the colours the created brand's kit still has room for", async () => {
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Continue'));
+    // the reloaded list holds the new brand, its kit's colours since filled
+    brands = [
+      {
+        id: 'new1',
+        name: 'Rawda Florist',
+        kit: {
+          colours: ['#111111', '#222222', '#333333', '#444444', '#555555'],
+        },
+      },
+    ];
+
+    await click(button('Back'));
+    await lookUp();
+
+    expect(ticked()).toEqual([SITE.colours[0]]);
+    expect(document.body.textContent).toContain(
+      'Your kit has room for 1 more colour.'
+    );
   });
 
   it('keeps the name typed, still editable, when the step is skipped and come back to', async () => {
