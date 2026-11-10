@@ -716,6 +716,28 @@ describe('the dialog from the button beside Rename', () => {
     expect(dialogOpen()).toBe(false);
   });
 
+  // The app's modal (new-modal.tsx, upstream's too) gives no dialog role, so
+  // the lookup's own content says it is a dialog, named by the modal's title.
+  // Not aria-modal: the content holds the body alone, and aria-modal would
+  // hide the modal's title and × from a screen reader. The card on the kit is
+  // no dialog.
+  it("is a dialog to a screen reader, named by the modal's title, around the lookup; the card is not", async () => {
+    await mountCard();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await act(async () => openWebsite(brand()));
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog!.hasAttribute('aria-modal')).toBe(false);
+    expect(
+      document.getElementById(dialog!.getAttribute('aria-labelledby') ?? '')
+        ?.textContent
+    ).toBe(TITLE);
+    expect(dialog!.querySelector('input[dir="ltr"]')).toBeTruthy();
+    expect(card()!.closest('[role="dialog"]')).toBeNull();
+  });
+
   it('closes with Not now, and saves nothing then or when it is closed', async () => {
     await mount();
 
