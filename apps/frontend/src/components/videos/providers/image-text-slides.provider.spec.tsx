@@ -1,6 +1,8 @@
 import { FC, act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FormProvider, useForm } from 'react-hook-form';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const toast = jest.fn();
 const request = jest.fn();
@@ -294,5 +296,51 @@ describe('the Slides row', () => {
         ])
       );
     }
+  });
+});
+
+// Public path, as Studio draws it with `<img>`.
+const COVER = '/studio/covers/image-text-slides.webp';
+
+describe('its Studio listing', () => {
+  const card = videosList.find(
+    (p) => p.identifier === 'image-text-slides'
+  )?.card;
+
+  it('lists itself as a tool with its cover, and no maker, facts or length', () => {
+    expect(card?.studio).toEqual({ kind: 'tool', cover: COVER });
+  });
+
+  it('leaves the chooser card as it was', () => {
+    expect(card?.name).toEqual({
+      key: 'video_type_image_text_slides',
+      fallback: 'Image Text Slides',
+    });
+    expect(card?.description).toEqual({
+      key: 'video_type_slides_desc',
+      fallback:
+        'A narrated slideshow of AI images with captions burned in. You review and edit the script before anything is rendered.',
+    });
+    expect(card?.pills).toEqual([
+      { key: 'video_type_slides_pill_slides', fallback: '1–6 slides' },
+      { key: 'video_type_slides_pill_length', fallback: '10–55 s' },
+      {
+        key: 'video_type_slides_pill_voiceover',
+        fallback: 'Voiceover optional',
+      },
+      {
+        key: 'video_type_slides_pill_bestfor',
+        fallback: 'Best for lists & explainers',
+      },
+    ]);
+  });
+});
+
+describe('its picture ships with the app', () => {
+  // Shipped with the app, never fetched from a third party (FR-018, SC-002).
+  const PUBLIC = path.join(__dirname, '../../../../public');
+
+  it('its cover is under apps/frontend/public', () => {
+    expect(fs.existsSync(path.join(PUBLIC, COVER))).toBe(true);
   });
 });
