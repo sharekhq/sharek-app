@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { partition, uniq } from 'lodash';
+import { compact, partition, uniq } from 'lodash';
 import { extname } from 'path';
 import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
@@ -23,13 +23,14 @@ type WebsiteSuggestions = {
 
 type Pixels = { data: Buffer; info: { width: number; height: number } };
 type Rgb = number[];
+type Logo = { link: string; image: Buffer };
 
 // The logo links the card offers to pick from
 const LOGOS_MAX = 6;
 
-// So a page whose first links are broken still gets colours, without every
-// candidate being fetched
-const COLOUR_READS = 3;
+// The links read for them: twice as many, so a page whose first links are
+// broken still fills the 6, without every image on a page being fetched
+const READS_MAX = 12;
 
 // A logo is sampled inside this many pixels, enough to count its colours
 const SAMPLE_EDGE = 64;
@@ -42,8 +43,9 @@ const SVG_EDGE = 1024;
 const LOGO_MAX_BYTES = getMaxSize('image/png');
 
 // Each request of a logo's read (its HEAD and its GET) waits at most this
-// long, so a lookup's reads end within 30 s beside Tavily's 20 s, well inside
-// nginx's 95 s. A read that runs out of time is a link that can't be read.
+// long. A lookup reads its links at once, so its reads end within 10 s beside
+// Tavily's 20 s, well inside nginx's 95 s. A read that runs out of time is a
+// link that can't be read.
 const LOGO_READ_TIMEOUT = 5_000;
 
 // The card says each of these in its own words.
@@ -65,9 +67,37 @@ const candidatesOf = ({ images = [], favicon }: WebPage) => {
     uniq([...named, ...others, ...(favicon ? [favicon] : [])])
       // Neither sharp nor the Media library takes an ICO, a favicon's usual type
       .filter((link) => typeOf(link) !== '.ico')
-      .slice(0, LOGOS_MAX)
+      .slice(0, READS_MAX)
   );
 };
+
+// A link's image, read as a logo's bytes are; none when the link can't be
+// fetched or its bytes are no image sharp reads (the page itself, a video, an
+// ICO), whatever its path says
+const logoAt = async (link: string): Promise<Logo | undefined> => {
+  try {
+    const image = await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT);
+    await sharp(image).metadata();
+    return { link, image };
+  } catch {
+    return undefined;
+  }
+};
+
+// The pixels a logo's colours are read from
+const pixelsOf = (image: Buffer): Promise<Pixels> =>
+  sharp(image)
+    .resize(SAMPLE_EDGE, SAMPLE_EDGE, {
+      fit: 'inside',
+      withoutEnlargement: true,
+      // No blend of two colours is made by the sampling
+      kernel: 'nearest',
+    })
+    // A greyscale or CMYK image comes out as RGB too
+    .toColourspace('srgb')
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
 // A logo of these types is saved as the site serves it: the Media library
 // takes them and every browser and network shows them
@@ -216,27 +246,31 @@ export class BrandWebsiteService {
       throw new HttpException(UNREADABLE_SITE, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
-    const unreadable: string[] = [];
-    let colours: string[] = [];
-    for (const logo of candidates.slice(0, COLOUR_READS)) {
-      const pixels = await this.pixelsOf(logo);
-      if (pixels) {
-        colours = coloursIn(pixels);
-        break;
-      }
-      unreadable.push(logo);
-    }
+    // The links are read at once, so the lookup waits for its slowest read only
+    const logos = compact(await Promise.all(candidates.map(logoAt))).slice(
+      0,
+      LOGOS_MAX
+    );
 
     return {
       foundOn: new URL(url).host,
-      logos: candidates.filter((logo) => !unreadable.includes(logo)),
-      colours,
+      logos: logos.map(({ link }) => link),
+      // An image cut short can have a header sharp reads and no pixels
+      colours: logos.length
+        ? await pixelsOf(logos[0].image).then(coloursIn, () => [])
+        : [],
     };
   }
 
   async coloursFromLogo(link: string): Promise<string[]> {
-    const pixels = await this.pixelsOf(link);
-    if (!pixels) {
+    let pixels: Pixels;
+    try {
+      pixels = await pixelsOf(
+        await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
+      );
+    } catch {
+      // A link the site doesn't serve, or bytes sharp can't read (an ICO, a
+      // page that isn't one)
       throw new HttpException(
         UNREADABLE_IMAGE,
         HttpStatus.UNPROCESSABLE_ENTITY
@@ -280,28 +314,5 @@ export class BrandWebsiteService {
     }
 
     return this._mediaService.saveImage(org, file.image, file.mime);
-  }
-
-  // An image sharp can't read (an ICO, a page that isn't one) or a link that
-  // can't be fetched is the site's, not a failure of ours
-  private async pixelsOf(link: string): Promise<Pixels | undefined> {
-    try {
-      return await sharp(
-        await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
-      )
-        .resize(SAMPLE_EDGE, SAMPLE_EDGE, {
-          fit: 'inside',
-          withoutEnlargement: true,
-          // No blend of two colours is made by the sampling
-          kernel: 'nearest',
-        })
-        // A greyscale or CMYK image comes out as RGB too
-        .toColourspace('srgb')
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-    } catch {
-      return undefined;
-    }
   }
 }
