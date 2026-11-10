@@ -650,6 +650,23 @@ describe('the full card', () => {
     ]);
   });
 
+  // The primary Button's ring is its own red with no gap, so on Add to kit it
+  // can't be seen; this one stands off by a gap of the surface. The shared
+  // Button is unchanged. The spec sees the classes, not the ring.
+  it('rings Add to kit on focus with a gap of the surface, so the ring shows around the red button', async () => {
+    await mountCard();
+    await lookUp();
+
+    expect(classesOf(button('Add to kit')!)).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+        'focus-visible:ring-offset-2',
+        'focus-visible:ring-offset-surface',
+      ])
+    );
+  });
+
   it('reads in Arabic, the address kept left to right', async () => {
     await i18next.changeLanguage('ar');
     await mountCard();
