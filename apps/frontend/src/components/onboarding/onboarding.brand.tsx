@@ -45,11 +45,13 @@ export const OnboardingBrand: FC<{
   const { ungrouped, create } = useCreateBrand();
   const { data: brands, mutate: reloadBrands } = useBrands();
   const { mutate: reloadChannels } = useIntegrationList();
-  // A new brand's kit has room for every colour; one created already, come
-  // back to, for what its kit doesn't hold yet.
+  // A new brand's kit has room for every colour and no font of its own; one
+  // created already, come back to, has room for what its kit doesn't hold
+  // yet, and its fonts are the ones a suggestion comes unticked beside.
+  const kit = brands?.find((brand) => brand.id === created)?.kit;
   const lookup = useWebsiteLookup(
-    BRAND_COLOURS_MAX -
-      (brands?.find((brand) => brand.id === created)?.kit.colours.length ?? 0)
+    BRAND_COLOURS_MAX - (kit?.colours.length ?? 0),
+    kit
   );
   const [move, setMove] = useState(true);
   const [creating, setCreating] = useState(false);
