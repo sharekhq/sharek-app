@@ -96,8 +96,8 @@ export const useWebsiteLookup = () => {
     reset();
   };
 
-  // A bare domain is looked up on https://. The first logo comes picked and
-  // every colour ticked. A refusal or no answer says the site couldn't be
+  // The address goes as typed, trimmed: the server looks a bare domain up on
+  // https://. The first logo comes picked and every colour ticked. A refusal or no answer says the site couldn't be
   // read; one the fetch interceptor answered (a redirect) says nothing more,
   // and neither does an answer for an address changed since it was asked.
   const lookUp = async () => {
@@ -111,9 +111,7 @@ export const useWebsiteLookup = () => {
     try {
       const response = await fetch('/brands/website', {
         method: 'POST',
-        body: JSON.stringify({
-          url: /^https?:\/\//i.test(typed) ? typed : `https://${typed}`,
-        }),
+        body: JSON.stringify({ url: typed }),
       });
       const answer: Suggestions | undefined = response.ok
         ? await response.json()
