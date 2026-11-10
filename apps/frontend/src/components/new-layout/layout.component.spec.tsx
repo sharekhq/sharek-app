@@ -6,12 +6,22 @@
 // of that runs, and the rail is never inert.
 import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Scenery: everything the shell mounts around the parts under test.
 const mockPassThrough = ({ children }: { children?: ReactNode }) => (
   <>{children}</>
 );
 const mockNothing = (): null => null;
+// The top bar's controls: each renders a test id, and a case can take any of
+// them away, as the real one renders nothing (no streak, one organization).
+type Control = 'streak' | 'switcher' | 'mode' | 'language' | 'chrome' | 'bell';
+const mockHidden = new Set<Control>();
+const mockControl = (id: Control) =>
+  function MockControl() {
+    return mockHidden.has(id) ? null : <span data-testid={id} />;
+  };
 
 jest.mock('@gitroom/frontend/app/fonts', () => ({
   fontVariables: 'font-variables-stub',
@@ -22,7 +32,7 @@ jest.mock('@gitroom/frontend/components/new-layout/logo', () => ({
 // ModeComponent is the only dynamic import.
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: () => () => null,
+  default: () => mockControl('mode'),
 }));
 jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -35,6 +45,7 @@ const mockVariables = {
   billingEnabled: true,
   isGeneral: true,
   showUpstreamExtras: false,
+  sentryDsn: '',
 };
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => mockVariables,
@@ -94,21 +105,17 @@ jest.mock('@gitroom/frontend/components/layout/title', () => ({
   Title: () => <span data-testid="title">Calendar</span>,
 }));
 jest.mock('@gitroom/frontend/components/layout/streak.component', () => ({
-  StreakComponent: () => <span data-testid="streak" />,
+  StreakComponent: mockControl('streak'),
 }));
 jest.mock(
-  '@gitroom/frontend/components/new-layout/sentry.feedback.component',
-  () => ({ AttachToFeedbackIcon: () => <span data-testid="feedback" /> })
-);
-jest.mock(
   '@gitroom/frontend/components/layout/chrome.extension.component',
-  () => ({ ChromeExtensionComponent: () => <span data-testid="chrome" /> })
+  () => ({ ChromeExtensionComponent: mockControl('chrome') })
 );
 jest.mock(
   '@gitroom/frontend/components/notifications/notification.component',
   () => ({
     __esModule: true,
-    default: mockNothing,
+    default: mockControl('bell'),
   })
 );
 jest.mock('@gitroom/frontend/components/layout/top.tip', () => ({
@@ -147,10 +154,10 @@ jest.mock('@gitroom/frontend/components/layout/announcement.banner', () => ({
   AnnouncementBanner: mockNothing,
 }));
 jest.mock('@gitroom/frontend/components/layout/language.component', () => ({
-  LanguageComponent: mockNothing,
+  LanguageComponent: mockControl('language'),
 }));
 jest.mock('@gitroom/frontend/components/layout/organization.selector', () => ({
-  OrganizationSelector: mockNothing,
+  OrganizationSelector: mockControl('switcher'),
 }));
 jest.mock(
   '@gitroom/frontend/components/layout/pre-condition.component',
@@ -211,21 +218,25 @@ const mount = async () => {
     'button[aria-controls="left-menu"]'
   ) as HTMLButtonElement;
   const row = drawer.parentElement as HTMLElement;
-  const streakWrapper = byTestId('streak').parentElement as HTMLElement;
+  const title = byTestId('title').parentElement as HTMLElement;
+  // The icon row follows the title; its first child is the streak and
+  // switcher's group, and the separator comes straight after the group.
+  const iconRow = title.nextElementSibling as HTMLElement;
+  const group = iconRow.firstElementChild as HTMLElement;
 
   return {
     host,
+    byTestId,
     drawer,
     button,
     header: button.parentElement as HTMLElement,
     // the page card: header and page, everything but the rail/drawer and scrim
     card: (button.parentElement as HTMLElement).parentElement as HTMLElement,
     field: byTestId('field') as HTMLInputElement,
-    title: byTestId('title').parentElement as HTMLElement,
-    iconGroup: streakWrapper.parentElement as HTMLElement,
-    streakWrapper,
-    streakSeparator: streakWrapper.nextElementSibling as HTMLElement,
-    feedbackWrapper: byTestId('feedback').parentElement as HTMLElement,
+    title,
+    iconRow,
+    group,
+    separator: group.nextElementSibling as HTMLElement,
     chromeWrapper: () => byTestId('chrome')?.parentElement as HTMLElement,
     pageWrapper: host.querySelector('.font-variables-stub') as HTMLElement,
     contentWrapper: byTestId('page').parentElement as HTMLElement,
@@ -257,7 +268,9 @@ const classesOf = (el: Element) =>
 beforeEach(() => {
   width = 820;
   mockHasCurrentItem = true;
+  mockHidden.clear();
   mockVariables.showUpstreamExtras = false;
+  mockVariables.sentryDsn = '';
   document.body.style.overflow = '';
   window.matchMedia = (query: string) =>
     ({
@@ -301,6 +314,115 @@ describe('the app shell', () => {
       shell.host.querySelector('[data-testid="posthog-identify"]')
     ).not.toBeNull();
     expect(shell.host.querySelector('[data-testid="invoices"]')).toBeNull();
+  });
+});
+
+// The slimmer top bar (spec 055, US2): 64px with a 20px title, no Sentry
+// button, and one separator after the streak and the switcher. The two sit
+// alone in a `peer` group, so the separator hides by CSS while neither renders
+// (research R8): nothing may wrap them, or the group is never empty.
+describe('the top bar', () => {
+  it('is 64px tall at every width, with a 20px title that can truncate (FR-020)', async () => {
+    const shell = await mount();
+
+    expect(classesOf(shell.header).filter((c) => /(^|:)h-\[/.test(c))).toEqual([
+      'h-[64px]',
+    ]);
+    expect(
+      classesOf(shell.title).filter((c) => /(^|:)text-\[\d+px\]/.test(c))
+    ).toEqual(['text-[20px]', 'mobile:text-[18px]']);
+    expect(classesOf(shell.title)).toContain('min-w-0');
+  });
+
+  it('has no feedback button, and the layout no longer imports it (FR-021)', async () => {
+    mockVariables.sentryDsn = 'https://key@sentry.example/1';
+    const shell = await mount();
+
+    expect(shell.header.querySelector('[aria-label="Feedback"]')).toBeNull();
+    expect(
+      fs.readFileSync(path.join(__dirname, 'layout.component.tsx'), 'utf8')
+    ).not.toContain('AttachToFeedbackIcon');
+  });
+
+  it('puts the streak and the switcher alone in one peer group, followed by the only separator in the bar (FR-022)', async () => {
+    const shell = await mount();
+
+    expect(
+      Array.from(shell.group.childNodes).map((node) =>
+        (node as Element).getAttribute('data-testid')
+      )
+    ).toEqual(['streak', 'switcher']);
+    expect(classesOf(shell.group)).toEqual(
+      expect.arrayContaining([
+        'peer',
+        'flex',
+        'items-center',
+        'gap-[4px]',
+        'empty:hidden',
+      ])
+    );
+    const separators = shell.header.querySelectorAll('.bg-blockSeparator');
+    expect(separators).toHaveLength(1);
+    expect(separators[0]).toBe(shell.separator);
+    expect(classesOf(shell.separator)).toEqual(
+      expect.arrayContaining([
+        'w-[1px]',
+        'h-[20px]',
+        'peer-empty:hidden',
+        'mobile:hidden',
+      ])
+    );
+  });
+
+  it.each<[string, number, Control[]]>([
+    ['a streak and a second organization', 2, []],
+    ['a streak only', 1, ['switcher']],
+    ['a second organization only', 1, ['streak']],
+    ['neither', 0, ['streak', 'switcher']],
+  ])(
+    'with %s, the group has a child-node count of %i and is :empty only at 0 (FR-022)',
+    async (_member, nodes, hidden) => {
+      hidden.forEach((id) => mockHidden.add(id));
+      const shell = await mount();
+
+      expect(shell.group.childNodes).toHaveLength(nodes);
+      expect(shell.group.matches(':empty')).toBe(nodes === 0);
+    }
+  );
+
+  it('reads group, separator, mode, language, Chrome, bell, centred 4px apart at every width (FR-023)', async () => {
+    mockVariables.showUpstreamExtras = true;
+    const shell = await mount();
+    const nameOf = (el: Element) =>
+      el.classList.contains('peer')
+        ? 'group'
+        : el.classList.contains('bg-blockSeparator')
+        ? 'separator'
+        : el.getAttribute('data-testid') ??
+          `wrapper of ${el.firstElementChild?.getAttribute('data-testid')}`;
+
+    expect(Array.from(shell.iconRow.children).map(nameOf)).toEqual([
+      'group',
+      'separator',
+      'mode',
+      'language',
+      'wrapper of chrome',
+      'bell',
+    ]);
+    expect(
+      classesOf(shell.iconRow)
+        .filter((c) => /(^|:)(gap|items)-/.test(c))
+        .sort()
+    ).toEqual(['gap-[4px]', 'items-center']);
+  });
+
+  it('keeps the menu button first and unchanged', async () => {
+    const shell = await mount();
+
+    expect(shell.header.firstElementChild).toBe(shell.button);
+    expect(shell.button.getAttribute('class')).toBe(
+      'hidden mobile:flex -ms-[6px] h-[40px] w-[40px] coarse:h-[44px] coarse:w-[44px] shrink-0 items-center justify-center rounded-[10px] text-textItemBlur hover:text-newTextColor hover:bg-boxFocused transition-colors focus-visible:ring-2 focus-visible:ring-brand'
+    );
   });
 });
 
@@ -520,25 +642,30 @@ describe('the shell gives way at the mobile screen (≤1025px)', () => {
     expect(classesOf(shell.header)).toEqual(
       expect.arrayContaining([
         'relative',
-        'mobile:h-[64px]',
+        'h-[64px]',
+        'mobile:px-[12px]',
         'mobile:gap-[12px]',
       ])
     );
     expect(classesOf(shell.button)).toContain('mobile:flex');
     expect(classesOf(shell.button)).not.toContain('me-[12px]');
     expect(classesOf(shell.title)).toContain('mobile:text-[18px]');
-    expect(classesOf(shell.iconGroup)).toEqual(
-      expect.arrayContaining(['mobile:items-center', 'mobile:gap-[14px]'])
+    expect(classesOf(shell.iconRow)).toEqual(
+      expect.arrayContaining(['items-center', 'gap-[4px]'])
     );
   });
 
-  it('hides the streak on phones only, and feedback and Chrome on every small screen (FR-005, FR-006)', async () => {
+  // The streak hides on phones by its own root (streak.component.spec), so
+  // nothing in the bar wraps it and no separator sits after it.
+  it('hides the separator and Chrome on every small screen, with no wrapper around the streak and no separator after it (FR-005, FR-006)', async () => {
     mockVariables.showUpstreamExtras = true;
     const shell = await mount();
 
-    expect(classesOf(shell.streakWrapper)).toContain('phone:hidden');
-    expect(classesOf(shell.streakSeparator)).toContain('phone:hidden');
-    expect(classesOf(shell.feedbackWrapper)).toContain('mobile:hidden');
+    expect(shell.byTestId('streak').parentElement).toBe(shell.group);
+    expect(shell.byTestId('streak').nextElementSibling).toBe(
+      shell.byTestId('switcher')
+    );
+    expect(classesOf(shell.separator)).toContain('mobile:hidden');
     expect(classesOf(shell.chromeWrapper())).toContain('mobile:hidden');
   });
 
@@ -578,9 +705,10 @@ describe('the shell gives way at the mobile screen (≤1025px)', () => {
       header: shell.header,
       button: shell.button,
       title: shell.title,
-      iconGroup: shell.iconGroup,
+      iconRow: shell.iconRow,
+      group: shell.group,
+      separator: shell.separator,
       chrome: shell.chromeWrapper(),
-      feedback: shell.feedbackWrapper,
     };
     for (const [name, el] of Object.entries(parts)) {
       expect([
