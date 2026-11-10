@@ -300,10 +300,12 @@ const STRINGS = [
     "Sharek couldn't read this site. Check the address, or try again later.",
     'تعذر على شارك قراءة هذا الموقع. تحقق من العنوان، أو حاول لاحقًا.',
   ],
+  // A home page that redirects (kaust.edu.sa to /en/) reads as nothing found,
+  // so the line suggests the full address the site opens on (part 3's walk).
   [
     'brands_website_nothing_found',
-    'Nothing was found on this site. Try another address.',
-    'لم نجد شيئًا في هذا الموقع. جرب عنوانًا آخر.',
+    'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.',
+    'لم نجد شيئًا في هذا العنوان. جرب العنوان الكامل لصفحتك الرئيسية، مثل yourbrand.com/en.',
   ],
   [
     'brands_website_logo_failed',

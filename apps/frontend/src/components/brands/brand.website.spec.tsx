@@ -592,8 +592,10 @@ describe('the full card', () => {
 
     await lookUp();
 
+    // a home page that redirects finds nothing, so the line suggests the full
+    // address the site opens on
     expect(card()!.textContent).toContain(
-      'Nothing was found on this site. Try another address.'
+      'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.'
     );
     expect(card()!.textContent).not.toContain('Found on');
     expect(field().value).toBe('rawda.sa');
