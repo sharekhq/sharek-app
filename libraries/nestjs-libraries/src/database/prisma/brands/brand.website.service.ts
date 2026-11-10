@@ -1,11 +1,10 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { compact, sortBy, sumBy, uniq } from 'lodash';
-import { basename, extname } from 'path';
+import { compact, uniq } from 'lodash';
 import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
-  TavilyService,
-  WebPage,
-} from '@gitroom/nestjs-libraries/tavily/tavily.service';
+  FirecrawlService,
+  SiteBranding,
+} from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import {
   Brand,
@@ -13,42 +12,23 @@ import {
 } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { readOrFetch } from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
 import { getMaxSize } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
-import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import {
+  BRAND_COLOURS_MAX,
+  BRAND_FONT_MAX,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 type WebsiteSuggestions = {
   foundOn: string;
   logos: string[];
   colours: string[];
+  headingFont?: string;
+  bodyFont?: string;
 };
 
-type Pixels = { data: Buffer; info: { width: number; height: number } };
-type Rgb = number[];
-type Candidate = { link: string; metadata?: Metadata };
-type Logo = { link: string; image: Buffer; metadata: Metadata };
-type LogoOrder = ((candidate: Candidate) => boolean)[];
-
-// The logo links the card offers to pick from
-const LOGOS_MAX = 6;
-
-// The links read for them: twice as many, so a page whose first links are
-// broken still fills the 6, without every image on a page being fetched
-const READS_MAX = 12;
-
-// An opaque image this many pixels or more on its long side is more like a
-// photo or a banner than a logo, which is mostly smaller or transparent around
-// its mark
-const PHOTO_EDGE = 800;
-
-// A logo is sampled inside this many pixels, enough to count its colours
-const SAMPLE_EDGE = 64;
-
-// A pixel counts toward the colours from this alpha up: along a logo's
-// anti-aliased edge on nothing, a pixel is partly transparent and its colour a
-// blend, darker or lighter than the logo's
-const OPAQUE = 250;
-
-// Shades closer than this in CIE L*a*b* (CIE76 ΔE) look like one colour
-const SAME_COLOUR = 12;
+// A site's icon is offered as a logo from this many pixels on its short side.
+// A touch icon is 180 or 192; a browser tab's is 64 or smaller, too little for
+// the image model, which copies the kit's logo.
+const ICON_EDGE = 128;
 
 // An SVG logo is saved as a PNG this many pixels on its long side
 const SVG_EDGE = 1024;
@@ -58,115 +38,86 @@ const SVG_EDGE = 1024;
 const LOGO_MAX_BYTES = getMaxSize('image/png');
 
 // Each request of a logo's read (its HEAD and its GET) waits at most this
-// long. A lookup reads its links at once, so its reads end within 10 s beside
-// Tavily's 20 s, well inside nginx's 95 s. A read that runs out of time is a
-// link that can't be read.
+// long. A lookup reads its two links at once, so its reads end within 10 s
+// beside Firecrawl's 30 s, well inside nginx's 95 s. A read that runs out of
+// time is a link that can't be read.
 const LOGO_READ_TIMEOUT = 5_000;
 
 // The card says each of these in its own words.
 const UNREADABLE_SITE = "This site couldn't be read.";
-const UNREADABLE_IMAGE = "This image couldn't be read.";
 const UNSAVED_LOGO = "This logo couldn't be saved.";
 
-// A path that names a logo ("/img/logo.svg", "/brand/Site-Logo.png"). The host
-// and the query say nothing about the image itself.
-const namesLogo = (link: string) => /logo/i.test(new URL(link).pathname);
-
-// A word naming another kind of image a page has: a banner, a background, a
-// photo, or one of its icons (a menu, a search, a close button, an arrow, a
-// cart, a user's), each also in the plural
-const OTHER_IMAGE =
-  /^(banner|hero|slide|slider|background|bg|photo|icon|menu|search|close|arrow|hamburger|cart|user)s?$/;
-
-// A path with such a word among its runs of letters, a camelCase name split
-// ("/img/heroBanner_2x.jpg" is img, hero, banner, x and jpg). Only a whole
-// word counts: "cartier" or "iconic" says nothing.
-const namesOtherImage = (link: string) =>
-  (
-    new URL(link).pathname
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .toLowerCase()
-      .match(/[a-z]+/g) ?? []
-  ).some((word) => OTHER_IMAGE.test(word));
-
-// The brand's name as the site's address gives it: the first part of its host,
-// before the last, of 3 characters or more and not "www" ("almarai" of
-// www.almarai.com, "kaust" of kaust.edu.sa, "unicef" of en.unicef.org). A
-// shorter part ("ar", "en") is in too many file names to tell anything.
-const brandNameOf = (url: string) =>
-  new URL(url).hostname
-    .split('.')
-    .slice(0, -1)
-    .find((part) => part.length >= 3 && part !== 'www');
-
-// The type a link's path ends in ("/brand/Logo.SVG?v=2" is ".svg"), the only
-// one a page's image link carries
-const typeOf = (link: string) => extname(new URL(link).pathname).toLowerCase();
-
-/**
- * The order the card offers the links in, as lodash sortBy's keys, each true
- * for a link that goes after (links alike keep the page's order, the favicon
- * after its images):
- * - a path that doesn't name a logo;
- * - a path naming another kind of image, never the favicon's: it is the site's
- *   own mark, whatever its path says;
- * - a file name without the brand's name;
- * - not an SVG;
- * - once read, an image like a photo: opaque and PHOTO_EDGE pixels or more on
- *   its long side.
- */
-const logoOrderOf = (url: string, favicon?: string): LogoOrder => {
-  const brand = brandNameOf(url);
-  return [
-    ({ link }) => !namesLogo(link),
-    ({ link }) => link !== favicon && namesOtherImage(link),
-    ({ link }) =>
-      !brand || !basename(new URL(link).pathname).toLowerCase().includes(brand),
-    ({ link }) => typeOf(link) !== '.svg',
-    ({ metadata }) =>
-      !!metadata &&
-      !metadata.hasAlpha &&
-      Math.max(metadata.width, metadata.height) >= PHOTO_EDGE,
-  ];
-};
-
-// The links read for logos, the page's images and its favicon each once: the
-// first READS_MAX in the order their paths give
-const candidatesOf = ({ images = [], favicon }: WebPage, order: LogoOrder) =>
-  sortBy(
-    uniq([...images, ...(favicon ? [favicon] : [])])
-      // Neither sharp nor the Media library takes an ICO, a favicon's usual type
-      .filter((link) => typeOf(link) !== '.ico')
-      .map((link): Candidate => ({ link })),
-    order
-  ).slice(0, READS_MAX);
-
-// A link's image, read as a logo's bytes are; none when the link can't be
-// fetched or its bytes are no image sharp reads (the page itself, a video, an
-// ICO), whatever its path says
-const logoAt = async ({ link }: Candidate): Promise<Logo | undefined> => {
+// What sharp reads of the image at a link; nothing when the link can't be
+// fetched or its bytes are no image sharp reads (a page, a video, an ICO),
+// whatever its path says
+const imageAt = async (link: string): Promise<Metadata | undefined> => {
   try {
-    const image = await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT);
-    return { link, image, metadata: await sharp(image).metadata() };
+    return await sharp(
+      await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
+    ).metadata();
   } catch {
     return undefined;
   }
 };
 
-// The pixels a logo's colours are read from
-const pixelsOf = (image: Buffer): Promise<Pixels> =>
-  sharp(image)
-    .resize(SAMPLE_EDGE, SAMPLE_EDGE, {
-      fit: 'inside',
-      withoutEnlargement: true,
-      // No blend of two colours is made by the sampling
-      kernel: 'nearest',
-    })
-    // A greyscale or CMYK image comes out as RGB too
-    .toColourspace('srgb')
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+// An icon that works as a logo: an SVG, which is drawn at any size, or an
+// image big enough
+const worksAsLogo = ({ format, width, height }: Metadata) =>
+  format === 'svg' || Math.min(width, height) >= ICON_EDGE;
+
+// A colour a kit takes: a 6-digit hex code, here in capitals
+const HEX_COLOUR = /^#[0-9A-F]{6}$/;
+
+// The site's colours a kit can take, in capitals and each once, in the order
+// given. Firecrawl's answer is handed on as it came, so a colour may be no hex
+// code, or no text at all.
+const coloursOf = (colours: unknown[]): string[] =>
+  uniq(
+    colours
+      .filter((colour): colour is string => typeof colour === 'string')
+      .map((colour) => colour.toUpperCase())
+      .filter((colour) => HEX_COLOUR.test(colour))
+  );
+
+// The name a build gives a font it serves ends in a hyphen and 8 or more hex
+// characters ("IBM Plex Sans-fea3ea334779485b")
+const BUILD_SUFFIX = /-[0-9a-f]{8,}$/i;
+
+// CSS's generic families and keywords, and the names a system's own font goes
+// by, in lower case: none is a font a brand chose
+const GENERIC_FONTS = [
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  '-apple-system',
+  'blinkmacsystemfont',
+  'inherit',
+  'initial',
+];
+
+// A font's plain family name, as a person would type it: without its quotes
+// and outer spaces, and without a build's suffix. None for a generic family,
+// an empty name, one longer than a kit takes, or a value that is no text.
+const fontOf = (name: unknown): string | undefined => {
+  if (typeof name !== 'string') {
+    return undefined;
+  }
+  const plain = name
+    .replace(/^[\s"']+|[\s"']+$/g, '')
+    .replace(BUILD_SUFFIX, '');
+  return plain &&
+    plain.length <= BRAND_FONT_MAX &&
+    !GENERIC_FONTS.includes(plain.toLowerCase())
+    ? plain
+    : undefined;
+};
 
 // A logo of these types is saved as the site serves it: the Media library
 // takes them and every browser and network shows them
@@ -203,98 +154,6 @@ const logoFileOf = async (image: Buffer) => {
     : { image: await pngOf(image, metadata), mime: 'image/png' };
 };
 
-// The image's edge is counted in boxes 32 values wide on each channel. The
-// lightest box is near-white and the darkest near-black.
-const boxOf = ([r, g, b]: Rgb) => ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5);
-const WHITE_BOX = boxOf([255, 255, 255]);
-const BLACK_BOX = boxOf([0, 0, 0]);
-
-const hex = (colour: Rgb) =>
-  `#${colour
-    .map((channel) => channel.toString(16).padStart(2, '0'))
-    .join('')
-    .toUpperCase()}`;
-
-// A colour's place in CIE L*a*b* (sRGB, D65 white), where how far apart two
-// colours are follows how different they look
-const labOf = (colour: Rgb) => {
-  const [r, g, b] = colour.map((channel) => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  });
-  const [x, y, z] = [
-    (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
-    0.2126 * r + 0.7152 * g + 0.0722 * b,
-    (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
-  ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
-  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
-};
-
-/**
- * The logo's colours, the most covered first. Only a pixel opaque, or nearly,
- * is counted. Near-white or near-black is left out only as the background,
- * when it is most of the image's edge, so a black logo keeps its black. Shades
- * that look alike are one colour, the exact shade most of their pixels are, so
- * it is the logo's own rather than a blend. A colour on under 1 in 50 of the
- * pixels counted is left out, such as the blend along an edge between two
- * colours.
- */
-const coloursIn = ({ data, info: { width, height } }: Pixels) => {
-  const shades = new Map<number, number>();
-  const edge = new Map<number, number>();
-  let edgePixels = 0;
-
-  for (let i = 0; i < width * height; i++) {
-    const [r, g, b, alpha] = data.subarray(i * 4, i * 4 + 4);
-    const x = i % width;
-    const y = Math.floor(i / width);
-    const onEdge = !x || !y || x === width - 1 || y === height - 1;
-    edgePixels += onEdge ? 1 : 0;
-    if (alpha < OPAQUE) {
-      continue;
-    }
-
-    if (onEdge) {
-      const box = boxOf([r, g, b]);
-      edge.set(box, (edge.get(box) ?? 0) + 1);
-    }
-    const shade = (r << 16) | (g << 8) | b;
-    shades.set(shade, (shades.get(shade) ?? 0) + 1);
-  }
-
-  const backgrounds = [WHITE_BOX, BLACK_BOX].filter(
-    (box) => (edge.get(box) ?? 0) > edgePixels / 2
-  );
-
-  // From the most covered shade, each joins the first colour it looks like
-  const colours: { colour: Rgb; lab: number[]; pixels: number }[] = [];
-  for (const [shade, pixels] of [...shades].sort(
-    ([, one], [, other]) => other - one
-  )) {
-    const colour = [shade >> 16, (shade >> 8) & 255, shade & 255];
-    if (backgrounds.includes(boxOf(colour))) {
-      continue;
-    }
-    const lab = labOf(colour);
-    const alike = colours.find(
-      (taken) =>
-        Math.hypot(...lab.map((value, n) => value - taken.lab[n])) < SAME_COLOUR
-    );
-    if (alike) {
-      alike.pixels += pixels;
-    } else {
-      colours.push({ colour, lab, pixels });
-    }
-  }
-
-  const total = sumBy(colours, 'pixels');
-  return colours
-    .filter(({ pixels }) => pixels * 50 >= total)
-    .sort((one, other) => other.pixels - one.pixels)
-    .slice(0, BRAND_COLOURS_MAX)
-    .map(({ colour }) => hex(colour));
-};
-
 /**
  * "Fill from my website" on a brand's page and in onboarding (research R15).
  * Its own service because MediaService depends on BrandService, so BrandService
@@ -303,23 +162,27 @@ const coloursIn = ({ data, info: { width, height } }: Pixels) => {
 @Injectable()
 export class BrandWebsiteService {
   constructor(
-    private _tavilyService: TavilyService,
+    private _firecrawlService: FirecrawlService,
     private _mediaService: MediaService,
     private _brandService: BrandService
   ) {}
 
-  // Saves nothing. The colours are those of the first logo, so a link whose
-  // image can't be read is left out of the logos rather than put first.
+  // Saves nothing. Only an image sharp reads is offered as a logo, since the
+  // kit could save no other.
   async suggestFromWebsite(
     org: string,
     url: string
   ): Promise<WebsiteSuggestions> {
-    let page: WebPage;
+    let site: SiteBranding;
     try {
-      [page] = await this._tavilyService.extract(org, [url], { images: true });
+      site = await this._firecrawlService.branding(org, url);
     } catch (err) {
-      // Tavily's own words are written for Samy to relay
-      if (err instanceof HttpException) {
+      // The card tells a refused site apart by its 403. The lookup's other
+      // words are written for Samy to relay
+      if (
+        err instanceof HttpException &&
+        err.getStatus() !== HttpStatus.FORBIDDEN
+      ) {
         throw new HttpException(
           UNREADABLE_SITE,
           HttpStatus.UNPROCESSABLE_ENTITY
@@ -328,53 +191,43 @@ export class BrandWebsiteService {
       throw err;
     }
 
-    const order = logoOrderOf(url, page.favicon);
-    const candidates = candidatesOf(page, order);
-    if (!candidates.length && page.error) {
-      throw new HttpException(UNREADABLE_SITE, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-
-    // The links are read at once, so the lookup waits for its slowest read
-    // only. Read, they're put in order again with what each image is.
-    const logos = sortBy(
-      compact(await Promise.all(candidates.map(logoAt))),
-      order
-    ).slice(0, LOGOS_MAX);
+    // The logo, then the icon when it is another link. Both are read at once,
+    // so the lookup waits for the slower read only.
+    const links = uniq(compact([site.logo, site.icon]));
+    const images = await Promise.all(links.map(imageAt));
+    const headingFont = fontOf(site.headingFont);
+    const bodyFont = fontOf(site.bodyFont);
 
     return {
-      foundOn: new URL(url).host,
-      logos: logos.map(({ link }) => link),
-      // An image cut short can have a header sharp reads and no pixels
-      colours: logos.length
-        ? await pixelsOf(logos[0].image).then(coloursIn, () => [])
-        : [],
+      // The address the site led to, which may not be the one asked
+      foundOn: new URL(site.url).host,
+      logos: links.filter(
+        (link, n) => images[n] && (link === site.logo || worksAsLogo(images[n]))
+      ),
+      colours: coloursOf(site.colours),
+      ...(headingFont ? { headingFont } : {}),
+      ...(bodyFont ? { bodyFont } : {}),
     };
   }
 
-  async coloursFromLogo(link: string): Promise<string[]> {
-    let pixels: Pixels;
-    try {
-      pixels = await pixelsOf(
-        await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT)
-      );
-    } catch {
-      // A link the site doesn't serve, or bytes sharp can't read (an ICO, a
-      // page that isn't one)
-      throw new HttpException(
-        UNREADABLE_IMAGE,
-        HttpStatus.UNPROCESSABLE_ENTITY
-      );
-    }
-
-    return coloursIn(pixels);
-  }
-
   // The logo goes to the Media library first, so a logo that can't be fetched
-  // saves nothing. The kit keeps its own colours first.
+  // saves nothing. The kit keeps its own colours first. A font is handed on
+  // only when it was sent, null included, which clears the kit's: one that
+  // wasn't sent leaves the kit's as it is.
   async saveFromWebsite(
     org: string,
     brandId: string,
-    { logo, colours }: { logo?: string; colours: string[] }
+    {
+      logo,
+      colours,
+      headingFont,
+      bodyFont,
+    }: {
+      logo?: string;
+      colours: string[];
+      headingFont?: string | null;
+      bodyFont?: string | null;
+    }
   ): Promise<Brand> {
     const { kit } = await this._brandService.get(org, brandId);
     const saved = logo ? await this.saveLogo(org, logo) : undefined;
@@ -385,11 +238,13 @@ export class BrandWebsiteService {
         ...kit.colours,
         ...colours.map((colour) => colour.toUpperCase()),
       ]).slice(0, BRAND_COLOURS_MAX),
+      ...(headingFont !== undefined ? { headingFont } : {}),
+      ...(bodyFont !== undefined ? { bodyFont } : {}),
     });
   }
 
-  // A logo's bytes are read as the colours' are, bounded by what the Media
-  // library takes for an image
+  // A logo's bytes are read as a suggested logo's are, bounded by what the
+  // Media library takes for an image
   private async saveLogo(org: string, logo: string) {
     let file: { image: Buffer; mime: string };
     try {
