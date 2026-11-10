@@ -560,6 +560,18 @@ describe('the search', () => {
     expect(headings()).toEqual(['Tools', 'Models']);
     expect(button('Clear search')).toBeUndefined();
   });
+
+  // Clear search leaves with the no-match block, so the focus goes to the
+  // field rather than falling to the page: a keyboard user types again at once.
+  it('puts the focus in the search field after Clear search', async () => {
+    await mount();
+    await type('zzz');
+
+    button('Clear search')!.focus();
+    await click(button('Clear search'));
+
+    expect(document.activeElement).toBe(search());
+  });
 });
 
 // A card (spec 055, US1 scenarios 5, 6 and 8, FR-008, FR-009, FR-013, FR-015,
