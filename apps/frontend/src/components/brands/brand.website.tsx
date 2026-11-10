@@ -329,7 +329,7 @@ export const WebsiteLookupFields: FC<{
     ),
     nothing: t(
       'brands_website_nothing_found',
-      'Nothing was found on this site. Try another address.'
+      'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.'
     ),
     logo: t(
       'brands_website_logo_failed',
