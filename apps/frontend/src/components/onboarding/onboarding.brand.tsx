@@ -1,7 +1,6 @@
 'use client';
 
 import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
-import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import {
@@ -9,13 +8,13 @@ import {
   BRAND_NAME_MAX,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
-import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
 import {
   MoveChannelsOffer,
   useCreateBrand,
 } from '@gitroom/frontend/components/brands/brand.new';
 import {
+  TEXT_FIELD,
   useWebsiteLookup,
   WebsiteLookupFields,
 } from '@gitroom/frontend/components/brands/brand.website';
@@ -117,10 +116,7 @@ export const OnboardingBrand: FC<{
             dir={name ? 'auto' : undefined}
             readOnly={!!created}
             onChange={(e) => setDraft({ name: e.target.value })}
-            className={clsx(
-              'h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
-              FOCUS_RING
-            )}
+            className={TEXT_FIELD}
           />
           {problem && (
             <p role="alert" className="text-[13px] leading-[1.5] text-error">

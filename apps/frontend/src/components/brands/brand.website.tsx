@@ -35,6 +35,15 @@ type Problem = 'failed' | 'nothing' | 'logo' | 'error';
 export const kitIsEmpty = ({ kit }: Brand) =>
   !kit.logo && !kit.examples.length && !kit.colours.length;
 
+// The boards' text field, as the lookup's address draws it: onboarding's
+// brand name, the colour popover's hex code and the kit's font names too. Here
+// rather than beside brand.kit.tsx's SMALL_BUTTON, since the kit imports this
+// module and onboarding would pull the kit's Media library in with it.
+export const TEXT_FIELD = clsx(
+  'h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
+  FOCUS_RING
+);
+
 // The canvas's globe, on the card's heading and the button beside Rename.
 // Decoration: the words are beside it.
 export const WebsiteIcon: FC<{ size: number; className?: string }> = ({
@@ -333,10 +342,7 @@ export const WebsiteLookupFields: FC<{
             spellCheck={false}
             value={address}
             onChange={(e) => lookup.setAddress(e.target.value)}
-            className={clsx(
-              'flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
-              FOCUS_RING
-            )}
+            className={clsx('flex-1 min-w-0', TEXT_FIELD)}
           />
           <Button
             type="submit"

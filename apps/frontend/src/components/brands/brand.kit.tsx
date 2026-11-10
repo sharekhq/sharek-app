@@ -31,6 +31,7 @@ import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.co
 import {
   BrandWebsiteCard,
   kitIsEmpty,
+  TEXT_FIELD,
 } from '@gitroom/frontend/components/brands/brand.website';
 import {
   Brand,
@@ -174,8 +175,8 @@ const FontField: FC<{
         }
       }}
       className={clsx(
-        'h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-        FOCUS_RING
+        'placeholder:text-muted placeholder-shown:[direction:inherit]',
+        TEXT_FIELD
       )}
     />
   </label>
