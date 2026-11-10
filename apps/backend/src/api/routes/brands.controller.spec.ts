@@ -32,7 +32,6 @@ import { CHECK_POLICIES_KEY } from '@gitroom/backend/services/auth/permissions/p
 import {
   BrandKitDto,
   BrandKitFromWebsiteDto,
-  BrandWebsiteColoursDto,
   BrandWebsiteDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
@@ -179,32 +178,6 @@ describe('suggestFromWebsite', () => {
   });
 });
 
-describe('coloursFromLogo', () => {
-  it('answers the colours of the logo at the link', async () => {
-    const coloursFromLogo = jest.fn().mockResolvedValue(['#E30613']);
-
-    await expect(
-      makeController({}, { coloursFromLogo }).coloursFromLogo({
-        logo: 'https://cdn.noordental.sa/logo.png',
-      })
-    ).resolves.toEqual({ colours: ['#E30613'] });
-    expect(coloursFromLogo).toHaveBeenCalledWith(
-      'https://cdn.noordental.sa/logo.png'
-    );
-  });
-
-  it('lets the service’s 422 for an image that couldn’t be read through', async () => {
-    const unreadable = new HttpException("This image couldn't be read.", 422);
-    const coloursFromLogo = jest.fn().mockRejectedValue(unreadable);
-
-    await expect(
-      makeController({}, { coloursFromLogo }).coloursFromLogo({
-        logo: 'https://cdn.noordental.sa/logo.ico',
-      })
-    ).rejects.toBe(unreadable);
-  });
-});
-
 describe('saveFromWebsite', () => {
   const body: BrandKitFromWebsiteDto = {
     logo: 'https://cdn.noordental.sa/logo.svg',
@@ -222,6 +195,25 @@ describe('saveFromWebsite', () => {
       )
     ).resolves.toEqual(brand);
     expect(saveFromWebsite).toHaveBeenCalledWith('org-1', 'brand-1', body);
+  });
+
+  // The service writes a font only when it was sent, and null clears one, so
+  // both must arrive as the body has them.
+  it('hands the body’s fonts to the service, a cleared one as null', async () => {
+    const saveFromWebsite = jest.fn().mockResolvedValue(brand);
+
+    await makeController({}, { saveFromWebsite }).saveFromWebsite(
+      org,
+      'brand-1',
+      { ...body, headingFont: 'IBM Plex Sans', bodyFont: null }
+    );
+
+    expect(saveFromWebsite).toHaveBeenCalledWith('org-1', 'brand-1', {
+      logo: 'https://cdn.noordental.sa/logo.svg',
+      colours: ['#1F3A5F'],
+      headingFont: 'IBM Plex Sans',
+      bodyFont: null,
+    });
   });
 
   it.each([
@@ -265,11 +257,6 @@ describe('BrandsController routes', () => {
       path: '/website',
     },
     {
-      name: 'coloursFromLogo' as const,
-      method: RequestMethod.POST,
-      path: '/website/colours',
-    },
-    {
       name: 'saveFromWebsite' as const,
       method: RequestMethod.PUT,
       path: '/:id/kit/from-website',
@@ -285,26 +272,22 @@ describe('BrandsController routes', () => {
     }
   );
 
-  // Each lookup reads a site or an image for whoever asks, so it takes 30 an
-  // hour, the cap of the backend's other routes that send requests out. The
-  // global ThrottlerBehindProxyGuard lets every route but the public API's
-  // posts through, so the route carries its own guard (as support.controller
-  // .spec notes); ThrottlerRealIpGuard counts by the address the proxy
-  // forwards.
-  it.each(['suggestFromWebsite', 'coloursFromLogo'] as const)(
-    '%s takes 30 requests an hour from one address',
-    (name) => {
-      const handler = BrandsController.prototype[name];
+  // The lookup reads a site for whoever asks, so it takes 30 an hour, the cap
+  // of the backend's other routes that send requests out. The global
+  // ThrottlerBehindProxyGuard lets every route but the public API's posts
+  // through, so the route carries its own guard (as support.controller.spec
+  // notes); ThrottlerRealIpGuard counts by the address the proxy forwards.
+  it('suggestFromWebsite takes 30 requests an hour from one address', () => {
+    const handler = BrandsController.prototype.suggestFromWebsite;
 
-      expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
-        ThrottlerRealIpGuard,
-      ]);
-      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(30);
-      expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(
-        3_600_000
-      );
-    }
-  );
+    expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+      ThrottlerRealIpGuard,
+    ]);
+    expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(30);
+    expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(
+      3_600_000
+    );
+  });
 
   // The global ValidationPipe validates a body against its parameter's type,
   // which is what turns a bad name or kit into a 400.
@@ -312,7 +295,6 @@ describe('BrandsController routes', () => {
     { name: 'createBrand' as const, dto: CreateBrandDto },
     { name: 'saveKit' as const, dto: BrandKitDto },
     { name: 'suggestFromWebsite' as const, dto: BrandWebsiteDto },
-    { name: 'coloursFromLogo' as const, dto: BrandWebsiteColoursDto },
     { name: 'saveFromWebsite' as const, dto: BrandKitFromWebsiteDto },
   ])('$name takes its body as $dto.name', ({ name, dto }) => {
     expect(
@@ -321,16 +303,15 @@ describe('BrandsController routes', () => {
   });
 });
 
-// Real routing, the routes' own throttler and the global ValidationPipe, as
-// main.ts sets it: "website" must reach the lookups rather than be read as a
-// brand's id, the lookups answer POST's 201 as the backend's other POSTs that
+// Real routing, the route's own throttler and the global ValidationPipe, as
+// main.ts sets it: "website" must reach the lookup rather than be read as a
+// brand's id, the lookup answers POST's 201 as the backend's other POSTs that
 // save nothing do, a bare domain arrives with https:// while anything
 // readOrFetch would read as a local path stops at a 400, and one address gets
 // 30 lookups an hour.
 describe('Fill from my website, through the router', () => {
   const website = {
     suggestFromWebsite: jest.fn(),
-    coloursFromLogo: jest.fn(),
     saveFromWebsite: jest.fn(),
   };
   let app: INestApplication;
@@ -372,7 +353,6 @@ describe('Fill from my website, through the router', () => {
 
   beforeEach(() => {
     website.suggestFromWebsite.mockReset().mockResolvedValue(suggestions);
-    website.coloursFromLogo.mockReset().mockResolvedValue(['#E30613']);
     website.saveFromWebsite.mockReset().mockResolvedValue(brand);
   });
 
@@ -389,16 +369,14 @@ describe('Fill from my website, through the router', () => {
     );
   });
 
-  it('POST /brands/website/colours answers 201 with the logo’s colours', async () => {
+  // Colours come with the site's branding, not from the picked logo, so the
+  // route that read them from an image is gone (contracts/brands-website.md).
+  it('POST /brands/website/colours is no longer served and answers 404', async () => {
     const response = await send('POST', '/brands/website/colours', {
       logo: 'https://cdn.noordental.sa/logo.png',
     });
 
-    expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual({ colours: ['#E30613'] });
-    expect(website.coloursFromLogo).toHaveBeenCalledWith(
-      'https://cdn.noordental.sa/logo.png'
-    );
+    expect(response.status).toBe(404);
   });
 
   it('PUT /brands/:id/kit/from-website answers 200 with the saved brand', async () => {
@@ -417,7 +395,6 @@ describe('Fill from my website, through the router', () => {
 
   it.each([
     ['POST', '/brands/website', { url: 'file:///etc/passwd' }],
-    ['POST', '/brands/website/colours', { logo: '/uploads/logo.png' }],
     [
       'PUT',
       '/brands/brand-1/kit/from-website',
@@ -430,34 +407,20 @@ describe('Fill from my website, through the router', () => {
 
       expect(response.status).toBe(400);
       expect(website.suggestFromWebsite).not.toHaveBeenCalled();
-      expect(website.coloursFromLogo).not.toHaveBeenCalled();
       expect(website.saveFromWebsite).not.toHaveBeenCalled();
     }
   );
 
-  // Each route counts on its own, by the address the proxy forwards.
-  it.each([
-    [
-      '/brands/website',
-      { url: 'https://www.noordental.sa/' },
-      website.suggestFromWebsite,
-    ],
-    [
-      '/brands/website/colours',
-      { logo: 'https://cdn.noordental.sa/logo.png' },
-      website.coloursFromLogo,
-    ],
-  ])(
-    'POST %s refuses a 31st request within the hour from one address with a 429, before the service',
-    async (path, body, lookup) => {
-      const from = { 'x-forwarded-for': '203.0.113.7' };
-      const statuses: number[] = [];
-      for (let n = 0; n < 31; n++) {
-        statuses.push((await send('POST', path, body, from)).status);
-      }
-
-      expect(statuses).toEqual([...Array(30).fill(201), 429]);
-      expect(lookup).toHaveBeenCalledTimes(30);
+  // The route counts by the address the proxy forwards.
+  it('POST /brands/website refuses a 31st request within the hour from one address with a 429, before the service', async () => {
+    const from = { 'x-forwarded-for': '203.0.113.7' };
+    const body = { url: 'https://www.noordental.sa/' };
+    const statuses: number[] = [];
+    for (let n = 0; n < 31; n++) {
+      statuses.push((await send('POST', '/brands/website', body, from)).status);
     }
-  );
+
+    expect(statuses).toEqual([...Array(30).fill(201), 429]);
+    expect(website.suggestFromWebsite).toHaveBeenCalledTimes(30);
+  });
 });
