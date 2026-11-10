@@ -1,28 +1,65 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => fallback,
 }));
-// The provider registry drags in every video provider. The rule under test is
-// only that a provider's own card names and describes its tool, so a registry
-// that knows one provider is enough.
-jest.mock(
-  '@gitroom/frontend/components/videos/video.render.component',
-  () => ({
+// The provider registry drags in every video provider. The rules under test
+// are only what a provider's own card declares, so a registry that knows the
+// two providers listed today, and one whose card says nothing for Studio, is
+// enough. The two declarations mirror veo3.provider.tsx and
+// image-text-slides.provider.tsx, whose own specs pin them.
+jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
+  const cards: Record<string, unknown> = {
+    veo3: {
+      name: { key: 'video_type_veo3', fallback: 'Veo 3' },
+      description: {
+        key: 'video_type_veo3_desc',
+        fallback: 'One continuous live-action shot.',
+      },
+      pills: [],
+      diagram: null,
+      studio: {
+        kind: 'model',
+        cover: '/studio/covers/veo3.webp',
+        maker: { name: 'Google', logo: '/studio/makers/google.svg' },
+        facts: [
+          { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+          { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+          { key: 'video_type_veo3_fact_sound', fallback: 'Sound' },
+        ],
+        sampleLength: '0:08',
+      },
+    },
+    'image-text-slides': {
+      name: {
+        key: 'video_type_image_text_slides',
+        fallback: 'Image Text Slides',
+      },
+      description: {
+        key: 'video_type_slides_desc',
+        fallback: 'A narrated slideshow of AI images.',
+      },
+      pills: [],
+      diagram: null,
+      studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
+    },
+    kling: {
+      name: { key: 'video_type_kling', fallback: 'Kling' },
+      description: {
+        key: 'video_type_kling_desc',
+        fallback: 'A short clip from a prompt.',
+      },
+      pills: [],
+      diagram: null,
+    },
+  };
+  return {
     VideoWrapper: () => null,
     videoOwnsActions: () => false,
-    videoTypeCard: (identifier: string) =>
-      identifier === 'veo3'
-        ? {
-            name: { key: 'video_type_veo3', fallback: 'Veo 3' },
-            description: {
-              key: 'video_type_veo3_desc',
-              fallback: 'One continuous live-action shot.',
-            },
-            pills: [],
-            diagram: null,
-          }
-        : undefined,
-  })
-);
+    videoTypeCard: (identifier: string) => cards[identifier],
+  };
+});
 // The AI image window's reference row opens the Media library, which drags in
 // its uploader; the catalog's rules never open the window.
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
@@ -33,12 +70,12 @@ import {
   buildStudioCatalog,
   STUDIO_TOOLS,
   StudioCatalog,
-  StudioCategory,
-  StudioCategoryId,
+  StudioChip,
+  StudioToolEntry,
 } from '@gitroom/frontend/components/studio/studio.tools';
 
 type CatalogInput = Parameters<typeof buildStudioCatalog>[0];
-type Translate = Parameters<StudioCategory['label']>[0];
+type Translate = Parameters<StudioChip['label']>[0];
 
 // What /media/video-options answers: the agent-facing description rides along
 // and must never reach a card.
@@ -48,6 +85,9 @@ const veo3 = {
   description: 'Generates a video from a prompt. Use this when the user…',
 };
 const slides = { identifier: 'image-text-slides', title: 'Image Text Slides' };
+// A provider whose chooser card declares nothing for Studio.
+const kling = { identifier: 'kling', title: 'Kling (Video)' };
+// A provider that ships before its card does.
 const unknown = {
   identifier: 'sora',
   title: 'Sora',
@@ -73,36 +113,201 @@ const translate = (locale: Record<string, string>) =>
   ((key: string, fallback: string) =>
     locale[key] ?? fallback) as unknown as Translate;
 
-const ids = (built: StudioCatalog) => built.categories.map((c) => c.id);
-const toolsIn = (built: StudioCatalog, category: StudioCategoryId) =>
-  built.categories.find((c) => c.id === category)?.tools ?? [];
+const listing = (built: StudioCatalog, id: string) =>
+  built.listings.find((tool) => tool.entry.id === id)?.entry;
 
-describe('the fixed tools', () => {
-  it('lists the image editor under Design and the AI image generator under AI images', () => {
-    const built = catalog();
+// Everything data-model §1 declares for a listing, with its facts resolved in
+// English. An absent field reads as undefined, which toEqual leaves out.
+const declared = (entry: StudioToolEntry | undefined) => ({
+  kind: entry?.kind,
+  category: entry?.category,
+  cover: entry?.cover,
+  maker: entry?.maker,
+  facts: entry?.facts?.(translate({})),
+  sampleLength: entry?.sampleLength,
+});
 
-    expect(toolsIn(built, 'design').map((t) => t.entry.id)).toEqual([
-      'image-editor',
-    ]);
-    expect(toolsIn(built, 'ai_images').map((t) => t.entry.id)).toEqual([
-      'ai-image',
+const ids = (built: StudioCatalog) =>
+  built.listings.map((tool) => tool.entry.id);
+const videoIds = (built: StudioCatalog) =>
+  built.listings
+    .filter((tool) => tool.entry.category === 'video')
+    .map((tool) => tool.entry.id);
+const chips = (built: StudioCatalog) =>
+  built.chips.map((chip) => [chip.id, chip.count]);
+
+// A listing in Branding, which nothing fills today, so the chips' fixed order
+// can be seen whole.
+const brandKit: StudioToolEntry = {
+  ...STUDIO_TOOLS[0],
+  id: 'brand-kit',
+  category: 'branding',
+};
+
+describe('the listings today', () => {
+  it('lists the AI image generator as a tool in Images, with its cover', () => {
+    expect(declared(listing(catalog(), 'ai-image'))).toEqual({
+      kind: 'tool',
+      category: 'images',
+      cover: '/studio/covers/ai-image.webp',
+    });
+  });
+
+  it('lists the image editor as a tool in Edit & enhance, with its cover', () => {
+    expect(declared(listing(catalog(), 'image-editor'))).toEqual({
+      kind: 'tool',
+      category: 'edit',
+      cover: '/studio/covers/image-editor.webp',
+    });
+  });
+
+  it('lists Image Text Slides as a tool in Video, as its card declares', () => {
+    expect(declared(listing(catalog(), 'video:image-text-slides'))).toEqual({
+      kind: 'tool',
+      category: 'video',
+      cover: '/studio/covers/image-text-slides.webp',
+    });
+  });
+
+  it('lists Veo 3 as a model in Video by Google, with its facts, length and cover', () => {
+    expect(declared(listing(catalog(), 'video:veo3'))).toEqual({
+      kind: 'model',
+      category: 'video',
+      cover: '/studio/covers/veo3.webp',
+      maker: { name: 'Google', logo: '/studio/makers/google.svg' },
+      facts: ['~8 s', '1080p', 'Sound'],
+      sampleLength: '0:08',
+    });
+  });
+
+  it("resolves Veo 3's facts through the locale", () => {
+    const facts = listing(catalog(), 'video:veo3')?.facts;
+
+    expect(facts?.(translate({ video_type_veo3_fact_sound: 'صوت' }))).toEqual([
+      '~8 s',
+      '1080p',
+      'صوت',
     ]);
   });
 
-  it('marks the AI tools and only them', () => {
-    const built = catalog();
+  it("uses the provider's own name from the registry, not the endpoint title", () => {
+    const tool = listing(catalog(), 'video:veo3');
 
-    expect(toolsIn(built, 'design')[0].entry.ai).toBe(false);
-    expect(toolsIn(built, 'ai_images')[0].entry.ai).toBe(true);
-    expect(toolsIn(built, 'ai_video').every((t) => t.entry.ai)).toBe(true);
+    expect(tool?.name(translate({}))).toBe('Veo 3');
+    expect(tool?.name(translate({ video_type_veo3: 'Veo 3' }))).toBe('Veo 3');
+  });
+
+  it("uses the provider's own description from the registry", () => {
+    const tool = listing(catalog(), 'video:veo3');
+
+    expect(
+      tool?.description(translate({ video_type_veo3_desc: 'لقطة واحدة' }))
+    ).toBe('لقطة واحدة');
+  });
+
+  it('carries no AI flag on any listing', () => {
+    const built = catalog({ videoOptions: [veo3, slides, kling, unknown] });
+
+    expect(built.listings.filter((tool) => 'ai' in tool.entry)).toEqual([]);
+  });
+});
+
+describe('a provider that declares nothing for Studio', () => {
+  // A provider that ships before its card does still gets a card here: the
+  // endpoint title names it and the generic copy describes it — never the
+  // paragraph the endpoint wrote for the agent.
+  it('lists a provider without a card as a model in Video, named by the endpoint title, with no cover, maker, facts or length', () => {
+    const tool = listing(catalog({ videoOptions: [unknown] }), 'video:sora');
+    const t = translate({
+      studio_video_desc_generic: 'أنشئ فيديو بالذكاء الاصطناعي.',
+    });
+
+    expect(declared(tool)).toEqual({ kind: 'model', category: 'video' });
+    expect(tool?.name(t)).toBe('Sora');
+    expect(tool?.description(t)).toBe('أنشئ فيديو بالذكاء الاصطناعي.');
+    expect(tool?.description(translate({}))).toBe('Generate a video with AI.');
+  });
+
+  it('lists a provider whose card has no Studio part as a model in Video, named and described by its card, with no cover, maker, facts or length', () => {
+    const tool = listing(catalog({ videoOptions: [kling] }), 'video:kling');
+
+    expect(declared(tool)).toEqual({ kind: 'model', category: 'video' });
+    expect(tool?.name(translate({}))).toBe('Kling');
+    expect(tool?.description(translate({}))).toBe(
+      'A short clip from a prompt.'
+    );
+  });
+});
+
+describe('the chips', () => {
+  it('shows All, Images, Video and Edit & enhance with their counts, tools and models together, while the image editor is on', () => {
+    expect(chips(catalog())).toEqual([
+      ['all', 4],
+      ['images', 1],
+      ['video', 2],
+      ['edit', 1],
+    ]);
+  });
+
+  it('shows All, Images and Video while the image editor is off', () => {
+    expect(chips(catalog({ showImageEditor: false }))).toEqual([
+      ['all', 3],
+      ['images', 1],
+      ['video', 2],
+    ]);
+  });
+
+  it('keeps the categories in their fixed order, whatever order the listings come in', () => {
+    expect(chips(catalog({ tools: [brandKit, ...STUDIO_TOOLS] }))).toEqual([
+      ['all', 5],
+      ['images', 1],
+      ['video', 2],
+      ['edit', 1],
+      ['branding', 1],
+    ]);
+  });
+
+  it('never shows Branding while nothing is in it', () => {
+    expect(catalog().chips.map((chip) => chip.id)).not.toContain('branding');
+  });
+
+  it('still shows All when only one category has listings', () => {
+    expect(chips(catalog({ tools: [], videoOptions: [veo3] }))).toEqual([
+      ['all', 1],
+      ['video', 1],
+    ]);
+  });
+
+  it('labels each chip through the locale', () => {
+    const built = catalog({ tools: [brandKit, ...STUDIO_TOOLS] });
+    const ar = translate({
+      studio_chip_all: 'الكل',
+      studio_category_images: 'الصور',
+      studio_category_video: 'الفيديو',
+      studio_category_edit: 'التحرير والتحسين',
+      studio_category_branding: 'الهوية البصرية',
+    });
+
+    expect(built.chips.map((chip) => chip.label(translate({})))).toEqual([
+      'All',
+      'Images',
+      'Video',
+      'Edit & enhance',
+      'Branding',
+    ]);
+    expect(built.chips.map((chip) => chip.label(ar))).toEqual([
+      'الكل',
+      'الصور',
+      'الفيديو',
+      'التحرير والتحسين',
+      'الهوية البصرية',
+    ]);
   });
 });
 
 describe('availability', () => {
-  it('lists one video tool per provider the platform offers', () => {
-    const built = catalog();
-
-    expect(toolsIn(built, 'ai_video').map((t) => t.entry.id)).toEqual([
+  it('lists one video listing per provider the platform offers, in its order', () => {
+    expect(videoIds(catalog())).toEqual([
       'video:veo3',
       'video:image-text-slides',
     ]);
@@ -113,36 +318,41 @@ describe('availability', () => {
   it('leaves out a provider the platform does not offer, even for a plan that could not use it', () => {
     const built = catalog({ videoOptions: [veo3], user: withoutAi });
 
-    expect(toolsIn(built, 'ai_video').map((t) => t.entry.id)).toEqual([
-      'video:veo3',
-    ]);
+    expect(videoIds(built)).toEqual(['video:veo3']);
   });
 
   // SHOW_IMAGE_EDITOR unset: the deployment does not offer the editor, so it
-  // is absent like an unoffered provider, and Design goes with it.
+  // is absent like an unoffered provider, and Edit & enhance goes with it.
   it('leaves out the image editor where the deployment does not offer it, even for a plan that could not use it', () => {
     const built = catalog({ showImageEditor: false, user: withoutAi });
 
-    expect(ids(built)).toEqual(['ai_images', 'ai_video']);
+    expect(ids(built)).not.toContain('image-editor');
+    expect(built.chips.map((chip) => chip.id)).not.toContain('edit');
   });
 
-  it('omits the AI video category when no provider is offered', () => {
-    expect(ids(catalog({ videoOptions: [] }))).toEqual(['design', 'ai_images']);
+  it('lists no video and shows no Video chip when no provider is offered', () => {
+    const built = catalog({ videoOptions: [] });
+
+    expect(videoIds(built)).toEqual([]);
+    expect(built.chips.map((chip) => chip.id)).toEqual([
+      'all',
+      'images',
+      'edit',
+    ]);
   });
 
   it('treats a list that has not loaded like an empty one', () => {
-    expect(ids(catalog({ videoOptions: undefined }))).toEqual([
-      'design',
-      'ai_images',
-    ]);
+    expect(chips(catalog({ videoOptions: undefined }))).toEqual(
+      chips(catalog({ videoOptions: [] }))
+    );
   });
 });
 
 describe('entitlement', () => {
-  it('locks every tool the plan excludes when billing is enabled', () => {
+  it('locks every listing the plan excludes when billing is enabled', () => {
     const built = catalog({ user: withoutAi });
 
-    const states = built.categories.flatMap((c) => c.tools.map((t) => t.state));
+    const states = built.listings.map((tool) => tool.state);
     expect(states).toHaveLength(4);
     expect(states.every((state) => state === 'locked')).toBe(true);
     expect(built.hasLockedTools).toBe(true);
@@ -151,7 +361,8 @@ describe('entitlement', () => {
   it('locks nothing on a plan that includes the tools', () => {
     const built = catalog();
 
-    const states = built.categories.flatMap((c) => c.tools.map((t) => t.state));
+    const states = built.listings.map((tool) => tool.state);
+    expect(states).toHaveLength(4);
     expect(states.every((state) => state === 'entitled')).toBe(true);
     expect(built.hasLockedTools).toBe(false);
   });
@@ -159,58 +370,30 @@ describe('entitlement', () => {
   it('locks nothing when billing is disabled, whatever the plan says', () => {
     const built = catalog({ user: withoutAi, billingEnabled: false });
 
-    const states = built.categories.flatMap((c) => c.tools.map((t) => t.state));
+    const states = built.listings.map((tool) => tool.state);
+    expect(states).toHaveLength(4);
     expect(states.every((state) => state === 'entitled')).toBe(true);
     expect(built.hasLockedTools).toBe(false);
   });
 });
 
-describe('grouping', () => {
-  it('keeps the categories in their fixed order', () => {
-    expect(ids(catalog())).toEqual(['design', 'ai_images', 'ai_video']);
-  });
-
+describe('an empty catalogue', () => {
   it('is empty only when nothing at all is listed', () => {
     expect(catalog().empty).toBe(false);
+    expect(catalog({ tools: [], videoOptions: [veo3] }).empty).toBe(false);
     expect(catalog({ tools: [], videoOptions: [] }).empty).toBe(true);
-  });
-
-  it('labels each category through the locale', () => {
-    const t = translate({ studio_category_ai_video: 'فيديو بالذكاء الاصطناعي' });
-    const [design, , video] = catalog().categories;
-
-    expect(design.label(t)).toBe('Design');
-    expect(video.label(t)).toBe('فيديو بالذكاء الاصطناعي');
   });
 });
 
-describe('naming a video tool', () => {
-  it("uses the provider's own name from the registry, not the endpoint title", () => {
-    const [tool] = toolsIn(catalog({ videoOptions: [veo3] }), 'ai_video');
+describe("the fixed tools' pictures ship with the app", () => {
+  // Shipped with the app, never fetched from a third party (FR-018, SC-002).
+  const PUBLIC = path.join(__dirname, '../../../public');
 
-    expect(tool.entry.name(translate({}))).toBe('Veo 3');
-    expect(tool.entry.name(translate({ video_type_veo3: 'Veo 3' }))).toBe(
-      'Veo 3'
-    );
-  });
-
-  it("uses the provider's own description from the registry", () => {
-    const [tool] = toolsIn(catalog({ videoOptions: [veo3] }), 'ai_video');
-
-    expect(
-      tool.entry.description(translate({ video_type_veo3_desc: 'لقطة واحدة' }))
-    ).toBe('لقطة واحدة');
-  });
-
-  // A provider that ships before its card does still gets a card here: the
-  // endpoint title names it and the generic copy describes it — never the
-  // paragraph the endpoint wrote for the agent.
-  it('falls back to the endpoint title and the generic description for a provider without a card', () => {
-    const [tool] = toolsIn(catalog({ videoOptions: [unknown] }), 'ai_video');
-    const t = translate({ studio_video_desc_generic: 'أنشئ فيديو بالذكاء الاصطناعي.' });
-
-    expect(tool.entry.name(t)).toBe('Sora');
-    expect(tool.entry.description(t)).toBe('أنشئ فيديو بالذكاء الاصطناعي.');
-    expect(tool.entry.description(translate({}))).not.toContain('Use this when');
-  });
+  it.each(STUDIO_TOOLS.map((entry) => [entry.id, entry.cover]))(
+    "%s's cover is under apps/frontend/public",
+    (_, cover) => {
+      expect(cover).toBeDefined();
+      expect(fs.existsSync(path.join(PUBLIC, cover ?? ''))).toBe(true);
+    }
+  );
 });
