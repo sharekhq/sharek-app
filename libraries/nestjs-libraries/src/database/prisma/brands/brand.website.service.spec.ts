@@ -15,9 +15,13 @@ jest.mock(
   () => ({ readOrFetch: jest.fn() })
 );
 
-import { HttpException } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import sharp from 'sharp';
 import { BrandWebsiteService } from './brand.website.service';
+import {
+  FirecrawlService,
+  SiteBranding,
+} from '@gitroom/nestjs-libraries/firecrawl/firecrawl.service';
 import { readOrFetch } from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
 import type { Brand } from './brand.service';
 
@@ -25,8 +29,8 @@ const read = readOrFetch as jest.Mock;
 
 type Pixel = [number, number, number, number?];
 
-// A real PNG, painted pixel by pixel: the colours are sharp's real decode of
-// it, which a double would only restate.
+// A real PNG, painted pixel by pixel: its size and its pixels are sharp's real
+// decode of it, which a double would only restate.
 const png = (
   width: number,
   height: number,
@@ -45,12 +49,9 @@ const png = (
 };
 
 const WHITE: Pixel = [255, 255, 255];
-const BLACK: Pixel = [0, 0, 0];
 const CLEAR: Pixel = [0, 0, 0, 0];
 const RED: Pixel = [0xe3, 0x06, 0x13];
 const NAVY: Pixel = [0x1f, 0x3a, 0x5f];
-const CYAN: Pixel = [0x1c, 0xac, 0xe4];
-const BLUE: Pixel = [0x00, 0x57, 0xb8];
 
 // A 40×40 mark: `colour` inside the 20×20 square at its centre, `around`
 // everywhere else.
@@ -59,50 +60,8 @@ const mark = (colour: Pixel, around: Pixel) =>
     x >= 10 && x < 30 && y >= 10 && y < 30 ? colour : around
   );
 
-// `colour` at `alpha`, as some exports write a logo's anti-aliased edge:
-// blended toward `matte` (0 black, 255 white) as much as it is transparent.
-const blend = ([r, g, b]: Pixel, alpha: number, matte: number): Pixel => {
-  const toward = (channel: number) =>
-    Math.round(channel + (matte - channel) * (1 - alpha / 255));
-  return [toward(r), toward(g), toward(b), alpha];
-};
-
-// A stroke of a logo's lettering, its rows from top to bottom: `colour` 2 rows
-// thick, a row of anti-aliased edge either side and one nearly opaque, all
-// blended toward `matte`.
-const stroke = (colour: Pixel, matte: number): Pixel[] => [
-  CLEAR,
-  blend(colour, 160, matte),
-  colour,
-  colour,
-  blend(colour, 252, matte),
-  blend(colour, 200, matte),
-];
-
-// Thin lettering on nothing: the strokes stacked, each 32 pixels long.
-const lettering = (...strokes: Pixel[][]) => {
-  const rows = strokes.flat();
-  return png(40, rows.length, (x, y) => (x < 4 || x >= 36 ? CLEAR : rows[y]));
-};
-
-// A navy image of a size and type, as opaque as `alpha` (a JPEG is opaque
-// whatever it is given; a PNG keeps an alpha channel).
-const plain = (
-  width: number,
-  height: number,
-  format: 'jpeg' | 'png',
-  alpha = 1
-) =>
-  sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: { r: 0x1f, g: 0x3a, b: 0x5f, alpha },
-    },
-  })
-    .toFormat(format)
-    .toBuffer();
+// A navy PNG of a size, square unless a height is given, as a site's icon is.
+const navy = (width: number, height = width) => png(width, height, () => NAVY);
 
 // A 40×40 SVG with a red square in its corner.
 const SQUARE_SVG =
@@ -158,7 +117,7 @@ const rawda: Brand = {
 };
 
 const makeService = () => {
-  const tavily = { extract: jest.fn() };
+  const firecrawl = { branding: jest.fn() };
   const media = {
     saveImage: jest
       .fn()
@@ -169,12 +128,12 @@ const makeService = () => {
     saveKit: jest.fn().mockResolvedValue({ ...rawda, id: 'saved' }),
   };
   const service = new BrandWebsiteService(
-    tavily as any,
+    firecrawl as any,
     media as any,
     brands as any
   );
 
-  return { service, tavily, media, brands };
+  return { service, firecrawl, media, brands };
 };
 
 // The refusal, or undefined when the call went through
@@ -204,648 +163,240 @@ beforeEach(() => {
   });
 });
 
-describe('BrandWebsiteService.coloursFromLogo', () => {
-  it('reads the image at the link through readOrFetch, bounded by the size the Media library takes for an image, each request waiting at most 5 s', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await mark(RED, CLEAR);
-
-    await service.coloursFromLogo('https://cdn.example/logo.png');
-
-    expect(read).toHaveBeenCalledWith(
-      'https://cdn.example/logo.png',
-      10 * 1024 * 1024,
-      5_000
-    );
-  });
-
-  it('gives the colour of the mark and leaves out its transparent pixels', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await mark(RED, CLEAR);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#E30613']);
-  });
-
-  it('leaves out a white background, the colour most of the edge is', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await mark(NAVY, WHITE);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#1F3A5F']);
-  });
-
-  it('leaves out a black background and keeps a white mark on it', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await mark(WHITE, BLACK);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#FFFFFF']);
-  });
-
-  it('keeps black and white when they are the mark: a black logo on white, or on nothing', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/on-white.png'] = await mark(BLACK, WHITE);
-    site['https://cdn.example/on-nothing.png'] = await mark(BLACK, CLEAR);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/on-white.png')
-    ).toEqual(['#000000']);
-    expect(
-      await service.coloursFromLogo('https://cdn.example/on-nothing.png')
-    ).toEqual(['#000000']);
-  });
-
-  it('keeps a background that is a colour, beside the mark on it', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await mark(WHITE, RED);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#E30613', '#FFFFFF']);
-  });
-
-  it('orders the colours by how much of the logo each covers, and gives at most 6', async () => {
-    const { service } = makeService();
-    // Eight upright bands, the widest first: 15, 13, 11, 9, 7, 5, 3 and 1
-    // pixels out of 64. The seventh is left out by the 6, the eighth also by
-    // being under 1 in 50.
-    const bands: [number, Pixel][] = [
-      [15, [0xe3, 0x06, 0x13]],
-      [13, [0x1f, 0x3a, 0x5f]],
-      [11, [0x2e, 0x9e, 0x44]],
-      [9, [0xf2, 0xb7, 0x05]],
-      [7, [0x7a, 0x3e, 0x9d]],
-      [5, [0x00, 0xa3, 0xc4]],
-      [3, [0x8b, 0x5a, 0x2b]],
-      [1, [0xff, 0x6f, 0x00]],
-    ];
-    site['https://cdn.example/logo.png'] = await png(64, 10, (x) => {
-      let start = 0;
-      for (const [width, colour] of bands) {
-        if (x < start + width) {
-          return colour;
-        }
-        start += width;
-      }
-      return CLEAR;
-    });
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual([
-      '#E30613',
-      '#1F3A5F',
-      '#2E9E44',
-      '#F2B705',
-      '#7A3E9D',
-      '#00A3C4',
-    ]);
-  });
-
-  it('leaves out a colour on under 1 in 50 of the coloured pixels, such as the blend along an edge', async () => {
-    const { service } = makeService();
-    // 396 red pixels and 4 navy ones.
-    site['https://cdn.example/logo.png'] = await png(40, 40, (x, y) => {
-      if (x >= 10 && x < 30 && y >= 10 && y < 30) {
-        return x < 12 && y < 12 ? NAVY : RED;
-      }
-      return CLEAR;
-    });
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#E30613']);
-  });
-
-  it('gives two shades a few values apart as one colour, the one covering more', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await png(40, 10, (x) =>
-      x < 25 ? [0xe1, 0x06, 0x13] : [0xdf, 0x06, 0x13]
-    );
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#E10613']);
-  });
-
-  // The colour is a pixel value the logo has, so it is the logo's exactly.
-  it('reads a thin cyan logo whose anti-aliased edges an export darkened as its own cyan, exactly', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await lettering(
-      ...[1, 2, 3, 4].map(() => stroke(CYAN, 0))
-    );
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#1CACE4']);
-  });
-
-  it('reads a thin blue logo with lighter shades along its edges as one colour, its blue', async () => {
-    const { service } = makeService();
-    // Each stroke also has an opaque row a lighter shade of the blue
-    site['https://cdn.example/logo.png'] = await lettering(
-      ...[1, 2, 3, 4].map(() => [...stroke(BLUE, 255), [20, 100, 190] as Pixel])
-    );
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#0057B8']);
-  });
-
-  it('still reads a thin logo of two colours as the two, the one covering more first', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.png'] = await lettering(
-      stroke(CYAN, 0),
-      stroke(NAVY, 255),
-      stroke(CYAN, 0)
-    );
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.png')
-    ).toEqual(['#1CACE4', '#1F3A5F']);
-  });
-
-  it('reads an SVG logo', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/logo.svg'] = Buffer.from(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#fff"/><rect x="10" y="10" width="20" height="20" fill="#1F3A5F"/></svg>'
-    );
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/logo.svg')
-    ).toEqual(['#1F3A5F']);
-  });
-
-  it('gives no colours for a logo that is all background', async () => {
-    const { service } = makeService();
-    site['https://cdn.example/blank.png'] = await png(20, 20, () => WHITE);
-
-    expect(
-      await service.coloursFromLogo('https://cdn.example/blank.png')
-    ).toEqual([]);
-  });
-
-  it.each([
-    [
-      'an ICO, which sharp has no reader for',
-      'https://cdn.example/favicon.ico',
-    ],
-    ['a link the site does not serve', 'https://cdn.example/gone.png'],
-    ['bytes that are no image', 'https://cdn.example/page.html'],
-  ])(
-    "refuses %s with a 422 the card words as the image couldn't be read",
-    async (_, link) => {
-      const { service } = makeService();
-      site['https://cdn.example/favicon.ico'] = ico();
-      site['https://cdn.example/page.html'] = Buffer.from('<!doctype html>');
-
-      const err = await failure(service.coloursFromLogo(link));
-
-      expect(err?.getStatus()).toBe(422);
-      expect(err?.message).toBe("This image couldn't be read.");
-    }
-  );
-});
-
 describe('BrandWebsiteService.suggestFromWebsite', () => {
-  const page = (fields: object) => [
-    { url: 'https://www.noordental.example/', text: 'Noor Dental', ...fields },
-  ];
+  const LOGO = 'https://cdn.noordental.example/brand/logo.png';
+  const ICON = 'https://www.noordental.example/apple-touch-icon.png';
+  const NOTHING = {
+    foundOn: 'www.noordental.example',
+    logos: [],
+    colours: [],
+  };
 
-  it('asks Tavily for the one address, with its image links and favicon', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(page({ images: [] }));
+  // What the lookup answers of a site: the address it led to, and the parts a
+  // test names. A value is unknown because Firecrawl's answer is handed on as
+  // it came, so a colour or a font might not be text.
+  const branding = (
+    parts: Partial<Record<keyof SiteBranding, unknown>> = {}
+  ) => ({
+    url: 'https://www.noordental.example/',
+    colours: [],
+    ...parts,
+  });
 
-    await service.suggestFromWebsite(
+  const suggest = (service: BrandWebsiteService) =>
+    service.suggestFromWebsite('org-1', 'https://www.noordental.example/');
+
+  it('asks Firecrawl once for the branding of the one address, for the organization', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding());
+
+    await suggest(service);
+
+    expect(firecrawl.branding).toHaveBeenCalledTimes(1);
+    expect(firecrawl.branding).toHaveBeenCalledWith(
       'org-1',
       'https://www.noordental.example/'
     );
-
-    expect(tavily.extract).toHaveBeenCalledTimes(1);
-    expect(tavily.extract).toHaveBeenCalledWith(
-      'org-1',
-      ['https://www.noordental.example/'],
-      { images: true }
-    );
   });
 
-  it('orders the links by their paths: "logo" first, then the brand’s name in the file name, then an SVG, then the rest in Tavily’s order with the favicon after them, and last one naming another kind of image; the colours are the first’s', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://cdn.example/img/hero.jpg',
-          'https://cdn.example/img/mark.png',
-          'https://cdn.example/img/shape.svg',
-          'https://cdn.example/img/NoorDental-White.png',
-          'https://cdn.example/brand/site-logo.png',
-        ],
-        favicon: 'https://www.noordental.example/favicon.png',
+  it('suggests the logo, the colours and the two fonts the site gave', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({
+        logo: LOGO,
+        colours: ['#1F3A5F', '#E30613', '#2E9E44'],
+        headingFont: 'Tajawal',
+        bodyFont: 'IBM Plex Sans Arabic',
       })
     );
-    site['https://cdn.example/brand/site-logo.png'] = await mark(RED, CLEAR);
-    serve(
-      await mark(NAVY, CLEAR),
-      'https://cdn.example/img/hero.jpg',
-      'https://cdn.example/img/mark.png',
-      'https://cdn.example/img/shape.svg',
-      'https://cdn.example/img/NoorDental-White.png',
-      'https://www.noordental.example/favicon.png'
-    );
+    site[LOGO] = await mark(RED, CLEAR);
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
+    expect(await suggest(service)).toEqual({
       foundOn: 'www.noordental.example',
-      logos: [
-        'https://cdn.example/brand/site-logo.png',
-        'https://cdn.example/img/NoorDental-White.png',
-        'https://cdn.example/img/shape.svg',
-        'https://cdn.example/img/mark.png',
-        'https://www.noordental.example/favicon.png',
-        'https://cdn.example/img/hero.jpg',
-      ],
-      colours: ['#E30613'],
+      logos: [LOGO],
+      colours: ['#1F3A5F', '#E30613', '#2E9E44'],
+      headingFont: 'Tajawal',
+      bodyFont: 'IBM Plex Sans Arabic',
     });
   });
 
-  // The brand's name is the first part of the host, before its last, of 3
-  // characters or more and not "www": a shorter one ("ar", "en") is in too many
-  // file names to tell anything.
-  it('takes the brand’s name from the address’s host, past a language’s part, and looks for it in the file name only', async () => {
-    const { service, tavily } = makeService();
-    const links = [
-      'https://cdn.example/noordental/team.png',
-      'https://cdn.example/img/mark.png',
-      'https://cdn.example/img/NoorDental.png',
-    ];
-    tavily.extract.mockResolvedValue(page({ images: links }));
-    serve(await mark(RED, CLEAR), ...links);
+  // A bare address is asked on https://, and a home page that redirects is
+  // followed, so the card names where the suggestions really came from.
+  it('names the host the site led to, not the one asked: kaust.edu.sa that led to www.kaust.edu.sa/en/ is found on www.kaust.edu.sa', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ url: 'https://www.kaust.edu.sa/en/' })
+    );
 
-    expect(
-      (await service.suggestFromWebsite('org-1', 'https://ar.noordental.sa/'))
-        .logos
-    ).toEqual([
-      'https://cdn.example/img/NoorDental.png',
-      'https://cdn.example/noordental/team.png',
-      'https://cdn.example/img/mark.png',
-    ]);
+    const { foundOn } = await service.suggestFromWebsite(
+      'org-1',
+      'https://kaust.edu.sa'
+    );
+
+    expect(foundOn).toBe('www.kaust.edu.sa');
+  });
+
+  it('answers nothing found, not an error, for a site that gave no logo, colour or font, and reads nothing', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding());
+
+    expect(await suggest(service)).toEqual(NOTHING);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('offers the logo first, then the icon when it is another link and big enough, each read through readOrFetch, bounded by the size the Media library takes for an image, each request waiting at most 5 s', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[ICON] = await navy(192);
+
+    expect((await suggest(service)).logos).toEqual([LOGO, ICON]);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read).toHaveBeenCalledWith(LOGO, 10 * 1024 * 1024, 5_000);
+    expect(read).toHaveBeenCalledWith(ICON, 10 * 1024 * 1024, 5_000);
+  });
+
+  // The kit's logo is the reference the image model copies, so a browser tab's
+  // icon, 64 pixels or smaller, gives it too little; a touch icon is 180 or
+  // 192.
+  it('a 32-pixel icon is not offered: it is too small to work as a logo', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[ICON] = await navy(32);
+
+    expect((await suggest(service)).logos).toEqual([LOGO]);
   });
 
   it.each([
-    ['a hero image', 'img/hero.jpg'],
-    ['a banner', 'uploads/home-banner.webp'],
-    ['a slider', 'img/slider_02.jpg'],
-    ['slides', 'slides/1.jpg'],
-    ['a background', 'img/page-background.png'],
-    ['a background as bg', 'img/bg.png'],
-    ['photos', 'photos/team.jpg'],
-    ['a menu', 'img/menu.svg'],
-    ['a search', 'img/search.svg'],
-    ['a close button', 'img/close.svg'],
-    ['an arrow', 'img/arrow-left.svg'],
-    ['a hamburger', 'img/hamburger.svg'],
-    ['a cart', 'img/cart.svg'],
-    ['a user', 'img/user.svg'],
-    ['an icon', 'img/icon-instagram.svg'],
-    ['icons', 'icons/x.svg'],
-    ['a banner in a camelCase name', 'img/heroBanner.jpg'],
-  ])(
-    'puts a link whose path names %s last, after the favicon',
-    async (_, path) => {
-      const { service, tavily } = makeService();
-      const link = `https://cdn.example/${path}`;
-      tavily.extract.mockResolvedValue(
-        page({
-          images: [link, 'https://cdn.example/img/mark.png'],
-          favicon: 'https://www.noordental.example/favicon.png',
-        })
-      );
-      serve(
-        await mark(RED, CLEAR),
-        link,
-        'https://cdn.example/img/mark.png',
-        'https://www.noordental.example/favicon.png'
-      );
+    ['128×128, the least', 128, 128],
+    ['180×180, a touch icon', 180, 180],
+    ['300×128, measured on its short side', 300, 128],
+  ])('offers an icon of %s', async (_, width, height) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[ICON] = await navy(width, height);
 
-      expect(
-        (
-          await service.suggestFromWebsite(
-            'org-1',
-            'https://www.noordental.example/'
-          )
-        ).logos
-      ).toEqual([
-        'https://cdn.example/img/mark.png',
-        'https://www.noordental.example/favicon.png',
-        link,
-      ]);
-    }
-  );
-
-  it('takes a word only as a whole one: a name that starts like one (cartier, iconic) is no hint', async () => {
-    const { service, tavily } = makeService();
-    const links = [
-      'https://cdn.example/img/cartier.png',
-      'https://cdn.example/img/iconic-mark.png',
-      'https://cdn.example/img/mark.png',
-    ];
-    tavily.extract.mockResolvedValue(page({ images: links }));
-    serve(await mark(RED, CLEAR), ...links);
-
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual(links);
+    expect((await suggest(service)).logos).toEqual([LOGO, ICON]);
   });
 
-  // The favicon is the site's own mark, whatever its path names.
-  it('never puts the favicon with the page’s icons, as an "apple-touch-icon.png"', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: ['https://cdn.example/icons/menu.svg'],
-        favicon: 'https://www.noordental.example/apple-touch-icon.png',
-      })
-    );
-    serve(
-      await mark(RED, CLEAR),
-      'https://cdn.example/icons/menu.svg',
-      'https://www.noordental.example/apple-touch-icon.png'
-    );
+  it.each([
+    ['127×127, a pixel short', 127, 127],
+    ['64×64, a browser tab’s', 64, 64],
+    ['512×100, large on its long side only', 512, 100],
+  ])('does not offer an icon of %s', async (_, width, height) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[ICON] = await navy(width, height);
 
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual([
-      'https://www.noordental.example/apple-touch-icon.png',
-      'https://cdn.example/icons/menu.svg',
-    ]);
+    expect((await suggest(service)).logos).toEqual([LOGO]);
   });
 
-  // A logo is mostly smaller, or transparent around its mark.
-  it('puts an image that is opaque and 800 pixels or more on its long side, more like a photo or a banner than a logo, after the others its path ranks alike, and takes the colours from the first of those', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://cdn.example/img/wide.jpg',
-          'https://cdn.example/img/mark.png',
-          'https://cdn.example/img/small.jpg',
-          'https://cdn.example/img/clear.png',
-        ],
-        favicon: 'https://www.noordental.example/favicon.png',
-      })
-    );
-    site['https://cdn.example/img/wide.jpg'] = await plain(1600, 600, 'jpeg');
-    site['https://cdn.example/img/mark.png'] = await mark(RED, CLEAR);
-    site['https://cdn.example/img/small.jpg'] = await plain(799, 400, 'jpeg');
-    site['https://cdn.example/img/clear.png'] = await plain(
-      1200,
-      1200,
-      'png',
-      0.5
-    );
-    site['https://www.noordental.example/favicon.png'] = await mark(
-      NAVY,
-      CLEAR
-    );
+  it('offers an SVG icon whatever its size, since it is drawn at any', async () => {
+    const { service, firecrawl } = makeService();
+    const icon = 'https://www.noordental.example/favicon.svg';
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon }));
+    site[LOGO] = await mark(RED, CLEAR);
+    // 40×40 as written
+    site[icon] = Buffer.from(SQUARE_SVG);
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: [
-        'https://cdn.example/img/mark.png',
-        'https://cdn.example/img/small.jpg',
-        'https://cdn.example/img/clear.png',
-        'https://www.noordental.example/favicon.png',
-        'https://cdn.example/img/wide.jpg',
-      ],
-      colours: ['#E30613'],
-    });
+    expect((await suggest(service)).logos).toEqual([LOGO, icon]);
   });
 
-  it('keeps a link whose path names a logo first, however large and opaque its image', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://cdn.example/img/mark.png',
-          'https://cdn.example/brand/logo.jpg',
-        ],
-      })
-    );
-    site['https://cdn.example/img/mark.png'] = await mark(RED, CLEAR);
-    site['https://cdn.example/brand/logo.jpg'] = await plain(1600, 600, 'jpeg');
+  it('does not offer an ICO icon, which sharp can’t read and the kit couldn’t save', async () => {
+    const { service, firecrawl } = makeService();
+    const icon = 'https://www.noordental.example/favicon.ico';
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[icon] = ico();
 
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual([
-      'https://cdn.example/brand/logo.jpg',
-      'https://cdn.example/img/mark.png',
-    ]);
+    expect((await suggest(service)).logos).toEqual([LOGO]);
   });
 
-  it('counts "logo" in the path only, not in the host or the query', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://logo.cdn.example/team.jpg',
-          'https://cdn.example/pic.jpg?name=logo',
-          'https://cdn.example/LOGOS/mark.png',
-        ],
-      })
-    );
-    serve(
-      await mark(RED, CLEAR),
-      'https://logo.cdn.example/team.jpg',
-      'https://cdn.example/pic.jpg?name=logo',
-      'https://cdn.example/LOGOS/mark.png'
-    );
+  it('offers a link once when the icon is the logo’s own, and reads it once', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: LOGO }));
+    site[LOGO] = await navy(192);
 
-    const { logos } = await service.suggestFromWebsite(
-      'org-1',
-      'https://www.noordental.example/'
-    );
-
-    expect(logos).toEqual([
-      'https://cdn.example/LOGOS/mark.png',
-      'https://logo.cdn.example/team.jpg',
-      'https://cdn.example/pic.jpg?name=logo',
-    ]);
+    expect((await suggest(service)).logos).toEqual([LOGO]);
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
-  it('gives at most 6 links, the favicon once when it is also one of the images', async () => {
-    const { service, tavily } = makeService();
-    const images = [1, 2, 3, 4, 5, 6, 7].map(
-      (n) => `https://cdn.example/pic-${n}.jpg`
-    );
-    tavily.extract.mockResolvedValue(
-      page({ images, favicon: 'https://cdn.example/pic-7.jpg' })
-    );
-    tavily.extract.mockResolvedValueOnce(
-      page({
-        images: ['https://cdn.example/mark.png'],
-        favicon: 'https://cdn.example/mark.png',
-      })
-    );
-    serve(await mark(RED, CLEAR), 'https://cdn.example/mark.png', ...images);
+  it('offers the logo whatever its size: only the icon has to be big enough', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO }));
+    site[LOGO] = await navy(32);
 
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual(['https://cdn.example/mark.png']);
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual(images.slice(0, 6));
+    expect((await suggest(service)).logos).toEqual([LOGO]);
   });
 
-  // Neither sharp nor the Media library takes an ICO, a favicon's usual type.
-  it('leaves out the links whose path is an ICO, before the 6 are counted, without reading them', async () => {
-    const { service, tavily } = makeService();
-    const photos = [1, 2, 3, 4, 5, 6].map(
-      (n) => `https://cdn.example/photo-${n}.jpg`
-    );
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://cdn.example/logo.ico',
-          'https://cdn.example/brand/Logo.ICO?v=2',
-          ...photos,
-        ],
-        favicon: 'https://www.noordental.example/favicon.ico',
-      })
-    );
-    serve(await mark(RED, CLEAR), ...photos);
+  // Only an image the kit could save is offered: Add to kit reads the link
+  // again and puts it through sharp.
+  it.each([
+    ['the site does not serve', 'https://cdn.example/gone.png'],
+    ['is a page', 'https://cdn.example/about'],
+    ['is a video', 'https://cdn.example/intro.mp4'],
+    ['is an ICO (sharp can’t read one)', 'https://cdn.example/x.ico'],
+  ])('does not offer a logo that %s', async (_, logo) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo }));
+    site['https://cdn.example/about'] = Buffer.from('<!doctype html>');
+    site['https://cdn.example/intro.mp4'] = MP4;
+    site['https://cdn.example/x.ico'] = ico();
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: photos,
-      colours: ['#E30613'],
-    });
-    expect(read.mock.calls.map(([link]) => link)).toEqual(photos);
+    expect(await suggest(service)).toEqual(NOTHING);
+    expect(read).toHaveBeenCalledWith(logo, 10 * 1024 * 1024, 5_000);
   });
 
-  it("leaves out a link whose image can't be read and takes the colours of the next, so the first logo is always the one the colours are from", async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: ['https://cdn.example/logo-gone.png'],
-        favicon: 'https://www.noordental.example/favicon.ico',
-      })
-    );
-    tavily.extract.mockResolvedValueOnce(
-      page({
-        images: [
-          'https://cdn.example/logo-gone.png',
-          'https://cdn.example/team.jpg',
-          'https://cdn.example/mark.png',
-        ],
-      })
-    );
-    site['https://cdn.example/team.jpg'] = await mark(NAVY, WHITE);
-    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
-    site['https://www.noordental.example/favicon.ico'] = ico();
+  it.each([
+    ['the lookup names no logo', {}],
+    ['the logo can’t be read', { logo: LOGO }],
+  ])('offers a big enough icon alone when %s', async (_, logo) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ ...logo, icon: ICON }));
+    site[ICON] = await navy(192);
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/team.jpg', 'https://cdn.example/mark.png'],
+    expect((await suggest(service)).logos).toEqual([ICON]);
+  });
+
+  it('offers no logo when the lookup names none and the icon is too small', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ icon: ICON, colours: ['#1F3A5F'] })
+    );
+    site[ICON] = await navy(32);
+
+    expect(await suggest(service)).toEqual({
+      ...NOTHING,
       colours: ['#1F3A5F'],
     });
-    // Nothing readable is left: the card says nothing was found
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({ foundOn: 'www.noordental.example', logos: [], colours: [] });
   });
 
-  // Each of a read's two requests waits at most 5 s, and the links are read at
-  // once, so the reads end within 10 s beside Tavily's 20 s, well inside
-  // nginx's 95 s.
-  it('counts a link whose read ran out of time as one that can’t be read', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://cdn.example/slow-logo.png',
-          'https://cdn.example/mark.png',
-        ],
-      })
-    );
-    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
-    read.mockImplementationOnce(async () => {
-      // How axios rejects a request its signal aborted
-      throw Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' });
+  // Each of a read's two requests waits at most 5 s, and the two links are
+  // read at once, so the reads end within 10 s beside Firecrawl's 30 s, well
+  // inside nginx's 95 s.
+  it('counts a logo whose read ran out of time as one that can’t be read, and still offers the icon', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[ICON] = await navy(192);
+    read.mockImplementation(async (link: string) => {
+      if (link === LOGO) {
+        // How axios rejects a request its signal aborted
+        throw Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' });
+      }
+      return site[link];
     });
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/mark.png'],
-      colours: ['#E30613'],
-    });
-    expect(read).toHaveBeenNthCalledWith(
-      1,
-      'https://cdn.example/slow-logo.png',
-      10 * 1024 * 1024,
-      5_000
-    );
+    expect((await suggest(service)).logos).toEqual([ICON]);
   });
 
-  it('reads the links at once, not one after another', async () => {
-    const { service, tavily } = makeService();
-    const links = [1, 2, 3, 4].map((n) => `https://cdn.example/mark-${n}.png`);
-    tavily.extract.mockResolvedValue(page({ images: links }));
-    serve(await mark(RED, CLEAR), ...links);
+  it('reads the logo and the icon at once, not one after the other', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, icon: ICON }));
+    site[LOGO] = await mark(RED, CLEAR);
+    site[ICON] = await navy(192);
     let reading = 0;
     let most = 0;
     read.mockImplementation(async (link: string) => {
@@ -856,189 +407,327 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       return site[link];
     });
 
-    await service.suggestFromWebsite(
-      'org-1',
-      'https://www.noordental.example/'
-    );
+    await suggest(service);
 
-    expect(most).toBe(4);
+    expect(most).toBe(2);
   });
 
-  it('reads every link, not only the first 3, and offers only those whose image could be read, with the colours of the first', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [1, 2, 3, 4, 5].map((n) => `https://cdn.example/gone-${n}.png`),
+  it('offers the primary, secondary and accent colours in that order, in capitals', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ colours: ['#1f3a5f', '#E30613', '#2e9e44'] })
+    );
+
+    expect((await suggest(service)).colours).toEqual([
+      '#1F3A5F',
+      '#E30613',
+      '#2E9E44',
+    ]);
+  });
+
+  it.each([
+    ['a 3-digit code', '#FFF'],
+    ['a code with an alpha', '#0057B8FF'],
+    ['an rgb() colour', 'rgb(0, 87, 184)'],
+    ['a named colour', 'blue'],
+    ['a code without its #', '0057B8'],
+    ['a number', 0x0057b8],
+    ['an object', { hex: '#0057B8' }],
+  ])(
+    'drops %s, which is not #RRGGBB, and keeps the others in their order',
+    async (_, colour) => {
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockResolvedValue(
+        branding({ colours: ['#1F3A5F', colour, '#2E9E44'] })
+      );
+
+      expect((await suggest(service)).colours).toEqual(['#1F3A5F', '#2E9E44']);
+    }
+  );
+
+  // Camel Step's primary and accent are the same blue.
+  it('offers a code given twice once, whatever its case, at its first place', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ colours: ['#0057b8', '#E30613', '#0057B8'] })
+    );
+
+    expect((await suggest(service)).colours).toEqual(['#0057B8', '#E30613']);
+  });
+
+  it.each([
+    ['a red logo adds no red to the site’s navy', ['#1F3A5F']],
+    ['a site with a logo and no colours has none to offer', []],
+  ])(
+    'takes the colours from the lookup, never from an image: %s',
+    async (_, colours) => {
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockResolvedValue(branding({ logo: LOGO, colours }));
+      site[LOGO] = await mark(RED, CLEAR);
+
+      expect(await suggest(service)).toEqual({
+        ...NOTHING,
+        logos: [LOGO],
+        colours,
+      });
+    }
+  );
+
+  it('offers the headings and the body font by the plain names the site gave', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ headingFont: 'Tajawal', bodyFont: 'IBM Plex Sans Arabic' })
+    );
+
+    expect(await suggest(service)).toEqual({
+      ...NOTHING,
+      headingFont: 'Tajawal',
+      bodyFont: 'IBM Plex Sans Arabic',
+    });
+  });
+
+  // What sharek.app answered: the name a build gives a font it serves.
+  it('offers "IBM Plex Sans-fea3ea334779485b" as "IBM Plex Sans", its build suffix removed', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({
+        headingFont: 'IBM Plex Sans-fea3ea334779485b',
+        bodyFont: 'IBM Plex Sans-0260e4c03722b477',
       })
     );
-    site['https://cdn.example/gone-4.png'] = await mark(RED, CLEAR);
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/gone-4.png'],
-      colours: ['#E30613'],
+    expect(await suggest(service)).toEqual({
+      ...NOTHING,
+      headingFont: 'IBM Plex Sans',
+      bodyFont: 'IBM Plex Sans',
     });
-    expect(read).toHaveBeenCalledTimes(5);
   });
 
-  // A page's image links can hold the page's own address, another page or a
-  // video, and a link's path can name the wrong type.
-  it('offers only the links sharp reads as an image: not the page itself, another page, a video, or an ICO at a link naming another type', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(
-      page({
-        images: [
-          'https://www.noordental.example/',
-          'https://cdn.example/about.svg',
-          'https://cdn.example/intro.mp4',
-          'https://cdn.example/brand.png',
-          'https://cdn.example/mark.png',
-        ],
+  // A build's suffix is a hyphen and 8 or more hex characters at the name's
+  // end; any other hyphen is the name's own.
+  it.each([
+    ['PingFang-SC'],
+    ['Avenir-Next'],
+    ['Noor-1a2b3c4'],
+    ['Noor-1a2b3c4d Display'],
+  ])('keeps the hyphen of %j, which is no build suffix', async (font) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ headingFont: font, bodyFont: font })
+    );
+
+    expect(await suggest(service)).toEqual({
+      ...NOTHING,
+      headingFont: font,
+      bodyFont: font,
+    });
+  });
+
+  it.each([
+    ['"Noto Kufi Arabic"', 'Noto Kufi Arabic'],
+    ["'Cairo'", 'Cairo'],
+    ['  Tajawal  ', 'Tajawal'],
+    [' "IBM Plex Sans-fea3ea334779485b" ', 'IBM Plex Sans'],
+  ])(
+    'offers %j as %j, its quotes and outer spaces gone',
+    async (font, plain) => {
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockResolvedValue(
+        branding({ headingFont: font, bodyFont: font })
+      );
+
+      expect(await suggest(service)).toEqual({
+        ...NOTHING,
+        headingFont: plain,
+        bodyFont: plain,
+      });
+    }
+  );
+
+  // A generic family or a system's own font is no font a brand chose.
+  it.each([
+    ['serif'],
+    ['sans-serif'],
+    ['monospace'],
+    ['cursive'],
+    ['fantasy'],
+    ['system-ui'],
+    ['ui-serif'],
+    ['ui-sans-serif'],
+    ['ui-monospace'],
+    ['ui-rounded'],
+    ['-apple-system'],
+    ['BlinkMacSystemFont'],
+    ['inherit'],
+    ['initial'],
+    // Whatever its case, quotes or spaces
+    ['Sans-Serif'],
+    ['"sans-serif"'],
+    [' SYSTEM-UI '],
+    ['blinkmacsystemfont'],
+  ])('leaves out the generic family %j', async (font) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ headingFont: font, bodyFont: font })
+    );
+
+    const suggestions = await suggest(service);
+
+    expect(suggestions.headingFont).toBeUndefined();
+    expect(suggestions.bodyFont).toBeUndefined();
+  });
+
+  it.each([
+    ['an empty name', ''],
+    ['a name of spaces', '   '],
+    ['a name of quotes alone', '""'],
+    ['a name over 60 characters, more than a kit takes', 'A'.repeat(61)],
+    ['a number', 42],
+    ['a list of names', ['Tajawal']],
+  ])('leaves out %s', async (_, font) => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ headingFont: font, bodyFont: font })
+    );
+
+    const suggestions = await suggest(service);
+
+    expect(suggestions.headingFont).toBeUndefined();
+    expect(suggestions.bodyFont).toBeUndefined();
+  });
+
+  it('keeps a name of 60 characters, the most a kit takes, counted once it is plain', async () => {
+    const { service, firecrawl } = makeService();
+    const name = 'A'.repeat(60);
+    firecrawl.branding.mockResolvedValue(
+      branding({
+        headingFont: `"${name}"`,
+        bodyFont: `${name}-fea3ea334779485b`,
       })
     );
-    serve(
-      Buffer.from('<!doctype html>'),
-      'https://www.noordental.example/',
-      'https://cdn.example/about.svg'
-    );
-    site['https://cdn.example/intro.mp4'] = MP4;
-    site['https://cdn.example/brand.png'] = ico();
-    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
 
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/mark.png'],
-      colours: ['#E30613'],
+    expect(await suggest(service)).toEqual({
+      ...NOTHING,
+      headingFont: name,
+      bodyFont: name,
     });
   });
 
-  it('gives the first 6 links whose image could be read, so a page whose first links are broken still offers 6', async () => {
-    const { service, tavily } = makeService();
-    const links = [1, 2, 3, 4, 5, 6, 7, 8].map(
-      (n) => `https://cdn.example/mark-${n}.png`
-    );
-    tavily.extract.mockResolvedValue(page({ images: links }));
-    serve(await mark(RED, CLEAR), ...links.slice(2));
-
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual(links.slice(2));
-  });
-
-  // Twice the 6 offered, so a few broken links still leave 6, without every
-  // image on a page being fetched.
-  it('reads the first 12 links only', async () => {
-    const { service, tavily } = makeService();
-    const links = [...Array(14).keys()].map(
-      (n) => `https://cdn.example/mark-${n + 1}.png`
-    );
-    tavily.extract.mockResolvedValue(page({ images: links }));
-    serve(await mark(RED, CLEAR), ...links);
-
-    expect(
-      (
-        await service.suggestFromWebsite(
-          'org-1',
-          'https://www.noordental.example/'
-        )
-      ).logos
-    ).toEqual(links.slice(0, 6));
-    expect(read.mock.calls.map(([link]) => link)).toEqual(links.slice(0, 12));
-  });
-
-  it('suggests from the links of a page with no words', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue([
-      {
-        url: 'https://www.noordental.example/',
-        error: "This page couldn't be read.",
-        images: ['https://cdn.example/logo.png'],
-      },
-    ]);
-    site['https://cdn.example/logo.png'] = await mark(RED, CLEAR);
-
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({
-      foundOn: 'www.noordental.example',
-      logos: ['https://cdn.example/logo.png'],
-      colours: ['#E30613'],
-    });
-  });
-
-  it('answers nothing found, not an error, for a page read with no images', async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue(page({ images: [] }));
-
-    expect(
-      await service.suggestFromWebsite(
-        'org-1',
-        'https://www.noordental.example/'
-      )
-    ).toEqual({ foundOn: 'www.noordental.example', logos: [], colours: [] });
-    expect(read).not.toHaveBeenCalled();
-  });
-
-  it("refuses a page Tavily couldn't read and has no links for with a 422 the card words as the site couldn't be read", async () => {
-    const { service, tavily } = makeService();
-    tavily.extract.mockResolvedValue([
-      {
-        url: 'https://www.noordental.example/',
-        error: 'Failed to fetch url',
-        images: [],
-      },
-    ]);
-
-    const err = await failure(
-      service.suggestFromWebsite('org-1', 'https://www.noordental.example/')
+  it('offers one font without the other', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockResolvedValue(
+      branding({ headingFont: 'Tajawal', bodyFont: 'sans-serif' })
     );
 
-    expect(err?.getStatus()).toBe(422);
-    expect(err?.message).toBe("This site couldn't be read.");
+    const suggestions = await suggest(service);
+
+    expect(suggestions.headingFont).toBe('Tajawal');
+    expect(suggestions.bodyFont).toBeUndefined();
+  });
+
+  // The card tells a refused site apart by this status, and says to use the
+  // brand's own website or add the logo by hand.
+  it('answers 403, not 422, for a site the lookup refuses, and reads nothing', async () => {
+    const { service, firecrawl } = makeService();
+    firecrawl.branding.mockRejectedValue(
+      new HttpException("This kind of site can't be read.", 403)
+    );
+
+    const err = await failure(suggest(service));
+
+    expect(err?.getStatus()).toBe(403);
+    expect(err?.message).toBe("This kind of site can't be read.");
     expect(read).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['out of credits', 402],
-    ['busy', 429],
-    ['unreachable', 503],
-    ['too slow', 504],
-    ['refusing the request', 502],
+    ['could not read the site', 422],
+    ['is out of credits', 402],
+    ['is busy', 429],
+    ['is unreachable', 503],
+    ['took too long', 504],
+    ['refused the request', 502],
   ])(
-    'refuses with the same 422 when the web lookup service is %s, its words for Samy left out',
+    'refuses with a 422 the card words as the site couldn’t be read when the web lookup service %s, its words for Samy left out',
     async (_, status) => {
-      const { service, tavily } = makeService();
-      tavily.extract.mockRejectedValue(
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockRejectedValue(
         new HttpException(
           'Say the lookup failed and offer to try again.',
           status
         )
       );
 
-      const err = await failure(
-        service.suggestFromWebsite('org-1', 'https://www.noordental.example/')
-      );
+      const err = await failure(suggest(service));
 
       expect(err?.getStatus()).toBe(422);
       expect(err?.message).toBe("This site couldn't be read.");
+      expect(read).not.toHaveBeenCalled();
+    }
+  );
+
+  it('throws an error that is no refusal of the lookup as it is', async () => {
+    const { service, firecrawl } = makeService();
+    const bug = new TypeError('branding is not iterable');
+    firecrawl.branding.mockRejectedValue(bug);
+
+    await expect(suggest(service)).rejects.toBe(bug);
+  });
+});
+
+// readOrFetch reads any string that doesn't start with a lower-case "http" as
+// a local file's path, and a link in Firecrawl's answer is the site's own
+// text. The guard is FirecrawlService's, so these cases run the real one over
+// a mocked fetch: what it hands on is what is read here.
+describe('BrandWebsiteService.suggestFromWebsite over the real FirecrawlService', () => {
+  const ICON = 'https://www.noordental.example/apple-touch-icon.png';
+
+  // Firecrawl's answer for a site whose logo is the link, in both places it
+  // names one, beside an icon at a link that can be read.
+  const answered = (logo: string) =>
+    new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          branding: { logo, images: { logo, favicon: ICON } },
+          metadata: { url: 'https://www.noordental.example/' },
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+
+  beforeEach(() => {
+    jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([
+    ['a data: address', 'data:image/svg+xml;base64,PHN2Zy8+'],
+    ['a relative path', '/assets/logo.png'],
+    ['a file: address', 'file:///etc/passwd'],
+    ['a path on this machine', '/etc/passwd'],
+  ])(
+    'only http(s) links are read: a logo Firecrawl gave as %s never reaches readOrFetch, and the icon beside it does',
+    async (_, logo) => {
+      // Firecrawl itself is answered for; nothing reaches the network.
+      jest.spyOn(global, 'fetch').mockResolvedValue(answered(logo));
+      site[ICON] = await navy(192);
+      const service = new BrandWebsiteService(
+        new FirecrawlService(),
+        {} as any,
+        {} as any
+      );
+
+      const { logos } = await service.suggestFromWebsite(
+        'org-1',
+        'https://www.noordental.example/'
+      );
+
+      expect(read.mock.calls.map(([link]) => link)).toEqual([ICON]);
+      expect(logos).toEqual([ICON]);
     }
   );
 });
@@ -1090,8 +779,7 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     }
   );
 
-  // A logo is a still, in a type every network takes. The first frame is the
-  // one the colours were read from.
+  // A logo is a still, in a type every network takes.
   it('saves a GIF logo as the PNG of its first frame, at its own size', async () => {
     const { service, media } = makeService();
     const gif = await twoFrameGif();
@@ -1196,6 +884,71 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     expect(read).not.toHaveBeenCalled();
     expect(media.saveImage).not.toHaveBeenCalled();
     expect(brands.saveKit.mock.calls[0][2]).not.toHaveProperty('logoId');
+  });
+
+  it('puts the fonts that were sent in the kit, beside the logo and the colours', async () => {
+    const { service, brands } = makeService();
+    site['https://cdn.example/logo.png'] = await mark(RED, CLEAR);
+
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      logo: 'https://cdn.example/logo.png',
+      colours: ['#E30613'],
+      headingFont: 'Tajawal',
+      bodyFont: 'IBM Plex Sans Arabic',
+    });
+
+    expect(brands.saveKit).toHaveBeenCalledWith('org-1', 'brand-1', {
+      logoId: 'media-10',
+      colours: ['#B5542C', '#1F3A5F', '#E30613'],
+      headingFont: 'Tajawal',
+      bodyFont: 'IBM Plex Sans Arabic',
+    });
+  });
+
+  // A font the user left unticked isn't sent, and the kit's own name stays
+  // only if the field never reaches saveKit.
+  it('passes no font that wasn’t sent, so the kit’s name stays', async () => {
+    const { service, brands } = makeService();
+
+    await service.saveFromWebsite('org-1', 'brand-1', { colours: [] });
+
+    const kit = brands.saveKit.mock.calls[0][2];
+    expect(kit).not.toHaveProperty('headingFont');
+    expect(kit).not.toHaveProperty('bodyFont');
+  });
+
+  it.each([
+    ['headingFont', 'bodyFont'],
+    ['bodyFont', 'headingFont'],
+  ] as const)(
+    'passes %s when it alone was sent, and no %s',
+    async (sent, unsent) => {
+      const { service, brands } = makeService();
+
+      await service.saveFromWebsite('org-1', 'brand-1', {
+        colours: [],
+        [sent]: 'Tajawal',
+      });
+
+      const kit = brands.saveKit.mock.calls[0][2];
+      expect(kit).toHaveProperty(sent, 'Tajawal');
+      expect(kit).not.toHaveProperty(unsent);
+    }
+  );
+
+  // The DTO clears an emptied name to null, which saveKit takes as "no font".
+  it('passes a font that was sent emptied as null, which clears the kit’s', async () => {
+    const { service, brands } = makeService();
+
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      colours: [],
+      headingFont: null,
+      bodyFont: 'Cairo',
+    });
+
+    const kit = brands.saveKit.mock.calls[0][2];
+    expect(kit).toHaveProperty('headingFont', null);
+    expect(kit).toHaveProperty('bodyFont', 'Cairo');
   });
 
   // Nothing reaches Media before sharp has read the image, so a link that is
