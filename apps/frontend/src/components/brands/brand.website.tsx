@@ -365,7 +365,11 @@ export const WebsiteLookupFields: FC<{
             spellCheck={false}
             value={address}
             onChange={(e) => lookup.setAddress(e.target.value)}
-            className={clsx('flex-1 min-w-0', TEXT_FIELD)}
+            placeholder={t('brands_website_placeholder', 'yourbrand.com')}
+            className={clsx(
+              'flex-1 min-w-0 placeholder:text-muted',
+              TEXT_FIELD
+            )}
           />
           <Button
             type="submit"

@@ -776,6 +776,7 @@
   "brands_website_nothing_found": "لم نجد شيئًا في هذا العنوان. جرب العنوان الكامل لصفحتك الرئيسية، مثل yourbrand.com/en.",
   "brands_website_logo_failed": "تعذر حفظ هذا الشعار، فلم يضف شيء. اختر شعارًا آخر أو حاول مرة أخرى.",
   "brands_website_no_colours": "تعذرت قراءة أي لون من هذا الشعار.",
+  "brands_website_placeholder": "yourbrand.com",
   "brands_website_colours_room_zero": "ألوان هويتك مكتملة: أزل لونًا لتضيف من موقعك.",
   "brands_website_colours_room_one": "تتسع هويتك للون واحد آخر.",
   "brands_website_colours_room_two": "تتسع هويتك للونين آخرين.",
