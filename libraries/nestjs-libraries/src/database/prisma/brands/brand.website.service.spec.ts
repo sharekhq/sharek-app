@@ -15,7 +15,7 @@ jest.mock(
   () => ({ readOrFetch: jest.fn() })
 );
 
-import { BadRequestException, HttpException } from '@nestjs/common';
+import { HttpException } from '@nestjs/common';
 import sharp from 'sharp';
 import { BrandWebsiteService } from './brand.website.service';
 import { readOrFetch } from '@gitroom/nestjs-libraries/database/prisma/media/read.or.fetch';
@@ -61,6 +61,30 @@ const mark = (colour: Pixel, around: Pixel) =>
 const SQUARE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="20" height="20" fill="#E30613"/></svg>';
 
+// A GIF of two 40×40 frames, the first red and the second navy.
+const twoFrameGif = () => {
+  const pixels = Buffer.alloc(40 * 80 * 4);
+  for (let i = 0; i < 40 * 80; i++) {
+    pixels.set([...(i < 40 * 40 ? RED : NAVY), 255], i * 4);
+  }
+  return sharp(pixels, {
+    raw: { width: 40, height: 80, channels: 4, pageHeight: 40 },
+  })
+    .gif()
+    .toBuffer();
+};
+
+// The first box of an MP4, the one every video file opens with.
+const MP4 = Buffer.concat([
+  Buffer.from([0, 0, 0, 0x18]),
+  Buffer.from('ftypisom'),
+  Buffer.from([0, 0, 2, 0]),
+  Buffer.from('isomiso2'),
+]);
+
+// An image's pixels as sharp decodes them, its first frame for an animation.
+const pixelsOf = (image: Buffer) => sharp(image).ensureAlpha().raw().toBuffer();
+
 // An ICO holding a PNG: browsers show it, sharp has no reader for it.
 const ico = () => {
   const bytes = Buffer.alloc(22 + 8);
@@ -89,12 +113,9 @@ const rawda: Brand = {
 const makeService = () => {
   const tavily = { extract: jest.fn() };
   const media = {
-    uploadFromUrl: jest
-      .fn()
-      .mockResolvedValue({ id: 'media-9', path: 'https://uploads/logo.png' }),
     saveImage: jest
       .fn()
-      .mockResolvedValue({ id: 'media-10', path: 'https://uploads/svg.png' }),
+      .mockResolvedValue({ id: 'media-10', path: 'https://uploads/logo.png' }),
   };
   const brands = {
     get: jest.fn().mockResolvedValue(rawda),
@@ -629,24 +650,110 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
 });
 
 describe('BrandWebsiteService.saveFromWebsite', () => {
-  it('saves the logo to the Media library from its link and puts it in the kit with the colours, answering the saved brand', async () => {
+  it('reads the logo through readOrFetch, bounded by the size the Media library takes for an image, each request waiting at most 5 s, saves it to Media and puts it in the kit with the colours, answering the saved brand', async () => {
     const { service, media, brands } = makeService();
+    const logo = await mark(RED, CLEAR);
+    site['https://cdn.example/logo.png'] = logo;
 
     const saved = await service.saveFromWebsite('org-1', 'brand-1', {
       logo: 'https://cdn.example/logo.png',
       colours: ['#E30613'],
     });
 
-    expect(media.uploadFromUrl).toHaveBeenCalledWith(
-      'org-1',
-      'https://cdn.example/logo.png'
+    expect(read).toHaveBeenCalledWith(
+      'https://cdn.example/logo.png',
+      10 * 1024 * 1024,
+      5_000
     );
+    expect(media.saveImage).toHaveBeenCalledWith('org-1', logo, 'image/png');
     expect(brands.saveKit).toHaveBeenCalledWith('org-1', 'brand-1', {
-      logoId: 'media-9',
+      logoId: 'media-10',
       colours: ['#B5542C', '#1F3A5F', '#E30613'],
     });
     expect(saved).toEqual({ ...rawda, id: 'saved' });
   });
+
+  // Every browser and network shows these, so the bytes the site serves are
+  // the ones saved.
+  it.each([
+    ['a JPEG', 'jpeg', 'https://cdn.example/logo.jpg', 'image/jpeg'],
+    ['a WebP', 'webp', 'https://cdn.example/logo.webp', 'image/webp'],
+  ] as const)(
+    'saves %s logo as it is, with its type',
+    async (_, format, link, mime) => {
+      const { service, media } = makeService();
+      const logo = await sharp(await mark(RED, WHITE))
+        .toFormat(format)
+        .toBuffer();
+      site[link] = logo;
+
+      await service.saveFromWebsite('org-1', 'brand-1', {
+        logo: link,
+        colours: [],
+      });
+
+      expect(media.saveImage).toHaveBeenCalledWith('org-1', logo, mime);
+    }
+  );
+
+  // A logo is a still, in a type every network takes. The first frame is the
+  // one the colours were read from.
+  it('saves a GIF logo as the PNG of its first frame, at its own size', async () => {
+    const { service, media } = makeService();
+    const gif = await twoFrameGif();
+    site['https://cdn.example/logo.gif'] = gif;
+
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      logo: 'https://cdn.example/logo.gif',
+      colours: [],
+    });
+
+    expect(media.saveImage).toHaveBeenCalledWith(
+      'org-1',
+      expect.any(Buffer),
+      'image/png'
+    );
+    const png: Buffer = media.saveImage.mock.calls[0][1];
+    expect(await sharp(png).metadata()).toMatchObject({
+      format: 'png',
+      width: 40,
+      height: 40,
+      pages: 1,
+    });
+    expect(await pixelsOf(png)).toEqual(await pixelsOf(gif));
+  });
+
+  it.each([
+    ['an AVIF', 'avif'],
+    ['a TIFF', 'tiff'],
+  ] as const)(
+    'saves %s logo as the PNG it draws, at its own size',
+    async (_, format) => {
+      const { service, media } = makeService();
+      const logo = await sharp(await mark(RED, CLEAR))
+        .toFormat(format)
+        .toBuffer();
+      site['https://cdn.example/logo'] = logo;
+
+      await service.saveFromWebsite('org-1', 'brand-1', {
+        logo: 'https://cdn.example/logo',
+        colours: [],
+      });
+
+      expect(media.saveImage).toHaveBeenCalledWith(
+        'org-1',
+        expect.any(Buffer),
+        'image/png'
+      );
+      const png: Buffer = media.saveImage.mock.calls[0][1];
+      expect(await sharp(png).metadata()).toMatchObject({
+        format: 'png',
+        width: 40,
+        height: 40,
+      });
+      expect(await pixelsOf(png)).toEqual(await pixelsOf(logo));
+    }
+  );
 
   it('adds the kept colours after the kit’s, in capitals and each once', async () => {
     const { service, brands } = makeService();
@@ -691,30 +798,36 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
 
     await service.saveFromWebsite('org-1', 'brand-1', { colours: [] });
 
-    expect(media.uploadFromUrl).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
     expect(media.saveImage).not.toHaveBeenCalled();
     expect(brands.saveKit.mock.calls[0][2]).not.toHaveProperty('logoId');
   });
 
+  // Nothing reaches Media before sharp has read the image, so a link that is
+  // no image leaves nothing behind there.
   it.each([
-    ['the site refuses the link', 'Failed to fetch URL'],
-    ['it is a file the Media library does not take', 'Unsupported file type.'],
-    ['it is too large', 'File is too large.'],
+    ['the site does not serve it', 'https://cdn.example/gone.png'],
+    ['it is a video', 'https://cdn.example/intro.mp4'],
+    ['it is a page', 'https://cdn.example/about'],
+    ['it is an ICO (sharp can’t read one)', 'https://cdn.example/x.ico'],
   ])(
-    "refuses a logo that can't be fetched (%s) with a 422 and saves nothing",
-    async (_, reason) => {
+    'refuses a logo when %s with a 422 and saves nothing, to Media or the kit',
+    async (_, logo) => {
       const { service, media, brands } = makeService();
-      media.uploadFromUrl.mockRejectedValue(new BadRequestException(reason));
+      site['https://cdn.example/intro.mp4'] = MP4;
+      site['https://cdn.example/about'] = Buffer.from('<!doctype html>');
+      site['https://cdn.example/x.ico'] = ico();
 
       const err = await failure(
         service.saveFromWebsite('org-1', 'brand-1', {
-          logo: 'https://cdn.example/logo.png',
+          logo,
           colours: ['#E30613'],
         })
       );
 
       expect(err?.getStatus()).toBe(422);
       expect(err?.message).toBe("This logo couldn't be saved.");
+      expect(media.saveImage).not.toHaveBeenCalled();
       expect(brands.saveKit).not.toHaveBeenCalled();
     }
   );
@@ -741,7 +854,6 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
         colours: [],
       });
 
-      expect(media.uploadFromUrl).not.toHaveBeenCalled();
       expect(media.saveImage).toHaveBeenCalledWith(
         'org-1',
         expect.any(Buffer),
@@ -787,17 +899,31 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     );
   });
 
-  it('counts a link as an SVG by its path, whatever its case or query', async () => {
+  // A link's path can name no type ("/logo?fm=svg") or the wrong one.
+  it('tells an SVG by its bytes, not its link: one at a link with no type is drawn as a PNG, and a PNG at a link ending in .svg is saved as it is', async () => {
     const { service, media } = makeService();
-    site['https://cdn.example/brand/Logo.SVG?v=2'] = Buffer.from(SQUARE_SVG);
+    site['https://cdn.example/logo?fm=svg'] = Buffer.from(SQUARE_SVG);
+    const mislabelled = await mark(RED, CLEAR);
+    site['https://cdn.example/brand/Logo.SVG?v=2'] = mislabelled;
 
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      logo: 'https://cdn.example/logo?fm=svg',
+      colours: [],
+    });
     await service.saveFromWebsite('org-1', 'brand-1', {
       logo: 'https://cdn.example/brand/Logo.SVG?v=2',
       colours: [],
     });
 
-    expect(media.uploadFromUrl).not.toHaveBeenCalled();
-    expect(media.saveImage).toHaveBeenCalledTimes(1);
+    const [[, drawn, drawnType], [, kept, keptType]] =
+      media.saveImage.mock.calls;
+    expect(drawnType).toBe('image/png');
+    expect(await sharp(drawn).metadata()).toMatchObject({
+      format: 'png',
+      width: 1024,
+      height: 1024,
+    });
+    expect([kept, keptType]).toEqual([mislabelled, 'image/png']);
   });
 
   it.each([
@@ -839,7 +965,6 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     expect(err?.getStatus()).toBe(404);
     expect(err?.message).toBe('Brand not found');
     expect(read).not.toHaveBeenCalled();
-    expect(media.uploadFromUrl).not.toHaveBeenCalled();
     expect(media.saveImage).not.toHaveBeenCalled();
     expect(brands.saveKit).not.toHaveBeenCalled();
   });
