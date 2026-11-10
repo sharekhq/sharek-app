@@ -537,6 +537,43 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     }
   );
 
+  // Every answer seen so far was a single name. A CSS font stack, were one
+  // answered, names the font the site chose first and its fallbacks after it.
+  it.each([
+    ['"Tajawal", sans-serif', 'Tajawal'],
+    ['Cairo, sans-serif', 'Cairo'],
+    ["'IBM Plex Sans-fea3ea334779485b', Arial", 'IBM Plex Sans'],
+  ])(
+    'offers the font stack %j as %j, its first family, plain as any name is',
+    async (font, plain) => {
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockResolvedValue(
+        branding({ headingFont: font, bodyFont: font })
+      );
+
+      expect(await suggest(service)).toEqual({
+        ...NOTHING,
+        headingFont: plain,
+        bodyFont: plain,
+      });
+    }
+  );
+
+  it.each([['system-ui, -apple-system, sans-serif'], ['sans-serif, Arial']])(
+    'leaves out the font stack %j, whose first family is generic',
+    async (font) => {
+      const { service, firecrawl } = makeService();
+      firecrawl.branding.mockResolvedValue(
+        branding({ headingFont: font, bodyFont: font })
+      );
+
+      const suggestions = await suggest(service);
+
+      expect(suggestions.headingFont).toBeUndefined();
+      expect(suggestions.bodyFont).toBeUndefined();
+    }
+  );
+
   // A generic family or a system's own font is no font a brand chose.
   it.each([
     ['serif'],
