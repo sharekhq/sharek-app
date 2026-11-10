@@ -436,9 +436,14 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             {logo?.missing ? (
               <Missing className="h-[116px]" />
             ) : (
+              // The website lookup's grey board behind a logo. With none, the
+              // panel: the muted "No logo yet" can't be read on that grey.
               <div
-                className="flex items-center justify-center h-[116px] rounded-[10px] bg-panel"
-                style={CHECKERBOARD}
+                className={clsx(
+                  'flex items-center justify-center h-[116px] rounded-[10px]',
+                  !logo?.path && 'bg-panel'
+                )}
+                style={logo?.path ? CHECKERBOARD : undefined}
               >
                 {logo?.path ? (
                   <SafeImage
