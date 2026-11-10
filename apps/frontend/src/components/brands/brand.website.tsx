@@ -562,15 +562,27 @@ export const BrandWebsiteCard: FC<{ brand: Pick<Brand, 'id' | 'kit'> }> = ({
 };
 
 // The same lookup in a dialog, from the button beside Rename once the kit has
-// something in it. Wide enough for the logos beside their colours.
+// something in it. Wide enough for the logos beside their colours. The app's
+// modal gives no dialog role, so the lookup's own content does, named by the
+// modal's title; not aria-modal, which would hide that title and the modal's
+// × from a screen reader, as they sit outside it.
 export const useFillFromWebsite = () => {
   const t = useT();
   const modals = useModals();
+  const titleId = useId();
 
   return (brand: Pick<Brand, 'id' | 'kit'>) =>
     modals.openModal({
-      title: t('brands_fill_from_website', 'Fill from my website'),
+      title: (
+        <span id={titleId}>
+          {t('brands_fill_from_website', 'Fill from my website')}
+        </span>
+      ),
       size: 600,
-      children: (close) => <BrandWebsite brand={brand} onClose={close} />,
+      children: (close) => (
+        <div role="dialog" aria-labelledby={titleId}>
+          <BrandWebsite brand={brand} onClose={close} />
+        </div>
+      ),
     });
 };
