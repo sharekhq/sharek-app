@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { compact, partition, uniq } from 'lodash';
-import { extname } from 'path';
+import { compact, sortBy, uniq } from 'lodash';
+import { basename, extname } from 'path';
 import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
   TavilyService,
@@ -23,7 +23,9 @@ type WebsiteSuggestions = {
 
 type Pixels = { data: Buffer; info: { width: number; height: number } };
 type Rgb = number[];
-type Logo = { link: string; image: Buffer };
+type Candidate = { link: string; metadata?: Metadata };
+type Logo = { link: string; image: Buffer; metadata: Metadata };
+type LogoOrder = ((candidate: Candidate) => boolean)[];
 
 // The logo links the card offers to pick from
 const LOGOS_MAX = 6;
@@ -31,6 +33,11 @@ const LOGOS_MAX = 6;
 // The links read for them: twice as many, so a page whose first links are
 // broken still fills the 6, without every image on a page being fetched
 const READS_MAX = 12;
+
+// An opaque image this many pixels or more on its long side is more like a
+// photo or a banner than a logo, which is mostly smaller or transparent around
+// its mark
+const PHOTO_EDGE = 800;
 
 // A logo is sampled inside this many pixels, enough to count its colours
 const SAMPLE_EDGE = 64;
@@ -57,28 +64,82 @@ const UNSAVED_LOGO = "This logo couldn't be saved.";
 // and the query say nothing about the image itself.
 const namesLogo = (link: string) => /logo/i.test(new URL(link).pathname);
 
+// A word naming another kind of image a page has: a banner, a background, a
+// photo, or one of its icons (a menu, a search, a close button, an arrow, a
+// cart, a user's), each also in the plural
+const OTHER_IMAGE =
+  /^(banner|hero|slide|slider|background|bg|photo|icon|menu|search|close|arrow|hamburger|cart|user)s?$/;
+
+// A path with such a word among its runs of letters, a camelCase name split
+// ("/img/heroBanner_2x.jpg" is img, hero, banner, x and jpg). Only a whole
+// word counts: "cartier" or "iconic" says nothing.
+const namesOtherImage = (link: string) =>
+  (
+    new URL(link).pathname
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .match(/[a-z]+/g) ?? []
+  ).some((word) => OTHER_IMAGE.test(word));
+
+// The brand's name as the site's address gives it: the first part of its host,
+// before the last, of 3 characters or more and not "www" ("almarai" of
+// www.almarai.com, "kaust" of kaust.edu.sa, "unicef" of en.unicef.org). A
+// shorter part ("ar", "en") is in too many file names to tell anything.
+const brandNameOf = (url: string) =>
+  new URL(url).hostname
+    .split('.')
+    .slice(0, -1)
+    .find((part) => part.length >= 3 && part !== 'www');
+
 // The type a link's path ends in ("/brand/Logo.SVG?v=2" is ".svg"), the only
 // one a page's image link carries
 const typeOf = (link: string) => extname(new URL(link).pathname).toLowerCase();
 
-const candidatesOf = ({ images = [], favicon }: WebPage) => {
-  const [named, others] = partition(images, namesLogo);
-  return (
-    uniq([...named, ...others, ...(favicon ? [favicon] : [])])
+/**
+ * The order the card offers the links in, as lodash sortBy's keys, each true
+ * for a link that goes after (links alike keep the page's order, the favicon
+ * after its images):
+ * - a path that doesn't name a logo;
+ * - a path naming another kind of image, never the favicon's: it is the site's
+ *   own mark, whatever its path says;
+ * - a file name without the brand's name;
+ * - not an SVG;
+ * - once read, an image like a photo: opaque and PHOTO_EDGE pixels or more on
+ *   its long side.
+ */
+const logoOrderOf = (url: string, favicon?: string): LogoOrder => {
+  const brand = brandNameOf(url);
+  return [
+    ({ link }) => !namesLogo(link),
+    ({ link }) => link !== favicon && namesOtherImage(link),
+    ({ link }) =>
+      !brand || !basename(new URL(link).pathname).toLowerCase().includes(brand),
+    ({ link }) => typeOf(link) !== '.svg',
+    ({ metadata }) =>
+      !!metadata &&
+      !metadata.hasAlpha &&
+      Math.max(metadata.width, metadata.height) >= PHOTO_EDGE,
+  ];
+};
+
+// The links read for logos, the page's images and its favicon each once: the
+// first READS_MAX in the order their paths give
+const candidatesOf = ({ images = [], favicon }: WebPage, order: LogoOrder) =>
+  sortBy(
+    uniq([...images, ...(favicon ? [favicon] : [])])
       // Neither sharp nor the Media library takes an ICO, a favicon's usual type
       .filter((link) => typeOf(link) !== '.ico')
-      .slice(0, READS_MAX)
-  );
-};
+      .map((link) => ({ link })),
+    order
+  ).slice(0, READS_MAX);
 
 // A link's image, read as a logo's bytes are; none when the link can't be
 // fetched or its bytes are no image sharp reads (the page itself, a video, an
 // ICO), whatever its path says
-const logoAt = async (link: string): Promise<Logo | undefined> => {
+const logoAt = async ({ link }: Candidate): Promise<Logo | undefined> => {
   try {
     const image = await readOrFetch(link, LOGO_MAX_BYTES, LOGO_READ_TIMEOUT);
-    await sharp(image).metadata();
-    return { link, image };
+    return { link, image, metadata: await sharp(image).metadata() };
   } catch {
     return undefined;
   }
@@ -241,16 +302,18 @@ export class BrandWebsiteService {
       throw err;
     }
 
-    const candidates = candidatesOf(page);
+    const order = logoOrderOf(url, page.favicon);
+    const candidates = candidatesOf(page, order);
     if (!candidates.length && page.error) {
       throw new HttpException(UNREADABLE_SITE, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
-    // The links are read at once, so the lookup waits for its slowest read only
-    const logos = compact(await Promise.all(candidates.map(logoAt))).slice(
-      0,
-      LOGOS_MAX
-    );
+    // The links are read at once, so the lookup waits for its slowest read
+    // only. Read, they're put in order again with what each image is.
+    const logos = sortBy(
+      compact(await Promise.all(candidates.map(logoAt))),
+      order
+    ).slice(0, LOGOS_MAX);
 
     return {
       foundOn: new URL(url).host,
