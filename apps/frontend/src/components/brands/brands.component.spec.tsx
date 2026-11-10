@@ -65,6 +65,13 @@ jest.mock('@gitroom/frontend/components/brands/brand.kit', () => ({
 jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
   useBrandDialogs: () => mockDialogs,
 }));
+// Whether the server can look a website up (TAVILY_API_KEY set), as the
+// layout reads it.
+const mockVariables = { websiteLookup: true };
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  ...jest.requireActual('@gitroom/react/helpers/variable.context'),
+  useVariables: () => mockVariables,
+}));
 // Fill from my website's dialog, which has its own spec, is a marker too.
 const mockOpenWebsite = jest.fn();
 jest.mock('@gitroom/frontend/components/brands/brand.website', () => ({
@@ -202,6 +209,7 @@ beforeEach(() => {
   mockChannels = CHANNELS;
   mockSplit = undefined;
   smallWindow = false;
+  mockVariables.websiteLookup = true;
   mockFetch.mockImplementation(async (url: string) =>
     answer(url === '/brands' ? mockBrands : { integrations: mockChannels })
   );
@@ -454,6 +462,16 @@ describe("a brand's page", () => {
     expect(button(host, 'Rename')).toBeDefined();
   });
 
+  it('offers no Fill from my website while the server has no web lookup (TAVILY_API_KEY unset)', async () => {
+    mockVariables.websiteLookup = false;
+    const host = await render();
+
+    // Bayt Al Qahwa has a logo
+    expect(heading(host)?.textContent).toBe('Bayt Al Qahwa');
+    expect(button(host, 'Fill from my website')).toBeUndefined();
+    expect(button(host, 'Rename')).toBeDefined();
+  });
+
   it('opens a new brand once it is created', async () => {
     const host = await render();
 
@@ -629,6 +647,20 @@ describe('at 1025px and below', () => {
     await click(row(host, 'Rawda Florist'));
     await click(button(host, 'Brand options'));
     expect(options()).toEqual(['Rename', 'Delete brand']);
+  });
+
+  it('leaves Fill from my website out of the ⋯ while the server has no web lookup', async () => {
+    mockVariables.websiteLookup = false;
+    const host = await render();
+
+    await click(row(host, 'Bayt Al Qahwa'));
+    await click(button(host, 'Brand options'));
+
+    expect(
+      Array.from(host.querySelectorAll('[role="menuitem"]')).map(
+        (item) => item.textContent
+      )
+    ).toEqual(['Rename', 'Delete brand']);
   });
 
   it("opens No brand's page with the same link back", async () => {

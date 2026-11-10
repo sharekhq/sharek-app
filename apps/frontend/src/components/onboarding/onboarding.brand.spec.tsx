@@ -56,8 +56,16 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ publicApi: 'KEY', tier: { public_api: true } }),
 }));
+// websiteLookup: whether the server can look a website up (TAVILY_API_KEY
+// set), as the layout reads it.
+const mockVariables = {
+  billingEnabled: true,
+  backendUrl: '',
+  mcpUrl: '',
+  websiteLookup: true,
+};
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
-  useVariables: () => ({ billingEnabled: true, backendUrl: '', mcpUrl: '' }),
+  useVariables: () => mockVariables,
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ closeAll: jest.fn(), openModal: jest.fn() }),
@@ -143,6 +151,7 @@ const answer = (body: unknown, status = 200) => ({
 let answers: Record<string, () => unknown>;
 
 beforeEach(() => {
+  mockVariables.websiteLookup = true;
   brands = [];
   channels = [channel('c1'), channel('c2'), channel('c3')];
   answers = {
@@ -382,6 +391,21 @@ describe('the brand step', () => {
 
     expect(ticked()).toEqual(six);
     expect(document.body.textContent).not.toMatch(/room for|colours are full/);
+  });
+
+  it('asks for the name alone while the server has no web lookup (TAVILY_API_KEY unset), and Continue still creates the brand', async () => {
+    mockVariables.websiteLookup = false;
+    await toBrandStep();
+
+    expect(nameField()).toBeTruthy();
+    expect(labelled('Your website')).toBeNull();
+    expect(button('Look up')).toBeUndefined();
+
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Continue'));
+
+    expect(calls()).toEqual(['POST /brands']);
+    expect(current()).toBe(3);
   });
 
   it("offers to put the organization's channels in the brand, ticked and counted", async () => {

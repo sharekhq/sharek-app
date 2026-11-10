@@ -38,6 +38,13 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
 }));
+// Whether the server can look a website up (TAVILY_API_KEY set), as the
+// layout reads it.
+const mockVariables = { websiteLookup: true };
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  ...jest.requireActual('@gitroom/react/helpers/variable.context'),
+  useVariables: () => mockVariables,
+}));
 // The page's two lists: the kit puts each saved brand in the first, and
 // refreshes the second after a channel moves.
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
@@ -278,6 +285,14 @@ describe('a brand kit', () => {
     document.body.innerHTML = '';
 
     await mount(brand({ colours: ['#0E7C86'] }));
+
+    expect(card('Fill from my website')).toBeUndefined();
+    expect(card('Logo')).toBeDefined();
+  });
+
+  it('shows no Fill from my website card, even on an empty kit, while the server has no web lookup (TAVILY_API_KEY unset)', async () => {
+    mockVariables.websiteLookup = false;
+    await mount(brand());
 
     expect(card('Fill from my website')).toBeUndefined();
     expect(card('Logo')).toBeDefined();
