@@ -3,7 +3,6 @@
 // are what the rest of the app reads the mode from, so a press still flips both.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { within } from '@testing-library/react';
 
 let mockMode = 'dark';
 const mockSetMode = jest.fn();
@@ -59,6 +58,12 @@ const render = () => {
   return host;
 };
 
+const buttonIn = (host: HTMLElement) => {
+  const buttons = host.querySelectorAll<HTMLElement>('button');
+  if (buttons.length !== 1) throw new Error(`${buttons.length} buttons`);
+  return buttons[0];
+};
+
 const press = (button: HTMLElement) => {
   act(() => {
     button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -103,17 +108,13 @@ describe('the button', () => {
 
 describe('while the mode is dark', () => {
   it('is named by what a press will do', () => {
-    const host = render();
-
-    expect(
-      within(host).getByRole('button', { name: 'Switch to light mode' })
-    ).toBe(host.firstElementChild);
+    expect(buttonIn(render()).getAttribute('aria-label')).toBe(
+      'Switch to light mode'
+    );
   });
 
   it('switches the cookie to light and tells the app', () => {
-    const host = render();
-
-    press(within(host).getByRole('button'));
+    press(buttonIn(render()));
 
     expect(mockSetMode).toHaveBeenCalledWith('light');
     expect(listener).toHaveBeenCalledWith('light');
@@ -147,17 +148,13 @@ describe('while the mode is light', () => {
   });
 
   it('is named by what a press will do', () => {
-    const host = render();
-
-    expect(
-      within(host).getByRole('button', { name: 'Switch to dark mode' })
-    ).toBe(host.firstElementChild);
+    expect(buttonIn(render()).getAttribute('aria-label')).toBe(
+      'Switch to dark mode'
+    );
   });
 
   it('switches the cookie to dark and tells the app', () => {
-    const host = render();
-
-    press(within(host).getByRole('button'));
+    press(buttonIn(render()));
 
     expect(mockSetMode).toHaveBeenCalledWith('dark');
     expect(listener).toHaveBeenCalledWith('dark');
