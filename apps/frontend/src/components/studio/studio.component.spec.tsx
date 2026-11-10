@@ -21,17 +21,23 @@ let user: { tier: { ai: boolean } };
 let billingEnabled = true;
 let showImageEditor = true;
 let emptyCatalog = false;
+// Whether the AI tools report a generation under way to their cards.
+let generating = false;
 const videoTriggers: Trigger[] = [];
 const imageTriggers: Trigger[] = [];
 const push = jest.fn();
+/** Each t() call, so a case can check the options a sentence is given. */
+const translated: Array<{ key: string; params?: Record<string, unknown> }> = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
   useT:
-    () => (key: string, fallback: string, params?: Record<string, unknown>) =>
-      fallback.replace(/{{(\w+)}}/g, (whole, name) =>
+    () => (key: string, fallback: string, params?: Record<string, unknown>) => {
+      translated.push({ key, params });
+      return fallback.replace(/{{(\w+)}}/g, (whole, name) =>
         params && name in params ? String(params[name]) : whole
-      ),
+      );
+    },
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
@@ -107,6 +113,17 @@ const registryCards: Record<
     diagram: null,
     studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
   },
+  // A tool that has no picture yet.
+  'avatar-ad': {
+    name: { key: 'video_type_avatar_ad', fallback: 'Avatar Ad' },
+    description: {
+      key: 'video_type_avatar_ad_desc',
+      fallback: 'A presenter reads your script.',
+    },
+    pills: [],
+    diagram: null,
+    studio: { kind: 'tool' },
+  },
 };
 const registryCard = (identifier: string) => registryCards[identifier];
 
@@ -115,7 +132,7 @@ jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
     imageTriggers.push(props);
     return props.renderTrigger(
       () => props.onChange({ id: 'img-1', path: 'https://media/img-1.png' }),
-      false
+      generating
     );
   },
 }));
@@ -124,7 +141,7 @@ jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
     videoTriggers.push(props);
     return props.renderTrigger(
       () => props.onChange({ id: 'vid-1', path: 'https://media/vid-1.mp4' }),
-      false
+      generating
     );
   },
   useAiVideoTypes: () => ({ data: providers, isLoading: providersLoading }),
@@ -144,6 +161,15 @@ jest.mock(
     videoTypeCard: (identifier: string) => registryCard(identifier),
   })
 );
+// Samy's play mark and the spinner, as marks the cases can find; the play
+// mark's centring is its own.
+jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({
+  PlayBadge: () => <span data-play-badge="" />,
+}));
+jest.mock('@gitroom/frontend/components/layout/loading', () => ({
+  __esModule: true,
+  default: () => <span data-spinner="" />,
+}));
 // The catalog has its own spec; the page only needs a way to be handed an
 // empty one, which no real deployment produces while the fixed tools exist.
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
@@ -263,6 +289,24 @@ const classes = (node: Element | null | undefined) =>
   (node?.getAttribute('class') ?? '').split(/\s+/);
 const precedes = (first: Node, then: Node) =>
   !!(first.compareDocumentPosition(then) & Node.DOCUMENT_POSITION_FOLLOWING);
+/** A card is its picture's frame, then its text. */
+const frameOf = (name: string) => card(name)!.children[0];
+const textOf = (name: string) => card(name)!.children[1];
+/** The card's text, line by line, top to bottom. */
+const linesOf = (name: string) =>
+  Array.from(textOf(name).children).map((node) => node.textContent);
+/** What stands in for the picture: the listing's glyph, muted. */
+const glyphOf = (frame: Element) =>
+  Array.from(frame.children).find((node) =>
+    classes(node).includes('text-muted')
+  );
+const playBadge = (frame: Element) => frame.querySelector('[data-play-badge]');
+/** A picture that does not load, as the browser reports it. */
+const fail = async (picture: Element | null) => {
+  await act(async () => {
+    picture?.dispatchEvent(new Event('error'));
+  });
+};
 
 beforeEach(() => {
   providers = [
@@ -275,8 +319,10 @@ beforeEach(() => {
   showImageEditor = true;
   providersLoading = false;
   emptyCatalog = false;
+  generating = false;
   videoTriggers.length = 0;
   imageTriggers.length = 0;
+  translated.length = 0;
 });
 
 afterEach(() => {
@@ -516,6 +562,313 @@ describe('the search', () => {
   });
 });
 
+// A card (spec 055, US1 scenarios 5, 6 and 8, FR-008, FR-009, FR-013, FR-015,
+// FR-017; research R4 to R7): a sample picture in a 16:10 frame, then the
+// listing's text; on a phone, a row with the picture on the start side.
+describe('a card', () => {
+  it.each([
+    ['AI image generator', '/studio/covers/ai-image.webp'],
+    ['Image editor', '/studio/covers/image-editor.webp'],
+    ['Image Text Slides', '/studio/covers/image-text-slides.webp'],
+    ['Veo 3', '/studio/covers/veo3.webp'],
+  ])(
+    'frames the picture %s declares at 16:10, lazily and as decoration',
+    async (name, cover) => {
+      await mount();
+
+      const frame = frameOf(name);
+      expect(classes(frame)).toEqual(
+        expect.arrayContaining([
+          'relative',
+          'aspect-[16/10]',
+          'overflow-hidden',
+          'bg-surface2',
+        ])
+      );
+      const picture = frame.querySelector(`img[src="${cover}"]`);
+      expect(
+        ['width', 'height', 'loading', 'decoding', 'alt'].map((name) =>
+          picture?.getAttribute(name)
+        )
+      ).toEqual(['640', '400', 'lazy', 'async', '']);
+      expect(classes(picture)).toContain('object-cover');
+      // the 56px tile is gone
+      expect(card(name)!.querySelector('[class*="w-[56px]"]')).toBeNull();
+    }
+  );
+
+  it.each([
+    [
+      'AI image generator',
+      'Images',
+      'Turn a written prompt into a post-ready image.',
+    ],
+    ['Image Text Slides', 'Video', 'A narrated slideshow of AI images.'],
+    [
+      'Image editor',
+      'Edit & enhance',
+      'Design and edit images — text, your brand colors, layers.',
+    ],
+  ])(
+    'heads the tool %s with its category, then its name and description',
+    async (name, category, description) => {
+      await mount();
+
+      expect(linesOf(name)).toEqual([category, name, description]);
+    }
+  );
+
+  // FR-017: a listing that declares no picture asks for none.
+  it('shows the placeholder, the listing’s glyph on it, where no picture is declared', async () => {
+    providers = [{ identifier: 'avatar-ad', title: 'Avatar Ad' }];
+    await mount();
+
+    const frame = frameOf('Avatar Ad');
+    expect(frame.querySelector('img')).toBeNull();
+    expect(classes(frame)).toEqual(
+      expect.arrayContaining(['aspect-[16/10]', 'bg-surface2'])
+    );
+    expect(glyphOf(frame)?.querySelector('svg')).toBeTruthy();
+  });
+
+  it('swaps in that placeholder when the picture fails, and keeps the frame', async () => {
+    await mount();
+
+    await fail(frameOf('AI image generator').querySelector('img'));
+
+    const frame = frameOf('AI image generator');
+    expect(frame.querySelector('img')).toBeNull();
+    expect(classes(frame)).toContain('aspect-[16/10]');
+    expect(glyphOf(frame)?.querySelector('svg')).toBeTruthy();
+  });
+
+  // US1 scenario 5, FR-009.
+  describe('a model with a maker', () => {
+    it('puts the maker’s logo on a white plate at the picture’s start-bottom corner', async () => {
+      await mount();
+
+      const logo = frameOf('Veo 3').querySelector(
+        'img[src="/studio/makers/google.svg"]'
+      );
+      expect(logo?.getAttribute('alt')).toBe('');
+      expect(classes(logo!.parentElement)).toEqual(
+        expect.arrayContaining([
+          'absolute',
+          'bottom-[10px]',
+          'start-[10px]',
+          'bg-white',
+          'shadow-soft',
+        ])
+      );
+    });
+
+    // research R4: the maker line stands in for the category line.
+    it('says who made it, the name isolated, in place of the category line', async () => {
+      await mount();
+
+      expect(linesOf('Veo 3').slice(0, 3)).toEqual([
+        'Veo 3',
+        'by ⁨Google⁩ · Video',
+        'One continuous live-action shot.',
+      ]);
+      expect(
+        translated.find((call) => call.key === 'studio_model_by')?.params
+      ).toEqual({
+        maker: '⁨Google⁩',
+        category: 'Video',
+        interpolation: { escapeValue: false },
+      });
+    });
+
+    it('lists its facts as small chips', async () => {
+      await mount();
+
+      const facts = Array.from(textOf('Veo 3').children[3].children);
+      expect(facts.map((node) => node.textContent)).toEqual([
+        '~8 s',
+        '1080p',
+        'Sound',
+      ]);
+      facts.forEach((node) =>
+        expect(classes(node)).toEqual(
+          expect.arrayContaining(['text-[12px]', 'bg-panel'])
+        )
+      );
+    });
+
+    it('marks the picture as a video, its length at the end-bottom corner', async () => {
+      await mount();
+
+      const frame = frameOf('Veo 3');
+      expect(playBadge(frame)).toBeTruthy();
+      const length = frame.querySelector('[dir="ltr"]');
+      expect(length?.textContent).toBe('0:08');
+      expect(classes(length)).toEqual(
+        expect.arrayContaining([
+          'absolute',
+          'bottom-[10px]',
+          'end-[10px]',
+          'bg-black/70',
+          'text-white',
+        ])
+      );
+    });
+
+    // research R6
+    it('drops the plate when the logo fails, and keeps the maker line', async () => {
+      await mount();
+
+      await fail(
+        frameOf('Veo 3').querySelector('img[src="/studio/makers/google.svg"]')
+      );
+
+      expect(
+        frameOf('Veo 3').querySelector('img[src="/studio/makers/google.svg"]')
+      ).toBeNull();
+      expect(
+        Array.from(frameOf('Veo 3').querySelectorAll('*')).some((node) =>
+          classes(node).includes('bg-white')
+        )
+      ).toBe(false);
+      expect(linesOf('Veo 3')[1]).toBe('by ⁨Google⁩ · Video');
+    });
+  });
+
+  // FR-009, research R4: a model with no maker has no "by" line, so it shows
+  // the category line as a tool does.
+  it('gives a model with no maker no plate and no maker line, and its category line', async () => {
+    providers = [{ identifier: 'sora', title: 'Sora' }];
+    await mount();
+
+    expect(linesOf('Sora')).toEqual([
+      'Video',
+      'Sora',
+      'Generate a video with AI.',
+    ]);
+    expect(frameOf('Sora').querySelector('img')).toBeNull();
+  });
+
+  // FR-009 as reworded 2026-11-10. The play mark stands where the glyph would,
+  // since both are centred and one would cover the other.
+  it('draws the play mark on the placeholder of a provider Studio does not know, with no length', async () => {
+    providers = [{ identifier: 'sora', title: 'Sora' }];
+    await mount();
+
+    const frame = frameOf('Sora');
+    expect(classes(frame)).toEqual(
+      expect.arrayContaining(['relative', 'aspect-[16/10]', 'bg-surface2'])
+    );
+    expect(playBadge(frame)).toBeTruthy();
+    expect(frame.querySelector('[dir="ltr"]')).toBeNull();
+    expect(frame.querySelector('svg')).toBeNull();
+  });
+
+  // FR-013, US1 scenario 6: the word with a glyph, so the lock survives a
+  // reader who is not reading.
+  it('badges a locked card’s picture with a lock and Upgrade, white on dark', async () => {
+    user = { tier: { ai: false } };
+    await mount();
+
+    const badge = Array.from(frameOf('Veo 3').children).find(
+      (node) => node.textContent === 'Upgrade'
+    );
+    expect(badge?.querySelector('svg')).toBeTruthy();
+    expect(classes(badge)).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'top-[10px]',
+        'start-[10px]',
+        'bg-black/70',
+        'text-white',
+      ])
+    );
+    expect(
+      card('Veo 3')!.querySelector('[class*="text-brandText"]')
+    ).toBeNull();
+  });
+
+  // research R14: badges, plate and length mirror in Arabic.
+  it('places everything on the picture by logical sides only', async () => {
+    user = { tier: { ai: false } };
+    await mount();
+
+    const names = [
+      card('Veo 3')!,
+      ...Array.from(card('Veo 3')!.querySelectorAll('*')),
+    ].flatMap(classes);
+    expect(
+      names.filter((name) =>
+        /(^|:)(left|right|m[lr]|p[lr]|border-[lr]|rounded-[lr]|rounded-[tb][lr])-/.test(
+          name
+        )
+      )
+    ).toEqual([]);
+  });
+
+  it('shows the spinner on the picture, in place of the play mark, while its tool is at work', async () => {
+    generating = true;
+    await mount();
+
+    expect(card('Veo 3')!.getAttribute('aria-busy')).toBe('true');
+    expect(frameOf('Veo 3').querySelector('[data-spinner]')).toBeTruthy();
+    expect(playBadge(frameOf('Veo 3'))).toBeNull();
+  });
+
+  // FR-015, US1 scenario 8: on a phone a row, the picture first, so on the
+  // start side in either direction; the maker line stays.
+  it('becomes a row on a phone, without its category line or facts', async () => {
+    await mount();
+
+    expect(classes(card('Veo 3'))).toEqual(
+      expect.arrayContaining(['flex', 'flex-col', 'phone:flex-row'])
+    );
+    expect(classes(frameOf('Veo 3'))).toEqual(
+      expect.arrayContaining([
+        'shrink-0',
+        'phone:w-[128px]',
+        'phone:aspect-auto',
+        'phone:min-h-[100px]',
+      ])
+    );
+    expect(classes(textOf('AI image generator').children[0])).toContain(
+      'phone:hidden'
+    );
+    expect(classes(textOf('Veo 3').children[3])).toContain('phone:hidden');
+    expect(classes(textOf('Veo 3').children[1])).not.toContain('phone:hidden');
+  });
+
+  // FR-015, research R7: four across at 1440, one column on a phone.
+  it('lays the cards out in a grid that fills the width', async () => {
+    await mount();
+
+    expect(classes(section('Tools')!.children[1])).toEqual(
+      expect.arrayContaining([
+        'grid',
+        'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]',
+        'gap-[16px]',
+        'phone:grid-cols-1',
+      ])
+    );
+  });
+
+  // FR-032, research R15: with reduced motion a card gains its shadow and
+  // does not move.
+  it('lifts a card on hover only where motion is welcome', async () => {
+    await mount();
+
+    const names = classes(card('AI image generator'));
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'motion-safe:hover:-translate-y-[2px]',
+        'hover:shadow-card',
+      ])
+    );
+    expect(names.filter((name) => /^hover:-translate-y-/.test(name))).toEqual(
+      []
+    );
+  });
+});
+
 describe('opening a card', () => {
   // No chooser: each video card is its own provider's trigger, in the page's
   // order, Image Text Slides under Tools before Veo 3 under Models.
@@ -667,14 +1020,6 @@ describe('when the plan excludes the tools', () => {
     expect(card('Veo 3')?.textContent).toContain('Upgrade');
   });
 
-  // The chip says it with a glyph as well as a word, so the lock survives a
-  // reader who is not reading.
-  it('marks a locked card with a lock glyph beside the word', async () => {
-    await mount();
-
-    expect(card('Veo 3')?.querySelectorAll('svg')).toHaveLength(2);
-  });
-
   it('leads a locked card to billing and never opens the tool', async () => {
     await mount();
 
@@ -798,20 +1143,35 @@ describe('the type scale', () => {
       (node) => node.textContent === text
     )!.className;
 
-  it('sets the card name at 15px', async () => {
+  it('sets the card’s category line at 12px, muted', async () => {
     await mount();
 
-    expect(lineOf('AI image generator', 'AI image generator')).toContain(
-      'text-[15px]'
-    );
+    const category = lineOf('AI image generator', 'Images');
+    expect(category).toContain('text-[12px]');
+    expect(category).toContain('text-muted');
   });
 
-  it('sets the card description at 13px', async () => {
+  // Long names (German, Portuguese, long Arabic) wrap to two lines at most.
+  it('sets the card name at 15px, on two lines at most', async () => {
     await mount();
 
-    expect(
-      lineOf('AI image generator', 'Turn a written prompt into a post-ready image.')
-    ).toContain('text-[13px]');
+    const name = lineOf('AI image generator', 'AI image generator');
+    expect(name).toContain('text-[15px]');
+    expect(name).toContain('line-clamp-2');
+  });
+
+  // Cut after two lines and held at their height, so a row of cards keeps one
+  // height.
+  it('sets the card description at 13px, two lines held whatever its length', async () => {
+    await mount();
+
+    const description = lineOf(
+      'AI image generator',
+      'Turn a written prompt into a post-ready image.'
+    );
+    expect(description).toContain('text-[13px]');
+    expect(description).toContain('line-clamp-2');
+    expect(description).toContain('min-h-[3em]');
   });
 
   // The canvas's section head: an 18px heading, its subtitle at 13px beside it.
