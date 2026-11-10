@@ -30,6 +30,7 @@ import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
   BrandWebsiteCard,
+  CHECKERBOARD,
   kitIsEmpty,
   TEXT_FIELD,
 } from '@gitroom/frontend/components/brands/brand.website';
@@ -60,10 +61,6 @@ export const SMALL_BUTTON = clsx(
   'inline-flex items-center justify-center h-[36px] coarse:h-[44px] px-[12px] rounded-[8px] border border-line text-ink text-[13px] font-[600] whitespace-nowrap cursor-pointer hover:border-inkSoft transition-colors',
   FOCUS_RING
 );
-
-// A logo's transparent parts read against a checkerboard of this (board Main,
-// part 5).
-const CHECK = 'color-mix(in srgb, var(--ink) 6%, transparent)';
 
 // One of the kit's cards: its heading with a count, its own parts, then the
 // line that says what it is for.
@@ -441,11 +438,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             ) : (
               <div
                 className="flex items-center justify-center h-[116px] rounded-[10px] bg-panel"
-                style={{
-                  backgroundImage: `linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%), linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%)`,
-                  backgroundSize: '16px 16px',
-                  backgroundPosition: '0 0, 8px 8px',
-                }}
+                style={CHECKERBOARD}
               >
                 {logo?.path ? (
                   <SafeImage

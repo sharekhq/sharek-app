@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useId, useRef, useState } from 'react';
+import { CSSProperties, FC, ReactNode, useId, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
@@ -47,6 +47,17 @@ export const TEXT_FIELD = clsx(
   'h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
   FOCUS_RING
 );
+
+// A logo's transparent parts read against a checkerboard of this (board Main,
+// part 5), on the kit's logo tile and on each of the lookup's logo choices,
+// so a dark logo shows in dark mode and a white one in light mode. Here, as
+// TEXT_FIELD is, since the kit imports this module.
+const CHECK = 'color-mix(in srgb, var(--ink) 6%, transparent)';
+export const CHECKERBOARD: CSSProperties = {
+  backgroundImage: `linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%), linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%)`,
+  backgroundSize: '16px 16px',
+  backgroundPosition: '0 0, 8px 8px',
+};
 
 // The canvas's globe, on the card's heading and the button beside Rename.
 // Decoration: the words are beside it.
@@ -387,8 +398,9 @@ export const WebsiteLookupFields: FC<{
                     aria-pressed={link === logo}
                     disabled={!!busy}
                     onClick={() => lookup.pick(link)}
+                    style={CHECKERBOARD}
                     className={clsx(
-                      'relative flex items-center justify-center w-[76px] h-[76px] rounded-[10px] bg-surface cursor-pointer disabled:cursor-default transition-colors',
+                      'relative flex items-center justify-center w-[76px] h-[76px] rounded-[10px] bg-panel cursor-pointer disabled:cursor-default transition-colors',
                       link === logo
                         ? 'border-2 border-brand'
                         : 'border border-line hover:border-inkSoft',
