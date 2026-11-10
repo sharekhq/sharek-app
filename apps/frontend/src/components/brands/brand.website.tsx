@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, ReactNode, useId, useState } from 'react';
+import { FC, ReactNode, useId, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
@@ -67,6 +67,9 @@ export const useWebsiteLookup = () => {
   const fetch = useFetch();
   const { mutate: setBrands } = useBrands();
   const [address, setAddress] = useState('');
+  // The address as typed now, which a lookup's answer is checked against
+  // when it comes.
+  const typedNow = useRef(address);
   const [busy, setBusy] = useState<'lookUp' | 'colours' | 'save'>();
   const [problem, setProblem] = useState<Problem>();
   const [found, setFound] = useState<Suggestions>();
@@ -84,14 +87,25 @@ export const useWebsiteLookup = () => {
     setProblem(undefined);
   };
 
+  // What was found belongs to the address it was found on: another address
+  // drops it, and what the last lookup or save said, so one site's
+  // suggestions never go into the kit for another.
+  const changeAddress = (value: string) => {
+    typedNow.current = value;
+    setAddress(value);
+    reset();
+  };
+
   // A bare domain is looked up on https://. The first logo comes picked and
   // every colour ticked. A refusal or no answer says the site couldn't be
-  // read; one the fetch interceptor answered (a redirect) says nothing more.
+  // read; one the fetch interceptor answered (a redirect) says nothing more,
+  // and neither does an answer for an address changed since it was asked.
   const lookUp = async () => {
     const typed = address.trim();
     if (!typed || busy) {
       return;
     }
+    const asked = () => typedNow.current === address;
     reset();
     setBusy('lookUp');
     try {
@@ -101,11 +115,16 @@ export const useWebsiteLookup = () => {
           url: /^https?:\/\//i.test(typed) ? typed : `https://${typed}`,
         }),
       });
-      if (!response.ok) {
+      const answer: Suggestions | undefined = response.ok
+        ? await response.json()
+        : undefined;
+      if (!asked()) {
+        return;
+      }
+      if (!answer) {
         setProblem('failed');
         return;
       }
-      const answer: Suggestions = await response.json();
       if (!answer.logos.length && !answer.colours.length) {
         setProblem('nothing');
         return;
@@ -114,7 +133,7 @@ export const useWebsiteLookup = () => {
       setLogo(answer.logos[0]);
       setTicked(answer.colours);
     } catch (e) {
-      if (!isAlreadyAnswered(e)) {
+      if (asked() && !isAlreadyAnswered(e)) {
         setProblem('failed');
       }
     } finally {
@@ -124,11 +143,13 @@ export const useWebsiteLookup = () => {
 
   // Another logo brings its own colours, all ticked; a logo whose colours
   // can't be read offers none. The picked logo clicked again goes, and the
-  // colours can go in alone.
+  // colours can go in alone. Either way a logo that couldn't be saved is no
+  // longer the one picked, so what the save said goes.
   const pick = async (link: string) => {
     if (busy) {
       return;
     }
+    setProblem(undefined);
     if (link === logo) {
       setLogo(undefined);
       return;
@@ -192,7 +213,7 @@ export const useWebsiteLookup = () => {
 
   return {
     address,
-    setAddress,
+    setAddress: changeAddress,
     busy,
     problem,
     found,
