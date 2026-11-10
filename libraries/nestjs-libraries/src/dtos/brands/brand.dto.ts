@@ -32,7 +32,10 @@ const trim = ({ value }: { value: unknown }) =>
 const trimOrClear = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || null : value;
 
-const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
+// A colour a kit takes: a 6-digit hex code, in either case. Exported so the
+// website lookup offers a colour by the same rule rather than by a second
+// copy of it.
+export const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 // The addresses "Fill from my website" fetches: absolute http(s) only, since
 // readOrFetch reads any other string as a local file's path.
@@ -106,7 +109,7 @@ export class BrandKitDto {
   bodyFont?: string | null;
 }
 
-/** The site to suggest a logo and colours from. Saves nothing. */
+/** The site to suggest a logo, colours and fonts from. Saves nothing. */
 export class BrandWebsiteDto {
   @Transform(withHttps)
   @IsString()
@@ -115,19 +118,11 @@ export class BrandWebsiteDto {
   url: string;
 }
 
-/** A logo link the lookup answered, to read its colours from. */
-export class BrandWebsiteColoursDto {
-  @IsString()
-  @MaxLength(WEB_ADDRESS_MAX)
-  @IsUrl(WEB_ADDRESS)
-  @Matches(LOGO_LINK)
-  logo: string;
-}
-
 /**
  * What the user kept from the lookup: the logo they picked, saved to the Media
- * library and put in the kit, and the colours they left ticked, added after
- * the kit's own.
+ * library and put in the kit; the colours they left ticked, added after the
+ * kit's own; and the fonts they left ticked, each in place of the kit's. A
+ * font that isn't sent leaves the kit's as it is.
  */
 export class BrandKitFromWebsiteDto {
   @IsOptional()
@@ -142,4 +137,16 @@ export class BrandKitFromWebsiteDto {
   @ArrayUnique((colour: unknown) => String(colour).toUpperCase())
   @Matches(HEX_COLOUR, { each: true })
   colours: string[];
+
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_FONT_MAX)
+  headingFont?: string | null;
+
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_FONT_MAX)
+  bodyFont?: string | null;
 }

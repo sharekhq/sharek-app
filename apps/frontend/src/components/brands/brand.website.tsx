@@ -5,7 +5,10 @@ import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import {
+  BRAND_COLOURS_MAX,
+  BRAND_FONT_MAX,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -21,20 +24,35 @@ import {
   withSavedBrand,
 } from '@gitroom/frontend/components/brands/use.brands';
 
-// What POST /brands/website suggests for a site: the logos, best first, and
-// the colours of the one picked (contracts/brands-api.md, part 3). No fonts
-// (research R15).
-type Suggestions = { foundOn: string; logos: string[]; colours: string[] };
+// The kit's two font names, as the routes name them, the headings' first.
+const FONTS = ['headingFont', 'bodyFont'] as const;
+type Font = (typeof FONTS)[number];
 
-// Why there is nothing to offer: the lookup failed, it found nothing, the
-// picked logo couldn't be saved (the save's 422), or the save failed
-// otherwise.
-type Problem = 'failed' | 'nothing' | 'logo' | 'error';
+// What POST /brands/website suggests for a site: its logo and, when that is
+// big enough to be one, its icon; its colours; and the fonts its page names
+// (spec 054's contracts/brands-website.md).
+type Suggestions = {
+  foundOn: string;
+  logos: string[];
+  colours: string[];
+  headingFont?: string;
+  bodyFont?: string;
+};
+
+// A suggested font as the card holds it: which of the kit's two it is, its
+// name as edited, and whether it goes in.
+type FontChoice = { font: Font; name: string; ticked: boolean };
+
+// Why there is nothing to offer: the lookup failed, it refuses to read this
+// kind of site (its 403), it found nothing, the picked logo couldn't be saved
+// (the save's 422), or the save failed otherwise.
+type Problem = 'failed' | 'refused' | 'nothing' | 'logo' | 'error';
 
 // A kit the lookup would fill: no logo (one deleted from Media still holds
-// its place), no example and no colour. Fonts alone leave it empty, as the
-// lookup never suggests them. While it is empty the kit starts with the full
-// card; after that the lookup is a button beside Rename (FR-027).
+// its place), no example and no colour. Fonts alone leave it empty, since the
+// logo and colours the card is there for are still to come. While it is empty
+// the kit starts with the full card; after that the lookup is a button beside
+// Rename (FR-027).
 export const kitIsEmpty = ({ kit }: Brand) =>
   !kit.logo && !kit.examples.length && !kit.colours.length;
 
@@ -54,12 +72,15 @@ export const TEXT_FIELD = clsx(
 const RING_GAP =
   'focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 
-// A logo's transparent parts read against a checkerboard of this (board Main,
-// part 5), on the kit's logo tile and on each of the lookup's logo choices,
-// so a dark logo shows in dark mode and a white one in light mode. Here, as
-// TEXT_FIELD is, since the kit imports this module.
-const CHECK = 'color-mix(in srgb, var(--ink) 6%, transparent)';
+// A logo's transparent parts read against this checkerboard (board Main,
+// part 5), on the kit's logo tile and on each of the lookup's logo choices.
+// A fixed grey, the same in both themes: on a board that followed the theme a
+// white logo vanished on the light theme's and a dark one on the dark
+// theme's, and both read against these two greys. Here, as TEXT_FIELD is,
+// since the kit imports this module.
+const CHECK = '#6C6C6C';
 export const CHECKERBOARD: CSSProperties = {
+  backgroundColor: '#8C8C8C',
   backgroundImage: `linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%), linear-gradient(45deg, ${CHECK} 25%, transparent 25%, transparent 75%, ${CHECK} 75%)`,
   backgroundSize: '16px 16px',
   backgroundPosition: '0 0, 8px 8px',
@@ -94,33 +115,41 @@ export const WebsiteIcon: FC<IconProps> = ({
  * Fill from my website's lookup (FR-028, FR-029), for a brand's page and
  * onboarding's "Your brand" step: the address, what Look up suggests, what
  * the user keeps of it, and the save. Nothing is saved before `save`, which
- * sends only the picked logo and the ticked colours to a brand the caller
- * names (onboarding's, once it has created it). One request at a time.
- * `room` is how many more colours that brand's kit takes: the server keeps
- * the kit's own first and drops what doesn't fit, so no more than that are
- * ticked.
+ * sends only the picked logo, the ticked colours and the ticked fonts to a
+ * brand the caller names (onboarding's, once it has created it). One request
+ * at a time. `room` is how many more colours that brand's kit takes: the
+ * server keeps the kit's own first and drops what doesn't fit, so no more
+ * than that are ticked. `kitFonts` is the font names that kit has now, each
+ * of which a ticked font would replace: none for onboarding's new brand.
  */
-export const useWebsiteLookup = (room: number) => {
+export const useWebsiteLookup = (
+  room: number,
+  kitFonts?: Pick<Brand['kit'], Font>
+) => {
   const fetch = useFetch();
   const { mutate: setBrands } = useBrands();
   const [address, setAddress] = useState('');
   // The address as typed now, which a lookup's answer is checked against
   // when it comes.
   const typedNow = useRef(address);
-  const [busy, setBusy] = useState<'lookUp' | 'colours' | 'save'>();
+  const [busy, setBusy] = useState<'lookUp' | 'save'>();
   const [problem, setProblem] = useState<Problem>();
   const [found, setFound] = useState<Suggestions>();
   const [logo, setLogo] = useState<string>();
   const [ticked, setTicked] = useState<string[]>([]);
+  const [fonts, setFonts] = useState<FontChoice[]>([]);
 
   // The colours that go in, in the order they were suggested.
   const colours = found?.colours.filter((code) => ticked.includes(code)) ?? [];
+  // The fonts that go in.
+  const keptFonts = fonts.filter((item) => item.ticked);
 
   // Back to the address alone, as typed.
   const reset = () => {
     setFound(undefined);
     setLogo(undefined);
     setTicked([]);
+    setFonts([]);
     setProblem(undefined);
   };
 
@@ -134,9 +163,17 @@ export const useWebsiteLookup = (room: number) => {
   };
 
   // The address goes as typed, trimmed: the server looks a bare domain up on
-  // https://. The first logo comes picked and every colour ticked. A refusal or no answer says the site couldn't be
-  // read; one the fetch interceptor answered (a redirect) says nothing more,
-  // and neither does an answer for an address changed since it was asked.
+  // https://. The first logo comes picked and every colour ticked. A font
+  // comes ticked when the kit has none of its own and unticked when it has,
+  // since adding it replaces the kit's; the name the kit has already isn't
+  // offered. The two names are compared as they stand, case included: the
+  // server cleans a suggestion's outer spaces and the kit stores a name
+  // trimmed. With no logo, no colour and no font left to offer, nothing was
+  // found: a site that gave only the names the kit has leaves nothing to add.
+  // A site the lookup refuses to read (403) says so; any other refusal or no
+  // answer says the site couldn't be read; one the fetch interceptor answered
+  // (a redirect) says nothing more, and neither does an answer for an address
+  // changed since it was asked.
   const lookUp = async () => {
     const typed = address.trim();
     if (!typed || busy) {
@@ -157,16 +194,23 @@ export const useWebsiteLookup = (room: number) => {
         return;
       }
       if (!answer) {
-        setProblem('failed');
+        setProblem(response.status === 403 ? 'refused' : 'failed');
         return;
       }
-      if (!answer.logos.length && !answer.colours.length) {
+      const offered: FontChoice[] = FONTS.flatMap((font) => {
+        const name = answer[font];
+        return name && name !== kitFonts?.[font]
+          ? [{ font, name, ticked: !kitFonts?.[font] }]
+          : [];
+      });
+      if (!answer.logos.length && !answer.colours.length && !offered.length) {
         setProblem('nothing');
         return;
       }
       setFound(answer);
       setLogo(answer.logos[0]);
       setTicked(answer.colours.slice(0, room));
+      setFonts(offered);
     } catch (e) {
       if (asked() && !isAlreadyAnswered(e)) {
         setProblem('failed');
@@ -176,38 +220,16 @@ export const useWebsiteLookup = (room: number) => {
     }
   };
 
-  // Another logo brings its own colours, ticked as far as the room goes; a
-  // logo whose colours
-  // can't be read offers none. The picked logo clicked again goes, and the
-  // colours can go in alone. Either way a logo that couldn't be saved is no
-  // longer the one picked, so what the save said goes.
-  const pick = async (link: string) => {
+  // The other logo takes the picked one's place, and the picked logo clicked
+  // again goes, so the colours and fonts can go in without one. Either way a
+  // logo that couldn't be saved is no longer the one picked, so what the save
+  // said goes.
+  const pick = (link: string) => {
     if (busy) {
       return;
     }
     setProblem(undefined);
-    if (link === logo) {
-      setLogo(undefined);
-      return;
-    }
-    setLogo(link);
-    setBusy('colours');
-    let next: string[] = [];
-    try {
-      const response = await fetch('/brands/website/colours', {
-        method: 'POST',
-        body: JSON.stringify({ logo: link }),
-      });
-      if (response.ok) {
-        next = (await response.json()).colours;
-      }
-    } catch {
-      // none to offer
-    } finally {
-      setBusy(undefined);
-    }
-    setFound((current) => current && { ...current, colours: next });
-    setTicked(next.slice(0, room));
+    setLogo(link === logo ? undefined : link);
   };
 
   // A colour is ticked only while the kit has room for it.
@@ -220,15 +242,43 @@ export const useWebsiteLookup = (room: number) => {
         : list
     );
 
+  // A font's name as edited. Typing in one ticks it, and an emptied one loses
+  // its tick, so a ticked font always has a name: an empty one sent would
+  // clear the kit's.
+  const renameFont = (font: Font, name: string) =>
+    setFonts((list) =>
+      list.map((item) =>
+        item.font === font ? { ...item, name, ticked: !!name.trim() } : item
+      )
+    );
+
+  // A font is ticked only while it has a name.
+  const toggleFont = (font: Font) =>
+    setFonts((list) =>
+      list.map((item) =>
+        item.font === font
+          ? { ...item, ticked: !item.ticked && !!item.name.trim() }
+          : item
+      )
+    );
+
   // The saved brand takes its place in GET /brands' list, as a kit change
-  // does. A logo the server couldn't fetch (422) saves nothing.
+  // does. A logo the server couldn't fetch (422) saves nothing. Each kept
+  // font goes under the kit's name for it, trimmed as the kit stores one; a
+  // font that isn't sent leaves the kit's as it is.
   const save = async (brandId: string) => {
     setProblem(undefined);
     setBusy('save');
     try {
       const response = await fetch(`/brands/${brandId}/kit/from-website`, {
         method: 'PUT',
-        body: JSON.stringify({ logo, colours }),
+        body: JSON.stringify({
+          logo,
+          colours,
+          ...Object.fromEntries(
+            keptFonts.map(({ font, name }) => [font, name.trim()] as const)
+          ),
+        }),
       });
       if (response.ok) {
         const saved: Brand = await response.json();
@@ -255,11 +305,15 @@ export const useWebsiteLookup = (room: number) => {
     logo,
     ticked,
     room,
+    fonts,
+    kitFonts,
     // whether anything would go in
-    kept: !!logo || !!colours.length,
+    kept: !!logo || !!colours.length || !!keptFonts.length,
     lookUp,
     pick,
     toggle,
+    renameFont,
+    toggleFont,
     save,
     reset,
   };
@@ -267,50 +321,63 @@ export const useWebsiteLookup = (room: number) => {
 
 export type WebsiteLookup = ReturnType<typeof useWebsiteLookup>;
 
-// The canvas's mark on what goes in: a white tick on the brand's red, on the
-// choice's corner.
-const Tick: FC = () => (
+// The canvas's mark on what goes in: a white tick on the brand's red, on a
+// logo's or a colour's corner (ON_CORNER) or before a font's label.
+const Tick: FC<{ className: string }> = ({ className }) => (
   <span
     aria-hidden="true"
-    className="absolute -top-[7px] -end-[7px] flex items-center justify-center w-[20px] h-[20px] rounded-full bg-brand text-white"
+    className={clsx(
+      'flex items-center justify-center w-[20px] h-[20px] rounded-full bg-brand text-white',
+      className
+    )}
   >
     <CheckmarkIcon />
   </span>
 );
+const ON_CORNER = 'absolute -top-[7px] -end-[7px]';
+
+// The small muted line under a part of what was found.
+const NOTE = 'text-[12.5px] leading-[1.5] text-muted';
 
 // A row of choices under its name, a group the name labels, and a note under
-// it when there is one.
+// it when there is one. The fonts' two fields stand further apart (`wide`)
+// than the logos or the colours, by the found block's own gap.
 const Choices: FC<{
   label: string;
-  busy?: boolean;
   note?: string;
+  wide?: boolean;
   className: string;
   children: ReactNode;
-}> = ({ label, busy, note, className, children }) => {
+}> = ({ label, note, wide, className, children }) => {
   const id = useId();
   return (
     <div
       role="group"
       aria-labelledby={id}
-      aria-busy={busy}
       className={clsx('flex flex-col gap-[8px] min-w-0', className)}
     >
       <span id={id} className="text-[13px] font-[600] text-inkSoft">
         {label}
       </span>
-      <div className="flex flex-wrap gap-[10px]">{children}</div>
-      {note && <p className="text-[12.5px] leading-[1.5] text-muted">{note}</p>}
+      <div
+        className={clsx('flex flex-wrap', wide ? 'gap-[14px]' : 'gap-[10px]')}
+      >
+        {children}
+      </div>
+      {note && <p className={NOTE}>{note}</p>}
     </div>
   );
 };
 
 /**
  * The lookup's address field and Look up, then what it found (board
- * BrandsWebsite): "Found on" the address, the logos to pick from, the picked
- * one's colours each ticked to go in, and under them the caller's own actions.
- * A failed lookup, one that found nothing and a failed save say so last. The
- * field's label is the caller's: the card's name, for screen readers only, or
- * onboarding's "Your website".
+ * BrandsWebsite and spec 054's mockup): "Found on" the address, the logos to
+ * pick from, the site's colours each ticked to go in, across the card under
+ * them its fonts, each a name to edit under its tick, and under those the
+ * caller's own actions. A part the site didn't give says so under its
+ * heading. A failed or refused lookup, one that found nothing and a failed
+ * save say so last. The field's label is the caller's: the card's name, for
+ * screen readers only, or onboarding's "Your website".
  */
 export const WebsiteLookupFields: FC<{
   lookup: WebsiteLookup;
@@ -320,22 +387,32 @@ export const WebsiteLookupFields: FC<{
 }> = ({ lookup, label, hideLabel, children }) => {
   const t = useT();
   const id = useId();
-  const { address, busy, problem, found, logo, ticked, room } = lookup;
+  const { address, busy, problem, found, logo, ticked, room, fonts, kitFonts } =
+    lookup;
 
   const messages: Record<Problem, string> = {
     failed: t(
       'brands_website_failed',
       "Sharek couldn't read this site. Check the address, or try again later."
     ),
+    refused: t(
+      'brands_website_refused',
+      "Sharek can't read this kind of site. Enter your own website's address, or upload your logo yourself."
+    ),
     nothing: t(
       'brands_website_nothing_found',
-      'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.'
+      'Nothing was found at this address. Try another address, or upload your logo yourself.'
     ),
     logo: t(
       'brands_website_logo_failed',
       "This logo couldn't be saved, so nothing was added. Pick another logo or try again."
     ),
     error: t('error_occurred', 'An error occurred. Please try again.'),
+  };
+
+  const fontLabels: Record<Font, string> = {
+    headingFont: t('brands_headings', 'Headings'),
+    bodyFont: t('brands_body_text', 'Body text'),
   };
 
   return (
@@ -396,46 +473,56 @@ export const WebsiteLookupFields: FC<{
             })}
           </p>
           <div className="flex flex-wrap gap-[16px]">
-            {!!found.logos.length && (
-              <Choices
-                label={t('brands_pick_a_logo', 'Pick a logo')}
-                className="flex-[1_1_240px]"
-              >
-                {found.logos.map((link, index) => (
-                  <button
-                    key={link}
-                    type="button"
-                    aria-pressed={link === logo}
-                    disabled={!!busy}
-                    onClick={() => lookup.pick(link)}
-                    style={CHECKERBOARD}
-                    className={clsx(
-                      'relative flex items-center justify-center w-[76px] h-[76px] rounded-[10px] bg-panel cursor-pointer disabled:cursor-default transition-colors',
-                      link === logo
-                        ? 'border-2 border-brand'
-                        : 'border border-line hover:border-inkSoft',
-                      FOCUS_RING,
-                      RING_GAP
-                    )}
-                  >
-                    <SafeImage
-                      src={link}
-                      alt={t('brands_logo_n', 'Logo {{n}} of {{count}}', {
-                        n: index + 1,
-                        count: found.logos.length,
-                      })}
-                      className="max-w-[56px] max-h-[56px] object-contain"
-                    />
-                    {link === logo && <Tick />}
-                  </button>
-                ))}
-              </Choices>
-            )}
-            {/* How many fit, or that the picked logo gave none, once its
-                colours are read. */}
+            {/* With no logo, the kit's own word for the part and a line that
+                the site gave none, where the tiles would be. */}
+            <Choices
+              label={
+                found.logos.length
+                  ? t('brands_pick_a_logo', 'Pick a logo')
+                  : t('brands_logo', 'Logo')
+              }
+              note={
+                found.logos.length
+                  ? undefined
+                  : t(
+                      'brands_website_no_logo',
+                      'No logo was found on this site. You can upload your own.'
+                    )
+              }
+              className="flex-[1_1_240px]"
+            >
+              {found.logos.map((link, index) => (
+                <button
+                  key={link}
+                  type="button"
+                  aria-pressed={link === logo}
+                  disabled={!!busy}
+                  onClick={() => lookup.pick(link)}
+                  style={CHECKERBOARD}
+                  className={clsx(
+                    'relative flex items-center justify-center w-[76px] h-[76px] rounded-[10px] cursor-pointer disabled:cursor-default transition-colors',
+                    link === logo
+                      ? 'border-2 border-brand'
+                      : 'border border-line hover:border-inkSoft',
+                    FOCUS_RING,
+                    RING_GAP
+                  )}
+                >
+                  <SafeImage
+                    src={link}
+                    alt={t('brands_logo_n', 'Logo {{n}} of {{count}}', {
+                      n: index + 1,
+                      count: found.logos.length,
+                    })}
+                    className="max-w-[56px] max-h-[56px] object-contain"
+                  />
+                  {link === logo && <Tick className={ON_CORNER} />}
+                </button>
+              ))}
+            </Choices>
+            {/* How many fit, or that the site gave none. */}
             <Choices
               label={t('brands_colours', 'Colours')}
-              busy={busy === 'colours'}
               note={
                 room < found.colours.length
                   ? t(
@@ -443,12 +530,12 @@ export const WebsiteLookupFields: FC<{
                       'Your kit has room for {{count}} more colours.',
                       { count: room }
                     )
-                  : !found.colours.length && busy !== 'colours'
-                  ? t(
+                  : found.colours.length
+                  ? undefined
+                  : t(
                       'brands_website_no_colours',
-                      'No colours could be read from this logo.'
+                      'No colours were found on this site.'
                     )
-                  : undefined
               }
               className="flex-[1_1_200px]"
             >
@@ -476,10 +563,86 @@ export const WebsiteLookupFields: FC<{
                     )}
                     style={{ backgroundColor: code }}
                   />
-                  {ticked.includes(code) && <Tick />}
+                  {ticked.includes(code) && <Tick className={ON_CORNER} />}
                 </button>
               ))}
             </Choices>
+            {/* Each font is a tick with its label, one checkbox, over its
+                name in the kit's own font field, kept left to right, and
+                under that the name the kit has now when it has one. With no
+                font from the site, a line says so; a site whose fonts are
+                the kit's already has none to offer and none missing, so the
+                part isn't drawn. */}
+            {(!!fonts.length || !FONTS.some((font) => found[font])) && (
+              <Choices
+                label={t('brands_fonts', 'Fonts')}
+                note={
+                  fonts.length
+                    ? undefined
+                    : t(
+                        'brands_website_no_fonts',
+                        'No fonts were found on this site.'
+                      )
+                }
+                wide={true}
+                className="w-full"
+              >
+                {fonts.map((item) => {
+                  const now = kitFonts?.[item.font];
+                  return (
+                    <div
+                      key={item.font}
+                      className="flex-[1_1_220px] min-w-0 flex flex-col gap-[6px]"
+                    >
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={item.ticked}
+                        disabled={!!busy || !item.name.trim()}
+                        onClick={() => lookup.toggleFont(item.font)}
+                        className={clsx(
+                          'self-start flex items-center gap-[8px] coarse:min-h-[44px] rounded-[8px] text-[13px] text-ink cursor-pointer disabled:cursor-default',
+                          FOCUS_RING
+                        )}
+                      >
+                        {item.ticked ? (
+                          <Tick className="flex-none" />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="flex-none w-[20px] h-[20px] rounded-full border border-muted"
+                          />
+                        )}
+                        {fontLabels[item.font]}
+                      </button>
+                      <input
+                        dir="ltr"
+                        type="text"
+                        maxLength={BRAND_FONT_MAX}
+                        aria-label={fontLabels[item.font]}
+                        value={item.name}
+                        onChange={(e) =>
+                          lookup.renameFont(item.font, e.target.value)
+                        }
+                        className={TEXT_FIELD}
+                      />
+                      {now && (
+                        <p className={NOTE}>
+                          {t(
+                            'brands_website_font_now',
+                            'In your kit now: {{font}}',
+                            {
+                              font: isolate(now),
+                              interpolation: { escapeValue: false },
+                            }
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </Choices>
+            )}
           </div>
           {children}
         </div>
@@ -502,7 +665,10 @@ const BrandWebsite: FC<{
   onClose?: () => void;
 }> = ({ brand, onClose }) => {
   const t = useT();
-  const lookup = useWebsiteLookup(BRAND_COLOURS_MAX - brand.kit.colours.length);
+  const lookup = useWebsiteLookup(
+    BRAND_COLOURS_MAX - brand.kit.colours.length,
+    brand.kit
+  );
 
   const add = async () => {
     if (await lookup.save(brand.id)) {
@@ -521,7 +687,7 @@ const BrandWebsite: FC<{
       <p className="text-[13px] leading-[1.5] text-muted">
         {t(
           'brands_fill_from_website_help',
-          'Sharek reads your site and suggests a logo and colours. You choose what goes in.'
+          'Sharek reads your site and suggests a logo, colours and fonts. You choose what goes in.'
         )}
       </p>
       <WebsiteLookupFields

@@ -7,7 +7,6 @@ import { validate } from 'class-validator';
 import {
   BrandKitDto,
   BrandKitFromWebsiteDto,
-  BrandWebsiteColoursDto,
   BrandWebsiteDto,
   CreateBrandDto,
 } from './brand.dto';
@@ -288,11 +287,10 @@ describe('BrandWebsiteDto', () => {
 
 // A logo link is one the lookup answered, which is always an absolute http(s)
 // link in lower case, so no domain is completed and nothing else is taken.
-describe.each([
-  ['BrandWebsiteColoursDto', BrandWebsiteColoursDto, {}],
-  ['BrandKitFromWebsiteDto', BrandKitFromWebsiteDto, { colours: [] }],
-])('%s logo', (_name, dto, rest) => {
-  const { failures, constraintsOf } = validating(dto);
+describe('BrandKitFromWebsiteDto logo', () => {
+  const { failures, constraintsOf } = validating(BrandKitFromWebsiteDto);
+  // The rest of a valid body: no colour kept.
+  const rest = { colours: [] };
 
   it.each([
     ['an https link', 'https://cdn.noordental.sa/img/logo.svg?v=2'],
@@ -336,16 +334,9 @@ describe.each([
   });
 });
 
-describe('BrandWebsiteColoursDto', () => {
-  it('rejects a body with no logo', async () => {
-    expect(await validating(BrandWebsiteColoursDto).failures({})).toContain(
-      'logo'
-    );
-  });
-});
-
-// What the user kept from the card: the logo they picked, if any, and the
-// colours they left ticked, merged into the kit by the service.
+// What the user kept from the card: the logo they picked, if any, the colours
+// they left ticked and the fonts they left ticked, merged into the kit by the
+// service.
 describe('BrandKitFromWebsiteDto', () => {
   const { failures, constraintsOf } = validating(BrandKitFromWebsiteDto);
 
@@ -392,5 +383,56 @@ describe('BrandKitFromWebsiteDto', () => {
     ['a colour name', 'red'],
   ])('rejects a colour with %s', async (_case, colour) => {
     expect(await constraintsOf({ colours: [colour] })).toContain('matches');
+  });
+
+  it('accepts the fonts kept, with the logo and the colours', async () => {
+    expect(
+      await failures({
+        logo: 'https://cdn.noordental.sa/logo.png',
+        colours: ['#E30613'],
+        headingFont: 'Tajawal',
+        bodyFont: 'Inter',
+      })
+    ).toEqual([]);
+  });
+
+  // A font the user kept is checked as the kit's own is (BrandKitDto).
+  describe.each(['headingFont', 'bodyFont'])('%s', (font) => {
+    const kept = (value: unknown) => ({ colours: [], [font]: value });
+    const fontOf = (body: Record<string, unknown>) =>
+      plainToInstance(BrandKitFromWebsiteDto, body)[
+        font as keyof BrandKitFromWebsiteDto
+      ];
+
+    it('stays unset when it isn’t sent, which leaves the kit’s font', async () => {
+      expect(fontOf({ colours: [] })).toBeUndefined();
+      expect(await failures({ colours: [] })).toEqual([]);
+    });
+
+    it('trims it before it is checked and saved', async () => {
+      expect(fontOf(kept('  Tajawal  '))).toBe('Tajawal');
+      expect(await failures(kept(`  ${'a'.repeat(60)}  `))).toEqual([]);
+    });
+
+    // An emptied field clears the font as null does, rather than saving "".
+    it.each([
+      ['empty', ''],
+      ['only spaces', '   '],
+    ])('clears it when it is %s', async (_case, value) => {
+      expect(fontOf(kept(value))).toBeNull();
+      expect(await failures(kept(value))).toEqual([]);
+    });
+
+    it('accepts exactly 60 characters', async () => {
+      expect(await failures(kept('a'.repeat(60)))).toEqual([]);
+    });
+
+    it('rejects over 60 characters', async () => {
+      expect(await constraintsOf(kept('a'.repeat(61)))).toContain('maxLength');
+    });
+
+    it('rejects a font that is not a string', async () => {
+      expect(await constraintsOf(kept(42))).toContain('isString');
+    });
   });
 });

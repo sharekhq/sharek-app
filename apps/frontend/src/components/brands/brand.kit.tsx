@@ -306,7 +306,7 @@ const ChannelPicker: FC<{
 // GET /brands' list; a channel move refreshes the channel list. A refused
 // change says why and changes nothing. While the kit is empty, Fill from my
 // website comes first (board BrandsWebsite), a new one for each brand, unless
-// the server has no web lookup (TAVILY_API_KEY unset).
+// the server has no web lookup (FIRECRAWL_API_KEY unset).
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();
@@ -436,9 +436,14 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             {logo?.missing ? (
               <Missing className="h-[116px]" />
             ) : (
+              // The website lookup's grey board behind a logo. With none, the
+              // panel: the muted "No logo yet" can't be read on that grey.
               <div
-                className="flex items-center justify-center h-[116px] rounded-[10px] bg-panel"
-                style={CHECKERBOARD}
+                className={clsx(
+                  'flex items-center justify-center h-[116px] rounded-[10px]',
+                  !logo?.path && 'bg-panel'
+                )}
+                style={logo?.path ? CHECKERBOARD : undefined}
               >
                 {logo?.path ? (
                   <SafeImage

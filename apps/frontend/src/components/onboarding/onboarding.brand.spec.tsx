@@ -4,13 +4,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Onboarding's "Your brand" step (spec 053, US7, FR-030; boards OnboardBrand
-// and OnboardBrandPhone; research R16): a second step of four, right after
-// Connect Channels. A brand name, the website lookup with the Brands page's
-// own suggestions (no fonts, research R15), and the offer to put the
-// organization's channels in the brand, ticked. Skip creates nothing;
-// Continue sends POST /brands, then the kept suggestions to
-// PUT /brands/:id/kit/from-website, then moves on. A taken name, or a logo
-// that couldn't be saved, keeps the step and says why.
+// and OnboardBrandPhone; research R16; spec 054, US3, FR-011, and its
+// approved mockup): a second step of four, right after Connect Channels. A
+// brand name, the website lookup with the Brands page's own suggestions, the
+// site's fonts among them, and the offer to put the organization's channels
+// in the brand, ticked. Skip creates nothing; Continue sends POST /brands,
+// then the kept suggestions to PUT /brands/:id/kit/from-website, then moves
+// on. A taken name, or a logo that couldn't be saved, keeps the step and says
+// why; a lookup with nothing to offer holds up neither Continue nor Skip.
 //
 // t() is the real i18next on the en and ar files, so a counted phrase renders
 // the form each language picks and the Arabic step reads the canvas's words.
@@ -20,7 +21,11 @@ const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
 // undefined while GET /brands is still loading
 let brands:
-  | Array<{ id: string; name: string; kit?: { colours: string[] } }>
+  | Array<{
+      id: string;
+      name: string;
+      kit?: { colours: string[]; headingFont?: string; bodyFont?: string };
+    }>
   | undefined = [];
 let channels: Array<{
   id: string;
@@ -56,7 +61,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ publicApi: 'KEY', tier: { public_api: true } }),
 }));
-// websiteLookup: whether the server can look a website up (TAVILY_API_KEY
+// websiteLookup: whether the server can look a website up (FIRECRAWL_API_KEY
 // set), as the layout reads it.
 const mockVariables = {
   billingEnabled: true,
@@ -129,22 +134,42 @@ const channel = (id: string) => ({
 });
 
 // What POST /brands/website finds on rawda.sa, as the Brands page's spec has
-// it: the logos, best first, and the first one's colours.
+// it: its logo, then its icon, and its colours. Its page names no fonts.
 const SITE = {
   foundOn: 'rawda.sa',
-  logos: [
-    'https://rawda.sa/logo.svg',
-    'https://rawda.sa/favicon.png',
-    'https://cdn.rawda.sa/og.jpg',
-  ],
+  logos: ['https://rawda.sa/logo.svg', 'https://rawda.sa/icon.png'],
   colours: ['#0E7C86', '#F2B84B', '#E6F4F5'],
 };
+// The same site once its page names its fonts.
+const FONTS = { headingFont: 'Playfair Display', bodyFont: 'Noto Sans' };
+const SITE_WITH_FONTS = { ...SITE, ...FONTS };
 
 const answer = (body: unknown, status = 200) => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
 });
+
+// A lookup with nothing to offer, and what the step says of it: a site the
+// lookup refuses to read, one it couldn't read, and one that gave no logo,
+// colour or font. None holds up Continue or Skip (spec 054, FR-011).
+const NOTHING_TO_OFFER: Array<[string, () => unknown, string]> = [
+  [
+    'refuses the site (403)',
+    () => answer({ message: 'Refused' }, 403),
+    "Sharek can't read this kind of site. Enter your own website's address, or upload your logo yourself.",
+  ],
+  [
+    "couldn't read the site (422)",
+    () => answer({ message: 'Unreadable' }, 422),
+    "Sharek couldn't read this site. Check the address, or try again later.",
+  ],
+  [
+    'finds nothing on the site',
+    () => answer({ foundOn: 'rawda.sa', logos: [], colours: [] }),
+    'Nothing was found at this address. Try another address, or upload your logo yourself.',
+  ],
+];
 
 // Each route's answer, which a case can change; anything else is a request
 // the step should not send.
@@ -157,7 +182,6 @@ beforeEach(() => {
   answers = {
     '/brands': () => answer({ id: 'new1' }),
     '/brands/website': () => answer(SITE),
-    '/brands/website/colours': () => answer({ colours: ['#1D2B36'] }),
     '/brands/new1/kit/from-website': () =>
       answer({ id: 'new1', name: 'Rawda Florist', kit: {} }),
   };
@@ -275,6 +299,22 @@ const ticked = () =>
     .filter((node) => node.getAttribute('aria-checked') === 'true')
     .map((node) => node.getAttribute('aria-label'));
 
+// A suggested font by its label: the field with its name, and the tick over
+// the field, which says whether it goes in.
+const fontField = (label: string) =>
+  document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+const fontTick = (label: string) =>
+  fontField(label)?.parentElement?.querySelector<HTMLElement>(
+    '[role="checkbox"]'
+  );
+const fontTicked = (label: string) =>
+  fontTick(label)?.getAttribute('aria-checked') === 'true';
+// The names offered, in the order the step shows them.
+const fontNames = () =>
+  Array.from(
+    document.querySelectorAll<HTMLInputElement>('input[aria-label]')
+  ).map((input) => [input.getAttribute('aria-label'), input.value]);
+
 // The requests sent, in order, and the bodies sent to one route.
 const calls = () =>
   request.mock.calls.map(([url, init]) => `${init?.method ?? 'GET'} ${url}`);
@@ -362,7 +402,8 @@ describe('the brand step', () => {
     expect(button('Not now')).toBeUndefined();
   });
 
-  it('looks the website up with the Brands page suggestions: where they were found, the logos with the first picked, the colours ticked, and no fonts', async () => {
+  it('looks the website up with the Brands page suggestions: where they were found, the logos with the first picked, the colours ticked, and the fonts under them', async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
     await toBrandStep();
 
     await lookUp();
@@ -377,9 +418,64 @@ describe('the brand step', () => {
     ).toEqual(SITE.logos);
     expect(picked()).toEqual([SITE.logos[0]]);
     expect(ticked()).toEqual(SITE.colours);
-    expect(document.body.textContent).not.toMatch(/font/i);
+    expect(document.body.textContent).toContain('Fonts');
+    expect(fontNames()).toEqual([
+      ['Headings', 'Playfair Display'],
+      ['Body text', 'Noto Sans'],
+    ]);
     // a lookup creates and saves nothing
     expect(calls()).toEqual(['POST /brands/website']);
+  });
+
+  it('ticks each font the site names, as a new brand has none of its own, in a field to edit, above the offer to move the channels', async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+
+    await lookUp();
+
+    for (const label of ['Headings', 'Body text']) {
+      expect(fontTicked(label)).toBe(true);
+      expect(fontField(label).getAttribute('dir')).toBe('ltr');
+      expect(fontField(label).readOnly).toBe(false);
+      // the mockup's order: the fonts, then the offer
+      expect(
+        fontField(label).compareDocumentPosition(offer()!) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+    // a new brand's kit has no name to show under either
+    expect(document.body.textContent).not.toContain('In your kit now');
+
+    await type(fontField('Headings'), 'Playfair');
+
+    expect(fontField('Headings').value).toBe('Playfair');
+    expect(fontTicked('Headings')).toBe(true);
+  });
+
+  // The kit a suggestion is held against is the brand this step created, and
+  // on a first visit there is none: another brand's fonts are not this one's.
+  it("ticks each font on a first visit whatever fonts the organization's other brands have, with no kit name under it", async () => {
+    brands = [
+      {
+        id: 'b0',
+        name: 'Bayt Al Qahwa',
+        kit: { colours: [], headingFont: 'Tajawal', bodyFont: 'Noto Sans' },
+      },
+    ];
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+
+    await lookUp();
+
+    expect(fontNames()).toEqual([
+      ['Headings', 'Playfair Display'],
+      ['Body text', 'Noto Sans'],
+    ]);
+    expect([fontTicked('Headings'), fontTicked('Body text')]).toEqual([
+      true,
+      true,
+    ]);
+    expect(document.body.textContent).not.toContain('In your kit now');
   });
 
   it('ticks every colour the site suggests, as a new brand has room for all six, and says nothing about room', async () => {
@@ -393,7 +489,7 @@ describe('the brand step', () => {
     expect(document.body.textContent).not.toMatch(/room for|colours are full/);
   });
 
-  it('asks for the name alone while the server has no web lookup (TAVILY_API_KEY unset), and Continue still creates the brand', async () => {
+  it('asks for the name alone while the server has no web lookup (FIRECRAWL_API_KEY unset), and Continue still creates the brand', async () => {
     mockVariables.websiteLookup = false;
     await toBrandStep();
 
@@ -459,9 +555,17 @@ describe('the brand step', () => {
 
 describe('Skip', () => {
   it('moves on to Connect Agents and creates nothing, whatever was typed or found', async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
     await toBrandStep();
     await type(nameField(), 'Rawda Florist');
     await lookUp();
+    // a logo, the colours and the fonts are all kept
+    expect(picked()).toEqual([SITE.logos[0]]);
+    expect(ticked()).toEqual(SITE.colours);
+    expect([fontTicked('Headings'), fontTicked('Body text')]).toEqual([
+      true,
+      true,
+    ]);
 
     await click(button('Skip'));
 
@@ -471,6 +575,24 @@ describe('Skip', () => {
     expect(reloadBrands).not.toHaveBeenCalled();
     expect(reloadChannels).not.toHaveBeenCalled();
   });
+
+  it.each(NOTHING_TO_OFFER)(
+    'still moves on and creates nothing when the lookup %s',
+    async (_, lookupAnswer) => {
+      answers['/brands/website'] = lookupAnswer;
+      await toBrandStep();
+      await type(nameField(), 'Rawda Florist');
+      await lookUp();
+
+      await click(button('Skip'));
+
+      expect(current()).toBe(3);
+      expect(textNode(AGENTS)).toBeDefined();
+      expect(calls()).toEqual(['POST /brands/website']);
+      expect(reloadBrands).not.toHaveBeenCalled();
+      expect(reloadChannels).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('Continue', () => {
@@ -549,6 +671,56 @@ describe('Continue', () => {
     expect(current()).toBe(3);
   });
 
+  it('sends the fonts kept with the logo and the colours, each name as edited, trimmed', async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await lookUp();
+    await type(fontField('Headings'), '  Playfair  ');
+
+    await click(button('Continue'));
+
+    expect(calls()).toEqual([
+      'POST /brands/website',
+      'POST /brands',
+      'PUT /brands/new1/kit/from-website',
+    ]);
+    expect(sent('/brands/new1/kit/from-website')).toEqual([
+      {
+        method: 'PUT',
+        body: {
+          logo: SITE.logos[0],
+          colours: SITE.colours,
+          headingFont: 'Playfair',
+          bodyFont: 'Noto Sans',
+        },
+      },
+    ]);
+    expect(reloadBrands).toHaveBeenCalled();
+    expect(current()).toBe(3);
+  });
+
+  // An emptied name sent to the kit would clear the kit's own.
+  it('sends neither a font that was unticked nor one whose name was emptied', async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await lookUp();
+    await click(fontTick('Headings'));
+    await type(fontField('Body text'), '   ');
+    expect([fontTicked('Headings'), fontTicked('Body text')]).toEqual([
+      false,
+      false,
+    ]);
+
+    await click(button('Continue'));
+
+    expect(sent('/brands/new1/kit/from-website')).toEqual([
+      { method: 'PUT', body: { logo: SITE.logos[0], colours: SITE.colours } },
+    ]);
+    expect(current()).toBe(3);
+  });
+
   it('saves no kit when nothing found was kept', async () => {
     await toBrandStep();
     await type(nameField(), 'Rawda Florist');
@@ -563,6 +735,35 @@ describe('Continue', () => {
     expect(calls()).toEqual(['POST /brands/website', 'POST /brands']);
     expect(current()).toBe(3);
   });
+
+  it.each(NOTHING_TO_OFFER)(
+    'still creates the brand, with no kit, and moves on when the lookup %s, which it says',
+    async (_, lookupAnswer, message) => {
+      answers['/brands/website'] = lookupAnswer;
+      await toBrandStep();
+      await type(nameField(), 'Rawda Florist');
+      await lookUp();
+
+      expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+        message
+      );
+      expect(button('Continue')!.hasAttribute('disabled')).toBe(false);
+
+      await click(button('Continue'));
+
+      expect(sent('/brands')).toEqual([
+        {
+          method: 'POST',
+          body: { name: 'Rawda Florist', moveUngrouped: true },
+        },
+      ]);
+      expect(calls()).toEqual(['POST /brands/website', 'POST /brands']);
+      expect(reloadBrands).toHaveBeenCalled();
+      expect(reloadChannels).toHaveBeenCalled();
+      expect(current()).toBe(3);
+      expect(textNode(AGENTS)).toBeDefined();
+    }
+  );
 
   it('says the name is taken and stays, saving nothing', async () => {
     answers['/brands'] = () =>
@@ -604,6 +805,7 @@ describe('Continue', () => {
     await click(button('Continue'));
 
     expect(sent('/brands')).toHaveLength(1);
+    // the other logo goes with the colours as they were ticked
     expect(sent('/brands/new1/kit/from-website')).toEqual([
       {
         method: 'PUT',
@@ -611,8 +813,15 @@ describe('Continue', () => {
       },
       {
         method: 'PUT',
-        body: { logo: SITE.logos[1], colours: ['#1D2B36'] },
+        body: { logo: SITE.logos[1], colours: SITE.colours },
       },
+    ]);
+    // picking it asked the server for nothing
+    expect(calls()).toEqual([
+      'POST /brands/website',
+      'POST /brands',
+      'PUT /brands/new1/kit/from-website',
+      'PUT /brands/new1/kit/from-website',
     ]);
     expect(current()).toBe(3);
   });
@@ -681,6 +890,41 @@ describe('coming back to the step', () => {
     expect(document.body.textContent).toContain(
       'Your kit has room for 1 more colour.'
     );
+  });
+
+  // The fonts a first Continue saved are the brand's own now: a suggestion
+  // that came ticked again would take their place on the next Continue,
+  // unasked (spec 054, FR-006).
+  it("offers a font beside the created brand's own unticked, the kit's name under it, none for the name the kit has already, and Continue sends no font that wasn't ticked", async () => {
+    answers['/brands/website'] = () => answer(SITE_WITH_FONTS);
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Continue'));
+    // the reloaded list holds the new brand, its kit's fonts since filled:
+    // headings of its own, and the body text the site names
+    brands = [
+      {
+        id: 'new1',
+        name: 'Rawda Florist',
+        kit: { colours: [], headingFont: 'Tajawal', bodyFont: 'Noto Sans' },
+      },
+    ];
+
+    await click(button('Back'));
+    await lookUp();
+
+    expect(fontNames()).toEqual([['Headings', 'Playfair Display']]);
+    expect(fontTicked('Headings')).toBe(false);
+    expect(fontField('Headings').parentElement!.textContent).toContain(
+      'In your kit now: ⁨Tajawal⁩'
+    );
+
+    await click(button('Continue'));
+
+    expect(sent('/brands/new1/kit/from-website')).toEqual([
+      { method: 'PUT', body: { logo: SITE.logos[0], colours: SITE.colours } },
+    ]);
+    expect(current()).toBe(3);
   });
 
   it('keeps the name typed, still editable, when the step is skipped and come back to', async () => {
