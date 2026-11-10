@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { compact, sortBy, uniq } from 'lodash';
+import { compact, sortBy, sumBy, uniq } from 'lodash';
 import { basename, extname } from 'path';
 import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
@@ -41,6 +41,14 @@ const PHOTO_EDGE = 800;
 
 // A logo is sampled inside this many pixels, enough to count its colours
 const SAMPLE_EDGE = 64;
+
+// A pixel counts toward the colours from this alpha up: along a logo's
+// anti-aliased edge on nothing, a pixel is partly transparent and its colour a
+// blend, darker or lighter than the logo's
+const OPAQUE = 250;
+
+// Shades closer than this in CIE L*a*b* (CIE76 ΔE) look like one colour
+const SAME_COLOUR = 12;
 
 // An SVG logo is saved as a PNG this many pixels on its long side
 const SVG_EDGE = 1024;
@@ -195,12 +203,11 @@ const logoFileOf = async (image: Buffer) => {
     : { image: await pngOf(image, metadata), mime: 'image/png' };
 };
 
-// Pixels are counted in boxes 32 values wide on each channel. The lightest box
-// is near-white and the darkest near-black.
-const boxOf = (r: number, g: number, b: number) =>
-  ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5);
-const WHITE_BOX = boxOf(255, 255, 255);
-const BLACK_BOX = boxOf(0, 0, 0);
+// The image's edge is counted in boxes 32 values wide on each channel. The
+// lightest box is near-white and the darkest near-black.
+const boxOf = ([r, g, b]: Rgb) => ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5);
+const WHITE_BOX = boxOf([255, 255, 255]);
+const BLACK_BOX = boxOf([0, 0, 0]);
 
 const hex = (colour: Rgb) =>
   `#${colour
@@ -208,19 +215,32 @@ const hex = (colour: Rgb) =>
     .join('')
     .toUpperCase()}`;
 
-// Shades this close on every channel are one colour
-const sameColour = (one: Rgb, other: Rgb) =>
-  one.every((channel, n) => Math.abs(channel - other[n]) < 32);
+// A colour's place in CIE L*a*b* (sRGB, D65 white), where how far apart two
+// colours are follows how different they look
+const labOf = (colour: Rgb) => {
+  const [r, g, b] = colour.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const [x, y, z] = [
+    (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+    0.2126 * r + 0.7152 * g + 0.0722 * b,
+    (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+  ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+};
 
 /**
- * The logo's colours, the most covered first. A pixel mostly transparent is
- * left out. Near-white or near-black is left out only as the background, when
- * it is most of the image's edge, so a black logo keeps its black. A colour on
- * under 1 in 50 of the pixels counted is left out, such as the blend along an
- * edge between two colours.
+ * The logo's colours, the most covered first. Only a pixel opaque, or nearly,
+ * is counted. Near-white or near-black is left out only as the background,
+ * when it is most of the image's edge, so a black logo keeps its black. Shades
+ * that look alike are one colour, the exact shade most of their pixels are, so
+ * it is the logo's own rather than a blend. A colour on under 1 in 50 of the
+ * pixels counted is left out, such as the blend along an edge between two
+ * colours.
  */
 const coloursIn = ({ data, info: { width, height } }: Pixels) => {
-  const boxes = new Map<number, { sum: Rgb; pixels: number }>();
+  const shades = new Map<number, number>();
   const edge = new Map<number, number>();
   let edgePixels = 0;
 
@@ -230,43 +250,49 @@ const coloursIn = ({ data, info: { width, height } }: Pixels) => {
     const y = Math.floor(i / width);
     const onEdge = !x || !y || x === width - 1 || y === height - 1;
     edgePixels += onEdge ? 1 : 0;
-    if (alpha < 128) {
+    if (alpha < OPAQUE) {
       continue;
     }
 
-    const box = boxOf(r, g, b);
     if (onEdge) {
+      const box = boxOf([r, g, b]);
       edge.set(box, (edge.get(box) ?? 0) + 1);
     }
-    const counted = boxes.get(box) ?? { sum: [0, 0, 0], pixels: 0 };
-    boxes.set(box, {
-      sum: [counted.sum[0] + r, counted.sum[1] + g, counted.sum[2] + b],
-      pixels: counted.pixels + 1,
-    });
+    const shade = (r << 16) | (g << 8) | b;
+    shades.set(shade, (shades.get(shade) ?? 0) + 1);
   }
 
-  for (const background of [WHITE_BOX, BLACK_BOX]) {
-    if ((edge.get(background) ?? 0) > edgePixels / 2) {
-      boxes.delete(background);
-    }
-  }
-
-  const ranked = [...boxes.values()].sort(
-    (one, other) => other.pixels - one.pixels
+  const backgrounds = [WHITE_BOX, BLACK_BOX].filter(
+    (box) => (edge.get(box) ?? 0) > edgePixels / 2
   );
-  const total = ranked.reduce((sum, { pixels }) => sum + pixels, 0);
-  const colours: Rgb[] = [];
-  for (const { sum, pixels } of ranked) {
-    if (pixels * 50 < total || colours.length === BRAND_COLOURS_MAX) {
-      break;
+
+  // From the most covered shade, each joins the first colour it looks like
+  const colours: { colour: Rgb; lab: number[]; pixels: number }[] = [];
+  for (const [shade, pixels] of [...shades].sort(
+    ([, one], [, other]) => other - one
+  )) {
+    const colour = [shade >> 16, (shade >> 8) & 255, shade & 255];
+    if (backgrounds.includes(boxOf(colour))) {
+      continue;
     }
-    const colour = sum.map((channel) => Math.round(channel / pixels));
-    if (!colours.some((taken) => sameColour(taken, colour))) {
-      colours.push(colour);
+    const lab = labOf(colour);
+    const alike = colours.find(
+      (taken) =>
+        Math.hypot(...lab.map((value, n) => value - taken.lab[n])) < SAME_COLOUR
+    );
+    if (alike) {
+      alike.pixels += pixels;
+    } else {
+      colours.push({ colour, lab, pixels });
     }
   }
 
-  return colours.map(hex);
+  const total = sumBy(colours, 'pixels');
+  return colours
+    .filter(({ pixels }) => pixels * 50 >= total)
+    .sort((one, other) => other.pixels - one.pixels)
+    .slice(0, BRAND_COLOURS_MAX)
+    .map(({ colour }) => hex(colour));
 };
 
 /**
