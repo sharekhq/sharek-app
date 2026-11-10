@@ -310,6 +310,12 @@ const STRINGS = [
     "This logo couldn't be saved, so nothing was added. Pick another logo or try again.",
     'تعذر حفظ هذا الشعار، فلم يضف شيء. اختر شعارًا آخر أو حاول مرة أخرى.',
   ],
+  // Under the colours when the picked logo gives none (part 3's walk).
+  [
+    'brands_website_no_colours',
+    'No colours could be read from this logo.',
+    'تعذرت قراءة أي لون من هذا الشعار.',
+  ],
   // Onboarding's "Your brand" step (OnboardBrand): the step's name, its
   // heading, the line that names Samy and no tool, the name and website
   // fields, and Skip.

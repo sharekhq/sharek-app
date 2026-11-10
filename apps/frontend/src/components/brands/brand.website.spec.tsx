@@ -397,6 +397,34 @@ describe('the full card', () => {
     expect(ticked()).toEqual(FAVICON_COLOURS);
   });
 
+  // A logo whose pixels give no colour left the Colours heading over nothing.
+  it('says when the picked logo gives no colours, but not while it reads them', async () => {
+    const NO_COLOURS = 'No colours could be read from this logo.';
+    // the line under the colours
+    const note = () =>
+      document.querySelector('[role="group"] > p') ?? undefined;
+    let release: () => void = () => undefined;
+    answers['/brands/website'] = () => answer({ ...SITE, colours: [] });
+    answers['/brands/website/colours'] = () =>
+      new Promise((resolve) => {
+        release = () => resolve(answer({ colours: [] }));
+      });
+    await mountCard();
+
+    // the first logo, picked as it comes
+    await lookUp();
+    expect(colours()).toHaveLength(0);
+    expect(note()?.textContent).toBe(NO_COLOURS);
+
+    await click(logos()[1]);
+    expect(note()).toBeUndefined();
+
+    await act(async () => release());
+    expect(note()?.textContent).toBe(NO_COLOURS);
+    // the logo can still go in alone
+    expect(button('Add to kit')!.hasAttribute('disabled')).toBe(false);
+  });
+
   it('adds only the picked logo and the ticked colours to the kit, writes the saved brand into the list and closes the suggestions', async () => {
     await mountCard();
     await lookUp();
