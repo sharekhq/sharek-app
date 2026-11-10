@@ -153,6 +153,9 @@ describe('the colours card +', () => {
       ])
     );
     expect(classes.filter((name) => name.startsWith('focus:'))).toEqual([]);
+    // the Brands pages' text field, 44px at every pointer
+    expect(classes).toContain('h-[44px]');
+    expect(classes).not.toContain('h-[40px]');
   });
 
   it('paints a typed code in the swatch, and Add hands it on uppercase and closes', async () => {

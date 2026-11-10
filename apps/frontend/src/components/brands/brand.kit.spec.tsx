@@ -564,6 +564,9 @@ describe('the Fonts card', () => {
         ])
       );
       expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
+      // the canvas's field (.inp.lg), 44px at every pointer
+      expect(classes).toContain('h-[44px]');
+      expect(classes).not.toContain('h-[40px]');
     }
   });
 

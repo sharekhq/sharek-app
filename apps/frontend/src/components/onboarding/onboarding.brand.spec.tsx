@@ -720,7 +720,9 @@ describe('the step mirrors and fits a finger', () => {
         ])
       );
     }
-    expect(classesOf(nameField())).toContain('coarse:h-[44px]');
+    // the canvas's field (.inp.lg), 44px at every pointer
+    expect(classesOf(nameField())).toContain('h-[44px]');
+    expect(classesOf(nameField())).not.toContain('h-[40px]');
   });
 
   it("draws Back, Skip and Continue as the modal's other steps do, each taller than 44px by its padding", async () => {

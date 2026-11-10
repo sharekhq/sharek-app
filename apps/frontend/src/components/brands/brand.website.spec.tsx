@@ -589,7 +589,9 @@ describe('the full card', () => {
         ])
       );
     }
-    expect(classesOf(field())).toContain('coarse:h-[44px]');
+    // the canvas's field (.inp.lg), 44px at every pointer
+    expect(classesOf(field())).toContain('h-[44px]');
+    expect(classesOf(field())).not.toContain('h-[40px]');
     for (const node of logos()) {
       expect(classesOf(node)).toEqual(
         expect.arrayContaining(['w-[76px]', 'h-[76px]'])
