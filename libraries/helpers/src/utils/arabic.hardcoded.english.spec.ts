@@ -259,6 +259,22 @@ const EXEMPT: readonly Exemption[] = [
       "Thrown, never rendered: the brands fetcher's Error becomes SWR's `error`, which no Brands component reads. BrandsComponent shows itself loading until SWR's retry brings them, useBrandDialogs counts New brand's ungrouped channels as with no brands, and BrandKit uses only `mutate`.",
   },
   {
+    file: 'components/brands/brand.website.tsx',
+    text: 'linear-gradient(45deg, {{CHECK}} 25%, transparent 25%, transparent 75%, {{CHECK}} 75%), linear-gradient(45deg, {{CHECK}} 25%, transparent 25%, transparent 75%, {{CHECK}} 75%)',
+    reason:
+      "CSS, never text: CHECKERBOARD's background-image, the checkerboard behind a logo's transparent parts, one style object for the kit's logo tile and the website lookup's logo choices. Written in a JSX style attribute it was tolerated; shared as a constant, it is read as a literal.",
+  },
+  {
+    file: 'components/brands/brand.website.tsx',
+    text: '16px 16px',
+    reason: "CSS, never text: CHECKERBOARD's background-size, as above.",
+  },
+  {
+    file: 'components/brands/brand.website.tsx',
+    text: '0 0, 8px 8px',
+    reason: "CSS, never text: CHECKERBOARD's background-position, as above.",
+  },
+  {
     file: 'components/launches/calendar.tsx',
     text: 'YYYY-MM-DD HH:mm',
     reason:
