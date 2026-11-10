@@ -181,5 +181,16 @@ videoWrapper('veo3', VeoComponent, {
       },
     ],
     diagram: Veo3Diagram,
+    studio: {
+      kind: 'model',
+      cover: '/studio/covers/veo3.webp',
+      maker: { name: 'Google', logo: '/studio/makers/google.svg' },
+      facts: [
+        { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
+        { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
+        { key: 'video_type_veo3_fact_sound', fallback: 'Sound' },
+      ],
+      sampleLength: '0:08',
+    },
   },
 });
