@@ -585,6 +585,48 @@ describe('Back', () => {
   });
 });
 
+// Each step change unmounts the step left, so what the step has done must
+// outlive it: the name typed, and the brand Continue created.
+describe('coming back to the step', () => {
+  it('shows the brand Continue created, read-only, and Continue again saves the suggestions to it rather than creating it again', async () => {
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Continue'));
+    expect(current()).toBe(3);
+
+    await click(button('Back'));
+
+    expect(current()).toBe(2);
+    expect(nameField().value).toBe('Rawda Florist');
+    expect(nameField().readOnly).toBe(true);
+
+    await lookUp();
+    await click(button('Continue'));
+
+    expect(sent('/brands')).toHaveLength(1);
+    expect(sent('/brands/new1/kit/from-website')).toEqual([
+      { method: 'PUT', body: { logo: SITE.logos[0], colours: SITE.colours } },
+    ]);
+    expect(document.body.textContent).not.toContain(
+      'A brand with this name already exists.'
+    );
+    expect(current()).toBe(3);
+  });
+
+  it('keeps the name typed, still editable, when the step is skipped and come back to', async () => {
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await click(button('Skip'));
+
+    await click(button('Back'));
+
+    expect(current()).toBe(2);
+    expect(nameField().value).toBe('Rawda Florist');
+    expect(nameField().readOnly).toBe(false);
+    expect(calls()).toEqual([]);
+  });
+});
+
 describe('the step mirrors and fits a finger', () => {
   it('uses logical sides only, rings each control on focus and gives a finger 44px', async () => {
     await toBrandStep();
