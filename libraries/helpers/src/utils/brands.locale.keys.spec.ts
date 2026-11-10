@@ -13,7 +13,11 @@
 // field (the parts BrandMenu, Composer and StudioBrand), in en and ar only.
 // Part 3 (tasks.md T072) adds the "Fill from my website" card on a brand's page
 // (BrandKit's web strings) and onboarding's "Your brand" step (OnboardBrand),
-// in en and ar only, with no font suggestions (research R15).
+// in en and ar only, with no font suggestions (research R15). Spec 054 (its
+// tasks.md T015) rewords three of the card's lines and adds four, in en and ar
+// only: the lookup now reads the site's own logo, colours and fonts, and the
+// wording is the table approved with that spec's mockup
+// (contracts/brands-website.md, Words).
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -271,13 +275,14 @@ const STRINGS = [
   ],
   // Part 3. The "Fill from my website" card on a brand's page, and the button
   // beside Rename it folds into once the kit has a logo; its suggestions show
-  // in onboarding's step too. The help line names a logo and colours, not the
-  // canvas's fonts (research R15). {{address}} is the site they were found on.
+  // in onboarding's step too. The help line names a logo, colours and fonts,
+  // since the lookup suggests fonts too (spec 054). {{address}} is the site
+  // they were found on.
   ['brands_fill_from_website', 'Fill from my website', 'املأ من موقعي'],
   [
     'brands_fill_from_website_help',
-    'Sharek reads your site and suggests a logo and colours. You choose what goes in.',
-    'يقرأ شارك موقعك ويقترح شعارًا وألوانًا، وتختار أنت ما يضاف.',
+    'Sharek reads your site and suggests a logo, colours and fonts. You choose what goes in.',
+    'يقرأ شارك موقعك ويقترح شعارًا وألوانًا وخطوطًا، وتختار أنت ما يضاف.',
   ],
   ['brands_look_up', 'Look up', 'ابحث'],
   ['brands_found_on', 'Found on {{address}}', 'وجدنا في {{address}}'],
@@ -300,23 +305,48 @@ const STRINGS = [
     "Sharek couldn't read this site. Check the address, or try again later.",
     'تعذر على شارك قراءة هذا الموقع. تحقق من العنوان، أو حاول لاحقًا.',
   ],
-  // A home page that redirects (kaust.edu.sa to /en/) reads as nothing found,
-  // so the line suggests the full address the site opens on (part 3's walk).
+  // A site the lookup refuses to read (its 403), which trying again later
+  // doesn't change (spec 054).
+  [
+    'brands_website_refused',
+    "Sharek can't read this kind of site. Enter your own website's address, or upload your logo yourself.",
+    'لا يستطيع شارك قراءة هذا النوع من المواقع. أدخل عنوان موقعك، أو ارفع شعارك بنفسك.',
+  ],
+  // The lookup follows a home page that redirects (kaust.edu.sa to /en/), so
+  // the line no longer suggests the full address the site opens on (spec 054).
   [
     'brands_website_nothing_found',
-    'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.',
-    'لم نجد شيئًا في هذا العنوان. جرب العنوان الكامل لصفحتك الرئيسية، مثل yourbrand.com/en.',
+    'Nothing was found at this address. Try another address, or upload your logo yourself.',
+    'لم نجد شيئًا في هذا العنوان. جرب عنوانًا آخر، أو ارفع شعارك بنفسك.',
   ],
   [
     'brands_website_logo_failed',
     "This logo couldn't be saved, so nothing was added. Pick another logo or try again.",
     'تعذر حفظ هذا الشعار، فلم يضف شيء. اختر شعارًا آخر أو حاول مرة أخرى.',
   ],
-  // Under the colours when the picked logo gives none (part 3's walk).
+  // A line for each part the site didn't give, under the parts it did: the
+  // colours are the site's own now, not read from the picked logo (spec 054).
   [
     'brands_website_no_colours',
-    'No colours could be read from this logo.',
-    'تعذرت قراءة أي لون من هذا الشعار.',
+    'No colours were found on this site.',
+    'لم نجد ألوانًا في هذا الموقع.',
+  ],
+  [
+    'brands_website_no_logo',
+    'No logo was found on this site. You can upload your own.',
+    'لم نجد شعارًا في هذا الموقع. يمكنك رفع شعارك بنفسك.',
+  ],
+  [
+    'brands_website_no_fonts',
+    'No fonts were found on this site.',
+    'لم نجد خطوطًا في هذا الموقع.',
+  ],
+  // Under a suggested font's field when the kit already names one: {{font}}
+  // is the kit's current name (spec 054).
+  [
+    'brands_website_font_now',
+    'In your kit now: {{font}}',
+    'في هويتك الآن: {{font}}',
   ],
   // Onboarding's "Your brand" step (OnboardBrand): the step's name, its
   // heading, the line that names Samy and no tool, the name and website
@@ -805,8 +835,9 @@ describe('Brands locale keys', () => {
   );
 
   // Red until the components exist (T018 to T026, for part 2 T053, T055 and
-  // T060, and for part 3 T074 and T076): a key no t() call reads is a string
-  // the app shows in English or not at all.
+  // T060, for part 3 T074 and T076, and for spec 054's four new keys its
+  // T018): a key no t() call reads is a string the app shows in English or not
+  // at all.
   describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
