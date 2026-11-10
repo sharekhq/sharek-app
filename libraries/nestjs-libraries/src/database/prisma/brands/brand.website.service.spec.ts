@@ -97,7 +97,7 @@ const makeService = () => {
       .mockResolvedValue({ id: 'media-10', path: 'https://uploads/svg.png' }),
   };
   const brands = {
-    list: jest.fn().mockResolvedValue([rawda]),
+    get: jest.fn().mockResolvedValue(rawda),
     saveKit: jest.fn().mockResolvedValue({ ...rawda, id: 'saved' }),
   };
   const service = new BrandWebsiteService(
@@ -662,15 +662,13 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
 
   it('keeps the kit to 6 colours, the kit’s own first', async () => {
     const { service, brands } = makeService();
-    brands.list.mockResolvedValue([
-      {
-        ...rawda,
-        kit: {
-          ...rawda.kit,
-          colours: ['#111111', '#222222', '#333333', '#444444', '#555555'],
-        },
+    brands.get.mockResolvedValue({
+      ...rawda,
+      kit: {
+        ...rawda.kit,
+        colours: ['#111111', '#222222', '#333333', '#444444', '#555555'],
       },
-    ]);
+    });
 
     await service.saveFromWebsite('org-1', 'brand-1', {
       colours: ['#E30613', '#2E9E44', '#1F3A5F'],
@@ -825,9 +823,10 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     }
   );
 
-  it('refuses a brand that is not a live brand of the organization with a 404, before anything is saved', async () => {
+  // The one brand is read, not the organization's list of them.
+  it('reads the kit’s colours from the one brand, which refuses a brand that is not a live brand of the organization with a 404, before anything is read or saved', async () => {
     const { service, media, brands } = makeService();
-    brands.list.mockResolvedValue([{ ...rawda, id: 'brand-2' }]);
+    brands.get.mockRejectedValue(new HttpException('Brand not found', 404));
 
     const err = await failure(
       service.saveFromWebsite('org-1', 'brand-1', {
@@ -836,10 +835,12 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
       })
     );
 
-    expect(brands.list).toHaveBeenCalledWith('org-1');
+    expect(brands.get).toHaveBeenCalledWith('org-1', 'brand-1');
     expect(err?.getStatus()).toBe(404);
     expect(err?.message).toBe('Brand not found');
+    expect(read).not.toHaveBeenCalled();
     expect(media.uploadFromUrl).not.toHaveBeenCalled();
+    expect(media.saveImage).not.toHaveBeenCalled();
     expect(brands.saveKit).not.toHaveBeenCalled();
   });
 });
