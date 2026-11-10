@@ -15,6 +15,7 @@ import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   Brand,
   useBrands,
+  withSavedBrand,
 } from '@gitroom/frontend/components/brands/use.brands';
 
 // What POST /brands/website suggests for a site: the logos, best first, and
@@ -199,11 +200,7 @@ export const useWebsiteLookup = (room: number) => {
       });
       if (response.ok) {
         const saved: Brand = await response.json();
-        setBrands(
-          (list) =>
-            list && list.map((item) => (item.id === saved.id ? saved : item)),
-          false
-        );
+        setBrands(withSavedBrand(saved), false);
         return saved;
       }
       setProblem(response.status === 422 ? 'logo' : 'error');

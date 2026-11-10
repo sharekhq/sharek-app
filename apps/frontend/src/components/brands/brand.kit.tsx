@@ -37,6 +37,7 @@ import {
   isLive,
   useBrandChange,
   useBrands,
+  withSavedBrand,
 } from '@gitroom/frontend/components/brands/use.brands';
 
 // PUT /brands/:id/kit's body: only the field a change touches, so two members
@@ -336,11 +337,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
       return;
     }
     const saved: Brand = await response.json();
-    setBrands(
-      (list) =>
-        list && list.map((item) => (item.id === saved.id ? saved : item)),
-      false
-    );
+    setBrands(withSavedBrand(saved), false);
   };
 
   // Into a brand, or to No brand with '', through the route the calendar's

@@ -60,6 +60,11 @@ export const useBrands = () => {
   return useSWR<Brand[]>('/brands', load);
 };
 
+// A saved brand in its place in GET /brands' list, for useBrands' mutate
+// with no refetch: the server's answer to a kit change is the whole brand.
+export const withSavedBrand = (saved: Brand) => (list?: Brand[]) =>
+  list && list.map((item) => (item.id === saved.id ? saved : item));
+
 // A change to a brand or to its channels: the answer once the server takes
 // it. A refusal says why in a toast, in the server's words when it has some
 // (a 400 lists them; the first goes), else the app's, as does a request that
