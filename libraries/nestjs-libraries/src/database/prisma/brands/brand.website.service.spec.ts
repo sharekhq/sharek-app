@@ -140,6 +140,13 @@ const failure = (pending: Promise<unknown>) =>
 // What each link holds; a link with nothing is one the site doesn't serve.
 let site: Record<string, Buffer> = {};
 
+// Each of the links holds the image.
+const serve = (image: Buffer, ...links: string[]) => {
+  for (const link of links) {
+    site[link] = image;
+  }
+};
+
 beforeEach(() => {
   site = {};
   read.mockReset().mockImplementation(async (link: string) => {
@@ -355,6 +362,13 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       })
     );
     site['https://cdn.example/img/Logo-White.png'] = await mark(RED, CLEAR);
+    serve(
+      await mark(NAVY, CLEAR),
+      'https://cdn.example/hero.jpg',
+      'https://cdn.example/team.jpg',
+      'https://cdn.example/brand/site-logo.svg',
+      'https://www.noordental.example/favicon.png'
+    );
 
     expect(
       await service.suggestFromWebsite(
@@ -372,7 +386,6 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       ],
       colours: ['#E30613'],
     });
-    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it('counts "logo" in the path only, not in the host or the query', async () => {
@@ -386,7 +399,12 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
         ],
       })
     );
-    site['https://cdn.example/LOGOS/mark.png'] = await mark(RED, CLEAR);
+    serve(
+      await mark(RED, CLEAR),
+      'https://logo.cdn.example/hero.jpg',
+      'https://cdn.example/pic.jpg?name=logo',
+      'https://cdn.example/LOGOS/mark.png'
+    );
 
     const { logos } = await service.suggestFromWebsite(
       'org-1',
@@ -414,8 +432,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
         favicon: 'https://cdn.example/mark.png',
       })
     );
-    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
-    site['https://cdn.example/photo-1.jpg'] = await mark(RED, CLEAR);
+    serve(await mark(RED, CLEAR), 'https://cdn.example/mark.png', ...images);
 
     expect(
       (
@@ -451,7 +468,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
         favicon: 'https://www.noordental.example/favicon.ico',
       })
     );
-    site['https://cdn.example/photo-1.jpg'] = await mark(RED, CLEAR);
+    serve(await mark(RED, CLEAR), ...photos);
 
     expect(
       await service.suggestFromWebsite(
@@ -463,7 +480,7 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       logos: photos,
       colours: ['#E30613'],
     });
-    expect(read).toHaveBeenCalledTimes(1);
+    expect(read.mock.calls.map(([link]) => link)).toEqual(photos);
   });
 
   it("leaves out a link whose image can't be read and takes the colours of the next, so the first logo is always the one the colours are from", async () => {
@@ -506,8 +523,9 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     ).toEqual({ foundOn: 'www.noordental.example', logos: [], colours: [] });
   });
 
-  // Each of a read's two requests waits at most 5 s, so the 3 reads end within
-  // 30 s beside Tavily's 20 s, well inside nginx's 95 s.
+  // Each of a read's two requests waits at most 5 s, and the links are read at
+  // once, so the reads end within 10 s beside Tavily's 20 s, well inside
+  // nginx's 95 s.
   it('counts a link whose read ran out of time as one that can’t be read', async () => {
     const { service, tavily } = makeService();
     tavily.extract.mockResolvedValue(
@@ -542,7 +560,30 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     );
   });
 
-  it('reads at most 3 links for the colours: past them, the links stay and there are no colours', async () => {
+  it('reads the links at once, not one after another', async () => {
+    const { service, tavily } = makeService();
+    const links = [1, 2, 3, 4].map((n) => `https://cdn.example/mark-${n}.png`);
+    tavily.extract.mockResolvedValue(page({ images: links }));
+    serve(await mark(RED, CLEAR), ...links);
+    let reading = 0;
+    let most = 0;
+    read.mockImplementation(async (link: string) => {
+      reading++;
+      most = Math.max(most, reading);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      reading--;
+      return site[link];
+    });
+
+    await service.suggestFromWebsite(
+      'org-1',
+      'https://www.noordental.example/'
+    );
+
+    expect(most).toBe(4);
+  });
+
+  it('reads every link, not only the first 3, and offers only those whose image could be read, with the colours of the first', async () => {
     const { service, tavily } = makeService();
     tavily.extract.mockResolvedValue(
       page({
@@ -558,13 +599,85 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
       )
     ).toEqual({
       foundOn: 'www.noordental.example',
-      logos: [
-        'https://cdn.example/gone-4.png',
-        'https://cdn.example/gone-5.png',
-      ],
-      colours: [],
+      logos: ['https://cdn.example/gone-4.png'],
+      colours: ['#E30613'],
     });
-    expect(read).toHaveBeenCalledTimes(3);
+    expect(read).toHaveBeenCalledTimes(5);
+  });
+
+  // A page's image links can hold the page's own address, another page or a
+  // video, and a link's path can name the wrong type.
+  it('offers only the links sharp reads as an image: not the page itself, another page, a video, or an ICO at a link naming another type', async () => {
+    const { service, tavily } = makeService();
+    tavily.extract.mockResolvedValue(
+      page({
+        images: [
+          'https://www.noordental.example/',
+          'https://cdn.example/about.svg',
+          'https://cdn.example/intro.mp4',
+          'https://cdn.example/brand.png',
+          'https://cdn.example/mark.png',
+        ],
+      })
+    );
+    serve(
+      Buffer.from('<!doctype html>'),
+      'https://www.noordental.example/',
+      'https://cdn.example/about.svg'
+    );
+    site['https://cdn.example/intro.mp4'] = MP4;
+    site['https://cdn.example/brand.png'] = ico();
+    site['https://cdn.example/mark.png'] = await mark(RED, CLEAR);
+
+    expect(
+      await service.suggestFromWebsite(
+        'org-1',
+        'https://www.noordental.example/'
+      )
+    ).toEqual({
+      foundOn: 'www.noordental.example',
+      logos: ['https://cdn.example/mark.png'],
+      colours: ['#E30613'],
+    });
+  });
+
+  it('gives the first 6 links whose image could be read, so a page whose first links are broken still offers 6', async () => {
+    const { service, tavily } = makeService();
+    const links = [1, 2, 3, 4, 5, 6, 7, 8].map(
+      (n) => `https://cdn.example/mark-${n}.png`
+    );
+    tavily.extract.mockResolvedValue(page({ images: links }));
+    serve(await mark(RED, CLEAR), ...links.slice(2));
+
+    expect(
+      (
+        await service.suggestFromWebsite(
+          'org-1',
+          'https://www.noordental.example/'
+        )
+      ).logos
+    ).toEqual(links.slice(2));
+  });
+
+  // Twice the 6 offered, so a few broken links still leave 6, without every
+  // image on a page being fetched.
+  it('reads the first 12 links only', async () => {
+    const { service, tavily } = makeService();
+    const links = [...Array(14).keys()].map(
+      (n) => `https://cdn.example/mark-${n + 1}.png`
+    );
+    tavily.extract.mockResolvedValue(page({ images: links }));
+    serve(await mark(RED, CLEAR), ...links);
+
+    expect(
+      (
+        await service.suggestFromWebsite(
+          'org-1',
+          'https://www.noordental.example/'
+        )
+      ).logos
+    ).toEqual(links.slice(0, 6));
+    expect(read.mock.calls.map(([link]) => link)).toEqual(links.slice(0, 12));
   });
 
   it('suggests from the links of a page with no words', async () => {
