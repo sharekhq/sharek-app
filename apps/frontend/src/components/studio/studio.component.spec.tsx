@@ -714,6 +714,26 @@ describe('a card', () => {
       );
     });
 
+    // FR-009, FR-017: a picture that fails leaves the placeholder, which has
+    // no sample behind it to time.
+    it('keeps the play mark and drops the length when the picture fails', async () => {
+      await mount();
+
+      await fail(
+        frameOf('Veo 3').querySelector('img[src="/studio/covers/veo3.webp"]')
+      );
+
+      const frame = frameOf('Veo 3');
+      expect(
+        frame.querySelector('img[src="/studio/covers/veo3.webp"]')
+      ).toBeNull();
+      expect(classes(frame)).toEqual(
+        expect.arrayContaining(['aspect-[16/10]', 'bg-surface2'])
+      );
+      expect(playBadge(frame)).toBeTruthy();
+      expect(frame.textContent).not.toContain('0:08');
+    });
+
     // research R6
     it('drops the plate when the logo fails, and keeps the maker line', async () => {
       await mount();
