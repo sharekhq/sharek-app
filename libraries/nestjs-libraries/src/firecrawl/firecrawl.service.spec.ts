@@ -63,14 +63,19 @@ const BRANDING = {
   personality: { tone: 'friendly' },
 };
 
-const scraped = (branding: unknown = BRANDING) => ({
+// `page` is the status the site's page itself answered, as the metadata gives
+// it.
+const scraped = (
+  branding: unknown = BRANDING,
+  page: object = { statusCode: 200 }
+) => ({
   success: true,
   data: {
     branding,
     metadata: {
       url: 'https://www.a.example/ar',
-      statusCode: 200,
       creditsUsed: 1,
+      ...page,
     },
   },
 });
@@ -166,6 +171,20 @@ describe('FirecrawlService.branding', () => {
       ...FOUND,
       url: 'https://a.example',
     });
+  });
+
+  // Only an error from the site's page changes the answer. A metadata that is
+  // missing or null names no status either, and is among the cases above.
+  it.each([
+    ['a 200', { statusCode: 200 }],
+    ['a 301', { statusCode: 301 }],
+    ['a 304', { statusCode: 304 }],
+    ['no status', {}],
+    ["a status that isn't a number", { statusCode: '404' }],
+  ])("answers as before when the site's page gave %s", async (_, page) => {
+    fetchSpy.mockResolvedValue(answer(200, scraped(BRANDING, page)));
+
+    expect(await lookup()).toStrictEqual(FOUND);
   });
 
   it.each([
@@ -584,6 +603,34 @@ describe('FirecrawlService.branding failures', () => {
     }
   );
 
+  // Firecrawl answers 200 with `success: true` when the site's page itself
+  // answered an error, a 404 or a block page, and gives that status in the
+  // metadata. What it read is the error page's, not the site's.
+  it.each([
+    [400, "the error page's branding", BRANDING],
+    [403, "the error page's branding", BRANDING],
+    [404, "the error page's branding", BRANDING],
+    [500, "the error page's branding", BRANDING],
+    [503, "the error page's branding", BRANDING],
+    [403, 'no branding', null],
+    [404, 'no branding', null],
+    [500, 'no branding', null],
+    [503, 'no branding', null],
+  ])(
+    "says the site couldn't be read when its page answered a %i, with %s",
+    async (statusCode, _, branding) => {
+      fetchSpy.mockResolvedValue(
+        answer(200, scraped(branding, { statusCode }))
+      );
+
+      const err = await rejection(lookup());
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(422);
+      expect(err.message).toBe(SITE_UNREADABLE);
+    }
+  );
+
   it('says Firecrawl could not be reached when the request never gets there', async () => {
     fetchSpy.mockRejectedValue(new TypeError('fetch failed'));
 
@@ -675,6 +722,13 @@ describe('FirecrawlService log', () => {
     [
       'the answer has no branding',
       () => fetchSpy.mockResolvedValue(answer(200, { success: true })),
+    ],
+    [
+      "the site's page answered an error",
+      () =>
+        fetchSpy.mockResolvedValue(
+          answer(200, scraped(BRANDING, { statusCode: 404 }))
+        ),
     ],
   ])(
     'writes one line for a brand lookup that fails because %s',
