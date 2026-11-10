@@ -232,19 +232,13 @@ export class BrandWebsiteService {
     brandId: string,
     { logo, colours }: { logo?: string; colours: string[] }
   ): Promise<Brand> {
-    const brand = (await this._brandService.list(org)).find(
-      ({ id }) => id === brandId
-    );
-    if (!brand) {
-      throw new HttpException('Brand not found', HttpStatus.NOT_FOUND);
-    }
-
+    const { kit } = await this._brandService.get(org, brandId);
     const saved = logo ? await this.saveLogo(org, logo) : undefined;
 
     return this._brandService.saveKit(org, brandId, {
       ...(saved ? { logoId: saved.id } : {}),
       colours: uniq([
-        ...brand.kit.colours,
+        ...kit.colours,
         ...colours.map((colour) => colour.toUpperCase()),
       ]).slice(0, BRAND_COLOURS_MAX),
     });

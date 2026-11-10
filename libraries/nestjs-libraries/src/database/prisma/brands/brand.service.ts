@@ -111,6 +111,11 @@ export class BrandService {
     return brands.map((brand) => toBrand(brand, rows));
   }
 
+  async get(org: string, id: string): Promise<Brand> {
+    const brand = await this.liveBrand(org, id);
+    return toBrand(brand, await this.images(org, imageIds(brand.brandKit)));
+  }
+
   async create(org: string, { name, moveUngrouped }: CreateBrandDto) {
     if (await this._brandRepository.findLiveByName(org, name)) {
       throw new HttpException(
