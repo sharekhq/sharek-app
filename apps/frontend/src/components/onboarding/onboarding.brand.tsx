@@ -3,7 +3,6 @@
 import { Dispatch, FC, SetStateAction, useId, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { Button } from '@gitroom/react/form/button';
 import { BRAND_NAME_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
@@ -142,25 +141,61 @@ export const OnboardingBrand: FC<{
         )}
       </div>
 
-      <div className="flex items-center gap-[8px] w-full max-w-[760px] mx-auto">
-        <Button
-          variant="ghost"
+      {/* The modal's own footer, as Connect Agents draws it, with Skip in
+          Back's bordered style. */}
+      <div className="flex items-center gap-[12px] pt-[8px] w-full max-w-[760px] mx-auto phone:flex-wrap">
+        <button
           disabled={saving}
           onClick={onBack}
-          className="me-auto"
+          className="group flex items-center justify-center gap-[8px] me-auto bg-transparent border-2 border-boxFocused font-medium px-[24px] phone:px-[18px] py-[12px] rounded-[12px] text-[15px] shrink-0 transition-all focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:pointer-events-none"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="rtl:rotate-180 group-hover:-translate-x-1 rtl:group-hover:translate-x-1 transition-transform"
+          >
+            <path d="m12 19-7-7 7-7" />
+            <path d="M19 12H5" />
+          </svg>
           {t('back', 'Back')}
-        </Button>
-        <Button variant="ghost" disabled={saving} onClick={onNext}>
+        </button>
+        <button
+          disabled={saving}
+          onClick={onNext}
+          className="flex items-center justify-center bg-transparent border-2 border-boxFocused font-medium px-[24px] phone:px-[18px] py-[12px] rounded-[12px] text-[15px] shrink-0 transition-all focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:pointer-events-none"
+        >
           {t('brands_onboard_skip', 'Skip')}
-        </Button>
-        <Button
-          loading={saving}
-          disabled={!name.trim() || !!lookup.busy}
+        </button>
+        <button
+          disabled={!name.trim() || !!lookup.busy || saving}
+          aria-busy={saving}
           onClick={next}
+          className="group flex items-center justify-center gap-[12px] bg-brand hover:opacity-90 text-white font-semibold px-[32px] phone:px-[20px] py-[14px] rounded-[12px] text-[16px] phone:text-[15px] phone:flex-1 transition-all focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:pointer-events-none"
         >
           {t('continue', 'Continue')}
-        </Button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="rtl:rotate-180 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform"
+          >
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   );
