@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -11,15 +12,22 @@ import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.reque
 import { Organization } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import { BrandWebsiteService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.website.service';
 import {
   BrandKitDto,
+  BrandKitFromWebsiteDto,
+  BrandWebsiteColoursDto,
+  BrandWebsiteDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 @ApiTags('Brands')
 @Controller('/brands')
 export class BrandsController {
-  constructor(private _brandService: BrandService) {}
+  constructor(
+    private _brandService: BrandService,
+    private _brandWebsiteService: BrandWebsiteService
+  ) {}
 
   @Get('/')
   async getBrands(@GetOrgFromRequest() org: Organization) {
@@ -32,6 +40,24 @@ export class BrandsController {
     @Body() body: CreateBrandDto
   ) {
     return this._brandService.create(org.id, body);
+  }
+
+  // The lookups save nothing, so they answer 200 rather than POST's 201
+  @Post('/website')
+  @HttpCode(200)
+  async suggestFromWebsite(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: BrandWebsiteDto
+  ) {
+    return this._brandWebsiteService.suggestFromWebsite(org.id, body.url);
+  }
+
+  @Post('/website/colours')
+  @HttpCode(200)
+  async coloursFromLogo(@Body() body: BrandWebsiteColoursDto) {
+    return {
+      colours: await this._brandWebsiteService.coloursFromLogo(body.logo),
+    };
   }
 
   @Delete('/:id')
@@ -49,5 +75,14 @@ export class BrandsController {
     @Body() body: BrandKitDto
   ) {
     return this._brandService.saveKit(org.id, id, body);
+  }
+
+  @Put('/:id/kit/from-website')
+  async saveFromWebsite(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: BrandKitFromWebsiteDto
+  ) {
+    return this._brandWebsiteService.saveFromWebsite(org.id, id, body);
   }
 }

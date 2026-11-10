@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
   Length,
   Matches,
@@ -30,6 +31,27 @@ const trim = ({ value }: { value: unknown }) =>
 // An emptied font field clears the font, as null does, rather than saving "".
 const trimOrClear = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || null : value;
+
+const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
+
+// The addresses "Fill from my website" fetches: absolute http(s) only, since
+// readOrFetch reads any other string as a local file's path.
+const WEB_ADDRESS = { require_protocol: true, protocols: ['http', 'https'] };
+const WEB_ADDRESS_MAX = 2048;
+
+// readOrFetch tells a link from a path by a lower-case "http". A logo link is
+// one the lookup answered, which always starts so.
+const LOGO_LINK = /^https?:\/\//;
+
+// The card's field takes a domain as people type it ("noordental.sa"), which
+// is looked up on https://.
+const withHttps = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const address = value.trim();
+  return /^https?:\/\//i.test(address) ? address : `https://${address}`;
+};
 
 export class CreateBrandDto {
   // The page's field stops at 60; the existing rename route keeps its own rule.
@@ -68,7 +90,7 @@ export class BrandKitDto {
   @IsArray()
   @ArrayMaxSize(BRAND_COLOURS_MAX)
   @ArrayUnique((colour: unknown) => String(colour).toUpperCase())
-  @Matches(/^#[0-9A-Fa-f]{6}$/, { each: true })
+  @Matches(HEX_COLOUR, { each: true })
   colours?: string[];
 
   @IsOptional()
@@ -82,4 +104,42 @@ export class BrandKitDto {
   @IsString()
   @MaxLength(BRAND_FONT_MAX)
   bodyFont?: string | null;
+}
+
+/** The site to suggest a logo and colours from. Saves nothing. */
+export class BrandWebsiteDto {
+  @Transform(withHttps)
+  @IsString()
+  @MaxLength(WEB_ADDRESS_MAX)
+  @IsUrl(WEB_ADDRESS)
+  url: string;
+}
+
+/** A logo link the lookup answered, to read its colours from. */
+export class BrandWebsiteColoursDto {
+  @IsString()
+  @MaxLength(WEB_ADDRESS_MAX)
+  @IsUrl(WEB_ADDRESS)
+  @Matches(LOGO_LINK)
+  logo: string;
+}
+
+/**
+ * What the user kept from the lookup: the logo they picked, saved to the Media
+ * library and put in the kit, and the colours they left ticked, added after
+ * the kit's own.
+ */
+export class BrandKitFromWebsiteDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(WEB_ADDRESS_MAX)
+  @IsUrl(WEB_ADDRESS)
+  @Matches(LOGO_LINK)
+  logo?: string;
+
+  @IsArray()
+  @ArrayMaxSize(BRAND_COLOURS_MAX)
+  @ArrayUnique((colour: unknown) => String(colour).toUpperCase())
+  @Matches(HEX_COLOUR, { each: true })
+  colours: string[];
 }

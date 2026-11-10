@@ -257,12 +257,12 @@ describe('BrandWebsiteDto', () => {
     expect(await failures({ url: 'HTTPS://Noordental.sa' })).toEqual([]);
   });
 
-  it('accepts 2,048 characters and rejects 2,049, https:// counted', async () => {
-    const domain = (length: number) => `${'a'.repeat(length - 11)}.sa`;
-    expect(await failures({ url: domain(2048 - 8) })).toEqual([]);
-    expect(await constraintsOf({ url: domain(2049 - 8) })).toContain(
-      'maxLength'
-    );
+  // A bare domain and a path, so the https:// added makes it `length` long
+  it('accepts 2,048 characters and rejects 2,049, the https:// added counted', async () => {
+    const address = (length: number) =>
+      `noordental.sa/${'a'.repeat(length - 22)}`;
+    expect(await failures({ url: address(2048) })).toEqual([]);
+    expect(await constraintsOf({ url: address(2049) })).toContain('maxLength');
   });
 
   it.each([
