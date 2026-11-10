@@ -144,6 +144,10 @@ const markdown = (text: string, metadata: object = {}) => ({
   },
 });
 
+// A page's answer off Firecrawl's documented shape, its markdown no string.
+const misshapen = () =>
+  answer(200, { success: true, data: { markdown: { text: 'Page A' } } });
+
 const read = (urls = ['https://a.example/']) =>
   new FirecrawlService().read('org-1', urls);
 
@@ -1393,6 +1397,20 @@ describe('FirecrawlService.read, page by page', () => {
     expect(err.message).toBe(BUSY);
   });
 
+  // Only Firecrawl's own answers are a page's reason. Anything else fails the
+  // read for the tool to word, as a page with no address would fail Mastra's
+  // check of the tool's answer.
+  it("fails the read with the error itself when a page's answer is off Firecrawl's shape", async () => {
+    answering({
+      'https://a.example/': misshapen,
+      'https://b.example/': () => answer(200, markdown('Page B')),
+    });
+
+    const err = await rejection(read(both));
+
+    expect(err).toBeInstanceOf(TypeError);
+  });
+
   // Nothing was read, but not for the service's reason alone: each page keeps
   // its own, which Samy can relay page by page.
   it("answers every page's reason when some failed for their own and the rest for the service's", async () => {
@@ -1739,6 +1757,22 @@ describe('FirecrawlService log', () => {
     fetchSpy.mockRejectedValue(new TypeError('fetch failed'));
 
     await rejection(read(['https://a.example/', 'https://b.example/']));
+
+    expect(logged).toEqual([
+      {
+        line: { org: 'org-1', kind: 'read', ok: false, ms: 250, pages: 0 },
+        context: 'WebLookup',
+      },
+    ]);
+  });
+
+  it("writes one line for a read failed by a page's answer off Firecrawl's shape, with no pages read", async () => {
+    answering({
+      'https://a.example/': misshapen,
+      'https://b.example/': () => answer(200, markdown('Page B')),
+    });
+
+    await read(['https://a.example/', 'https://b.example/']).catch(() => null);
 
     expect(logged).toEqual([
       {
