@@ -391,7 +391,10 @@ export const WebsiteLookupFields: FC<{
                 label={t('brands_pick_a_logo', 'Pick a logo')}
                 className="flex-[1_1_240px]"
               >
-                {found.logos.map((link) => (
+                {/* The picked one's border is the brand's red, as the focus
+                    ring is, so the ring stands off by a gap of the card's
+                    surface; only the picked one has the ✓. */}
+                {found.logos.map((link, index) => (
                   <button
                     key={link}
                     type="button"
@@ -404,12 +407,16 @@ export const WebsiteLookupFields: FC<{
                       link === logo
                         ? 'border-2 border-brand'
                         : 'border border-line hover:border-inkSoft',
-                      FOCUS_RING
+                      FOCUS_RING,
+                      'focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
                     )}
                   >
                     <SafeImage
                       src={link}
-                      alt={t('brands_logo', 'Logo')}
+                      alt={t('brands_logo_n', 'Logo {{n}} of {{count}}', {
+                        n: index + 1,
+                        count: found.logos.length,
+                      })}
                       className="max-w-[56px] max-h-[56px] object-contain"
                     />
                     {link === logo && <Tick />}

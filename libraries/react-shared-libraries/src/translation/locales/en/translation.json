@@ -719,6 +719,7 @@
   "brands_look_up": "Look up",
   "brands_found_on": "Found on {{address}}",
   "brands_pick_a_logo": "Pick a logo",
+  "brands_logo_n": "Logo {{n}} of {{count}}",
   "brands_add_to_kit": "Add to kit",
   "brands_not_now": "Not now",
   "brands_nothing_saved": "Nothing is saved until you add it.",

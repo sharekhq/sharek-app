@@ -768,6 +768,7 @@
   "brands_look_up": "ابحث",
   "brands_found_on": "وجدنا في {{address}}",
   "brands_pick_a_logo": "اختر شعارًا",
+  "brands_logo_n": "الشعار {{n}} من {{count}}",
   "brands_add_to_kit": "أضف إلى الهوية",
   "brands_not_now": "ليس الآن",
   "brands_nothing_saved": "لا يحفظ شيء حتى تضيفه.",
