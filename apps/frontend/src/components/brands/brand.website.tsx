@@ -48,6 +48,12 @@ export const TEXT_FIELD = clsx(
   FOCUS_RING
 );
 
+// The app's focus ring standing off by a gap of the surface, where the
+// control's own red would hide it (Add to kit) or read as it (the picked
+// logo's border). Beside FOCUS_RING or the Button's own ring.
+const RING_GAP =
+  'focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+
 // A logo's transparent parts read against a checkerboard of this (board Main,
 // part 5), on the kit's logo tile and on each of the lookup's logo choices,
 // so a dark logo shows in dark mode and a white one in light mode. Here, as
@@ -391,9 +397,6 @@ export const WebsiteLookupFields: FC<{
                 label={t('brands_pick_a_logo', 'Pick a logo')}
                 className="flex-[1_1_240px]"
               >
-                {/* The picked one's border is the brand's red, as the focus
-                    ring is, so the ring stands off by a gap of the card's
-                    surface; only the picked one has the ✓. */}
                 {found.logos.map((link, index) => (
                   <button
                     key={link}
@@ -408,7 +411,7 @@ export const WebsiteLookupFields: FC<{
                         ? 'border-2 border-brand'
                         : 'border border-line hover:border-inkSoft',
                       FOCUS_RING,
-                      'focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+                      RING_GAP
                     )}
                   >
                     <SafeImage
@@ -520,6 +523,7 @@ const BrandWebsite: FC<{
             loading={lookup.busy === 'save'}
             disabled={!lookup.kept || !!lookup.busy}
             onClick={add}
+            className={RING_GAP}
           >
             {t('brands_add_to_kit', 'Add to kit')}
           </Button>
