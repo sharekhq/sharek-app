@@ -91,6 +91,7 @@ import {
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
 import { BrandKit } from '@gitroom/frontend/components/brands/brand.kit';
+import { CHECKERBOARD } from '@gitroom/frontend/components/brands/brand.website';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 
 // react-colorful's square falls back to the global `self` for its window when
@@ -352,6 +353,43 @@ describe('the Logo card', () => {
     await click(button(card('Logo'), 'Remove'));
 
     expect(kitSaves()).toEqual([{ logoId: 'm9' }, { logoId: null }]);
+  });
+
+  // The website lookup's tile (brand.website.tsx's CHECKERBOARD, whose grey
+  // its own spec pins): one board for a logo wherever it is shown, with no
+  // class painting the tile under it.
+  it("draws the logo on the website lookup's checkerboard", async () => {
+    const BOARD = [
+      'backgroundColor',
+      'backgroundImage',
+      'backgroundSize',
+      'backgroundPosition',
+    ] as const;
+    const drawn = (node: HTMLElement) => BOARD.map((part) => node.style[part]);
+    const probe = document.createElement('div');
+    Object.assign(probe.style, CHECKERBOARD);
+    await mount(brand({ logo: image('logo') }));
+
+    const tile = card('Logo').querySelector('img')!.parentElement!;
+
+    expect(drawn(tile)).toEqual(drawn(probe));
+    expect(classesOf(tile).filter((name) => name.startsWith('bg-'))).toEqual(
+      []
+    );
+  });
+
+  // "No logo yet" is the muted text, which can't be read on the board's grey
+  // (1.1:1 to 2.1:1 in either theme), and there is no logo for the board to
+  // show through: the empty tile is the panel.
+  it('says there is no logo on the panel, not on the checkerboard', async () => {
+    await mount(brand());
+
+    const tile = Array.from(card('Logo').querySelectorAll('span')).find(
+      (node) => node.textContent === 'No logo yet'
+    )!.parentElement!;
+
+    expect(classesOf(tile)).toContain('bg-panel');
+    expect(tile.getAttribute('style')).toBeNull();
   });
 
   it('shows a logo deleted from Media as such, with Replace, and keeps its help line', async () => {
