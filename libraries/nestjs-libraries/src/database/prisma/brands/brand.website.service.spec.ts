@@ -57,6 +57,10 @@ const mark = (colour: Pixel, around: Pixel) =>
     x >= 10 && x < 30 && y >= 10 && y < 30 ? colour : around
   );
 
+// A 40×40 SVG with a red square in its corner.
+const SQUARE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="20" height="20" fill="#E30613"/></svg>';
+
 // An ICO holding a PNG: browsers show it, sharp has no reader for it.
 const ico = () => {
   const bytes = Buffer.alloc(22 + 8);
@@ -88,6 +92,9 @@ const makeService = () => {
     uploadFromUrl: jest
       .fn()
       .mockResolvedValue({ id: 'media-9', path: 'https://uploads/logo.png' }),
+    saveImage: jest
+      .fn()
+      .mockResolvedValue({ id: 'media-10', path: 'https://uploads/svg.png' }),
   };
   const brands = {
     list: jest.fn().mockResolvedValue([rawda]),
@@ -407,6 +414,37 @@ describe('BrandWebsiteService.suggestFromWebsite', () => {
     ).toEqual(images.slice(0, 6));
   });
 
+  // Neither sharp nor the Media library takes an ICO, a favicon's usual type.
+  it('leaves out the links whose path is an ICO, before the 6 are counted, without reading them', async () => {
+    const { service, tavily } = makeService();
+    const photos = [1, 2, 3, 4, 5, 6].map(
+      (n) => `https://cdn.example/photo-${n}.jpg`
+    );
+    tavily.extract.mockResolvedValue(
+      page({
+        images: [
+          'https://cdn.example/logo.ico',
+          'https://cdn.example/brand/Logo.ICO?v=2',
+          ...photos,
+        ],
+        favicon: 'https://www.noordental.example/favicon.ico',
+      })
+    );
+    site['https://cdn.example/photo-1.jpg'] = await mark(RED, CLEAR);
+
+    expect(
+      await service.suggestFromWebsite(
+        'org-1',
+        'https://www.noordental.example/'
+      )
+    ).toEqual({
+      foundOn: 'www.noordental.example',
+      logos: photos,
+      colours: ['#E30613'],
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves out a link whose image can't be read and takes the colours of the next, so the first logo is always the one the colours are from", async () => {
     const { service, tavily } = makeService();
     tavily.extract.mockResolvedValue(
@@ -656,6 +694,7 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
     await service.saveFromWebsite('org-1', 'brand-1', { colours: [] });
 
     expect(media.uploadFromUrl).not.toHaveBeenCalled();
+    expect(media.saveImage).not.toHaveBeenCalled();
     expect(brands.saveKit.mock.calls[0][2]).not.toHaveProperty('logoId');
   });
 
@@ -671,13 +710,117 @@ describe('BrandWebsiteService.saveFromWebsite', () => {
 
       const err = await failure(
         service.saveFromWebsite('org-1', 'brand-1', {
-          logo: 'https://cdn.example/logo.svg',
+          logo: 'https://cdn.example/logo.png',
           colours: ['#E30613'],
         })
       );
 
       expect(err?.getStatus()).toBe(422);
       expect(err?.message).toBe("This logo couldn't be saved.");
+      expect(brands.saveKit).not.toHaveBeenCalled();
+    }
+  );
+
+  // The Media library takes no SVG, which can carry a script, so an SVG logo
+  // is saved as the PNG it draws. It is drawn at that size rather than drawn
+  // small and enlarged, so its edges stay sharp.
+  it.each([
+    [80, 40],
+    [4000, 2000],
+  ])(
+    'saves an SVG logo of %i×%i as a PNG 1024 pixels on its long side, its transparency kept and its edges sharp',
+    async (width, height) => {
+      const { service, media, brands } = makeService();
+      // A navy band down the middle half, nothing on either side
+      const [start, span] = [width / 4, width / 2];
+      site['https://cdn.example/brand/logo.svg'] = Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+          `<rect x="${start}" width="${span}" height="${height}" fill="#1F3A5F"/></svg>`
+      );
+
+      await service.saveFromWebsite('org-1', 'brand-1', {
+        logo: 'https://cdn.example/brand/logo.svg',
+        colours: [],
+      });
+
+      expect(media.uploadFromUrl).not.toHaveBeenCalled();
+      expect(media.saveImage).toHaveBeenCalledWith(
+        'org-1',
+        expect.any(Buffer),
+        'image/png'
+      );
+      const png: Buffer = media.saveImage.mock.calls[0][1];
+      expect(await sharp(png).metadata()).toMatchObject({
+        format: 'png',
+        width: 1024,
+        height: 512,
+        hasAlpha: true,
+      });
+      // The pixels along the middle row; the band starts at x 256, so a small
+      // drawing enlarged would blend the pixels either side of it
+      const row = await sharp(png)
+        .extract({ left: 0, top: 256, width: 1024, height: 1 })
+        .raw()
+        .toBuffer();
+      const pixel = (x: number) => [...row.subarray(x * 4, x * 4 + 4)];
+      expect(pixel(0)[3]).toBe(0);
+      expect(pixel(248)[3]).toBe(0);
+      expect(pixel(264)).toEqual([0x1f, 0x3a, 0x5f, 255]);
+      expect(brands.saveKit).toHaveBeenCalledWith('org-1', 'brand-1', {
+        logoId: 'media-10',
+        colours: ['#B5542C', '#1F3A5F'],
+      });
+    }
+  );
+
+  it('reads an SVG logo through readOrFetch, bounded by the size the Media library takes for an image, each request waiting at most 5 s', async () => {
+    const { service } = makeService();
+    site['https://cdn.example/logo.svg'] = Buffer.from(SQUARE_SVG);
+
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      logo: 'https://cdn.example/logo.svg',
+      colours: [],
+    });
+
+    expect(read).toHaveBeenCalledWith(
+      'https://cdn.example/logo.svg',
+      10 * 1024 * 1024,
+      5_000
+    );
+  });
+
+  it('counts a link as an SVG by its path, whatever its case or query', async () => {
+    const { service, media } = makeService();
+    site['https://cdn.example/brand/Logo.SVG?v=2'] = Buffer.from(SQUARE_SVG);
+
+    await service.saveFromWebsite('org-1', 'brand-1', {
+      logo: 'https://cdn.example/brand/Logo.SVG?v=2',
+      colours: [],
+    });
+
+    expect(media.uploadFromUrl).not.toHaveBeenCalled();
+    expect(media.saveImage).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['the site does not serve it', 'https://cdn.example/gone.svg'],
+    ['its bytes draw nothing', 'https://cdn.example/page.svg'],
+  ])(
+    'refuses an SVG logo when %s with a 422 and saves nothing',
+    async (_, logo) => {
+      const { service, media, brands } = makeService();
+      site['https://cdn.example/page.svg'] = Buffer.from('<!doctype html>');
+
+      const err = await failure(
+        service.saveFromWebsite('org-1', 'brand-1', {
+          logo,
+          colours: ['#E30613'],
+        })
+      );
+
+      expect(err?.getStatus()).toBe(422);
+      expect(err?.message).toBe("This logo couldn't be saved.");
+      expect(media.saveImage).not.toHaveBeenCalled();
       expect(brands.saveKit).not.toHaveBeenCalled();
     }
   );
