@@ -11,7 +11,9 @@ import {
 
 // A brand's logo, or its initial while it has none or the logo was deleted
 // from Media. Decoration: the brand's name is beside it. The Brands page's
-// and the brand list's (brand.menu.tsx); each gives its size.
+// and the brand list's (brand.menu.tsx); each gives its size. The logo fits
+// inside the square, inset on the initial's tile, so a wide one keeps the
+// mark's shape rather than becoming a sliver on the page.
 export const BrandMark: FC<{ brand: Brand; className: string }> = ({
   brand,
   className,
@@ -24,7 +26,10 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
       <SafeImage
         src={mediaDirectory.set(logo.path)}
         alt=""
-        className={clsx('flex-none object-contain', className)}
+        className={clsx(
+          'flex-none object-contain p-[3px] bg-surface2',
+          className
+        )}
       />
     );
   }

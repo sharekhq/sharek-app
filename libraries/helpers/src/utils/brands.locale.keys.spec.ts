@@ -282,6 +282,9 @@ const STRINGS = [
   ['brands_look_up', 'Look up', 'ابحث'],
   ['brands_found_on', 'Found on {{address}}', 'وجدنا في {{address}}'],
   ['brands_pick_a_logo', 'Pick a logo', 'اختر شعارًا'],
+  // Each logo choice's name, by its place among them, as brands_n_of_max
+  // reads a count (part 3's walk: every choice was named Logo).
+  ['brands_logo_n', 'Logo {{n}} of {{count}}', 'الشعار {{n}} من {{count}}'],
   ['brands_add_to_kit', 'Add to kit', 'أضف إلى الهوية'],
   ['brands_not_now', 'Not now', 'ليس الآن'],
   [
@@ -297,15 +300,23 @@ const STRINGS = [
     "Sharek couldn't read this site. Check the address, or try again later.",
     'تعذر على شارك قراءة هذا الموقع. تحقق من العنوان، أو حاول لاحقًا.',
   ],
+  // A home page that redirects (kaust.edu.sa to /en/) reads as nothing found,
+  // so the line suggests the full address the site opens on (part 3's walk).
   [
     'brands_website_nothing_found',
-    'Nothing was found on this site. Try another address.',
-    'لم نجد شيئًا في هذا الموقع. جرب عنوانًا آخر.',
+    'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.',
+    'لم نجد شيئًا في هذا العنوان. جرب العنوان الكامل لصفحتك الرئيسية، مثل yourbrand.com/en.',
   ],
   [
     'brands_website_logo_failed',
     "This logo couldn't be saved, so nothing was added. Pick another logo or try again.",
     'تعذر حفظ هذا الشعار، فلم يضف شيء. اختر شعارًا آخر أو حاول مرة أخرى.',
+  ],
+  // Under the colours when the picked logo gives none (part 3's walk).
+  [
+    'brands_website_no_colours',
+    'No colours could be read from this logo.',
+    'تعذرت قراءة أي لون من هذا الشعار.',
   ],
   // Onboarding's "Your brand" step (OnboardBrand): the step's name, its
   // heading, the line that names Samy and no tool, the name and website
@@ -345,6 +356,11 @@ const REUSED = [
   ['back', 'Back', 'رجوع'],
   ['continue', 'Continue', 'متابعة'],
 ] as const;
+
+// Keys whose Arabic is their English on purpose: [key, text]. Part 3's walk:
+// the website's address field had no example; a domain is typed in Latin, and
+// the field keeps it left to right, so its example is the same in both.
+const SAME = [['brands_website_placeholder', 'yourbrand.com']] as const;
 
 // Counted phrases: [key, en by form, ar by form]. en's _one says 1 and ar's
 // _zero, _one and _two say the number in words, as media_selection_limit does.
@@ -746,6 +762,11 @@ describe('Brands locale keys', () => {
     }
   );
 
+  it.each(SAME)('reads %s as "%s" in en and ar alike', (key, text) => {
+    expect(en[key]).toBe(text);
+    expect(ar[key]).toBe(text);
+  });
+
   it.each(PLURALS)(
     'reads %s in every plural form en and ar have, as the canvas words it',
     (key, enForms, arForms) => {
@@ -794,7 +815,7 @@ describe('Brands locale keys', () => {
       (match) => match[1]
     );
 
-    it.each([...STRINGS, ...REUSED, ...PLURALS].map(([key]) => key))(
+    it.each([...STRINGS, ...REUSED, ...SAME, ...PLURALS].map(([key]) => key))(
       'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog or onboarding: %s',
       (key) => {
         expect(referenced).toContain(key);

@@ -291,6 +291,7 @@ describe('the full card', () => {
       'Sharek reads your site and suggests a logo and colours. You choose what goes in.'
     );
     expect(field().getAttribute('dir')).toBe('ltr');
+    expect(field().getAttribute('placeholder')).toBe('yourbrand.com');
     expect(
       document.querySelector(`label[for="${field().id}"]`)?.textContent
     ).toBe(TITLE);
@@ -347,9 +348,10 @@ describe('the full card', () => {
     expect(
       logos().map((node) => node.querySelector('img')?.getAttribute('src'))
     ).toEqual(SITE.logos);
+    // each choice named apart, by its place among them
     expect(
       logos().map((node) => node.querySelector('img')?.getAttribute('alt'))
-    ).toEqual(['Logo', 'Logo', 'Logo']);
+    ).toEqual(['Logo 1 of 3', 'Logo 2 of 3', 'Logo 3 of 3']);
     expect(picked()).toEqual([SITE.logos[0]]);
     expect(colours().map((node) => node.getAttribute('aria-label'))).toEqual(
       SITE.colours
@@ -360,6 +362,23 @@ describe('the full card', () => {
     // a lookup saves nothing
     expect(sent('/brands/b1/kit/from-website')).toEqual([]);
     expect(reloadBrands).not.toHaveBeenCalled();
+  });
+
+  // A dark logo vanishes on a dark page and a white one on a light page, so
+  // each choice sits on the kit's logo tile: its checkerboard on the panel.
+  // happy-dom drops a gradient made of var() and color-mix(), so the spec sees
+  // the panel's class and the checkerboard's size and offset, not its squares.
+  it("draws each logo on the kit logo tile's checkerboard, not on the page's own background", async () => {
+    await mountCard();
+
+    await lookUp();
+
+    for (const node of logos()) {
+      expect(classesOf(node)).toContain('bg-panel');
+      expect(classesOf(node)).not.toContain('bg-surface');
+      expect(node.style.backgroundSize).toBe('16px 16px');
+      expect(node.style.backgroundPosition).toBe('0px 0px, 8px 8px');
+    }
   });
 
   it('asks for the colours of another logo when it is picked, all ticked again', async () => {
@@ -377,6 +396,34 @@ describe('the full card', () => {
       FAVICON_COLOURS
     );
     expect(ticked()).toEqual(FAVICON_COLOURS);
+  });
+
+  // A logo whose pixels give no colour left the Colours heading over nothing.
+  it('says when the picked logo gives no colours, but not while it reads them', async () => {
+    const NO_COLOURS = 'No colours could be read from this logo.';
+    // the line under the colours
+    const note = () =>
+      document.querySelector('[role="group"] > p') ?? undefined;
+    let release: () => void = () => undefined;
+    answers['/brands/website'] = () => answer({ ...SITE, colours: [] });
+    answers['/brands/website/colours'] = () =>
+      new Promise((resolve) => {
+        release = () => resolve(answer({ colours: [] }));
+      });
+    await mountCard();
+
+    // the first logo, picked as it comes
+    await lookUp();
+    expect(colours()).toHaveLength(0);
+    expect(note()?.textContent).toBe(NO_COLOURS);
+
+    await click(logos()[1]);
+    expect(note()).toBeUndefined();
+
+    await act(async () => release());
+    expect(note()?.textContent).toBe(NO_COLOURS);
+    // the logo can still go in alone
+    expect(button('Add to kit')!.hasAttribute('disabled')).toBe(false);
   });
 
   it('adds only the picked logo and the ticked colours to the kit, writes the saved brand into the list and closes the suggestions', async () => {
@@ -546,8 +593,10 @@ describe('the full card', () => {
 
     await lookUp();
 
+    // a home page that redirects finds nothing, so the line suggests the full
+    // address the site opens on
     expect(card()!.textContent).toContain(
-      'Nothing was found on this site. Try another address.'
+      'Nothing was found at this address. Try the full address of your home page, such as yourbrand.com/en.'
     );
     expect(card()!.textContent).not.toContain('Found on');
     expect(field().value).toBe('rawda.sa');
@@ -604,6 +653,51 @@ describe('the full card', () => {
     }
   });
 
+  // The picked logo's border is the brand's red, as the focus ring is, so the
+  // ring stands off each logo by a gap of the card's own surface, and only the
+  // picked one carries the ✓. The spec sees the classes and the ✓, not how
+  // they read side by side.
+  it('tells keyboard focus from the picked logo: the ring stands off with a gap, and the picked one has its border and ✓', async () => {
+    await mountCard();
+    await lookUp();
+
+    for (const node of logos()) {
+      expect(classesOf(node)).toEqual(
+        expect.arrayContaining([
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+          'focus-visible:ring-offset-2',
+          'focus-visible:ring-offset-surface',
+        ])
+      );
+    }
+    expect(
+      logos().map((node) => classesOf(node).includes('border-brand'))
+    ).toEqual([true, false, false]);
+    expect(logos().map((node) => !!node.querySelector('svg'))).toEqual([
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  // The primary Button's ring is its own red with no gap, so on Add to kit it
+  // can't be seen; this one stands off by a gap of the surface. The shared
+  // Button is unchanged. The spec sees the classes, not the ring.
+  it('rings Add to kit on focus with a gap of the surface, so the ring shows around the red button', async () => {
+    await mountCard();
+    await lookUp();
+
+    expect(classesOf(button('Add to kit')!)).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+        'focus-visible:ring-offset-2',
+        'focus-visible:ring-offset-surface',
+      ])
+    );
+  });
+
   it('reads in Arabic, the address kept left to right', async () => {
     await i18next.changeLanguage('ar');
     await mountCard();
@@ -620,9 +714,14 @@ describe('the full card', () => {
     );
     expect(section.textContent).toContain('وجدنا في ⁨rawda.sa⁩');
     expect(section.textContent).toContain('اختر شعارًا');
+    expect(
+      logos().map((node) => node.querySelector('img')?.getAttribute('alt'))
+    ).toEqual(['الشعار 1 من 3', 'الشعار 2 من 3', 'الشعار 3 من 3']);
     expect(section.textContent).toContain('أضف إلى الهوية');
     expect(section.textContent).toContain('ليس الآن');
     expect(field().getAttribute('dir')).toBe('ltr');
+    // the example is a Latin domain in either language
+    expect(field().getAttribute('placeholder')).toBe('yourbrand.com');
   });
 });
 
@@ -648,6 +747,28 @@ describe('the dialog from the button beside Rename', () => {
     ]);
     expect(reloadBrands).toHaveBeenCalledTimes(1);
     expect(dialogOpen()).toBe(false);
+  });
+
+  // The app's modal (new-modal.tsx, upstream's too) gives no dialog role, so
+  // the lookup's own content says it is a dialog, named by the modal's title.
+  // Not aria-modal: the content holds the body alone, and aria-modal would
+  // hide the modal's title and × from a screen reader. The card on the kit is
+  // no dialog.
+  it("is a dialog to a screen reader, named by the modal's title, around the lookup; the card is not", async () => {
+    await mountCard();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+    await act(async () => openWebsite(brand()));
+
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog!.hasAttribute('aria-modal')).toBe(false);
+    expect(
+      document.getElementById(dialog!.getAttribute('aria-labelledby') ?? '')
+        ?.textContent
+    ).toBe(TITLE);
+    expect(dialog!.querySelector('input[dir="ltr"]')).toBeTruthy();
+    expect(card()!.closest('[role="dialog"]')).toBeNull();
   });
 
   it('closes with Not now, and saves nothing then or when it is closed', async () => {

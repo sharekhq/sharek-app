@@ -365,6 +365,15 @@ describe('the list', () => {
     expect(logo?.getAttribute('src')).toBe('https://media/bq.png');
     // the name beside it names the row
     expect(logo?.getAttribute('alt')).toBe('');
+    // A wide logo was a sliver on the page beside the square initials; it
+    // fits inside the square, inset, on the tile an initial has. The spec
+    // sees the classes, not the fit.
+    expect(classes(logo!)).toEqual(
+      expect.arrayContaining(['object-contain', 'bg-surface2'])
+    );
+    expect(classes(logo!).some((name) => /^p-\[\d+px\]$/.test(name))).toBe(
+      true
+    );
 
     expect(row(host, 'Client 2')!.querySelector('img')).toBeNull();
     expect(row(host, 'Client 2')!.textContent).toBe('CClient 20 channels');
