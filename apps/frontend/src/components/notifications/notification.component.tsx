@@ -157,10 +157,7 @@ const NotificationComponent = () => {
   }, [show, data]);
   const ref = useClickAway<HTMLDivElement>(() => setShow(false));
   return (
-    <div
-      className="relative mobile:static cursor-pointer select-none coarse:min-w-[44px] coarse:min-h-[44px] coarse:flex coarse:items-center coarse:justify-center"
-      ref={ref}
-    >
+    <div className="relative mobile:static select-none" ref={ref}>
       <button
         type="button"
         onClick={changeShow}
