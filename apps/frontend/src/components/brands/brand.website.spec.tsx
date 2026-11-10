@@ -362,6 +362,23 @@ describe('the full card', () => {
     expect(reloadBrands).not.toHaveBeenCalled();
   });
 
+  // A dark logo vanishes on a dark page and a white one on a light page, so
+  // each choice sits on the kit's logo tile: its checkerboard on the panel.
+  // happy-dom drops a gradient made of var() and color-mix(), so the spec sees
+  // the panel's class and the checkerboard's size and offset, not its squares.
+  it("draws each logo on the kit logo tile's checkerboard, not on the page's own background", async () => {
+    await mountCard();
+
+    await lookUp();
+
+    for (const node of logos()) {
+      expect(classesOf(node)).toContain('bg-panel');
+      expect(classesOf(node)).not.toContain('bg-surface');
+      expect(node.style.backgroundSize).toBe('16px 16px');
+      expect(node.style.backgroundPosition).toBe('0px 0px, 8px 8px');
+    }
+  });
+
   it('asks for the colours of another logo when it is picked, all ticked again', async () => {
     await mountCard();
     await lookUp();
