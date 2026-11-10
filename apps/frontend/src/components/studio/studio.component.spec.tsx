@@ -301,6 +301,20 @@ const glyphOf = (frame: Element) =>
     classes(node).includes('text-muted')
   );
 const playBadge = (frame: Element) => frame.querySelector('[data-play-badge]');
+// A card is named by what it holds, as a browser names it: its text and its
+// pictures' alt in order, leaving out what's aria-hidden.
+const contentOf = (node: Node): string[] => {
+  if (node.nodeType === node.TEXT_NODE) return [node.textContent ?? ''];
+  const el = node as Element;
+  if (el.getAttribute('aria-hidden') === 'true') return [];
+  if (el.tagName === 'IMG') return [el.getAttribute('alt') ?? ''];
+  return Array.from(el.childNodes).flatMap(contentOf);
+};
+const nameOf = (el: Element) =>
+  contentOf(el)
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .join(' ');
 /** A picture that does not load, as the browser reports it. */
 const fail = async (picture: Element | null) => {
   await act(async () => {
@@ -713,17 +727,33 @@ describe('a card', () => {
 
       const frame = frameOf('Veo 3');
       expect(playBadge(frame)).toBeTruthy();
-      const length = frame.querySelector('[dir="ltr"]');
-      expect(length?.textContent).toBe('0:08');
+      const length = Array.from(frame.children).find((node) =>
+        classes(node).includes('end-[10px]')
+      );
       expect(classes(length)).toEqual(
         expect.arrayContaining([
           'absolute',
           'bottom-[10px]',
-          'end-[10px]',
           'bg-black/70',
           'text-white',
         ])
       );
+      // The box follows the page, so its end is the left in Arabic; with
+      // dir="ltr" on it, end- was the right and it sat on the maker's plate
+      // (live walk 2026-11-11). Only the digits run left to right.
+      expect(length?.hasAttribute('dir')).toBe(false);
+      expect(length?.getAttribute('aria-hidden')).toBe('true');
+      const digits = length?.querySelector('bdi');
+      expect(digits?.getAttribute('dir')).toBe('ltr');
+      expect(digits?.textContent).toBe('0:08');
+    });
+
+    // live walk 2026-11-11: the length sits in the picture, before the name,
+    // so a screen reader announced "0:08 Veo 3 …".
+    it('is announced by its name first, the length left to the eye', async () => {
+      await mount();
+
+      expect(nameOf(card('Veo 3')!)).toMatch(/^Veo 3/);
     });
 
     // FR-009, FR-017: a picture that fails leaves the placeholder, which has

@@ -165,13 +165,16 @@ const StudioCard: FC<{
             />
           </span>
         )}
-        {/* the length times the sample, so the placeholder has none */}
+        {/* the length times the sample, so the placeholder has none. The box
+            follows the page, so its end is the left in Arabic; only the digits
+            run left to right. Hidden from screen readers, so the card's name
+            comes first; the "~8 s" fact says it in words. */}
         {entry.sampleLength && entry.cover && !coverFailed && (
           <span
-            dir="ltr"
+            aria-hidden="true"
             className="absolute bottom-[10px] end-[10px] h-[22px] px-[6px] rounded-[6px] bg-black/70 text-white text-[12px] font-[600] tabular-nums flex items-center"
           >
-            {entry.sampleLength}
+            <bdi dir="ltr">{entry.sampleLength}</bdi>
           </span>
         )}
         {locked && (
