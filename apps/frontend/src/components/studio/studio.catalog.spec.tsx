@@ -6,9 +6,10 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 // The provider registry drags in every video provider. The rules under test
 // are only what a provider's own card declares, so a registry that knows the
-// two providers listed today, and one whose card says nothing for Studio, is
-// enough. The two declarations mirror veo3.provider.tsx and
-// image-text-slides.provider.tsx, whose own specs pin them.
+// two providers listed today, one whose card says nothing for Studio, and one
+// more tool for the search's longer list, is enough. The two declarations of
+// today mirror veo3.provider.tsx and image-text-slides.provider.tsx, whose own
+// specs pin them.
 jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
   const cards: Record<string, unknown> = {
     veo3: {
@@ -53,6 +54,16 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
       pills: [],
       diagram: null,
     },
+    'avatar-ad': {
+      name: { key: 'video_type_avatar_ad', fallback: 'Avatar ad' },
+      description: {
+        key: 'video_type_avatar_ad_desc',
+        fallback: 'An avatar reads your script.',
+      },
+      pills: [],
+      diagram: null,
+      studio: { kind: 'tool' },
+    },
   };
   return {
     VideoWrapper: () => null,
@@ -65,12 +76,22 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImage: () => null,
 }));
+// Scenery: the channel panel's module loads for matchesSearch.
+jest.mock(
+  '@gitroom/frontend/components/launches/add.provider.component',
+  () => ({
+    useAddProvider: () => () => undefined,
+    CustomVariables: () => null,
+  })
+);
 
 import {
   buildStudioCatalog,
+  filterStudio,
   STUDIO_TOOLS,
   StudioCatalog,
   StudioChip,
+  StudioSections,
   StudioToolEntry,
 } from '@gitroom/frontend/components/studio/studio.tools';
 
@@ -383,6 +404,164 @@ describe('an empty catalogue', () => {
     expect(catalog({ tools: [], videoOptions: [veo3] }).empty).toBe(false);
     expect(catalog({ tools: [], videoOptions: [] }).empty).toBe(true);
   });
+});
+
+describe('filterStudio', () => {
+  // SC-001's size: the two fixed tools and ten providers, two of them video
+  // tools and eight models, one named in Arabic with each alef that carries a
+  // hamza or a madda.
+  const twelve = catalog({
+    videoOptions: [
+      veo3,
+      slides,
+      kling,
+      { identifier: 'avatar-ad', title: 'Avatar ad' },
+      unknown,
+      { identifier: 'hailuo', title: 'Hailuo' },
+      { identifier: 'pika', title: 'Pika' },
+      { identifier: 'ad-maker', title: 'أداة إعلانات آلية' },
+      { identifier: 'luma', title: 'Luma' },
+      { identifier: 'wan', title: 'Wan' },
+    ],
+  });
+  const en = translate({});
+  const VIDEO_TOOLS = ['video:image-text-slides', 'video:avatar-ad'];
+  const VIDEO_MODELS = [
+    'video:veo3',
+    'video:kling',
+    'video:sora',
+    'video:hailuo',
+    'video:pika',
+    'video:ad-maker',
+    'video:luma',
+    'video:wan',
+  ];
+
+  const sectionIds = (view: StudioSections) => ({
+    tools: view.tools.map((tool) => tool.entry.id),
+    models: view.models.map((tool) => tool.entry.id),
+  });
+  const sections = (
+    chip: StudioChip['id'],
+    query: string,
+    built: StudioCatalog = twelve
+  ) => sectionIds(filterStudio(built, chip, query, en));
+  // Under All, Tools then Models in one list.
+  const found = (query: string) => {
+    const { tools, models } = sections('all', query);
+    return [...tools, ...models];
+  };
+
+  it('lists Tools then Models, each in category order then registry order', () => {
+    expect(twelve.listings).toHaveLength(12);
+    expect(sections('all', '')).toEqual({
+      tools: ['ai-image', ...VIDEO_TOOLS, 'image-editor'],
+      models: VIDEO_MODELS,
+    });
+  });
+
+  it('puts Branding after Edit & enhance, whatever order the registry has', () => {
+    const built = catalog({
+      tools: [brandKit, ...STUDIO_TOOLS],
+      videoOptions: [slides],
+    });
+
+    expect(sections('all', '', built).tools).toEqual([
+      'ai-image',
+      'video:image-text-slides',
+      'image-editor',
+      'brand-kit',
+    ]);
+  });
+
+  it('narrows both sections to the chosen chip', () => {
+    expect(sections('video', '')).toEqual({
+      tools: VIDEO_TOOLS,
+      models: VIDEO_MODELS,
+    });
+    expect(sections('edit', '')).toEqual({
+      tools: ['image-editor'],
+      models: [],
+    });
+  });
+
+  it('leaves the Models section empty under a chip with no model', () => {
+    expect(sections('images', '')).toEqual({ tools: ['ai-image'], models: [] });
+  });
+
+  it.each([
+    ['a name', 'kling', ['video:kling']],
+    ['a description', 'narrated', ['video:image-text-slides']],
+    ['a category name', 'enhance', ['image-editor']],
+    ["a maker's name", 'google', ['video:veo3']],
+  ])('finds a listing by %s', (_, query, ids) => {
+    expect(found(query)).toEqual(ids);
+  });
+
+  it('ignores case', () => {
+    expect(found('VEO')).toEqual(['video:veo3']);
+  });
+
+  it('ignores the spaces around the typed text', () => {
+    expect(found(' veo ')).toEqual(['video:veo3']);
+  });
+
+  it('treats أ, إ and آ as ا, whichever is typed', () => {
+    expect(found('اداة')).toEqual(['video:ad-maker']);
+    expect(found('اعلانات')).toEqual(['video:ad-maker']);
+    expect(found('الية')).toEqual(['video:ad-maker']);
+    expect(found('أعلانات')).toEqual(['video:ad-maker']);
+  });
+
+  it('applies the chip and the typed text together', () => {
+    expect(sections('all', 'image')).toEqual({
+      tools: ['ai-image', 'video:image-text-slides', 'image-editor'],
+      models: [],
+    });
+    expect(sections('video', 'image')).toEqual({
+      tools: ['video:image-text-slides'],
+      models: [],
+    });
+  });
+
+  it("returns the chip's listings when the text is empty or only spaces", () => {
+    const listings = { tools: VIDEO_TOOLS, models: VIDEO_MODELS };
+
+    expect(sections('video', '')).toEqual(listings);
+    expect(sections('video', '   ')).toEqual(listings);
+  });
+
+  it('returns both sections empty when nothing matches', () => {
+    expect(sections('all', 'zzz')).toEqual({ tools: [], models: [] });
+    expect(sections('images', 'google')).toEqual({ tools: [], models: [] });
+  });
+
+  // The provider list reloaded without the chosen category's last listing
+  // (data-model §5).
+  it('treats a chosen chip whose category is gone as All', () => {
+    const view = filterStudio(catalog({ videoOptions: [] }), 'video', '', en);
+
+    expect(view.chip).toBe('all');
+    expect(sectionIds(view)).toEqual({
+      tools: ['ai-image', 'image-editor'],
+      models: [],
+    });
+  });
+
+  it('keeps a chosen chip whose category still has listings', () => {
+    expect(filterStudio(twelve, 'video', '', en).chip).toBe('video');
+  });
+
+  it.each(twelve.listings.map((tool) => ({ id: tool.entry.id, tool })))(
+    'reaches $id with one chip and with one search',
+    ({ tool }) => {
+      const byChip = filterStudio(twelve, tool.entry.category, '', en);
+      const byName = filterStudio(twelve, 'all', tool.entry.name(en), en);
+
+      expect([...byChip.tools, ...byChip.models]).toContain(tool);
+      expect([...byName.tools, ...byName.models]).toContain(tool);
+    }
+  );
 });
 
 describe("the fixed tools' pictures ship with the app", () => {
