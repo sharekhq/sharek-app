@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { partition, uniq } from 'lodash';
 import { extname } from 'path';
-import sharp from 'sharp';
+import sharp, { FormatEnum, Metadata } from 'sharp';
 import {
   TavilyService,
   WebPage,
@@ -71,7 +71,7 @@ const candidatesOf = ({ images = [], favicon }: WebPage) => {
 
 // A logo of these types is saved as the site serves it: the Media library
 // takes them and every browser and network shows them
-const KEPT_TYPES: Partial<Record<keyof sharp.FormatEnum, string>> = {
+const KEPT_TYPES: Partial<Record<keyof FormatEnum, string>> = {
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
@@ -81,7 +81,7 @@ const KEPT_TYPES: Partial<Record<keyof sharp.FormatEnum, string>> = {
 // first frame. An SVG is drawn SVG_EDGE pixels on its long side, at that size,
 // since one drawn at its own size and enlarged would be blurred; any other
 // image keeps its own size.
-const pngOf = (image: Buffer, { format, width, height }: sharp.Metadata) =>
+const pngOf = (image: Buffer, { format, width, height }: Metadata) =>
   (format === 'svg'
     ? sharp(image, {
         density: (72 * SVG_EDGE) / Math.max(width, height),
