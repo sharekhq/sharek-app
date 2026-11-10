@@ -2,7 +2,10 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { partition, uniq } from 'lodash';
 import { extname } from 'path';
 import sharp from 'sharp';
-import { TavilyService } from '@gitroom/nestjs-libraries/tavily/tavily.service';
+import {
+  TavilyService,
+  WebPage,
+} from '@gitroom/nestjs-libraries/tavily/tavily.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import {
   Brand,
@@ -12,13 +15,12 @@ import { readOrFetch } from '@gitroom/nestjs-libraries/database/prisma/media/rea
 import { getMaxSize } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
 import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
-export type WebsiteSuggestions = {
+type WebsiteSuggestions = {
   foundOn: string;
   logos: string[];
   colours: string[];
 };
 
-type WebPage = Awaited<ReturnType<TavilyService['extract']>>[number];
 type Pixels = { data: Buffer; info: { width: number; height: number } };
 type Rgb = number[];
 

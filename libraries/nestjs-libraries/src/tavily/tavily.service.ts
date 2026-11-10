@@ -3,7 +3,7 @@ import { HttpException, Injectable, Logger } from '@nestjs/common';
 type Lookup = 'search' | 'extract';
 
 type WebResult = { title: string; url: string; snippet: string };
-type WebPage = {
+export type WebPage = {
   url: string;
   text?: string;
   error?: string;
