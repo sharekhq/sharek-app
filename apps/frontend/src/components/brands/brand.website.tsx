@@ -168,10 +168,12 @@ export const useWebsiteLookup = (
   // since adding it replaces the kit's; the name the kit has already isn't
   // offered. The two names are compared as they stand, case included: the
   // server cleans a suggestion's outer spaces and the kit stores a name
-  // trimmed. A site the lookup refuses to read (403) says so; any other
-  // refusal or no answer says the site couldn't be read; one the fetch
-  // interceptor answered (a redirect) says nothing more, and neither does an
-  // answer for an address changed since it was asked.
+  // trimmed. With no logo, no colour and no font left to offer, nothing was
+  // found: a site that gave only the names the kit has leaves nothing to add.
+  // A site the lookup refuses to read (403) says so; any other refusal or no
+  // answer says the site couldn't be read; one the fetch interceptor answered
+  // (a redirect) says nothing more, and neither does an answer for an address
+  // changed since it was asked.
   const lookUp = async () => {
     const typed = address.trim();
     if (!typed || busy) {
@@ -195,25 +197,20 @@ export const useWebsiteLookup = (
         setProblem(response.status === 403 ? 'refused' : 'failed');
         return;
       }
-      if (
-        !answer.logos.length &&
-        !answer.colours.length &&
-        !FONTS.some((font) => answer[font])
-      ) {
+      const offered: FontChoice[] = FONTS.flatMap((font) => {
+        const name = answer[font];
+        return name && name !== kitFonts?.[font]
+          ? [{ font, name, ticked: !kitFonts?.[font] }]
+          : [];
+      });
+      if (!answer.logos.length && !answer.colours.length && !offered.length) {
         setProblem('nothing');
         return;
       }
       setFound(answer);
       setLogo(answer.logos[0]);
       setTicked(answer.colours.slice(0, room));
-      setFonts(
-        FONTS.flatMap((font) => {
-          const name = answer[font];
-          return name && name !== kitFonts?.[font]
-            ? [{ font, name, ticked: !kitFonts?.[font] }]
-            : [];
-        })
-      );
+      setFonts(offered);
     } catch (e) {
       if (asked() && !isAlreadyAnswered(e)) {
         setProblem('failed');
