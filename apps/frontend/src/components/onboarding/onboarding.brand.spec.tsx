@@ -18,7 +18,8 @@ import * as path from 'path';
 const request = jest.fn();
 const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
-let brands: Array<{ id: string; name: string }> = [];
+// undefined while GET /brands is still loading
+let brands: Array<{ id: string; name: string }> | undefined = [];
 let channels: Array<{
   id: string;
   name: string;
@@ -397,6 +398,14 @@ describe('the brand step', () => {
     channels = [];
     await mount();
     await click(button('Continue without channels'));
+
+    expect(textNode(TITLE)).toBeDefined();
+    expect(offer()).toBeUndefined();
+  });
+
+  it('offers nothing to move while the brands are still loading, so an organization with brands never sees the offer come and go', async () => {
+    brands = undefined;
+    await toBrandStep();
 
     expect(textNode(TITLE)).toBeDefined();
     expect(offer()).toBeUndefined();

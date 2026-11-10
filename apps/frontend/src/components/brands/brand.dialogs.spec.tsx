@@ -18,7 +18,8 @@ const request = jest.fn();
 const reloadBrands = jest.fn();
 const reloadChannels = jest.fn();
 const toast = jest.fn();
-let brands: Array<{ id: string; name: string }> = [];
+// undefined while GET /brands is still loading
+let brands: Array<{ id: string; name: string }> | undefined = [];
 let channels: Array<{
   id: string;
   name: string;
@@ -298,6 +299,23 @@ describe('New brand', () => {
   it('with a brand already, makes no offer, so the new brand starts with no channels (scenario 3)', async () => {
     brands = [BAYT];
     channels = [...inBrand(3, BAYT), ...inBrand(4, null)];
+    await mount();
+    await open(() => dialogs.openNewBrand());
+
+    expect(offer()).toBeNull();
+    expect(text()).not.toContain('Move my');
+
+    await type(field(), 'Noor Dental');
+    await click(button('Create brand'));
+
+    expect(sent('/brands')).toEqual([
+      ['POST', { name: 'Noor Dental', moveUngrouped: false }],
+    ]);
+  });
+
+  it('makes no offer while the brands are still loading, so an organization with brands never sees it come and go', async () => {
+    brands = undefined;
+    channels = inBrand(4, null);
     await mount();
     await open(() => dialogs.openNewBrand());
 
