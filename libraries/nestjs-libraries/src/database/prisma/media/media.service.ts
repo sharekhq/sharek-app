@@ -742,11 +742,18 @@ export class MediaService {
         image = await render(rewritten);
       }
 
-      const file = await this.storage.uploadSimple(
-        'data:image/jpeg;base64,' + image.toString('base64')
-      );
-      return this.saveFile(org.id, file.split('/').pop(), file);
+      return this.saveImage(org.id, image, 'image/jpeg');
     });
+  }
+
+  // An image made on the server (a render, a brand's SVG logo drawn as a PNG)
+  // goes to storage as a data URL; storage names the file after the type it
+  // detects in the bytes.
+  async saveImage(org: string, image: Buffer, mime: string) {
+    const file = await this.storage.uploadSimple(
+      `data:${mime};base64,` + image.toString('base64')
+    );
+    return this.saveFile(org, file.split('/').pop(), file);
   }
 
   // Streams the remote body straight into storage: only the sniffing prefix

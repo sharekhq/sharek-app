@@ -550,6 +550,29 @@ describe('resolveTwoPhaseVideo', () => {
   });
 });
 
+// An image made on the server, such as a brand's SVG logo drawn as a PNG
+// (spec 053), goes to storage as a data URL, the way a render does.
+describe('saveImage', () => {
+  it('uploads the bytes as a data URL of their type and saves the file under the uploaded name', async () => {
+    const { service, saveFile } = makeService({
+      file: 'https://media/abc.png',
+    });
+
+    await expect(
+      service.saveImage('org-1', Buffer.from('PNG-BYTES'), 'image/png')
+    ).resolves.toEqual({ id: 'media-1', path: 'https://media/abc.png' });
+
+    expect((service as any).storage.uploadSimple).toHaveBeenCalledWith(
+      'data:image/png;base64,' + Buffer.from('PNG-BYTES').toString('base64')
+    );
+    expect(saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'abc.png',
+      'https://media/abc.png'
+    );
+  });
+});
+
 // The modal's own render path (feature 006). The size is the promise the size
 // tooltips make, so the preset id has to reach the renderer as exact pixels;
 // legacy generateImage() keeps its fixed square for its other callers.

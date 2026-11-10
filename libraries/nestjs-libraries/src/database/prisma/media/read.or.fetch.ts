@@ -36,16 +36,27 @@ const localMediaPath = (path: string) => {
 // With `maxBytes`, the size is learned before any body is read, the way
 // SocialAbstract.mediaSize learns it: a HEAD in identity encoding (so the
 // length is that of the bytes a GET returns), or a stat for a local file. The
-// GET still carries the bound, in case a header is missing or wrong. A URL is
-// read through the same SSRF-safe client as the providers' media reads.
-export const readOrFetch = async (path: string, maxBytes?: number) => {
+// GET still carries the bound, in case a header is missing or wrong, or the
+// HEAD is refused or fails, as some hosts serve a GET only (a CDN's 403 or
+// 405, a link signed for GET). A URL is read through the same SSRF-safe client
+// as the providers' media reads, each request waiting at most `timeout`: a
+// caller inside a deadline of its own passes a shorter one.
+export const readOrFetch = async (
+  path: string,
+  maxBytes?: number,
+  timeout = MEDIA_READ_TIMEOUT
+) => {
   if (path.indexOf('http') === 0) {
     if (maxBytes !== undefined) {
-      const head = await getSsrfSafeAxios().head(path, {
-        headers: { 'accept-encoding': 'identity' },
-        signal: AbortSignal.timeout(MEDIA_READ_TIMEOUT),
-      });
-      const size = Number(head.headers['content-length']);
+      const size = await getSsrfSafeAxios()
+        .head(path, {
+          headers: { 'accept-encoding': 'identity' },
+          signal: AbortSignal.timeout(timeout),
+        })
+        .then(
+          (head) => Number(head.headers['content-length']),
+          () => NaN
+        );
       if (size > maxBytes) {
         throw new MediaTooLargeError(maxBytes, size);
       }
@@ -58,7 +69,7 @@ export const readOrFetch = async (path: string, maxBytes?: number) => {
           method: 'GET',
           responseType: 'arraybuffer',
           ...(maxBytes !== undefined && { maxContentLength: maxBytes }),
-          signal: AbortSignal.timeout(MEDIA_READ_TIMEOUT),
+          signal: AbortSignal.timeout(timeout),
         })
       ).data;
     } catch (err) {

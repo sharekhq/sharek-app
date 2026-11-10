@@ -3,7 +3,13 @@ import { HttpException, Injectable, Logger } from '@nestjs/common';
 type Lookup = 'search' | 'extract';
 
 type WebResult = { title: string; url: string; snippet: string };
-type WebPage = { url: string; text?: string; error?: string };
+export type WebPage = {
+  url: string;
+  text?: string;
+  error?: string;
+  images?: string[];
+  favicon?: string;
+};
 
 // Page text is stored in the thread and sent to the model again on every later
 // turn, so a long page would be paid for on each of them.
@@ -81,6 +87,27 @@ const comparable = (address: string) => {
   }
 };
 
+// A brand's logo candidate is fetched later by its address alone, with no page
+// to resolve a relative one against, so only an absolute http(s) link is kept.
+const absolute = (link: unknown) => {
+  try {
+    const parsed = new URL(link as string);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch {
+    return '';
+  }
+};
+
+const pictures = (result: any) => {
+  const favicon = absolute(result?.favicon);
+  return {
+    images: [
+      ...new Set<string>((result?.images || []).map(absolute).filter(Boolean)),
+    ],
+    ...(favicon ? { favicon } : {}),
+  };
+};
+
 // Every organization draws on one monthly Tavily credit pool, so each call
 // leaves a line to watch it by without Tavily's dashboard. A log line must
 // never fail a lookup or change its answer: everything is swallowed.
@@ -127,26 +154,33 @@ export class TavilyService {
 
   // Tavily doesn't promise its results come back in the order asked, so each
   // address is matched to its result by address. Tavily bills the pages it
-  // read, which is what the log line counts.
-  async extract(org: string, urls: string[]): Promise<WebPage[]> {
+  // read, which is what the log line counts. With images, each page also
+  // carries its image links and favicon, for a brand's logo candidates; Samy's
+  // read asks without them, and its text is words only either way.
+  async extract(
+    org: string,
+    urls: string[],
+    options: { images?: boolean } = {}
+  ): Promise<WebPage[]> {
     const started = Date.now();
     try {
       const { results, failed_results } = await this.post('extract', {
         urls,
         extract_depth: 'basic',
         format: 'markdown',
+        ...(options.images
+          ? { include_images: true, include_favicon: true }
+          : {}),
       });
       const pages: WebPage[] = urls.map((url) => {
         const asked = comparable(url);
         const match = (p: any) => comparable(p.url) === asked;
-        const text = words(results?.find(match)?.raw_content || '');
-        if (text) {
-          return { url, text: cut(text) };
-        }
-        return {
-          url,
-          error: failed_results?.find(match)?.error || UNREADABLE,
-        };
+        const result = results?.find(match);
+        const text = words(result?.raw_content || '');
+        const page: WebPage = text
+          ? { url, text: cut(text) }
+          : { url, error: failed_results?.find(match)?.error || UNREADABLE };
+        return options.images ? { ...page, ...pictures(result) } : page;
       });
       logLookup({
         org,

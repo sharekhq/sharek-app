@@ -8,7 +8,8 @@ import { createRoot, Root } from 'react-dom/client';
 // field it changed, so two members editing different parts of one kit don't
 // overwrite each other (spec, Edge Cases); a channel moves with the existing
 // PUT /integrations/:id/group. The line that says what the kit is for is the
-// brand header's, which the page draws.
+// brand header's, which the page draws. While the kit is empty, the Fill from
+// my website card comes first (US6); the card has its own spec.
 
 const request = jest.fn();
 const reloadBrands = jest.fn();
@@ -36,6 +37,13 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: toast }),
+}));
+// Whether the server can look a website up (TAVILY_API_KEY set), as the
+// layout reads it.
+const mockVariables = { websiteLookup: true };
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  ...jest.requireActual('@gitroom/react/helpers/variable.context'),
+  useVariables: () => mockVariables,
 }));
 // The page's two lists: the kit puts each saved brand in the first, and
 // refreshes the second after a channel moves.
@@ -262,6 +270,32 @@ describe('a brand kit', () => {
     expect(document.body.textContent).toContain(
       'Anyone in your team can edit this brand.'
     );
+  });
+
+  it('starts with the Fill from my website card while the kit is empty, and drops it once the kit has something in it (FR-027)', async () => {
+    await mount(brand({ headingFont: 'Tajawal' }));
+
+    expect(
+      document.querySelector('section')?.querySelector('h3')?.textContent
+    ).toBe('Fill from my website');
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    document.body.innerHTML = '';
+
+    await mount(brand({ colours: ['#0E7C86'] }));
+
+    expect(card('Fill from my website')).toBeUndefined();
+    expect(card('Logo')).toBeDefined();
+  });
+
+  it('shows no Fill from my website card, even on an empty kit, while the server has no web lookup (TAVILY_API_KEY unset)', async () => {
+    mockVariables.websiteLookup = false;
+    await mount(brand());
+
+    expect(card('Fill from my website')).toBeUndefined();
+    expect(card('Logo')).toBeDefined();
   });
 
   it('shows its cards: Logo, Colours, Example posts, Channels and Fonts', async () => {
@@ -530,6 +564,9 @@ describe('the Fonts card', () => {
         ])
       );
       expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
+      // the canvas's field (.inp.lg), 44px at every pointer
+      expect(classes).toContain('h-[44px]');
+      expect(classes).not.toContain('h-[40px]');
     }
   });
 

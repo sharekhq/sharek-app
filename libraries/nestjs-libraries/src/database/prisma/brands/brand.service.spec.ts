@@ -141,6 +141,57 @@ describe('BrandService.list', () => {
   });
 });
 
+// One brand, read as the list reads each, without reading the list.
+describe('BrandService.get', () => {
+  it('gives the live brand of the organization with its kit, an image deleted from Media missing', async () => {
+    const { service, repository } = makeService({
+      mediaByIds: jest
+        .fn()
+        .mockResolvedValue([
+          live('logo-1'),
+          deleted('example-1'),
+          live('example-2'),
+        ]),
+    });
+
+    await expect(service.get('org-1', 'brand-1')).resolves.toEqual({
+      id: 'brand-1',
+      name: 'Rawda',
+      kit: {
+        logo: image('logo-1'),
+        examples: [
+          { ...image('example-1'), missing: true },
+          image('example-2'),
+        ],
+        colours: ['#B5542C', '#1F3A5F'],
+        headingFont: 'Amiri',
+        bodyFont: 'IBM Plex Sans Arabic',
+      },
+    });
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-1');
+    expect(repository.mediaByIds).toHaveBeenCalledWith('org-1', [
+      'logo-1',
+      'example-1',
+      'example-2',
+    ]);
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+
+  it("404s on an id that isn't a live brand of the organization, reading no images", async () => {
+    const { service, repository } = makeService({
+      findLive: jest.fn().mockResolvedValue(null),
+    });
+
+    const err = await failure(service.get('org-1', 'brand-9'));
+
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(404);
+    expect(err.message).toBe('Brand not found');
+    expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-9');
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+});
+
 describe('BrandService.create', () => {
   it('refuses a name a live brand of the organization already has, with a 400, and creates nothing', async () => {
     const { service, repository } = makeService({

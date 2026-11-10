@@ -25,6 +25,10 @@ import {
 } from '@gitroom/frontend/components/public-api/public.component';
 import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
 import { tutorialVideoEmbedUrl } from '@gitroom/frontend/components/ui/tutorial.video';
+import {
+  OnboardingBrand,
+  OnboardingBrandDraft,
+} from '@gitroom/frontend/components/onboarding/onboarding.brand';
 
 interface OnboardingModalProps {
   onClose: () => void;
@@ -32,12 +36,14 @@ interface OnboardingModalProps {
 
 export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
   const [step, setStep] = useState(1);
+  const [brand, setBrand] = useState<OnboardingBrandDraft>({ name: '' });
   const modals = useModals();
   const t = useT();
 
   const steps = useMemo(
     () => [
       t('connect_channels', 'Connect Channels'),
+      t('brands_onboard_step', 'Your brand'),
       t('connect_agents', 'Connect Agents'),
       t('watch_tutorial', 'Watch Tutorial'),
     ],
@@ -80,7 +86,7 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
                   <div className="flex items-center gap-[8px]">
                     <div
                       className={clsx(
-                        'w-[32px] h-[32px] rounded-full flex items-center justify-center text-[14px] font-semibold transition-colors',
+                        'w-[32px] h-[32px] shrink-0 rounded-full flex items-center justify-center text-[14px] font-semibold transition-colors',
                         step === index + 1
                           ? 'bg-brand text-white'
                           : 'bg-newTableHeader'
@@ -110,13 +116,21 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
               />
             )}
             {step === 2 && (
-              <OnboardingStep2
+              <OnboardingBrand
+                draft={brand}
+                setDraft={setBrand}
                 onBack={() => setStep(1)}
                 onNext={() => setStep(3)}
               />
             )}
             {step === 3 && (
-              <OnboardingStep3 onBack={() => setStep(2)} onFinish={onClose} />
+              <OnboardingStep2
+                onBack={() => setStep(2)}
+                onNext={() => setStep(4)}
+              />
+            )}
+            {step === 4 && (
+              <OnboardingStep3 onBack={() => setStep(3)} onFinish={onClose} />
             )}
           </div>
         </div>

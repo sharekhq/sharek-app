@@ -1,5 +1,6 @@
-// readOrFetch has one caller, MediaService.loadReferences (spec 031): the AI
-// image references, which must not read an unbounded file. Providers read media
+// readOrFetch reads the AI image references in MediaService.loadReferences
+// (spec 031), which must not read an unbounded file, and a brand's logo links
+// in BrandWebsiteService (spec 053). Providers read media
 // through SocialAbstract.readOrFetch. The Media library's
 // multipart upload path never checks a size on the server, so a stored file
 // can be any size, and a reference is read into the memory of the one backend
@@ -119,6 +120,65 @@ describe('with a bound', () => {
     expect(err).toMatchObject({ maxBytes: BOUND, size: undefined });
   });
 
+  // Some hosts refuse a HEAD (a CDN's 403 or 405, a link signed for GET only)
+  // or don't answer it in time, and serve the GET; its bound then holds.
+  describe('when the HEAD is refused or fails', () => {
+    const refused = (status: number) =>
+      Object.assign(new Error(`Request failed with status code ${status}`), {
+        code: 'ERR_BAD_REQUEST',
+        response: { status },
+      });
+
+    it.each([
+      ['refused with a 403', refused(403)],
+      ['refused with a 405', refused(405)],
+      [
+        'out of time',
+        Object.assign(new Error('canceled'), { code: 'ERR_CANCELED' }),
+      ],
+    ])(
+      'reads a URL whose HEAD was %s in one GET that carries the bound',
+      async (_, failure) => {
+        head.mockRejectedValue(failure);
+
+        await expect(readOrFetch(URL, BOUND)).resolves.toEqual(
+          Buffer.from('BYTES')
+        );
+
+        expect(get).toHaveBeenCalledTimes(1);
+        expect(get).toHaveBeenCalledWith({
+          url: URL,
+          method: 'GET',
+          responseType: 'arraybuffer',
+          maxContentLength: BOUND,
+          signal: expect.any(AbortSignal),
+        });
+      }
+    );
+
+    it('refuses a body over it', async () => {
+      head.mockRejectedValue(refused(405));
+      get.mockRejectedValue(
+        Object.assign(new Error(`maxContentLength size of ${BOUND} exceeded`), {
+          code: 'ERR_BAD_RESPONSE',
+        })
+      );
+
+      const err = await readOrFetch(URL, BOUND).catch((e) => e);
+
+      expect(err).toBeInstanceOf(MediaTooLargeError);
+      expect(err).toMatchObject({ maxBytes: BOUND, size: undefined });
+    });
+
+    it('passes the GET’s own refusal through as itself', async () => {
+      head.mockRejectedValue(refused(403));
+      const failure = refused(403);
+      get.mockRejectedValue(failure);
+
+      await expect(readOrFetch(URL, BOUND)).rejects.toBe(failure);
+    });
+  });
+
   // axios gives a 5xx the same code, with the response attached.
   it('passes a server error through as itself', async () => {
     head.mockResolvedValue({ headers: { 'content-length': String(MB) } });
@@ -168,6 +228,40 @@ describe('with a bound', () => {
     await expect(readOrFetch(LOCAL, BOUND)).resolves.toEqual(
       Buffer.from('LOCAL-BYTES')
     );
+  });
+});
+
+// A caller inside a deadline of its own, such as a brand's website lookup
+// inside nginx's 95 s, gives each request a shorter wait; every other caller
+// keeps SocialAbstract's 120 s.
+describe('the wait for each request', () => {
+  let timeout: jest.SpyInstance;
+
+  beforeEach(() => {
+    timeout = jest.spyOn(AbortSignal, 'timeout');
+    head.mockResolvedValue({ headers: { 'content-length': String(MB) } });
+  });
+
+  afterEach(() => {
+    timeout.mockRestore();
+  });
+
+  it('is 120 s for the HEAD and for the GET when the caller gives none', async () => {
+    await readOrFetch(URL, BOUND);
+
+    expect(timeout.mock.calls).toEqual([[120_000], [120_000]]);
+  });
+
+  it('is the one the caller gives, for the HEAD and for the GET', async () => {
+    await readOrFetch(URL, BOUND, 5_000);
+
+    expect(timeout.mock.calls).toEqual([[5_000], [5_000]]);
+  });
+
+  it('is the one the caller gives for a read with no bound', async () => {
+    await readOrFetch(URL, undefined, 5_000);
+
+    expect(timeout.mock.calls).toEqual([[5_000]]);
   });
 });
 
@@ -223,14 +317,18 @@ describe('a URL whose host resolves to a private address', () => {
     }
   });
 
-  it('is refused before any request leaves', async () => {
+  // With a bound, the HEAD's refusal must not open the way for the GET.
+  it.each([
+    ['without a bound', undefined],
+    ['with a bound', BOUND],
+  ])('is refused before any request leaves, %s', async (_, bound) => {
     ssrfSafeAxios.mockImplementation(
       jest.requireActual(
         '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher'
       ).getSsrfSafeAxios
     );
 
-    await expect(readOrFetch(url)).rejects.toThrow();
+    await expect(readOrFetch(url, bound)).rejects.toThrow();
     expect(requests).toBe(0);
   });
 });

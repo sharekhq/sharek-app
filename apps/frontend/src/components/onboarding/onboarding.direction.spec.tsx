@@ -77,6 +77,12 @@ const icon = (container: HTMLElement, label: string) =>
 const CONTINUE = 'Continue without channels';
 const SKIP = 'Continue / Skip';
 
+// Past "Your brand", the second step, which Skip leaves creating nothing.
+const toAgents = (container: HTMLElement) => {
+  click(container, CONTINUE);
+  click(container, 'Skip');
+};
+
 // Arabic flips the row, so the arrow already lands on the correct edge on its
 // own — but the glyph is drawn pointing right either way. "Continue" ends up
 // pointing back the way the reader came and "Back" points forward, and the
@@ -88,23 +94,30 @@ describe('the onboarding arrows point the way the reader is going', () => {
     expect(icon(mount(), CONTINUE)).toContain('rtl:rotate-180');
   });
 
-  it('turns both arrows around on the agents step', () => {
+  it('turns both arrows around on the brand step', () => {
     const container = mount();
     click(container, CONTINUE);
+    expect(icon(container, 'Continue')).toContain('rtl:rotate-180');
+    expect(icon(container, 'Back')).toContain('rtl:rotate-180');
+  });
+
+  it('turns both arrows around on the agents step', () => {
+    const container = mount();
+    toAgents(container);
     expect(icon(container, SKIP)).toContain('rtl:rotate-180');
     expect(icon(container, 'Back')).toContain('rtl:rotate-180');
   });
 
   it('turns the back arrow around on the tutorial step', () => {
     const container = mount();
-    click(container, CONTINUE);
+    toAgents(container);
     click(container, SKIP);
     expect(icon(container, 'Back')).toContain('rtl:rotate-180');
   });
 
   it('leaves the finish tick alone, which has no direction to get wrong', () => {
     const container = mount();
-    click(container, CONTINUE);
+    toAgents(container);
     click(container, SKIP);
     expect(icon(container, 'Get Started')).not.toContain('rtl:rotate-180');
   });
@@ -114,13 +127,22 @@ describe('the onboarding arrows drift the way they point', () => {
   it('nudges the continue arrow towards the next step', () => {
     const container = mount();
     expect(icon(container, CONTINUE)).toContain('rtl:group-hover:-translate-x-1');
-    click(container, CONTINUE);
+    toAgents(container);
     expect(icon(container, SKIP)).toContain('rtl:group-hover:-translate-x-1');
   });
 
   it('nudges the back arrow towards the step behind it', () => {
     const container = mount();
+    toAgents(container);
+    expect(icon(container, 'Back')).toContain('rtl:group-hover:translate-x-1');
+  });
+
+  it('nudges both arrows on the brand step the way they point', () => {
+    const container = mount();
     click(container, CONTINUE);
+    expect(icon(container, 'Continue')).toContain(
+      'rtl:group-hover:-translate-x-1'
+    );
     expect(icon(container, 'Back')).toContain('rtl:group-hover:translate-x-1');
   });
 });
@@ -167,21 +189,35 @@ describe('the onboarding action rows fit the width they are given', () => {
 
   it('lets the paired buttons share a row, with Back keeping its own width', () => {
     const container = mount();
-    click(container, CONTINUE);
+    toAgents(container);
     expect(button(container, SKIP).className.split(/\s+/)).toContain('phone:flex-1');
     expect(button(container, 'Back').className.split(/\s+/)).toContain('shrink-0');
   });
 
-  it('wraps the agents footer so its hint can take a line of its own', () => {
+  it('lets the brand step share its row the same way, Skip keeping its own width too', () => {
     const container = mount();
     click(container, CONTINUE);
+    expect(button(container, 'Continue').className.split(/\s+/)).toContain(
+      'phone:flex-1'
+    );
+    expect(button(container, 'Back').className.split(/\s+/)).toContain(
+      'shrink-0'
+    );
+    expect(button(container, 'Skip').className.split(/\s+/)).toContain(
+      'shrink-0'
+    );
+  });
+
+  it('wraps the agents footer so its hint can take a line of its own', () => {
+    const container = mount();
+    toAgents(container);
     expect(anyHas(container, 'div', 'phone:flex-wrap')).toBe(true);
     expect(anyHas(container, 'div', 'phone:basis-full')).toBe(true);
   });
 
   it('stacks the MCP and CLI cards instead of halving a 280px column', () => {
     const container = mount();
-    click(container, CONTINUE);
+    toAgents(container);
     expect(anyHas(container, 'div', 'phone:grid-cols-1')).toBe(true);
   });
 });
@@ -189,7 +225,7 @@ describe('the onboarding action rows fit the width they are given', () => {
 describe('the tutorial video stops deriving its width from its height', () => {
   it('gives the wrapper the aspect ratio and lets the frame fill it', () => {
     const container = mount();
-    click(container, CONTINUE);
+    toAgents(container);
     click(container, SKIP);
     // h-full aspect-video sizes the iframe from its height, so the taller the
     // phone the wider the video. On a phone the wrapper carries the ratio.
@@ -220,13 +256,18 @@ describe('the onboarding marks the step the reader is on', () => {
 
   it('fills the first dot pomegranate with a white number, and only that one', () => {
     const all = dots(mount());
-    expect(all).toHaveLength(3);
-    expect(all.map(marks)).toEqual([MARKED, UNMARKED, UNMARKED]);
+    expect(all).toHaveLength(4);
+    expect(all.map(marks)).toEqual([MARKED, UNMARKED, UNMARKED, UNMARKED]);
   });
 
   it('moves the mark to the second dot on Continue', () => {
     const container = mount();
     click(container, CONTINUE);
-    expect(dots(container).map(marks)).toEqual([UNMARKED, MARKED, UNMARKED]);
+    expect(dots(container).map(marks)).toEqual([
+      UNMARKED,
+      MARKED,
+      UNMARKED,
+      UNMARKED,
+    ]);
   });
 });

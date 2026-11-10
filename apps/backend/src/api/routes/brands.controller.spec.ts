@@ -1,21 +1,46 @@
 // The Brands page lists, creates and deletes brands and saves their kits
-// through BrandService; the controller hands it the caller's organization and
-// the body, and answers what it returns (contracts/brands-api.md). The
-// service's imports drag in Prisma; none of that code runs here, so the module
-// is swapped for an empty shell (same pattern as media.controller.spec).
+// through BrandService, and fills a kit from a website through
+// BrandWebsiteService; the controller hands them the caller's organization and
+// the body, and answers what they return (contracts/brands-api.md). The
+// services' imports drag in Prisma, storage and sharp; none of that code runs
+// here, so the modules are swapped for empty shells (same pattern as
+// media.controller.spec).
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
   () => ({ BrandService: class {} })
 );
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/brands/brand.website.service',
+  () => ({ BrandWebsiteService: class {} })
+);
 
-import { HttpException, RequestMethod } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import {
+  HttpException,
+  INestApplication,
+  RequestMethod,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  GUARDS_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+} from '@nestjs/common/constants';
+import { Test } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerRealIpGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { CHECK_POLICIES_KEY } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import {
   BrandKitDto,
+  BrandKitFromWebsiteDto,
+  BrandWebsiteColoursDto,
+  BrandWebsiteDto,
   CreateBrandDto,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
-import type { Brand } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import {
+  Brand,
+  BrandService,
+} from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import { BrandWebsiteService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.website.service';
 import { BrandsController } from './brands.controller';
 
 const org = { id: 'org-1' } as any;
@@ -32,8 +57,16 @@ const brand: Brand = {
   },
 };
 
-const makeController = (brands: Record<string, any>) =>
-  new BrandsController(brands as any);
+const makeController = (
+  brands: Record<string, any>,
+  website: Record<string, any> = {}
+) => new BrandsController(brands as any, website as any);
+
+const suggestions = {
+  foundOn: 'www.noordental.sa',
+  logos: ['https://cdn.noordental.sa/logo.svg'],
+  colours: ['#1F3A5F'],
+};
 
 describe('getBrands', () => {
   it("answers the organization's brands as the service lists them", async () => {
@@ -119,6 +152,95 @@ describe('saveKit', () => {
   });
 });
 
+describe('suggestFromWebsite', () => {
+  it('looks the site up for the organization and answers the suggestions', async () => {
+    const suggestFromWebsite = jest.fn().mockResolvedValue(suggestions);
+
+    await expect(
+      makeController({}, { suggestFromWebsite }).suggestFromWebsite(org, {
+        url: 'https://www.noordental.sa/',
+      })
+    ).resolves.toEqual(suggestions);
+    expect(suggestFromWebsite).toHaveBeenCalledWith(
+      'org-1',
+      'https://www.noordental.sa/'
+    );
+  });
+
+  it('lets the service’s 422 for a site that couldn’t be read through', async () => {
+    const unreadable = new HttpException("This site couldn't be read.", 422);
+    const suggestFromWebsite = jest.fn().mockRejectedValue(unreadable);
+
+    await expect(
+      makeController({}, { suggestFromWebsite }).suggestFromWebsite(org, {
+        url: 'https://www.noordental.sa/',
+      })
+    ).rejects.toBe(unreadable);
+  });
+});
+
+describe('coloursFromLogo', () => {
+  it('answers the colours of the logo at the link', async () => {
+    const coloursFromLogo = jest.fn().mockResolvedValue(['#E30613']);
+
+    await expect(
+      makeController({}, { coloursFromLogo }).coloursFromLogo({
+        logo: 'https://cdn.noordental.sa/logo.png',
+      })
+    ).resolves.toEqual({ colours: ['#E30613'] });
+    expect(coloursFromLogo).toHaveBeenCalledWith(
+      'https://cdn.noordental.sa/logo.png'
+    );
+  });
+
+  it('lets the service’s 422 for an image that couldn’t be read through', async () => {
+    const unreadable = new HttpException("This image couldn't be read.", 422);
+    const coloursFromLogo = jest.fn().mockRejectedValue(unreadable);
+
+    await expect(
+      makeController({}, { coloursFromLogo }).coloursFromLogo({
+        logo: 'https://cdn.noordental.sa/logo.ico',
+      })
+    ).rejects.toBe(unreadable);
+  });
+});
+
+describe('saveFromWebsite', () => {
+  const body: BrandKitFromWebsiteDto = {
+    logo: 'https://cdn.noordental.sa/logo.svg',
+    colours: ['#1F3A5F'],
+  };
+
+  it('saves what was kept to the kit of the organization’s brand and answers the brand', async () => {
+    const saveFromWebsite = jest.fn().mockResolvedValue(brand);
+
+    await expect(
+      makeController({}, { saveFromWebsite }).saveFromWebsite(
+        org,
+        'brand-1',
+        body
+      )
+    ).resolves.toEqual(brand);
+    expect(saveFromWebsite).toHaveBeenCalledWith('org-1', 'brand-1', body);
+  });
+
+  it.each([
+    ['a logo that couldn’t be saved', "This logo couldn't be saved.", 422],
+    ['a brand that isn’t one of the organization’s', 'Brand not found', 404],
+  ])('lets the service’s refusal of %s through', async (_, message, status) => {
+    const refusal = new HttpException(message, status);
+    const saveFromWebsite = jest.fn().mockRejectedValue(refusal);
+
+    await expect(
+      makeController({}, { saveFromWebsite }).saveFromWebsite(
+        org,
+        'brand-1',
+        body
+      )
+    ).rejects.toBe(refusal);
+  });
+});
+
 describe('BrandsController routes', () => {
   it('is served under /brands', () => {
     expect(Reflect.getMetadata(PATH_METADATA, BrandsController)).toBe(
@@ -137,6 +259,21 @@ describe('BrandsController routes', () => {
       path: '/:id',
     },
     { name: 'saveKit' as const, method: RequestMethod.PUT, path: '/:id/kit' },
+    {
+      name: 'suggestFromWebsite' as const,
+      method: RequestMethod.POST,
+      path: '/website',
+    },
+    {
+      name: 'coloursFromLogo' as const,
+      method: RequestMethod.POST,
+      path: '/website/colours',
+    },
+    {
+      name: 'saveFromWebsite' as const,
+      method: RequestMethod.PUT,
+      path: '/:id/kit/from-website',
+    },
   ])(
     '$name is served at $path with no role or plan check',
     ({ name, method, path }) => {
@@ -148,14 +285,179 @@ describe('BrandsController routes', () => {
     }
   );
 
+  // Each lookup reads a site or an image for whoever asks, so it takes 30 an
+  // hour, the cap of the backend's other routes that send requests out. The
+  // global ThrottlerBehindProxyGuard lets every route but the public API's
+  // posts through, so the route carries its own guard (as support.controller
+  // .spec notes); ThrottlerRealIpGuard counts by the address the proxy
+  // forwards.
+  it.each(['suggestFromWebsite', 'coloursFromLogo'] as const)(
+    '%s takes 30 requests an hour from one address',
+    (name) => {
+      const handler = BrandsController.prototype[name];
+
+      expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+        ThrottlerRealIpGuard,
+      ]);
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(30);
+      expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(
+        3_600_000
+      );
+    }
+  );
+
   // The global ValidationPipe validates a body against its parameter's type,
   // which is what turns a bad name or kit into a 400.
   it.each([
     { name: 'createBrand' as const, dto: CreateBrandDto },
     { name: 'saveKit' as const, dto: BrandKitDto },
+    { name: 'suggestFromWebsite' as const, dto: BrandWebsiteDto },
+    { name: 'coloursFromLogo' as const, dto: BrandWebsiteColoursDto },
+    { name: 'saveFromWebsite' as const, dto: BrandKitFromWebsiteDto },
   ])('$name takes its body as $dto.name', ({ name, dto }) => {
     expect(
       Reflect.getMetadata('design:paramtypes', BrandsController.prototype, name)
     ).toContain(dto);
   });
+});
+
+// Real routing, the routes' own throttler and the global ValidationPipe, as
+// main.ts sets it: "website" must reach the lookups rather than be read as a
+// brand's id, the lookups answer POST's 201 as the backend's other POSTs that
+// save nothing do, a bare domain arrives with https:// while anything
+// readOrFetch would read as a local path stops at a 400, and one address gets
+// 30 lookups an hour.
+describe('Fill from my website, through the router', () => {
+  const website = {
+    suggestFromWebsite: jest.fn(),
+    coloursFromLogo: jest.fn(),
+    saveFromWebsite: jest.fn(),
+  };
+  let app: INestApplication;
+  let url: string;
+
+  const send = (method: string, path: string, body: object, headers = {}) =>
+    fetch(url + path, {
+      method,
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot({
+          throttlers: [{ ttl: 3_600_000, limit: 90 }],
+        }),
+      ],
+      controllers: [BrandsController],
+      providers: [
+        { provide: BrandService, useValue: {} },
+        { provide: BrandWebsiteService, useValue: website },
+      ],
+    }).compile();
+    app = module.createNestApplication();
+    app.use((req: { org: unknown }, _res: unknown, next: () => void) => {
+      req.org = { id: 'org-1' };
+      next();
+    });
+    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    await app.listen(0, '127.0.0.1');
+    url = await app.getUrl();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    website.suggestFromWebsite.mockReset().mockResolvedValue(suggestions);
+    website.coloursFromLogo.mockReset().mockResolvedValue(['#E30613']);
+    website.saveFromWebsite.mockReset().mockResolvedValue(brand);
+  });
+
+  it('POST /brands/website looks a bare domain up on https:// and answers 201 with the suggestions', async () => {
+    const response = await send('POST', '/brands/website', {
+      url: 'noordental.sa',
+    });
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual(suggestions);
+    expect(website.suggestFromWebsite).toHaveBeenCalledWith(
+      'org-1',
+      'https://noordental.sa'
+    );
+  });
+
+  it('POST /brands/website/colours answers 201 with the logo’s colours', async () => {
+    const response = await send('POST', '/brands/website/colours', {
+      logo: 'https://cdn.noordental.sa/logo.png',
+    });
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ colours: ['#E30613'] });
+    expect(website.coloursFromLogo).toHaveBeenCalledWith(
+      'https://cdn.noordental.sa/logo.png'
+    );
+  });
+
+  it('PUT /brands/:id/kit/from-website answers 200 with the saved brand', async () => {
+    const response = await send('PUT', '/brands/brand-1/kit/from-website', {
+      logo: 'https://cdn.noordental.sa/logo.svg',
+      colours: ['#1F3A5F'],
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(brand);
+    expect(website.saveFromWebsite).toHaveBeenCalledWith('org-1', 'brand-1', {
+      logo: 'https://cdn.noordental.sa/logo.svg',
+      colours: ['#1F3A5F'],
+    });
+  });
+
+  it.each([
+    ['POST', '/brands/website', { url: 'file:///etc/passwd' }],
+    ['POST', '/brands/website/colours', { logo: '/uploads/logo.png' }],
+    [
+      'PUT',
+      '/brands/brand-1/kit/from-website',
+      { logo: '../../etc/passwd', colours: [] },
+    ],
+  ])(
+    '%s %s refuses an address that is no http(s) link with a 400, before the service',
+    async (method, path, body) => {
+      const response = await send(method, path, body);
+
+      expect(response.status).toBe(400);
+      expect(website.suggestFromWebsite).not.toHaveBeenCalled();
+      expect(website.coloursFromLogo).not.toHaveBeenCalled();
+      expect(website.saveFromWebsite).not.toHaveBeenCalled();
+    }
+  );
+
+  // Each route counts on its own, by the address the proxy forwards.
+  it.each([
+    [
+      '/brands/website',
+      { url: 'https://www.noordental.sa/' },
+      website.suggestFromWebsite,
+    ],
+    [
+      '/brands/website/colours',
+      { logo: 'https://cdn.noordental.sa/logo.png' },
+      website.coloursFromLogo,
+    ],
+  ])(
+    'POST %s refuses a 31st request within the hour from one address with a 429, before the service',
+    async (path, body, lookup) => {
+      const from = { 'x-forwarded-for': '203.0.113.7' };
+      const statuses: number[] = [];
+      for (let n = 0; n < 31; n++) {
+        statuses.push((await send('POST', path, body, from)).status);
+      }
+
+      expect(statuses).toEqual([...Array(30).fill(201), 429]);
+      expect(lookup).toHaveBeenCalledTimes(30);
+    }
+  );
 });

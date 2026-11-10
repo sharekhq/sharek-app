@@ -490,6 +490,188 @@ describe('TavilyService.extract', () => {
       await new TavilyService().extract('org-1', ['https://a.example/'])
     ).toEqual([{ url: 'https://a.example/', error: UNREADABLE }]);
   });
+
+  // Samy's read asks without images, and its answer is what 052 shipped.
+  it.each([
+    ['no options', undefined],
+    ['images off', { images: false }],
+  ])(
+    'with %s, asks and answers exactly as before, even if Tavily sends image links',
+    async (_, options) => {
+      fetchSpy.mockResolvedValue(
+        answer(200, {
+          results: [
+            {
+              url: 'https://a.example/',
+              raw_content: 'Kunafa',
+              images: ['https://a.example/logo.svg'],
+              favicon: 'https://a.example/favicon.ico',
+            },
+          ],
+          failed_results: [],
+        })
+      );
+
+      const pages = await new TavilyService().extract(
+        'org-1',
+        ['https://a.example/'],
+        options
+      );
+
+      expect(fetchSpy.mock.calls[0][1].body).toBe(
+        JSON.stringify({
+          urls: ['https://a.example/'],
+          extract_depth: 'basic',
+          format: 'markdown',
+        })
+      );
+      expect(pages).toStrictEqual([
+        { url: 'https://a.example/', text: 'Kunafa' },
+      ]);
+    }
+  );
+});
+
+// A brand's "Fill from my website" picks its logo candidates from a page's
+// image links, which Samy's read of the page never gives.
+describe('TavilyService.extract with images', () => {
+  const extractWithImages = (urls: string[]) =>
+    new TavilyService().extract('org-1', urls, { images: true });
+
+  it("asks Tavily for the pages' image links and favicons too", async () => {
+    fetchSpy.mockResolvedValue(answer(200, { results: [] }));
+
+    await extractWithImages(['https://a.example/']);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toEqual({
+      urls: ['https://a.example/'],
+      extract_depth: 'basic',
+      format: 'markdown',
+      include_images: true,
+      include_favicon: true,
+    });
+  });
+
+  it("answers each page's image links and favicon beside its words only", async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://b.example/',
+            raw_content: '![Logo](https://b.example/logo.svg)\n\nKunafa',
+            images: ['https://b.example/logo.svg'],
+            favicon: 'https://b.example/favicon.ico',
+          },
+          {
+            url: 'https://a.example/',
+            raw_content:
+              '# Souq\n\n![Banner](https://a.example/banner.png)\n\nDates and coffee.',
+            images: [
+              'https://a.example/brand-logo.png',
+              'https://a.example/banner.png',
+            ],
+            favicon: 'https://a.example/apple-touch-icon.png',
+          },
+        ],
+        failed_results: [],
+      })
+    );
+
+    expect(
+      await extractWithImages(['https://a.example/', 'https://b.example/'])
+    ).toStrictEqual([
+      {
+        url: 'https://a.example/',
+        text: '# Souq\n\nDates and coffee.',
+        images: [
+          'https://a.example/brand-logo.png',
+          'https://a.example/banner.png',
+        ],
+        favicon: 'https://a.example/apple-touch-icon.png',
+      },
+      {
+        url: 'https://b.example/',
+        text: 'Kunafa',
+        images: ['https://b.example/logo.svg'],
+        favicon: 'https://b.example/favicon.ico',
+      },
+    ]);
+  });
+
+  // A logo candidate is fetched later by its address alone, with no page to
+  // resolve a relative one against.
+  it('keeps only absolute http(s) links, each once, in the order Tavily gave them', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content: 'Kunafa',
+            images: [
+              'https://a.example/logo.svg',
+              '/assets/logo.png',
+              'logo-dark.png',
+              '//cdn.example/hero.jpg',
+              'data:image/gif;base64,R0lGODlhAQABAAAAACw=',
+              'ftp://a.example/logo.png',
+              'https://cdn.example/hero.jpg',
+              'https://a.example/logo.svg',
+            ],
+            favicon: '/favicon.ico',
+          },
+        ],
+      })
+    );
+
+    expect(await extractWithImages(['https://a.example/'])).toStrictEqual([
+      {
+        url: 'https://a.example/',
+        text: 'Kunafa',
+        images: ['https://a.example/logo.svg', 'https://cdn.example/hero.jpg'],
+      },
+    ]);
+  });
+
+  it('gives a page with no words its image links, its words unread', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content: '![Logo](https://a.example/logo.svg)\n',
+            images: ['https://a.example/logo.svg'],
+          },
+        ],
+      })
+    );
+
+    expect(await extractWithImages(['https://a.example/'])).toStrictEqual([
+      {
+        url: 'https://a.example/',
+        error: UNREADABLE,
+        images: ['https://a.example/logo.svg'],
+      },
+    ]);
+  });
+
+  it("answers no image links for a page Tavily found none on, or couldn't read", async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [{ url: 'https://a.example/', raw_content: 'Kunafa' }],
+        failed_results: [
+          { url: 'https://b.example/', error: 'Failed to fetch url' },
+        ],
+      })
+    );
+
+    expect(
+      await extractWithImages(['https://a.example/', 'https://b.example/'])
+    ).toStrictEqual([
+      { url: 'https://a.example/', text: 'Kunafa', images: [] },
+      { url: 'https://b.example/', error: 'Failed to fetch url', images: [] },
+    ]);
+  });
 });
 
 describe.each(Object.keys(calls) as (keyof typeof calls)[])(
@@ -624,6 +806,38 @@ describe('TavilyService log', () => {
     expect(logged).toEqual([
       {
         line: { org: 'org-1', kind: 'extract', ok: true, ms: 250, pages: 2 },
+        context: 'WebLookup',
+      },
+    ]);
+  });
+
+  it('writes the same line for a read with images, counting the pages with words', async () => {
+    fetchSpy.mockResolvedValue(
+      answer(200, {
+        results: [
+          {
+            url: 'https://a.example/',
+            raw_content: 'Page A',
+            images: ['https://a.example/logo.svg'],
+          },
+          {
+            url: 'https://b.example/',
+            raw_content: '![Logo](https://b.example/logo.svg)',
+            images: ['https://b.example/logo.svg'],
+          },
+        ],
+      })
+    );
+
+    await new TavilyService().extract(
+      'org-1',
+      ['https://a.example/', 'https://b.example/'],
+      { images: true }
+    );
+
+    expect(logged).toEqual([
+      {
+        line: { org: 'org-1', kind: 'extract', ok: true, ms: 250, pages: 1 },
         context: 'WebLookup',
       },
     ]);

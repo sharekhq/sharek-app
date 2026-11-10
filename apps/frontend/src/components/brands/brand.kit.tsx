@@ -9,6 +9,7 @@ import {
   BRAND_FONT_MAX,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -28,10 +29,16 @@ import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import {
+  BrandWebsiteCard,
+  kitIsEmpty,
+  TEXT_FIELD,
+} from '@gitroom/frontend/components/brands/brand.website';
+import {
   Brand,
   isLive,
   useBrandChange,
   useBrands,
+  withSavedBrand,
 } from '@gitroom/frontend/components/brands/use.brands';
 
 // PUT /brands/:id/kit's body: only the field a change touches, so two members
@@ -168,8 +175,8 @@ const FontField: FC<{
         }
       }}
       className={clsx(
-        'h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
-        FOCUS_RING
+        'placeholder:text-muted placeholder-shown:[direction:inherit]',
+        TEXT_FIELD
       )}
     />
   </label>
@@ -300,12 +307,15 @@ const ChannelPicker: FC<{
 // example posts, the colours, the fonts and the brand's channels. Every member
 // edits it (FR-008). Each kit change saves at once and puts the saved brand in
 // GET /brands' list; a channel move refreshes the channel list. A refused
-// change says why and changes nothing.
+// change says why and changes nothing. While the kit is empty, Fill from my
+// website comes first (board BrandsWebsite), a new one for each brand, unless
+// the server has no web lookup (TAVILY_API_KEY unset).
 export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const t = useT();
   const send = useBrandChange();
   const modals = useModals();
   const mediaDirectory = useMediaDirectory();
+  const { websiteLookup } = useVariables();
   const { mutate: setBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
 
@@ -328,11 +338,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
       return;
     }
     const saved: Brand = await response.json();
-    setBrands(
-      (list) =>
-        list && list.map((item) => (item.id === saved.id ? saved : item)),
-      false
-    );
+    setBrands(withSavedBrand(saved), false);
   };
 
   // Into a brand, or to No brand with '', through the route the calendar's
@@ -419,6 +425,9 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   return (
     <div className="flex flex-wrap items-start gap-[20px] phone:gap-[14px]">
       <div className="flex-[999_1_440px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
+        {websiteLookup && kitIsEmpty(brand) && (
+          <BrandWebsiteCard key={brand.id} brand={brand} />
+        )}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[16px] phone:gap-[14px]">
           <Card
             title={t('brands_logo', 'Logo')}

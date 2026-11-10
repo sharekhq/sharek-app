@@ -9,6 +9,7 @@ import { BRAND_COLOURS_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.d
 import { Button } from '@gitroom/react/form/button';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
+import { TEXT_FIELD } from '@gitroom/frontend/components/brands/brand.website';
 
 // The popover's width on boards ColourPicker and ColourPickerAR:
 // react-colorful's 200px square, 16px inside each edge.
@@ -79,8 +80,8 @@ const ColourForm: FC<{
           onInput={(e) => setDigits(fieldDigits(e.currentTarget.value))}
           aria-label={t('brands_hex_code', 'Hex code')}
           className={clsx(
-            'flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] tracking-[0.02em] tabular-nums uppercase outline-none',
-            FOCUS_RING
+            'flex-1 min-w-0 tracking-[0.02em] tabular-nums uppercase',
+            TEXT_FIELD
           )}
         />
       </div>
