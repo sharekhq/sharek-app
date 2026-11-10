@@ -660,13 +660,41 @@ describe('the step mirrors and fits a finger', () => {
       );
     }
     expect(classesOf(nameField())).toContain('coarse:h-[44px]');
-    for (const node of [
-      button('Back')!,
-      button('Skip')!,
-      button('Continue')!,
-    ]) {
-      expect(classesOf(node)).toContain('coarse:h-[44px]');
+  });
+
+  it("draws Back, Skip and Continue as the modal's other steps do, each taller than 44px by its padding", async () => {
+    await toBrandStep();
+
+    // Back and Skip bordered, Back with its arrow
+    for (const node of [button('Back')!, button('Skip')!]) {
+      expect(classesOf(node)).toEqual(
+        expect.arrayContaining([
+          'border-2',
+          'border-boxFocused',
+          'rounded-[12px]',
+          'py-[12px]',
+        ])
+      );
     }
+    expect(button('Back')!.querySelector('svg')).not.toBeNull();
+    // Continue the large brand button with its arrow
+    expect(classesOf(button('Continue')!)).toEqual(
+      expect.arrayContaining(['bg-brand', 'rounded-[12px]', 'py-[14px]'])
+    );
+    expect(button('Continue')!.querySelector('svg')).not.toBeNull();
+  });
+
+  it('keeps Skip once the brand is created', async () => {
+    answers['/brands/new1/kit/from-website'] = () => answer({}, 422);
+    await toBrandStep();
+    await type(nameField(), 'Rawda Florist');
+    await lookUp();
+    await click(button('Continue'));
+    expect(nameField().readOnly).toBe(true);
+
+    await click(button('Skip'));
+
+    expect(current()).toBe(3);
   });
 
   it('reads in Arabic, the address kept left to right', async () => {

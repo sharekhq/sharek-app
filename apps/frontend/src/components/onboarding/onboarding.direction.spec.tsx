@@ -94,6 +94,13 @@ describe('the onboarding arrows point the way the reader is going', () => {
     expect(icon(mount(), CONTINUE)).toContain('rtl:rotate-180');
   });
 
+  it('turns both arrows around on the brand step', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(icon(container, 'Continue')).toContain('rtl:rotate-180');
+    expect(icon(container, 'Back')).toContain('rtl:rotate-180');
+  });
+
   it('turns both arrows around on the agents step', () => {
     const container = mount();
     toAgents(container);
@@ -127,6 +134,15 @@ describe('the onboarding arrows drift the way they point', () => {
   it('nudges the back arrow towards the step behind it', () => {
     const container = mount();
     toAgents(container);
+    expect(icon(container, 'Back')).toContain('rtl:group-hover:translate-x-1');
+  });
+
+  it('nudges both arrows on the brand step the way they point', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(icon(container, 'Continue')).toContain(
+      'rtl:group-hover:-translate-x-1'
+    );
     expect(icon(container, 'Back')).toContain('rtl:group-hover:translate-x-1');
   });
 });
@@ -176,6 +192,20 @@ describe('the onboarding action rows fit the width they are given', () => {
     toAgents(container);
     expect(button(container, SKIP).className.split(/\s+/)).toContain('phone:flex-1');
     expect(button(container, 'Back').className.split(/\s+/)).toContain('shrink-0');
+  });
+
+  it('lets the brand step share its row the same way, Skip keeping its own width too', () => {
+    const container = mount();
+    click(container, CONTINUE);
+    expect(button(container, 'Continue').className.split(/\s+/)).toContain(
+      'phone:flex-1'
+    );
+    expect(button(container, 'Back').className.split(/\s+/)).toContain(
+      'shrink-0'
+    );
+    expect(button(container, 'Skip').className.split(/\s+/)).toContain(
+      'shrink-0'
+    );
   });
 
   it('wraps the agents footer so its hint can take a line of its own', () => {
