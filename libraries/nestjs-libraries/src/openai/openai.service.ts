@@ -30,6 +30,18 @@ const PicturePrompt = z.object({
     ),
 });
 
+// With a brand's example along, whether it goes to the image model is decided
+// first, before the words and the prompt are written against it
+// (BRAND_EXAMPLE_RULES).
+const BrandExamplePicturePrompt = z.object({
+  sendExample: z
+    .boolean()
+    .describe(
+      "True when this description is the same kind of post as the brand's example, so the image model receives it; false for any other kind of post."
+    ),
+  ...PicturePrompt.shape,
+});
+
 // Which words are printed, and how they are carried: the rule
 // generatePromptForPicture was sampled into (its comment has the history),
 // shared with generateEditPrompt so a change of copy is decided the same way.
@@ -48,14 +60,19 @@ When the description points to one of them, by number in any script ("image 2", 
 A reference the description does not mention is used for what the description implies: its subject, its product or its look.
 When the description asks for the look of a reference, set any new words the way that reference sets its own, not on a new object.`;
 
+// An image the render receives
+export type ImageInput = { data: Buffer; mime: 'image/png' | 'image/jpeg' };
+
 // A brand's kit as the improver is told it: the image numbers of its logo and
-// examples among the references, and the rest as words.
+// examples among the references, and the rest as words. With an example, the
+// logo and the example as the render receives them, for the improver to see.
 export type BrandBlock = {
   logo?: number;
   examples: number[];
   colours: string[];
   headingFont?: string;
   bodyFont?: string;
+  pictures?: { logo?: ImageInput; example: ImageInput };
 };
 
 // Added after REFERENCE_RULES only when part of a brand's kit goes along
@@ -71,32 +88,30 @@ When the user message names reference images as the brand's examples, they are p
 When the user message names the brand's colours, use them as the image's main colours.
 When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
 
-// Sent in BRAND_RULES' place when the brand's example goes along (spec 056,
-// research R1 to R3); a kit with no example still sends BRAND_RULES. The
-// improver never sees the example. Told to follow its layout beside the rules
-// above, which ask for a scene, a vantage point and the lighting, it gave the
-// example one clause in 5 text samples of 5 and described a layout of its own
-// (the headline upper-left, the logo in a corner, abstract 3D shapes), with the
-// kit's colours as "the dominant palette". In round 1's renders that missed the
-// example both times, while a rule saying the example's design governs matched
-// it as closely as a rewrite that saw the images, which would cost more on
-// every branded image. The colours appear as the example uses them: the test
-// kit held a cyan the example never uses. Round 2 asked the rewrite to name the
-// example's places for words and to leave out a place none of them fit: it
-// dropped the university line once and the call to action once, so every
-// requested word is now kept, in its place or where it fits; and it carried
-// the leave-out sentence in 1 prompt of 2, the image without it filling the
-// cards with made-up words, so the code appends that sentence instead
-// (EXAMPLE_PLACES_SENTENCE).
+// Sent in BRAND_RULES' place when the brand's example goes along (spec 056);
+// a kit with no example still sends BRAND_RULES. The improver sees the logo
+// and the example (BrandBlock's pictures) and decides first whether the
+// description is the example's kind of post (sendExample). Never seeing it,
+// it gave the example one clause and wrote a layout of its own (research R1);
+// told the example's design governs, a vacancy came back as a programme
+// post's template, cards and all; told to take only its look, the image model
+// still copied its person, desk, cards and products wherever the prompt left
+// room, since it receives the example. So the example goes only for its own
+// kind of post, followed closely, and any other kind gets its feel in words
+// and a layout of its own (the 2026-11-12 renders, rounds 1 to 6). The logo
+// sits wherever this image's layout puts it.
 const BRAND_EXAMPLE_RULES = `The image is for a brand, and the user message names the parts of the brand's kit that go along: only those apply, and they decide how the brand's images are used.
-When the user message names a reference image as the brand's logo, show that logo once, exactly as given, where a brand's own post carries it, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
-When the user message names a reference image as the brand's example, it is a post the brand has published, and its design governs the whole image: its layout, background, type, imagery and use of colour. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for: say that the image follows the design of the example image by its number, keeps where it places the logo and the headline, and swaps in only the subject and the words from the description, never the example's own.
-Every word in the inImageText field appears in the prompt, quoted and exactly as written: put each in the example's matching place where it has one, such as its headline, a label, a card, a panel or a button, naming that place, and put any word with no matching place where it fits the example's design. Never leave one out.
+You can see the brand's images, attached in the order of their image numbers.
+When the user message names a reference image as the brand's logo, show that logo once, exactly as given, wherever it fits this image's layout, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
+When the user message names a reference image as the brand's example, it is a post the brand has published. First decide, and answer in the sendExample field, whether this description is the same kind of post as the example: another post of its sort, such as another programme for a programme post or another product shot for a product shot.
+If it is (sendExample true), the image model receives the example: say that the image follows the design of the example image by its number, keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own, and put each word in the example's matching place, naming that place.
+If it isn't (sendExample false), the image model never receives the example, so never mention it or its image number: describe the brand's feel in words instead, naming each part as you see it in the example: its background, how it uses colour, its type style and weight, its visual style (a photograph, an illustration or a flat graphic) and its finish. Take nothing else from it: lay the image out for its own subject, choose the imagery this subject calls for and describe it, or say the image has none beyond its words and simple shapes, and say how each word is set.
+Every word in the inImageText field appears in the prompt, quoted and exactly as written. Never leave one out.
 When the user message names the brand's colours, they appear as the example uses them.
 When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
 
-// Appended to a rewrite made with BRAND_EXAMPLE_RULES, so it reaches the image
-// model every time (research R2). `image` is the example's number in the
+// Appended to a rewrite made with BRAND_EXAMPLE_RULES whose example goes to
+// the image model, so it reaches the image model every time (research R2). `image` is the example's number in the
 // render, not its number on the Brands page.
 const EXAMPLE_PLACES_SENTENCE = (image: number) =>
   `Any place for words in the design of image ${image} that this prompt gives no words for, such as a label, a card, a panel or a button, is left out of the image: never drawn empty, and never filled with other words.`;
@@ -256,7 +271,7 @@ Clips must not overlap. Write the title and the post in this language, whatever 
   async editImageAtSize(
     prompt: string,
     size: string,
-    inputs: Array<{ data: Buffer; mime: 'image/png' | 'image/jpeg' }>
+    inputs: ImageInput[]
   ): Promise<Buffer> {
     const body: ImageEditParamsNonStreaming &
       Pick<ImageGenerateParams, 'moderation'> = {
@@ -346,8 +361,10 @@ Clips must not overlap. Write the title and the post in this language, whatever 
    * references existed. `brand` says which of them are the brand's and gives
    * the rest of its kit (BRAND_RULES); without it, or with nothing in it, the
    * request is unchanged. With an example in it, BRAND_EXAMPLE_RULES takes
-   * BRAND_RULES' place and the prompt returned ends with
-   * EXAMPLE_PLACES_SENTENCE.
+   * BRAND_RULES' place, the improver sees the brand's pictures and answers
+   * whether the example goes: if so the prompt ends with
+   * EXAMPLE_PLACES_SENTENCE, if not dropExample tells the caller to leave the
+   * example out of the render.
    */
   async generatePromptForPicture(
     prompt: string,
@@ -366,17 +383,31 @@ Clips must not overlap. Write the title and the post in this language, whatever 
         : []),
       ...(brand?.bodyFont ? [`Brand body font: ${brand.bodyFont}`] : []),
     ];
+    const text = [
+      `prompt: ${prompt}`,
+      ...(style ? [`Render in this style: ${style}`] : []),
+      ...(references ? [`Reference images: ${references}`] : []),
+      ...brandLines,
+    ].join('\n');
+    // The example that may go along, and the brand's pictures the improver
+    // sees to decide, in their numbers' order
+    const example = brand?.examples[0];
+    const pictures =
+      example === undefined
+        ? []
+        : [brand?.pictures?.logo, brand?.pictures?.example].filter(
+            (picture): picture is ImageInput => !!picture
+          );
 
-    const rewritten =
-      (
-        await openai.chat.completions.parse({
-          model: 'gpt-5.6-luna',
-          reasoning_effort: 'low',
-          messages: [
-            {
-              role: 'system',
-              content: [
-                `You rewrite a user's description into one prompt for an AI image generation model.
+    const parsed = (
+      await openai.chat.completions.parse({
+        model: 'gpt-5.6-luna',
+        reasoning_effort: 'low',
+        messages: [
+          {
+            role: 'system',
+            content: [
+              `You rewrite a user's description into one prompt for an AI image generation model.
 Return one prompt, in English regardless of the description's language.
 Write one concrete scene: the setting, three or four distinctive visual elements, a vantage point and the lighting, with culturally accurate details — never vague crowds in unnamed places.
 Keep the proper nouns: when the description names a real event, venue, city or landmark, set the scene there by name instead of abstracting it into a generic place.
@@ -386,31 +417,54 @@ Add no other words anywhere in the image.
 When the user asks for no words, or mentions none, the image must contain no text: no lettering, captions, signage, subtitles, logos or watermarks anywhere in the scene.
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
-                ...(references ? [REFERENCE_RULES] : []),
-                ...(brandLines.length
-                  ? [brand?.examples.length ? BRAND_EXAMPLE_RULES : BRAND_RULES]
-                  : []),
-              ].join('\n'),
-            },
-            {
-              role: 'user',
-              content: [
-                `prompt: ${prompt}`,
-                ...(style ? [`Render in this style: ${style}`] : []),
-                ...(references ? [`Reference images: ${references}`] : []),
-                ...brandLines,
-              ].join('\n'),
-            },
-          ],
-          response_format: zodResponseFormat(PicturePrompt, 'picturePrompt'),
-        })
-      ).choices[0].message.parsed?.prompt || '';
+              ...(references ? [REFERENCE_RULES] : []),
+              ...(brandLines.length
+                ? [brand?.examples.length ? BRAND_EXAMPLE_RULES : BRAND_RULES]
+                : []),
+            ].join('\n'),
+          },
+          {
+            role: 'user',
+            content: pictures.length
+              ? [
+                  {
+                    type: 'text' as const,
+                    text: `${text}\nThe brand's images follow in order, image 1 first.`,
+                  },
+                  ...pictures.map(({ data, mime }) => ({
+                    type: 'image_url' as const,
+                    image_url: {
+                      url: `data:${mime};base64,${data.toString('base64')}`,
+                      detail: 'high' as const,
+                    },
+                  })),
+                ]
+              : text,
+          },
+        ],
+        response_format: zodResponseFormat(
+          example === undefined ? PicturePrompt : BrandExamplePicturePrompt,
+          'picturePrompt'
+        ),
+      })
+    ).choices[0].message.parsed as {
+      prompt?: string;
+      sendExample?: boolean;
+    } | null;
 
+    const rewritten = parsed?.prompt || '';
+    // Another kind of post than the example's: the render leaves it out, and
+    // the prompt never names it
+    const dropExample = example !== undefined && parsed?.sendExample === false;
     // An empty rewrite stays empty: it is the caller's cue to send the user's
-    // own words.
-    return rewritten && brand?.examples.length
-      ? `${rewritten} ${EXAMPLE_PLACES_SENTENCE(brand.examples[0])}`
-      : rewritten;
+    // own words, with the example.
+    return {
+      prompt:
+        rewritten && example !== undefined && !dropExample
+          ? `${rewritten} ${EXAMPLE_PLACES_SENTENCE(example)}`
+          : rewritten,
+      dropExample,
+    };
   }
 
   /**
