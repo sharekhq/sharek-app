@@ -1,8 +1,14 @@
 // Nothing here reads a brand for real (same shell pattern as
-// samy.image.tool.spec): the brand repository opens a database client at import.
+// samy.image.tool.spec): BrandService is a stand-in, while the words the
+// module shares with Samy's image tool are its own.
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
-  () => ({ BrandService: class {} })
+  () => ({
+    ...jest.requireActual(
+      '@gitroom/nestjs-libraries/database/prisma/brands/brand.service'
+    ),
+    BrandService: class {},
+  })
 );
 
 import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.tool';

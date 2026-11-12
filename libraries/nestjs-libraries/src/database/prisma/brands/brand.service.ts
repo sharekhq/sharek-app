@@ -56,6 +56,16 @@ type NoBrandInUse =
   | { ask: string[] }
   | { unknown: string; brands: string[] };
 
+// Samy's words for a brand name that matches none, from its image tool and
+// brandKitTool alike
+export const unknownBrandWords = ({
+  unknown,
+  brands,
+}: Extract<NoBrandInUse, { unknown: string }>) =>
+  `There's no brand called "${unknown}". The brands are: ${brands.join(
+    ', '
+  )}. Ask the user which one, or none.`;
+
 // What Samy is told about the brand in use: only the kit's images still in
 // Media, each example with its number on the Brands page, and only the details
 // that are set
@@ -262,10 +272,7 @@ export class BrandService {
       return { brandId: pick.brand.id };
     }
     if ('unknown' in pick) {
-      const names = pick.brands.join(', ');
-      return {
-        error: `There's no brand called "${pick.unknown}". The brands are: ${names}. Ask the user which one, or none.`,
-      };
+      return { error: unknownBrandWords(pick) };
     }
     if ('several' in pick) {
       const names = pick.several.join(', ');

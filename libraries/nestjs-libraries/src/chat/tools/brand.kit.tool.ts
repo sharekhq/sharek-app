@@ -2,7 +2,10 @@ import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.in
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
-import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import {
+  BrandService,
+  unknownBrandWords,
+} from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { selectedChannels } from '@gitroom/nestjs-libraries/chat/selected.channels';
 
@@ -89,10 +92,7 @@ export class BrandKitTool implements AgentToolInterface {
             };
           }
           if ('unknown' in summary) {
-            const names = summary.brands.join(', ');
-            return {
-              error: `There's no brand called "${summary.unknown}". The brands are: ${names}. Ask the user which one, or none.`,
-            };
+            return { error: unknownBrandWords(summary) };
           }
 
           const { name, logo, ...kit } = summary;
