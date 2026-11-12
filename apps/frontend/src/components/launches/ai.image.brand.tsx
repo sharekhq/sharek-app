@@ -263,7 +263,7 @@ export const BrandField: FC<{
             {example && (
               <span
                 role="img"
-                aria-label={t('brands_example_posts', 'Example posts')}
+                aria-label={t('brands_example_post', 'Example post')}
                 className="flex"
               >
                 <SafeImage
