@@ -205,6 +205,35 @@ describe('SamyImageTool', () => {
     });
   });
 
+  // SC-007, the maintainer's choice A (spec 056): a turn with no brand in use
+  // gets today's tool, word for word, with no example post to pick.
+  describe('for a turn with no brand in use', () => {
+    const today = () =>
+      new SamyImageTool({} as any, {} as any).run(false) as any;
+
+    it('says what it does and what it returns, as today', () => {
+      expect(today().description).toBe(
+        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
+      );
+    });
+
+    it("takes the user's words as today", () => {
+      expect(today().inputSchema.shape.prompt.description).toBe(
+        "The user's description in their own words. Words to print stay as they wrote them."
+      );
+    });
+
+    it("takes today's fields in today's order, and no example post", () => {
+      expect(Object.keys(today().inputSchema.shape)).toEqual([
+        'aspectRatio',
+        'prompt',
+        'references',
+        'editOf',
+        'brand',
+      ]);
+    });
+  });
+
   it('hands the input to the service for this organization, and returns the image', async () => {
     const { tool, media } = makeTool();
 
