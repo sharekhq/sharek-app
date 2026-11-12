@@ -184,10 +184,11 @@ const KIT_THUMBNAIL =
 /**
  * The Brand field under the prompt (spec 053, US5; board StudioBrand): the
  * brand list titled for an image, opened from a box that shows the brand
- * picked, and beside it what goes along: the brand's logo and its examples
- * still in Media. The examples fade once the user's own images take their
- * place; the logo goes along either way. A brand with no image to send shows
- * nothing beside the box, its colours and fonts going as words.
+ * picked, and beside it what goes along: the brand's logo and its first
+ * example still in Media, the one example that goes with the image (spec 056,
+ * FR-001). The example fades once the user's own images take its place; the
+ * logo goes along either way. A brand with no image to send shows nothing
+ * beside the box, its colours and fonts going as words.
  */
 export const BrandField: FC<{
   brands: Brand[];
@@ -201,7 +202,7 @@ export const BrandField: FC<{
   const mediaDirectory = useMediaDirectory();
   const name = brand ? brand.name : t('brands_no_brand', 'No brand');
   const logoPath = liveLogo(brand)?.path;
-  const examples = liveExamples(brand);
+  const example = liveExamples(brand)[0];
 
   return (
     <div className="flex flex-col gap-[6px]">
@@ -249,7 +250,7 @@ export const BrandField: FC<{
             triggerClassName="flex-1 min-w-0 h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
           />
         </div>
-        {(logoPath || examples.length > 0) && (
+        {(logoPath || example) && (
           <div className="flex items-center gap-[6px] text-[12px] text-muted">
             <span>{t('brands_goes_along', 'Goes along:')}</span>
             {logoPath && (
@@ -259,24 +260,21 @@ export const BrandField: FC<{
                 className={clsx(KIT_THUMBNAIL, 'object-contain')}
               />
             )}
-            {examples.length > 0 && (
+            {example && (
               <span
                 role="img"
                 aria-label={t('brands_example_posts', 'Example posts')}
-                className="flex gap-[6px]"
+                className="flex"
               >
-                {examples.map((example) => (
-                  <SafeImage
-                    key={example.id}
-                    src={mediaDirectory.set(example.path)}
-                    alt=""
-                    className={clsx(
-                      KIT_THUMBNAIL,
-                      'object-cover',
-                      own && 'opacity-30 grayscale'
-                    )}
-                  />
-                ))}
+                <SafeImage
+                  src={mediaDirectory.set(example.path)}
+                  alt=""
+                  className={clsx(
+                    KIT_THUMBNAIL,
+                    'object-cover',
+                    own && 'opacity-30 grayscale'
+                  )}
+                />
               </span>
             )}
           </div>
