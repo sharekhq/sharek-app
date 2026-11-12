@@ -2751,6 +2751,148 @@ describe('with a brand', () => {
       }
     );
 
+    // Samy names an example post by its number, but a kit image among its
+    // references is still the kit's (T038 run 1): the logo goes once, as the
+    // kit's, and an example post is the one to follow unless example names
+    // another, so the example rule is used.
+    describe("counts the kit's own images among the references as the kit", () => {
+      it.each([
+        ['the logo', ['logo'], undefined, ['logo', 'ex1'], 1],
+        ['an example post', ['ex2'], undefined, ['logo', 'ex2'], 2],
+        [
+          'an example post, with example naming another',
+          ['ex2'],
+          1,
+          ['logo', 'ex1'],
+          1,
+        ],
+        [
+          'the logo and an example post',
+          ['logo', 'ex2'],
+          undefined,
+          ['logo', 'ex2'],
+          2,
+        ],
+      ])('%s', async (_case, given, example, loaded, followed) => {
+        const ai = openAi();
+        const { service, repository } = makeService({
+          openAi: ai,
+          file: 'https://media/made.jpg',
+          references: library,
+          kit: kit(),
+        });
+        const resolve = jest.spyOn(service, 'resolveImageWithPrompt');
+
+        const made = await service.generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: given.map(link),
+          brand,
+          example,
+        });
+
+        expect(resolve).toHaveBeenCalledWith(
+          org,
+          expect.objectContaining({ references: [], brand }),
+          { example: followed }
+        );
+        expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', loaded);
+        expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+          prompt,
+          undefined,
+          2,
+          { logo: 1, examples: [2], ...words }
+        );
+        expect(made).toStrictEqual({
+          id: 'media-1',
+          path: 'https://media/made.jpg',
+          brand: 'Rawda Florist',
+          kit: { logo: true, example: followed, colours: true, fonts: true },
+        });
+      });
+
+      it("keeps one of the user's images, and the logo goes once after it", async () => {
+        const ai = openAi();
+        const { service, repository } = makeService({
+          openAi: ai,
+          file: 'https://media/made.jpg',
+          references: library,
+          kit: kit(),
+        });
+
+        const made = await service.generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('logo')],
+          brand,
+        });
+
+        expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+          'a',
+          'logo',
+        ]);
+        expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+          prompt,
+          undefined,
+          2,
+          { logo: 2, examples: [], ...words }
+        );
+        expect(made).toStrictEqual({
+          id: 'media-1',
+          path: 'https://media/made.jpg',
+          brand: 'Rawda Florist',
+          kit: { logo: true, colours: true, fonts: true },
+        });
+      });
+
+      it("refuses one of the user's images by its own link, after a kit image", async () => {
+        const { service } = makeService({
+          openAi: openAi(),
+          references: withUnusable,
+          kit: kit(),
+        });
+
+        const err = await service
+          .generateImageFromLinks(org, {
+            prompt,
+            aspectRatio: 'square',
+            references: [link('logo'), link('big')],
+            brand,
+          })
+          .catch((e) => e);
+
+        expect(err.getStatus()).toBe(422);
+        expect(err.message).toBe(
+          'The image https://media/big is larger than 30 MB, so no image was made and no credit was spent.'
+        );
+      });
+
+      it("leaves them as the user's images with no brand", async () => {
+        const { service, repository, brands } = makeService({
+          openAi: openAi(),
+          file: 'https://media/made.jpg',
+          references: library,
+          kit: kit(),
+        });
+
+        const made = await service.generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('logo'), link('ex2')],
+        });
+
+        expect(brands.kitFor).not.toHaveBeenCalled();
+        expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+          'logo',
+          'ex2',
+        ]);
+        expect(made).toStrictEqual({
+          id: 'media-1',
+          path: 'https://media/made.jpg',
+        });
+      });
+    });
+
     // Worded for Samy, as the edit limit is, with the numbers it can use.
     describe('refuses an example post that is not in Media, before any credit', () => {
       it.each([
