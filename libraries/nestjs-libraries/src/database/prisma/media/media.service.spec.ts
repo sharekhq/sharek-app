@@ -2777,6 +2777,15 @@ describe('with a brand', () => {
           2,
           2,
         ],
+        // The first listed, not the kit's first among them (review R3)
+        [
+          'two example posts, the second first',
+          ['ex2', 'ex1'],
+          undefined,
+          ['logo', 'ex2'],
+          2,
+          2,
+        ],
       ])('%s', async (_case, given, example, loaded, passed, followed) => {
         const ai = openAi();
         const { service, repository } = makeService({
@@ -2840,6 +2849,50 @@ describe('with a brand', () => {
           undefined,
           2,
           { logo: 2, examples: [], ...words }
+        );
+        expect(made).toStrictEqual({
+          id: 'media-1',
+          path: 'https://media/made.jpg',
+          brand: 'Rawda Florist',
+          kit: { logo: true, colours: true, fonts: true },
+        });
+      });
+
+      // The user's images take the examples' place (spec 053), so an example
+      // link beside one of them goes as a reference, as before T047, and only
+      // the logo goes as the kit's (review R1).
+      it("keeps an example post beside one of the user's images as theirs, and the logo goes once after them", async () => {
+        const ai = openAi();
+        const { service, repository } = makeService({
+          openAi: ai,
+          file: 'https://media/made.jpg',
+          references: library,
+          kit: kit(),
+        });
+        const resolve = jest.spyOn(service, 'resolveImageWithPrompt');
+
+        const made = await service.generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a'), link('ex2'), link('logo')],
+          brand,
+        });
+
+        expect(resolve).toHaveBeenCalledWith(
+          org,
+          expect.objectContaining({ references: ['a', 'ex2'], brand }),
+          { example: undefined }
+        );
+        expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', [
+          'a',
+          'ex2',
+          'logo',
+        ]);
+        expect(ai.generatePromptForPicture).toHaveBeenCalledWith(
+          prompt,
+          undefined,
+          3,
+          { logo: 3, examples: [], ...words }
         );
         expect(made).toStrictEqual({
           id: 'media-1',
@@ -2939,6 +2992,37 @@ describe('with a brand', () => {
         expect(subscription.useCredit).not.toHaveBeenCalled();
         expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
       });
+    });
+
+    // Checked even when the user's images take the example's place, so a
+    // wrong number is never ignored without a word (review R4).
+    it("refuses an example post that is not in Media beside the user's images, before any credit", async () => {
+      const ai = openAi();
+      const { service, repository, subscription } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+
+      const err = await service
+        .generateImageFromLinks(org, {
+          prompt,
+          aspectRatio: 'square',
+          references: [link('a')],
+          brand,
+          example: 3,
+        })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(400);
+      expect(err.message).toBe(
+        'Rawda Florist has no example post 3 now, so no image was made and no credit was spent. Its example posts are 1, 2: use one of them, or leave example out for the first.'
+      );
+      expect(repository.getMediaByIds).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+      expect(subscription.useCredit).not.toHaveBeenCalled();
+      expect(ai.generatePromptForPicture).not.toHaveBeenCalled();
     });
 
     it.each([
