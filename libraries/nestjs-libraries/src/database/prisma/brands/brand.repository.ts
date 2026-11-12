@@ -14,10 +14,19 @@ export const kitFields = {
   bodyFont: true,
 } as const;
 
+// The brand's details share the kit's row, but aren't part of the kit
+export const detailFields = {
+  about: true,
+  toneOfVoice: true,
+  postLanguage: true,
+  callToAction: true,
+  hashtags: true,
+} as const;
+
 const brandFields = {
   id: true,
   name: true,
-  brandKit: { select: kitFields },
+  brandKit: { select: { ...kitFields, ...detailFields } },
 } as const;
 
 @Injectable()
@@ -113,7 +122,7 @@ export class BrandRepository {
       where: { customerId },
       update: kit,
       create: { customerId, exampleIds: [], colours: [], ...kit },
-      select: kitFields,
+      select: { ...kitFields, ...detailFields },
     });
   }
 
