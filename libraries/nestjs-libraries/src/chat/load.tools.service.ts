@@ -187,7 +187,7 @@ const samyLines = (brandInUse: boolean) => [
   'The chat shows every image and video you create by itself, above your words. Never paste its link and never say where to find it: talk about the image or video itself, unless they ask for the link.',
   `To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them. Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square. A style they name stays in the description.${
     brandInUse
-      ? " For a brand's example post, the description also names each of its places you fill, such as its label, headline, cards and call to action, with the words agreed for each."
+      ? " For a brand's example post, the description also names each of its places you fill, such as its label, headline, cards and call to action, with the words agreed for each, and names each place you leave out, saying the image has none of it (for example: no information cards)."
       : ''
   }`,
   "Use as references the images in this chat that the request means: up to 4, for one credit. When more than 4 are attached and you can't tell which they mean, use the 4 that matter most and say which ones you used.",

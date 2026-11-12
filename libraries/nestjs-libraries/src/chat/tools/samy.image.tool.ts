@@ -88,7 +88,7 @@ export class SamyImageTool implements AgentToolInterface {
           .describe(
             `The user's description in their own words. Words to print stay as they wrote them.${
               brandInUse
-                ? " For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it."
+                ? " For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it, and name each place you leave out, saying the image has none of it (for example: no information cards)."
                 : ''
             }`
           ),
