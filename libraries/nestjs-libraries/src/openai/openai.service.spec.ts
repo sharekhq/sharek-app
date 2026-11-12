@@ -503,6 +503,11 @@ When the user message names the brand's fonts, set any headline or title in the 
         expect(system).toMatch(
           /keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own/
         );
+        // The rules above ask for a scene, a vantage point and the lighting:
+        // followed, the example got one clause (research R1)
+        expect(system).toMatch(
+          /naming that place\. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for\./
+        );
         expect(system).not.toMatch(/follow their layout/i);
       });
 
@@ -637,7 +642,7 @@ When the user message names the brand's fonts, set any headline or title in the 
 You can see the brand's images, attached in the order of their image numbers.
 When the user message names a reference image as the brand's logo, show that logo once, exactly as given, wherever it fits this image's layout, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
 When the user message names a reference image as the brand's example, it is a post the brand has published. First decide, and answer in the sendExample field, whether this description is the same kind of post as the example: another post of its sort, such as another programme for a programme post or another product shot for a product shot.
-If it is (sendExample true), the image model receives the example: say that the image follows the design of the example image by its number, keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own, and put each word in the example's matching place, naming that place.
+If it is (sendExample true), the image model receives the example: say that the image follows the design of the example image by its number, keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own, and put each word in the example's matching place, naming that place. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for.
 If it isn't (sendExample false), the image model never receives the example, so never mention it or its image number: describe the brand's feel in words instead, naming each part as you see it in the example: its background, how it uses colour, its type style and weight, its visual style (a photograph, an illustration or a flat graphic) and its finish. Take nothing else from it: lay the image out for its own subject, choose the imagery this subject calls for and describe it, or say the image has none beyond its words and simple shapes, and say how each word is set.
 Every word in the inImageText field appears in the prompt, quoted and exactly as written. Never leave one out.
 When the user message names the brand's colours, they appear as the example uses them.
@@ -802,11 +807,60 @@ When the user message names the brand's fonts, set any headline or title in the 
       });
 
       // Empty is the media service's cue to send the user's own words, with
-      // the example as before.
-      it('returns an empty prompt and keeps the example when nothing was parsed', async () => {
+      // the example as before: without a prompt to carry the feel in words,
+      // the example is the only part of the look left (code review).
+      it.each([
+        ['nothing was parsed', {}],
+        [
+          'the prompt is empty though it said to drop it',
+          { sendExample: false, prompt: '' },
+        ],
+      ])(
+        'returns an empty prompt and keeps the example when %s',
+        async (_case, parsed) => {
+          answer(parsed);
+
+          await expect(
+            service.generatePromptForPicture('p', 's', 2, block)
+          ).resolves.toEqual({ prompt: '', dropExample: false });
+        }
+      );
+
+      // Told the image model won't receive it, the rewrite could still name
+      // it: a prompt that points at an image the render lacks keeps it
+      // (code review).
+      it.each([
+        ['image 2', 'A post in the style of image 2.'],
+        ['Image 2', 'Image 2 sets the palette for a post.'],
+      ])(
+        'keeps the example when a prompt that drops it still names %s',
+        async (_case, prompt) => {
+          answer({ sendExample: false, inImageText: '', prompt });
+
+          await expect(
+            service.generatePromptForPicture('p', 's', 2, block)
+          ).resolves.toEqual({
+            prompt: `${prompt} Any place for words in the design of image 2 that this prompt gives no words for, such as a label, a card, a panel or a button, is left out of the image: never drawn empty, and never filled with other words.`,
+            dropExample: false,
+          });
+        }
+      );
+
+      it('drops the example when the prompt names only other numbers, such as image 20', async () => {
+        answer({
+          sendExample: false,
+          inImageText: '',
+          prompt:
+            'A post with 20 icons, image 20 style, and image 1 at the top.',
+        });
+
         await expect(
           service.generatePromptForPicture('p', 's', 2, block)
-        ).resolves.toEqual({ prompt: '', dropExample: false });
+        ).resolves.toEqual({
+          prompt:
+            'A post with 20 icons, image 20 style, and image 1 at the top.',
+          dropExample: true,
+        });
       });
     });
   });
