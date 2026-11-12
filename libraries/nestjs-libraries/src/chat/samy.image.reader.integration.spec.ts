@@ -12,9 +12,12 @@ jest.mock('@gitroom/nestjs-libraries/chat/mastra.store', () => {
   const { InMemoryStore } = require('@mastra/core/storage');
   return { pStore: new InMemoryStore() };
 });
-// brandKitTool is Samy's own and never in toolList, but the reader knows it by its
-// name only, so a stand-in offered here is enough to put its result in a turn.
-jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
+jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => ({
+  toolList: [],
+}));
+// The reader knows brandKitTool by its name only, so a stand-in is enough to put
+// its result in a turn.
+jest.mock('@gitroom/nestjs-libraries/chat/tools/brand.kit.tool', () => {
   const { createTool } = require('@mastra/core/tools');
   const { z } = require('zod');
   class BrandKitTool {
@@ -28,7 +31,7 @@ jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
       });
     }
   }
-  return { toolList: [BrandKitTool] };
+  return { BrandKitTool };
 });
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
@@ -189,7 +192,7 @@ jest.mock('@ai-sdk/openai', () => ({ openai: () => mockProvider }));
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
-import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
+import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.tool';
 
 const link = (name: string) => `https://media.sharek.app/org-1/${name}`;
 
@@ -209,7 +212,7 @@ const moduleRef = {
   get: (token: any) =>
     token === SamyImageReader
       ? new SamyImageReader(media as any)
-      : token === SamyImageTool || toolList.includes(token)
+      : token === SamyImageTool || token === BrandKitTool
       ? new token()
       : // A web tool. These runs are about images, so it's left off.
         { available: () => false },
