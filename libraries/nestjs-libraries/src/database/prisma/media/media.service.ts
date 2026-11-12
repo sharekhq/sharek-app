@@ -1,7 +1,10 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { WorkflowNotFoundError } from '@temporalio/common';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
-import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
+import {
+  BrandService,
+  KitForImage,
+} from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import {
   BrandBlock,
   OpenaiService,
@@ -313,11 +316,18 @@ export class MediaService {
    */
   async resolveImageWithPrompt(
     org: Organization,
-    dto: GenerateImageWithPromptDto
+    dto: GenerateImageWithPromptDto,
+    // Samy's pick of the brand's example posts; the window takes the first.
+    choice?: { example?: number }
   ) {
     await this.resolveImage(org);
     const references = dto.references || [];
-    const kit = await this.resolveBrand(org, dto.brand, references.length);
+    const kit = await this.resolveBrand(
+      org,
+      dto.brand,
+      references.length,
+      choice?.example
+    );
     return {
       size: IMAGE_ASPECT_PRESETS[dto.aspectRatio].size,
       inputs: await this.loadWithKit(org, references, kit.images),
@@ -433,19 +443,22 @@ export class MediaService {
    * What a render takes from a brand's kit (research R6): its images, numbered
    * after the `before` images the render already has so the user's keep their
    * numbers, each with the part of the kit it is, and the block the improver
-   * is told. The logo comes first; the examples go only when nothing comes
-   * before them, since the user's references take their place and an edit's
-   * image already carries the brand's look. kitFor answers only the images
-   * still in Media, so a deleted one is skipped rather than refused (FR-012),
-   * and `brand` is left out when nothing of the kit goes along.
+   * is told. The logo comes first; one example goes, `example` or else the
+   * first, only when nothing comes before it, since the user's references
+   * take its place and an edit's image already carries the brand's look.
+   * kitFor answers only the images still in Media, so a deleted one is
+   * skipped rather than refused (FR-012), and `brand` is left out when
+   * nothing of the kit goes along.
    */
   private async resolveBrand(
     org: Organization,
     brandId: string | undefined,
-    before: number
+    before: number,
+    example?: number
   ): Promise<{
     images: KitImage[];
-    brand?: { name: string; block: BrandBlock };
+    // example: the number on the Brands page of the example that goes
+    brand?: { name: string; block: BrandBlock; example?: number };
   }> {
     if (!brandId) {
       return { images: [] };
@@ -461,7 +474,8 @@ export class MediaService {
       throw new LogoPlaceRefusal(kit.name);
     }
 
-    const examples = (before ? [] : kit.examples).map(
+    const chosen = before ? undefined : this.exampleOf(kit, example);
+    const examples = (chosen ? [chosen] : []).map(
       ({ id, n }): KitImage => ({ id, brand: kit.name, part: 'example', n })
     );
     const images = [...logo, ...examples];
@@ -487,8 +501,34 @@ export class MediaService {
           headingFont: kit.headingFont,
           bodyFont: kit.bodyFont,
         },
+        ...(chosen && { example: chosen.n }),
       },
     };
+  }
+
+  /**
+   * The one example post a render takes from a kit (research R4): the one
+   * asked for by its number on the Brands page, else the first still in
+   * Media. Only Samy asks for one, so a number that isn't one of those is
+   * refused in its words, before any credit, as the edit limit is.
+   */
+  private exampleOf(kit: KitForImage, n?: number) {
+    if (n === undefined) {
+      return kit.examples[0];
+    }
+
+    const example = kit.examples.find((image) => image.n === n);
+    if (!example) {
+      const live = kit.examples.map((image) => image.n).join(', ');
+      throw new HttpException(
+        live
+          ? `${kit.name} has no example post ${n} now, so no image was made and no credit was spent. Its example posts are ${live}: use one of them, or leave example out for the first.`
+          : `${kit.name} has no example posts now, so no image was made and no credit was spent. Make it without example, and tell the user they can add example posts on the Brands page.`,
+        400
+      );
+    }
+
+    return example;
   }
 
   /**
@@ -606,9 +646,12 @@ export class MediaService {
       editOf?: string;
       // A live brand's id, whose kit goes along
       brand?: string;
+      // The number on the Brands page of the brand's example post to follow;
+      // the first when left out
+      example?: number;
     }
   ) {
-    const { prompt, aspectRatio, editOf, brand } = input;
+    const { prompt, aspectRatio, editOf, brand, example } = input;
     const others = [...new Set(input.references)].filter(
       (link) => link !== editOf
     );
@@ -649,7 +692,7 @@ export class MediaService {
         frames = this.editImageWithPrompt(org, dto, prepared);
       } else {
         const dto = { prompt, aspectRatio, references: ids, brand };
-        prepared = await this.resolveImageWithPrompt(org, dto);
+        prepared = await this.resolveImageWithPrompt(org, dto, { example });
         frames = this.generateImageWithPrompt(org, dto, prepared);
       }
 
@@ -659,11 +702,22 @@ export class MediaService {
       }
 
       // The brand is named only when part of its kit went along, so a reply
-      // never credits a kit that sent nothing.
+      // never credits a kit that sent nothing, and kit says which parts went.
+      // An edit's improver reads only the logo, so the colours and fonts its
+      // block holds never reach the image.
+      const sent = prepared.brand;
       return {
         id: saved.id,
         path: saved.path,
-        ...(prepared.brand && { brand: prepared.brand.name }),
+        ...(sent && {
+          brand: sent.name,
+          kit: {
+            logo: !!sent.block.logo,
+            ...(sent.example && { example: sent.example }),
+            colours: !editOf && !!sent.block.colours.length,
+            fonts: !editOf && !!(sent.block.headingFont || sent.block.bodyFont),
+          },
+        }),
       };
     } catch (err) {
       // The brand's refusals in Samy's words, as the edit limit above is. The
