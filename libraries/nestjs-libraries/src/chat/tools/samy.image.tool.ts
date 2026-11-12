@@ -73,7 +73,11 @@ export class SamyImageTool implements AgentToolInterface {
       id: 'generateImageTool',
       description: `Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name${
         brandInUse ? ', example to the example post it followed' : ''
-      } and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.`,
+      } and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.${
+        brandInUse
+          ? " For a brand's example post with places for facts, call it only after the user says yes to the facts you showed. Never pass the kit's own logo or example links in references; set example instead."
+          : ''
+      }`,
       inputSchema: z.object({
         // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
