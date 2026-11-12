@@ -101,11 +101,13 @@ describe('SamyImageTool', () => {
     expect(tool.id).toBe('generateImageTool');
   });
 
-  it('says what it does, what it returns, the brand and its example included, and that the chat shows the image', () => {
+  // The order last: in T038's replay Samy made the image with no facts shown
+  // and no yes, passing the kit's own links in references
+  it('says what it does, what it returns, the brand and its example included, that the chat shows the image, and when to call it for an example post', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name, example to the example post it followed and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name, example to the example post it followed and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself. For a brand's example post with places for facts, call it only after the user says yes to the facts you showed. Never pass the kit's own logo or example links in references; set example instead."
     );
   });
 

@@ -75,11 +75,13 @@ describe('BrandKitTool', () => {
     ]);
   });
 
-  it('says it costs no credit, that the pictures come after the result in this turn only, when to call it and what it returns', () => {
+  // First: in T038's replay Samy twice asked the user questions without
+  // looking at the kit
+  it('says it costs no credit, that the pictures come after the result in this turn only, to call it first and what it returns', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Look at a brand's kit, for no credit. Its logo and example posts reach you as pictures after this result, in this turn only. Call it before you plan an image for a brand that has example posts, or when asked about the brand's look. Returns { brand, logo, examples: [{ n, path }], colours, headingFont, bodyFont, details }, or { error }."
+      "Look at a brand's kit, for no credit. Its logo and example posts reach you as pictures after this result, in this turn only. When asked for an image for a brand that has example posts, or about the brand's look, call it first. Returns { brand, logo, examples: [{ n, path }], colours, headingFont, bodyFont, details }, or { error }."
     );
   });
 
