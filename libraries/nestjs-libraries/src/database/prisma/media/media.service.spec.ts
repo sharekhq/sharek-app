@@ -2756,14 +2756,17 @@ describe('with a brand', () => {
     // kit's, and an example post is the one to follow unless example names
     // another, so the example rule is used.
     describe("counts the kit's own images among the references as the kit", () => {
+      // Last, the example passed on, then the one that went: with none
+      // passed on, the first, as without the link.
       it.each([
-        ['the logo', ['logo'], undefined, ['logo', 'ex1'], 1],
-        ['an example post', ['ex2'], undefined, ['logo', 'ex2'], 2],
+        ['the logo', ['logo'], undefined, ['logo', 'ex1'], undefined, 1],
+        ['an example post', ['ex2'], undefined, ['logo', 'ex2'], 2, 2],
         [
           'an example post, with example naming another',
           ['ex2'],
           1,
           ['logo', 'ex1'],
+          1,
           1,
         ],
         [
@@ -2772,8 +2775,9 @@ describe('with a brand', () => {
           undefined,
           ['logo', 'ex2'],
           2,
+          2,
         ],
-      ])('%s', async (_case, given, example, loaded, followed) => {
+      ])('%s', async (_case, given, example, loaded, passed, followed) => {
         const ai = openAi();
         const { service, repository } = makeService({
           openAi: ai,
@@ -2794,7 +2798,7 @@ describe('with a brand', () => {
         expect(resolve).toHaveBeenCalledWith(
           org,
           expect.objectContaining({ references: [], brand }),
-          { example: followed }
+          { example: passed }
         );
         expect(repository.getMediaByIds).toHaveBeenCalledWith('org-1', loaded);
         expect(ai.generatePromptForPicture).toHaveBeenCalledWith(

@@ -651,7 +651,7 @@ export class MediaService {
       example?: number;
     }
   ) {
-    const { prompt, aspectRatio, editOf, brand, example } = input;
+    const { prompt, aspectRatio, editOf, brand } = input;
     const others = [...new Set(input.references)].filter(
       (link) => link !== editOf
     );
@@ -682,6 +682,20 @@ export class MediaService {
       );
     }
 
+    // The brand's own logo and example posts among the links are its kit, not
+    // the user's images (T038 run 1): the logo goes once, as the kit's, and an
+    // example post is the one to follow unless example names another, so the
+    // example rule is used. An edit takes its links as they are.
+    const kit =
+      brand && !editOf && ids.length
+        ? await this._brandService.kitFor(org.id, brand)
+        : undefined;
+    const own = kit ? [kit.logoId, ...kit.examples.map(({ id }) => id)] : [];
+    const kept = links.filter((_, position) => !own.includes(ids[position]));
+    const references = ids.filter((id) => !own.includes(id));
+    const example =
+      input.example ?? kit?.examples.find(({ id }) => ids.includes(id))?.n;
+
     try {
       let prepared;
       let frames;
@@ -691,7 +705,7 @@ export class MediaService {
         prepared = await this.resolveImageEdit(org, dto);
         frames = this.editImageWithPrompt(org, dto, prepared);
       } else {
-        const dto = { prompt, aspectRatio, references: ids, brand };
+        const dto = { prompt, aspectRatio, references, brand };
         prepared = await this.resolveImageWithPrompt(org, dto, { example });
         frames = this.generateImageWithPrompt(org, dto, prepared);
       }
@@ -748,7 +762,7 @@ export class MediaService {
           (err as HttpException).getStatus() as 404 | 422,
           code,
           index,
-          REFUSED_LINK[code](links[index - 1])
+          REFUSED_LINK[code](kept[index - 1])
         );
       }
 
