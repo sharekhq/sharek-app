@@ -308,8 +308,10 @@ describe('BrandsController routes', () => {
 // brand's id, the lookup answers POST's 201 as the backend's other POSTs that
 // save nothing do, a bare domain arrives with https:// while anything
 // readOrFetch would read as a local path stops at a 400, and one address gets
-// 30 lookups an hour.
+// 30 lookups an hour. The kit's route takes the same pipe: a brand detail
+// reaches the service trimmed, and one over its cap stops at a 400 (spec 056).
 describe('Fill from my website, through the router', () => {
+  const brands = { saveKit: jest.fn() };
   const website = {
     suggestFromWebsite: jest.fn(),
     saveFromWebsite: jest.fn(),
@@ -333,7 +335,7 @@ describe('Fill from my website, through the router', () => {
       ],
       controllers: [BrandsController],
       providers: [
-        { provide: BrandService, useValue: {} },
+        { provide: BrandService, useValue: brands },
         { provide: BrandWebsiteService, useValue: website },
       ],
     }).compile();
@@ -352,6 +354,7 @@ describe('Fill from my website, through the router', () => {
   });
 
   beforeEach(() => {
+    brands.saveKit.mockReset().mockResolvedValue(brand);
     website.suggestFromWebsite.mockReset().mockResolvedValue(suggestions);
     website.saveFromWebsite.mockReset().mockResolvedValue(brand);
   });
@@ -410,6 +413,26 @@ describe('Fill from my website, through the router', () => {
       expect(website.saveFromWebsite).not.toHaveBeenCalled();
     }
   );
+
+  it('PUT /brands/:id/kit hands the service a brand detail trimmed', async () => {
+    const response = await send('PUT', '/brands/brand-1/kit', {
+      about: '  x  ',
+    });
+
+    expect(response.status).toBe(200);
+    expect(brands.saveKit).toHaveBeenCalledWith('org-1', 'brand-1', {
+      about: 'x',
+    });
+  });
+
+  it('PUT /brands/:id/kit refuses an about over its cap with a 400, before the service', async () => {
+    const response = await send('PUT', '/brands/brand-1/kit', {
+      about: 'a'.repeat(401),
+    });
+
+    expect(response.status).toBe(400);
+    expect(brands.saveKit).not.toHaveBeenCalled();
+  });
 
   // The route counts by the address the proxy forwards.
   it('POST /brands/website refuses a 31st request within the hour from one address with a 429, before the service', async () => {

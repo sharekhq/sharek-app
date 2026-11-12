@@ -5,6 +5,11 @@
 import { ClassConstructor, plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
+  BRAND_ABOUT_MAX,
+  BRAND_CALL_TO_ACTION_MAX,
+  BRAND_HASHTAGS_MAX,
+  BRAND_POST_LANGUAGE_MAX,
+  BRAND_TONE_MAX,
   BrandKitDto,
   BrandKitFromWebsiteDto,
   BrandWebsiteDto,
@@ -226,6 +231,63 @@ describe('BrandKitDto', () => {
 
     it('rejects a font that is not a string', async () => {
       expect(await constraintsOf({ [font]: 42 })).toContain('isString');
+    });
+  });
+
+  // The brand's details (spec 056, FR-015, FR-020): each saved on its own
+  // with the fonts' rules, under its own cap. The page's fields bound
+  // themselves to the same numbers.
+  it.each([
+    ['BRAND_ABOUT_MAX', 400, BRAND_ABOUT_MAX],
+    ['BRAND_TONE_MAX', 120, BRAND_TONE_MAX],
+    ['BRAND_POST_LANGUAGE_MAX', 40, BRAND_POST_LANGUAGE_MAX],
+    ['BRAND_CALL_TO_ACTION_MAX', 150, BRAND_CALL_TO_ACTION_MAX],
+    ['BRAND_HASHTAGS_MAX', 200, BRAND_HASHTAGS_MAX],
+  ])('exports %s as %d', (_name, max, cap) => {
+    expect(cap).toBe(max);
+  });
+
+  describe.each([
+    ['about', 400],
+    ['toneOfVoice', 120],
+    ['postLanguage', 40],
+    ['callToAction', 150],
+    ['hashtags', 200],
+  ])('%s', (detail, max) => {
+    it('accepts null, which clears it', async () => {
+      expect(await failures({ [detail]: null })).toEqual([]);
+    });
+
+    it('accepts it on its own, trimmed before it is checked and saved', async () => {
+      const kit = plainToInstance(BrandKitDto, { [detail]: '  Cold brew  ' });
+      expect(kit[detail as keyof BrandKitDto]).toBe('Cold brew');
+      expect(await failures({ [detail]: `  ${'a'.repeat(max)}  ` })).toEqual(
+        []
+      );
+    });
+
+    // An emptied field clears the detail as null does, rather than saving "".
+    it.each([
+      ['empty', ''],
+      ['only spaces', '   '],
+    ])('clears it when it is %s', async (_case, value) => {
+      const kit = plainToInstance(BrandKitDto, { [detail]: value });
+      expect(kit[detail as keyof BrandKitDto]).toBeNull();
+      expect(await failures({ [detail]: value })).toEqual([]);
+    });
+
+    it(`accepts exactly ${max} characters`, async () => {
+      expect(await failures({ [detail]: 'a'.repeat(max) })).toEqual([]);
+    });
+
+    it(`rejects over ${max} characters, naming the field`, async () => {
+      const over = { [detail]: 'a'.repeat(max + 1) };
+      expect(await failures(over)).toEqual([detail]);
+      expect(await constraintsOf(over)).toContain('maxLength');
+    });
+
+    it('rejects a detail that is not a string', async () => {
+      expect(await constraintsOf({ [detail]: 42 })).toContain('isString');
     });
   });
 });
