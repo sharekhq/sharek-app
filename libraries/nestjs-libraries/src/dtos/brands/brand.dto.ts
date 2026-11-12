@@ -20,6 +20,11 @@ export const BRAND_NAME_MAX = 60;
 export const BRAND_EXAMPLES_MAX = 3;
 export const BRAND_COLOURS_MAX = 6;
 export const BRAND_FONT_MAX = 60;
+export const BRAND_ABOUT_MAX = 400;
+export const BRAND_TONE_MAX = 120;
+export const BRAND_POST_LANGUAGE_MAX = 40;
+export const BRAND_CALL_TO_ACTION_MAX = 150;
+export const BRAND_HASHTAGS_MAX = 200;
 
 // The brand chip's choices besides a brand's id: no kit, or each channel's own.
 export const NO_BRAND = 'none';
@@ -28,7 +33,8 @@ export const EACH_BRAND = 'each';
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-// An emptied font field clears the font, as null does, rather than saving "".
+// An emptied font or detail field clears it, as null does, rather than
+// saving "".
 const trimOrClear = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || null : value;
 
@@ -72,7 +78,7 @@ export class CreateBrandDto {
 /**
  * Only the fields present change, so two members editing different parts of
  * one kit don't overwrite each other; a list replaces that whole list. Null
- * clears the logo or a font, never a list, which is emptied with [].
+ * clears the logo, a font or a detail, never a list, which is emptied with [].
  */
 export class BrandKitDto {
   /** A Media id of the organization, never a URL. */
@@ -107,6 +113,40 @@ export class BrandKitDto {
   @IsString()
   @MaxLength(BRAND_FONT_MAX)
   bodyFont?: string | null;
+
+  /** What the business does and who it is for. */
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_ABOUT_MAX)
+  about?: string | null;
+
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_TONE_MAX)
+  toneOfVoice?: string | null;
+
+  /** Free text, so it can name a dialect or two languages. */
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_POST_LANGUAGE_MAX)
+  postLanguage?: string | null;
+
+  /** May carry the website. */
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_CALL_TO_ACTION_MAX)
+  callToAction?: string | null;
+
+  /** As typed; no format check. */
+  @IsOptional()
+  @Transform(trimOrClear)
+  @IsString()
+  @MaxLength(BRAND_HASHTAGS_MAX)
+  hashtags?: string | null;
 }
 
 /** The site to suggest a logo, colours and fonts from. Saves nothing. */
