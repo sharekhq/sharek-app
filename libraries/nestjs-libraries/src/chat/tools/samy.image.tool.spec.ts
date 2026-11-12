@@ -25,14 +25,19 @@ import {
   IMAGE_ASPECT_IDS,
   IMAGE_PROMPT_MAX_CHARS,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
+import { BRAND_EXAMPLES_MAX } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 const org = { id: 'org-1', name: 'Sharek' };
 
 const made = { id: 'media-1', path: 'https://media/made.jpg' };
 
-// What the result tells Samy to say beside a brand's image (FR-019).
-const sayFor = (brand: string) =>
-  `Name ${brand} in your reply, exactly as written here, and say its brand kit went with this image.`;
+// What the result tells Samy to say beside a brand's image: only the parts of
+// its kit that went (FR-007, FR-019), and for an edit the logo alone (FR-012).
+const sayFor = (brand: string, parts: string) =>
+  `Name ${brand} in your reply, exactly as written here, and say that its ${parts} went with this image.`;
+
+const sayForEdit = (brand: string) =>
+  `Name ${brand} in your reply, exactly as written here, and say that its logo went with this edit, and that example posts never go with an edit.`;
 
 const makeTool = (
   generateImageFromLinks?: jest.Mock,
@@ -96,11 +101,11 @@ describe('SamyImageTool', () => {
     expect(tool.id).toBe('generateImageTool');
   });
 
-  it('says what it does, what it returns, the brand included, and that the chat shows the image', () => {
+  it('says what it does, what it returns, the brand and its example included, and that the chat shows the image', () => {
     const { tool } = makeTool();
 
     expect(tool.description).toBe(
-      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
+      "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name, example to the example post it followed and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself."
     );
   });
 
@@ -111,6 +116,14 @@ describe('SamyImageTool', () => {
     it('up to 4 references', () => {
       expect(parse({ references: links(4) }).success).toBe(true);
       expect(parse({ references: links(5) }).success).toBe(false);
+    });
+
+    // An example post's places are filled only with the words Samy writes for
+    // them (contracts/samy-brand.md §4).
+    it("the user's words, and the words for each place of an example post it fills", () => {
+      expect(makeTool().tool.inputSchema.shape.prompt.description).toBe(
+        "The user's description in their own words. Words to print stay as they wrote them. For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it."
+      );
     });
 
     it("a prompt up to the window's limit", () => {
@@ -150,20 +163,45 @@ describe('SamyImageTool', () => {
         'aspectRatio',
         'brand',
         'editOf',
+        'example',
         'prompt',
         'references',
       ]);
     });
 
-    it("a brand's name or 'none', last, saying what leaving it out does", () => {
+    it("a brand's name or 'none', saying what leaving it out does", () => {
       const { shape } = makeTool().tool.inputSchema;
 
-      expect(Object.keys(shape).slice(-1)).toEqual(['brand']);
       expect(shape.brand.description).toBe(
         "A brand's name, to use its kit, or 'none' for no brand. Leave it out to use the brand of the selected channels."
       );
       expect(parse({ brand: 'Acme' }).data.brand).toBe('Acme');
       expect(parse({}).data.brand).toBeUndefined();
+    });
+
+    // One example post goes with each image, the one Samy picks (FR-001). Last,
+    // after brand, whose kit it belongs to.
+    it("the number of the brand's example post to follow, last, after brand", () => {
+      const { shape } = makeTool().tool.inputSchema;
+
+      expect(Object.keys(shape).slice(-2)).toEqual(['brand', 'example']);
+      expect(shape.example.description).toBe(
+        "The number of the brand's example post this image follows, as brandKitTool gives it. Leave it out for the brand's first."
+      );
+      expect(parse({ example: 1 }).data.example).toBe(1);
+      expect(parse({ example: BRAND_EXAMPLES_MAX }).data.example).toBe(
+        BRAND_EXAMPLES_MAX
+      );
+      expect(parse({}).data.example).toBeUndefined();
+    });
+
+    it.each([
+      ['0', 0],
+      ["past the kit's limit", BRAND_EXAMPLES_MAX + 1],
+      ['a fraction', 1.5],
+      ['as text', '2'],
+    ])('no example post numbered %s', (_name, example) => {
+      expect(parse({ example }).success).toBe(false);
     });
   });
 
@@ -208,6 +246,7 @@ describe('SamyImageTool', () => {
     expect(Object.keys(tool.outputSchema.shape).sort()).toEqual([
       'brand',
       'error',
+      'example',
       'id',
       'path',
       'say',
@@ -216,9 +255,14 @@ describe('SamyImageTool', () => {
     expect(tool.outputSchema.safeParse(made).success).toBe(true);
   });
 
-  // Samy names the brand in its reply only from this (FR-019).
-  it("keeps the brand's name and what to say of it beside the image", () => {
-    const named = { ...made, brand: 'Acme', say: sayFor('Acme') };
+  // Samy names the brand, and the example it followed, only from this (FR-007, FR-019).
+  it("keeps the brand's name, its example post and what to say of them beside the image", () => {
+    const named = {
+      ...made,
+      brand: 'Acme',
+      example: 2,
+      say: sayFor('Acme', 'logo and example post 2'),
+    };
 
     expect(makeTool().tool.outputSchema.parse(named)).toEqual(named);
   });
@@ -330,6 +374,26 @@ describe('SamyImageTool', () => {
       });
     });
 
+    it('hands the render the example post Samy names', async () => {
+      const { tool, media } = makeTool(
+        undefined,
+        undefined,
+        picks({ brandId: ACME })
+      );
+
+      await tool.execute(
+        { prompt: 'a cat', brand: 'Acme', example: 2 },
+        context()
+      );
+
+      expect(media.generateImageFromLinks).toHaveBeenCalledWith(org, {
+        prompt: 'a cat',
+        aspectRatio: 'square',
+        brand: ACME,
+        example: 2,
+      });
+    });
+
     it.each([
       ["'none'", 'none'],
       ['no brand', undefined],
@@ -354,18 +418,94 @@ describe('SamyImageTool', () => {
     ])(
       "returns the brand's name and what to say of it when the render names %s",
       async (_name, name) => {
-        const named = { ...made, brand: name };
         const { tool } = makeTool(
-          jest.fn().mockResolvedValue(named),
+          jest.fn().mockResolvedValue({
+            ...made,
+            brand: name,
+            kit: { logo: true, colours: false, fonts: false },
+          }),
           undefined,
           picks({ brandId: ACME })
         );
 
         expect(
           await tool.execute({ prompt: 'a cat', brand: name }, context())
-        ).toStrictEqual({ ...named, say: sayFor(name) });
+        ).toStrictEqual({ ...made, brand: name, say: sayFor(name, 'logo') });
       }
     );
+
+    // "Its brand kit went" was said whatever went, so a reply could claim a
+    // logo or examples the image never had (FR-007). The parts go in the
+    // kit's order, joined a, b and c, and the example post by its number.
+    it.each([
+      ['the logo', { logo: true, colours: false, fonts: false }, 'logo'],
+      ['the colours', { logo: false, colours: true, fonts: false }, 'colours'],
+      [
+        'the logo and the fonts',
+        { logo: true, colours: false, fonts: true },
+        'logo and fonts',
+      ],
+      [
+        'an example post',
+        { logo: false, example: 3, colours: false, fonts: false },
+        'example post 3',
+      ],
+      [
+        'the logo, an example post and the colours',
+        { logo: true, example: 2, colours: true, fonts: false },
+        'logo, example post 2 and colours',
+      ],
+      [
+        'all of it',
+        { logo: true, example: 1, colours: true, fonts: true },
+        'logo, example post 1, colours and fonts',
+      ],
+    ])(
+      'says only what went, and the example post it followed, when it sent %s',
+      async (_name, kit, parts) => {
+        const { tool } = makeTool(
+          jest.fn().mockResolvedValue({ ...made, brand: 'Acme', kit }),
+          undefined,
+          picks({ brandId: ACME })
+        );
+
+        expect(
+          await tool.execute({ prompt: 'a cat', brand: 'Acme' }, context())
+        ).toStrictEqual({
+          ...made,
+          brand: 'Acme',
+          ...(kit.example && { example: kit.example }),
+          say: sayFor('Acme', parts),
+        });
+      }
+    );
+
+    // Samy once called its own edit "the reference". An edit keeps the image's
+    // own look, so only the logo goes with it, whatever example is asked for
+    // (FR-012).
+    it('says the logo went with an edit, and that example posts never do', async () => {
+      const { tool } = makeTool(
+        jest.fn().mockResolvedValue({
+          ...made,
+          brand: 'Acme',
+          kit: { logo: true, colours: false, fonts: false },
+        }),
+        undefined,
+        picks({ brandId: ACME })
+      );
+
+      expect(
+        await tool.execute(
+          {
+            prompt: 'make it blue',
+            brand: 'Acme',
+            editOf: 'https://media/a',
+            example: 2,
+          },
+          context()
+        )
+      ).toStrictEqual({ ...made, brand: 'Acme', say: sayForEdit('Acme') });
+    });
 
     // A brand whose kit sent nothing comes back unnamed, so nothing credits it.
     it.each([
@@ -377,6 +517,23 @@ describe('SamyImageTool', () => {
       expect(await tool.execute({ prompt: 'a cat' }, context())).toStrictEqual(
         made
       );
+    });
+
+    // The user's own images take the example's place, so none goes.
+    it('returns no example and no say when nothing of the kit went, though one was asked for', async () => {
+      const { tool } = makeTool(undefined, undefined, picks({ brandId: ACME }));
+
+      expect(
+        await tool.execute(
+          {
+            prompt: 'a cat',
+            brand: 'Acme',
+            example: 2,
+            references: ['https://media/a'],
+          },
+          context()
+        )
+      ).toStrictEqual(made);
     });
 
     describe('when it refuses', () => {
@@ -445,6 +602,42 @@ describe('SamyImageTool', () => {
       expect(run.requestContext.get('samyImagesMade')).toBe(0);
       expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
     });
+
+    // Refused by the render before any credit, in Samy's words
+    // (contracts/samy-brand.md §4).
+    it.each([
+      [
+        'is not one of its example posts',
+        'Acme has no example post 3 now, so no image was made and no credit was spent. Its example posts are 1, 2: use one of them, or leave example out for the first.',
+      ],
+      [
+        'finds none in Media',
+        'Acme has no example posts now, so no image was made and no credit was spent. Make it without example, and tell the user they can add example posts on the Brands page.',
+      ],
+    ])(
+      'hands back the words when the example post asked for %s, and gives the slot and credit back',
+      async (_name, words) => {
+        const render = jest
+          .fn()
+          .mockRejectedValueOnce(new HttpException(words, 400))
+          .mockResolvedValue(made);
+        const { tool } = makeTool(
+          render,
+          jest.fn().mockResolvedValue({ credits: 1, resetsAt: RESETS_AT }),
+          picks({ brandId: ACME })
+        );
+        const run = context();
+
+        expect(
+          await tool.execute(
+            { prompt: 'a cat', brand: 'Acme', example: 3 },
+            run
+          )
+        ).toEqual({ error: words });
+        expect(run.requestContext.get('samyImagesMade')).toBe(0);
+        expect(await tool.execute({ prompt: 'a cat' }, run)).toEqual(made);
+      }
+    );
 
     // The chip's brand is checked when the message is sent, so it may be
     // deleted before the render reads its kit. kitFor's refusal is coded for
