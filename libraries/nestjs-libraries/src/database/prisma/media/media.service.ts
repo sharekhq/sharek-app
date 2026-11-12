@@ -566,6 +566,7 @@ export class MediaService {
         : block;
 
     let saved;
+    let exampleDropped = false;
     try {
       saved = await this.renderImage(org, prepared, async () => {
         const improved = await this._openAi.generatePromptForPicture(
@@ -574,6 +575,7 @@ export class MediaService {
           prepared.inputs.length,
           brand
         );
+        exampleDropped = improved.dropExample;
         return {
           // The enhancement yields '' when the model refuses. Sending that on
           // asks the renderer for an empty prompt — an invalid-parameter 400
@@ -592,7 +594,12 @@ export class MediaService {
       throw generationError(err);
     }
 
-    yield { name: 'done', media: saved };
+    // A caller that names what went along (Samy) leaves the example out then
+    yield {
+      name: 'done',
+      media: saved,
+      ...(exampleDropped ? { exampleDropped } : {}),
+    };
   }
 
   /**
@@ -745,8 +752,10 @@ export class MediaService {
       }
 
       let saved;
+      let exampleDropped = false;
       for await (const frame of frames) {
         saved = frame.media;
+        exampleDropped = 'exampleDropped' in frame && !!frame.exampleDropped;
       }
 
       // The brand is named only when part of its kit went along, so a reply
@@ -761,7 +770,7 @@ export class MediaService {
           brand: sent.name,
           kit: {
             logo: !!sent.block.logo,
-            ...(sent.example && { example: sent.example }),
+            ...(sent.example && !exampleDropped && { example: sent.example }),
             colours: !editOf && !!sent.block.colours.length,
             fonts: !editOf && !!(sent.block.headingFont || sent.block.bodyFont),
           },
