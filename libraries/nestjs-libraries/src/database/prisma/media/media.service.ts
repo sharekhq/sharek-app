@@ -7,6 +7,7 @@ import {
 } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import {
   BrandBlock,
+  ImageInput,
   OpenaiService,
 } from '@gitroom/nestjs-libraries/openai/openai.service';
 import {
@@ -549,29 +550,56 @@ export class MediaService {
     // The wire carries a style id; the phrase behind it is resolved here so the
     // client cannot hand the model instructions of its own.
     const style = IMAGE_STYLES.find((entry) => entry.id === dto.style)?.prompt;
+    // With an example along, the improver sees the logo and the example, and
+    // decides whether the example goes to the image model
+    const block = prepared.brand?.block;
+    const example = block?.examples[0];
+    const brand =
+      block && example !== undefined
+        ? {
+            ...block,
+            pictures: {
+              ...(block.logo && { logo: prepared.inputs[block.logo - 1] }),
+              example: prepared.inputs[example - 1],
+            },
+          }
+        : block;
 
     let saved;
+    let exampleDropped = false;
     try {
-      saved = await this.renderImage(
-        org,
-        prepared,
-        // The enhancement yields '' when the model refuses. Sending that on
-        // asks the renderer for an empty prompt — an invalid-parameter 400 the
-        // user reads as a generic failure — so fall back to their own words,
-        // as the video providers do.
-        async () =>
-          (await this._openAi.generatePromptForPicture(
-            dto.prompt,
-            style,
-            prepared.inputs.length,
-            prepared.brand?.block
-          )) || dto.prompt
-      );
+      saved = await this.renderImage(org, prepared, async () => {
+        const improved = await this._openAi.generatePromptForPicture(
+          dto.prompt,
+          style,
+          prepared.inputs.length,
+          brand
+        );
+        exampleDropped = improved.dropExample;
+        return {
+          // The enhancement yields '' when the model refuses. Sending that on
+          // asks the renderer for an empty prompt — an invalid-parameter 400
+          // the user reads as a generic failure — so fall back to their own
+          // words, as the video providers do.
+          prompt: improved.prompt || dto.prompt,
+          // Another kind of post than the example's: the image model never
+          // receives it, so it can't copy its elements. It comes last, so the
+          // other images keep their numbers.
+          inputs: improved.dropExample
+            ? prepared.inputs.filter((_, index) => index + 1 !== example)
+            : prepared.inputs,
+        };
+      });
     } catch (err) {
       throw generationError(err);
     }
 
-    yield { name: 'done', media: saved };
+    // A caller that names what went along (Samy) leaves the example out then
+    yield {
+      name: 'done',
+      media: saved,
+      ...(exampleDropped ? { exampleDropped } : {}),
+    };
   }
 
   /**
@@ -620,12 +648,15 @@ export class MediaService {
         prepared,
         // '' when the model refuses: the user's own words then, as for a
         // generation.
-        async () =>
-          (await this._openAi.generateEditPrompt(
-            dto.prompt,
-            prepared.inputs.length,
-            prepared.brand?.block
-          )) || dto.prompt
+        async () => ({
+          prompt:
+            (await this._openAi.generateEditPrompt(
+              dto.prompt,
+              prepared.inputs.length,
+              prepared.brand?.block
+            )) || dto.prompt,
+          inputs: prepared.inputs,
+        })
       );
     } catch (err) {
       throw generationError(err);
@@ -721,8 +752,10 @@ export class MediaService {
       }
 
       let saved;
+      let exampleDropped = false;
       for await (const frame of frames) {
         saved = frame.media;
+        exampleDropped = 'exampleDropped' in frame && !!frame.exampleDropped;
       }
 
       // The brand is named only when part of its kit went along, so a reply
@@ -737,7 +770,7 @@ export class MediaService {
           brand: sent.name,
           kit: {
             logo: !!sent.block.logo,
-            ...(sent.example && { example: sent.example }),
+            ...(sent.example && !exampleDropped && { example: sent.example }),
             colours: !editOf && !!sent.block.colours.length,
             fonts: !editOf && !!(sent.block.headingFont || sent.block.bodyFont),
           },
@@ -790,15 +823,16 @@ export class MediaService {
   private renderImage(
     org: Organization,
     prepared: Awaited<ReturnType<MediaService['resolveImageWithPrompt']>>,
-    improve: () => Promise<string>
+    // The improved prompt, and the images the render receives
+    improve: () => Promise<{ prompt: string; inputs: ImageInput[] }>
   ) {
     return this._subscriptionService.useCredit(org, 'ai_images', async () => {
-      const prompt = await improve();
+      const { prompt, inputs } = await improve();
       // Images (references, or the image being edited) go through the edit
       // call; without them the render is the plain call it has always been.
       const render = (text: string) =>
-        prepared.inputs.length
-          ? this._openAi.editImageAtSize(text, prepared.size, prepared.inputs)
+        inputs.length
+          ? this._openAi.editImageAtSize(text, prepared.size, inputs)
           : this._openAi.generateImageAtSize(text, prepared.size);
 
       let image: Buffer;
