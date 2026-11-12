@@ -17,7 +17,8 @@
 // tasks.md T015) rewords three of the card's lines and adds four, in en and ar
 // only: the lookup now reads the site's own logo, colours and fonts, and the
 // wording is the table approved with that spec's mockup
-// (contracts/brands-website.md, Words).
+// (contracts/brands-website.md, Words). Spec 056 adds the "Details for Samy"
+// card on a brand's page, in all eight languages (DETAILS).
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -361,6 +362,50 @@ const STRINGS = [
   ['brands_onboard_name', 'Brand name', 'اسم العلامة التجارية'],
   ['brands_onboard_website', 'Your website', 'موقعك'],
   ['brands_onboard_skip', 'Skip', 'تخطي'],
+] as const;
+
+// Spec 056 (its tasks.md T030; FR-019): the "Details for Samy" card on a
+// brand's page (BrandKit's details strings), its title, its help line, and its
+// five fields' labels and placeholders. en and ar are the words the maintainer
+// confirmed with the mockups (contracts/pages-ui.md, Confirmed words); unlike
+// the page's other strings, these go to all eight languages.
+const DETAILS = [
+  ['brands_details_title', 'Details for Samy', 'تفاصيل لسامي'],
+  [
+    'brands_details_help',
+    "All optional. Samy uses them when it writes this brand's captions and the words on its images, and reads them as facts about the brand, never as instructions.",
+    'كلها اختيارية. يستخدمها سامي حين يكتب أوصاف منشورات هذه العلامة والكلمات على صورها، ويقرؤها معلومات عن العلامة، لا تعليمات.',
+  ],
+  ['brands_details_about', 'About', 'نبذة'],
+  [
+    'brands_details_about_placeholder',
+    "What you do and who it's for, e.g. We help students study abroad: 600+ programmes in 13 countries.",
+    'ما تقدمه ولمن، مثل: نساعد الطلاب على الدراسة في الخارج، بأكثر من 600 برنامج في 13 دولة.',
+  ],
+  ['brands_details_tone', 'Tone of voice', 'نبرة الكتابة'],
+  [
+    'brands_details_tone_placeholder',
+    'e.g. warm, aspirational, formal Arabic',
+    'مثل: دافئة وطموحة، بالعربية الفصحى',
+  ],
+  ['brands_details_post_language', 'Post language', 'لغة المنشورات'],
+  [
+    'brands_details_post_language_placeholder',
+    'e.g. Arabic, or Arabic and English',
+    'مثل: العربية، أو العربية والإنجليزية',
+  ],
+  ['brands_details_call_to_action', 'Call to action', 'دعوة لاتخاذ إجراء'],
+  [
+    'brands_details_call_to_action_placeholder',
+    'e.g. Apply now at yourbrand.com',
+    'مثل: قدم الآن عبر yourbrand.com',
+  ],
+  ['brands_details_hashtags', 'Hashtags', 'الوسوم'],
+  [
+    'brands_details_hashtags_placeholder',
+    'e.g. #StudyAbroad #YourBrand',
+    'مثل: #ادرس_في_الخارج #علامتك',
+  ],
 ] as const;
 
 // Keys the app already carries whose en and ar are the canvas's words. rename
@@ -776,7 +821,7 @@ describe('Brands locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
-  it.each(STRINGS)(
+  it.each([...STRINGS, ...DETAILS])(
     'reads %s as "%s" in en and "%s" in ar',
     (key, enText, arText) => {
       expect(en[key]).toBe(enText);
@@ -813,7 +858,7 @@ describe('Brands locale keys', () => {
 
   // Identical bytes in both locales means the English was copied across rather
   // than translated, which reads as done and is not.
-  it.each([...STRINGS, ...REUSED].map(([key]) => key))(
+  it.each([...STRINGS, ...REUSED, ...DETAILS].map(([key]) => key))(
     'translates %s: its Arabic is not its English',
     (key) => {
       expect(typeof ar[key]).toBe('string');
@@ -835,9 +880,9 @@ describe('Brands locale keys', () => {
   );
 
   // Red until the components exist (T018 to T026, for part 2 T053, T055 and
-  // T060, for part 3 T074 and T076, and for spec 054's four new keys its
-  // T018): a key no t() call reads is a string the app shows in English or not
-  // at all.
+  // T060, for part 3 T074 and T076, for spec 054's four new keys its T018,
+  // and for spec 056's details its T032): a key no t() call reads is a string
+  // the app shows in English or not at all.
   describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
@@ -846,7 +891,11 @@ describe('Brands locale keys', () => {
       (match) => match[1]
     );
 
-    it.each([...STRINGS, ...REUSED, ...SAME, ...PLURALS].map(([key]) => key))(
+    it.each(
+      [...STRINGS, ...REUSED, ...SAME, ...PLURALS, ...DETAILS].map(
+        ([key]) => key
+      )
+    )(
       'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog or onboarding: %s',
       (key) => {
         expect(referenced).toContain(key);
@@ -904,6 +953,25 @@ describe('the Brands page in the six upstream languages', () => {
       expect(typeof value).toBe('string');
       expect(value).not.toBe(locales.en[key]);
       expect(value).toMatch(BRAND_WORD[lng as Upstream]);
+    }
+  );
+});
+
+// The details in all eight languages (FR-019): a language without them shows
+// the card in English. A word may be its English one in the six upstream
+// languages (Hashtags in German), so there they need only be there and not
+// empty; en and ar are checked word for word above.
+describe("a brand's details for Samy in all eight languages", () => {
+  const locales = Object.fromEntries(
+    languages.map((lng) => [lng, readLocale(lng)])
+  );
+
+  it.each(languages.flatMap((lng) => DETAILS.map(([key]) => [lng, key])))(
+    'has %s.%s, not empty',
+    (lng, key) => {
+      const value = locales[lng][key];
+      expect(typeof value).toBe('string');
+      expect(value.trim()).not.toBe('');
     }
   );
 });
