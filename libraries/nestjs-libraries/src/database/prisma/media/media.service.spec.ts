@@ -58,7 +58,9 @@ const oneShotVideo = () => ({
 
 const openAi = () => ({
   generateImage: jest.fn().mockResolvedValue('LEGACYB64'),
-  generatePromptForPicture: jest.fn().mockResolvedValue('an enhanced scene'),
+  generatePromptForPicture: jest
+    .fn()
+    .mockResolvedValue({ prompt: 'an enhanced scene', dropExample: false }),
   generateImageAtSize: jest.fn().mockResolvedValue(Buffer.from('JPEG-BYTES')),
   editImageAtSize: jest.fn().mockResolvedValue(Buffer.from('EDIT-BYTES')),
   generateEditPrompt: jest.fn().mockResolvedValue('an edit instruction'),
@@ -650,7 +652,10 @@ describe('generateImageWithPrompt', () => {
   // end for a request that would have worked on their own words.
   it('falls back to the user\'s prompt when the enhancement comes back empty', async () => {
     const ai = openAi();
-    ai.generatePromptForPicture.mockResolvedValue('');
+    ai.generatePromptForPicture.mockResolvedValue({
+      prompt: '',
+      dropExample: false,
+    });
     const { service } = makeService({ openAi: ai });
 
     await generateWithPrompt(service);
@@ -2019,6 +2024,14 @@ describe('with a brand', () => {
   // The library has big and bad; gone is nowhere.
   const withUnusable = [...library, row('big'), row('bad')];
 
+  // The pictures the improver sees with an example along: the logo keeps its
+  // transparency, the example is a JPEG (stored above)
+  const EXAMPLE = expect.objectContaining({ mime: 'image/jpeg' });
+  const LOGO_AND_EXAMPLE = {
+    logo: expect.objectContaining({ mime: 'image/png' }),
+    example: EXAMPLE,
+  };
+
   const mimes = (inputs: Array<{ mime: string }>) =>
     inputs.map((input) => input.mime);
 
@@ -2063,13 +2076,43 @@ describe('with a brand', () => {
         prompt,
         undefined,
         2,
-        { logo: 1, examples: [2], ...words }
+        { logo: 1, examples: [2], ...words, pictures: LOGO_AND_EXAMPLE }
       );
       expect(prepared.brand).toEqual({
         name: 'Rawda Florist',
         block: { logo: 1, examples: [2], ...words },
         example: 1,
       });
+    });
+
+    // The improver, seeing the example, judged the post another kind (a
+    // vacancy beside a programme post): the image model gets the logo alone,
+    // so it can't copy the example's cards, people or products (the
+    // 2026-11-12 renders).
+    it('renders without the example when the improver judges the post another kind', async () => {
+      const ai = openAi();
+      ai.generatePromptForPicture.mockResolvedValue({
+        prompt: 'a vacancy post',
+        dropExample: true,
+      });
+      const { service, saveFile, charged } = makeService({
+        openAi: ai,
+        references: library,
+        kit: kit(),
+      });
+      const request = dto({ brand });
+
+      const prepared = await service.resolveImageWithPrompt(org, request);
+      await drain(service.generateImageWithPrompt(org, request, prepared));
+
+      expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
+      const [text, , inputs] = ai.editImageAtSize.mock.calls[0];
+      expect(text).toBe('a vacancy post');
+      expect(inputs).toEqual([prepared.inputs[0]]);
+      expect(mimes(inputs)).toEqual(['image/png']);
+      expect(prepared.inputs).toHaveLength(2);
+      expect(saveFile).toHaveBeenCalledTimes(1);
+      expect(charged.value).toBe(true);
     });
 
     // Samy names the example it follows by its number on the Brands page.
@@ -2101,7 +2144,7 @@ describe('with a brand', () => {
         prompt,
         undefined,
         2,
-        { logo: 1, examples: [2], ...words }
+        { logo: 1, examples: [2], ...words, pictures: LOGO_AND_EXAMPLE }
       );
       expect(prepared.brand?.example).toBe(3);
     });
@@ -2246,7 +2289,7 @@ describe('with a brand', () => {
         prompt,
         undefined,
         1,
-        { examples: [1], ...words }
+        { examples: [1], ...words, pictures: { example: EXAMPLE } }
       );
       expect(prepared.brand?.example).toBe(2);
       expect(saveFile).toHaveBeenCalledTimes(1);
@@ -2666,7 +2709,7 @@ describe('with a brand', () => {
         prompt,
         undefined,
         2,
-        { logo: 1, examples: [2], ...words }
+        { logo: 1, examples: [2], ...words, pictures: LOGO_AND_EXAMPLE }
       );
       expect(made).toStrictEqual({
         id: 'media-1',
@@ -2815,7 +2858,7 @@ describe('with a brand', () => {
           prompt,
           undefined,
           2,
-          { logo: 1, examples: [2], ...words }
+          { logo: 1, examples: [2], ...words, pictures: LOGO_AND_EXAMPLE }
         );
         expect(made).toStrictEqual({
           id: 'media-1',
