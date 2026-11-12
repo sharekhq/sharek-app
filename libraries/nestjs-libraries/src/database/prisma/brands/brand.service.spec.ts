@@ -7,7 +7,7 @@ jest.mock('@gitroom/nestjs-libraries/database/prisma/prisma.service', () => ({
 }));
 
 import { HttpException } from '@nestjs/common';
-import { BrandService } from './brand.service';
+import { Brand, BrandService } from './brand.service';
 import { BrandKitDto } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
 // The brand's details share the kit's row
@@ -20,7 +20,7 @@ const details = {
 };
 
 // A kit saved before the details existed, or with each one cleared
-const noDetails = {
+const noDetails: Brand['details'] = {
   about: null,
   toneOfVoice: null,
   postLanguage: null,

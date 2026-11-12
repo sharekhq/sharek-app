@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { pick, uniq } from 'lodash';
 import {
   BrandRepository,
+  detailFields,
   kitFields,
 } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.repository';
 import {
@@ -24,6 +25,13 @@ export type Brand = {
     headingFont: string | null;
     bodyFont: string | null;
   };
+  details: {
+    about: string | null;
+    toneOfVoice: string | null;
+    postLanguage: string | null;
+    callToAction: string | null;
+    hashtags: string | null;
+  };
 };
 
 // The kit as image generation uses it: only the images still in Media, each
@@ -44,7 +52,10 @@ type StoredBrand = Awaited<ReturnType<BrandRepository['findLive']>>;
 type MediaRow = Awaited<ReturnType<BrandRepository['mediaByIds']>>[number];
 
 // The global ValidationPipe keeps keys the DTO doesn't declare
-const KIT_FIELDS = Object.keys(kitFields) as (keyof typeof kitFields)[];
+const KIT_FIELDS = Object.keys({ ...kitFields, ...detailFields }) as (
+  | keyof typeof kitFields
+  | keyof typeof detailFields
+)[];
 
 const imageIds = (kit: Pick<BrandKitDto, 'logoId' | 'exampleIds'> | null) =>
   [kit?.logoId, ...(kit?.exampleIds ?? [])].filter(Boolean);
@@ -69,6 +80,13 @@ const toBrand = (
     colours: brandKit?.colours ?? [],
     headingFont: brandKit?.headingFont ?? null,
     bodyFont: brandKit?.bodyFont ?? null,
+  },
+  details: {
+    about: brandKit?.about ?? null,
+    toneOfVoice: brandKit?.toneOfVoice ?? null,
+    postLanguage: brandKit?.postLanguage ?? null,
+    callToAction: brandKit?.callToAction ?? null,
+    hashtags: brandKit?.hashtags ?? null,
   },
 });
 

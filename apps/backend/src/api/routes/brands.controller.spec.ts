@@ -54,6 +54,13 @@ const brand: Brand = {
     headingFont: null,
     bodyFont: null,
   },
+  details: {
+    about: null,
+    toneOfVoice: null,
+    postLanguage: null,
+    callToAction: null,
+    hashtags: null,
+  },
 };
 
 const makeController = (
