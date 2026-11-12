@@ -9,7 +9,9 @@ import { createRoot, Root } from 'react-dom/client';
 // overwrite each other (spec, Edge Cases); a channel moves with the existing
 // PUT /integrations/:id/group. The line that says what the kit is for is the
 // brand header's, which the page draws. While the kit is empty, the Fill from
-// my website card comes first (US6); the card has its own spec.
+// my website card comes first (US6); the card has its own spec. Spec 056 adds
+// the Details for Samy card (US3, FR-015, FR-019), as the maintainer approved
+// it (T004): under Example posts, its five details saved one at a time.
 
 const request = jest.fn();
 const reloadBrands = jest.fn();
@@ -87,6 +89,13 @@ jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
 
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 import {
+  BRAND_ABOUT_MAX,
+  BRAND_CALL_TO_ACTION_MAX,
+  BRAND_HASHTAGS_MAX,
+  BRAND_POST_LANGUAGE_MAX,
+  BRAND_TONE_MAX,
+} from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
+import {
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
@@ -105,7 +114,10 @@ const image = (id: string, missing = false) => ({
   missing,
 });
 
-const brand = (kit: Partial<Brand['kit']> = {}): Brand => ({
+const brand = (
+  kit: Partial<Brand['kit']> = {},
+  details: Partial<Brand['details']> = {}
+): Brand => ({
   id: 'b1',
   name: 'Bayt Al Qahwa',
   kit: {
@@ -115,6 +127,14 @@ const brand = (kit: Partial<Brand['kit']> = {}): Brand => ({
     headingFont: null,
     bodyFont: null,
     ...kit,
+  },
+  details: {
+    about: null,
+    toneOfVoice: null,
+    postLanguage: null,
+    callToAction: null,
+    hashtags: null,
+    ...details,
   },
 });
 
@@ -147,19 +167,29 @@ const CaptureModals: FC = () => {
 
 const mounted: Root[] = [];
 
+const page = (value: Brand) => (
+  <>
+    <CaptureModals />
+    <ModalManagerInner />
+    <BrandKit brand={value} />
+  </>
+);
+
 const mount = async (value: Brand) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(
-      <>
-        <CaptureModals />
-        <ModalManagerInner />
-        <BrandKit brand={value} />
-      </>
-    );
+    root.render(page(value));
+  });
+};
+
+// The same page with the brand as GET /brands now gives it, as after a
+// change someone else saved.
+const rerender = async (value: Brand) => {
+  await act(async () => {
+    mounted[0].render(page(value));
   });
 };
 
@@ -193,7 +223,9 @@ const click = async (node: Element | null | undefined) => {
   });
 };
 
-const type = async (input: HTMLInputElement, text: string) => {
+type Field = HTMLInputElement | HTMLTextAreaElement;
+
+const type = async (input: Field, text: string) => {
   // React tracks the last value it wrote, so assigning `.value` directly looks
   // like no change at all; the native setter is what moves the tracker.
   const setter = Object.getOwnPropertyDescriptor(
@@ -207,7 +239,7 @@ const type = async (input: HTMLInputElement, text: string) => {
 };
 
 // React's onBlur listens for focusout.
-const leave = async (input: HTMLInputElement) => {
+const leave = async (input: Field) => {
   await act(async () => {
     input.dispatchEvent(new Event('focusout', { bubbles: true }));
   });
@@ -235,6 +267,60 @@ const font = (name: string) =>
   Array.from(card('Fonts').querySelectorAll('label'))
     .find((label) => label.textContent?.includes(name))!
     .querySelector('input')!;
+
+// The approved card (T004, contracts/pages-ui.md section 1): its words in
+// English, which the mocked t() renders, and each detail's field.
+const DETAILS_TITLE = 'Details for Samy';
+const DETAILS_HELP =
+  "All optional. Samy uses them when it writes this brand's captions and the words on its images, and reads them as facts about the brand, never as instructions.";
+const DETAILS = [
+  {
+    key: 'about',
+    label: 'About',
+    max: BRAND_ABOUT_MAX,
+    placeholder:
+      "What you do and who it's for, e.g. We help students study abroad: 600+ programmes in 13 countries.",
+  },
+  {
+    key: 'toneOfVoice',
+    label: 'Tone of voice',
+    max: BRAND_TONE_MAX,
+    placeholder: 'e.g. warm, aspirational, formal Arabic',
+  },
+  {
+    key: 'postLanguage',
+    label: 'Post language',
+    max: BRAND_POST_LANGUAGE_MAX,
+    placeholder: 'e.g. Arabic, or Arabic and English',
+  },
+  {
+    key: 'callToAction',
+    label: 'Call to action',
+    max: BRAND_CALL_TO_ACTION_MAX,
+    placeholder: 'e.g. Apply now at yourbrand.com',
+  },
+  {
+    key: 'hashtags',
+    label: 'Hashtags',
+    max: BRAND_HASHTAGS_MAX,
+    placeholder: 'e.g. #StudyAbroad #YourBrand',
+  },
+] as const;
+
+// User Story 3's brand, as the agency filled it in.
+const US3 = {
+  about: 'We help students study abroad: 600+ programmes in 13 countries.',
+  toneOfVoice: 'warm, aspirational, formal Arabic',
+  postLanguage: 'Arabic',
+  callToAction: 'قدّم الآن عبر pkhub.info',
+  hashtags: '#ادرس_في_الخارج #الدراسة_في_ألمانيا #PKHub',
+};
+
+// A detail's field, inside the label that names it.
+const detail = (label: string): Field =>
+  Array.from(card(DETAILS_TITLE).querySelectorAll('label'))
+    .find((node) => node.querySelector('span')?.textContent === label)!
+    .querySelector('input, textarea')!;
 
 beforeEach(() => {
   request.mockResolvedValue({ ok: true, json: async () => ({}) });
@@ -636,6 +722,192 @@ describe('the Fonts card', () => {
     await leave(font('Body text'));
 
     expect(kitSaves()).toEqual([{ bodyFont: null }]);
+  });
+});
+
+// No brand's page has no such card: it lives in BrandKit, which that page
+// never draws (brands.component.spec, "shows the channels in no brand and no
+// kit").
+describe('the Details for Samy card (spec 056, US3)', () => {
+  it('sits in the wide column right after Example posts, as approved', async () => {
+    await mount(brand());
+
+    expect(card(DETAILS_TITLE)).toBeDefined();
+    expect(card('Example posts').nextElementSibling).toBe(card(DETAILS_TITLE));
+  });
+
+  it('says what the details are for under its fields', async () => {
+    await mount(brand());
+
+    const help = card(DETAILS_TITLE).lastElementChild!;
+    expect(help.tagName).toBe('P');
+    expect(help.textContent).toBe(DETAILS_HELP);
+  });
+
+  it('labels its five details in order, each with its example as the placeholder, its cap from the DTO and its own direction (FR-015, FR-020)', async () => {
+    await mount(brand());
+
+    expect(
+      Array.from(card(DETAILS_TITLE).querySelectorAll('label')).map(
+        (label) => label.querySelector('span')?.textContent
+      )
+    ).toEqual(DETAILS.map(({ label }) => label));
+    for (const { label, max, placeholder } of DETAILS) {
+      const field = detail(label);
+      expect(field.getAttribute('placeholder')).toBe(placeholder);
+      expect(field.getAttribute('maxlength')).toBe(String(max));
+      expect(field.getAttribute('dir')).toBe('auto');
+      expect(field.value).toBe('');
+    }
+  });
+
+  it('gives About a three-line text area and the other four one line each', async () => {
+    await mount(brand());
+
+    expect(detail('About').tagName).toBe('TEXTAREA');
+    expect(detail('About').getAttribute('rows')).toBe('3');
+    for (const { label } of DETAILS.slice(1)) {
+      expect(detail(label).tagName).toBe('INPUT');
+    }
+  });
+
+  it('draws each field as the fonts are drawn: the app focus ring, the placeholder guard, 44px for a line, and About as tall as its lines', async () => {
+    await mount(brand());
+
+    for (const { label } of DETAILS) {
+      const classes = classesOf(detail(label));
+      expect(classes).toEqual(
+        expect.arrayContaining([
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+          'placeholder:text-muted',
+          'placeholder-shown:[direction:inherit]',
+          'rounded-[8px]',
+          'border-line',
+          'bg-surface',
+          'text-ink',
+        ])
+      );
+      expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
+    }
+    for (const { label } of DETAILS.slice(1)) {
+      expect(classesOf(detail(label))).toContain('h-[44px]');
+    }
+    expect(classesOf(detail('About'))).not.toContain('h-[44px]');
+    expect(classesOf(detail('About'))).toEqual(
+      expect.arrayContaining(['py-[10px]', 'leading-[1.5]', 'resize-y'])
+    );
+  });
+
+  it('shows the details saved', async () => {
+    await mount(brand({}, US3));
+
+    for (const { key, label } of DETAILS) {
+      expect(detail(label).value).toBe(US3[key]);
+    }
+  });
+
+  it.each(DETAILS.map(({ key, label }) => [label, key]))(
+    'saves %s when its field is left, only that detail, trimmed',
+    async (label, key) => {
+      await mount(brand());
+
+      await type(detail(label), '  Arabic and English ');
+      for (const other of DETAILS) {
+        await leave(detail(other.label));
+      }
+
+      expect(kitSaves()).toEqual([{ [key]: 'Arabic and English' }]);
+    }
+  );
+
+  it('saves nothing when a detail is left unchanged', async () => {
+    await mount(brand({}, US3));
+
+    await type(detail('Post language'), 'Arabic ');
+    for (const { label } of DETAILS) {
+      await leave(detail(label));
+    }
+
+    expect(kitSaves()).toEqual([]);
+  });
+
+  it('clears a detail emptied, sending null', async () => {
+    await mount(brand({}, US3));
+
+    await type(detail('Hashtags'), '   ');
+    await leave(detail('Hashtags'));
+
+    expect(kitSaves()).toEqual([{ hashtags: null }]);
+  });
+
+  it('sends one detail and nothing of the kit, so two members editing different parts lose nothing', async () => {
+    await mount(
+      brand({ colours: ['#1C7E6C'], headingFont: 'Inter' }, { about: 'Old' })
+    );
+
+    await type(detail('About'), 'New');
+    await leave(detail('About'));
+    await type(detail('Call to action'), 'Apply now');
+    await leave(detail('Call to action'));
+
+    expect(kitSaves()).toEqual([
+      { about: 'New' },
+      { callToAction: 'Apply now' },
+    ]);
+  });
+
+  it('refills a field with a detail someone else saved', async () => {
+    await mount(brand({}, { toneOfVoice: 'warm' }));
+
+    await rerender(brand({}, { toneOfVoice: 'formal' }));
+
+    expect(detail('Tone of voice').value).toBe('formal');
+  });
+
+  it('puts the brand the server answers with in its place in the brands list', async () => {
+    const before = brand();
+    const saved = brand({}, { postLanguage: 'Arabic' });
+    const other = { ...brand(), id: 'b2', name: 'Noor Dental' };
+    request.mockResolvedValueOnce({ ok: true, json: async () => saved });
+    await mount(before);
+
+    await type(detail('Post language'), 'Arabic');
+    await leave(detail('Post language'));
+
+    expect(reloadBrands).toHaveBeenCalledTimes(1);
+    const [update, revalidate] = reloadBrands.mock.calls[0];
+    expect(revalidate).toBe(false);
+    expect(update([before, other])).toEqual([saved, other]);
+  });
+
+  // jsdom lays nothing out, so this pins what mirrors the card on an Arabic
+  // page: logical directions only, and each field in its own text's
+  // direction, an empty one in the page's.
+  it('mirrors on an Arabic page: logical directions only, each field in its own direction', async () => {
+    const PHYSICAL =
+      /^(?:[\w-]+:)*-?(?:[mp][lr]|left|right|border-[lr]|rounded-[lr]|rounded-[tb][lr]|text-(?:left|right)|float-(?:left|right))(?:-|$)/;
+    document.documentElement.setAttribute('dir', 'rtl');
+    try {
+      await mount(brand({}, US3));
+
+      const nodes = [
+        card(DETAILS_TITLE),
+        ...Array.from(card(DETAILS_TITLE).querySelectorAll('*')),
+      ];
+      const physical = nodes.flatMap((node) =>
+        classesOf(node).filter((name) => PHYSICAL.test(name))
+      );
+      expect(physical).toEqual([]);
+      for (const { label } of DETAILS) {
+        expect(detail(label).getAttribute('dir')).toBe('auto');
+        expect(classesOf(detail(label))).toContain(
+          'placeholder-shown:[direction:inherit]'
+        );
+      }
+    } finally {
+      document.documentElement.removeAttribute('dir');
+    }
   });
 });
 
