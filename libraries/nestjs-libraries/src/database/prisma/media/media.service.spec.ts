@@ -2103,8 +2103,14 @@ describe('with a brand', () => {
       const request = dto({ brand });
 
       const prepared = await service.resolveImageWithPrompt(org, request);
-      await drain(service.generateImageWithPrompt(org, request, prepared));
+      const frames = await drain(
+        service.generateImageWithPrompt(org, request, prepared)
+      );
 
+      // Said in the last frame, for a caller that names what went along
+      expect(frames).toEqual([
+        { name: 'done', media: expect.anything(), exampleDropped: true },
+      ]);
       expect(ai.editImageAtSize).toHaveBeenCalledTimes(1);
       const [text, , inputs] = ai.editImageAtSize.mock.calls[0];
       expect(text).toBe('a vacancy post');
@@ -2716,6 +2722,37 @@ describe('with a brand', () => {
         path: 'https://media/made.jpg',
         brand: 'Rawda Florist',
         kit: { logo: true, example: 2, colours: true, fonts: true },
+      });
+    });
+
+    // An example the improver left out never reached the image model, so the
+    // result names only what did (spec 056, FR-007; code review)
+    it('names no example in the result when the improver left it out', async () => {
+      const ai = openAi();
+      ai.generatePromptForPicture.mockResolvedValue({
+        prompt: 'a vacancy post',
+        dropExample: true,
+      });
+      const { service } = makeService({
+        openAi: ai,
+        file: 'https://media/made.jpg',
+        references: library,
+        kit: kit(),
+      });
+
+      const made = await service.generateImageFromLinks(org, {
+        prompt,
+        aspectRatio: 'square',
+        brand,
+        example: 2,
+      });
+
+      expect(mimes(ai.editImageAtSize.mock.calls[0][2])).toEqual(['image/png']);
+      expect(made).toStrictEqual({
+        id: 'media-1',
+        path: 'https://media/made.jpg',
+        brand: 'Rawda Florist',
+        kit: { logo: true, colours: true, fonts: true },
       });
     });
 
