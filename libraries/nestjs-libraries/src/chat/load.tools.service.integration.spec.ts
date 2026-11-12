@@ -379,7 +379,7 @@ describe('The brand a run gives the model', () => {
       'brandKitTool'
     );
     expect(lines[lines.length - 1]).toBe(
-      '      Brand in use for this chat: Hurghada Sea. Its kit: no logo; 1 example post, number 2 on the Brands page; colours #0A84FF; no heading font; no body font.'
+      '      Brand in use for this chat: "Hurghada Sea". Its kit: no logo; 1 example post, number 2 on the Brands page; colours #0A84FF; no heading font; no body font.'
     );
   }, 30000);
 
