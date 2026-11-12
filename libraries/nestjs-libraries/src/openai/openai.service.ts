@@ -104,15 +104,16 @@ const BRAND_EXAMPLE_RULES = `The image is for a brand, and the user message name
 You can see the brand's images, attached in the order of their image numbers.
 When the user message names a reference image as the brand's logo, show that logo once, exactly as given, wherever it fits this image's layout, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
 When the user message names a reference image as the brand's example, it is a post the brand has published. First decide, and answer in the sendExample field, whether this description is the same kind of post as the example: another post of its sort, such as another programme for a programme post or another product shot for a product shot.
-If it is (sendExample true), the image model receives the example: say that the image follows the design of the example image by its number, keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own, and put each word in the example's matching place, naming that place.
+If it is (sendExample true), the image model receives the example: say that the image follows the design of the example image by its number, keeping its layout, its places for words and its kind of imagery, with this image's own subject and words, never the example's own, and put each word in the example's matching place, naming that place. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for.
 If it isn't (sendExample false), the image model never receives the example, so never mention it or its image number: describe the brand's feel in words instead, naming each part as you see it in the example: its background, how it uses colour, its type style and weight, its visual style (a photograph, an illustration or a flat graphic) and its finish. Take nothing else from it: lay the image out for its own subject, choose the imagery this subject calls for and describe it, or say the image has none beyond its words and simple shapes, and say how each word is set.
 Every word in the inImageText field appears in the prompt, quoted and exactly as written. Never leave one out.
 When the user message names the brand's colours, they appear as the example uses them.
 When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
 
 // Appended to a rewrite made with BRAND_EXAMPLE_RULES whose example goes to
-// the image model, so it reaches the image model every time (research R2). `image` is the example's number in the
-// render, not its number on the Brands page.
+// the image model, so it reaches the image model every time (research R2).
+// `image` is the example's number in the render, not its number on the Brands
+// page.
 const EXAMPLE_PLACES_SENTENCE = (image: number) =>
   `Any place for words in the design of image ${image} that this prompt gives no words for, such as a label, a card, a panel or a button, is left out of the image: never drawn empty, and never filled with other words.`;
 
@@ -399,7 +400,11 @@ Clips must not overlap. Write the title and the post in this language, whatever 
             (picture): picture is ImageInput => !!picture
           );
 
-    const parsed = (
+    // Typed from the schemas sent, so a renamed field can't pass unnoticed
+    const parsed:
+      | z.infer<typeof BrandExamplePicturePrompt>
+      | z.infer<typeof PicturePrompt>
+      | null = (
       await openai.chat.completions.parse({
         model: 'gpt-5.6-luna',
         reasoning_effort: 'low',
@@ -447,15 +452,19 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
           'picturePrompt'
         ),
       })
-    ).choices[0].message.parsed as {
-      prompt?: string;
-      sendExample?: boolean;
-    } | null;
+    ).choices[0].message.parsed;
 
     const rewritten = parsed?.prompt || '';
-    // Another kind of post than the example's: the render leaves it out, and
-    // the prompt never names it
-    const dropExample = example !== undefined && parsed?.sendExample === false;
+    // Another kind of post than the example's: the render leaves it out, but
+    // only with a prompt to carry the brand's feel in words, and never one
+    // that still names the example, which the render would then lack
+    const dropExample =
+      example !== undefined &&
+      !!rewritten &&
+      !!parsed &&
+      'sendExample' in parsed &&
+      parsed.sendExample === false &&
+      !new RegExp(`\\bimage ${example}\\b`, 'i').test(rewritten);
     // An empty rewrite stays empty: it is the caller's cue to send the user's
     // own words, with the example.
     return {
