@@ -1948,19 +1948,56 @@ describe('the Brand field', () => {
     }
   });
 
-  it("shows what goes along: the brand's logo and its examples still in Media", async () => {
+  // FR-001: one example goes with the image, the brand's first still in
+  // Media, so it is the only one shown, and named in the singular (review R6).
+  it("shows what goes along: the brand's logo and its first example still in Media", async () => {
     await compose();
     await pick('Bayt Al Qahwa');
 
     expect(kit()).toEqual([
       { src: 'https://media/bq-logo.png', faded: false },
       { src: 'https://media/bq-ex1.png', faded: false },
-      { src: 'https://media/bq-ex3.png', faded: false },
     ]);
     expect(goesAlong()?.querySelector('img')?.getAttribute('alt')).toBe('Logo');
     expect(
       goesAlong()?.querySelector('[role="img"]')?.getAttribute('aria-label')
-    ).toBe('Example posts');
+    ).toBe('Example post');
+  });
+
+  it("shows the brand's second example once its first is gone from Media", async () => {
+    brandList = [
+      RAWDA,
+      {
+        ...BAYT,
+        kit: {
+          ...BAYT.kit,
+          examples: [
+            kitImage('bq-ex1', true),
+            kitImage('bq-ex2'),
+            kitImage('bq-ex3'),
+          ],
+        },
+      },
+    ];
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(kit()).toEqual([
+      { src: 'https://media/bq-logo.png', faded: false },
+      { src: 'https://media/bq-ex2.png', faded: false },
+    ]);
+  });
+
+  it('shows only the logo going along for a brand with no example still in Media', async () => {
+    brandList = [
+      RAWDA,
+      { ...BAYT, kit: { ...BAYT.kit, examples: [kitImage('bq-ex1', true)] } },
+    ];
+    await compose();
+    await pick('Bayt Al Qahwa');
+
+    expect(kit()).toEqual([{ src: 'https://media/bq-logo.png', faded: false }]);
+    expect(goesAlong()?.querySelector('[role="img"]')).toBeNull();
   });
 
   it('shows nothing going along for a brand with no logo or example', async () => {
@@ -2177,7 +2214,7 @@ describe('the Brand field', () => {
     );
   });
 
-  it("fades the brand's examples and says so once the user adds images of their own", async () => {
+  it("fades the brand's example and says so once the user adds images of their own", async () => {
     await compose();
     await pick('Bayt Al Qahwa');
 
@@ -2191,7 +2228,6 @@ describe('the Brand field', () => {
     expect(kit()).toEqual([
       { src: 'https://media/bq-logo.png', faded: false },
       { src: 'https://media/bq-ex1.png', faded: true },
-      { src: 'https://media/bq-ex3.png', faded: true },
     ]);
   });
 

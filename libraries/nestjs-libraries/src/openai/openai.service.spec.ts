@@ -312,6 +312,19 @@ When the user asks for no words, or mentions none, the image must contain no tex
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`;
 
+    // REFERENCE_RULES and BRAND_RULES as they were on main before spec 056. A
+    // kit that sends no example must still send these exact bytes (spec 056,
+    // FR-005, SC-003).
+    const TODAY_REFERENCE_RULES = `The image model also receives the reference images the user attached, numbered from 1 in the order given; the user message says how many.
+When the description points to one of them, by number in any script ("image 2", «الصورة 2», «الصورة ٢») or by ordinal («الصورة الثانية», "the second picture"), write "the … in image 2" and never describe that subject's appearance: the image supplies it, together with any logo, label or lettering it already carries, which the no-text rules above never remove.
+A reference the description does not mention is used for what the description implies: its subject, its product or its look.
+When the description asks for the look of a reference, set any new words the way that reference sets its own, not on a new object.`;
+    const TODAY_BRAND_RULES = `The image is for a brand, and the user message names the parts of the brand's kit that go along: only those apply, and they decide how the brand's images are used.
+When the user message names a reference image as the brand's logo, show that logo once, exactly as given, where a brand's own post carries it, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
+When the user message names reference images as the brand's examples, they are posts the brand has published: follow their layout, their type and their use of colour, but take the subject and the words from the description, never from them.
+When the user message names the brand's colours, use them as the image's main colours.
+When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
+
     const sent = () => {
       const [params] = mockParse.mock.calls[0] as unknown as [
         { messages: { content: string }[] }
@@ -474,25 +487,41 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
         );
       });
 
-      it("follows the examples' look but not their subjects", async () => {
+      // Told to follow the examples' layout beside the rules above, which ask
+      // for a scene, a vantage point and the lighting, the rewrite described
+      // its own layout in 5 samples of 5 (spec 056, research R1).
+      it("lets the example's design govern, but not its subject or words", async () => {
         await service.generatePromptForPicture('p', 's', 5, brand);
         const { system } = sent();
 
         expect(system).toMatch(
-          /follow their layout, their type and their use of colour/i
+          /its design governs the whole image: its layout, background, type, imagery and use of colour/i
         );
         expect(system).toMatch(
-          /take the subject and the words from the description, never from them/i
+          /swaps in only the subject and the words from the description, never the example's own/i
         );
+        expect(system).not.toMatch(/follow their layout/i);
       });
 
-      it('uses the colours and sets the words in the named typefaces', async () => {
+      // As the image's main colours, a colour the example never uses became
+      // its palette (spec 056, FR-002).
+      it('uses the colours as the example does and sets the words in the named typefaces', async () => {
         await service.generatePromptForPicture('p', 's', 5, brand);
         const { system } = sent();
 
-        expect(system).toMatch(/use them as the image's main colours/i);
+        expect(system).toMatch(/they appear as the example uses them/i);
+        expect(system).not.toMatch(/use them as the image's main colours/i);
         expect(system).toMatch(/headline or title in the heading font/i);
         expect(system).toMatch(/any other words in the body font/i);
+      });
+
+      it("uses the colours as the image's main colours when no example goes along", async () => {
+        await service.generatePromptForPicture('p', 's', 0, {
+          examples: [],
+          colours: ['#B5542C'],
+        });
+
+        expect(sent().system).toMatch(/use them as the image's main colours/i);
       });
 
       it("names the brand's images by number, and its colours and fonts", async () => {
@@ -554,6 +583,150 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
         expect(
           sent().system.startsWith(TODAY_SYSTEM + '\nThe image is for a brand')
         ).toBe(true);
+      });
+
+      // Only an example changes the request: a kit of a logo, colours and
+      // fonts sends today's, and its rewrite comes back as it was parsed
+      // (spec 056, FR-005, SC-003).
+      it("sends today's exact request for a logo, colours and fonts with no example", async () => {
+        mockParse.mockResolvedValue({
+          choices: [
+            { message: { parsed: { inImageText: '', prompt: 'A post.' } } },
+          ],
+        });
+
+        const prompt = await service.generatePromptForPicture('p', 's', 1, {
+          logo: 1,
+          examples: [],
+          colours: ['#1C7E6C'],
+          headingFont: 'Inter',
+          bodyFont: 'Inter',
+        });
+
+        expect(sent()).toEqual({
+          system: [TODAY_SYSTEM, TODAY_REFERENCE_RULES, TODAY_BRAND_RULES].join(
+            '\n'
+          ),
+          user: [
+            'prompt: p',
+            'Render in this style: s',
+            'Reference images: 1',
+            'Brand logo: image 1',
+            'Brand colours: #1C7E6C',
+            'Brand heading font: Inter',
+            'Brand body font: Inter',
+          ].join('\n'),
+        });
+        expect(prompt).toBe('A post.');
+      });
+    });
+
+    // The rewrite never sees the example, and told only to follow it beside
+    // the rules above it wrote a scene of its own (spec 056, research R1 to
+    // R3; FR-001 to FR-004). One example goes along, here after the logo.
+    describe('with a brand example', () => {
+      const BRAND_EXAMPLE_RULES = `The image is for a brand, and the user message names the parts of the brand's kit that go along: only those apply, and they decide how the brand's images are used.
+When the user message names a reference image as the brand's logo, show that logo once, exactly as given, where a brand's own post carries it, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
+When the user message names a reference image as the brand's example, it is a post the brand has published, and its design governs the whole image: its layout, background, type, imagery and use of colour. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for: say that the image follows the design of the example image by its number, keeps where it places the logo and the headline, and swaps in only the subject and the words from the description, never the example's own.
+Every word in the inImageText field appears in the prompt, quoted and exactly as written: put each in the example's matching place where it has one, such as its headline, a label, a card, a panel or a button, naming that place, and put any word with no matching place where it fits the example's design. Never leave one out.
+When the user message names the brand's colours, they appear as the example uses them.
+When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
+
+      const block: BrandBlock = {
+        logo: 1,
+        examples: [2],
+        colours: ['#1C7E6C'],
+        headingFont: 'Inter',
+        bodyFont: 'Inter',
+      };
+
+      it('sends the example rules in place of the brand rules, after the reference rules', async () => {
+        await service.generatePromptForPicture('p', 's', 2, block);
+        const { system } = sent();
+
+        expect(system).toBe(
+          [TODAY_SYSTEM, TODAY_REFERENCE_RULES, BRAND_EXAMPLE_RULES].join('\n')
+        );
+        expect(system).not.toMatch(/use them as the image's main colours/i);
+      });
+
+      it("sends today's user message", async () => {
+        await service.generatePromptForPicture('p', 's', 2, block);
+
+        expect(sent().user).toBe(
+          [
+            'prompt: p',
+            'Render in this style: s',
+            'Reference images: 2',
+            'Brand logo: image 1',
+            'Brand example: image 2',
+            'Brand colours: #1C7E6C',
+            'Brand heading font: Inter',
+            'Brand body font: Inter',
+          ].join('\n')
+        );
+      });
+
+      // Today's rewrite named a corner for the logo, abstract 3D shapes and
+      // the kit's colours as "the dominant palette" (evidence/prompts.md).
+      it('writes no layout, composition, setting, palette, lighting or camera of its own', async () => {
+        await service.generatePromptForPicture('p', 's', 2, block);
+
+        expect(sent().system).toMatch(
+          /Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for/
+        );
+      });
+
+      // Round 2 dropped "Macromedia University" once and the call to action
+      // once, where the example had no place for them (research R3, FR-003).
+      it('keeps every word of the inImageText field, quoted, in its place or where it fits', async () => {
+        await service.generatePromptForPicture('p', 's', 2, block);
+        const { system } = sent();
+
+        expect(system).toMatch(
+          /Every word in the inImageText field appears in the prompt, quoted and exactly as written/
+        );
+        expect(system).toMatch(
+          /put each in the example's matching place where it has one/
+        );
+        expect(system).toMatch(
+          /put any word with no matching place where it fits the example's design\. Never leave one out\./
+        );
+      });
+
+      // Asked to say it, the rewrite said it in 1 of 2 round 2 prompts, and
+      // the image without it filled the example's cards with words nobody
+      // asked for, so the code adds it (research R2, FR-004). The number is
+      // the example's in the render.
+      it.each([
+        ['after the logo', 2, block, 2],
+        ['with no logo', 1, { examples: [1], colours: [] }, 1],
+      ])(
+        'ends the prompt with the sentence that leaves the empty places out, %s',
+        async (_case, references, example, n) => {
+          mockParse.mockResolvedValue({
+            choices: [
+              {
+                message: {
+                  parsed: { inImageText: '"Apply now"', prompt: 'A post.' },
+                },
+              },
+            ],
+          });
+
+          await expect(
+            service.generatePromptForPicture('p', 's', references, example)
+          ).resolves.toBe(
+            `A post. Any place for words in the design of image ${n} that this prompt gives no words for, such as a label, a card, a panel or a button, is left out of the image: never drawn empty, and never filled with other words.`
+          );
+        }
+      );
+
+      // Empty is the media service's cue to send the user's own words.
+      it('returns an empty string, with no sentence, when nothing was parsed', async () => {
+        await expect(
+          service.generatePromptForPicture('p', 's', 2, block)
+        ).resolves.toBe('');
       });
     });
   });

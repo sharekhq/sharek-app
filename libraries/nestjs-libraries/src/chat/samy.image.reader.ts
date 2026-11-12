@@ -34,8 +34,10 @@ type Prompt = ProcessLLMRequestArgs['prompt'];
 type UserPart = Extract<Prompt[number], { role: 'user' }>['content'][number];
 
 /** Where the prompt mentions an image, oldest first. */
-const mentionsIn = (prompt: Prompt) =>
-  prompt.flatMap((message, position) => {
+const mentionsIn = (prompt: Prompt) => {
+  const turn = prompt.map(({ role }) => role).lastIndexOf('user');
+
+  return prompt.flatMap((message, position) => {
     if (message.role === 'user') {
       return message.content.flatMap((part) =>
         part.type === 'text'
@@ -48,18 +50,28 @@ const mentionsIn = (prompt: Prompt) =>
 
     if (message.role === 'tool') {
       return message.content.flatMap((part) => {
-        const path =
-          part.type === 'tool-result' &&
-          part.toolName === 'generateImageTool' &&
-          part.output.type === 'json'
-            ? (part.output.value as { path?: unknown } | null)?.path
-            : undefined;
-        return isMediaLink(path) ? [{ url: path, position }] : [];
+        if (part.type !== 'tool-result' || part.output.type !== 'json') {
+          return [];
+        }
+        const { path, logo, examples } = (part.output.value ?? {}) as {
+          path?: unknown;
+          logo?: unknown;
+          examples?: { path?: unknown }[];
+        };
+        // A brand kit is seen in the turn that looked at it, and stays text after.
+        const links =
+          part.toolName === 'generateImageTool'
+            ? [path]
+            : part.toolName === 'brandKitTool' && position > turn
+            ? [logo, ...(examples ?? []).map((example) => example.path)]
+            : [];
+        return links.filter(isMediaLink).map((url) => ({ url, position }));
       });
     }
 
     return [];
   });
+};
 
 const picture = (url: string): UserPart[] => [
   { type: 'text', text: `Image ${url}:` },

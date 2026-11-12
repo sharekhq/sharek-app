@@ -41,10 +41,21 @@ jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
 );
+// The brand in use on every Samy turn here, as BrandService picks it.
+const mockSummaryForSamy = jest.fn().mockResolvedValue({
+  name: 'Hurghada Sea',
+  examples: [{ n: 2, path: 'https://media/example-2.jpg' }],
+  colours: ['#0A84FF'],
+  details: {},
+});
 // The brand repository opens a database client at import.
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
-  () => ({ BrandService: class {} })
+  () => ({
+    BrandService: class {
+      summaryForSamy = mockSummaryForSamy;
+    },
+  })
 );
 // samy.image.reader.integration.spec runs the real one.
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
@@ -250,11 +261,12 @@ describe('The image tool a run offers the model', () => {
     return Object.keys(tool.inputSchema.properties).sort();
   };
 
-  it("in Samy's chat takes references, an image to change, a shape and a brand", async () => {
+  it("in Samy's chat takes references, an image to change, a shape, a brand and its example", async () => {
     expect(await offered(true)).toEqual([
       'aspectRatio',
       'brand',
       'editOf',
+      'example',
       'prompt',
       'references',
     ]);
@@ -308,6 +320,7 @@ describe('The web tools a run offers the model', () => {
 
   it("in Samy's chat include readWebPageTool and webSearchTool", async () => {
     expect(await offered(true)).toEqual([
+      'brandKitTool',
       'generateImageTool',
       'readWebPageTool',
       'scheduleOnePost',
@@ -328,6 +341,7 @@ describe('The web tools a run offers the model', () => {
     process.env.TAVILY_API_KEY = 'tvly-test';
 
     expect(await offered(true)).toEqual([
+      'brandKitTool',
       'generateImageTool',
       'scheduleOnePost',
     ]);
@@ -342,4 +356,40 @@ describe('The web tools a run offers the model', () => {
       'scheduleOnePost',
     ]);
   });
+});
+
+// Samy knows the brand in use on every turn (spec 056): its instructions end
+// with the brand block, and brandKitTool shows it the kit. MCP lists neither
+// brandKitTool nor the image tool's example, as the cases above pin.
+describe('The brand a run gives the model', () => {
+  let spy: jest.SpyInstance;
+
+  beforeEach(() => {
+    spy = jest.spyOn(Logger, 'log').mockImplementation(() => undefined);
+    mockSummaryForSamy.mockClear();
+  });
+
+  afterEach(() => spy.mockRestore());
+
+  it("in Samy's chat offers brandKitTool, and the instructions end with the brand block", async () => {
+    const turn = await runTurn(0);
+    const lines = systemText(turn.steps[0]).trimEnd().split('\n');
+
+    expect(turn.steps[0].tools.map((entry: any) => entry.name)).toContain(
+      'brandKitTool'
+    );
+    expect(lines[lines.length - 1]).toBe(
+      '      Brand in use for this chat: "Hurghada Sea". Its kit: no logo; 1 example post, number 2 on the Brands page; colours #0A84FF; no heading font; no body font.'
+    );
+  }, 30000);
+
+  // Mastra resolves the instructions once per turn and every step reuses them
+  // (research R6), so the brand reads don't grow with the steps.
+  it('reads the brand once in a two-step turn', async () => {
+    const turn = await runTurn(1);
+
+    expect(turn.steps).toHaveLength(2);
+    expect(mockSummaryForSamy).toHaveBeenCalledTimes(1);
+    expect(systemText(turn.steps[1])).toBe(systemText(turn.steps[0]));
+  }, 30000);
 });

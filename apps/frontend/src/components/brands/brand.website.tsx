@@ -60,11 +60,13 @@ export const kitIsEmpty = ({ kit }: Brand) =>
 // brand name, the colour popover's hex code and the kit's font names too,
 // 44px at every pointer as the canvas draws it (.inp.lg). Here rather than
 // beside brand.kit.tsx's SMALL_BUTTON, since the kit imports this module and
-// onboarding would pull the kit's Media library in with it.
-export const TEXT_FIELD = clsx(
-  'h-[44px] px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
+// onboarding would pull the kit's Media library in with it. FIELD_LOOK is the
+// same field at any height: the kit's About, a text area its rows size.
+export const FIELD_LOOK = clsx(
+  'px-[10px] rounded-[8px] border border-line bg-surface text-ink text-[14px] coarse:text-[16px] outline-none',
   FOCUS_RING
 );
+export const TEXT_FIELD = clsx('h-[44px]', FIELD_LOOK);
 
 // The app's focus ring standing off by a gap of the surface, where the
 // control's own red would hide it (Add to kit) or read as it (the picked

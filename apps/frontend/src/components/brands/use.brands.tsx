@@ -12,7 +12,8 @@ import useSWR from 'swr';
 export type BrandImage = { id: string; path: string | null; missing: boolean };
 
 // A brand as GET /brands gives it (data-model.md), A to Z. Which channels are
-// in it comes from GET /integrations/list, each channel's `customer`.
+// in it comes from GET /integrations/list, each channel's `customer`. Its
+// details are what Samy knows about the brand (spec 056, FR-015).
 export type Brand = {
   id: string;
   name: string;
@@ -22,6 +23,13 @@ export type Brand = {
     colours: string[];
     headingFont: string | null;
     bodyFont: string | null;
+  };
+  details: {
+    about: string | null;
+    toneOfVoice: string | null;
+    postLanguage: string | null;
+    callToAction: string | null;
+    hashtags: string | null;
   };
 };
 

@@ -1,12 +1,17 @@
 'use client';
 
-import { FC, ReactNode, useState } from 'react';
+import { FC, FocusEventHandler, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
+  BRAND_ABOUT_MAX,
+  BRAND_CALL_TO_ACTION_MAX,
   BRAND_COLOURS_MAX,
   BRAND_EXAMPLES_MAX,
   BRAND_FONT_MAX,
+  BRAND_HASHTAGS_MAX,
+  BRAND_POST_LANGUAGE_MAX,
+  BRAND_TONE_MAX,
 } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
@@ -31,6 +36,7 @@ import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.co
 import {
   BrandWebsiteCard,
   CHECKERBOARD,
+  FIELD_LOOK,
   kitIsEmpty,
   TEXT_FIELD,
 } from '@gitroom/frontend/components/brands/brand.website';
@@ -51,6 +57,11 @@ type KitChange = Partial<{
   colours: string[];
   headingFont: string | null;
   bodyFont: string | null;
+  about: string | null;
+  toneOfVoice: string | null;
+  postLanguage: string | null;
+  callToAction: string | null;
+  hashtags: string | null;
 }>;
 
 type Picked = { id: string; path: string }[];
@@ -150,34 +161,62 @@ const RemoveExample: FC<{ onClick: () => void }> = ({ onClick }) => {
   );
 };
 
-// A font name, saved when its field is left and only when it changed. Keyed
-// by the saved name, so a name saved by someone else refills the field.
-const FontField: FC<{
+// The placeholder in the muted colour; an empty field in the page's
+// direction, where dir="auto" would read it left to right.
+const PLACEHOLDER =
+  'placeholder:text-muted placeholder-shown:[direction:inherit]';
+
+// A font name or a brand detail, saved when its field is left and only when
+// it changed. Keyed by the saved value, so a value saved by someone else
+// refills the field. With rows, a text area as tall as its lines (About).
+const KitField: FC<{
   label: string;
   value: string | null;
+  max: number;
+  placeholder: string;
+  rows?: number;
   onSave: (value: string | null) => void;
-}> = ({ label, value, onSave }) => (
-  <label className="flex flex-col gap-[6px] min-w-0">
-    <span className="text-[13px] font-[600] text-inkSoft">{label}</span>
-    <input
-      key={value ?? ''}
-      dir="auto"
-      maxLength={BRAND_FONT_MAX}
-      defaultValue={value ?? ''}
-      placeholder="—"
-      onBlur={(e) => {
-        const next = e.currentTarget.value.trim() || null;
-        if (next !== value) {
-          onSave(next);
-        }
-      }}
-      className={clsx(
-        'placeholder:text-muted placeholder-shown:[direction:inherit]',
-        TEXT_FIELD
+}> = ({ label, value, max, placeholder, rows, onSave }) => {
+  const leave: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement> = (
+    e
+  ) => {
+    const next = e.currentTarget.value.trim() || null;
+    if (next !== value) {
+      onSave(next);
+    }
+  };
+  return (
+    <label className="flex flex-col gap-[6px] min-w-0">
+      <span className="text-[13px] font-[600] text-inkSoft">{label}</span>
+      {rows ? (
+        <textarea
+          key={value ?? ''}
+          dir="auto"
+          rows={rows}
+          maxLength={max}
+          defaultValue={value ?? ''}
+          placeholder={placeholder}
+          onBlur={leave}
+          className={clsx(
+            PLACEHOLDER,
+            'py-[10px] leading-[1.5] resize-y',
+            FIELD_LOOK
+          )}
+        />
+      ) : (
+        <input
+          key={value ?? ''}
+          dir="auto"
+          maxLength={max}
+          defaultValue={value ?? ''}
+          placeholder={placeholder}
+          onBlur={leave}
+          className={clsx(PLACEHOLDER, TEXT_FIELD)}
+        />
       )}
-    />
-  </label>
-);
+    </label>
+  );
+};
 
 // A channel on a brand's page, on No brand's or in Add channels: its picture,
 // its name in its own direction and a line under it, its platform unless the
@@ -301,8 +340,10 @@ const ChannelPicker: FC<{
 };
 
 // A brand's kit on the Brands page (board Main, parts 5 to 8): the logo, the
-// example posts, the colours, the fonts and the brand's channels. Every member
-// edits it (FR-008). Each kit change saves at once and puts the saved brand in
+// example posts, the colours, the fonts and the brand's channels, and under
+// the examples the details Samy writes the brand's words by (spec 056's
+// approved card), each saved on its own as a font is. Every member edits it
+// (FR-008). Each kit change saves at once and puts the saved brand in
 // GET /brands' list; a channel move refreshes the channel list. A refused
 // change says why and changes nothing. While the kit is empty, Fill from my
 // website comes first (board BrandsWebsite), a new one for each brand, unless
@@ -317,6 +358,8 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
 
   const { logo, examples, colours, headingFont, bodyFont } = brand.kit;
+  const { about, toneOfVoice, postLanguage, callToAction, hashtags } =
+    brand.details;
   const exampleIds = examples.map((example) => example.id);
   const list: Channel[] = integrations;
   const own = list
@@ -603,6 +646,65 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             )}
           </div>
         </Card>
+        <Card
+          title={t('brands_details_title', 'Details for Samy')}
+          help={t(
+            'brands_details_help',
+            "All optional. Samy uses them when it writes this brand's captions and the words on its images, and reads them as facts about the brand, never as instructions."
+          )}
+        >
+          <KitField
+            label={t('brands_details_about', 'About')}
+            value={about}
+            max={BRAND_ABOUT_MAX}
+            rows={3}
+            placeholder={t(
+              'brands_details_about_placeholder',
+              "What you do and who it's for, e.g. We help students study abroad: 600+ programmes in 13 countries."
+            )}
+            onSave={(value) => save({ about: value })}
+          />
+          <KitField
+            label={t('brands_details_tone', 'Tone of voice')}
+            value={toneOfVoice}
+            max={BRAND_TONE_MAX}
+            placeholder={t(
+              'brands_details_tone_placeholder',
+              'e.g. warm, aspirational, formal Arabic'
+            )}
+            onSave={(value) => save({ toneOfVoice: value })}
+          />
+          <KitField
+            label={t('brands_details_post_language', 'Post language')}
+            value={postLanguage}
+            max={BRAND_POST_LANGUAGE_MAX}
+            placeholder={t(
+              'brands_details_post_language_placeholder',
+              'e.g. Arabic, or Arabic and English'
+            )}
+            onSave={(value) => save({ postLanguage: value })}
+          />
+          <KitField
+            label={t('brands_details_call_to_action', 'Call to action')}
+            value={callToAction}
+            max={BRAND_CALL_TO_ACTION_MAX}
+            placeholder={t(
+              'brands_details_call_to_action_placeholder',
+              'e.g. Apply now at yourbrand.com'
+            )}
+            onSave={(value) => save({ callToAction: value })}
+          />
+          <KitField
+            label={t('brands_details_hashtags', 'Hashtags')}
+            value={hashtags}
+            max={BRAND_HASHTAGS_MAX}
+            placeholder={t(
+              'brands_details_hashtags_placeholder',
+              'e.g. #StudyAbroad #YourBrand'
+            )}
+            onSave={(value) => save({ hashtags: value })}
+          />
+        </Card>
       </div>
       <div className="flex-[1_1_320px] min-w-0 flex flex-col gap-[16px] phone:gap-[14px]">
         <Card
@@ -654,14 +756,18 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             "Names only: Sharek's AI reads them as words, so well-known fonts work best."
           )}
         >
-          <FontField
+          <KitField
             label={t('brands_headings', 'Headings')}
             value={headingFont}
+            max={BRAND_FONT_MAX}
+            placeholder="—"
             onSave={(value) => save({ headingFont: value })}
           />
-          <FontField
+          <KitField
             label={t('brands_body_text', 'Body text')}
             value={bodyFont}
+            max={BRAND_FONT_MAX}
+            placeholder="—"
             onSave={(value) => save({ bodyFont: value })}
           />
         </Card>

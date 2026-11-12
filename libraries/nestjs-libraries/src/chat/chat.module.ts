@@ -9,15 +9,17 @@ import { ChatThreadsRepository } from '@gitroom/nestjs-libraries/chat/chat.threa
 import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
+import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.tool';
 
 @Global()
 @Module({
-  // SamyImageTool and the web tools stay out of toolList, which is what every outside connection lists.
+  // SamyImageTool, BrandKitTool and the web tools stay out of toolList, which is what every outside connection lists.
   providers: [
     MastraService,
     LoadToolsService,
     McpRelayService,
     SamyImageTool,
+    BrandKitTool,
     SamyImageReader,
     ReadWebPageTool,
     WebSearchTool,

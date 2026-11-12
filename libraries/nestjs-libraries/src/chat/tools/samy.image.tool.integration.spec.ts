@@ -93,6 +93,8 @@ jest.mock('@ai-sdk/openai', () => ({ openai: () => mockModel }));
 
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
+import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.tool';
+import { BrandService } from '@gitroom/nestjs-libraries/database/prisma/brands/brand.service';
 import { imageCreditRefusal } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 
@@ -112,13 +114,20 @@ const runTurn = async (steps: number[], credits: number) => {
       .mockResolvedValue({ credits, resetsAt: RESETS_AT }),
   };
   // No brand, so the images are made as they always were.
-  const brands = { resolveForSamy: jest.fn().mockResolvedValue({}) };
+  const brands = {
+    resolveForSamy: jest.fn().mockResolvedValue({}),
+    summaryForSamy: jest.fn().mockResolvedValue({ none: true }),
+  };
   const moduleRef = {
     get: (token: unknown) =>
       token === SamyImageReader
         ? new SamyImageReader()
         : token === SamyImageTool
         ? new SamyImageTool(media as any, brands as any)
+        : token === BrandKitTool
+        ? new BrandKitTool(brands as any)
+        : token === BrandService
+        ? brands
         : // A web tool. These runs are about images, so it's left off.
           { available: () => false },
   } as any;
@@ -166,7 +175,7 @@ describe('Samy image calls through the real loop', () => {
   // OpenAI is told every field is required, so the model fills the ones it has no
   // use for. Whatever it fills them with has to mean nothing, not a refusal.
   it.each([
-    ['null', { references: null, editOf: null, brand: null }],
+    ['null', { references: null, editOf: null, brand: null, example: null }],
     ['empty', { references: [], editOf: '', brand: '' }],
   ])(
     'makes the image when the unused fields come back %s',
