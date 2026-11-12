@@ -474,7 +474,10 @@ export class MediaService {
       throw new LogoPlaceRefusal(kit.name);
     }
 
-    const chosen = before ? undefined : this.exampleOf(kit, example);
+    // Checked even when the user's images take its place, so a wrong number
+    // is never ignored without a word.
+    const picked = this.exampleOf(kit, example);
+    const chosen = before ? undefined : picked;
     const examples = (chosen ? [chosen] : []).map(
       ({ id, n }): KitImage => ({ id, brand: kit.name, part: 'example', n })
     );
@@ -683,18 +686,25 @@ export class MediaService {
     }
 
     // The brand's own logo and example posts among the links are its kit, not
-    // the user's images (T038 run 1): the logo goes once, as the kit's, and an
-    // example post is the one to follow unless example names another, so the
-    // example rule is used. An edit takes its links as they are.
+    // the user's images (T038 run 1): the logo goes once, as the kit's, and the
+    // first example post listed is the one to follow unless example names
+    // another, so the example rule is used. Beside one of the user's images
+    // the examples step aside for theirs (spec 053), so an example link stays
+    // a reference, as it was before. An edit takes its links as they are.
     const kit =
       brand && !editOf && ids.length
         ? await this._brandService.kitFor(org.id, brand)
         : undefined;
-    const own = kit ? [kit.logoId, ...kit.examples.map(({ id }) => id)] : [];
+    const examples = kit ? kit.examples.map(({ id }) => id) : [];
+    const theirs = ids.some(
+      (id) => id !== kit?.logoId && !examples.includes(id)
+    );
+    const own = kit ? [kit.logoId, ...(theirs ? [] : examples)] : [];
     const kept = links.filter((_, position) => !own.includes(ids[position]));
     const references = ids.filter((id) => !own.includes(id));
+    const listed = ids.find((id) => own.includes(id) && id !== kit?.logoId);
     const example =
-      input.example ?? kit?.examples.find(({ id }) => ids.includes(id))?.n;
+      input.example ?? kit?.examples.find(({ id }) => id === listed)?.n;
 
     try {
       let prepared;

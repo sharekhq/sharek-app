@@ -2704,7 +2704,8 @@ describe('with a brand', () => {
     });
 
     // The user's images and an edit take the examples' place, and with no
-    // brand there is no kit: the number goes unused and unrefused.
+    // brand there is no kit: the number goes unused and unrefused. Beside the
+    // user's images it must still be one of the kit's (review R4).
     it.each([
       [
         'no brand',
@@ -2714,7 +2715,7 @@ describe('with a brand', () => {
       ],
       [
         "the user's images",
-        { references: [link('a')] },
+        { references: [link('a')], example: 2 },
         ['a', 'logo'],
         { logo: true, colours: true, fonts: true },
       ],
