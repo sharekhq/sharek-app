@@ -119,10 +119,10 @@ describe('SamyImageTool', () => {
     });
 
     // An example post's places are filled only with the words Samy writes for
-    // them (contracts/samy-brand.md §4).
-    it("the user's words, and the words for each place of an example post it fills", () => {
+    // them, and each place left out is named (contracts/samy-brand.md §4).
+    it("the user's words, and each place of an example post it fills or leaves out", () => {
       expect(makeTool().tool.inputSchema.shape.prompt.description).toBe(
-        "The user's description in their own words. Words to print stay as they wrote them. For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it."
+        "The user's description in their own words. Words to print stay as they wrote them. For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it, and name each place you leave out, saying the image has none of it (for example: no information cards)."
       );
     });
 

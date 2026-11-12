@@ -774,7 +774,7 @@ describe('LoadToolsService brands', () => {
 
   // The line about making an image, which spec 056 extends for an example post
   const MAKING =
-    "To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them. Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square. A style they name stays in the description. For a brand's example post, the description also names each of its places you fill, such as its label, headline, cards and call to action, with the words agreed for each.";
+    "To make an image, call generateImageTool with the user's description in their own words, keeping any words to print exactly as they wrote them. Choose aspectRatio from what they ask for: portrait, story or landscape, otherwise square. A style they name stays in the description. For a brand's example post, the description also names each of its places you fill, such as its label, headline, cards and call to action, with the words agreed for each, and names each place you leave out, saying the image has none of it (for example: no information cards).";
 
   it.each([...LINES, ...ADDED, MAKING])('tells Samy: %s', async (line) => {
     expect(await instructionsFor('true')).toContain(line);
