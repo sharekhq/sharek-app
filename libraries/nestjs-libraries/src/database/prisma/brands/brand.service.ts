@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { pick, uniq } from 'lodash';
+import { pick, pickBy, uniq } from 'lodash';
 import {
   BrandRepository,
   detailFields,
@@ -48,8 +48,37 @@ export type KitForImage = {
 // Samy's brand for one image: a brand's id, none for no kit, or words for Samy
 export type SamyBrand = { brandId?: string } | { error: string };
 
+// No one brand in use: none, the selected channels' brands, the workspace's
+// brands with none picked, or a name that matches none of them
+type NoBrandInUse =
+  | { none: true }
+  | { several: string[] }
+  | { ask: string[] }
+  | { unknown: string; brands: string[] };
+
+// What Samy is told about the brand in use: only the kit's images still in
+// Media, each example with its number on the Brands page, and only the details
+// that are set
+export type SamyBrandSummary =
+  | {
+      name: string;
+      logo?: { path: string };
+      examples: { n: number; path: string }[];
+      colours: string[];
+      headingFont?: string;
+      bodyFont?: string;
+      details: Partial<Record<keyof Brand['details'], string>>;
+    }
+  | NoBrandInUse;
+
+type SamyBrandRequest = { chip?: string; input?: string; channelIds: string[] };
+
 type StoredBrand = Awaited<ReturnType<BrandRepository['findLive']>>;
 type MediaRow = Awaited<ReturnType<BrandRepository['mediaByIds']>>[number];
+
+// The brand in use, as data: the list's row, so it isn't read again, or why
+// there's no one brand
+type BrandPick = { brand: StoredBrand } | NoBrandInUse;
 
 // The global ValidationPipe keeps keys the DTO doesn't declare
 const KIT_FIELDS = Object.keys({ ...kitFields, ...detailFields }) as (
@@ -90,12 +119,19 @@ const toBrand = (
   },
 });
 
+// The examples still in Media, each with its number on the Brands page, a
+// missing one counted
+const liveExamples = (kit: Brand['kit']) =>
+  kit.examples.flatMap((example, position) =>
+    example.missing ? [] : [{ ...example, n: position + 1 }]
+  );
+
 type Named = { id: string; name: string };
 
-const namesOf = (brands: Named[]) => brands.map(({ name }) => name).join(', ');
+const namesOf = (brands: Named[]) => brands.map(({ name }) => name);
 
 // The model may change a name's case; the exact name wins over another case
-const brandNamed = (brands: Named[], wanted: string) => {
+const brandNamed = <T extends Named>(brands: T[], wanted: string) => {
   const sameName = brands.filter(
     ({ name }) => name.toLowerCase() === wanted.toLowerCase()
   );
@@ -208,9 +244,7 @@ export class BrandService {
     return {
       name,
       logoId: kit.logo && !kit.logo.missing ? kit.logo.id : undefined,
-      examples: kit.examples.flatMap((example, position) =>
-        example.missing ? [] : [{ id: example.id, n: position + 1 }]
-      ),
+      examples: liveExamples(kit).map(({ id, n }) => ({ id, n })),
       colours: kit.colours,
       headingFont: kit.headingFont ?? undefined,
       bodyFont: kit.bodyFont ?? undefined,
@@ -221,19 +255,74 @@ export class BrandService {
   // and Samy says back; a refusal makes no image and spends no credit.
   async resolveForSamy(
     org: string,
-    {
-      chip,
-      input,
-      channelIds,
-    }: { chip?: string; input?: string; channelIds: string[] }
+    request: SamyBrandRequest
   ): Promise<SamyBrand> {
+    const pick = await this.pickBrand(org, request);
+    if ('brand' in pick) {
+      return { brandId: pick.brand.id };
+    }
+    if ('unknown' in pick) {
+      const names = pick.brands.join(', ');
+      return {
+        error: `There's no brand called "${pick.unknown}". The brands are: ${names}. Ask the user which one, or none.`,
+      };
+    }
+    if ('several' in pick) {
+      const names = pick.several.join(', ');
+      return {
+        error: `The selected channels belong to ${pick.several.length} brands: ${names}. Tell the user you'll make one image per brand, each in its own look, at one credit each, and wait for a yes. Then call once per brand with brand set to its name.`,
+      };
+    }
+    if ('ask' in pick) {
+      const names = pick.ask.join(', ');
+      return {
+        error: `This workspace has ${pick.ask.length} brands: ${names}. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.`,
+      };
+    }
+
+    return {};
+  }
+
+  // What Samy is told about the brand in use, in every turn's brand block and
+  // by brandKitTool (FR-008, FR-014), picked as resolveForSamy picks it: one
+  // brands read and one media read
+  async summaryForSamy(
+    org: string,
+    request: SamyBrandRequest
+  ): Promise<SamyBrandSummary> {
+    const pick = await this.pickBrand(org, request);
+    if (!('brand' in pick)) {
+      return pick;
+    }
+
+    const { name, kit, details } = toBrand(
+      pick.brand,
+      await this.images(org, imageIds(pick.brand.brandKit))
+    );
+
+    return {
+      name,
+      logo: kit.logo && !kit.logo.missing ? { path: kit.logo.path } : undefined,
+      examples: liveExamples(kit).map(({ n, path }) => ({ n, path })),
+      colours: kit.colours,
+      headingFont: kit.headingFont ?? undefined,
+      bodyFont: kit.bodyFont ?? undefined,
+      details: pickBy(details, Boolean),
+    };
+  }
+
+  // FR-017's order (R8), as data, for resolveForSamy and summaryForSamy
+  private async pickBrand(
+    org: string,
+    { chip, input, channelIds }: SamyBrandRequest
+  ): Promise<BrandPick> {
     // The brand chip's choice comes first (R14): none goes without a kit, and
     // a live brand of the organization, checked against the list below, wins
     // over the input. Each, or anything else the browser sent (another
     // organization's brand, a deleted one), leaves the brand to the input and
     // the channels, as no chip does.
     if (chip === NO_BRAND) {
-      return {};
+      return { none: true };
     }
     const picked = !!chip && chip !== EACH_BRAND;
 
@@ -242,27 +331,23 @@ export class BrandService {
     const wanted = input?.trim();
     const noBrand = wanted?.toLowerCase() === NO_BRAND;
     if (noBrand && !picked) {
-      return {};
+      return { none: true };
     }
 
     const brands = await this._brandRepository.list(org);
-    if (brands.some(({ id }) => id === chip)) {
-      return { brandId: chip };
+    const onChip = brands.find(({ id }) => id === chip);
+    if (onChip) {
+      return { brand: onChip };
     }
 
     // An organization with no brands goes without a kit, as today
     if (noBrand || !brands.length) {
-      return {};
+      return { none: true };
     }
-    const names = namesOf(brands);
 
     if (wanted) {
       const brand = brandNamed(brands, wanted);
-      return brand
-        ? { brandId: brand.id }
-        : {
-            error: `There's no brand called "${wanted}". The brands are: ${names}. Ask the user which one, or none.`,
-          };
+      return brand ? { brand } : { unknown: wanted, brands: namesOf(brands) };
     }
 
     // Channels in no brand never count, so ticked channels that are all in
@@ -274,22 +359,17 @@ export class BrandService {
       );
       const theirs = brands.filter(({ id }) => ids.includes(id));
       if (theirs.length > 1) {
-        const theirNames = namesOf(theirs);
-        return {
-          error: `The selected channels belong to ${theirs.length} brands: ${theirNames}. Tell the user you'll make one image per brand, each in its own look, at one credit each, and wait for a yes. Then call once per brand with brand set to its name.`,
-        };
+        return { several: namesOf(theirs) };
       }
 
-      return { brandId: theirs[0]?.id };
+      return theirs.length ? { brand: theirs[0] } : { none: true };
     }
 
     if (brands.length > 1) {
-      return {
-        error: `This workspace has ${brands.length} brands: ${names}. Ask the user which brand this image is for, or none, and keep their answer for the rest of the chat.`,
-      };
+      return { ask: namesOf(brands) };
     }
 
-    return { brandId: brands[0].id };
+    return { brand: brands[0] };
   }
 
   private async liveBrand(
