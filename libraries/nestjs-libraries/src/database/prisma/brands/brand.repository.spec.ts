@@ -34,8 +34,17 @@ const kitFields = {
   bodyFont: true,
 };
 
+// The brand's details share the kit's row (spec 056), so each read takes both
+const detailFields = {
+  about: true,
+  toneOfVoice: true,
+  postLanguage: true,
+  callToAction: true,
+  hashtags: true,
+};
+
 describe('BrandRepository.list', () => {
-  it("reads the asking organization's live brands A to Z, each with its kit's fields only", async () => {
+  it("reads the asking organization's live brands A to Z, each with its kit's and its details' fields only", async () => {
     const findMany = jest.fn().mockResolvedValue([]);
 
     await repositoryWith({ customer: { findMany } }).repository.list('org-1');
@@ -43,14 +52,18 @@ describe('BrandRepository.list', () => {
     expect(findMany).toHaveBeenCalledWith({
       where: { orgId: 'org-1', deletedAt: null },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, brandKit: { select: kitFields } },
+      select: {
+        id: true,
+        name: true,
+        brandKit: { select: { ...kitFields, ...detailFields } },
+      },
     });
   });
 });
 
 // A delete, a kit save and every image render read one brand: never the list.
 describe('BrandRepository.findLive', () => {
-  it("reads one of the asking organization's live brands by id, with its name and its kit's fields only", async () => {
+  it("reads one of the asking organization's live brands by id, with its name and its kit's and its details' fields only", async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
 
     await repositoryWith({ customer: { findFirst } }).repository.findLive(
@@ -60,7 +73,11 @@ describe('BrandRepository.findLive', () => {
 
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 'brand-1', orgId: 'org-1', deletedAt: null },
-      select: { id: true, name: true, brandKit: { select: kitFields } },
+      select: {
+        id: true,
+        name: true,
+        brandKit: { select: { ...kitFields, ...detailFields } },
+      },
     });
   });
 });
@@ -173,7 +190,7 @@ describe('BrandRepository.softDelete', () => {
 // Only the fields sent change; the service has checked the brand is the asking
 // organization's before it gets here.
 describe('BrandRepository.upsertKit', () => {
-  it("changes only the fields sent, starts a new kit's lists empty, and returns the kit's fields only", async () => {
+  it("changes only the fields sent, starts a new kit's lists empty, and returns the kit's and the details' fields only", async () => {
     const upsert = jest.fn().mockResolvedValue({});
 
     await repositoryWith({ brandKit: { upsert } }).repository.upsertKit(
@@ -185,7 +202,29 @@ describe('BrandRepository.upsertKit', () => {
       where: { customerId: 'brand-1' },
       update: { colours: ['#B5542C'] },
       create: { customerId: 'brand-1', exampleIds: [], colours: ['#B5542C'] },
-      select: kitFields,
+      select: { ...kitFields, ...detailFields },
+    });
+  });
+
+  it('saves a body of details only, a cleared one as null, and leaves the kit and the other details as stored', async () => {
+    const upsert = jest.fn().mockResolvedValue({});
+
+    await repositoryWith({ brandKit: { upsert } }).repository.upsertKit(
+      'brand-1',
+      { about: 'Specialty coffee in Riyadh', hashtags: null }
+    );
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { customerId: 'brand-1' },
+      update: { about: 'Specialty coffee in Riyadh', hashtags: null },
+      create: {
+        customerId: 'brand-1',
+        exampleIds: [],
+        colours: [],
+        about: 'Specialty coffee in Riyadh',
+        hashtags: null,
+      },
+      select: { ...kitFields, ...detailFields },
     });
   });
 });
