@@ -169,7 +169,7 @@ describe('Samy image calls through the real loop', () => {
   // OpenAI is told every field is required, so the model fills the ones it has no
   // use for. Whatever it fills them with has to mean nothing, not a refusal.
   it.each([
-    ['null', { references: null, editOf: null, brand: null }],
+    ['null', { references: null, editOf: null, brand: null, example: null }],
     ['empty', { references: [], editOf: '', brand: '' }],
   ])(
     'makes the image when the unused fields come back %s',
