@@ -960,3 +960,252 @@ describe('BrandService.resolveForSamy', () => {
     }
   );
 });
+
+// What Samy is told about the brand in use, every turn and by brandKitTool,
+// picked as resolveForSamy picks it (data-model.md, "Not stored"; FR-008,
+// FR-014): only the kit's images still in Media, each example with its number
+// on the Brands page, and only the details that are set.
+describe('BrandService.summaryForSamy', () => {
+  // Sorted by name, as the repository lists them
+  const brands = [
+    rawda,
+    { id: 'brand-2', name: 'Sanabel', brandKit: null },
+    { id: 'brand-3', name: 'نخيل', brandKit: null },
+  ];
+
+  const summarizer = (repository: Record<string, jest.Mock> = {}) =>
+    makeService({ list: jest.fn().mockResolvedValue(brands), ...repository });
+
+  const rawdaView = {
+    name: 'Rawda',
+    logo: { path: 'https://uploads.example.com/logo-1.png' },
+    examples: [
+      { n: 1, path: 'https://uploads.example.com/example-1.png' },
+      { n: 2, path: 'https://uploads.example.com/example-2.png' },
+    ],
+    colours: ['#B5542C', '#1F3A5F'],
+    headingFont: 'Amiri',
+    bodyFont: 'IBM Plex Sans Arabic',
+    details,
+  };
+
+  it.each([
+    [
+      "the brand chip's brand, over the input and the channels",
+      { chip: 'brand-1', input: 'Sanabel', channelIds: ['int-1'] },
+    ],
+    [
+      'the brand the input names, over the channels',
+      { input: 'Rawda', channelIds: ['int-1'] },
+    ],
+  ])(
+    'gives %s, with its kit and details, in one brands read and one media read',
+    async (_which, request) => {
+      const { service, repository } = summarizer({
+        customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-2']),
+      });
+
+      await expect(service.summaryForSamy('org-1', request)).resolves.toEqual(
+        rawdaView
+      );
+      expect(repository.list).toHaveBeenCalledTimes(1);
+      expect(repository.list).toHaveBeenCalledWith('org-1');
+      expect(repository.mediaByIds).toHaveBeenCalledTimes(1);
+      expect(repository.mediaByIds).toHaveBeenCalledWith('org-1', [
+        'logo-1',
+        'example-1',
+        'example-2',
+      ]);
+      expect(repository.findLive).not.toHaveBeenCalled();
+      expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+    }
+  );
+
+  it('gives the brand of the selected channels when they share exactly one', async () => {
+    const { service, repository } = summarizer({
+      customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: ['int-1', 'int-2'] })
+    ).resolves.toEqual(rawdaView);
+    expect(repository.customerIdsOfChannels).toHaveBeenCalledWith('org-1', [
+      'int-1',
+      'int-2',
+    ]);
+    expect(repository.list).toHaveBeenCalledTimes(1);
+    expect(repository.mediaByIds).toHaveBeenCalledTimes(1);
+    expect(repository.findLive).not.toHaveBeenCalled();
+  });
+
+  it('gives the only brand of the workspace when no channel is selected', async () => {
+    const { service, repository } = summarizer({
+      list: jest.fn().mockResolvedValue([rawda]),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual(rawdaView);
+    expect(repository.list).toHaveBeenCalledTimes(1);
+    expect(repository.mediaByIds).toHaveBeenCalledTimes(1);
+    expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+  });
+
+  // An example keeps its number on the Brands page, a missing one counted, so
+  // Samy's numbers match the page (FR-014)
+  it('leaves out a logo and an example no longer in Media, the other examples keeping their numbers', async () => {
+    const { service } = summarizer({
+      list: jest.fn().mockResolvedValue([
+        {
+          ...rawda,
+          brandKit: {
+            ...stored,
+            exampleIds: ['example-1', 'example-2', 'example-3'],
+          },
+        },
+      ]),
+      mediaByIds: jest
+        .fn()
+        .mockResolvedValue([
+          deleted('example-1'),
+          live('example-3'),
+          live('example-2'),
+        ]),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual({
+      ...rawdaView,
+      logo: undefined,
+      examples: [
+        { n: 2, path: 'https://uploads.example.com/example-2.png' },
+        { n: 3, path: 'https://uploads.example.com/example-3.png' },
+      ],
+    });
+  });
+
+  it('gives only the details that are set, and no font that is not', async () => {
+    const { service } = summarizer({
+      list: jest.fn().mockResolvedValue([
+        {
+          ...rawda,
+          brandKit: {
+            ...stored,
+            headingFont: null,
+            bodyFont: null,
+            ...noDetails,
+            postLanguage: 'Gulf Arabic',
+            hashtags: '#Rawda #Jeddah',
+          },
+        },
+      ]),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual({
+      name: 'Rawda',
+      logo: rawdaView.logo,
+      examples: rawdaView.examples,
+      colours: rawdaView.colours,
+      details: { postLanguage: 'Gulf Arabic', hashtags: '#Rawda #Jeddah' },
+    });
+  });
+
+  it('gives the name alone for a brand with no kit, reading no images', async () => {
+    const { service, repository } = summarizer();
+
+    await expect(
+      service.summaryForSamy('org-1', { chip: 'brand-2', channelIds: [] })
+    ).resolves.toEqual({
+      name: 'Sanabel',
+      examples: [],
+      colours: [],
+      details: {},
+    });
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the brand chip's No brand", { chip: 'none', input: 'Rawda' }],
+    ["'none' named", { input: ' None ' }],
+  ])(
+    'gives none for %s, whatever the channels, reading nothing',
+    async (_which, request) => {
+      const { service, repository } = summarizer({
+        customerIdsOfChannels: jest.fn().mockResolvedValue(['brand-1']),
+      });
+
+      await expect(
+        service.summaryForSamy('org-1', { ...request, channelIds: ['int-1'] })
+      ).resolves.toEqual({ none: true });
+      expect(repository.list).not.toHaveBeenCalled();
+      expect(repository.customerIdsOfChannels).not.toHaveBeenCalled();
+      expect(repository.mediaByIds).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['a name', { input: 'Rawda', channelIds: [] }],
+    ['channels', { channelIds: ['int-1'] }],
+    ['neither', { channelIds: [] }],
+  ])(
+    'gives none when the workspace has no brands and the call gives %s',
+    async (_gives, request) => {
+      const { service, repository } = summarizer({
+        list: jest.fn().mockResolvedValue([]),
+      });
+
+      await expect(service.summaryForSamy('org-1', request)).resolves.toEqual({
+        none: true,
+      });
+      expect(repository.mediaByIds).not.toHaveBeenCalled();
+    }
+  );
+
+  it('gives none when every selected channel is in no brand, though the workspace has several', async () => {
+    const { service, repository } = summarizer({
+      customerIdsOfChannels: jest.fn().mockResolvedValue([]),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: ['int-1'] })
+    ).resolves.toEqual({ none: true });
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+
+  it("names the selected channels' brands when they belong to several", async () => {
+    const { service, repository } = summarizer({
+      customerIdsOfChannels: jest
+        .fn()
+        .mockResolvedValue(['brand-3', 'brand-1']),
+    });
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: ['int-1', 'int-2'] })
+    ).resolves.toEqual({ several: ['Rawda', 'نخيل'] });
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+
+  it("names the workspace's brands to ask from when no channel is selected and it has several", async () => {
+    const { service, repository } = summarizer();
+
+    await expect(
+      service.summaryForSamy('org-1', { channelIds: [] })
+    ).resolves.toEqual({ ask: ['Rawda', 'Sanabel', 'نخيل'] });
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+
+  it('gives the name and the brands when the input names none of them', async () => {
+    const { service, repository } = summarizer();
+
+    await expect(
+      service.summaryForSamy('org-1', { input: ' Rawdah ', channelIds: [] })
+    ).resolves.toEqual({
+      unknown: 'Rawdah',
+      brands: ['Rawda', 'Sanabel', 'نخيل'],
+    });
+    expect(repository.mediaByIds).not.toHaveBeenCalled();
+  });
+});
