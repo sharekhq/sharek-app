@@ -66,11 +66,14 @@ export class SamyImageTool implements AgentToolInterface {
   ) {}
   name = 'generateImageTool';
 
-  run() {
+  // For a turn with no brand in use, today's tool word for word, with no
+  // example post to pick (SC-007).
+  run(brandInUse = true) {
     return createTool({
       id: 'generateImageTool',
-      description:
-        "Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name, example to the example post it followed and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.",
+      description: `Make an image and save it to the Media library, for one image credit. Returns { id, path }, with brand set to the brand's name${
+        brandInUse ? ', example to the example post it followed' : ''
+      } and say to follow in your reply when its kit went along, or { error } when it couldn't be made. The chat shows the image by itself.`,
       inputSchema: z.object({
         // First, because the waiting card takes its shape from this as it streams.
         aspectRatio: z
@@ -83,7 +86,11 @@ export class SamyImageTool implements AgentToolInterface {
           .string()
           .max(IMAGE_PROMPT_MAX_CHARS)
           .describe(
-            "The user's description in their own words. Words to print stay as they wrote them. For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it."
+            `The user's description in their own words. Words to print stay as they wrote them.${
+              brandInUse
+                ? " For a brand's example post, also name each of its places you fill (its label, headline, cards, call to action) with the words agreed for it."
+                : ''
+            }`
           ),
         references: z
           .array(z.string())
@@ -108,15 +115,17 @@ export class SamyImageTool implements AgentToolInterface {
           ),
         // After brand, whose kit it belongs to. The render refuses a number
         // that isn't one of the brand's example posts still in Media.
-        example: z
-          .number()
-          .int()
-          .min(1)
-          .max(BRAND_EXAMPLES_MAX)
-          .optional()
-          .describe(
-            "The number of the brand's example post this image follows, as brandKitTool gives it. Leave it out for the brand's first."
-          ),
+        ...(brandInUse && {
+          example: z
+            .number()
+            .int()
+            .min(1)
+            .max(BRAND_EXAMPLES_MAX)
+            .optional()
+            .describe(
+              "The number of the brand's example post this image follows, as brandKitTool gives it. Leave it out for the brand's first."
+            ),
+        }),
       }),
       // Mastra validates a tool's return against this schema, so it must also
       // allow the graceful { error } shape, as GenerateImageTool's does.
