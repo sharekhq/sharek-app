@@ -12,9 +12,24 @@ jest.mock('@gitroom/nestjs-libraries/chat/mastra.store', () => {
   const { InMemoryStore } = require('@mastra/core/storage');
   return { pStore: new InMemoryStore() };
 });
-jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => ({
-  toolList: [],
-}));
+// brandKitTool is Samy's own and never in toolList, but the reader knows it by its
+// name only, so a stand-in offered here is enough to put its result in a turn.
+jest.mock('@gitroom/nestjs-libraries/chat/tools/tool.list', () => {
+  const { createTool } = require('@mastra/core/tools');
+  const { z } = require('zod');
+  class BrandKitTool {
+    name = 'brandKitTool';
+    run() {
+      return createTool({
+        id: 'brandKitTool',
+        description: "Look at a brand's kit",
+        inputSchema: z.object({ brand: z.string().optional() }),
+        execute: async () => mockKit,
+      });
+    }
+  }
+  return { toolList: [BrandKitTool] };
+});
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/media/media.service',
   () => ({ MediaService: class {} })
@@ -57,10 +72,16 @@ const systemText = (request: any) =>
     .join('\n');
 
 // What the stand-in model does on each of Samy's calls, in order, then a reply.
-type Step = { make: string } | { reject: string } | { failStream: string };
+type Step =
+  | { make: string }
+  | { lookAtKit: true }
+  | { reject: string }
+  | { failStream: string };
 
 let mockScript: Step[] = [];
 const prompts: any[][] = [];
+// What brandKitTool returns, as a test sets it.
+let mockKit: object = {};
 
 const mockStream = (parts: object[], finishReason: string) => ({
   stream: new ReadableStream({
@@ -130,6 +151,19 @@ const mockStubModel: any = {
         'tool-calls'
       );
     }
+    if (step && 'lookAtKit' in step) {
+      return mockStream(
+        [
+          {
+            type: 'tool-call',
+            toolCallId: `call-${prompts.length}`,
+            toolName: 'brandKitTool',
+            input: JSON.stringify({}),
+          },
+        ],
+        'tool-calls'
+      );
+    }
     return mockStream(
       [
         { type: 'text-start', id: 't' },
@@ -155,6 +189,7 @@ jest.mock('@ai-sdk/openai', () => ({ openai: () => mockProvider }));
 import { LoadToolsService } from '@gitroom/nestjs-libraries/chat/load.tools.service';
 import { SamyImageReader } from '@gitroom/nestjs-libraries/chat/samy.image.reader';
 import { SamyImageTool } from '@gitroom/nestjs-libraries/chat/tools/samy.image.tool';
+import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 
 const link = (name: string) => `https://media.sharek.app/org-1/${name}`;
 
@@ -174,8 +209,8 @@ const moduleRef = {
   get: (token: any) =>
     token === SamyImageReader
       ? new SamyImageReader(media as any)
-      : token === SamyImageTool
-      ? new SamyImageTool()
+      : token === SamyImageTool || toolList.includes(token)
+      ? new token()
       : // A web tool. These runs are about images, so it's left off.
         { available: () => false },
 } as any;
@@ -427,6 +462,104 @@ describe('What Samy sees of a chat’s images', () => {
     );
     expect(asked).toEqual([mine, link('made.png')]);
   }, 30000);
+
+  describe('with a brand kit looked at', () => {
+    const logo = link('logo.png');
+    const first = link('example-1.png');
+    const second = link('example-2.jpg');
+    const kit = {
+      brand: 'Rawda',
+      logo,
+      examples: [
+        { n: 1, path: first },
+        { n: 2, path: second },
+      ],
+      colours: ['#0F5132'],
+    };
+
+    beforeEach(() => {
+      mockKit = kit;
+    });
+
+    it('sends its logo and each example in a new user message right after it, at high detail, and stores none of it', async () => {
+      const thread = newThread();
+      mockScript = [{ lookAtKit: true }];
+
+      const { agent } = await runTurn('What do our posts look like?', thread);
+
+      expect(picturesIn(prompts[0])).toEqual([]);
+      const prompt = prompts[1];
+      const tool = prompt.findIndex((message) => message.role === 'tool');
+      expect(tool).toBeGreaterThan(-1);
+      expect(prompt[tool + 1]).toEqual({
+        role: 'user',
+        content: [logo, first, second].flatMap((url) => [
+          label(url),
+          expect.objectContaining({
+            type: 'file',
+            mediaType: 'image/*',
+            providerOptions: { openai: { imageDetail: 'high' } },
+          }),
+        ]),
+      });
+      expect(picturesIn([prompt[tool + 1]])).toEqual([logo, first, second]);
+
+      const memory = await agent.getMemory();
+      const stored = await memory!.recall({
+        threadId: thread,
+        resourceId: 'org-1',
+        perPage: 500,
+      });
+      const rows = JSON.stringify(stored.messages);
+      expect(rows).not.toContain('"file"');
+      expect(rows).not.toContain('imageDetail');
+    }, 30000);
+
+    it('sends no picture and no note for it in a later turn, where it stays text', async () => {
+      const thread = newThread();
+      mockScript = [{ lookAtKit: true }];
+
+      await runTurn('What do our posts look like?', thread);
+      media.getMediaByPaths.mockClear();
+      await runTurn('Thanks', thread);
+      const prompt = prompts[prompts.length - 1];
+
+      expect(JSON.stringify(prompt)).toContain(logo);
+      expect(picturesIn(prompt)).toEqual([]);
+      for (const url of [logo, first, second]) {
+        expect(textsIn(prompt).join('\n')).not.toContain(`Image ${url}`);
+      }
+      expect(media.getMediaByPaths).not.toHaveBeenCalled();
+    }, 30000);
+
+    it('never sends a kit link outside the organization', async () => {
+      mockKit = { ...kit, logo: NOT_THEIRS };
+      mockScript = [{ lookAtKit: true }];
+
+      await runTurn('What do our posts look like?', newThread());
+
+      expect(picturesIn(prompts[1])).toEqual([first, second]);
+      expect(noteFor(prompts[1], NOT_THEIRS)).toMatch(/can't be read or used/);
+    }, 30000);
+
+    it('counts its pictures with the chat’s images in the newest 8', async () => {
+      const attached = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => link(`${n}.webp`));
+      mockScript = [{ lookAtKit: true }];
+
+      await runTurn(`Make one like these${attach(...attached)}`, newThread());
+      const prompt = prompts[1];
+
+      expect(picturesIn(prompt)).toEqual([
+        ...attached.slice(3),
+        logo,
+        first,
+        second,
+      ]);
+      for (const url of attached.slice(0, 3)) {
+        expect(noteFor(prompt, url)).toMatch(/no longer see/);
+      }
+    }, 30000);
+  });
 
   describe('with a dead image', () => {
     const good = link('good.png');
