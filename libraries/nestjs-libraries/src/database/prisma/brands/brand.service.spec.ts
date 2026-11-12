@@ -10,12 +10,31 @@ import { HttpException } from '@nestjs/common';
 import { BrandService } from './brand.service';
 import { BrandKitDto } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 
+// The brand's details share the kit's row
+const details = {
+  about: 'A family bakery in Jeddah, baking for homes and cafés',
+  toneOfVoice: 'Warm and plain',
+  postLanguage: 'Gulf Arabic',
+  callToAction: 'Order at rawda.sa',
+  hashtags: '#Rawda #Jeddah',
+};
+
+// A kit saved before the details existed, or with each one cleared
+const noDetails = {
+  about: null,
+  toneOfVoice: null,
+  postLanguage: null,
+  callToAction: null,
+  hashtags: null,
+};
+
 const stored = {
   logoId: 'logo-1',
   exampleIds: ['example-1', 'example-2'],
   colours: ['#B5542C', '#1F3A5F'],
   headingFont: 'Amiri',
   bodyFont: 'IBM Plex Sans Arabic',
+  ...details,
 };
 
 const rawda = { id: 'brand-1', name: 'Rawda', brandKit: stored };
@@ -97,6 +116,7 @@ describe('BrandService.list', () => {
           headingFont: 'Amiri',
           bodyFont: 'IBM Plex Sans Arabic',
         },
+        details,
       },
       {
         id: 'brand-2',
@@ -108,6 +128,7 @@ describe('BrandService.list', () => {
           headingFont: null,
           bodyFont: null,
         },
+        details: noDetails,
       },
     ]);
   });
@@ -167,6 +188,7 @@ describe('BrandService.get', () => {
         headingFont: 'Amiri',
         bodyFont: 'IBM Plex Sans Arabic',
       },
+      details,
     });
     expect(repository.findLive).toHaveBeenCalledWith('org-1', 'brand-1');
     expect(repository.mediaByIds).toHaveBeenCalledWith('org-1', [
@@ -176,6 +198,23 @@ describe('BrandService.get', () => {
     ]);
     expect(repository.list).not.toHaveBeenCalled();
   });
+
+  // Every kit saved before the details existed reads as empty details (FR-022)
+  it.each([
+    ['a kit with none set', { ...stored, ...noDetails }],
+    ['no kit', null],
+  ])(
+    'gives every detail as null for a brand with %s',
+    async (_has, brandKit) => {
+      const { service } = makeService({
+        findLive: jest.fn().mockResolvedValue({ ...rawda, brandKit }),
+      });
+
+      const brand = await service.get('org-1', 'brand-1');
+
+      expect(brand.details).toEqual(noDetails);
+    }
+  );
 
   it("404s on an id that isn't a live brand of the organization, reading no images", async () => {
     const { service, repository } = makeService({
@@ -272,9 +311,52 @@ describe('BrandService.saveKit', () => {
         headingFont: 'Amiri',
         bodyFont: 'IBM Plex Sans Arabic',
       },
+      details,
     });
     expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
       colours: ['#2E7D5B'],
+    });
+  });
+
+  // Each detail saves on its own, as the kit's parts do (FR-015)
+  it('saves about alone, leaving the kit and the other details as stored, and returns the saved brand', async () => {
+    const about = 'A bakery for cafés across the Gulf';
+    const { service, repository } = makeService({
+      upsertKit: jest.fn().mockResolvedValue({ ...stored, about }),
+    });
+
+    await expect(
+      service.saveKit('org-1', 'brand-1', { about })
+    ).resolves.toEqual({
+      id: 'brand-1',
+      name: 'Rawda',
+      kit: {
+        logo: image('logo-1'),
+        examples: [image('example-1'), image('example-2')],
+        colours: ['#B5542C', '#1F3A5F'],
+        headingFont: 'Amiri',
+        bodyFont: 'IBM Plex Sans Arabic',
+      },
+      details: { ...details, about },
+    });
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', { about });
+  });
+
+  it("passes on the details beside the kit, a cleared one as null, and none of the keys the DTO doesn't declare", async () => {
+    const { service, repository } = makeService();
+
+    await service.saveKit('org-1', 'brand-1', {
+      colours: ['#2E7D5B'],
+      toneOfVoice: 'Friendly',
+      hashtags: null,
+      customerId: 'brand-9',
+      updatedAt: '2026-01-01',
+    } as BrandKitDto);
+
+    expect(repository.upsertKit).toHaveBeenCalledWith('brand-1', {
+      colours: ['#2E7D5B'],
+      toneOfVoice: 'Friendly',
+      hashtags: null,
     });
   });
 
@@ -491,6 +573,22 @@ describe('BrandService.kitFor', () => {
 
     expect(kit.logoId).toBeUndefined();
     expect(kit.examples).toEqual([]);
+  });
+
+  // The image path never gets the details (data-model.md, KitForImage)
+  it('gives none of the details, though the brand has every one set', async () => {
+    const { service } = makeService();
+
+    const kit = await service.kitFor('org-1', 'brand-1');
+
+    expect(Object.keys(kit).sort()).toEqual([
+      'bodyFont',
+      'colours',
+      'examples',
+      'headingFont',
+      'logoId',
+      'name',
+    ]);
   });
 
   it('gives the name alone for a brand with no kit', async () => {
