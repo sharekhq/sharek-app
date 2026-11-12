@@ -1949,7 +1949,7 @@ describe('the Brand field', () => {
   });
 
   // FR-001: one example goes with the image, the brand's first still in
-  // Media, so it is the only one shown.
+  // Media, so it is the only one shown, and named in the singular (review R6).
   it("shows what goes along: the brand's logo and its first example still in Media", async () => {
     await compose();
     await pick('Bayt Al Qahwa');
@@ -1961,7 +1961,7 @@ describe('the Brand field', () => {
     expect(goesAlong()?.querySelector('img')?.getAttribute('alt')).toBe('Logo');
     expect(
       goesAlong()?.querySelector('[role="img"]')?.getAttribute('aria-label')
-    ).toBe('Example posts');
+    ).toBe('Example post');
   });
 
   it("shows the brand's second example once its first is gone from Media", async () => {

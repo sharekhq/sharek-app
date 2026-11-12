@@ -210,6 +210,9 @@ const STRINGS = [
     'العلامة التجارية لهذه الصورة: {{brand}}. تغيير العلامة',
   ],
   ['brands_goes_along', 'Goes along:', 'يرسل معها:'],
+  // Spec 056 (FR-001; review R6): the one example post that goes along, named
+  // in the singular, in en and ar as the field's other words are.
+  ['brands_example_post', 'Example post', 'منشور نموذجي'],
   [
     'brands_ref_help',
     "Optional. Your images take the place of the brand's examples; its logo stays.",
