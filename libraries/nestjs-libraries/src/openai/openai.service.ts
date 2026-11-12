@@ -71,6 +71,36 @@ When the user message names reference images as the brand's examples, they are p
 When the user message names the brand's colours, use them as the image's main colours.
 When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
 
+// Sent in BRAND_RULES' place when the brand's example goes along (spec 056,
+// research R1 to R3); a kit with no example still sends BRAND_RULES. The
+// improver never sees the example. Told to follow its layout beside the rules
+// above, which ask for a scene, a vantage point and the lighting, it gave the
+// example one clause in 5 text samples of 5 and described a layout of its own
+// (the headline upper-left, the logo in a corner, abstract 3D shapes), with the
+// kit's colours as "the dominant palette". In round 1's renders that missed the
+// example both times, while a rule saying the example's design governs matched
+// it as closely as a rewrite that saw the images, which would cost more on
+// every branded image. The colours appear as the example uses them: the test
+// kit held a cyan the example never uses. Round 2 asked the rewrite to name the
+// example's places for words and to leave out a place none of them fit: it
+// dropped the university line once and the call to action once, so every
+// requested word is now kept, in its place or where it fits; and it carried
+// the leave-out sentence in 1 prompt of 2, the image without it filling the
+// cards with made-up words, so the code appends that sentence instead
+// (EXAMPLE_PLACES_SENTENCE).
+const BRAND_EXAMPLE_RULES = `The image is for a brand, and the user message names the parts of the brand's kit that go along: only those apply, and they decide how the brand's images are used.
+When the user message names a reference image as the brand's logo, show that logo once, exactly as given, where a brand's own post carries it, and name it by its image number instead of describing it. It is the one logo the no-text rules above allow: they never remove it, and still forbid any other.
+When the user message names a reference image as the brand's example, it is a post the brand has published, and its design governs the whole image: its layout, background, type, imagery and use of colour. Write no layout, composition, setting, palette, lighting or camera of your own, whatever the lines above ask for: say that the image follows the design of the example image by its number, keeps where it places the logo and the headline, and swaps in only the subject and the words from the description, never the example's own.
+Every word in the inImageText field appears in the prompt, quoted and exactly as written: put each in the example's matching place where it has one, such as its headline, a label, a card, a panel or a button, naming that place, and put any word with no matching place where it fits the example's design. Never leave one out.
+When the user message names the brand's colours, they appear as the example uses them.
+When the user message names the brand's fonts, set any headline or title in the heading font and any other words in the body font, naming the typeface in the prompt.`;
+
+// Appended to a rewrite made with BRAND_EXAMPLE_RULES, so it reaches the image
+// model every time (research R2). `image` is the example's number in the
+// render, not its number on the Brands page.
+const EXAMPLE_PLACES_SENTENCE = (image: number) =>
+  `Any place for words in the design of image ${image} that this prompt gives no words for, such as a label, a card, a panel or a button, is left out of the image: never drawn empty, and never filled with other words.`;
+
 // generateEditPrompt's counterpart, added only when the logo goes along: an
 // edit takes the logo alone, because the image being changed already carries
 // the brand's look.
@@ -315,7 +345,9 @@ Clips must not overlap. Write the title and the post in this language, whatever 
    * (REFERENCE_RULES); at 0 the request is exactly what it was before
    * references existed. `brand` says which of them are the brand's and gives
    * the rest of its kit (BRAND_RULES); without it, or with nothing in it, the
-   * request is unchanged.
+   * request is unchanged. With an example in it, BRAND_EXAMPLE_RULES takes
+   * BRAND_RULES' place and the prompt returned ends with
+   * EXAMPLE_PLACES_SENTENCE.
    */
   async generatePromptForPicture(
     prompt: string,
@@ -335,7 +367,7 @@ Clips must not overlap. Write the title and the post in this language, whatever 
       ...(brand?.bodyFont ? [`Brand body font: ${brand.bodyFont}`] : []),
     ];
 
-    return (
+    const rewritten =
       (
         await openai.chat.completions.parse({
           model: 'gpt-5.6-luna',
@@ -355,7 +387,9 @@ When the user asks for no words, or mentions none, the image must contain no tex
 A style may be supplied on its own line; apply it to the whole image and let it change how the scene looks, never what it shows. When no style is given, choose the one the description implies.
 Describe the medium, the lighting and the camera the scene calls for — for a photographic scene, name the lens and the framing.`,
                 ...(references ? [REFERENCE_RULES] : []),
-                ...(brandLines.length ? [BRAND_RULES] : []),
+                ...(brandLines.length
+                  ? [brand?.examples.length ? BRAND_EXAMPLE_RULES : BRAND_RULES]
+                  : []),
               ].join('\n'),
             },
             {
@@ -370,8 +404,13 @@ Describe the medium, the lighting and the camera the scene calls for — for a p
           ],
           response_format: zodResponseFormat(PicturePrompt, 'picturePrompt'),
         })
-      ).choices[0].message.parsed?.prompt || ''
-    );
+      ).choices[0].message.parsed?.prompt || '';
+
+    // An empty rewrite stays empty: it is the caller's cue to send the user's
+    // own words.
+    return rewritten && brand?.examples.length
+      ? `${rewritten} ${EXAMPLE_PLACES_SENTENCE(brand.examples[0])}`
+      : rewritten;
   }
 
   /**
