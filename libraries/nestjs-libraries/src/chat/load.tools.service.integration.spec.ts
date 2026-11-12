@@ -51,7 +51,11 @@ const mockSummaryForSamy = jest.fn().mockResolvedValue({
 // The brand repository opens a database client at import.
 jest.mock(
   '@gitroom/nestjs-libraries/database/prisma/brands/brand.service',
-  () => ({ BrandService: class {} })
+  () => ({
+    BrandService: class {
+      summaryForSamy = mockSummaryForSamy;
+    },
+  })
 );
 // samy.image.reader.integration.spec runs the real one.
 jest.mock('@gitroom/nestjs-libraries/chat/samy.image.reader', () => ({
@@ -257,11 +261,12 @@ describe('The image tool a run offers the model', () => {
     return Object.keys(tool.inputSchema.properties).sort();
   };
 
-  it("in Samy's chat takes references, an image to change, a shape and a brand", async () => {
+  it("in Samy's chat takes references, an image to change, a shape, a brand and its example", async () => {
     expect(await offered(true)).toEqual([
       'aspectRatio',
       'brand',
       'editOf',
+      'example',
       'prompt',
       'references',
     ]);
@@ -315,6 +320,7 @@ describe('The web tools a run offers the model', () => {
 
   it("in Samy's chat include readWebPageTool and webSearchTool", async () => {
     expect(await offered(true)).toEqual([
+      'brandKitTool',
       'generateImageTool',
       'readWebPageTool',
       'scheduleOnePost',
@@ -335,6 +341,7 @@ describe('The web tools a run offers the model', () => {
     process.env.TAVILY_API_KEY = 'tvly-test';
 
     expect(await offered(true)).toEqual([
+      'brandKitTool',
       'generateImageTool',
       'scheduleOnePost',
     ]);
