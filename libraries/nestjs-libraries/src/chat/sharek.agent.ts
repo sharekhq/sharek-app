@@ -1,7 +1,10 @@
+import { EventType, type BaseEvent } from '@ag-ui/client';
 import { MastraAgent } from '@ag-ui/mastra';
 import type { CopilotRuntime } from '@copilotkit/runtime';
+import { InMemoryAgentRunner } from '@copilotkit/runtime/v2';
 import type { Mastra } from '@mastra/core';
 import type { RequestContext } from '@mastra/core/request-context';
+import { map } from 'rxjs';
 
 // @copilotkit/runtime ships its own nested rxjs and @ag-ui/client, so importing
 // Observable/RunAgentInput/AbstractAgent here resolves to a *different* copy of
@@ -11,6 +14,7 @@ import type { RequestContext } from '@mastra/core/request-context';
 type VendorRun = MastraAgent['run'];
 type VendorRunInput = Parameters<VendorRun>[0];
 type VendorRunOutput = ReturnType<VendorRun>;
+type VendorConnect = InMemoryAgentRunner['connect'];
 type VendorConfig = ConstructorParameters<typeof MastraAgent>[0];
 
 // CopilotKit exports its error-handler types only from @copilotkit/shared, which
@@ -113,6 +117,35 @@ export const getSharekAgents = ({
     }) as any;
     return all;
   }, {} as ReturnType<typeof MastraAgent.getLocalAgents>);
+
+/**
+ * CopilotKit's own runner, except that a reopened chat replays past a reply the
+ * user stopped. On Stop, CopilotKit 1.72 ends the run with a RUN_FINISHED that
+ * has no threadId or runId. The browser checks every replayed event and stops
+ * reading at the first that fails, so the chat ended at the stopped reply and
+ * every turn after it was missing. This gives that event its own run's ids on
+ * the way out, as CopilotKit 1.76 does where it writes the event; delete it once
+ * the @copilotkit/* packages reach 1.76.
+ */
+export class SharekAgentRunner extends InMemoryAgentRunner {
+  connect(request: Parameters<VendorConnect>[0]): ReturnType<VendorConnect> {
+    // Each run's events start with its RUN_STARTED.
+    let run = {};
+    return super.connect(request).pipe(
+      // `as any` only bridges the duplicate rxjs described above: the vendor's
+      // Observable and this `map` come from different copies, which work
+      // together at runtime.
+      map((event: BaseEvent) => {
+        if (event.type === EventType.RUN_STARTED) {
+          run = { threadId: event.threadId, runId: event.runId };
+        }
+        return event.type === EventType.RUN_FINISHED && !event.runId
+          ? { ...run, ...event }
+          : event;
+      }) as any
+    );
+  }
+}
 
 /**
  * One line per Samy run that failed or ended without finishing. CopilotKit

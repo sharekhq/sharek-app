@@ -21,6 +21,7 @@ import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/s
 import {
   getSharekAgents,
   logRunError,
+  SharekAgentRunner,
 } from '@gitroom/nestjs-libraries/chat/sharek.agent';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.service';
@@ -138,6 +139,8 @@ export class CopilotController {
 
     const runtime = new CopilotRuntime({
       agents,
+      // Replays a reopened chat past a reply the user stopped.
+      runner: new SharekAgentRunner(),
       // The chat shows nothing when a run fails; this logs it.
       onError: (event) => logRunError(event, organization.id),
     });
