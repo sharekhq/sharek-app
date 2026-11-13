@@ -1,16 +1,20 @@
 import { MastraAgent } from '@ag-ui/mastra';
 import type { CopilotRuntime } from '@copilotkit/runtime';
+import { InMemoryAgentRunner } from '@copilotkit/runtime/v2';
 import type { Mastra } from '@mastra/core';
 import type { RequestContext } from '@mastra/core/request-context';
+import { map } from 'rxjs';
 
 // @copilotkit/runtime ships its own nested rxjs and @ag-ui/client, so importing
 // Observable/RunAgentInput/AbstractAgent here resolves to a *different* copy of
 // those types than the vendor's own signature uses, and nothing lines up.
-// Deriving from MastraAgent keeps us on whichever copy it actually compiled
-// against, whatever the install hoists.
+// Deriving from the vendor classes keeps us on whichever copy they actually
+// compiled against, whatever the install hoists.
 type VendorRun = MastraAgent['run'];
 type VendorRunInput = Parameters<VendorRun>[0];
 type VendorRunOutput = ReturnType<VendorRun>;
+type VendorRunnerRun = InMemoryAgentRunner['run'];
+type VendorRunnerConnect = InMemoryAgentRunner['connect'];
 type VendorConfig = ConstructorParameters<typeof MastraAgent>[0];
 
 // CopilotKit exports its error-handler types only from @copilotkit/shared, which
@@ -113,6 +117,67 @@ export const getSharekAgents = ({
     }) as any;
     return all;
   }, {} as ReturnType<typeof MastraAgent.getLocalAgents>);
+
+// The fields of an AG-UI event that SharekAgentRunner reads. AG-UI's enum of
+// event types is in @ag-ui/client, which the repo does not depend on directly,
+// so the types are compared as the strings they are on the wire.
+type RunEvent = { type: string; threadId?: string; runId?: string };
+
+// On Stop, CopilotKit 1.72 ends the run with a RUN_FINISHED that has neither
+// id, and the browser rejects a RUN_FINISHED without both.
+const withRunIds = (
+  event: RunEvent,
+  threadId: string,
+  runId: string | undefined
+): RunEvent =>
+  event.type === 'RUN_FINISHED' && (!event.threadId || !event.runId)
+    ? {
+        ...event,
+        threadId: event.threadId || threadId,
+        runId: event.runId || runId,
+      }
+    : event;
+
+/**
+ * CopilotKit's own runner, except that a reply the user stopped ends with its
+ * run's ids. The browser checks every event it reads and stops at the first
+ * that fails, so a reopened chat ended at the stopped reply, with every turn
+ * after it missing, and the tab that pressed Stop read the run's end as an
+ * error. This gives that event its ids on the way out, as CopilotKit 1.76 does
+ * where it writes the event; delete it once the @copilotkit/* packages reach
+ * 1.76.
+ */
+export class SharekAgentRunner extends InMemoryAgentRunner {
+  // The stream the tab that sent the turn reads.
+  run(request: Parameters<VendorRunnerRun>[0]): ReturnType<VendorRunnerRun> {
+    return super.run(request).pipe(
+      // `as any` only bridges the duplicate rxjs described above: the vendor's
+      // Observable and this `map` come from different copies, which work
+      // together at runtime.
+      map(
+        (event: RunEvent): RunEvent =>
+          withRunIds(event, request.threadId, request.input.runId)
+      ) as any
+    );
+  }
+
+  // A reopened chat's replay: the thread's runs one after the other, each
+  // starting with its RUN_STARTED.
+  connect(
+    request: Parameters<VendorRunnerConnect>[0]
+  ): ReturnType<VendorRunnerConnect> {
+    let runId: string | undefined;
+    return super.connect(request).pipe(
+      // `as any`: the same duplicate rxjs as in run().
+      map((event: RunEvent): RunEvent => {
+        if (event.type === 'RUN_STARTED') {
+          runId = event.runId;
+        }
+        return withRunIds(event, request.threadId, runId);
+      }) as any
+    );
+  }
+}
 
 /**
  * One line per Samy run that failed or ended without finishing. CopilotKit

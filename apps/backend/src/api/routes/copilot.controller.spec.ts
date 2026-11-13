@@ -26,6 +26,7 @@ jest.mock('@gitroom/nestjs-libraries/chat/sharek.agent', () => ({
   logRunError: (...args: unknown[]) => {
     capturedRunErrors.push(args);
   },
+  SharekAgentRunner: class {},
 }));
 jest.mock('@gitroom/nestjs-libraries/chat/mastra.service', () => ({
   MastraService: class {},
@@ -50,6 +51,7 @@ jest.mock('@mastra/core/di', () => ({
 }));
 
 import { CopilotController } from './copilot.controller';
+import { SharekAgentRunner } from '@gitroom/nestjs-libraries/chat/sharek.agent';
 
 const send = async (body: unknown) => {
   capturedContexts.length = 0;
@@ -175,5 +177,14 @@ describe('CopilotController agent request context', () => {
     const failed = { context: { threadId: 'thread-1' } };
     (capturedRuntimes[0].onError as (event: unknown) => void)(failed);
     expect(capturedRunErrors).toEqual([[failed, 'org-1']]);
+  });
+
+  // CopilotKit's own runner replays a reopened chat only up to the first reply
+  // the user stopped (sharek.agent.ts).
+  it("replays reopened chats through Sharek's runner", async () => {
+    capturedRuntimes.length = 0;
+    await run(undefined);
+    expect(capturedRuntimes).toHaveLength(1);
+    expect(capturedRuntimes[0].runner).toBeInstanceOf(SharekAgentRunner);
   });
 });

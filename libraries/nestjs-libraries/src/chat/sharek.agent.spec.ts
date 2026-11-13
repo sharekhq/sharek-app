@@ -1,4 +1,18 @@
-import { logRunError, messagesToSend, SharekAgent } from './sharek.agent';
+import { AbstractAgent, EventSchemas, EventType } from '@ag-ui/client';
+import { InMemoryAgentRunner } from '@copilotkit/runtime/v2';
+import {
+  filter,
+  firstValueFrom,
+  lastValueFrom,
+  Observable,
+  toArray,
+} from 'rxjs';
+import {
+  logRunError,
+  messagesToSend,
+  SharekAgent,
+  SharekAgentRunner,
+} from './sharek.agent';
 
 const u = (id: string) => ({ id, role: 'user', content: 'hi' });
 const a = (id: string) => ({ id, role: 'assistant', content: 'hello' });
@@ -150,6 +164,182 @@ describe('SharekAgent', () => {
       expect(cloned.headers).toEqual({ authorization: 'x' });
       expect(cloned.headers).not.toBe(agent.headers);
     });
+  });
+});
+
+// A reopened chat is replayed from the runner's memory of the thread. On Stop,
+// CopilotKit 1.72 ends the run with a RUN_FINISHED that has no threadId or
+// runId, and the browser checks each replayed event with EventSchemas.parse:
+// the first one that fails ends the replay, so every turn after a stopped reply
+// went missing. These drive the real runner; only the agent is a stand-in.
+describe('SharekAgentRunner', () => {
+  // Stops like MastraAgent 1.1.4: the stream completes with no RUN_FINISHED of
+  // its own, so the runner writes one. A stopped reply is cut during a tool
+  // call, as when the user stops an image.
+  class ReplyAgent extends AbstractAgent {
+    private aborts = new Set<AbortController>();
+
+    constructor(threadId: string, private readonly stopped: boolean) {
+      super({ threadId });
+    }
+
+    run(input: any): any {
+      return new Observable<any>((subscriber) => {
+        const abort = new AbortController();
+        this.aborts.add(abort);
+        abort.signal.addEventListener('abort', () => subscriber.complete());
+
+        const { threadId, runId } = input;
+        const messageId = `reply-${runId}`;
+        subscriber.next({ type: EventType.RUN_STARTED, threadId, runId });
+        subscriber.next({
+          type: EventType.TEXT_MESSAGE_START,
+          messageId,
+          role: 'assistant',
+        });
+        subscriber.next({
+          type: EventType.TEXT_MESSAGE_CONTENT,
+          messageId,
+          delta: `reply ${runId}`,
+        });
+        subscriber.next({ type: EventType.TEXT_MESSAGE_END, messageId });
+
+        if (this.stopped) {
+          subscriber.next({
+            type: EventType.TOOL_CALL_START,
+            toolCallId: `image-${runId}`,
+            toolCallName: 'generateImage',
+            parentMessageId: messageId,
+          });
+          return;
+        }
+
+        subscriber.next({ type: EventType.RUN_FINISHED, threadId, runId });
+        subscriber.complete();
+      });
+    }
+
+    abortRun() {
+      this.aborts.forEach((abort) => abort.abort());
+      this.aborts.clear();
+    }
+  }
+
+  // The runners share one process-wide store, as in production, so every test
+  // writes its own thread.
+  let threads = 0;
+  const newThread = () => `reopen-${++threads}`;
+
+  const turn = async (threadId: string, runId: string, stopped = false) => {
+    const runner = new SharekAgentRunner();
+    const events = runner.run({
+      threadId,
+      agent: new ReplyAgent(threadId, stopped) as any,
+      input: {
+        threadId,
+        runId,
+        messages: [{ id: `ask-${runId}`, role: 'user', content: 'hi' }],
+        tools: [],
+        context: [],
+        state: {},
+        forwardedProps: {},
+      },
+    });
+
+    if (stopped) {
+      await firstValueFrom(
+        events.pipe(
+          filter((event: any) => event.type === EventType.TOOL_CALL_START)
+        )
+      );
+      await runner.stop({ threadId, runId });
+    }
+
+    // The run is in the store by the time its events complete. They are what
+    // the tab that sent the turn reads.
+    return lastValueFrom(events.pipe(toArray())) as Promise<any[]>;
+  };
+
+  const replay = (runner: InMemoryAgentRunner, threadId: string) =>
+    lastValueFrom(runner.connect({ threadId }).pipe(toArray())) as Promise<
+      any[]
+    >;
+
+  const replies = (events: any[]) =>
+    events
+      .filter((event) => event.type === EventType.TEXT_MESSAGE_CONTENT)
+      .map((event) => event.delta);
+
+  it('replays every turn after a reply the user stopped', async () => {
+    const threadId = newThread();
+    await turn(threadId, 'r1');
+    await turn(threadId, 'r2', true);
+    await turn(threadId, 'r3');
+
+    const events = await replay(new SharekAgentRunner(), threadId);
+
+    events.forEach((event) =>
+      expect(() => EventSchemas.parse(event)).not.toThrow()
+    );
+    expect(replies(events)).toEqual(['reply r1', 'reply r2', 'reply r3']);
+  });
+
+  it("ends each stopped reply with its own run's ids", async () => {
+    const threadId = newThread();
+    await turn(threadId, 'r1');
+    await turn(threadId, 'r2', true);
+    await turn(threadId, 'r3', true);
+    await turn(threadId, 'r4');
+
+    const events = await replay(new SharekAgentRunner(), threadId);
+    const finished = events.filter(
+      (event) => event.type === EventType.RUN_FINISHED
+    );
+
+    expect(
+      finished.map(({ threadId, runId }) => ({ threadId, runId }))
+    ).toEqual(['r1', 'r2', 'r3', 'r4'].map((runId) => ({ threadId, runId })));
+  });
+
+  // The tab that pressed Stop is still reading the run's own stream, which ends
+  // with the same event.
+  it("ends a stopped reply's own stream with its run's ids", async () => {
+    const threadId = newThread();
+    const events = await turn(threadId, 'r1', true);
+
+    events.forEach((event) =>
+      expect(() => EventSchemas.parse(event)).not.toThrow()
+    );
+    expect(events[events.length - 1]).toMatchObject({
+      type: EventType.RUN_FINISHED,
+      threadId,
+      runId: 'r1',
+    });
+  });
+
+  it('passes every other event through as the vendor replays it', async () => {
+    const threadId = newThread();
+    await turn(threadId, 'r1');
+    await turn(threadId, 'r2', true);
+    await turn(threadId, 'r3');
+
+    const ours = await replay(new SharekAgentRunner(), threadId);
+    const vendor = await replay(new InMemoryAgentRunner(), threadId);
+    const others = (events: any[]) =>
+      events.filter((event) => event.type !== EventType.RUN_FINISHED);
+
+    expect(ours).toHaveLength(vendor.length);
+    expect(others(ours)).toEqual(others(vendor));
+  });
+
+  it('leaves a thread with no stopped reply as the vendor replays it', async () => {
+    const threadId = newThread();
+    await turn(threadId, 'r1');
+    await turn(threadId, 'r2');
+
+    expect(await replay(new SharekAgentRunner(), threadId)).toEqual(
+      await replay(new InMemoryAgentRunner(), threadId)
+    );
   });
 });
 
