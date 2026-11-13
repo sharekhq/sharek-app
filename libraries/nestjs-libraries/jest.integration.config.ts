@@ -3,7 +3,8 @@
 // dynamic import(), which jest's VM rejects unless Node is started with
 // --experimental-vm-modules — and once that flag is on, jest refuses to require
 // `tokenx`, `@sindresorhus/slugify`, `p-map` or `jose` (ESM only, pulled in by
-// @mastra/core), so they are mapped to stubs.
+// @mastra/core) or `@remix-run/node-fetch-server` (ESM only, pulled in by
+// @copilotkit/runtime/v2), so they are mapped to stubs.
 //
 // Both conditions come from upstream's dependency set; neither is reachable from
 // the unit config, which is why this is separate rather than merged into it.
@@ -26,6 +27,8 @@ const config: Config = {
     '^@sindresorhus/slugify$': '<rootDir>/../test/slugify.stub.ts',
     '^p-map$': '<rootDir>/../test/p-map.stub.ts',
     '^jose$': '<rootDir>/../test/jose.stub.ts',
+    '^@remix-run/node-fetch-server$':
+      '<rootDir>/../test/node-fetch-server.stub.ts',
   },
   transform: {
     '^.+\\.[mc]?[tj]s$': [

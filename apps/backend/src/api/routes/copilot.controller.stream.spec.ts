@@ -10,6 +10,7 @@ process.env.COPILOTKIT_TELEMETRY_DISABLED = 'true';
 jest.mock('@gitroom/nestjs-libraries/chat/sharek.agent', () => ({
   getSharekAgents: () => ({}),
   logRunError: () => undefined,
+  SharekAgentRunner: class {},
 }));
 jest.mock('@gitroom/nestjs-libraries/chat/mastra.service', () => ({
   MastraService: class {},

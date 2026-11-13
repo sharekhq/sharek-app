@@ -255,8 +255,9 @@ describe('SharekAgentRunner', () => {
       await runner.stop({ threadId, runId });
     }
 
-    // The run is in the store by the time its events complete.
-    await lastValueFrom(events, { defaultValue: undefined });
+    // The run is in the store by the time its events complete. They are what
+    // the tab that sent the turn reads.
+    return lastValueFrom(events.pipe(toArray())) as Promise<any[]>;
   };
 
   const replay = (runner: InMemoryAgentRunner, threadId: string) =>
@@ -298,6 +299,22 @@ describe('SharekAgentRunner', () => {
     expect(
       finished.map(({ threadId, runId }) => ({ threadId, runId }))
     ).toEqual(['r1', 'r2', 'r3', 'r4'].map((runId) => ({ threadId, runId })));
+  });
+
+  // The tab that pressed Stop is still reading the run's own stream, which ends
+  // with the same event.
+  it("ends a stopped reply's own stream with its run's ids", async () => {
+    const threadId = newThread();
+    const events = await turn(threadId, 'r1', true);
+
+    events.forEach((event) =>
+      expect(() => EventSchemas.parse(event)).not.toThrow()
+    );
+    expect(events[events.length - 1]).toMatchObject({
+      type: EventType.RUN_FINISHED,
+      threadId,
+      runId: 'r1',
+    });
   });
 
   it('passes every other event through as the vendor replays it', async () => {
