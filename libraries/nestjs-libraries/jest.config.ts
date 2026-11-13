@@ -55,9 +55,10 @@ const config: Config = {
   // p-map, ESM-only too. @mastra/client-js 1.46 (through @ag-ui/mastra) loads
   // @mastra/core's A2A build, whose @a2a-js/sdk requires jose 6, ESM-only.
   // @mastra/mcp requires exit-hook and @modelcontextprotocol/ext-apps, ESM-only
-  // (tool.contract.spec builds an MCPServer).
+  // (tool.contract.spec builds an MCPServer). @copilotkit/runtime/v2 loads
+  // @remix-run/node-fetch-server, ESM-only (sharek.agent's runner).
   transformIgnorePatterns: [
-    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/|jose/|exit-hook/|@modelcontextprotocol/ext-apps/)',
+    '/node_modules/(?!tokenx/|file-type/|music-metadata/|media-typer/|strtok3/|token-types/|uint8array-extras/|win-guid/|@tokenizer/inflate/|@borewit/text-codec/|@sindresorhus/slugify/|@sindresorhus/transliterate/|escape-string-regexp/|p-map/|jose/|exit-hook/|@modelcontextprotocol/ext-apps/|@remix-run/node-fetch-server/)',
   ],
 };
 
