@@ -1,11 +1,16 @@
 'use client';
 
-import { FC, useState } from 'react';
+import { FC, ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { Media } from '@prisma/client';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import {
+  MediaLibraryQuery,
+  useMediaMonthCount,
+} from '@gitroom/frontend/components/media/use.media.library';
 
 /** What a tile reads of a library row: the original, and its tile image when the storage made one. */
 type TileMedia = Pick<Media, 'path'> & { tileImage?: string };
@@ -90,5 +95,49 @@ export const TilePicture: FC<{
         </div>
       )}
     </div>
+  );
+};
+
+/**
+ * A month of the media library: a heading with the month's name and how many
+ * files it holds under the list's type and search, over its tiles on today's
+ * grid.
+ *
+ * The heading is sticky inside the month's own section, so it stays at the top
+ * while the month's tiles scroll under it, until the next month's heading
+ * pushes it up. It sits above the tiles' controls and never moves; only the
+ * count's skeleton bar pulses until the count answers.
+ */
+export const MediaMonth: FC<{
+  query: MediaLibraryQuery;
+  label: string;
+  from: string;
+  to: string;
+  children: ReactNode;
+}> = ({ query, label, from, to, children }) => {
+  const t = useT();
+  const { data } = useMediaMonthCount(query, { from, to });
+  return (
+    <section className="mb-[10px]">
+      <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] bg-newBgColorInner">
+        <h2 className="text-[16px] font-[600]">{label}</h2>
+        {data ? (
+          <span className="text-[13px] text-muted">
+            {t('media_month_files', '{{value}} files', {
+              count: data.count,
+              value: data.count.toLocaleString('en-US'),
+            })}
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="w-[56px] h-[12px] rounded-[4px] bg-newSep animate-pulse"
+          />
+        )}
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0">
+        {children}
+      </div>
+    </section>
   );
 };
