@@ -1,6 +1,13 @@
 'use client';
 
-import { FC, Fragment, ReactElement, useCallback, useState } from 'react';
+import {
+  FC,
+  Fragment,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { Media } from '@prisma/client';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
@@ -64,9 +71,18 @@ export const MediaPreview: FC<{
   /** More files follow the loaded ones, which `loadMore` asks for. */
   hasMore?: boolean;
   loadMore?: () => void;
+  /** The last ask failed: each step past the loaded files asks again. */
+  loadFailed?: boolean;
   /** Deletes the file; resolves to whether it went. Adds the footer. */
   onDelete?: (item: PreviewItem) => Promise<boolean>;
-}> = ({ items, index, hasMore = false, loadMore, onDelete }) => {
+}> = ({
+  items,
+  index,
+  hasMore = false,
+  loadMore,
+  loadFailed = false,
+  onDelete,
+}) => {
   const t = useT();
   const mediaDirectory = useMediaDirectory();
   const { closeCurrent } = useModals();
@@ -102,8 +118,8 @@ export const MediaPreview: FC<{
         return;
       }
       // While more can load, the place past the loaded files stands for them:
-      // stepping onto it loads them, once, and the viewer moves on when they
-      // arrive.
+      // stepping onto it loads them, once (again after a failed load), and the
+      // viewer moves on when they arrive.
       const to = stepMediaIndex({
         current: position,
         total: items.length + (hasMore ? 1 : 0),
@@ -113,12 +129,12 @@ export const MediaPreview: FC<{
       if (to < items.length) {
         setWaiting(undefined);
         setShown({ id: items[to].id, position: to });
-      } else if (waiting !== media.id) {
+      } else if (loadFailed || waiting !== media.id) {
         setWaiting(media.id);
         loadMore?.();
       }
     },
-    [media, position, items, hasMore, loadMore, waiting]
+    [media, position, items, hasMore, loadMore, loadFailed, waiting]
   );
 
   const stepOnKey = useCallback(
@@ -358,8 +374,15 @@ export const LibraryPreview: FC<{
   /** Told the id of each file its Delete removed. */
   onDeleted: (id: string) => void;
 }> = ({ query, startId, onDeleted }) => {
-  const { files, hasMore, loadMore, refresh } = useMediaLibrary(query);
+  const { files, hasMore, loadMore, error, mutate, refresh } =
+    useMediaLibrary(query);
   const deleteMedia = useDeleteMedia();
+  const { closeCurrent } = useModals();
+  // Where the file it opens on stood when it opened. It opens on no other: a
+  // file that isn't in the list (or a list with none) closes it.
+  const [start] = useState(() =>
+    files.findIndex((file) => file.id === startId)
+  );
 
   const onDelete = useCallback(
     async (file: PreviewItem) => {
@@ -374,15 +397,33 @@ export const LibraryPreview: FC<{
     [deleteMedia, onDeleted, refresh]
   );
 
+  // After a failed load, asking for more asks again, as the list's Try again
+  // does.
+  const askMore = useCallback(() => {
+    if (error) {
+      mutate();
+    } else {
+      loadMore();
+    }
+  }, [error, mutate, loadMore]);
+
+  useEffect(() => {
+    if (start === -1) {
+      closeCurrent();
+    }
+  }, [start, closeCurrent]);
+
+  if (start === -1) {
+    return null;
+  }
+
   return (
     <MediaPreview
       items={files}
-      index={Math.max(
-        files.findIndex((file) => file.id === startId),
-        0
-      )}
+      index={start}
       hasMore={hasMore}
-      loadMore={loadMore}
+      loadMore={askMore}
+      loadFailed={!!error}
       onDelete={onDelete}
     />
   );
