@@ -1,10 +1,23 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
+import {
+  MediaLibraryDto,
+  MediaMonthDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
+import { Prisma } from '@prisma/client';
 
 // Four rows of the eight columns the library grid yields on a target screen.
 // The composer's media picker reads the same endpoint, so it gets 32 too.
 const MEDIA_PAGE_SIZE = 32;
+
+// A file is a video when its address holds .mp4 in any case, as the tile's
+// hasExtension reads it, so the list and the tile can't disagree. The type
+// column (image on every row) and fileSize are never read (spec 057, Rule 7).
+const MEDIA_VIDEO: Prisma.MediaWhereInput = {
+  path: { contains: '.mp4', mode: 'insensitive' },
+};
+const MEDIA_STILL_ENDINGS = ['.jpg', '.jpeg', '.png'];
 
 @Injectable()
 export class MediaRepository {
@@ -123,17 +136,19 @@ export class MediaRepository {
     });
   }
 
-  async getMedia(org: string, page: number, search?: string) {
+  // The public API and Samy read without options and get today's query; the
+  // Media library's options add the type and break ties by id, so rows that
+  // share a timestamp keep one order between loads (spec 057, Rule 3).
+  async getMedia(
+    org: string,
+    page: number,
+    search?: string,
+    options?: Pick<MediaLibraryDto, 'type' | 'sort'>
+  ) {
     const pageNum = (page || 1) - 1;
-    const trimmedSearch = search?.trim();
-    const searchFilter = trimmedSearch
-      ? {
-          originalName: {
-            contains: trimmedSearch,
-            mode: 'insensitive' as const,
-          },
-        }
-      : {};
+    const searchFilter = this.searchFilter(search);
+    const typeFilter = this.typeFilter(options?.type);
+    const order = options?.sort === 'oldest' ? 'asc' : 'desc';
     const query = {
       where: {
         organization: {
@@ -142,6 +157,7 @@ export class MediaRepository {
         deletedAt: null,
         status: { not: 'processing' },
         ...searchFilter,
+        ...typeFilter,
       },
     };
     const pages = Math.ceil(
@@ -154,10 +170,13 @@ export class MediaRepository {
         // still being normalized: it shows up once the workflow releases it
         status: { not: 'processing' },
         ...searchFilter,
+        ...typeFilter,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: options
+        ? [{ createdAt: order }, { id: order }]
+        : {
+            createdAt: 'desc',
+          },
       select: {
         id: true,
         name: true,
@@ -206,5 +225,83 @@ export class MediaRepository {
         path: true,
       },
     });
+  }
+
+  countMediaInRange(org: string, query: MediaMonthDto): Promise<number> {
+    return this._media.model.media.count({
+      where: this.rangeWhere(org, query),
+    });
+  }
+
+  async getMediaIdsInRange(
+    org: string,
+    query: MediaMonthDto
+  ): Promise<string[]> {
+    const rows = await this._media.model.media.findMany({
+      where: this.rangeWhere(org, query),
+      select: { id: true },
+    });
+    return rows.map(({ id }) => id);
+  }
+
+  // One statement for a batch of ids, scoped to the organization's live rows:
+  // another workspace's id matches nothing, and a file another tab already
+  // deleted keeps its first stamp. Storage keeps the file (spec 057, FR-057).
+  async deleteManyMedia(org: string, ids: string[]): Promise<void> {
+    await this._media.model.media.updateMany({
+      where: {
+        organizationId: org,
+        id: { in: ids },
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+  }
+
+  private searchFilter(search?: string) {
+    const trimmedSearch = search?.trim();
+    return trimmedSearch
+      ? {
+          originalName: {
+            contains: trimmedSearch,
+            mode: 'insensitive' as const,
+          },
+        }
+      : {};
+  }
+
+  private typeFilter(type?: MediaLibraryDto['type']): Prisma.MediaWhereInput {
+    switch (type) {
+      case 'video':
+        return MEDIA_VIDEO;
+      case 'image':
+        return { NOT: MEDIA_VIDEO };
+      case 'image-static':
+        return {
+          OR: MEDIA_STILL_ENDINGS.map((ending) => ({
+            path: { contains: ending, mode: 'insensitive' as const },
+          })),
+        };
+      default:
+        return {};
+    }
+  }
+
+  // A month of the Media library: the list's filters within [from, to), the
+  // bounds of the month in the user's timezone (spec 057, R4, R5).
+  private rangeWhere(
+    org: string,
+    query: MediaMonthDto
+  ): Prisma.MediaWhereInput {
+    return {
+      organizationId: org,
+      deletedAt: null,
+      status: { not: 'processing' },
+      ...this.searchFilter(query.search),
+      ...this.typeFilter(query.type),
+      createdAt: { gte: new Date(query.from), lt: new Date(query.to) },
+    };
   }
 }
