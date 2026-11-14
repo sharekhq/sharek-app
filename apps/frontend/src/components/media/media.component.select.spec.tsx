@@ -291,6 +291,22 @@ const counted = (count: number) => ({
   count,
   value: count.toLocaleString('en-US'),
 });
+// The next Select all's answer, held back until the case releases it.
+const holdMonthIds = () => {
+  let answer = () => {};
+  mockMonthIds.mockImplementationOnce(
+    (_query, month) =>
+      new Promise((resolve) => {
+        answer = () => resolve(mockInMonth(month).map((row) => row.id));
+      })
+  );
+  return async () => {
+    await act(async () => {
+      answer();
+    });
+    await settle();
+  };
+};
 
 beforeEach(() => {
   mockServer.rows = [];
@@ -476,6 +492,26 @@ describe("a month heading's Select all", () => {
     expect(selectAll()!.textContent).toBe('media_select_all');
   });
 
+  it('selects nothing when its answer comes after Clear, and selects its month when pressed again', async () => {
+    mockServer.rows = november(3);
+    await mount();
+    await press(circleOf('n0.png'));
+    const release = holdMonthIds();
+    await press(selectAll());
+
+    await press(barButton('media_clear_selection'));
+    await release();
+
+    expect(ticked()).toEqual([]);
+    expect(bar()).toBeUndefined();
+    expect(selectAll()!.textContent).toBe('media_select_all');
+
+    await press(selectAll());
+
+    expect(ticked()).toEqual(['n0.png', 'n1.png', 'n2.png']);
+    expect(selectAll()!.textContent).toBe('media_clear_selection');
+  });
+
   it('counts the selection with its value formatted: 1,200 selected', async () => {
     mockServer.rows = november(3);
     mockMonthIds.mockResolvedValueOnce(range(1200).map((k) => `f${k}`));
@@ -640,6 +676,31 @@ describe('a new filter, sort or search on the Media page', () => {
       expect(new Set(mockServer.keys).size).toBe(lists + 1);
       expect(ticked()).toEqual([]);
       expect(bar()).toBeUndefined();
+    }
+  );
+
+  // FR-039: the month's ids a Select all asked for before the change are
+  // another list's.
+  it.each(changes)(
+    'selects nothing when a Select all pressed before %s answers after it, and selects the month when pressed again',
+    async (_name, before, change) => {
+      mockServer.rows = november(3);
+      await mount();
+      await before();
+      const release = holdMonthIds();
+      await press(selectAll());
+      const lists = new Set(mockServer.keys).size;
+
+      await change();
+      await release();
+
+      expect(new Set(mockServer.keys).size).toBe(lists + 1);
+      expect(ticked()).toEqual([]);
+      expect(bar()).toBeUndefined();
+
+      await press(selectAll());
+
+      expect(ticked()).toEqual(['n0.png', 'n1.png', 'n2.png']);
     }
   );
 });
