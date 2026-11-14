@@ -20,6 +20,10 @@ const media = [1, 2, 3].map((n) => ({
   name: `m${n}.png`,
   path: `https://media/m${n}.png`,
 }));
+type Row = (typeof media)[number] & { tileImage?: string; createdAt?: string };
+// What the library answers with; a case may swap it, and afterEach puts the
+// three plain rows back.
+let results: Row[] = media;
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
@@ -36,7 +40,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('swr', () => ({
   __esModule: true,
   default: () => ({
-    data: { results: media, pages: 1 },
+    data: { results, pages: 1 },
     mutate: async () => undefined,
     isLoading: false,
   }),
@@ -157,6 +161,15 @@ const confirm = async () => {
   });
 };
 
+// The tile carries its file's name as a tooltip, whatever it draws inside.
+const pickByName = async (name: string) => {
+  await act(async () => {
+    document
+      .querySelector(`[title="${name}"]`)
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+};
+
 const ids = (setMedia: jest.Mock) =>
   (setMedia.mock.calls[0][0] as { id: string }[]).map((item) => item.id);
 
@@ -166,6 +179,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   uploader.options = undefined;
+  results = media;
   jest.clearAllMocks();
 });
 
@@ -215,6 +229,28 @@ describe('MediaBox without a limit', () => {
 
     expect(show).not.toHaveBeenCalled();
     expect(ids(setMedia)).toEqual(['m1', 'm2', 'm3']);
+  });
+
+  // A tile image is only what a tile loads: the caller attaches the original.
+  it('hands back the rows picked, in order, with their originals and no tile image', async () => {
+    const [first, second] = [1, 2].map((n) => ({
+      id: `t${n}`,
+      name: `t${n}.png`,
+      path: `https://media/t${n}.png`,
+      createdAt: '2026-11-10T12:00:00.000Z',
+    }));
+    results = [first, second].map((row) => ({
+      ...row,
+      tileImage: `https://media/cdn-cgi/image/width=384,height=384/${row.name}`,
+    }));
+    const setMedia = render();
+
+    await pickByName('t2.png');
+    await pickByName('t1.png');
+    await confirm();
+
+    expect(setMedia).toHaveBeenCalledTimes(1);
+    expect(setMedia.mock.calls[0][0]).toStrictEqual([second, first]);
   });
 });
 
