@@ -681,21 +681,18 @@ export const MediaBox: FC<{
                 value: selection.size.toLocaleString('en-US'),
               })}
             </div>
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="cursor-pointer h-[40px] coarse:min-h-[44px] px-[14px] rounded-[8px] bg-quiet border border-line text-ink text-[14px] font-[600] hover:bg-surface2 transition-colors focus-visible:ring-2 focus-visible:ring-brand"
-            >
+            <Button variant="quiet" onClick={clearSelection}>
               {t('media_clear_selection', 'Clear')}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="danger"
               onClick={deleteSelection}
-              className="cursor-pointer ms-auto h-[40px] coarse:min-h-[44px] px-[16px] rounded-[8px] flex items-center gap-[8px] bg-error text-white text-[14px] font-[600] focus-visible:ring-2 focus-visible:ring-brand"
+              className="ms-auto"
+              innerClassName="gap-[8px]"
             >
               <TrashIcon size={18} />
               {t('delete', 'Delete')}
-            </button>
+            </Button>
           </div>
         )}
         <div

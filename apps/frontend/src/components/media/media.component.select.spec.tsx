@@ -359,11 +359,12 @@ describe('selecting on the Media page', () => {
     const clear = barButton('media_clear_selection')!;
     const remove = barButton('delete')!;
 
+    // Button's quiet and danger variants, which are 44px high under a finger.
     [clear, remove].forEach((button) => {
       expect(button.getAttribute('type')).toBe('button');
       expect(classes(button)).toEqual(
         expect.arrayContaining([
-          'coarse:min-h-[44px]',
+          'coarse:h-[44px]',
           'focus-visible:ring-2',
           'focus-visible:ring-brand',
         ])

@@ -456,10 +456,11 @@ describe('The tile (MediaTile)', () => {
 // all in MediaMonth's heading and the selection bar in MediaBox. Their 24px
 // ring is the order badge's w-[24px] and h-[24px], their states the expand
 // button's, and their 44px under a coarse pointer coarse:min-h-[44px],
-// coarse:w-[44px] and coarse:h-[44px], all above.
+// coarse:w-[44px] and coarse:h-[44px], all above. The bar's Clear and Delete
+// are Button's quiet and danger variants.
 describe("The selection (MediaTile's circle, MediaMonth's Select all and MediaBox's selection bar)", () => {
   test('the circle, its ring and the selection bar emit their one rule, outside any query', async () => {
-    const css = await assertEmits(
+    await assertEmits(
       {
         // the circle's 40px hit box at the tile's top, and the ring's wash
         // while unselected
@@ -471,19 +472,8 @@ describe("The selection (MediaTile's circle, MediaMonth's Select all and MediaBo
         'gap-[12px]': [['gap', '12px']],
         'min-h-[44px]': [['min-height', '44px']],
         'text-[15px]': [['font-size', '15px']],
-        // Clear and Delete, each 40px high (symmetric padding, so the same
-        // in RTL)
-        'px-[14px]': px('padding', '14px'),
-        'bg-quiet': [['background-color', 'var(--quiet)']],
-        'hover:bg-surface2': [['background-color', 'var(--surface-2)']],
-        'px-[16px]': px('padding', '16px'),
-        'bg-error': [['background-color', 'var(--error)']],
       },
       null
-    );
-    assert.equal(
-      rules(css, 'hover:bg-surface2')[0].selector,
-      '.hover:bg-surface2:hover'
     );
   });
 
