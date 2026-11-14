@@ -91,6 +91,8 @@ const makeService = (
     // The Media rows the organization's library answers with for a reference
     // lookup, in the order the database returns them.
     references?: Array<{ id: string; path: string }>;
+    // The page of the organization's media list the repository answers with.
+    library?: { pages: number; results: Array<Record<string, unknown>> };
     // What BrandService.kitFor answers for the brand a request names: only
     // the kit's images still in Media, or the 404 for a brand that isn't one
     // of the organization's live brands.
@@ -117,6 +119,9 @@ const makeService = (
   const repository = {
     getMediaByIds: jest.fn().mockResolvedValue(over.references ?? []),
     getMediaByPaths: jest.fn().mockResolvedValue(over.references ?? []),
+    getMedia: jest
+      .fn()
+      .mockResolvedValue(over.library ?? { pages: 0, results: [] }),
   };
   const brands = {
     kitFor:
@@ -3464,5 +3469,52 @@ describe('every credit refusal carries its reset date', () => {
 
     expect(err).toBeInstanceOf(SubscriptionException);
     expect(err.getResponse()).toMatchObject({ resetsAt: RESETS_AT });
+  });
+});
+
+// The public API's media list and Samy's media tool read the library through
+// this call with three arguments, and both must answer exactly what they answer
+// today: the media library's tile image is never added here (spec 057, Rule 3,
+// FR-055, FR-056, SC-008).
+describe('getMedia, as the public API and Samy read it', () => {
+  const library = () => ({
+    pages: 1,
+    results: [
+      {
+        id: 'media-1',
+        name: 'logo.png',
+        originalName: 'logo.png',
+        path: 'https://media/logo.png',
+        thumbnail: null,
+        alt: null,
+        thumbnailTimestamp: null,
+        createdAt: new Date('2026-11-10T12:00:00.000Z'),
+      },
+      {
+        id: 'media-2',
+        name: 'clip.mp4',
+        originalName: 'clip.mp4',
+        path: 'https://media/clip.mp4',
+        thumbnail: 'https://media/clip-cover.png',
+        alt: null,
+        thumbnailTimestamp: 1200,
+        createdAt: new Date('2026-11-10T12:00:00.000Z'),
+      },
+    ],
+  });
+
+  it('passes the three arguments through and answers the repository unchanged', async () => {
+    const { service, repository } = makeService({ library: library() });
+    // A storage that has a tile image of its own for every file.
+    const tileImage = jest.fn().mockReturnValue('https://tiles/other.webp');
+    (service as any).storage.tileImage = tileImage;
+
+    const answer = await service.getMedia('org-1', 2, 'logo');
+
+    expect(repository.getMedia.mock.calls).toStrictEqual([
+      ['org-1', 2, 'logo'],
+    ]);
+    expect(answer).toStrictEqual(library());
+    expect(tileImage).not.toHaveBeenCalled();
   });
 });
