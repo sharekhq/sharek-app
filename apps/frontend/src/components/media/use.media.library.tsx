@@ -2,6 +2,8 @@
 
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { MEDIA_DELETE_BATCH } from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Media } from '@prisma/client';
 import { chunk, uniqBy } from 'lodash';
 import { useCallback, useMemo } from 'react';
@@ -173,9 +175,13 @@ export const useMediaLibrary = (
 // Delete and the selection bar: the ids in batches of MEDIA_DELETE_BATCH, the
 // most the route takes, one after another. A batch that answers a failure, or
 // whose request throws, counts all its files as not deleted and the rest still
-// go. Resolves to how many weren't deleted; the caller refetches the list.
+// go. Once the last batch answers it says how it went, how many went or how
+// many didn't, then resolves to how many weren't deleted; the caller refetches
+// the list.
 export const useDeleteMedia = (): ((ids: string[]) => Promise<number>) => {
   const fetch = useFetch();
+  const toaster = useToaster();
+  const t = useT();
   return useCallback(
     async (ids: string[]) => {
       let notDeleted = 0;
@@ -192,9 +198,26 @@ export const useDeleteMedia = (): ((ids: string[]) => Promise<number>) => {
           notDeleted += batch.length;
         }
       }
+      if (notDeleted) {
+        toaster.show(
+          t('media_not_deleted', '{{value}} files were not deleted', {
+            count: notDeleted,
+            value: notDeleted.toLocaleString('en-US'),
+          }),
+          'warning'
+        );
+      } else {
+        toaster.show(
+          t('media_deleted', '{{value}} files deleted', {
+            count: ids.length,
+            value: ids.length.toLocaleString('en-US'),
+          }),
+          'success'
+        );
+      }
       return notDeleted;
     },
-    [fetch]
+    [fetch, toaster, t]
   );
 };
 

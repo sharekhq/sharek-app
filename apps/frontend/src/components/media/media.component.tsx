@@ -537,8 +537,8 @@ export const MediaBox: FC<{
   }, []);
 
   // The selection bar's Delete (research R6): one question, every selected
-  // id through the one client delete path, then the list and its month
-  // counts refetch, so the files that failed stay.
+  // id through the one client delete path, which says how it went, then the
+  // list and its month counts refetch, so the files that failed stay.
   const deleteMedia = useDeleteMedia();
   const deleteSelection = useCallback(async () => {
     const ids = Array.from(selection);
@@ -561,24 +561,10 @@ export const MediaBox: FC<{
     ) {
       return;
     }
-    const notDeleted = await deleteMedia(ids);
-    if (notDeleted) {
-      toaster.show(
-        t('media_not_deleted', '{{value}} files were not deleted', {
-          count: notDeleted,
-          value: notDeleted.toLocaleString('en-US'),
-        }),
-        'warning'
-      );
-    } else {
-      toaster.show(
-        t('media_deleted', '{{value}} files deleted', count),
-        'success'
-      );
-    }
+    await deleteMedia(ids);
     clearSelection();
     await refresh();
-  }, [selection, deleteMedia, toaster, t, clearSelection, refresh]);
+  }, [selection, deleteMedia, t, clearSelection, refresh]);
 
   const addMedia = useCallback(async () => {
     if (standalone) {

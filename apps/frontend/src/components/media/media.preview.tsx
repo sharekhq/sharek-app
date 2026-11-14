@@ -13,7 +13,6 @@ import {
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
-import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
   ModalHeaderSlot,
@@ -359,34 +358,20 @@ export const LibraryPreview: FC<{
   /** Told the id of each file its Delete removed. */
   onDeleted: (id: string) => void;
 }> = ({ query, startId, onDeleted }) => {
-  const t = useT();
-  const toaster = useToaster();
   const { files, hasMore, loadMore, refresh } = useMediaLibrary(query);
   const deleteMedia = useDeleteMedia();
 
   const onDelete = useCallback(
     async (file: PreviewItem) => {
       const notDeleted = await deleteMedia([file.id]);
-      if (notDeleted) {
-        toaster.show(
-          t('media_not_deleted', '{{value}} file was not deleted', {
-            count: notDeleted,
-            value: notDeleted.toLocaleString('en-US'),
-          }),
-          'warning'
-        );
-      } else {
-        toaster.show(
-          t('media_deleted', 'File deleted', { count: 1, value: '1' }),
-          'success'
-        );
+      if (!notDeleted) {
         onDeleted(file.id);
       }
       // the list and its month counts, either way
       await refresh();
       return !notDeleted;
     },
-    [deleteMedia, toaster, t, onDeleted, refresh]
+    [deleteMedia, onDeleted, refresh]
   );
 
   return (
