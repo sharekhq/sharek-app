@@ -1,8 +1,9 @@
 'use client';
 
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { MEDIA_DELETE_BATCH } from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
 import { Media } from '@prisma/client';
-import { uniqBy } from 'lodash';
+import { chunk, uniqBy } from 'lodash';
 import { useCallback, useMemo } from 'react';
 import useSWR, { SWRResponse, useSWRConfig } from 'swr';
 import useSWRInfinite, { SWRInfiniteKeyedMutator } from 'swr/infinite';
@@ -160,4 +161,33 @@ export const useRefreshMediaLibrary = (
       ),
     ]);
   }, [mutate, mutateKeys]);
+};
+
+// The client's one delete path (DELETE /media, research R6), for the preview's
+// Delete and the selection bar: the ids in batches of MEDIA_DELETE_BATCH, the
+// most the route takes, one after another. A batch that answers a failure, or
+// whose request throws, counts all its files as not deleted and the rest still
+// go. Resolves to how many weren't deleted; the caller refetches the list.
+export const useDeleteMedia = (): ((ids: string[]) => Promise<number>) => {
+  const fetch = useFetch();
+  return useCallback(
+    async (ids: string[]) => {
+      let notDeleted = 0;
+      for (const batch of chunk(ids, MEDIA_DELETE_BATCH)) {
+        try {
+          const response = await fetch('/media', {
+            method: 'DELETE',
+            body: JSON.stringify({ ids: batch }),
+          });
+          if (!response.ok) {
+            notDeleted += batch.length;
+          }
+        } catch {
+          notDeleted += batch.length;
+        }
+      }
+      return notDeleted;
+    },
+    [fetch]
+  );
 };
