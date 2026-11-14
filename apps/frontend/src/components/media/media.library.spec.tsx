@@ -573,7 +573,9 @@ describe('MediaMonth', () => {
       );
     });
 
-    it("shows Select all on hover of its month, through the month's named group, on focus and always under a finger", () => {
+    // An `opacity: 0` button is still hit-tested, so Select all, like the
+    // tile's circle, takes a press only once it shows.
+    it("shows Select all on hover of its month, through the month's named group, on focus and always under a finger, and is pressable only while it shows", () => {
       const host = renderPageMonth();
       const section = sections(host)[0];
 
@@ -582,20 +584,30 @@ describe('MediaMonth', () => {
       expect(classes(selectAll(host))).toEqual(
         expect.arrayContaining([
           'opacity-0',
+          'pointer-events-none',
           'group-hover/month:opacity-100',
+          'group-hover/month:pointer-events-auto',
           'focus-visible:opacity-100',
+          'focus-visible:pointer-events-auto',
           'coarse:opacity-100',
+          'coarse:pointer-events-auto',
         ])
       );
       expect(classes(selectAll(host))).not.toContain('group-hover:opacity-100');
+      expect(classes(selectAll(host))).not.toContain(
+        'group-hover:pointer-events-auto'
+      );
     });
 
-    it('shows Select all while anything is selected, of any month', () => {
+    it('shows Select all, pressable, while anything is selected, of any month', () => {
       const button = selectAll(renderPageMonth({ selected: ['o4'] }));
 
       expect(button.textContent).toBe('Select all');
-      expect(classes(button)).toContain('opacity-100');
+      expect(classes(button)).toEqual(
+        expect.arrayContaining(['opacity-100', 'pointer-events-auto'])
+      );
       expect(classes(button)).not.toContain('opacity-0');
+      expect(classes(button)).not.toContain('pointer-events-none');
     });
 
     it("asks useMonthIds for the month's ids under the list's query when pressed, and selects them all, loaded or not", async () => {
