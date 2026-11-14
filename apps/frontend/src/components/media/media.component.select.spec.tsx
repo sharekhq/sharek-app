@@ -66,8 +66,8 @@ jest.mock('swr', () => ({
 }));
 // The key, so a case reads which words are shown, whatever their wording; the
 // calls are kept, so a case reads what a counted word was told.
-const mockT = jest.fn(
-  (key: string, _fallback?: string, _params?: Record<string, unknown>) => key
+const mockT = jest.fn<string, [string, string?, Record<string, unknown>?]>(
+  (key) => key
 );
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => mockT,
@@ -83,7 +83,9 @@ const mockMonthIds = jest.fn(
     mockInMonth(month).map((row) => row.id)
 );
 const mockDelete = { failed: 0 };
-const mockDeleteMedia = jest.fn(async (_ids: string[]) => mockDelete.failed);
+const mockDeleteMedia = jest.fn<Promise<number>, [string[]]>(
+  async () => mockDelete.failed
+);
 const mockRefreshed: unknown[] = [];
 jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
   ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
@@ -95,8 +97,8 @@ jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
 }));
 // The one question Delete asks, answered as the case says.
 const mockDialog = { answer: true };
-const mockDeleteDialog = jest.fn(
-  async (..._args: unknown[]) => mockDialog.answer
+const mockDeleteDialog = jest.fn<Promise<boolean>, unknown[]>(
+  async () => mockDialog.answer
 );
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: (...args: unknown[]) => mockDeleteDialog(...args),
@@ -182,7 +184,7 @@ class InertObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
-  takeRecords() {
+  takeRecords(): IntersectionObserverEntry[] {
     return [];
   }
 }

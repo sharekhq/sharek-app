@@ -1,5 +1,5 @@
 import { chunk, range } from 'lodash';
-import { act, FC } from 'react';
+import { act, FC, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 
@@ -94,7 +94,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-const Probe = ({ query }: { query: MediaLibraryQuery }) => {
+const Probe = ({ query }: { query: MediaLibraryQuery }): null => {
   const { data, error } = useMediaMonthCount(query, november);
   captured.push({ data, error });
   return null;
@@ -335,11 +335,13 @@ const library: {
 } = { renders: [] };
 const last = () => library.renders[library.renders.length - 1];
 
-const LibraryProbe = ({ query }: { query: MediaLibraryQuery }) => {
+const LibraryProbe = ({ query }: { query: MediaLibraryQuery }): null => {
   const result = useMediaLibrary(query);
   const { files, hasMore, isLoading, isLoadingMore, error } = result;
   library.renders.push({ files, hasMore, isLoading, isLoadingMore, error });
-  library.latest = result;
+  useEffect(() => {
+    library.latest = result;
+  }, [result]);
   return null;
 };
 
@@ -558,8 +560,11 @@ describe('useMediaLibrary', () => {
 
 describe('useRefreshMediaLibrary', () => {
   const refresh: { latest?: () => Promise<void> } = {};
-  const RefreshProbe = ({ query }: { query: MediaLibraryQuery }) => {
-    refresh.latest = useRefreshMediaLibrary(query);
+  const RefreshProbe = ({ query }: { query: MediaLibraryQuery }): null => {
+    const run = useRefreshMediaLibrary(query);
+    useEffect(() => {
+      refresh.latest = run;
+    }, [run]);
     return null;
   };
   // The Media page as the hooks see it: the list, a month heading and the
@@ -693,8 +698,11 @@ describe('useRefreshMediaLibrary', () => {
 
 describe('useDeleteMedia', () => {
   const remover: { latest?: (ids: string[]) => Promise<number> } = {};
-  const DeleteProbe = () => {
-    remover.latest = useDeleteMedia();
+  const DeleteProbe = (): null => {
+    const run = useDeleteMedia();
+    useEffect(() => {
+      remover.latest = run;
+    }, [run]);
     return null;
   };
   const deleted = { ok: true, status: 200 };
@@ -810,8 +818,11 @@ describe('useMonthIds', () => {
       month: { from: string; to: string }
     ) => Promise<string[]>;
   } = {};
-  const IdsProbe = () => {
-    finder.latest = useMonthIds();
+  const IdsProbe = (): null => {
+    const run = useMonthIds();
+    useEffect(() => {
+      finder.latest = run;
+    }, [run]);
     return null;
   };
   const answersIds = (ids: string[]) =>

@@ -16,17 +16,19 @@ jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
 jest.mock('@gitroom/react/helpers/video.frame', () => {
   const { useEffect } = jest.requireActual('react');
   return {
-    VideoFrame: (props: {
+    VideoFrame: ({
+      url,
+      className,
+      onLoadedMetadata,
+    }: {
       url: string;
       className?: string;
       onLoadedMetadata?: (video: HTMLVideoElement) => void;
     }) => {
       useEffect(() => {
-        props.onLoadedMetadata?.({ duration: 75 } as HTMLVideoElement);
-      }, []);
-      return (
-        <span data-frame="" data-url={props.url} className={props.className} />
-      );
+        onLoadedMetadata?.({ duration: 75 } as HTMLVideoElement);
+      }, [onLoadedMetadata]);
+      return <span data-frame="" data-url={url} className={className} />;
     },
   };
 });
@@ -63,18 +65,16 @@ const mockOpenModal = jest.fn();
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ openModal: mockOpenModal }),
 }));
-const mockLibraryPreviewModal = jest.fn((..._args: unknown[]) => ({
-  preview: true,
-}));
+const mockLibraryPreviewModal = jest.fn<{ preview: boolean }, unknown[]>(
+  () => ({ preview: true })
+);
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
   libraryPreviewModal: (...args: unknown[]) => mockLibraryPreviewModal(...args),
 }));
 // A month's "Select all" asks for its ids through useMonthIds: a double that
 // keeps its calls and answers what the case sets. What it says goes through
 // the toaster, a double that keeps its calls too.
-const mockMonthIds = jest.fn(
-  async (..._args: unknown[]): Promise<string[]> => []
-);
+const mockMonthIds = jest.fn<Promise<string[]>, unknown[]>(async () => []);
 jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
   ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
   useMonthIds: () => mockMonthIds,

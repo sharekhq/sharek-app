@@ -1,4 +1,4 @@
-import { act, ReactElement, ReactNode, useEffect, useReducer } from 'react';
+import { act, ReactElement, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { chunk, range } from 'lodash';
 
@@ -17,7 +17,7 @@ import { chunk, range } from 'lodash';
 
 // The key, so a case reads which words are shown, whatever their wording. The
 // calls are kept for the count a counted word is given.
-const mockT = jest.fn((key: string, ..._rest: unknown[]) => key);
+const mockT = jest.fn((key: string) => key);
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => mockT,
 }));
@@ -30,7 +30,7 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   ModalHeaderSlotTarget: () => null,
   useModals: () => ({ closeCurrent: mockCloseCurrent }),
 }));
-const mockDeleteDialog = jest.fn(async (..._args: unknown[]) => true);
+const mockDeleteDialog = jest.fn<Promise<boolean>, unknown[]>(async () => true);
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: (...args: unknown[]) => mockDeleteDialog(...args),
 }));
@@ -71,34 +71,36 @@ const mockLibrary = {
 
 const notify = () => mockLibrary.listeners.forEach((listener) => listener());
 
-function mockUseMediaLibrary(query: unknown) {
-  mockLibrary.queries.push(query);
-  const [, rerender] = useReducer((count: number) => count + 1, 0);
-  useEffect(() => {
-    mockLibrary.listeners.add(rerender);
-    return () => {
-      mockLibrary.listeners.delete(rerender);
+jest.mock('@gitroom/frontend/components/media/use.media.library', () => {
+  const { useEffect, useReducer } = jest.requireActual('react');
+  const useMediaLibraryMock = (query: unknown) => {
+    mockLibrary.queries.push(query);
+    const [, rerender] = useReducer((count: number) => count + 1, 0);
+    useEffect(() => {
+      mockLibrary.listeners.add(rerender);
+      return () => {
+        mockLibrary.listeners.delete(rerender);
+      };
+    }, []);
+    return {
+      files: mockLibrary.files,
+      hasMore: mockLibrary.more.length > 0,
+      loadMore: mockLibrary.loadMore,
+      isLoading: false,
+      isLoadingMore: false,
+      error: undefined as Error | undefined,
+      mutate: mockLibrary.mutate,
     };
-  }, []);
-  return {
-    files: mockLibrary.files,
-    hasMore: mockLibrary.more.length > 0,
-    loadMore: mockLibrary.loadMore,
-    isLoading: false,
-    isLoadingMore: false,
-    error: undefined,
-    mutate: mockLibrary.mutate,
   };
-}
-
-jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
-  useMediaLibrary: (query: unknown) => mockUseMediaLibrary(query),
-  useDeleteMedia: () => mockLibrary.deleteMedia,
-  useRefreshMediaLibrary: (query: unknown) => {
-    mockLibrary.refreshQueries.push(query);
-    return mockLibrary.refresh;
-  },
-}));
+  return {
+    useMediaLibrary: useMediaLibraryMock,
+    useDeleteMedia: () => mockLibrary.deleteMedia,
+    useRefreshMediaLibrary: (query: unknown) => {
+      mockLibrary.refreshQueries.push(query);
+      return mockLibrary.refresh;
+    },
+  };
+});
 
 import { ModalHeaderSlotTarget } from '@gitroom/frontend/components/layout/new-modal';
 import { setUserTimezone } from '@gitroom/frontend/components/layout/set.timezone';
@@ -621,7 +623,7 @@ describe('MediaPreview: Delete', () => {
   });
 
   it('confirmed, hands onDelete the file and shows the one after it once it has gone', async () => {
-    const onDelete = jest.fn(async (_file: unknown) => true);
+    const onDelete = jest.fn(async () => true);
     await render(<MediaPreview items={rows} index={1} onDelete={onDelete} />);
     await pressDelete();
 
@@ -637,7 +639,7 @@ describe('MediaPreview: Delete', () => {
   });
 
   it('shows the one before only when the file was the very last', async () => {
-    const onDelete = jest.fn(async (_file: unknown) => true);
+    const onDelete = jest.fn(async () => true);
     await render(<MediaPreview items={rows} index={2} onDelete={onDelete} />);
     await pressDelete();
 
@@ -659,7 +661,7 @@ describe('MediaPreview: Delete', () => {
 
   it('deleting the last loaded file while more can load loads more and shows the next file when it arrives, not the previous', async () => {
     const loadMore = jest.fn();
-    const onDelete = jest.fn(async (_file: unknown) => true);
+    const onDelete = jest.fn(async () => true);
     const preview = (list: Row[], hasMore: boolean) => (
       <MediaPreview
         items={list}
@@ -683,7 +685,7 @@ describe('MediaPreview: Delete', () => {
   it('cancelled, changes nothing', async () => {
     mockDeleteDialog.mockResolvedValue(false);
     const loadMore = jest.fn();
-    const onDelete = jest.fn(async (_file: unknown) => true);
+    const onDelete = jest.fn(async () => true);
     await render(
       <MediaPreview
         items={rows}
@@ -703,7 +705,7 @@ describe('MediaPreview: Delete', () => {
   });
 
   it('stays on the file when onDelete answers that it did not go', async () => {
-    const onDelete = jest.fn(async (_file: unknown) => false);
+    const onDelete = jest.fn(async () => false);
     await render(<MediaPreview items={rows} index={1} onDelete={onDelete} />);
     await pressDelete();
     // the list refetches with it still there
