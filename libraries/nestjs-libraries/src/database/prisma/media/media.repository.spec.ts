@@ -56,3 +56,131 @@ describe('MediaRepository.getMediaByPaths', () => {
     });
   });
 });
+
+// The public API's media list and Samy's media tool both read this query with
+// three arguments, and both must answer exactly what they answer today while
+// the media library gets its own query beside it (spec 057, Rule 3, FR-055,
+// FR-056, SC-008). The model holds only the two spies, so any other call on it
+// throws.
+describe('MediaRepository.getMedia, as the public API and Samy read it', () => {
+  const rows = [
+    {
+      id: 'media-1',
+      name: 'logo.png',
+      originalName: 'logo.png',
+      path: 'https://media/logo.png',
+      thumbnail: null,
+      alt: null,
+      thumbnailTimestamp: null,
+      createdAt: new Date('2026-11-10T12:00:00.000Z'),
+    },
+  ];
+
+  const build = (total = 0) => {
+    const count = jest.fn().mockResolvedValue(total);
+    const findMany = jest.fn().mockResolvedValue(rows);
+    const repository = new MediaRepository({
+      model: { media: { count, findMany } },
+    } as unknown as ConstructorParameters<typeof MediaRepository>[0]);
+    return { repository, count, findMany };
+  };
+
+  const todaysCalls = (search: object, skip: number) => ({
+    count: [
+      [
+        {
+          where: {
+            organization: { id: 'org-1' },
+            deletedAt: null,
+            status: { not: 'processing' },
+            ...search,
+          },
+        },
+      ],
+    ],
+    findMany: [
+      [
+        {
+          where: {
+            organizationId: 'org-1',
+            deletedAt: null,
+            status: { not: 'processing' },
+            ...search,
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            originalName: true,
+            path: true,
+            thumbnail: true,
+            alt: true,
+            thumbnailTimestamp: true,
+            createdAt: true,
+          },
+          skip,
+          take: 32,
+        },
+      ],
+    ],
+  });
+
+  it('counts and reads the live, ready rows of the organization, 32 a page, newest first', async () => {
+    const { repository, count, findMany } = build();
+
+    await repository.getMedia('org-1', 2, 'logo');
+
+    const expected = todaysCalls(
+      { originalName: { contains: 'logo', mode: 'insensitive' } },
+      32
+    );
+    expect(count.mock.calls).toStrictEqual(expected.count);
+    expect(findMany.mock.calls).toStrictEqual(expected.findMany);
+  });
+
+  it('adds no search and reads the first page when neither is given', async () => {
+    const { repository, count, findMany } = build();
+
+    await repository.getMedia(
+      'org-1',
+      undefined as unknown as number,
+      undefined
+    );
+
+    const expected = todaysCalls({}, 0);
+    expect(count.mock.calls).toStrictEqual(expected.count);
+    expect(findMany.mock.calls).toStrictEqual(expected.findMany);
+  });
+
+  it('adds no search for a blank one', async () => {
+    const { repository, count, findMany } = build();
+
+    await repository.getMedia('org-1', 1, '   ');
+
+    const expected = todaysCalls({}, 0);
+    expect(count.mock.calls).toStrictEqual(expected.count);
+    expect(findMany.mock.calls).toStrictEqual(expected.findMany);
+  });
+
+  it('searches the trimmed words', async () => {
+    const { repository, count, findMany } = build();
+
+    await repository.getMedia('org-1', 3, '  logo ');
+
+    const expected = todaysCalls(
+      { originalName: { contains: 'logo', mode: 'insensitive' } },
+      64
+    );
+    expect(count.mock.calls).toStrictEqual(expected.count);
+    expect(findMany.mock.calls).toStrictEqual(expected.findMany);
+  });
+
+  it('answers the page count and the rows as the model returned them', async () => {
+    const { repository } = build(65);
+
+    const answer = await repository.getMedia('org-1', 1, undefined);
+
+    expect(answer).toStrictEqual({ pages: 3, results: rows });
+    expect(answer.results).toBe(rows);
+  });
+});
