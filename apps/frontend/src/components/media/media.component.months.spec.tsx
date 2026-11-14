@@ -1,4 +1,4 @@
-import { act as reactAct, ReactNode, useEffect, useReducer } from 'react';
+import { act as reactAct, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
@@ -110,7 +110,8 @@ mockList.mutate.mockImplementation(async () => {
   return mockList.data;
 });
 
-function mockUseSWRInfinite(getKey: GetKey) {
+// What the hook answers on each render.
+function mockInfinite(getKey: GetKey) {
   // A new key is another list, as SWR's: none of it cached, its first page
   // asked for.
   if (mockList.getKey && getKey(0, null) !== mockList.getKey(0, null)) {
@@ -120,13 +121,6 @@ function mockUseSWRInfinite(getKey: GetKey) {
     mockList.size = 1;
   }
   mockList.getKey = getKey;
-  const [, rerender] = useReducer((count: number) => count + 1, 0);
-  useEffect(() => {
-    mockList.listeners.add(rerender);
-    return () => {
-      mockList.listeners.delete(rerender);
-    };
-  }, []);
   // Over an empty cache the first render already loads, as SWR's does. Pages
   // in the cache are not asked for again when the hook mounts.
   if (!mockList.data && !mockList.error && !mockList.pending) {
@@ -157,22 +151,33 @@ const mockCount = (key: string) => {
 };
 const mockMonthKeys: string[] = [];
 
-jest.mock('swr/infinite', () => ({
-  __esModule: true,
-  default: (getKey: GetKey) => mockUseSWRInfinite(getKey),
-}));
+// The hook renders again each time the double's cache changes, as SWR's does.
+jest.mock('swr/infinite', () => {
+  const { useEffect, useReducer } = jest.requireActual('react');
+  const useSWRInfiniteMock = (getKey: GetKey) => {
+    const [, rerender] = useReducer((count: number) => count + 1, 0);
+    useEffect(() => {
+      mockList.listeners.add(rerender);
+      return () => {
+        mockList.listeners.delete(rerender);
+      };
+    }, []);
+    return mockInfinite(getKey);
+  };
+  return { __esModule: true, default: useSWRInfiniteMock };
+});
 // A month heading's count; any other key, today's paged list among them, gets
 // nothing.
 jest.mock('swr', () => ({
   __esModule: true,
   default: (key: string) => {
     if (!key.startsWith('/media/month?')) {
-      return { data: undefined, mutate: async () => undefined };
+      return { data: undefined, mutate: async (): Promise<void> => undefined };
     }
     mockMonthKeys.push(key);
     return {
       data: { count: mockCount(key) },
-      mutate: async () => undefined,
+      mutate: async (): Promise<void> => undefined,
     };
   },
   useSWRConfig: () => ({ mutate: async () => undefined }),
@@ -343,7 +348,7 @@ class FakeObserver {
   disconnect() {
     this.targets.clear();
   }
-  takeRecords() {
+  takeRecords(): IntersectionObserverEntry[] {
     return [];
   }
   report(targets: Element[]) {
