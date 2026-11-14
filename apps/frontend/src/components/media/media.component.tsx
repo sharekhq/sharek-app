@@ -13,9 +13,7 @@ import React, {
 } from 'react';
 import { Button } from '@gitroom/react/form/button';
 import { SelectChevron } from '@gitroom/react/form/select';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
-import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
@@ -28,16 +26,13 @@ import dynamic from 'next/dynamic';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
-import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
-import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import {
   MediaMonth,
   MediaTile,
-  TilePicture,
 } from '@gitroom/frontend/components/media/media.library';
 import {
   MediaLibraryQuery,
@@ -56,14 +51,12 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-  DeleteCircleIcon,
   CloseCircleIcon,
   DragHandleIcon,
   MediaSettingsIcon,
   InsertMediaIcon,
   DesignMediaIcon,
   VerticalDividerIcon,
-  TrashIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
@@ -297,7 +290,6 @@ export const MediaBox: FC<{
   );
   const [search, setSearch] = useState(initialQuery?.search || '');
   const [debouncedSearch] = useDebounce(search, 300);
-  const fetch = useFetch();
   const modals = useModals();
   const toaster = useToaster();
   // The caller's type is asked of the server, which sends only its files
@@ -565,62 +557,6 @@ export const MediaBox: FC<{
     [toaster, t]
   );
 
-  const maximize = useCallback(
-    (media: Media) => (e: any) => {
-      e.stopPropagation();
-      modals.openModal(mediaPreviewModal(files, files.indexOf(media)));
-    },
-    [files]
-  );
-
-  const deleteImage = useCallback(
-    (media: Media) => async (e: any) => {
-      e.stopPropagation();
-      if (
-        !(await deleteDialog(
-          t(
-            'are_you_sure_you_want_to_delete_this_file',
-            'Are you sure you want to delete this file?'
-          )
-        ))
-      ) {
-        return;
-      }
-      await fetch(`/media/${media.id}`, {
-        method: 'DELETE',
-      });
-      mutate();
-    },
-    [mutate]
-  );
-
-  // at 1025px and below there is no hover, so the picks are deleted together
-  const deleteSelected = useCallback(async () => {
-    if (
-      !(await deleteDialog(
-        t(
-          'are_you_sure_you_want_to_delete_selected_media',
-          'Are you sure you want to delete the selected media?'
-        )
-      ))
-    ) {
-      return;
-    }
-    const toDelete = selected;
-    setSelected([]);
-    try {
-      await Promise.all(
-        toDelete.map((media: { id: string }) =>
-          fetch(`/media/${media.id}`, {
-            method: 'DELETE',
-          })
-        )
-      );
-    } finally {
-      await mutate();
-    }
-  }, [selected, mutate, t, fetch]);
-
   const typeFilters = [
     { value: undefined, label: t('media_filter_all', 'All') },
     { value: 'image' as const, label: t('media_filter_images', 'Images') },
@@ -753,18 +689,6 @@ export const MediaBox: FC<{
               )}
             </div>
           )}
-          {!!selected.length && (
-            <button
-              type="button"
-              onClick={deleteSelected}
-              className="hidden mobile:flex basis-full justify-center items-center gap-[8px] min-h-[44px] text-[15px] font-[600] text-error rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <TrashIcon size={18} />
-              {t('delete_selected_count', 'Delete Selected ({{count}})', {
-                count: selected.length,
-              })}
-            </button>
-          )}
         </div>
         <div
           className={clsx(
@@ -862,133 +786,19 @@ export const MediaBox: FC<{
                 to={month.to}
               >
                 {month.files.map((media: any) => {
-                  if (standalone) {
-                    return (
-                      <MediaTile
-                        key={media.id}
-                        media={media}
-                        standalone={true}
-                        query={query}
-                        onDeleted={unselectDeleted}
-                      />
-                    );
-                  }
-                  // `originalName` is nullable; `name` never is. Without this
-                  // the caption, the tooltip, the alt text and the delete
-                  // button's label are all empty for older uploads.
-                  const displayName = media.originalName || media.name;
+                  const picked = selected.findIndex(
+                    (p: any) => p.id === media.id
+                  );
                   return (
-                    <div
-                      className={clsx(
-                        'group rounded-[6px] aspect-square mobile:p-[6px]',
-                        !standalone && 'cursor-pointer'
-                      )}
+                    <MediaTile
                       key={media.id}
-                    >
-                      <div
-                        className={clsx(
-                          'w-full h-full rounded-[6px] border-[4px] relative',
-                          !!selected.find((p) => p.id === media.id)
-                            ? 'border-brand'
-                            : 'border-transparent'
-                        )}
-                        onClick={addRemoveSelected(media)}
-                      >
-                        {!!selected.find((p: any) => p.id === media.id) ? (
-                          <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
-                            {selected.findIndex((z: any) => z.id === media.id) +
-                              1}
-                          </div>
-                        ) : (
-                          /* Inside the tile and revealed by opacity rather than
-                             `display`, so the button can take focus at all — a
-                             `hidden` control is out of the tab order, which would
-                             leave its focus ring unreachable, and a 36px target
-                             hanging over the tile edge would swallow clicks meant
-                             for the neighbouring cell.
-                             An `opacity: 0` element is still hit-tested and there is
-                             no hover on touch, so it stays `pointer-events-none`
-                             until it is actually revealed — otherwise a tap on this
-                             corner would open the delete prompt instead of selecting
-                             the item. Under a coarse pointer that reasoning holds in
-                             the picker and inverts in the library: there the tile
-                             selects nothing, and hover-only would mean media can
-                             never be deleted on touch at all. */
-                          <button
-                            type="button"
-                            onClick={deleteImage(media)}
-                            aria-label={t(
-                              'delete_media_named',
-                              'Delete {{name}}',
-                              {
-                                name: displayName,
-                              }
-                            )}
-                            className={clsx(
-                              'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
-                              standalone &&
-                                'coarse:opacity-100 coarse:pointer-events-auto',
-                              // the picker deletes its picks together there
-                              !standalone && 'mobile:hidden'
-                            )}
-                          >
-                            <DeleteCircleIcon size={28} />
-                          </button>
-                        )}
-                        {/* The tile carries the tooltip, not the caption strip: the
-                            strip is pointer-events-none, so a `title` on it would
-                            never be reachable. */}
-                        <div
-                          title={displayName}
-                          className="w-full h-full rounded-[6px] overflow-hidden relative"
-                        >
-                          {/* A 36px circle matching the lightbox's own prev/next
-                              controls, revealed by colour rather than by growing
-                              50% under the cursor. A button rather than a div
-                              because this is the only way into the preview, and a
-                              div cannot be reached from the keyboard. */}
-                          <button
-                            type="button"
-                            onClick={maximize(media)}
-                            aria-label={t('open_preview', 'Open preview')}
-                            className={clsx(
-                              'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
-                              // Only in the library, where the tile itself does
-                              // nothing on tap. In the picker the tile selects, and
-                              // a live 36px control in its centre would swallow the
-                              // tap that selects the item — the primary action here.
-                              standalone &&
-                                'coarse:opacity-100 coarse:pointer-events-auto'
-                            )}
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 14 14"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
-                                fill="currentColor"
-                              />
-                            </svg>
-                          </button>
-                          <TilePicture media={media} name={displayName} />
-                          {/* Inside the clip wrapper, which is what makes an overlap
-                              with a neighbouring tile structurally impossible. */}
-                          <div
-                            dir="ltr"
-                            className={clsx(
-                              'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
-                              !standalone && 'mobile:hidden'
-                            )}
-                          >
-                            {displayName}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      media={media}
+                      standalone={standalone}
+                      query={query}
+                      onDeleted={unselectDeleted}
+                      order={picked === -1 ? undefined : picked + 1}
+                      onToggle={addRemoveSelected(media)}
+                    />
                   );
                 })}
               </MediaMonth>

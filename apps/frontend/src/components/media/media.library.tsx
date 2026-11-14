@@ -101,10 +101,18 @@ export const TilePicture: FC<{
 };
 
 /**
- * A media library tile on the Media page (`standalone`, as `MediaBox` has it):
- * one button over the square that opens the library's preview on its file,
- * over the list the page shows. Deleting is the preview's, so the tile has no
- * corner buttons, and the play badge takes the end corner.
+ * A media library tile, as `MediaBox` shows it on either surface.
+ *
+ * On the Media page (`standalone`) it is one button over the square that opens
+ * the library's preview on its file, over the list the page shows; the play
+ * badge takes the end corner.
+ *
+ * In the Media Library window the button picks and unpicks the file, which
+ * then shows its number in the order picked and a brand frame. A corner
+ * button beside it opens the same preview without touching the picks; the
+ * play badge takes the start corner, and the name hides at 1025px and below.
+ *
+ * Deleting is the preview's, so no tile has a delete button.
  */
 export const MediaTile: FC<{
   media: TileMedia & Pick<Media, 'id' | 'name' | 'originalName'>;
@@ -113,33 +121,81 @@ export const MediaTile: FC<{
   query: MediaLibraryQuery;
   /** Told the id of each file the preview deletes. */
   onDeleted: (id: string) => void;
-}> = ({ media, query, onDeleted }) => {
+  /** The window's: the pick's number, absent while the file isn't picked. */
+  order?: number;
+  /** The window's: picks or unpicks the file. */
+  onToggle?: () => void;
+}> = ({ media, standalone, query, onDeleted, order, onToggle }) => {
+  const t = useT();
   const modals = useModals();
   // `originalName` is nullable; `name` never is. Without this the name, the
   // tooltip and the alt text are all empty for older uploads.
   const name = media.originalName || media.name;
+  const openPreview = () =>
+    modals.openModal(libraryPreviewModal(query, media.id, onDeleted));
   return (
     <div className="group rounded-[6px] aspect-square mobile:p-[6px]">
-      <div className="w-full h-full rounded-[6px] border-[4px] border-transparent relative">
+      <div
+        className={clsx(
+          'w-full h-full rounded-[6px] border-[4px] relative',
+          order ? 'border-brand' : 'border-transparent'
+        )}
+      >
         {/* The tile carries the tooltip, not the name strip: the strip is
             pointer-events-none, so a `title` on it would never be reachable. */}
         <button
           type="button"
           title={name}
           aria-label={name}
-          onClick={() =>
-            modals.openModal(libraryPreviewModal(query, media.id, onDeleted))
-          }
+          onClick={standalone ? openPreview : onToggle}
           className="block w-full h-full rounded-[6px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
         >
-          <TilePicture media={media} name={name} corner="end" />
+          <TilePicture
+            media={media}
+            name={name}
+            corner={standalone ? 'end' : 'start'}
+          />
           <div
             dir="ltr"
-            className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-start text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none"
+            className={clsx(
+              'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-start text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
+              !standalone && 'mobile:hidden'
+            )}
           >
             {name}
           </div>
         </button>
+        {!standalone && (
+          /* Beside the tile button, never inside it, and revealed by opacity
+             rather than `display`, so it can take focus. An `opacity: 0`
+             element is still hit-tested, so it stays `pointer-events-none`
+             until it shows; under a finger, where nothing hovers, it always
+             shows, and a tap anywhere else on the tile still picks. */
+          <button
+            type="button"
+            onClick={openPreview}
+            aria-label={t('open_preview', 'Open preview')}
+            className="cursor-pointer absolute z-[100] top-[6px] end-[6px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto coarse:opacity-100 coarse:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 14 14"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        )}
+        {!!order && (
+          <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
+            {order}
+          </div>
+        )}
       </div>
     </div>
   );
