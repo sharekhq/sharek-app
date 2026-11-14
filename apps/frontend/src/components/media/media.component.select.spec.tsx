@@ -312,6 +312,38 @@ const holdMonthIds = () => {
     await settle();
   };
 };
+// The next Delete's question, held open until the case answers it.
+const holdDialog = () => {
+  let answer: (yes: boolean) => void = () => {};
+  mockDeleteDialog.mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        answer = resolve;
+      })
+  );
+  return async (yes: boolean) => {
+    await act(async () => {
+      answer(yes);
+    });
+    await settle();
+  };
+};
+// The next delete, held running until the case ends it.
+const holdDelete = () => {
+  let end = () => {};
+  mockDeleteMedia.mockImplementationOnce(
+    () =>
+      new Promise<number>((resolve) => {
+        end = () => resolve(0);
+      })
+  );
+  return async () => {
+    await act(async () => {
+      end();
+    });
+    await settle();
+  };
+};
 
 beforeEach(() => {
   mockServer.rows = [];
@@ -605,6 +637,54 @@ describe('deleting the selection', () => {
     expect(mockRevalidate).not.toHaveBeenCalled();
     expect(ticked()).toEqual(['n0.png', 'n1.png']);
     expect(said('media_selected')).toEqual(counted(2));
+  });
+
+  it('is disabled from its question until the delete ends, so pressing it again asks nothing and sends nothing more', async () => {
+    mockServer.rows = november(3);
+    await mount();
+    await press(circleOf('n0.png'));
+    const answer = holdDialog();
+    const end = holdDelete();
+
+    await press(barButton('delete'));
+
+    expect(barButton('delete')!.disabled).toBe(true);
+    await press(barButton('delete'));
+    expect(mockDeleteDialog).toHaveBeenCalledTimes(1);
+
+    await answer(true);
+
+    expect(mockDeleteMedia).toHaveBeenCalledTimes(1);
+    expect(barButton('delete')!.disabled).toBe(true);
+    await press(barButton('delete'));
+    expect(mockDeleteDialog).toHaveBeenCalledTimes(1);
+    expect(mockDeleteMedia).toHaveBeenCalledTimes(1);
+
+    await end();
+
+    expect(mockDeleteMedia).toHaveBeenCalledTimes(1);
+    expect(mockListMutate).toHaveBeenCalledTimes(1);
+    expect(mockRevalidate).toHaveBeenCalledTimes(1);
+    expect(bar()).toBeUndefined();
+  });
+
+  it('takes a press again once its question is cancelled, and only then', async () => {
+    mockServer.rows = november(3);
+    await mount();
+    await press(circleOf('n0.png'));
+    const answer = holdDialog();
+
+    await press(barButton('delete'));
+    await press(barButton('delete'));
+
+    expect(mockDeleteDialog).toHaveBeenCalledTimes(1);
+
+    await answer(false);
+
+    expect(barButton('delete')!.disabled).toBe(false);
+    await press(barButton('delete'));
+    expect(mockDeleteDialog).toHaveBeenCalledTimes(2);
+    expect(mockDeleteMedia).toHaveBeenCalledTimes(1);
   });
 });
 
