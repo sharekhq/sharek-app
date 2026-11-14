@@ -69,6 +69,20 @@ const mockLibraryPreviewModal = jest.fn((..._args: unknown[]) => ({
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
   libraryPreviewModal: (...args: unknown[]) => mockLibraryPreviewModal(...args),
 }));
+// A month's "Select all" asks for its ids through useMonthIds: a double that
+// keeps its calls and answers what the case sets. What it says goes through
+// the toaster, a double that keeps its calls too.
+const mockMonthIds = jest.fn(
+  async (..._args: unknown[]): Promise<string[]> => []
+);
+jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
+  useMonthIds: () => mockMonthIds,
+}));
+const mockToast = jest.fn();
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: (...args: unknown[]) => mockToast(...args) }),
+}));
 
 import {
   MediaMonth,
@@ -467,6 +481,195 @@ describe('MediaMonth', () => {
     expect(moves(head())).toBe(false);
     expect(Array.from(head().querySelectorAll('*')).some(moves)).toBe(false);
   });
+
+  // FR-046: the window's months have no "Select all".
+  it('has no Select all in the Media Library window', () => {
+    const { host } = renderMonths();
+
+    expect(heading(sections(host)[0]).querySelector('button')).toBeNull();
+  });
+
+  // Spec 057 (contracts/ui.md "MediaMonth", research R5; FR-039). On the Media
+  // page each heading has "Select all", which asks for every id of its month
+  // under the list's type and search, loaded or not, and selects them. It
+  // reads "Clear" while every id of the month is selected: the ids its Select
+  // all fetched, or, for a month ticked by hand, its loaded files once they
+  // are all of its files (loaded = its count).
+  describe('on the Media page', () => {
+    const onSelectAll = jest.fn();
+    const onClear = jest.fn();
+
+    beforeEach(() => {
+      mockMonthIds.mockReset();
+      mockMonthIds.mockResolvedValue([]);
+      mockToast.mockClear();
+      onSelectAll.mockClear();
+      onClear.mockClear();
+    });
+
+    // November with the loaded files `ids` (two tiles), the page's selection
+    // and the ids its Select all fetched.
+    const renderPageMonth = ({
+      ids = ['n1', 'n2'],
+      selected = [] as string[],
+      fetched,
+    }: {
+      ids?: string[];
+      selected?: string[];
+      fetched?: string[];
+    } = {}) => {
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      roots.push(root);
+      act(() => {
+        root.render(
+          <MediaMonth
+            query={query}
+            label={november.label}
+            from={november.from}
+            to={november.to}
+            selection={{
+              ids,
+              selected: new Set(selected),
+              fetched,
+              onSelectAll,
+              onClear,
+            }}
+          >
+            <div data-tile="1" />
+            <div data-tile="2" />
+          </MediaMonth>
+        );
+      });
+      return host;
+    };
+    const selectAll = (host: HTMLElement) =>
+      heading(sections(host)[0]).querySelector('button')!;
+    const classes = (node: Element) => Array.from(node.classList);
+    const press = async (node: HTMLElement) => {
+      await act(async () => {
+        node.click();
+      });
+    };
+
+    it("has Select all at the heading's end, in brand text, 13px semibold, 44px high under a finger, with the focus ring", () => {
+      const button = selectAll(renderPageMonth());
+
+      expect(button).toBeTruthy();
+      expect(button.getAttribute('type')).toBe('button');
+      expect(button.textContent).toBe('Select all');
+      expect(mockT).toHaveBeenCalledWith('media_select_all', 'Select all');
+      expect(classes(button)).toEqual(
+        expect.arrayContaining([
+          'ms-auto',
+          'text-brandText',
+          'text-[13px]',
+          'font-[600]',
+          'coarse:min-h-[44px]',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+    });
+
+    it("shows Select all on hover of its month, through the month's named group, on focus and always under a finger", () => {
+      const host = renderPageMonth();
+      const section = sections(host)[0];
+
+      expect(classes(section)).toContain('group/month');
+      expect(classes(section)).not.toContain('group');
+      expect(classes(selectAll(host))).toEqual(
+        expect.arrayContaining([
+          'opacity-0',
+          'group-hover/month:opacity-100',
+          'focus-visible:opacity-100',
+          'coarse:opacity-100',
+        ])
+      );
+      expect(classes(selectAll(host))).not.toContain('group-hover:opacity-100');
+    });
+
+    it('shows Select all while anything is selected, of any month', () => {
+      const button = selectAll(renderPageMonth({ selected: ['o4'] }));
+
+      expect(button.textContent).toBe('Select all');
+      expect(classes(button)).toContain('opacity-100');
+      expect(classes(button)).not.toContain('opacity-0');
+    });
+
+    it("asks useMonthIds for the month's ids under the list's query when pressed, and selects them all, loaded or not", async () => {
+      mockMonthIds.mockResolvedValue(['n1', 'n2', 'n3']);
+      const host = renderPageMonth();
+
+      await press(selectAll(host));
+
+      expect(mockMonthIds).toHaveBeenCalledTimes(1);
+      expect(mockMonthIds).toHaveBeenCalledWith(query, {
+        from: november.from,
+        to: november.to,
+      });
+      expect(onSelectAll).toHaveBeenCalledTimes(1);
+      expect(onSelectAll).toHaveBeenCalledWith(['n1', 'n2', 'n3']);
+      expect(onClear).not.toHaveBeenCalled();
+    });
+
+    it('reads Clear once every id its Select all fetched is selected, and unselects them, asking for nothing', async () => {
+      const host = renderPageMonth({
+        selected: ['n1', 'n2', 'n3'],
+        fetched: ['n1', 'n2', 'n3'],
+      });
+
+      expect(selectAll(host).textContent).toBe('Clear');
+      expect(mockT).toHaveBeenCalledWith('media_clear_selection', 'Clear');
+      await press(selectAll(host));
+
+      expect(onClear).toHaveBeenCalledTimes(1);
+      expect(onClear).toHaveBeenCalledWith(['n1', 'n2', 'n3']);
+      expect(mockMonthIds).not.toHaveBeenCalled();
+      expect(onSelectAll).not.toHaveBeenCalled();
+    });
+
+    it('turns back to Select all when one id its Select all fetched is unselected', () => {
+      const host = renderPageMonth({
+        selected: ['n1', 'n3'],
+        fetched: ['n1', 'n2', 'n3'],
+      });
+
+      expect(selectAll(host).textContent).toBe('Select all');
+    });
+
+    it('reads Clear for a month ticked by hand once all its files have loaded and are selected, loaded meaning its count', async () => {
+      mockCount.value = 2;
+      const all = renderPageMonth({ selected: ['n1', 'n2'] });
+      mockCount.value = 3;
+      const partly = renderPageMonth({ selected: ['n1', 'n2'] });
+      mockCount.value = undefined;
+      const uncounted = renderPageMonth({ selected: ['n1', 'n2'] });
+
+      expect(selectAll(all).textContent).toBe('Clear');
+      expect(selectAll(partly).textContent).toBe('Select all');
+      expect(selectAll(uncounted).textContent).toBe('Select all');
+      await press(selectAll(all));
+      expect(onClear).toHaveBeenCalledWith(['n1', 'n2']);
+    });
+
+    it("says error_occurred and selects nothing when the month's ids fail to load", async () => {
+      mockMonthIds.mockRejectedValue(
+        new Error("Failed to load the month's files")
+      );
+      const host = renderPageMonth();
+
+      await press(selectAll(host));
+
+      expect(onSelectAll).not.toHaveBeenCalled();
+      expect(mockToast).toHaveBeenCalledTimes(1);
+      expect(mockToast).toHaveBeenCalledWith(
+        'An error occurred. Please try again.',
+        'warning'
+      );
+    });
+  });
 });
 
 // Spec 057 (contracts/ui.md "MediaTile", research R14). On the Media page the
@@ -514,13 +717,21 @@ const caption = (host: HTMLElement, name = 'Beach day.png') =>
     .at(-1);
 
 describe('MediaTile on the Media page', () => {
+  const onToggle = jest.fn();
+
   beforeEach(() => {
     mockOpenModal.mockClear();
     mockLibraryPreviewModal.mockClear();
+    mockT.mockClear();
     onDeleted.mockClear();
+    onToggle.mockClear();
   });
 
-  const renderTile = (media: Row = photo) => {
+  // `selected`: this file is; `selecting`: anything is (contracts/ui.md).
+  const renderTile = (
+    media: Row = photo,
+    { selected, selecting }: { selected?: boolean; selecting?: boolean } = {}
+  ) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -532,11 +743,26 @@ describe('MediaTile on the Media page', () => {
           standalone={true}
           query={query}
           onDeleted={onDeleted}
+          selected={selected}
+          selecting={selecting}
+          onToggle={onToggle}
         />
       );
     });
     return host;
   };
+
+  // The selection circle, named by the file's name, and the ring it holds.
+  const circle = (host: HTMLElement, name = 'Beach day.png') =>
+    host.querySelector<HTMLButtonElement>(
+      `button[aria-label="Select ${name}"]`
+    );
+  const ring = (host: HTMLElement) => circle(host)!.querySelector('span')!;
+  const frame = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('div')).find((node) =>
+      node.classList.contains('border-[4px]')
+    )!;
+  const classes = (node: Element) => Array.from(node.classList);
 
   it("is a button over the whole square, named by the file's name, with the focus ring", () => {
     const host = renderTile();
@@ -580,11 +806,14 @@ describe('MediaTile on the Media page', () => {
     );
   });
 
-  it('has no preview button and no delete button of its own', () => {
+  it('has no preview button and no delete button of its own: only the tile and its circle', () => {
     const host = renderTile();
     const buttons = Array.from(host.querySelectorAll('button'));
 
-    expect(buttons).toEqual([tileButton(host)]);
+    expect(buttons).toHaveLength(2);
+    expect(buttons).toEqual(
+      expect.arrayContaining([tileButton(host), circle(host)])
+    );
     expect(
       buttons.some((button) =>
         /preview|delete/i.test(button.getAttribute('aria-label') || '')
@@ -620,6 +849,126 @@ describe('MediaTile on the Media page', () => {
     expect(wrapper.classList.contains('group')).toBe(true);
     expect(wrapper.classList.contains('aspect-square')).toBe(true);
     expect(wrapper.contains(tileButton(host))).toBe(true);
+  });
+
+  // FR-035 to FR-037, FR-050: the selection circle, in the top-start corner
+  // (top-right in Arabic, by `start-`), beside the tile button.
+  it('has a circle beside the tile button, never inside it, in the top start corner: a 40px hit box, 44px under a finger, holding a 24px ring, with the focus ring', () => {
+    const host = renderTile();
+    const tile = tileButton(host)!;
+    const select = circle(host)!;
+
+    expect(select).toBeTruthy();
+    expect(select.getAttribute('type')).toBe('button');
+    expect(select.getAttribute('aria-pressed')).toBe('false');
+    expect(mockT).toHaveBeenCalledWith(
+      'media_select_named',
+      'Select {{name}}',
+      { name: 'Beach day.png' }
+    );
+    expect(select.parentElement).toBe(tile.parentElement);
+    expect(tile.contains(select)).toBe(false);
+    expect(select.contains(tile)).toBe(false);
+    expect(classes(select)).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'top-0',
+        'start-0',
+        'w-[40px]',
+        'h-[40px]',
+        'coarse:w-[44px]',
+        'coarse:h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(classes(select)).not.toContain('end-0');
+    expect(classes(ring(host))).toEqual(
+      expect.arrayContaining(['w-[24px]', 'h-[24px]', 'rounded-full'])
+    );
+  });
+
+  it('shows the circle on hover and on focus, and always under a finger, while nothing is selected', () => {
+    const select = circle(renderTile())!;
+
+    expect(classes(select)).toEqual(
+      expect.arrayContaining([
+        'opacity-0',
+        'pointer-events-none',
+        'group-hover:opacity-100',
+        'group-hover:pointer-events-auto',
+        'focus-visible:opacity-100',
+        'focus-visible:pointer-events-auto',
+        'coarse:opacity-100',
+        'coarse:pointer-events-auto',
+      ])
+    );
+  });
+
+  it('shows the circle on every tile while anything is selected', () => {
+    const select = circle(renderTile(photo, { selecting: true }))!;
+
+    expect(classes(select)).toEqual(
+      expect.arrayContaining(['opacity-100', 'pointer-events-auto'])
+    );
+    expect(classes(select)).not.toContain('opacity-0');
+    expect(classes(select)).not.toContain('pointer-events-none');
+  });
+
+  it('selects and unselects its file through onToggle when the circle is pressed, and opens nothing', () => {
+    const unselected = renderTile();
+    const selected = renderTile(photo, { selected: true, selecting: true });
+
+    act(() => {
+      circle(unselected)!.click();
+    });
+    act(() => {
+      circle(selected)!.click();
+    });
+
+    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(mockLibraryPreviewModal).not.toHaveBeenCalled();
+    expect(mockOpenModal).not.toHaveBeenCalled();
+  });
+
+  it('shows a selected file with a white check in the filled brand circle, pressed, and the 4px brand frame, and an unselected one with neither', () => {
+    const selected = renderTile(photo, { selected: true, selecting: true });
+    const unselected = renderTile(photo, { selecting: true });
+
+    expect(circle(selected)!.getAttribute('aria-pressed')).toBe('true');
+    expect(classes(ring(selected))).toEqual(
+      expect.arrayContaining(['bg-brand', 'text-white'])
+    );
+    expect(ring(selected).querySelector('svg')).toBeTruthy();
+    expect(classes(frame(selected))).toContain('border-brand');
+    expect(classes(frame(selected))).not.toContain('border-transparent');
+
+    expect(circle(unselected)!.getAttribute('aria-pressed')).toBe('false');
+    expect(classes(ring(unselected))).toContain('border-white');
+    expect(classes(ring(unselected))).not.toContain('bg-brand');
+    expect(ring(unselected).querySelector('svg')).toBeNull();
+    expect(classes(frame(unselected))).toContain('border-transparent');
+    expect(classes(frame(unselected))).not.toContain('border-brand');
+  });
+
+  it('toggles its file instead of opening the preview when clicked while anything is selected', () => {
+    const selecting = renderTile(photo, { selecting: true });
+    const browsing = renderTile();
+
+    act(() => {
+      tileButton(selecting)!.click();
+    });
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(mockLibraryPreviewModal).not.toHaveBeenCalled();
+    expect(mockOpenModal).not.toHaveBeenCalled();
+
+    act(() => {
+      tileButton(browsing)!.click();
+    });
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(mockOpenModal).toHaveBeenCalledTimes(1);
   });
 });
 

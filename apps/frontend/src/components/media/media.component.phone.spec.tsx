@@ -345,7 +345,7 @@ describe('the Media page at 1025px and below', () => {
     });
   });
 
-  it('has no footer and no Delete Selected, since nothing can be picked', async () => {
+  it('has no footer and no Delete Selected; picks are deleted from the selection bar', async () => {
     const host = await page();
     await click(tile(host, 1));
 
