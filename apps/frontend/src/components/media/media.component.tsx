@@ -652,10 +652,10 @@ export const MediaBox: FC<{
     [toaster, t]
   );
 
-  const typeFilters = [
+  const typeFilters: { value: MediaLibraryQuery['type']; label: string }[] = [
     { value: undefined, label: t('media_filter_all', 'All') },
-    { value: 'image' as const, label: t('media_filter_images', 'Images') },
-    { value: 'video' as const, label: t('media_filter_videos', 'Videos') },
+    { value: 'image', label: t('media_filter_images', 'Images') },
+    { value: 'video', label: t('media_filter_videos', 'Videos') },
   ];
 
   const btn = useMemo(() => {
