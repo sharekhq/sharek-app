@@ -1,7 +1,10 @@
 'use client';
 
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { MEDIA_DELETE_BATCH } from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
+import {
+  MEDIA_DELETE_BATCH,
+  type MediaLibraryDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Media } from '@prisma/client';
@@ -14,8 +17,8 @@ import useSWRInfinite, { SWRInfiniteKeyedMutator } from 'swr/infinite';
 // Media page's filter (none = all files), the order, and the search as typed,
 // trimmed when it is sent.
 export type MediaLibraryQuery = {
-  type?: 'image' | 'image-static' | 'video';
-  sort: 'newest' | 'oldest';
+  type?: MediaLibraryDto['type'];
+  sort: MediaLibraryDto['sort'];
   search: string;
 };
 
@@ -26,22 +29,38 @@ export type MediaLibraryRow = Media & { tileImage?: string };
 // A page of GET /media: up to 32 files, and how many pages the list holds.
 type MediaLibraryPage = { pages: number; results: MediaLibraryRow[] };
 
+// The leading parameters, then what narrows the list: its type, the order
+// when it is the oldest first, and its trimmed search, a blank one left out.
+// The list's pages and its months build theirs here alike, so the two can't
+// ask for different files.
+const narrowedParams = (
+  leading: Record<string, string>,
+  { type, sort, search }: Partial<MediaLibraryQuery>
+): URLSearchParams => {
+  const params = new URLSearchParams(leading);
+  if (type) {
+    params.set('type', type);
+  }
+  if (sort === 'oldest') {
+    params.set('sort', 'oldest');
+  }
+  if (search?.trim()) {
+    params.set('search', search.trim());
+  }
+  return params;
+};
+
 // A month's parameters, for its count and its ids alike: the month, then the
 // list's type and trimmed search. The order isn't sent: a month holds the same
 // files either way.
 const monthParams = (
   query: MediaLibraryQuery,
   month: { from: string; to: string }
-): URLSearchParams => {
-  const params = new URLSearchParams({ from: month.from, to: month.to });
-  if (query.type) {
-    params.set('type', query.type);
-  }
-  if (query.search.trim()) {
-    params.set('search', query.search.trim());
-  }
-  return params;
-};
+): URLSearchParams =>
+  narrowedParams(
+    { from: month.from, to: month.to },
+    { type: query.type, search: query.search }
+  );
 
 // How many files a month holds under the list's type and search, for its
 // heading (GET /media/month, research R4). The month is its start and the next
@@ -96,19 +115,8 @@ export const useMediaLibrary = (
 } => {
   const fetch = useFetch();
   const { mutate: mutateKeys } = useSWRConfig();
-  const getKey = (index: number) => {
-    const params = new URLSearchParams({ page: String(index + 1) });
-    if (query.type) {
-      params.set('type', query.type);
-    }
-    if (query.sort === 'oldest') {
-      params.set('sort', 'oldest');
-    }
-    if (query.search.trim()) {
-      params.set('search', query.search.trim());
-    }
-    return `/media?${params.toString()}`;
-  };
+  const getKey = (index: number) =>
+    `/media?${narrowedParams({ page: String(index + 1) }, query).toString()}`;
 
   // A failed answer (a 500 has a JSON body too) is an error SWR asks again
   // for, never a page to show
