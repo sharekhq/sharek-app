@@ -172,3 +172,59 @@ describe('the Media page writes each change with replaceState, defaults left out
     expect(box().initialQuery).toEqual(query);
   });
 });
+
+// The page owns type, sort and search only. Any other parameter stays as it
+// was, in its order: loggedAuth above all, which customFetch reads from the
+// address on every request (custom.fetch.func.ts), so dropping it would sign
+// the next request out.
+describe('the Media page keeps every other parameter of its address (R11)', () => {
+  it('keeps ?loggedAuth=abc when Videos is chosen', async () => {
+    await open('/media?loggedAuth=abc');
+
+    await change({ type: 'video', sort: 'newest', search: '' });
+
+    expect(replace).toHaveBeenLastCalledWith(
+      null,
+      '',
+      '/media?loggedAuth=abc&type=video'
+    );
+  });
+
+  it('keeps ?loggedAuth=abc when All comes back', async () => {
+    await open('/media?loggedAuth=abc&type=video');
+
+    await change({ sort: 'newest', search: '' });
+
+    expect(replace).toHaveBeenLastCalledWith(null, '', '/media?loggedAuth=abc');
+  });
+
+  it('keeps the others in their order around its own', async () => {
+    await open('/media?ref=mail&type=video&loggedAuth=abc');
+
+    await change({ sort: 'oldest', search: '' });
+
+    expect(replace).toHaveBeenLastCalledWith(
+      null,
+      '',
+      '/media?ref=mail&loggedAuth=abc&sort=oldest'
+    );
+  });
+
+  it('opens the same list after a refresh with loggedAuth still in the address (SC-009)', async () => {
+    const query: Query = {
+      type: 'image',
+      sort: 'oldest',
+      search: 'رمضان & عيد 50%',
+    };
+    await open('/media?loggedAuth=abc');
+    await change(query);
+    mounted.splice(0).forEach((root) => act(() => root.unmount()));
+
+    await mount();
+
+    expect(new URLSearchParams(window.location.search).get('loggedAuth')).toBe(
+      'abc'
+    );
+    expect(box().initialQuery).toEqual(query);
+  });
+});
