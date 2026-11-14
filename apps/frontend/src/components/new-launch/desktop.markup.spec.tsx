@@ -37,7 +37,16 @@ import dayjs from 'dayjs';
 //   the focus;
 // - the link, bold, underline, bullets and signature tools carry an aria-label
 //   with their tooltip's text: the app's tooltip no longer shows on a touch
-//   screen, and it was their only name. Nothing renders differently.
+//   screen, and it was their only name. Nothing renders differently;
+// - the media library is spec 057's: the toolbar adds a search glyph, the
+//   File type filter and the Sort select; the files sit under a sticky month
+//   heading with its count, and "That's all your files" ends the list where
+//   the pagination row was; each tile is one button over its square, the file
+//   contained on `bg-panel` and loaded lazily, with no per-tile delete. In the
+//   window Open preview moves to the tile's end corner and a pick keeps its
+//   brand border and order badge; on the Media page the tile opens the
+//   preview, a circle at its start corner selects it, and the month heading
+//   carries Select all.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
