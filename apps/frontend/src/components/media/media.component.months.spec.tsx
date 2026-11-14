@@ -1,4 +1,4 @@
-import { act as reactAct, ReactNode } from 'react';
+import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
@@ -300,27 +300,6 @@ jest.mock('next/dynamic', () => ({
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { setUserTimezone } from '@gitroom/frontend/components/layout/set.timezone';
 
-// A case that overruns Jest's timeout runs on after Jest has moved to the
-// next case, and an act() of its that overlaps one of the next case's leaves
-// React's act queue broken, so every case after it renders nothing. Every
-// act() here is this one: afterEach waits for the act() in flight, and an
-// act() that ends after its case did holds that case there for good. React
-// closes an act() scope each time its thenable's then() is called, so it is
-// called once, by Promise.resolve.
-const acting = { case: 0, inFlight: Promise.resolve() };
-const act = async (callback: () => void | Promise<void>): Promise<void> => {
-  const owner = acting.case;
-  const run = Promise.resolve(reactAct(callback));
-  acting.inFlight = run.then(
-    () => undefined,
-    () => undefined
-  );
-  await run;
-  if (owner !== acting.case) {
-    await new Promise<never>(() => undefined);
-  }
-};
-
 // Whether the sentinel is in view, as the browser would report it.
 const view = { inView: false };
 
@@ -575,10 +554,8 @@ beforeEach(() => {
   mockUploader.options = undefined;
 });
 
-afterEach(async () => {
-  acting.case += 1;
-  await acting.inFlight;
-  await act(() => {
+afterEach(() => {
+  act(() => {
     roots.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
@@ -927,7 +904,7 @@ describe.each([
     });
   });
 
-  // SC-010
+  // SC-010. Its own timeout: 32 pages of tiles have crossed 5 s in a full run.
   it('scrolls a 1,000-file library over 12 months to its end, each month heading once and no 33rd request', async () => {
     const months = [
       [2026, 10],
@@ -977,7 +954,7 @@ describe.each([
     expect(shown()).toHaveLength(1000);
     expect(text()).toContain('media_end');
     expect(sentinels()).toHaveLength(0);
-  });
+  }, 10_000);
 });
 
 // The window asks the server for its caller's type; whatever comes back is
