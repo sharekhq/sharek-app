@@ -18,6 +18,11 @@ import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/s
 import { Organization } from '@prisma/client';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 import {
+  MediaLibraryDto,
+  MediaMonthDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
+import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import {
   EditImageWithPromptDto,
   GenerateImageWithPromptDto,
 } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
@@ -120,6 +125,10 @@ const USABLE_AS_IS = new Set([
 // tokens for a larger input, so pixels past this would only cost (research
 // R6).
 const REFERENCE_MAX_EDGE = 1792;
+
+// The longest range the Media library's month reads take: a month in the
+// user's timezone is 28 to 31 days, and a clock change adds an hour.
+const MONTH_RANGE_MAX_DAYS = 32;
 
 // A reference refused before the render, named by the number on its
 // thumbnail so the window can say which one, in its own words (research R13).
@@ -1235,6 +1244,65 @@ export class MediaService {
 
   getMedia(org: string, page: number, search?: string) {
     return this._mediaRepository.getMedia(org, page, search);
+  }
+
+  // The Media library's page. Each row gains the address its tile loads only
+  // where the storage has one other than the file itself, so every other row
+  // is the repository's as it came; getMedia above never adds it.
+  async getLibraryPage(org: string, query: MediaLibraryDto) {
+    const { pages, results } = await this._mediaRepository.getMedia(
+      org,
+      query.page,
+      query.search,
+      { type: query.type, sort: query.sort }
+    );
+    return {
+      pages,
+      results: results.map((media) => {
+        const tileImage = this.storage.tileImage(
+          media.path,
+          hasExtension(media.path, 'mp4') ? 'video' : 'image'
+        );
+        return tileImage === media.path ? media : { ...media, tileImage };
+      }),
+    };
+  }
+
+  async countMonth(
+    org: string,
+    query: MediaMonthDto
+  ): Promise<{ count: number }> {
+    this.checkMonthRange(query);
+    return {
+      count: await this._mediaRepository.countMediaInRange(org, query),
+    };
+  }
+
+  async monthIds(
+    org: string,
+    query: MediaMonthDto
+  ): Promise<{ ids: string[] }> {
+    this.checkMonthRange(query);
+    return {
+      ids: await this._mediaRepository.getMediaIdsInRange(org, query),
+    };
+  }
+
+  // Marks the files deleted and nothing more: the stored files stay, so the
+  // posts that use them keep them.
+  async deleteManyMedia(org: string, ids: string[]): Promise<void> {
+    await this._mediaRepository.deleteManyMedia(org, ids);
+  }
+
+  // A month read is bounded by its month, so a range that doesn't move
+  // forward, or is longer than any month, is refused before any query.
+  private checkMonthRange({ from, to }: MediaMonthDto) {
+    const span = Date.parse(to) - Date.parse(from);
+    if (!(span > 0 && span <= MONTH_RANGE_MAX_DAYS * 24 * 60 * 60 * 1000)) {
+      throw new BadRequestException(
+        `The range must end after it starts, at most ${MONTH_RANGE_MAX_DAYS} days later.`
+      );
+    }
   }
 
   saveMediaInformation(org: string, data: SaveMediaInformationDto) {
