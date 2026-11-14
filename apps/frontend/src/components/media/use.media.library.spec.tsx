@@ -26,6 +26,12 @@ import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 // MEDIA_DELETE_BATCH, one after another; it resolves to how many weren't
 // deleted, every id of a batch that answers a failure or throws.
 //
+// useMonthIds (research R5, contracts/media-api.md "GET /media/month/ids"):
+// the ids of every file of a month under the list's type and search, for its
+// heading's "Select all", loaded or not. It answers a press, so it is a plain
+// request with the count's parameters, never an SWR key; a failed answer
+// throws.
+//
 // SWR runs for real on a cache of its own; the doubles around useSWR and
 // useSWRInfinite only record what the hooks hand them. Only the request is
 // stubbed.
@@ -56,6 +62,7 @@ import {
   useDeleteMedia,
   useMediaLibrary,
   useMediaMonthCount,
+  useMonthIds,
   useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 
@@ -793,5 +800,104 @@ describe('useDeleteMedia', () => {
 
     await expect(remover.latest!(fileIds(1201))).resolves.toBe(701);
     expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('useMonthIds', () => {
+  const finder: {
+    latest?: (
+      query: MediaLibraryQuery,
+      month: { from: string; to: string }
+    ) => Promise<string[]>;
+  } = {};
+  const IdsProbe = () => {
+    finder.latest = useMonthIds();
+    return null;
+  };
+  const answersIds = (ids: string[]) =>
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ids }),
+    });
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    answersIds(['a', 'b']);
+    finder.latest = undefined;
+  });
+
+  it("asks GET /media/month/ids with the month, then the type and the trimmed search, in the count's order", async () => {
+    await mount(all, IdsProbe);
+
+    await finder.latest!(
+      { type: 'video', sort: 'newest', search: '  ramadan eid  ' },
+      november
+    );
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(parts(mockFetch.mock.calls[0][0])).toEqual({
+      path: '/media/month/ids',
+      params: [
+        ['from', november.from],
+        ['to', november.to],
+        ['type', 'video'],
+        ['search', 'ramadan eid'],
+      ],
+    });
+  });
+
+  it('leaves out the type when there is none and the search when it is blank, and never sends the order', async () => {
+    await mount(all, IdsProbe);
+
+    await finder.latest!({ sort: 'oldest', search: '   ' }, november);
+
+    expect(parts(mockFetch.mock.calls[0][0])).toEqual({
+      path: '/media/month/ids',
+      params: [
+        ['from', november.from],
+        ['to', november.to],
+      ],
+    });
+  });
+
+  it('asks nothing until it is called, then makes one plain request with no SWR key', async () => {
+    await mount(all, IdsProbe);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(swrCalls()).toHaveLength(0);
+    expect(infiniteCalls()).toHaveLength(0);
+
+    await finder.latest!(all, november);
+
+    expect(mockFetch.mock.calls).toEqual([
+      [`/media/month/ids?${new URLSearchParams(november)}`],
+    ]);
+    expect(swrCalls()).toHaveLength(0);
+  });
+
+  it('resolves to the ids GET /media/month/ids answers', async () => {
+    answersIds(['file-1', 'file-2', 'file-3']);
+    await mount(all, IdsProbe);
+
+    await expect(finder.latest!(all, november)).resolves.toEqual([
+      'file-1',
+      'file-2',
+      'file-3',
+    ]);
+  });
+
+  it('throws for a failed answer, a 500 with a JSON body', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        statusCode: 500,
+        message: 'Internal server error',
+      }),
+    });
+    await mount(all, IdsProbe);
+
+    await expect(finder.latest!(all, november)).rejects.toThrow(Error);
   });
 });
