@@ -538,32 +538,39 @@ export const MediaBox: FC<{
 
   // The selection bar's Delete (research R6): one question, every selected
   // id through the one client delete path, which says how it went, then the
-  // list and its month counts refetch, so the files that failed stay.
+  // list and its month counts refetch, so the files that failed stay. From
+  // the question until the delete ends, Delete is disabled.
   const deleteMedia = useDeleteMedia();
+  const [deleting, setDeleting] = useState(false);
   const deleteSelection = useCallback(async () => {
     const ids = Array.from(selection);
     const count = {
       count: ids.length,
       value: ids.length.toLocaleString('en-US'),
     };
-    if (
-      !(await deleteDialog(
-        t(
-          'media_delete_body',
-          "They'll be removed from your media library.",
-          count
-        ),
-        t('delete', 'Delete'),
-        t('media_delete_title', 'Delete {{value}} files?', count),
-        t('cancel', 'Cancel'),
-        true
-      ))
-    ) {
-      return;
+    setDeleting(true);
+    try {
+      if (
+        !(await deleteDialog(
+          t(
+            'media_delete_body',
+            "They'll be removed from your media library.",
+            count
+          ),
+          t('delete', 'Delete'),
+          t('media_delete_title', 'Delete {{value}} files?', count),
+          t('cancel', 'Cancel'),
+          true
+        ))
+      ) {
+        return;
+      }
+      await deleteMedia(ids);
+      clearSelection();
+      await refresh();
+    } finally {
+      setDeleting(false);
     }
-    await deleteMedia(ids);
-    clearSelection();
-    await refresh();
   }, [selection, deleteMedia, t, clearSelection, refresh]);
 
   const addMedia = useCallback(async () => {
@@ -687,6 +694,7 @@ export const MediaBox: FC<{
             <Button
               variant="danger"
               onClick={deleteSelection}
+              disabled={deleting}
               className="ms-auto"
               innerClassName="gap-[8px]"
             >
