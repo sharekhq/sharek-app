@@ -31,7 +31,38 @@ jest.mock('@gitroom/react/helpers/video.frame', () => {
   };
 });
 
-import { TilePicture } from '@gitroom/frontend/components/media/media.library';
+// The fallback with {{var}} filled in, because that is what t() renders.
+const mockT = jest.fn(
+  (key: string, fallback?: string, params?: Record<string, unknown>) =>
+    (fallback ?? key).replace(/{{(\w+)}}/g, (whole, name) =>
+      params && name in params ? String(params[name]) : whole
+    )
+);
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => mockT,
+}));
+// A month's count as SWR gives it to useMediaMonthCount: nothing until the
+// case answers one. The keys asked for are kept.
+const mockCount: { value?: number; keys: string[] } = { keys: [] };
+jest.mock('swr', () => ({
+  __esModule: true,
+  default: (key: string) => {
+    mockCount.keys.push(key);
+    return {
+      data:
+        mockCount.value === undefined ? undefined : { count: mockCount.value },
+    };
+  },
+}));
+jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
+  useFetch: () => jest.fn(),
+}));
+
+import {
+  MediaMonth,
+  TilePicture,
+} from '@gitroom/frontend/components/media/media.library';
+import type { MediaLibraryQuery } from '@gitroom/frontend/components/media/use.media.library';
 
 const image = { path: 'https://uploads/a.png' };
 const imageWithTile = {
@@ -214,5 +245,213 @@ describe('TilePicture', () => {
     hosts.forEach((host) => {
       expect(host.innerHTML).not.toContain('cover.jpg');
     });
+  });
+});
+
+// Spec 057 (contracts/ui.md "MediaMonth", research R4). A month of the list: a
+// heading with the month's name and how many files it holds under the list's
+// type and search, over today's grid of its tiles. The heading stays at the top
+// while its month's tiles scroll under it, until the next month's heading takes
+// its place, which holds because each heading is sticky inside its own month's
+// section.
+describe('MediaMonth', () => {
+  const query: MediaLibraryQuery = {
+    type: 'video',
+    sort: 'newest',
+    search: 'eid',
+  };
+  // November and October 2026 in New York, as UTC instants.
+  const november = {
+    label: 'November 2026',
+    from: '2026-11-01T04:00:00Z',
+    to: '2026-12-01T05:00:00Z',
+  };
+  const october = {
+    label: 'October 2026',
+    from: '2026-10-01T04:00:00Z',
+    to: '2026-11-01T04:00:00Z',
+  };
+
+  beforeEach(() => {
+    mockCount.value = undefined;
+    mockCount.keys = [];
+    mockT.mockClear();
+  });
+
+  // Renders the months given, each holding two tiles named after it, and
+  // answers a render that draws them again (after a case answers the count).
+  const renderMonths = (months = [november]) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    const draw = () => {
+      act(() => {
+        root.render(
+          <>
+            {months.map((month) => (
+              <MediaMonth
+                key={month.label}
+                query={query}
+                label={month.label}
+                from={month.from}
+                to={month.to}
+              >
+                <div data-tile={`${month.label} 1`} />
+                <div data-tile={`${month.label} 2`} />
+              </MediaMonth>
+            ))}
+          </>
+        );
+      });
+    };
+    draw();
+    return { host, draw };
+  };
+
+  const sections = (host: HTMLElement) => Array.from(host.children);
+  const heading = (section: Element) => section.children[0] as HTMLElement;
+  const grid = (section: Element) => section.children[1] as HTMLElement;
+
+  it('names the month with the label it is given', () => {
+    const { host } = renderMonths();
+
+    expect(heading(sections(host)[0]).textContent).toContain('November 2026');
+  });
+
+  it("shows the month's count through media_month_files, with count and value, muted", () => {
+    mockCount.value = 1234;
+    const { host } = renderMonths();
+
+    const head = heading(sections(host)[0]);
+    expect(mockT).toHaveBeenCalledWith(
+      'media_month_files',
+      expect.any(String),
+      { count: 1234, value: '1,234' }
+    );
+    expect(head.textContent).toContain('1,234 files');
+    const count = Array.from(head.querySelectorAll('*')).find(
+      (node) => node.textContent === '1,234 files'
+    );
+    expect(count!.classList.contains('text-muted')).toBe(true);
+  });
+
+  it("asks the count for its own month under the list's type and search", () => {
+    mockCount.value = 23;
+    renderMonths([november, october]);
+
+    const asked = mockCount.keys.map((key) => {
+      const [path, search] = key.split('?');
+      const params = new URLSearchParams(search);
+      return [path, params.get('from'), params.get('to'), params.get('type')];
+    });
+    expect(asked).toContainEqual([
+      '/media/month',
+      november.from,
+      november.to,
+      'video',
+    ]);
+    expect(asked).toContainEqual([
+      '/media/month',
+      october.from,
+      october.to,
+      'video',
+    ]);
+    expect(
+      mockCount.keys.every(
+        (key) => new URLSearchParams(key.split('?')[1]).get('search') === 'eid'
+      )
+    ).toBe(true);
+  });
+
+  it('shows a skeleton bar and no count until the count answers', () => {
+    const { host, draw } = renderMonths();
+    const head = () => heading(sections(host)[0]);
+
+    expect(head().querySelector('.animate-pulse')).not.toBeNull();
+    expect(head().textContent).not.toContain('files');
+
+    mockCount.value = 23;
+    draw();
+
+    expect(head().querySelector('.animate-pulse')).toBeNull();
+    expect(head().textContent).toContain('23 files');
+  });
+
+  it("pins its heading at the top on the list's background, above the tiles' controls", () => {
+    const { host } = renderMonths();
+
+    const head = heading(sections(host)[0]);
+    expect(head.classList.contains('sticky')).toBe(true);
+    expect(head.classList.contains('top-0')).toBe(true);
+    expect(head.classList.contains('bg-newBgColorInner')).toBe(true);
+    // The highest of today's tile controls is the window's order badge,
+    // z-[101]; TilePicture's play badge is z-[30].
+    const layer = Array.from(head.classList)
+      .map((name) => /^z-\[(\d+)\]$/.exec(name))
+      .find(Boolean);
+    expect(layer).toBeDefined();
+    expect(Number(layer![1])).toBeGreaterThan(101);
+  });
+
+  it("keeps each heading inside its own month's section, so the next month's heading pushes it up", () => {
+    const { host } = renderMonths([november, october]);
+
+    const [first, second] = sections(host);
+    expect(sections(host)).toHaveLength(2);
+    expect(heading(first).textContent).toContain('November 2026');
+    expect(heading(second).textContent).toContain('October 2026');
+    expect(first.contains(heading(second))).toBe(false);
+    expect(
+      grid(first).querySelector('[data-tile="November 2026 1"]')
+    ).not.toBeNull();
+    expect(
+      grid(second).querySelector('[data-tile="October 2026 1"]')
+    ).not.toBeNull();
+  });
+
+  it("lays its tiles out on today's grid", () => {
+    const { host } = renderMonths();
+
+    const tiles = grid(sections(host)[0]);
+    [
+      'grid',
+      'grid-cols-[repeat(auto-fill,minmax(150px,1fr))]',
+      '2xl:grid-cols-8',
+      'mobile:grid-cols-2',
+      'gap-[6px]',
+      'mobile:gap-0',
+    ].forEach((name) => {
+      expect(tiles.classList.contains(name)).toBe(true);
+    });
+  });
+
+  it('renders the tiles it is given inside its grid, not its heading', () => {
+    const { host } = renderMonths();
+
+    const section = sections(host)[0];
+    expect(
+      Array.from(grid(section).children).map((tile) =>
+        tile.getAttribute('data-tile')
+      )
+    ).toEqual(['November 2026 1', 'November 2026 2']);
+    expect(heading(section).querySelector('[data-tile]')).toBeNull();
+  });
+
+  // The pinning is plain CSS and the heading itself never moves. Only the
+  // skeleton bar pulses, which global.scss's prefers-reduced-motion rule stops.
+  it('never animates its heading', () => {
+    const { host, draw } = renderMonths();
+    const head = () => heading(sections(host)[0]);
+    const moves = (node: Element) => /animate-|transition/.test(node.className);
+
+    expect(moves(sections(host)[0])).toBe(false);
+    expect(moves(head())).toBe(false);
+
+    mockCount.value = 23;
+    draw();
+
+    expect(moves(head())).toBe(false);
+    expect(Array.from(head().querySelectorAll('*')).some(moves)).toBe(false);
   });
 });
