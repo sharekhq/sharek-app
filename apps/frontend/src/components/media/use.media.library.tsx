@@ -79,7 +79,7 @@ export const useMediaMonthCount = (
 // refetches on focus or reconnect: page 1 alone would push its last file onto
 // a cached page 2 that lacks it. Pages in the cache aren't asked for again
 // when the hook mounts; a bare mutate() refetches every loaded page, keeping
-// the files shown until they answer.
+// the files shown until they answer, and refresh() the month counts with them.
 export const useMediaLibrary = (
   query: MediaLibraryQuery
 ): {
@@ -90,8 +90,10 @@ export const useMediaLibrary = (
   isLoadingMore: boolean;
   error: Error | undefined;
   mutate: SWRInfiniteKeyedMutator<MediaLibraryPage[]>;
+  refresh: () => Promise<void>;
 } => {
   const fetch = useFetch();
+  const { mutate: mutateKeys } = useSWRConfig();
   const getKey = (index: number) => {
     const params = new URLSearchParams({ page: String(index + 1) });
     if (query.type) {
@@ -140,6 +142,18 @@ export const useMediaLibrary = (
   const loadMore = useCallback(() => {
     setSize(size + 1);
   }, [setSize, size]);
+  // One refetch for the list and its month counts (research R4): every loaded
+  // page through the list's own mutate(), and every month heading's count, so
+  // the two can't be refetched apart. A key filter alone revalidates each
+  // count and keeps it shown until it answers.
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      mutate(),
+      mutateKeys(
+        (key) => typeof key === 'string' && key.startsWith('/media/month?')
+      ),
+    ]);
+  }, [mutate, mutateKeys]);
 
   return {
     files,
@@ -151,26 +165,8 @@ export const useMediaLibrary = (
     isLoadingMore: !error && !!data && data.length < size,
     error,
     mutate,
+    refresh,
   };
-};
-
-// One refetch for the list and its month counts (research R4): every loaded
-// page of the list for this query, through its own mutate(), and every month
-// heading's count, so the two can't be refetched apart. A key filter alone
-// revalidates each count and keeps it shown until it answers.
-export const useRefreshMediaLibrary = (
-  query: MediaLibraryQuery
-): (() => Promise<void>) => {
-  const { mutate } = useMediaLibrary(query);
-  const { mutate: mutateKeys } = useSWRConfig();
-  return useCallback(async () => {
-    await Promise.all([
-      mutate(),
-      mutateKeys(
-        (key) => typeof key === 'string' && key.startsWith('/media/month?')
-      ),
-    ]);
-  }, [mutate, mutateKeys]);
 };
 
 // The client's one delete path (DELETE /media, research R6), for the preview's

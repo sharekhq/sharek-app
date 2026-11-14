@@ -25,7 +25,6 @@ import {
   MediaLibraryQuery,
   useDeleteMedia,
   useMediaLibrary,
-  useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 import {
   ChevronLeftIcon,
@@ -362,9 +361,8 @@ export const LibraryPreview: FC<{
 }> = ({ query, startId, onDeleted }) => {
   const t = useT();
   const toaster = useToaster();
-  const { files, hasMore, loadMore } = useMediaLibrary(query);
+  const { files, hasMore, loadMore, refresh } = useMediaLibrary(query);
   const deleteMedia = useDeleteMedia();
-  const refresh = useRefreshMediaLibrary(query);
 
   const onDelete = useCallback(
     async (file: PreviewItem) => {

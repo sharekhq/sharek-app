@@ -39,7 +39,6 @@ import {
   MediaLibraryQuery,
   useDeleteMedia,
   useMediaLibrary,
-  useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { groupBy, omit } from 'lodash';
@@ -301,9 +300,16 @@ export const MediaBox: FC<{
     () => ({ type: type || filter, sort, search: debouncedSearch }),
     [type, filter, sort, debouncedSearch]
   );
-  const { files, hasMore, loadMore, isLoading, isLoadingMore, error, mutate } =
-    useMediaLibrary(query);
-  const refresh = useRefreshMediaLibrary(query);
+  const {
+    files,
+    hasMore,
+    loadMore,
+    isLoading,
+    isLoadingMore,
+    error,
+    mutate,
+    refresh,
+  } = useMediaLibrary(query);
   // Pages already in SWR's cache aren't asked for again when the list mounts
   // (research R2): a reopened page or window asks for them once, rather than
   // draw a list another tab or Samy may have changed since. Over an empty
