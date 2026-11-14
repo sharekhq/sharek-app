@@ -20,17 +20,25 @@ export const MediaLayoutComponent = () => {
     };
   });
   // Each change replaces the address, as the calendar does, never pushes it,
-  // so Back leaves the page; the defaults are left out.
+  // so Back leaves the page; the defaults are left out. Only the page's three
+  // parameters change: every other one stays as it was, loggedAuth among
+  // them, which customFetch reads from the address on each request.
   const changeQuery = useCallback((query: MediaLibraryQuery) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(window.location.search);
     if (query.type) {
       params.set('type', query.type);
+    } else {
+      params.delete('type');
     }
     if (query.sort === 'oldest') {
       params.set('sort', 'oldest');
+    } else {
+      params.delete('sort');
     }
     if (query.search) {
       params.set('search', query.search);
+    } else {
+      params.delete('search');
     }
     const address = params.toString();
     window.history.replaceState(
