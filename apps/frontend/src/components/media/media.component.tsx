@@ -36,6 +36,7 @@ import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpe
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import {
   MediaMonth,
+  MediaTile,
   TilePicture,
 } from '@gitroom/frontend/components/media/media.library';
 import {
@@ -481,6 +482,11 @@ export const MediaBox: FC<{
     [selected, max, toaster, overLimit]
   );
 
+  // A file the preview deleted leaves the picks (FR-045).
+  const unselectDeleted = useCallback((id: string) => {
+    setSelected((current) => current.filter((media: any) => media.id !== id));
+  }, []);
+
   const addMedia = useCallback(async () => {
     if (standalone) {
       return;
@@ -856,6 +862,17 @@ export const MediaBox: FC<{
                 to={month.to}
               >
                 {month.files.map((media: any) => {
+                  if (standalone) {
+                    return (
+                      <MediaTile
+                        key={media.id}
+                        media={media}
+                        standalone={true}
+                        query={query}
+                        onDeleted={unselectDeleted}
+                      />
+                    );
+                  }
                   // `originalName` is nullable; `name` never is. Without this
                   // the caption, the tooltip, the alt text and the delete
                   // button's label are all empty for older uploads.

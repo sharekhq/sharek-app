@@ -7,6 +7,8 @@ import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { libraryPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import {
   MediaLibraryQuery,
   useMediaMonthCount,
@@ -94,6 +96,51 @@ export const TilePicture: FC<{
           </svg>
         </div>
       )}
+    </div>
+  );
+};
+
+/**
+ * A media library tile on the Media page (`standalone`, as `MediaBox` has it):
+ * one button over the square that opens the library's preview on its file,
+ * over the list the page shows. Deleting is the preview's, so the tile has no
+ * corner buttons, and the play badge takes the end corner.
+ */
+export const MediaTile: FC<{
+  media: TileMedia & Pick<Media, 'id' | 'name' | 'originalName'>;
+  standalone?: boolean;
+  /** The list the tile is shown in, which the preview steps through. */
+  query: MediaLibraryQuery;
+  /** Told the id of each file the preview deletes. */
+  onDeleted: (id: string) => void;
+}> = ({ media, query, onDeleted }) => {
+  const modals = useModals();
+  // `originalName` is nullable; `name` never is. Without this the name, the
+  // tooltip and the alt text are all empty for older uploads.
+  const name = media.originalName || media.name;
+  return (
+    <div className="group rounded-[6px] aspect-square mobile:p-[6px]">
+      <div className="w-full h-full rounded-[6px] border-[4px] border-transparent relative">
+        {/* The tile carries the tooltip, not the name strip: the strip is
+            pointer-events-none, so a `title` on it would never be reachable. */}
+        <button
+          type="button"
+          title={name}
+          aria-label={name}
+          onClick={() =>
+            modals.openModal(libraryPreviewModal(query, media.id, onDeleted))
+          }
+          className="block w-full h-full rounded-[6px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <TilePicture media={media} name={name} corner="end" />
+          <div
+            dir="ltr"
+            className="absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-start text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none"
+          >
+            {name}
+          </div>
+        </button>
+      </div>
     </div>
   );
 };
