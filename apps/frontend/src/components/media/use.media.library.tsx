@@ -24,17 +24,13 @@ export type MediaLibraryRow = Media & { tileImage?: string };
 // A page of GET /media: up to 32 files, and how many pages the list holds.
 type MediaLibraryPage = { pages: number; results: MediaLibraryRow[] };
 
-// How many files a month holds under the list's type and search, for its
-// heading (GET /media/month, research R4). The month is its start and the next
-// month's start in the user's timezone, as UTC instants. The order isn't sent:
-// a month holds the same files either way. A count never refetches on focus or
-// reconnect while its month's files don't, but it asks again when its heading
-// mounts over a cached one, as the list's pages do.
-export const useMediaMonthCount = (
+// A month's parameters, for its count and its ids alike: the month, then the
+// list's type and trimmed search. The order isn't sent: a month holds the same
+// files either way.
+const monthParams = (
   query: MediaLibraryQuery,
   month: { from: string; to: string }
-): SWRResponse<{ count: number }> => {
-  const fetch = useFetch();
+): URLSearchParams => {
   const params = new URLSearchParams({ from: month.from, to: month.to });
   if (query.type) {
     params.set('type', query.type);
@@ -42,6 +38,20 @@ export const useMediaMonthCount = (
   if (query.search.trim()) {
     params.set('search', query.search.trim());
   }
+  return params;
+};
+
+// How many files a month holds under the list's type and search, for its
+// heading (GET /media/month, research R4). The month is its start and the next
+// month's start in the user's timezone, as UTC instants. A count never
+// refetches on focus or reconnect while its month's files don't, but it asks
+// again when its heading mounts over a cached one, as the list's pages do.
+export const useMediaMonthCount = (
+  query: MediaLibraryQuery,
+  month: { from: string; to: string }
+): SWRResponse<{ count: number }> => {
+  const fetch = useFetch();
+  const params = monthParams(query, month);
 
   // A failed answer (a 500 has a JSON body too) is an error SWR asks again
   // for, never a count to show
@@ -187,6 +197,30 @@ export const useDeleteMedia = (): ((ids: string[]) => Promise<number>) => {
         }
       }
       return notDeleted;
+    },
+    [fetch]
+  );
+};
+
+// Every file id of a month under the list's type and search, loaded or not,
+// for its heading's "Select all" (GET /media/month/ids, research R5). It
+// answers a press, so it is a plain request, never an SWR key; a failed answer
+// throws.
+export const useMonthIds = (): ((
+  query: MediaLibraryQuery,
+  month: { from: string; to: string }
+) => Promise<string[]>) => {
+  const fetch = useFetch();
+  return useCallback(
+    async (query: MediaLibraryQuery, month: { from: string; to: string }) => {
+      const response = await fetch(
+        `/media/month/ids?${monthParams(query, month).toString()}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to load the month's files");
+      }
+      const { ids }: { ids: string[] } = await response.json();
+      return ids;
     },
     [fetch]
   );
