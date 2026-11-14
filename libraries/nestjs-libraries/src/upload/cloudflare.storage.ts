@@ -35,8 +35,19 @@ const ALLOWED_MIME_TYPES = new Set<string>([
   'audio/ogg',
 ]);
 
+// Media library tiles, made by the zone's Image and Media Transformations: one
+// 384 by 384 box for every tile, twice the widest, the whole file scaled down
+// into it. A refused image redirects to the original; a video gives its
+// opening frame only
+const TILE_IMAGE_OPTIONS =
+  'width=384,height=384,fit=scale-down,format=auto,onerror=redirect';
+const TILE_FRAME_OPTIONS =
+  'mode=frame,time=0s,width=384,height=384,fit=scale-down,format=jpg';
+
 class CloudflareStorage implements IUploadProvider {
   private _client: S3Client;
+  // The bucket's origin while CLOUDFLARE_TILE_IMAGES is "true", else null
+  private _tileOrigin: string | null = null;
 
   constructor(
     accountID: string,
@@ -83,6 +94,16 @@ class CloudflareStorage implements IUploadProvider {
         },
       { step: 'build', name: 'customHeaders' }
     );
+
+    // A bucket URL that can't be parsed leaves the tiles off rather than
+    // stopping the backend from booting
+    if (process.env.CLOUDFLARE_TILE_IMAGES === 'true') {
+      try {
+        this._tileOrigin = new URL(_uploadUrl).origin;
+      } catch {
+        this._tileOrigin = null;
+      }
+    }
   }
 
   async uploadSimple(path: string) {
@@ -222,6 +243,18 @@ class CloudflareStorage implements IUploadProvider {
 
   publicUrl(fileName: string) {
     return `${this._uploadUrl}/${fileName}`;
+  }
+
+  // The transformations take the stored address whole as their source, and
+  // only for a file in the bucket's own zone
+  tileImage(path: string, kind: 'image' | 'video'): string {
+    if (!this._tileOrigin || !path.startsWith(`${this._tileOrigin}/`)) {
+      return path;
+    }
+
+    return kind === 'image'
+      ? `${this._tileOrigin}/cdn-cgi/image/${TILE_IMAGE_OPTIONS}/${path}`
+      : `${this._tileOrigin}/cdn-cgi/media/${TILE_FRAME_OPTIONS}/${path}`;
   }
 
   async readFile(fileName: string) {
