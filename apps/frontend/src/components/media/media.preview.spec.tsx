@@ -65,11 +65,13 @@ type Row = {
 
 // The list behind the library's preview, as useMediaLibrary answers it: the
 // files loaded and the loads still on the server, the next of which loadMore
-// appends once it answers. A file the server deleted leaves the list when the
-// refresh refetches it. The delete is the real useDeleteMedia.
+// appends once it answers, and the error a failed load leaves standing. A
+// file the server deleted leaves the list when the refresh refetches it. The
+// delete is the real useDeleteMedia.
 const mockLibrary = {
   files: [] as Row[],
   more: [] as Row[][],
+  error: undefined as Error | undefined,
   gone: new Set<string>(),
   queries: [] as unknown[],
   listeners: new Set<() => void>(),
@@ -100,7 +102,7 @@ jest.mock('@gitroom/frontend/components/media/use.media.library', () => {
       loadMore: mockLibrary.loadMore,
       isLoading: false,
       isLoadingMore: false,
-      error: undefined as Error | undefined,
+      error: mockLibrary.error,
       mutate: mockLibrary.mutate,
       refresh: mockLibrary.refresh,
     };
@@ -294,6 +296,7 @@ beforeEach(() => {
   (stepMediaIndex as jest.Mock).mockClear();
   mockLibrary.files = [];
   mockLibrary.more = [];
+  mockLibrary.error = undefined;
   mockLibrary.gone.clear();
   mockLibrary.queries = [];
   mockLibrary.mutate.mockReset();
@@ -766,6 +769,21 @@ describe('libraryPreviewModal', () => {
     expect(mockLibrary.loadMore).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['the list is empty', [] as Row[]],
+    ["the file it was opened on isn't in the list", [a, c]],
+  ])(
+    'when %s, opens on no other file: it renders nothing and closes',
+    async (_case, files) => {
+      mockLibrary.files = files;
+      await openLibrary('b');
+
+      expect(host.innerHTML).toBe('');
+      expect(mockCloseCurrent).toHaveBeenCalledTimes(1);
+      expect(mockLibrary.loadMore).not.toHaveBeenCalled();
+    }
+  );
+
   it('steps past the loaded files by loading more, as the list behind it does', async () => {
     mockLibrary.files = [a, b];
     mockLibrary.more = [[c]];
@@ -776,6 +794,44 @@ describe('libraryPreviewModal', () => {
     expect(mockLibrary.loadMore).toHaveBeenCalledTimes(1);
     expect(shown()).toBe(c.path);
     expect(control('next')!.disabled).toBe(true);
+  });
+
+  it("after a failed load, each next asks again through the list's mutate(), as its Try again does, and moves on when the files arrive", async () => {
+    mockLibrary.files = [a, b];
+    mockLibrary.more = [[c]];
+    // the load fails, and so does the first time it is asked again
+    const fail = async () => {
+      await Promise.resolve();
+      mockLibrary.error = new Error('Failed to load the files');
+      notify();
+    };
+    mockLibrary.loadMore.mockImplementation(fail);
+    mockLibrary.mutate
+      .mockImplementationOnce(fail)
+      .mockImplementationOnce(async () => {
+        await Promise.resolve();
+        mockLibrary.error = undefined;
+        mockLibrary.files = [
+          ...mockLibrary.files,
+          ...mockLibrary.more.shift()!,
+        ];
+        notify();
+      });
+    await openLibrary('b');
+
+    await click(control('next')!);
+    expect(mockLibrary.loadMore).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe(b.path);
+    expect(control('next')!.disabled).toBe(false);
+
+    await click(control('next')!);
+    expect(mockLibrary.mutate.mock.calls).toEqual([[]]);
+    expect(shown()).toBe(b.path);
+
+    await press('ArrowRight');
+    expect(mockLibrary.mutate.mock.calls).toEqual([[], []]);
+    expect(mockLibrary.loadMore).toHaveBeenCalledTimes(1);
+    expect(shown()).toBe(c.path);
   });
 
   it('deletes [id] through useDeleteMedia, says it went, tells onDeleted, refetches the list and the counts, and moves on', async () => {
