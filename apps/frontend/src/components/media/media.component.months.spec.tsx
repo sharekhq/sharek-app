@@ -1,4 +1,4 @@
-import { act, ReactNode, useEffect, useReducer } from 'react';
+import { act as reactAct, ReactNode, useEffect, useReducer } from 'react';
 import { createRoot } from 'react-dom/client';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
@@ -35,12 +35,14 @@ type Row = { id: string; name: string; path: string; createdAt: string };
 type Page = { pages: number; results: Row[] };
 type GetKey = (index: number, previous: Page | null) => string | null;
 
-// GET /media as the case's server answers it (page n is server[n - 1]), and
-// what useSWRInfinite holds: the pages answered, the size asked for, the error
-// of the last load and the pages being loaded. Every key asked for is kept.
+// GET /media as the case's server answers it (page n is server[n - 1];
+// `instant`, as soon as a page is asked for), and what useSWRInfinite holds:
+// the pages answered, the size asked for, the error of the last load and the
+// pages being loaded. Every key asked for is kept.
 const mockList = {
   server: [] as Page[],
   failing: new Set<number>(),
+  instant: false,
   data: undefined as Page[] | undefined,
   size: 1,
   error: undefined as Error | undefined,
@@ -54,12 +56,35 @@ const mockList = {
 
 const notify = () => mockList.listeners.forEach((listener) => listener());
 
-// Asks for the pages at these indexes through the hook's own keys.
+// The server answers the pages being loaded; a page in `failing` fails them.
+const land = () => {
+  const indexes = mockList.pending ?? [];
+  mockList.pending = undefined;
+  if (indexes.some((index) => mockList.failing.has(index + 1))) {
+    mockList.error = new Error('Failed to load the files');
+  } else {
+    const data = [...(mockList.data ?? [])];
+    indexes.forEach((index) => {
+      data[index] = mockList.server[index] ?? {
+        pages: mockList.server.length,
+        results: [],
+      };
+    });
+    mockList.data = data;
+    mockList.error = undefined;
+  }
+};
+
+// Asks for the pages at these indexes through the hook's own keys; a server
+// that answers at once lands them before the list renders again.
 const ask = (indexes: number[], announce = true) => {
   indexes.forEach((index) =>
     mockList.requests.push(mockList.getKey!(index, null))
   );
   mockList.pending = uniq([...(mockList.pending ?? []), ...indexes]);
+  if (mockList.instant) {
+    land();
+  }
   if (announce) {
     notify();
   }
@@ -270,6 +295,27 @@ jest.mock('next/dynamic', () => ({
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { setUserTimezone } from '@gitroom/frontend/components/layout/set.timezone';
 
+// A case that overruns Jest's timeout runs on after Jest has moved to the
+// next case, and an act() of its that overlaps one of the next case's leaves
+// React's act queue broken, so every case after it renders nothing. Every
+// act() here is this one: afterEach waits for the act() in flight, and an
+// act() that ends after its case did holds that case there for good. React
+// closes an act() scope each time its thenable's then() is called, so it is
+// called once, by Promise.resolve.
+const acting = { case: 0, inFlight: Promise.resolve() };
+const act = async (callback: () => void | Promise<void>): Promise<void> => {
+  const owner = acting.case;
+  const run = Promise.resolve(reactAct(callback));
+  acting.inFlight = run.then(
+    () => undefined,
+    () => undefined
+  );
+  await run;
+  if (owner !== acting.case) {
+    await new Promise<never>(() => undefined);
+  }
+};
+
 // Whether the sentinel is in view, as the browser would report it.
 const view = { inView: false };
 
@@ -367,24 +413,10 @@ const cross = async (inView: boolean) => {
   await settle();
 };
 
-// The server answers the pages being loaded; a page in `failing` fails them.
+// The pages being loaded land, and the list renders them.
 const answer = async () => {
   await act(async () => {
-    const indexes = mockList.pending ?? [];
-    mockList.pending = undefined;
-    if (indexes.some((index) => mockList.failing.has(index + 1))) {
-      mockList.error = new Error('Failed to load the files');
-    } else {
-      const data = [...(mockList.data ?? [])];
-      indexes.forEach((index) => {
-        data[index] = mockList.server[index] ?? {
-          pages: mockList.server.length,
-          results: [],
-        };
-      });
-      mockList.data = data;
-      mockList.error = undefined;
-    }
+    land();
     notify();
   });
   await settle();
@@ -525,6 +557,7 @@ const ranges = () =>
 beforeEach(() => {
   mockList.server = [];
   mockList.failing = new Set();
+  mockList.instant = false;
   mockList.data = undefined;
   mockList.size = 1;
   mockList.error = undefined;
@@ -538,8 +571,10 @@ beforeEach(() => {
   mockRefreshed.length = 0;
 });
 
-afterEach(() => {
-  act(() => {
+afterEach(async () => {
+  acting.case += 1;
+  await acting.inFlight;
+  await act(() => {
     roots.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
@@ -904,10 +939,11 @@ describe.each([
 
     await mount(surface);
     await answer();
+    // From here the server answers each page as it is asked for, so the list
+    // renders once a page: the sentinel stays in view and, as each page
+    // lands, asks for the next on its own, with no second crossing.
+    mockList.instant = true;
     await cross(true);
-    for (let i = 0; i < 40 && mockList.pending; i++) {
-      await answer();
-    }
 
     expect(asked()).toEqual(range(1, 33));
     expect(headings()).toEqual([
