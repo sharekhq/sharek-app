@@ -655,13 +655,27 @@ export const MediaBox: FC<{
         >
           {/* The search takes its own line at 1025px and below, so Upload
               and Import wrap below it instead of off the edge. */}
-          <div className="flex-1 mobile:basis-full">
+          <div className="relative flex-1 mobile:basis-full">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              aria-hidden="true"
+              className="absolute start-[14px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('search_media_by_name', 'Search by file name')}
-              className="w-full h-[44px] px-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
+              className="w-full h-[44px] ps-[42px] pe-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
             />
           </div>
           <input
