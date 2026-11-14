@@ -3,13 +3,14 @@ import { createRoot } from 'react-dom/client';
 
 // Upstream d5c95a70 + d0ad7058. A video's cover is picked from the
 // library through MediaBox's `image-static` mode: only JPEG and PNG pictures
-// show, an upload accepts only those two, and the preview reads the same list
-// as the tiles. Sharek asks the server for the mode's files (research R9),
+// show, an upload accepts only those two, and the expand button previews the
+// window's own list. Sharek asks the server for the mode's files (research R9),
 // where upstream filters inline. Harness as in media.component.limit.spec.tsx.
 type UploaderOptions = { allowedFileTypes: string };
 
 const uploader: { options?: UploaderOptions } = {};
-const previewItems: { current?: Array<{ id: string }> } = {};
+// What the expand button opened: the list's query and the file.
+const previewed: { current?: { query: unknown; id: string } } = {};
 // The list's page keys MediaBox hands useSWRInfinite.
 const keys: string[] = [];
 
@@ -79,8 +80,8 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   },
 }));
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
-  mediaPreviewModal: (items: Array<{ id: string }>) => {
-    previewItems.current = items;
+  libraryPreviewModal: (query: unknown, id: string) => {
+    previewed.current = { query, id };
     return {};
   },
 }));
@@ -181,7 +182,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   uploader.options = undefined;
-  previewItems.current = undefined;
+  previewed.current = undefined;
   keys.length = 0;
 });
 
@@ -201,9 +202,9 @@ describe('MediaBox for a cover picture', () => {
     expect(uploader.options?.allowedFileTypes).toBe('image/jpeg,image/png');
   });
 
-  // The preview and the tiles read one list, so a position means the same
-  // picture in both.
-  it('previews the same pictures it shows', async () => {
+  // The preview steps through the list the window shows: its own type, not
+  // every file.
+  it("the expand button previews with the window's own type", async () => {
     const container = render('image-static');
 
     await act(async () => {
@@ -212,11 +213,10 @@ describe('MediaBox for a cover picture', () => {
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(previewItems.current?.map((item) => item.id)).toEqual([
-      'm0',
-      'm1',
-      'm2',
-    ]);
+    expect(previewed.current).toEqual({
+      query: { type: 'image-static', sort: 'newest', search: '' },
+      id: 'm2',
+    });
   });
 
   // The picture mode asks for every picture, GIF and WebP included.

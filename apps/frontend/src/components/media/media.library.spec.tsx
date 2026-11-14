@@ -473,38 +473,47 @@ describe('MediaMonth', () => {
 // whole tile is one button that opens the library's preview on its file, over
 // the list the page shows. It has no corner buttons of its own: no preview
 // button and no delete, which the preview carries now.
-describe('MediaTile on the Media page', () => {
-  type Row = {
-    id: string;
-    name: string;
-    originalName: string | null;
-    path: string;
-    tileImage?: string;
-    createdAt: Date;
-  };
-  const query: MediaLibraryQuery = {
-    type: 'image',
-    sort: 'oldest',
-    search: 'beach',
-  };
-  const photo: Row = {
-    id: 'm1',
-    name: 'f3a9c2.png',
-    originalName: 'Beach day.png',
-    path: 'https://uploads/a.png',
-    createdAt: new Date('2026-11-10T12:00:00.000Z'),
-  };
-  // `originalName` is nullable; `name` never is.
-  const clip: Row = {
-    id: 'm2',
-    name: 'clip.mp4',
-    originalName: null,
-    path: 'https://uploads/b.mp4',
-    tileImage: 'https://uploads/cdn-cgi/media/mode=frame,width=400/b.mp4',
-    createdAt: new Date('2026-11-10T12:00:00.000Z'),
-  };
-  const onDeleted = jest.fn();
+// The rows and helpers both surfaces' tiles are read with.
+type Row = {
+  id: string;
+  name: string;
+  originalName: string | null;
+  path: string;
+  tileImage?: string;
+  createdAt: Date;
+};
+const query: MediaLibraryQuery = {
+  type: 'image',
+  sort: 'oldest',
+  search: 'beach',
+};
+const photo: Row = {
+  id: 'm1',
+  name: 'f3a9c2.png',
+  originalName: 'Beach day.png',
+  path: 'https://uploads/a.png',
+  createdAt: new Date('2026-11-10T12:00:00.000Z'),
+};
+// `originalName` is nullable; `name` never is.
+const clip: Row = {
+  id: 'm2',
+  name: 'clip.mp4',
+  originalName: null,
+  path: 'https://uploads/b.mp4',
+  tileImage: 'https://uploads/cdn-cgi/media/mode=frame,width=400/b.mp4',
+  createdAt: new Date('2026-11-10T12:00:00.000Z'),
+};
+const onDeleted = jest.fn();
 
+const tileButton = (host: HTMLElement, name = 'Beach day.png') =>
+  host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+// The caption: the innermost element holding the name.
+const caption = (host: HTMLElement, name = 'Beach day.png') =>
+  Array.from(host.querySelectorAll('div'))
+    .filter((node) => node.textContent === name)
+    .at(-1);
+
+describe('MediaTile on the Media page', () => {
   beforeEach(() => {
     mockOpenModal.mockClear();
     mockLibraryPreviewModal.mockClear();
@@ -528,14 +537,6 @@ describe('MediaTile on the Media page', () => {
     });
     return host;
   };
-
-  const tileButton = (host: HTMLElement, name = 'Beach day.png') =>
-    host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
-  // The caption: the innermost element holding the name.
-  const caption = (host: HTMLElement, name = 'Beach day.png') =>
-    Array.from(host.querySelectorAll('div'))
-      .filter((node) => node.textContent === name)
-      .at(-1);
 
   it("is a button over the whole square, named by the file's name, with the focus ring", () => {
     const host = renderTile();
@@ -619,5 +620,219 @@ describe('MediaTile on the Media page', () => {
     expect(wrapper.classList.contains('group')).toBe(true);
     expect(wrapper.classList.contains('aspect-square')).toBe(true);
     expect(wrapper.contains(tileButton(host))).toBe(true);
+  });
+});
+
+// Spec 057 (contracts/ui.md "MediaTile", research R14; FR-043 to FR-046). In
+// the Media Library window the tile picks and unpicks its file, numbered in
+// the order picked, and a corner button beside it opens the library preview
+// without touching the picks. Deleting is the preview's.
+describe('MediaTile in the window', () => {
+  const onToggle = jest.fn();
+
+  beforeEach(() => {
+    mockOpenModal.mockClear();
+    mockLibraryPreviewModal.mockClear();
+    mockT.mockClear();
+    onDeleted.mockClear();
+    onToggle.mockClear();
+  });
+
+  // `order` is the pick's number, absent while the file isn't picked.
+  const renderTile = (media: Row = photo, order?: number) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() => {
+      root.render(
+        <MediaTile
+          media={media}
+          query={query}
+          onDeleted={onDeleted}
+          order={order}
+          onToggle={onToggle}
+        />
+      );
+    });
+    return host;
+  };
+
+  const expandButton = (host: HTMLElement) =>
+    host.querySelector<HTMLButtonElement>('button[aria-label="Open preview"]');
+  // The pick's number: the element holding nothing but digits.
+  const orderBadge = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('div')).find((node) =>
+      /^\d+$/.test(node.textContent || '')
+    );
+  // The square's 4px frame, which turns brand while the file is picked.
+  const frame = (host: HTMLElement) =>
+    Array.from(host.querySelectorAll('div')).find((node) =>
+      node.classList.contains('border-[4px]')
+    )!;
+  const classes = (node: Element) => Array.from(node.classList);
+
+  it("is a button over the whole square, named by the file's name, with the focus ring, that picks and unpicks its file through onToggle and opens nothing", () => {
+    const unpicked = renderTile();
+    const picked = renderTile(photo, 1);
+    const tile = tileButton(unpicked)!;
+
+    expect(tile).toBeTruthy();
+    expect(tile.getAttribute('type')).toBe('button');
+    expect(classes(tile)).toEqual(
+      expect.arrayContaining([
+        'w-full',
+        'h-full',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(tile.contains(unpicked.querySelector('img'))).toBe(true);
+
+    act(() => {
+      tile.click();
+    });
+    act(() => {
+      tileButton(picked)!.click();
+    });
+
+    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(mockLibraryPreviewModal).not.toHaveBeenCalled();
+    expect(mockOpenModal).not.toHaveBeenCalled();
+  });
+
+  it("shows the pick's number on its bottom end corner and a 4px brand frame while picked, and neither while not", () => {
+    const picked = renderTile(photo, 2);
+    const unpicked = renderTile(clip);
+    const badge = orderBadge(picked)!;
+
+    expect(badge).toBeTruthy();
+    expect(badge.textContent).toBe('2');
+    expect(classes(badge)).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        '-bottom-[10px]',
+        '-end-[10px]',
+        'bg-brand',
+        'text-white',
+      ])
+    );
+    expect(classes(frame(picked))).toContain('border-brand');
+    expect(classes(frame(picked))).not.toContain('border-transparent');
+    expect(orderBadge(unpicked)).toBeUndefined();
+    expect(classes(frame(unpicked))).toContain('border-transparent');
+    expect(classes(frame(unpicked))).not.toContain('border-brand');
+  });
+
+  it('has an expand button beside the tile button, never inside it, in the top end corner, 36px and 44px under a finger, with the focus ring', () => {
+    const host = renderTile();
+    const tile = tileButton(host)!;
+    const expand = expandButton(host)!;
+
+    expect(expand).toBeTruthy();
+    expect(expand.getAttribute('type')).toBe('button');
+    expect(expand.parentElement).toBe(tile.parentElement);
+    expect(tile.contains(expand)).toBe(false);
+    expect(expand.contains(tile)).toBe(false);
+    expect(classes(expand)).toEqual(
+      expect.arrayContaining([
+        'absolute',
+        'top-[6px]',
+        'end-[6px]',
+        'w-[36px]',
+        'h-[36px]',
+        'coarse:w-[44px]',
+        'coarse:h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(classes(expand)).not.toContain('start-[6px]');
+    expect(mockT).toHaveBeenCalledWith('open_preview', 'Open preview');
+  });
+
+  it('shows the expand button on hover and on focus, and always under a finger', () => {
+    const expand = expandButton(renderTile())!;
+
+    expect(expand).toBeTruthy();
+    expect(classes(expand)).toEqual(
+      expect.arrayContaining([
+        'opacity-0',
+        'pointer-events-none',
+        'group-hover:opacity-100',
+        'group-hover:pointer-events-auto',
+        'focus-visible:opacity-100',
+        'focus-visible:pointer-events-auto',
+        'coarse:opacity-100',
+        'coarse:pointer-events-auto',
+      ])
+    );
+  });
+
+  it('opens the library preview on its own file from the expand button, with the query and onDeleted it was given, and leaves the pick as it was', () => {
+    const host = renderTile(photo, 1);
+
+    act(() => {
+      expandButton(host)!.click();
+    });
+
+    expect(mockLibraryPreviewModal).toHaveBeenCalledTimes(1);
+    const [given, id, deleted] = mockLibraryPreviewModal.mock.calls[0];
+    expect(given).toBe(query);
+    expect(id).toBe('m1');
+    expect(deleted).toBe(onDeleted);
+    expect(mockOpenModal).toHaveBeenCalledTimes(1);
+    expect(mockOpenModal.mock.calls[0][0]).toBe(
+      mockLibraryPreviewModal.mock.results[0].value
+    );
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it('puts the play badge in the start corner', () => {
+    const mark = badge(renderTile(clip))!;
+
+    expect(mark).toBeTruthy();
+    expect(mark.classList.contains('top-[6px]')).toBe(true);
+    expect(mark.classList.contains('start-[6px]')).toBe(true);
+    expect(mark.classList.contains('end-[6px]')).toBe(false);
+  });
+
+  it('shows the name on hover and always under a finger, and hides it at 1025px and below', () => {
+    const name = caption(renderTile())!;
+
+    expect(classes(name)).toEqual(
+      expect.arrayContaining([
+        'opacity-0',
+        'group-hover:opacity-100',
+        'coarse:opacity-100',
+        'mobile:hidden',
+      ])
+    );
+  });
+
+  it('has no circle and no delete button: only the tile and its expand button', () => {
+    const host = renderTile(photo, 1);
+    const buttons = Array.from(host.querySelectorAll('button'));
+
+    expect(buttons).toHaveLength(2);
+    expect(buttons).toEqual(
+      expect.arrayContaining([tileButton(host), expandButton(host)])
+    );
+    expect(
+      buttons.some((button) =>
+        /select|delete/i.test(button.getAttribute('aria-label') || '')
+      )
+    ).toBe(false);
+  });
+
+  it("carries the file's name as the tile's title, and group on the square wrapper that holds both buttons", () => {
+    const host = renderTile();
+    const wrapper = host.firstElementChild!;
+
+    expect(tileButton(host)!.getAttribute('title')).toBe('Beach day.png');
+    expect(wrapper.classList.contains('group')).toBe(true);
+    expect(wrapper.classList.contains('aspect-square')).toBe(true);
+    expect(wrapper.contains(tileButton(host))).toBe(true);
+    expect(wrapper.contains(expandButton(host))).toBe(true);
   });
 });

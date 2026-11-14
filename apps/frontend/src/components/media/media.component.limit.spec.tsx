@@ -133,7 +133,7 @@ jest.mock('next/dynamic', () => ({ __esModule: true, default: () => () => null }
 
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { ModalHeaderSlotTarget } from '@gitroom/frontend/components/layout/new-modal';
-import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
+import { LibraryPreview } from '@gitroom/frontend/components/media/media.preview';
 
 const LIMIT = 'You can choose up to 2 images here.';
 
@@ -269,10 +269,10 @@ describe('MediaBox without a limit', () => {
   });
 });
 
-// The only test of the library's way into its viewer. The options are read back
-// rather than rendered, because a tile's button is all this file can reach.
-describe('Open preview in the Media library', () => {
-  it('opens the viewer on the page of media at the tile clicked, with its options', async () => {
+// The window's way into its viewer. The options are read back rather than
+// rendered, because a tile's button is all this file can reach.
+describe('the expand button in the Media Library window', () => {
+  it("opens the library preview on that file, with today's options", async () => {
     render();
 
     await act(async () => {
@@ -290,7 +290,11 @@ describe('Open preview in the Media library', () => {
       cardClassName: 'phone:!p-[16px]',
     });
     expect(options.title.type).toBe(ModalHeaderSlotTarget);
-    expect(options.children.type).toBe(MediaPreview);
-    expect(options.children.props).toEqual({ items: media, index: 1 });
+    expect(options.children.type).toBe(LibraryPreview);
+    expect(options.children.props).toEqual({
+      query: { type: 'image', sort: 'newest', search: '' },
+      startId: 'm2',
+      onDeleted: expect.any(Function),
+    });
   });
 });

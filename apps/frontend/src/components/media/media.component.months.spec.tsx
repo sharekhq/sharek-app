@@ -202,11 +202,13 @@ jest.mock('@gitroom/frontend/components/launches/helpers/use.values', () => ({
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: {}, totalChannels: 1 }),
 }));
+// What a tile opens, as the modal manager gets it.
+const mockOpenModal = jest.fn();
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
     closeAll: () => {},
     closeCurrent: () => {},
-    openModal: () => {},
+    openModal: (...args: unknown[]) => mockOpenModal(...args),
   }),
   ModalHeaderSlot: () => null,
   ModalHeaderSlotTarget: () => null,
@@ -441,6 +443,8 @@ type Query = {
 const mount = async (props: {
   standalone?: boolean;
   type?: 'image' | 'image-static' | 'video';
+  max?: number;
+  setMedia?: (media: Array<{ id: string; path: string }>) => void;
   initialQuery?: Query;
   onQueryChange?: (query: Query) => void;
 }) => {
@@ -486,6 +490,27 @@ const button = (label: string) =>
   Array.from(document.querySelectorAll('button')).find(
     (node) => node.textContent === label
   );
+// The window's picks: a tile's click picks or unpicks it, its badge holds the
+// pick's number, and Add hands the picks to the caller.
+const pick = async (name: string) => {
+  await act(async () => {
+    (tiles(name)[0] as HTMLElement).click();
+  });
+  await settle();
+};
+const pickNumber = (name: string) =>
+  tiles(name)[0]?.closest('.group')?.querySelector('.bg-brand')?.textContent;
+const expandOf = (name: string) =>
+  tiles(name)[0]
+    ?.closest('.group')
+    ?.querySelector<HTMLButtonElement>('button[aria-label="open_preview"]');
+const addPicks = async () => {
+  await act(async () => {
+    button('add_selected_media')!.click();
+  });
+};
+const handedBack = (setMedia: jest.Mock) =>
+  (setMedia.mock.calls[0][0] as Row[]).map((row) => row.id);
 // The ranges the month headings asked their counts for, in the order they
 // first asked, as instants.
 const ranges = () =>
@@ -1416,5 +1441,81 @@ describe('narrowing the list', () => {
       expect(button('media_show_all')).toBeUndefined();
       expect(toolbarHidden()).toBe(true);
     });
+
+    // FR-026: a new filter, sort or search starts the list again, but a
+    // file picked before it is still handed back.
+    it('keeps its picks and their numbers across a filter, sort or search change', async () => {
+      const setMedia = jest.fn();
+      serve(november(3));
+      await mount({ setMedia });
+      await answer();
+      await pick('n2.png');
+      await pick('n0.png');
+
+      await choose('media_filter_videos');
+      await answer();
+      await sortBy('oldest');
+      await answer();
+      await search('n');
+      await debounce();
+      await answer();
+
+      expect(pickNumber('n2.png')).toBe('1');
+      expect(pickNumber('n0.png')).toBe('2');
+      expect(pickNumber('n1.png')).toBeUndefined();
+      await addPicks();
+      expect(handedBack(setMedia)).toEqual(['n2', 'n0']);
+    });
+  });
+});
+
+describe("the Media Library window's picks", () => {
+  // FR-045: the window's preview deletes through the list, and the file it
+  // deletes leaves the picks; the picks after it move up a number.
+  it('drops a file its preview deletes from the picks', async () => {
+    const setMedia = jest.fn();
+    serve(november(3));
+    await mount({ setMedia });
+    await answer();
+    await pick('n0.png');
+    await pick('n1.png');
+    await pick('n2.png');
+
+    await act(async () => {
+      expandOf('n1.png')!.click();
+    });
+    expect(mockOpenModal).toHaveBeenCalledTimes(1);
+    const { onDeleted } = mockOpenModal.mock.calls[0][0].children.props;
+    expect(onDeleted).toEqual(expect.any(Function));
+    await act(async () => {
+      onDeleted('n1');
+    });
+
+    expect(pickNumber('n0.png')).toBe('1');
+    expect(pickNumber('n1.png')).toBeUndefined();
+    expect(pickNumber('n2.png')).toBe('2');
+    await addPicks();
+    expect(handedBack(setMedia)).toEqual(['n0', 'n2']);
+  });
+
+  // FR-043, FR-049: an upload stays in the library and joins the picks
+  // within the caller's limit, as today.
+  it('adds an upload to the picks within max, as today', async () => {
+    const setMedia = jest.fn();
+    serve(november(3));
+    await mount({ setMedia, max: 2 });
+    await answer();
+    await pick('n0.png');
+
+    await act(async () => {
+      await mockUploader.options!.onUploadSuccess([
+        { id: 'u1', path: 'https://media/u1.png' },
+        { id: 'u2', path: 'https://media/u2.png' },
+      ]);
+    });
+    await settle();
+    await addPicks();
+
+    expect(handedBack(setMedia)).toEqual(['n0', 'u1']);
   });
 });

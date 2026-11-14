@@ -5,7 +5,7 @@ import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 // The media library at 1025px and below (spec 044, US4): upstream's
 // full-screen picker in Sharek's skin, and the pieces upstream applies to the
 // Media page there. Classes say what the layout is (no layout runs here); the
-// behaviour is real: Delete Selected, the refetch after it, the uploader's
+// behaviour is real: picking, the preview a tap opens, the uploader's
 // messages keeping the progress band open.
 type Result = { results: typeof shownMedia; pages: number };
 
@@ -15,10 +15,6 @@ const shownMedia = [1, 2, 3].map((n) => ({
   path: `https://media.test/photo-${n}.png`,
   createdAt: '2026-11-10T12:00:00.000Z',
 }));
-// The list's refetch, the one useSWRInfinite hands back.
-const listMutate = jest.fn(async (): Promise<undefined> => undefined);
-const requests: Array<{ url: string; method: string }> = [];
-const confirm = jest.fn<Promise<boolean>, unknown[]>(async () => true);
 const uploaderEvents: Record<string, () => void> = {};
 // What a tile opens: the library preview, as the modal manager gets it.
 const openModal = jest.fn();
@@ -48,21 +44,16 @@ jest.mock('swr/infinite', () => ({
     data: [{ results: shownMedia, pages: 1 }] as Result[],
     size: 1,
     setSize: async (): Promise<undefined> => undefined,
-    mutate: listMutate,
+    mutate: async (): Promise<undefined> => undefined,
     isLoading: false,
     isValidating: false,
   }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
-  useFetch:
-    () =>
-    async (url: string, init: RequestInit = {}) => {
-      requests.push({ url, method: init.method || 'GET' });
-      return new Response('{}');
-    },
+  useFetch: () => async () => new Response('{}'),
 }));
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: (...args: unknown[]) => confirm(...args),
+  deleteDialog: async () => false,
 }));
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: () => ({
@@ -187,8 +178,6 @@ const buttonByText = (host: HTMLElement, text: string) =>
   );
 const classes = (node: Element | null | undefined) =>
   (node?.getAttribute('class') || '').split(' ');
-const deletes = () =>
-  requests.filter((r) => r.method === 'DELETE').map((r) => r.url);
 // The caption that names a tile: the innermost element holding the name.
 const caption = (host: HTMLElement) =>
   Array.from(host.querySelectorAll('div'))
@@ -199,11 +188,7 @@ const band = (host: HTMLElement) =>
   host.querySelector('.uppyChange')!.parentElement!;
 
 beforeEach(() => {
-  listMutate.mockClear();
   openModal.mockClear();
-  requests.length = 0;
-  confirm.mockClear();
-  confirm.mockImplementation(async () => true);
 });
 
 afterEach(() => {
@@ -238,77 +223,20 @@ describe('the size every media library opens at', () => {
   });
 });
 
-describe('Delete Selected in the picker', () => {
-  const pickTwo = async () => {
+// The window deletes nothing itself (FR-046): a file is deleted from the
+// preview its expand button opens.
+describe('the picker has no Delete Selected', () => {
+  it('at any width, with picks', async () => {
     const host = await picker();
     await click(tile(host, 1));
     await click(tile(host, 2));
-    return host;
-  };
 
-  it('counts what is picked, as one translated label, on a 44px red button', async () => {
-    const host = await pickTwo();
-    const remove = buttonByText(host, 'Delete Selected (2)')!;
-
-    expect(remove.getAttribute('type')).toBe('button');
-    expect(classes(remove)).toEqual(
-      expect.arrayContaining([
-        'hidden',
-        'mobile:flex',
-        'min-h-[44px]',
-        'text-error',
-        'focus-visible:ring-brand',
-      ])
-    );
-  });
-
-  it('is not there while nothing is picked', async () => {
-    const host = await picker();
-
+    expect(buttonByText(host, 'Add selected media')!.disabled).toBe(false);
     expect(
       Array.from(host.querySelectorAll('button')).some((button) =>
         (button.textContent || '').startsWith('Delete Selected')
       )
     ).toBe(false);
-  });
-
-  it('deletes every pick once confirmed, and reloads the list', async () => {
-    const host = await pickTwo();
-
-    await click(buttonByText(host, 'Delete Selected (2)'));
-
-    expect(confirm).toHaveBeenCalledWith(
-      'Are you sure you want to delete the selected media?'
-    );
-    expect(deletes()).toEqual(['/media/m1', '/media/m2']);
-    expect(buttonByText(host, 'Delete Selected (2)')).toBeUndefined();
-  });
-
-  it('deletes nothing when the confirm is cancelled', async () => {
-    confirm.mockImplementation(async () => false);
-    const host = await pickTwo();
-
-    await click(buttonByText(host, 'Delete Selected (2)'));
-
-    expect(deletes()).toEqual([]);
-    expect(buttonByText(host, 'Delete Selected (2)')).toBeTruthy();
-  });
-
-  it('deletes the picks, then refetches the list once', async () => {
-    const host = await pickTwo();
-    listMutate.mockClear();
-    let deletedBefore: string[] = [];
-    listMutate.mockImplementationOnce(async () => {
-      deletedBefore = deletes();
-      return undefined;
-    });
-
-    await click(buttonByText(host, 'Delete Selected (2)'));
-
-    expect(deletedBefore).toEqual(['/media/m1', '/media/m2']);
-    // with no argument: every loaded page is fetched again
-    expect(listMutate).toHaveBeenCalledTimes(1);
-    expect(listMutate).toHaveBeenCalledWith();
   });
 });
 
@@ -326,15 +254,19 @@ describe('the picker at 1025px and below', () => {
     );
   });
 
-  it('hides the file names and the per-tile delete on its tiles', async () => {
+  it('hides the file names on its tiles, and the expand button shows under a finger', async () => {
     const host = await picker();
     const name = caption(host);
-    const remove = host.querySelector(
-      'button[aria-label="Delete photo-3.png"]'
-    );
+    const expand = host.querySelectorAll('button[aria-label="Open preview"]');
 
     expect(classes(name)).toContain('mobile:hidden');
-    expect(classes(remove)).toContain('mobile:hidden');
+    expect(expand).toHaveLength(3);
+    expect(classes(expand[2])).toEqual(
+      expect.arrayContaining([
+        'coarse:opacity-100',
+        'coarse:pointer-events-auto',
+      ])
+    );
   });
 
   it('keeps Add disabled and grey until something is picked, then brand', async () => {
