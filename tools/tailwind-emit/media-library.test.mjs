@@ -407,6 +407,28 @@ describe('The tile (MediaTile)', () => {
     );
   });
 
+  test('the name strip aligns to the start of its own direction', async () => {
+    // The strip is dir="ltr". tailwindcss-rtl adds a physical side for the
+    // page's direction to core's text-start, which outranks it, so in Arabic
+    // a short name sat at the right. The arbitrary property is the native
+    // start alone, one rule that resolves against the strip's own direction.
+    const css = await emit(['[text-align:start]']);
+    assert.deepEqual(
+      rules(css, '[text-align:start]').map(({ selector, atRule, decls }) => ({
+        selector,
+        atRule,
+        decls,
+      })),
+      [
+        {
+          selector: '.[text-align:start]',
+          atRule: null,
+          decls: [['text-align', 'start']],
+        },
+      ]
+    );
+  });
+
   test("the order badge's corner is logical only", async () => {
     const css = await emit(['-end-[10px]']);
     const found = rules(css, '-end-[10px]');

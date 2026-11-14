@@ -841,6 +841,18 @@ describe('MediaTile on the Media page', () => {
     expect(name.classList.contains('mobile:hidden')).toBe(false);
   });
 
+  // Rule 17. The strip is dir="ltr". tailwindcss-rtl adds a physical side for
+  // the page's direction to core's text-start, which outranks it, so in
+  // Arabic a short name sat at the right; the arbitrary property is the
+  // native start alone, which resolves against the strip's own direction.
+  it("aligns the name to the start of the strip's own direction, not the page's", () => {
+    const name = caption(renderTile())!;
+
+    expect(name.getAttribute('dir')).toBe('ltr');
+    expect(classes(name)).toContain('[text-align:start]');
+    expect(classes(name)).not.toContain('text-start');
+  });
+
   it("carries the file's name as the tile's title, and group on its square wrapper", () => {
     const host = renderTile();
     const wrapper = host.firstElementChild!;
