@@ -1,0 +1,94 @@
+'use client';
+
+import { FC, useState } from 'react';
+import clsx from 'clsx';
+import { Media } from '@prisma/client';
+import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
+import { VideoFrame } from '@gitroom/react/helpers/video.frame';
+
+/** What a tile reads of a library row: the original, and its tile image when the storage made one. */
+type TileMedia = Pick<Media, 'path'> & { tileImage?: string };
+
+/**
+ * The file inside a media library tile, shown whole on the recess.
+ *
+ * A row with a tile image loads that small copy. When it fails, an image falls
+ * back to its original, once, and a video to a neutral placeholder: a tile
+ * never loads a video to make up for a missing still. A row without a tile
+ * image is drawn from its original, as before tile images existed.
+ *
+ * The play badge marks a video and carries no length. It is `aria-hidden`:
+ * decoration over the file, which the name already identifies.
+ */
+export const TilePicture: FC<{
+  media: TileMedia;
+  name: string;
+  corner?: 'start' | 'end';
+}> = ({ media, name, corner = 'start' }) => {
+  const mediaDirectory = useMediaDirectory();
+  const [failed, setFailed] = useState(false);
+  const original = mediaDirectory.set(media.path);
+  const video = hasExtension(media.path, 'mp4');
+  return (
+    <div className="relative w-full h-full bg-panel">
+      {video && !media.tileImage ? (
+        <VideoFrame url={original} className="w-full h-full object-contain" />
+      ) : video && failed ? (
+        <div
+          role="img"
+          aria-label={name}
+          className="w-full h-full flex items-center justify-center text-muted"
+        >
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="4"
+              width="18"
+              height="16"
+              rx="2"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M7 4v16M17 4v16M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+          </svg>
+        </div>
+      ) : (
+        <img
+          className="w-full h-full object-contain"
+          src={media.tileImage && !failed ? media.tileImage : original}
+          loading="lazy"
+          decoding="async"
+          alt={name}
+          onError={() => setFailed(true)}
+        />
+      )}
+      {video && (
+        <div
+          aria-hidden="true"
+          className={clsx(
+            'absolute z-[30] top-[6px] pointer-events-none flex items-center h-[20px] px-[6px] rounded-[4px] bg-black/60 text-white',
+            corner === 'end' ? 'end-[6px]' : 'start-[6px]'
+          )}
+        >
+          <svg width="7" height="8" viewBox="0 0 7 8" fill="none">
+            <path
+              d="M6.5 3.567a.5.5 0 0 1 0 .866L.75 7.763A.5.5 0 0 1 0 7.33V.67A.5.5 0 0 1 .75.237L6.5 3.567Z"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+};
