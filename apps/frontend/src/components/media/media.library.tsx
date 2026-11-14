@@ -6,13 +6,16 @@ import { Media } from '@prisma/client';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { libraryPreviewModal } from '@gitroom/frontend/components/media/media.preview';
 import {
   MediaLibraryQuery,
   useMediaMonthCount,
+  useMonthIds,
 } from '@gitroom/frontend/components/media/use.media.library';
+import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 
 /** What a tile reads of a library row: the original, and its tile image when the storage made one. */
 type TileMedia = Pick<Media, 'path'> & { tileImage?: string };
@@ -105,7 +108,10 @@ export const TilePicture: FC<{
  *
  * On the Media page (`standalone`) it is one button over the square that opens
  * the library's preview on its file, over the list the page shows; the play
- * badge takes the end corner.
+ * badge takes the end corner. A circle beside it, in the start corner, selects
+ * and unselects the file, which then shows a check in the filled circle and a
+ * brand frame. While anything is selected every circle shows and the tile
+ * button selects and unselects too, instead of opening the preview.
  *
  * In the Media Library window the button picks and unpicks the file, which
  * then shows its number in the order picked and a brand frame. A corner
@@ -123,9 +129,22 @@ export const MediaTile: FC<{
   onDeleted: (id: string) => void;
   /** The window's: the pick's number, absent while the file isn't picked. */
   order?: number;
-  /** The window's: picks or unpicks the file. */
+  /** The Media page's: the file is selected. */
+  selected?: boolean;
+  /** The Media page's: anything is selected. */
+  selecting?: boolean;
+  /** Picks or unpicks the file (the window), selects or unselects it (the page). */
   onToggle?: () => void;
-}> = ({ media, standalone, query, onDeleted, order, onToggle }) => {
+}> = ({
+  media,
+  standalone,
+  query,
+  onDeleted,
+  order,
+  selected,
+  selecting,
+  onToggle,
+}) => {
   const t = useT();
   const modals = useModals();
   // `originalName` is nullable; `name` never is. Without this the name, the
@@ -138,7 +157,7 @@ export const MediaTile: FC<{
       <div
         className={clsx(
           'w-full h-full rounded-[6px] border-[4px] relative',
-          order ? 'border-brand' : 'border-transparent'
+          order || selected ? 'border-brand' : 'border-transparent'
         )}
       >
         {/* The tile carries the tooltip, not the name strip: the strip is
@@ -147,7 +166,7 @@ export const MediaTile: FC<{
           type="button"
           title={name}
           aria-label={name}
-          onClick={standalone ? openPreview : onToggle}
+          onClick={standalone && !selecting ? openPreview : onToggle}
           className="block w-full h-full rounded-[6px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
         >
           <TilePicture
@@ -165,6 +184,33 @@ export const MediaTile: FC<{
             {name}
           </div>
         </button>
+        {standalone && (
+          /* Like the window's expand button: beside the tile button, revealed
+             by opacity and hit-tested only once it shows. */
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={!!selected}
+            aria-label={t('media_select_named', 'Select {{name}}', { name })}
+            className={clsx(
+              'cursor-pointer absolute z-[100] top-0 start-0 w-[40px] h-[40px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
+              selecting
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto coarse:opacity-100 coarse:pointer-events-auto'
+            )}
+          >
+            <span
+              className={clsx(
+                'w-[24px] h-[24px] rounded-full border-2 flex items-center justify-center',
+                selected
+                  ? 'bg-brand border-brand text-white'
+                  : 'bg-black/30 border-white'
+              )}
+            >
+              {selected && <CheckmarkIcon aria-hidden="true" />}
+            </span>
+          </button>
+        )}
         {!standalone && (
           /* Beside the tile button, never inside it, and revealed by opacity
              rather than `display`, so it can take focus. An `opacity: 0`
@@ -210,6 +256,12 @@ export const MediaTile: FC<{
  * while the month's tiles scroll under it, until the next month's heading
  * pushes it up. It sits above the tiles' controls and never moves; only the
  * count's skeleton bar pulses until the count answers.
+ *
+ * On the Media page the heading ends in "Select all", which asks for every id
+ * of the month under the list's type and search, loaded or not, and selects
+ * them. It reads "Clear", and unselects them, while every id of the month is
+ * selected: the ids its Select all fetched, or, for a month ticked by hand,
+ * its loaded files once they are all of its files (research R5).
  */
 export const MediaMonth: FC<{
   query: MediaLibraryQuery;
@@ -217,11 +269,44 @@ export const MediaMonth: FC<{
   from: string;
   to: string;
   children: ReactNode;
-}> = ({ query, label, from, to, children }) => {
+  /** The Media page's selection; the window has none. */
+  selection?: {
+    /** The ids of the month's loaded files. */
+    ids: string[];
+    /** Every id selected, of any month. */
+    selected: ReadonlySet<string>;
+    /** The ids this month's Select all fetched. */
+    fetched?: string[];
+    onSelectAll: (ids: string[]) => void;
+    onClear: (ids: string[]) => void;
+  };
+}> = ({ query, label, from, to, children, selection }) => {
   const t = useT();
+  const toaster = useToaster();
   const { data } = useMediaMonthCount(query, { from, to });
+  const monthIds = useMonthIds();
+  // The month's ids, when the page knows them all: what Select all fetched,
+  // else the loaded files once they are as many as the count.
+  const known =
+    selection?.fetched ||
+    (data && selection?.ids.length === data.count ? selection.ids : undefined);
+  // Those ids while every one of them is selected, for Clear.
+  const allSelected =
+    known?.length && known.every((id) => selection?.selected.has(id))
+      ? known
+      : undefined;
+  const selectAll = async () => {
+    try {
+      selection?.onSelectAll(await monthIds(query, { from, to }));
+    } catch {
+      toaster.show(
+        t('error_occurred', 'An error occurred. Please try again.'),
+        'warning'
+      );
+    }
+  };
   return (
-    <section className="mb-[10px]">
+    <section className="group/month mb-[10px]">
       <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] bg-newBgColorInner">
         <h2 className="text-[16px] font-[600]">{label}</h2>
         {data ? (
@@ -236,6 +321,26 @@ export const MediaMonth: FC<{
             aria-hidden="true"
             className="w-[56px] h-[12px] rounded-[4px] bg-newSep animate-pulse"
           />
+        )}
+        {!!selection && (
+          /* Shown by the month's own named group, so hovering a tile never
+             reveals the other tiles' `group-hover:` controls. */
+          <button
+            type="button"
+            onClick={
+              allSelected ? () => selection.onClear(allSelected) : selectAll
+            }
+            className={clsx(
+              'cursor-pointer ms-auto px-[6px] rounded-[6px] coarse:min-h-[44px] text-[13px] font-[600] text-brandText transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
+              selection.selected.size
+                ? 'opacity-100'
+                : 'opacity-0 group-hover/month:opacity-100 focus-visible:opacity-100 coarse:opacity-100'
+            )}
+          >
+            {allSelected
+              ? t('media_clear_selection', 'Clear')
+              : t('media_select_all', 'Select all')}
+          </button>
         )}
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0">

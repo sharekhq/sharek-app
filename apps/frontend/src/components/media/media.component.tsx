@@ -26,6 +26,7 @@ import dynamic from 'next/dynamic';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
@@ -36,6 +37,7 @@ import {
 } from '@gitroom/frontend/components/media/media.library';
 import {
   MediaLibraryQuery,
+  useDeleteMedia,
   useMediaLibrary,
   useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
@@ -57,6 +59,7 @@ import {
   InsertMediaIcon,
   DesignMediaIcon,
   VerticalDividerIcon,
+  TrashIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
@@ -334,8 +337,18 @@ export const MediaBox: FC<{
   // The next page loads as the end of the list comes within about a screen
   // of the scroll box, where the sentinel sits (research R2).
   const scroller = useRef<HTMLDivElement>(null);
+  // The Media page's selection (data-model.md): the ids selected, loaded or
+  // not, and the ids each month's Select all fetched, by the month's start.
+  const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
+  const [monthIds, setMonthIds] = useState<Record<string, string[]>>({});
+  const selecting = selection.size > 0;
+  const clearSelection = useCallback(() => {
+    setSelection(new Set());
+    setMonthIds({});
+  }, []);
   // A new filter, sort or search is another list, read from its top
-  // (FR-026); the Media page keeps it in its address (research R11).
+  // (FR-026); the Media page keeps it in its address (research R11) and
+  // clears its selection, so Delete never removes a file no longer listed.
   const listedQuery = useRef(query);
   useEffect(() => {
     if (listedQuery.current === query) {
@@ -345,8 +358,9 @@ export const MediaBox: FC<{
     if (scroller.current) {
       scroller.current.scrollTop = 0;
     }
+    clearSelection();
     onQueryChange?.(query);
-  }, [query]);
+  }, [query, clearSelection]);
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const canLoadMore = hasMore && !isLoading && !isLoadingMore && !error;
   // What the sentinel does each time it comes into view: after a failed load
@@ -458,6 +472,15 @@ export const MediaBox: FC<{
   const addRemoveSelected = useCallback(
     (media: any) => () => {
       if (standalone) {
+        setSelection((current) => {
+          const next = new Set(current);
+          if (next.has(media.id)) {
+            next.delete(media.id);
+          } else {
+            next.add(media.id);
+          }
+          return next;
+        });
         return;
       }
       const exists = selected.find((p: any) => p.id === media.id);
@@ -478,6 +501,64 @@ export const MediaBox: FC<{
   const unselectDeleted = useCallback((id: string) => {
     setSelected((current) => current.filter((media: any) => media.id !== id));
   }, []);
+
+  // A month's Select all: its ids join the selection and are kept as the
+  // month's, for its heading to read Clear (research R5).
+  const selectMonth = useCallback((from: string, ids: string[]) => {
+    setMonthIds((current) => ({ ...current, [from]: ids }));
+    setSelection((current) => new Set([...current, ...ids]));
+  }, []);
+  const unselect = useCallback((ids: string[]) => {
+    setSelection((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  // The selection bar's Delete (research R6): one question, every selected
+  // id through the one client delete path, then the list and its month
+  // counts refetch, so the files that failed stay.
+  const deleteMedia = useDeleteMedia();
+  const deleteSelection = useCallback(async () => {
+    const ids = Array.from(selection);
+    const count = {
+      count: ids.length,
+      value: ids.length.toLocaleString('en-US'),
+    };
+    if (
+      !(await deleteDialog(
+        t(
+          'media_delete_body',
+          "They'll be removed from your media library.",
+          count
+        ),
+        t('delete', 'Delete'),
+        t('media_delete_title', 'Delete {{value}} files?', count),
+        t('cancel', 'Cancel'),
+        true
+      ))
+    ) {
+      return;
+    }
+    const notDeleted = await deleteMedia(ids);
+    if (notDeleted) {
+      toaster.show(
+        t('media_not_deleted', '{{value}} files were not deleted', {
+          count: notDeleted,
+          value: notDeleted.toLocaleString('en-US'),
+        }),
+        'warning'
+      );
+    } else {
+      toaster.show(
+        t('media_deleted', '{{value}} files deleted', count),
+        'success'
+      );
+    }
+    clearSelection();
+    await refresh();
+  }, [selection, deleteMedia, toaster, t, clearSelection, refresh]);
 
   const addMedia = useCallback(async () => {
     if (standalone) {
@@ -585,6 +666,32 @@ export const MediaBox: FC<{
   return (
     <DropFiles disabled={loading} className="flex flex-col flex-1" onDrop={dragAndDrop}>
       <div className="flex flex-col flex-1">
+        {/* The Media page's, in the toolbar's place while anything is selected */}
+        {selecting && (
+          <div className="flex items-center gap-[12px] min-h-[44px]">
+            <div className="text-[15px] font-[600]">
+              {t('media_selected', '{{value}} selected', {
+                count: selection.size,
+                value: selection.size.toLocaleString('en-US'),
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="cursor-pointer h-[40px] coarse:min-h-[44px] px-[14px] rounded-[8px] bg-quiet border border-line text-ink text-[14px] font-[600] hover:bg-surface2 transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {t('media_clear_selection', 'Clear')}
+            </button>
+            <button
+              type="button"
+              onClick={deleteSelection}
+              className="cursor-pointer ms-auto h-[40px] coarse:min-h-[44px] px-[16px] rounded-[8px] flex items-center gap-[8px] bg-error text-white text-[14px] font-[600] focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <TrashIcon size={18} />
+              {t('delete', 'Delete')}
+            </button>
+          </div>
+        )}
         <div
           className={clsx(
             'flex flex-wrap items-center gap-[12px]',
@@ -592,7 +699,8 @@ export const MediaBox: FC<{
               !files.length &&
               !filter &&
               !debouncedSearch &&
-              'hidden'
+              'hidden',
+            selecting && 'hidden'
           )}
         >
           {/* The search takes its own line at 1025px and below, so Upload
@@ -784,6 +892,17 @@ export const MediaBox: FC<{
                 label={month.label}
                 from={month.from}
                 to={month.to}
+                selection={
+                  standalone
+                    ? {
+                        ids: month.files.map((media) => media.id),
+                        selected: selection,
+                        fetched: monthIds[month.from],
+                        onSelectAll: (ids) => selectMonth(month.from, ids),
+                        onClear: unselect,
+                      }
+                    : undefined
+                }
               >
                 {month.files.map((media: any) => {
                   const picked = selected.findIndex(
@@ -797,6 +916,8 @@ export const MediaBox: FC<{
                       query={query}
                       onDeleted={unselectDeleted}
                       order={picked === -1 ? undefined : picked + 1}
+                      selected={selection.has(media.id)}
+                      selecting={selecting}
                       onToggle={addRemoveSelected(media)}
                     />
                   );
