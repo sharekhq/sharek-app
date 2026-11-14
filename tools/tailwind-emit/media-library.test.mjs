@@ -451,3 +451,89 @@ describe('The tile (MediaTile)', () => {
     );
   });
 });
+
+// The Media page's selection (T048, T049): the circle in MediaTile, Select
+// all in MediaMonth's heading and the selection bar in MediaBox. Their 24px
+// ring is the order badge's w-[24px] and h-[24px], their states the expand
+// button's, and their 44px under a coarse pointer coarse:min-h-[44px],
+// coarse:w-[44px] and coarse:h-[44px], all above.
+describe("The selection (MediaTile's circle, MediaMonth's Select all and MediaBox's selection bar)", () => {
+  test('the circle, its ring and the selection bar emit their one rule, outside any query', async () => {
+    const css = await assertEmits(
+      {
+        // the circle's 40px hit box at the tile's top, and the ring's wash
+        // while unselected
+        'top-0': [['top', '0px']],
+        'w-[40px]': [['width', '40px']],
+        'h-[40px]': [['height', '40px']],
+        'bg-black/30': [['background-color', 'rgb(0 0 0 / 0.3)']],
+        // the selection bar's row and its count
+        'gap-[12px]': [['gap', '12px']],
+        'min-h-[44px]': [['min-height', '44px']],
+        'text-[15px]': [['font-size', '15px']],
+        // Clear and Delete, each 40px high (symmetric padding, so the same
+        // in RTL)
+        'px-[14px]': px('padding', '14px'),
+        'bg-quiet': [['background-color', 'var(--quiet)']],
+        'hover:bg-surface2': [['background-color', 'var(--surface-2)']],
+        'px-[16px]': px('padding', '16px'),
+        'bg-error': [['background-color', 'var(--error)']],
+      },
+      null
+    );
+    assert.equal(
+      rules(css, 'hover:bg-surface2')[0].selector,
+      '.hover:bg-surface2:hover'
+    );
+  });
+
+  test("Select all shows on hover of its own month, through the month's named group", async () => {
+    // group/month on the month's section is a marker that emits nothing of
+    // its own: the one rule naming it is the button's, so hovering a tile
+    // reveals no other tile's controls.
+    const css = await assertEmits(
+      { 'group-hover/month:opacity-100': [['opacity', '1']] },
+      null
+    );
+    const both = await emit(['group/month', 'group-hover/month:opacity-100']);
+    assert.deepEqual(
+      rules(both, 'group/month').map(({ selector }) => selector),
+      ['.group/month:hover .group-hover/month:opacity-100']
+    );
+    assert.equal(
+      rules(css, 'group-hover/month:opacity-100')[0].selector,
+      '.group/month:hover .group-hover/month:opacity-100'
+    );
+  });
+
+  test('the circle sits at the start side, and Select all and Delete at the end, in either direction', async () => {
+    // tailwindcss-rtl adds a physical side for each direction to core's
+    // inset-inline-start, so start-0 emits three rules, each at the start;
+    // ms-auto is the logical margin alone.
+    const pick = ({ selector, atRule, decls }) => ({ selector, atRule, decls });
+    assert.deepEqual(rules(await emit(['start-0']), 'start-0').map(pick), [
+      {
+        selector: '.start-0',
+        atRule: null,
+        decls: [['inset-inline-start', '0px']],
+      },
+      {
+        selector: '[dir="rtl"] .start-0',
+        atRule: null,
+        decls: [['right', '0px']],
+      },
+      {
+        selector: '[dir="ltr"] .start-0',
+        atRule: null,
+        decls: [['left', '0px']],
+      },
+    ]);
+    assert.deepEqual(rules(await emit(['ms-auto']), 'ms-auto').map(pick), [
+      {
+        selector: '.ms-auto',
+        atRule: null,
+        decls: [['margin-inline-start', 'auto']],
+      },
+    ]);
+  });
+});
