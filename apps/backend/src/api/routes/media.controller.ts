@@ -23,6 +23,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { streamUploadOptions } from '@gitroom/nestjs-libraries/upload/multer.stream.engine';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 import {
+  DeleteMediaDto,
+  MediaLibraryDto,
+  MediaMonthDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
+import {
   EditImageWithPromptDto,
   GenerateImageWithPromptDto,
 } from '@gitroom/nestjs-libraries/dtos/media/generate.image.dto';
@@ -41,6 +46,15 @@ export class MediaController {
   @Delete('/:id')
   deleteMedia(@GetOrgFromRequest() org: Organization, @Param('id') id: string) {
     return this._mediaService.deleteMedia(org.id, id);
+  }
+
+  // Marks the files deleted and answers nothing (Rule 12).
+  @Delete('/')
+  async deleteManyMedia(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: DeleteMediaDto
+  ) {
+    await this._mediaService.deleteManyMedia(org.id, body.ids);
   }
 
   @Post('/generate-video')
@@ -337,10 +351,25 @@ export class MediaController {
   @Get('/')
   getMedia(
     @GetOrgFromRequest() org: Organization,
-    @Query('page') page: number,
-    @Query('search') search?: string
+    @Query() query: MediaLibraryDto
   ) {
-    return this._mediaService.getMedia(org.id, page, search);
+    return this._mediaService.getLibraryPage(org.id, query);
+  }
+
+  @Get('/month')
+  getMonthCount(
+    @GetOrgFromRequest() org: Organization,
+    @Query() query: MediaMonthDto
+  ) {
+    return this._mediaService.countMonth(org.id, query);
+  }
+
+  @Get('/month/ids')
+  getMonthIds(
+    @GetOrgFromRequest() org: Organization,
+    @Query() query: MediaMonthDto
+  ) {
+    return this._mediaService.monthIds(org.id, query);
   }
 
   @Get('/video-options')
