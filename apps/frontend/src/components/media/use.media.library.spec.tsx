@@ -25,7 +25,8 @@ import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 // client's one delete path, for the preview's Delete and the selection bar.
 // The ids go to DELETE /media as a JSON body, in batches of
 // MEDIA_DELETE_BATCH, one after another; it resolves to how many weren't
-// deleted, every id of a batch that answers a failure or throws.
+// deleted, every id of a batch that answers a failure or throws, once it has
+// said how it went: how many went, or how many didn't.
 //
 // useMonthIds (research R5, contracts/media-api.md "GET /media/month/ids"):
 // the ids of every file of a month under the list's type and search, for its
@@ -35,12 +36,24 @@ import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 //
 // SWR runs for real on a cache of its own; the doubles around useSWR and
 // useSWRInfinite only record what the hooks hand them. Only the request is
-// stubbed.
+// stubbed, and the words and the toast are recorded.
 
 const mockFetch = jest.fn();
 
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
+}));
+// The key, so a case reads which words are said, whatever their wording; the
+// calls are kept for the count a counted word is given.
+const mockT = jest.fn<string, [string, string?, Record<string, unknown>?]>(
+  (key) => key
+);
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => mockT,
+}));
+const mockShow = jest.fn<void, [string, string?]>();
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: mockShow }),
 }));
 jest.mock('swr', () => {
   const actual = jest.requireActual('swr');
@@ -707,6 +720,7 @@ describe('useDeleteMedia', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     mockFetch.mockResolvedValue(deleted);
+    mockShow.mockReset();
     remover.latest = undefined;
   });
 
@@ -793,6 +807,82 @@ describe('useDeleteMedia', () => {
 
     await expect(remover.latest!(fileIds(1201))).resolves.toBe(701);
     expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  // What a counted word was last told: its count and value.
+  const said = (key: string) =>
+    mockT.mock.calls.filter(([each]) => each === key).at(-1)?.[2];
+
+  it.each([
+    [1, '1'],
+    [1201, '1,201'],
+  ])(
+    'says media_deleted as a success when all went, counted by the ids: %i',
+    async (count, value) => {
+      await mount(all, DeleteProbe);
+
+      await remover.latest!(fileIds(count));
+
+      expect(mockShow.mock.calls).toEqual([['media_deleted', 'success']]);
+      expect(said('media_deleted')).toEqual({ count, value });
+      expect(said('media_not_deleted')).toBeUndefined();
+    }
+  );
+
+  it.each([
+    [
+      'its second batch answers a failure',
+      1201,
+      () =>
+        mockFetch.mockResolvedValueOnce(deleted).mockResolvedValueOnce(failed),
+      500,
+      '500',
+    ],
+    [
+      'its request throws',
+      1,
+      () => mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch')),
+      1,
+      '1',
+    ],
+  ])(
+    'says media_not_deleted as a warning, counted by the files not deleted, when %s',
+    async (_why, count, answer, notDeleted, value) => {
+      answer();
+      await mount(all, DeleteProbe);
+
+      await expect(remover.latest!(fileIds(count))).resolves.toBe(notDeleted);
+
+      expect(mockShow.mock.calls).toEqual([['media_not_deleted', 'warning']]);
+      expect(said('media_not_deleted')).toEqual({ count: notDeleted, value });
+      expect(said('media_deleted')).toBeUndefined();
+    }
+  );
+
+  it('says it once, after the last batch answers and before it resolves', async () => {
+    const replies: Array<() => void> = [];
+    mockFetch.mockImplementation(
+      () => new Promise((resolve) => replies.push(() => resolve(deleted)))
+    );
+    const order: string[] = [];
+    mockShow.mockImplementation(() => {
+      order.push('said');
+    });
+    await mount(all, DeleteProbe);
+
+    const done = remover.latest!(fileIds(1001)).then(() => {
+      order.push('resolved');
+    });
+    for (const reply of [0, 1]) {
+      await settle();
+      replies[reply]();
+    }
+    await settle();
+    expect(mockShow).not.toHaveBeenCalled();
+
+    replies[2]();
+    await done;
+    expect(order).toEqual(['said', 'resolved']);
   });
 });
 

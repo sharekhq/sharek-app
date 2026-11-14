@@ -9,16 +9,16 @@ import { range } from 'lodash';
 // many are selected, Clear, and Delete. A month heading's Select all selects
 // every file of the month under the list's type and search, loaded or not.
 // Delete asks once, deletes every selected file through the one client delete
-// path, says how many went or how many didn't, refreshes the list and its
-// month counts and clears the selection; a new filter, sort or search clears
-// it too. The Media Library window has none of it.
+// path, which says how many went or how many didn't, refreshes the list and
+// its month counts and clears the selection; a new filter, sort or search
+// clears it too. The Media Library window has none of it.
 //
 // The list is a double of useSWRInfinite holding the first page of the case's
 // server, so a month can hold files not loaded yet; a heading's count is the
 // server's files in its range. useMonthIds answers the server's ids in the
-// month asked for and useDeleteMedia how many the case says failed. The list's
-// refresh is what it asks of the two: the list's own mutate() and the month
-// counts' revalidation.
+// month asked for, and useDeleteMedia how many the case says failed, saying
+// nothing (its own spec pins what it says). The list's refresh is what it
+// asks of the two: the list's own mutate() and the month counts' revalidation.
 
 type Row = { id: string; name: string; path: string; createdAt: string };
 
@@ -553,7 +553,7 @@ describe('deleting the selection', () => {
     );
   });
 
-  it('says how many were deleted, refreshes the list and its month counts once and clears the selection, when all went', async () => {
+  it('leaves saying how many went to useDeleteMedia, refreshes the list and its month counts once and clears the selection, when all went', async () => {
     mockServer.rows = november(3);
     await mount();
     await press(circleOf('n0.png'));
@@ -561,9 +561,8 @@ describe('deleting the selection', () => {
 
     await press(barButton('delete'));
 
-    expect(mockToast).toHaveBeenCalledTimes(1);
-    expect(mockToast).toHaveBeenCalledWith('media_deleted', 'success');
-    expect(said('media_deleted')).toEqual(counted(2));
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(said('media_deleted')).toBeUndefined();
     expect(mockListMutate).toHaveBeenCalledTimes(1);
     expect(mockRevalidate).toHaveBeenCalledTimes(1);
     expect(ticked()).toEqual([]);
@@ -571,7 +570,7 @@ describe('deleting the selection', () => {
     expect(toolbarHidden()).toBe(false);
   });
 
-  it('says how many were not deleted when some fail, and still refreshes once and clears the selection', async () => {
+  it('leaves saying how many did not go to useDeleteMedia when some fail, and still refreshes once and clears the selection', async () => {
     mockServer.rows = november(3);
     mockDelete.failed = 2;
     await mount();
@@ -581,9 +580,8 @@ describe('deleting the selection', () => {
 
     await press(barButton('delete'));
 
-    expect(mockToast).toHaveBeenCalledTimes(1);
-    expect(mockToast).toHaveBeenCalledWith('media_not_deleted', 'warning');
-    expect(said('media_not_deleted')).toEqual(counted(2));
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(said('media_not_deleted')).toBeUndefined();
     expect(mockListMutate).toHaveBeenCalledTimes(1);
     expect(mockRevalidate).toHaveBeenCalledTimes(1);
     expect(ticked()).toEqual([]);

@@ -12,8 +12,10 @@ import { chunk, range } from 'lodash';
 // length and date once it knows them, steps past the last loaded file by
 // loading more and, in the media library, deletes the file it shows and moves
 // on. The library opens it through libraryPreviewModal, over the list's own
-// hook (a double here); Samy's chat through mediaPreviewModal, with no Delete
-// and no date. The header renders in place, so a case reads it with the stage.
+// hook (a double here) and the one client delete path (real, over a stubbed
+// request, so a case reads the order a delete goes in); Samy's chat through
+// mediaPreviewModal, with no Delete and no date. The header renders in place,
+// so a case reads it with the stage.
 
 // The key, so a case reads which words are shown, whatever their wording. The
 // calls are kept for the count a counted word is given.
@@ -38,6 +40,15 @@ const mockShow = jest.fn();
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: mockShow }),
 }));
+// DELETE /media as the server answers it; the ids it took leave the list at
+// the next refresh.
+const mockFetch = jest.fn<
+  Promise<{ ok: boolean; status: number }>,
+  [string, RequestInit]
+>();
+jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
+  useFetch: () => mockFetch,
+}));
 // The real step, watched.
 jest.mock('@gitroom/helpers/utils/step.media.index', () => {
   const actual = jest.requireActual('@gitroom/helpers/utils/step.media.index');
@@ -55,7 +66,7 @@ type Row = {
 // The list behind the library's preview, as useMediaLibrary answers it: the
 // files loaded and the loads still on the server, the next of which loadMore
 // appends once it answers. A file the server deleted leaves the list when the
-// refresh refetches it.
+// refresh refetches it. The delete is the real useDeleteMedia.
 const mockLibrary = {
   files: [] as Row[],
   more: [] as Row[][],
@@ -64,7 +75,6 @@ const mockLibrary = {
   listeners: new Set<() => void>(),
   loadMore: jest.fn(),
   mutate: jest.fn(),
-  deleteMedia: jest.fn<Promise<number>, [string[]]>(),
   refresh: jest.fn(),
 };
 
@@ -72,6 +82,9 @@ const notify = () => mockLibrary.listeners.forEach((listener) => listener());
 
 jest.mock('@gitroom/frontend/components/media/use.media.library', () => {
   const { useEffect, useReducer } = jest.requireActual('react');
+  const { useDeleteMedia } = jest.requireActual(
+    '@gitroom/frontend/components/media/use.media.library'
+  );
   const useMediaLibraryMock = (query: unknown) => {
     mockLibrary.queries.push(query);
     const [, rerender] = useReducer((count: number) => count + 1, 0);
@@ -94,7 +107,7 @@ jest.mock('@gitroom/frontend/components/media/use.media.library', () => {
   };
   return {
     useMediaLibrary: useMediaLibraryMock,
-    useDeleteMedia: () => mockLibrary.deleteMedia,
+    useDeleteMedia,
   };
 });
 
@@ -292,9 +305,10 @@ beforeEach(() => {
       notify();
     }
   });
-  mockLibrary.deleteMedia.mockReset().mockImplementation(async (ids) => {
+  mockFetch.mockReset().mockImplementation(async (_path, init) => {
+    const { ids }: { ids: string[] } = JSON.parse(init.body as string);
     ids.forEach((id) => mockLibrary.gone.add(id));
-    return 0;
+    return { ok: true, status: 200 };
   });
   mockLibrary.refresh.mockReset().mockImplementation(async () => {
     mockLibrary.files = mockLibrary.files.filter(
@@ -770,8 +784,9 @@ describe('libraryPreviewModal', () => {
 
     await pressDelete();
 
-    expect(mockLibrary.deleteMedia).toHaveBeenCalledTimes(1);
-    expect(mockLibrary.deleteMedia).toHaveBeenCalledWith(['b']);
+    expect(mockFetch.mock.calls).toEqual([
+      ['/media', { method: 'DELETE', body: JSON.stringify({ ids: ['b'] }) }],
+    ]);
     expect(mockShow.mock.calls.map(([text]) => text)).toEqual([
       'media_deleted',
     ]);
@@ -783,7 +798,7 @@ describe('libraryPreviewModal', () => {
     expect(onDeleted).toHaveBeenCalledTimes(1);
     expect(onDeleted).toHaveBeenCalledWith('b');
     expect(mockLibrary.refresh).toHaveBeenCalledTimes(1);
-    const [deleted] = mockLibrary.deleteMedia.mock.invocationCallOrder;
+    const [deleted] = mockFetch.mock.invocationCallOrder;
     const [toasted] = mockShow.mock.invocationCallOrder;
     const [told] = onDeleted.mock.invocationCallOrder;
     const [refetched] = mockLibrary.refresh.mock.invocationCallOrder;
@@ -797,12 +812,14 @@ describe('libraryPreviewModal', () => {
 
   it("when the file wasn't deleted, says so, doesn't tell onDeleted, still refetches, and stays on the file", async () => {
     mockLibrary.files = rows;
-    mockLibrary.deleteMedia.mockImplementation(async () => 1);
+    mockFetch.mockResolvedValue({ ok: false, status: 500 });
     const onDeleted = await openLibrary('b');
 
     await pressDelete();
 
-    expect(mockLibrary.deleteMedia).toHaveBeenCalledWith(['b']);
+    expect(mockFetch.mock.calls).toEqual([
+      ['/media', { method: 'DELETE', body: JSON.stringify({ ids: ['b'] }) }],
+    ]);
     expect(mockShow.mock.calls.map(([text]) => text)).toEqual([
       'media_not_deleted',
     ]);
