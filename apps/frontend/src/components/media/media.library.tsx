@@ -177,7 +177,7 @@ export const MediaTile: FC<{
           <div
             dir="ltr"
             className={clsx(
-              'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-start text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
+              'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate [text-align:start] text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
               !standalone && 'mobile:hidden'
             )}
           >
