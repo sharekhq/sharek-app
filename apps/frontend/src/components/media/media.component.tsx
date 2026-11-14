@@ -341,8 +341,14 @@ export const MediaBox: FC<{
   // not, and the ids each month's Select all fetched, by the month's start.
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
   const [monthIds, setMonthIds] = useState<Record<string, string[]>>({});
+  // How many times it was cleared: as rendered, for a Select all to keep
+  // from its press, and now, which its answer is checked against.
+  const [clears, setClears] = useState(0);
+  const clearsNow = useRef(clears);
   const selecting = selection.size > 0;
   const clearSelection = useCallback(() => {
+    clearsNow.current += 1;
+    setClears(clearsNow.current);
     setSelection(new Set());
     setMonthIds({});
   }, []);
@@ -503,11 +509,19 @@ export const MediaBox: FC<{
   }, []);
 
   // A month's Select all: its ids join the selection and are kept as the
-  // month's, for its heading to read Clear (research R5).
-  const selectMonth = useCallback((from: string, ids: string[]) => {
-    setMonthIds((current) => ({ ...current, [from]: ids }));
-    setSelection((current) => new Set([...current, ...ids]));
-  }, []);
+  // month's, for its heading to read Clear (research R5). An answer after
+  // another filter, sort or search, Clear or Delete is the selection's
+  // before them, and selects nothing.
+  const selectMonth = useCallback(
+    (pressed: number, from: string, ids: string[]) => {
+      if (pressed !== clearsNow.current) {
+        return;
+      }
+      setMonthIds((current) => ({ ...current, [from]: ids }));
+      setSelection((current) => new Set([...current, ...ids]));
+    },
+    []
+  );
   const unselect = useCallback((ids: string[]) => {
     setSelection((current) => {
       const next = new Set(current);
@@ -898,7 +912,8 @@ export const MediaBox: FC<{
                         ids: month.files.map((media) => media.id),
                         selected: selection,
                         fetched: monthIds[month.from],
-                        onSelectAll: (ids) => selectMonth(month.from, ids),
+                        onSelectAll: (ids) =>
+                          selectMonth(clears, month.from, ids),
                         onClear: unselect,
                       }
                     : undefined
