@@ -31,7 +31,7 @@ jest.mock('@uppy/react', () => ({
 jest.mock('swr', () => ({
   __esModule: true,
   default: () => ({
-    data: { results: [], count: 0 },
+    data: { count: 0 },
     mutate: () => {},
     isLoading: false,
   }),

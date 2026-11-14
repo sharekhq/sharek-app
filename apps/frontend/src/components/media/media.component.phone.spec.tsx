@@ -29,14 +29,11 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
         params && name in params ? String(params[name]) : whole
       ),
 }));
-// A month heading's count; any other key is the paged list, which says the
-// server has six pages.
+// A month heading's count.
 jest.mock('swr', () => ({
   __esModule: true,
-  default: (key: string) => ({
-    data: key.startsWith('/media/month?')
-      ? { count: shownMedia.length }
-      : ({ results: shownMedia, pages: 6 } as Result),
+  default: () => ({
+    data: { count: shownMedia.length },
     isLoading: false,
     mutate: async (): Promise<undefined> => undefined,
   }),
@@ -440,8 +437,7 @@ describe('the upload progress band at 1025px and below', () => {
 });
 
 // The list loads more as it scrolls (media.component.months.spec.tsx), so no
-// width shows arrows, page numbers or "1 / 6", even when the paged list
-// answers six pages.
+// width shows arrows, page numbers or "1 / 6".
 describe('no page control at any width: the list loads as it scrolls', () => {
   it.each([
     ['the picker', picker],

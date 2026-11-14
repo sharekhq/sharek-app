@@ -12,7 +12,6 @@ import React, {
   useState,
 } from 'react';
 import { Button } from '@gitroom/react/form/button';
-import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { Media } from '@prisma/client';
@@ -34,7 +33,16 @@ import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/thir
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
-import { TilePicture } from '@gitroom/frontend/components/media/media.library';
+import {
+  MediaMonth,
+  TilePicture,
+} from '@gitroom/frontend/components/media/media.library';
+import {
+  MediaLibraryQuery,
+  useMediaLibrary,
+} from '@gitroom/frontend/components/media/use.media.library';
+import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import { groupBy } from 'lodash';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -272,44 +280,97 @@ export const MediaBox: FC<{
    */
   max?: number;
 }> = ({ type, standalone, setMedia, max }) => {
-  const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounce(search, 300);
   const fetch = useFetch();
   const modals = useModals();
   const toaster = useToaster();
+  // The caller's type is asked of the server, which sends only its files
+  // (research R9).
+  const query: MediaLibraryQuery = {
+    type,
+    sort: 'newest',
+    search: debouncedSearch,
+  };
+  const { files, hasMore, loadMore, isLoading, isLoadingMore, error, mutate } =
+    useMediaLibrary(query);
+  // Pages already in SWR's cache aren't asked for again when the list mounts
+  // (research R2): a reopened page or window asks for them once, rather than
+  // draw a list another tab or Samy may have changed since. Over an empty
+  // cache the first load is that request.
+  const refetchOnMount = useRef(!isLoading);
   useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
-  const loadMedia = useCallback(async () => {
-    const params = new URLSearchParams({ page: String(page + 1) });
-    if (debouncedSearch.trim()) {
-      params.set('search', debouncedSearch.trim());
+    if (refetchOnMount.current) {
+      refetchOnMount.current = false;
+      mutate();
     }
-    return (await fetch(`/media?${params.toString()}`)).json();
-  }, [page, debouncedSearch]);
-  const { data, mutate, isLoading } = useSWR(
-    `get-media-${page}-${debouncedSearch}`,
-    loadMedia
-  );
-  // The tiles and the preview read the same array, so they can never disagree
-  // about a position or a count.
-  const visibleMedia = useMemo(
+  }, [mutate]);
+  // The loaded files by month in the user's timezone, in list order, each
+  // month with its name and its bounds as UTC instants: a month whose files
+  // come on two loads gets one heading (research R3). The tiles and the
+  // preview read the same files, so they can never disagree about a position.
+  const months = useMemo(
     () =>
-      ((data?.results || []) as Media[]).filter((f) => {
-        if (type === 'video') {
-          return hasExtension(f.path, 'mp4');
-        } else if (type === 'image') {
-          return !hasExtension(f.path, 'mp4');
-        } else if (type === 'image-static') {
-          return ['jpg', 'jpeg', 'png'].some((ext) =>
-            hasExtension(f.path, ext)
-          );
-        }
-        return true;
+      Object.values(
+        groupBy(files, (media) => newDayjs(media.createdAt).format('YYYY-MM'))
+      ).map((monthFiles) => {
+        const start = newDayjs(monthFiles[0].createdAt).startOf('month');
+        return {
+          label: start.format('MMMM YYYY'),
+          from: start.utc().format(),
+          to: start.add(1, 'month').utc().format(),
+          files: monthFiles,
+        };
       }),
-    [data?.results, type]
+    [files]
   );
+  // The next page loads as the end of the list comes within about a screen
+  // of the scroll box, where the sentinel sits (research R2).
+  const scroller = useRef<HTMLDivElement>(null);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const canLoadMore = hasMore && !isLoading && !isLoadingMore && !error;
+  // What the sentinel does each time it comes into view: after a failed load
+  // it asks again, else it loads the next page when one can start. The
+  // observer is built once, so it calls this through a ref.
+  const sentinelShown = useCallback(() => {
+    if (error) {
+      mutate();
+    } else if (canLoadMore) {
+      loadMore();
+    }
+  }, [error, canLoadMore, loadMore, mutate]);
+  const sentinelShownRef = useRef(sentinelShown);
+  useEffect(() => {
+    sentinelShownRef.current = sentinelShown;
+  }, [sentinelShown]);
+  // An observer calls back only when the sentinel comes into or goes out of
+  // view, so whether it is in view is kept: a page that lands while it still
+  // is (a first page too short to fill the list) asks for the next one below.
+  const sentinelInView = useRef(false);
+  useEffect(() => {
+    if (!sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        sentinelInView.current = entry.isIntersecting;
+        if (entry.isIntersecting) {
+          sentinelShownRef.current();
+        }
+      },
+      { root: scroller.current, rootMargin: '0px 0px 100% 0px' }
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+      sentinelInView.current = false;
+    };
+  }, [sentinel]);
+  useEffect(() => {
+    if (canLoadMore && sentinelInView.current) {
+      loadMore();
+    }
+  }, [canLoadMore, loadMore]);
   const [selected, setSelected] = useState([]);
   // Uppy keeps the upload callback it was created with, so that callback
   // counts the selection through a ref rather than its own first render's.
@@ -466,11 +527,11 @@ export const MediaBox: FC<{
   );
 
   const maximize = useCallback(
-    (media: Media, index: number) => (e: any) => {
+    (media: Media) => (e: any) => {
       e.stopPropagation();
-      modals.openModal(mediaPreviewModal(visibleMedia, index));
+      modals.openModal(mediaPreviewModal(files, files.indexOf(media)));
     },
-    [visibleMedia]
+    [files]
   );
 
   const deleteImage = useCallback(
@@ -517,13 +578,9 @@ export const MediaBox: FC<{
         )
       );
     } finally {
-      const result = await mutate();
-      // deleting a whole last page leaves nothing to show there
-      if (page >= (result?.pages || 1)) {
-        setPage(Math.max(0, (result?.pages || 1) - 1));
-      }
+      await mutate();
     }
-  }, [selected, mutate, page, t, fetch]);
+  }, [selected, mutate, t, fetch]);
 
   const btn = useMemo(() => {
     return (
@@ -550,10 +607,7 @@ export const MediaBox: FC<{
         <div
           className={clsx(
             'flex flex-wrap items-center gap-[12px]',
-            !isLoading &&
-              !data?.results?.length &&
-              !debouncedSearch &&
-              'hidden'
+            !isLoading && !files.length && !debouncedSearch && 'hidden'
           )}
         >
           {/* The search takes its own line at 1025px and below, so Upload
@@ -584,7 +638,7 @@ export const MediaBox: FC<{
             {btn}
             <ThirdPartyMediaLibrary onImported={() => mutate()} />
           </div>
-          {!standalone && !!data?.results?.length && (
+          {!standalone && !!files.length && (
             <div className="hidden mobile:block basis-full text-[14px] font-[600]">
               {t(
                 'select_or_upload_pictures_max_1gb',
@@ -630,22 +684,21 @@ export const MediaBox: FC<{
           <div className="w-full h-[46px] uppyChange" />
         </div>
         <div className="flex-1 relative">
+          {/* Stays mounted while pages load and while the list refetches, so
+              the list stays where the user was (FR-033). */}
           <div
+            ref={scroller}
             className={clsx(
               // at 1025px and below the tiles carry a 6px pad, which this
               // offset lines up with the sides and the bottom; not the top,
               // where it would lie over the toolbar's last line
               'absolute inset-0 mobile:-inset-x-[6px] mobile:-bottom-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
-              !isLoading && !data?.results?.length
-                ? 'w-full flex justify-center items-center flex-col'
-                : // Capped at eight columns past the target width: auto-fill
-                  // would otherwise keep adding 150px columns, so a wide screen
-                  // gets denser rather than bigger and 32 items stop filling
-                  // whole rows. Below 2xl this changes nothing.
-                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0 content-start'
+              !isLoading &&
+                !files.length &&
+                'w-full flex justify-center items-center flex-col'
             )}
           >
-            {!isLoading && !data?.results?.length && (
+            {!isLoading && !files.length && (
               <EmptyState
                 illustration={<MediaEmptyIllustration />}
                 title={
@@ -677,146 +730,185 @@ export const MediaBox: FC<{
                 }
               />
             )}
-            {isLoading && (
-              <>
-                {/* One skeleton per item the page will hold — MEDIA_PAGE_SIZE
-                    in media.repository.ts. */}
-                {[...new Array(32)].map((_, i) => (
-                  <div
-                    className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
-                    key={i}
-                  >
-                    <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
-                  </div>
-                ))}
-              </>
-            )}
-            {visibleMedia.map((media: any, index: number) => {
-              // `originalName` is nullable; `name` never is. Without this the
-              // caption, the tooltip, the alt text and the delete button's
-              // label are all empty for older uploads.
-              const displayName = media.originalName || media.name;
-              return (
-                <div
-                  className={clsx(
-                    'group rounded-[6px] aspect-square mobile:p-[6px]',
-                    !standalone && 'cursor-pointer'
-                  )}
-                  key={media.id}
-                >
-                  <div
-                    className={clsx(
-                      'w-full h-full rounded-[6px] border-[4px] relative',
-                      !!selected.find((p) => p.id === media.id)
-                        ? 'border-brand'
-                        : 'border-transparent'
-                    )}
-                    onClick={addRemoveSelected(media)}
-                  >
-                    {!!selected.find((p: any) => p.id === media.id) ? (
-                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
-                        {selected.findIndex((z: any) => z.id === media.id) + 1}
-                      </div>
-                    ) : (
-                      /* Inside the tile and revealed by opacity rather than
-                         `display`, so the button can take focus at all — a
-                         `hidden` control is out of the tab order, which would
-                         leave its focus ring unreachable, and a 36px target
-                         hanging over the tile edge would swallow clicks meant
-                         for the neighbouring cell.
-                         An `opacity: 0` element is still hit-tested and there is
-                         no hover on touch, so it stays `pointer-events-none`
-                         until it is actually revealed — otherwise a tap on this
-                         corner would open the delete prompt instead of selecting
-                         the item. Under a coarse pointer that reasoning holds in
-                         the picker and inverts in the library: there the tile
-                         selects nothing, and hover-only would mean media can
-                         never be deleted on touch at all. */
-                      <button
-                        type="button"
-                        onClick={deleteImage(media)}
-                        aria-label={t('delete_media_named', 'Delete {{name}}', {
-                          name: displayName,
-                        })}
-                        className={clsx(
-                          'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
-                          standalone &&
-                            'coarse:opacity-100 coarse:pointer-events-auto',
-                          // the picker deletes its picks together there
-                          !standalone && 'mobile:hidden'
-                        )}
-                      >
-                        <DeleteCircleIcon size={28} />
-                      </button>
-                    )}
-                    {/* The tile carries the tooltip, not the caption strip: the
-                        strip is pointer-events-none, so a `title` on it would
-                        never be reachable. */}
+            {months.map((month) => (
+              <MediaMonth
+                key={month.from}
+                query={query}
+                label={month.label}
+                from={month.from}
+                to={month.to}
+              >
+                {month.files.map((media: any) => {
+                  // `originalName` is nullable; `name` never is. Without this
+                  // the caption, the tooltip, the alt text and the delete
+                  // button's label are all empty for older uploads.
+                  const displayName = media.originalName || media.name;
+                  return (
                     <div
-                      title={displayName}
-                      className="w-full h-full rounded-[6px] overflow-hidden relative"
+                      className={clsx(
+                        'group rounded-[6px] aspect-square mobile:p-[6px]',
+                        !standalone && 'cursor-pointer'
+                      )}
+                      key={media.id}
                     >
-                      {/* A 36px circle matching the lightbox's own prev/next
-                          controls, revealed by colour rather than by growing
-                          50% under the cursor. A button rather than a div
-                          because this is the only way into the preview, and a
-                          div cannot be reached from the keyboard. */}
-                      <button
-                        type="button"
-                        onClick={maximize(media, index)}
-                        aria-label={t('open_preview', 'Open preview')}
-                        className={clsx(
-                          'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
-                          // Only in the library, where the tile itself does
-                          // nothing on tap. In the picker the tile selects, and
-                          // a live 36px control in its centre would swallow the
-                          // tap that selects the item — the primary action here.
-                          standalone &&
-                            'coarse:opacity-100 coarse:pointer-events-auto'
-                        )}
-                      >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 14 14"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                      </button>
-                      <TilePicture media={media} name={displayName} />
-                      {/* Inside the clip wrapper, which is what makes an overlap
-                          with a neighbouring tile structurally impossible. */}
                       <div
-                        dir="ltr"
                         className={clsx(
-                          'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
-                          !standalone && 'mobile:hidden'
+                          'w-full h-full rounded-[6px] border-[4px] relative',
+                          !!selected.find((p) => p.id === media.id)
+                            ? 'border-brand'
+                            : 'border-transparent'
                         )}
+                        onClick={addRemoveSelected(media)}
                       >
-                        {displayName}
+                        {!!selected.find((p: any) => p.id === media.id) ? (
+                          <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
+                            {selected.findIndex((z: any) => z.id === media.id) +
+                              1}
+                          </div>
+                        ) : (
+                          /* Inside the tile and revealed by opacity rather than
+                             `display`, so the button can take focus at all — a
+                             `hidden` control is out of the tab order, which would
+                             leave its focus ring unreachable, and a 36px target
+                             hanging over the tile edge would swallow clicks meant
+                             for the neighbouring cell.
+                             An `opacity: 0` element is still hit-tested and there is
+                             no hover on touch, so it stays `pointer-events-none`
+                             until it is actually revealed — otherwise a tap on this
+                             corner would open the delete prompt instead of selecting
+                             the item. Under a coarse pointer that reasoning holds in
+                             the picker and inverts in the library: there the tile
+                             selects nothing, and hover-only would mean media can
+                             never be deleted on touch at all. */
+                          <button
+                            type="button"
+                            onClick={deleteImage(media)}
+                            aria-label={t(
+                              'delete_media_named',
+                              'Delete {{name}}',
+                              {
+                                name: displayName,
+                              }
+                            )}
+                            className={clsx(
+                              'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
+                              standalone &&
+                                'coarse:opacity-100 coarse:pointer-events-auto',
+                              // the picker deletes its picks together there
+                              !standalone && 'mobile:hidden'
+                            )}
+                          >
+                            <DeleteCircleIcon size={28} />
+                          </button>
+                        )}
+                        {/* The tile carries the tooltip, not the caption strip: the
+                            strip is pointer-events-none, so a `title` on it would
+                            never be reachable. */}
+                        <div
+                          title={displayName}
+                          className="w-full h-full rounded-[6px] overflow-hidden relative"
+                        >
+                          {/* A 36px circle matching the lightbox's own prev/next
+                              controls, revealed by colour rather than by growing
+                              50% under the cursor. A button rather than a div
+                              because this is the only way into the preview, and a
+                              div cannot be reached from the keyboard. */}
+                          <button
+                            type="button"
+                            onClick={maximize(media)}
+                            aria-label={t('open_preview', 'Open preview')}
+                            className={clsx(
+                              'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
+                              // Only in the library, where the tile itself does
+                              // nothing on tap. In the picker the tile selects, and
+                              // a live 36px control in its centre would swallow the
+                              // tap that selects the item — the primary action here.
+                              standalone &&
+                                'coarse:opacity-100 coarse:pointer-events-auto'
+                            )}
+                          >
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 14 14"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                          </button>
+                          <TilePicture media={media} name={displayName} />
+                          {/* Inside the clip wrapper, which is what makes an overlap
+                              with a neighbouring tile structurally impossible. */}
+                          <div
+                            dir="ltr"
+                            className={clsx(
+                              'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
+                              !standalone && 'mobile:hidden'
+                            )}
+                          >
+                            {displayName}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </MediaMonth>
+            ))}
+            {(isLoading || isLoadingMore) && (
+              <>
+                {/* While the first page loads, one skeleton per file it will
+                    hold (MEDIA_PAGE_SIZE in media.repository.ts) under a
+                    heading's; while a further page loads, a row of them
+                    after the last month. */}
+                {isLoading && (
+                  <div className="py-[10px]">
+                    <div className="w-[120px] h-[20px] rounded-[4px] bg-newSep animate-pulse" />
                   </div>
+                )}
+                {/* Capped at eight columns past the target width: auto-fill
+                    would otherwise keep adding 150px columns, so a wide screen
+                    gets denser rather than bigger and 32 items stop filling
+                    whole rows. Below 2xl this changes nothing. */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0">
+                  {[...new Array(isLoading ? 32 : 8)].map((_, i) => (
+                    <div
+                      className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
+                      key={i}
+                    >
+                      <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              </>
+            )}
+            {!!error && (
+              <div className="flex items-center justify-center gap-[8px] py-[16px] text-[13px]">
+                {t('media_load_failed', "Couldn't load more files.")}
+                <button
+                  type="button"
+                  onClick={() => mutate()}
+                  className="px-[8px] rounded-[4px] coarse:min-h-[44px] font-[600] text-brandText focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {t('try_again', 'Try again')}
+                </button>
+              </div>
+            )}
+            {!!files.length && !hasMore && !error && (
+              <div className="py-[16px] text-center text-[13px] text-muted">
+                {t('media_end', "That's all your files")}
+              </div>
+            )}
+            {hasMore && <div ref={setSentinel} />}
           </div>
         </div>
-        {(data?.pages || 0) > 1 && (
-          <Pagination
-            current={page}
-            totalPages={data?.pages}
-            setPage={setPage}
-          />
-        )}
         {!standalone && (
           <div className="flex justify-end mt-[32px] gap-[8px] mobile:flex-col mobile:mt-[16px] mobile:gap-[12px]">
-            {!isLoading && !!data?.results?.length && (
+            {!isLoading && !!files.length && (
               <div className="hidden mobile:flex gap-[8px] mobile:child:flex-1">
                 {btn}
                 <ThirdPartyMediaLibrary onImported={() => mutate()} />
@@ -829,7 +921,7 @@ export const MediaBox: FC<{
             >
               {t('cancel', 'Cancel')}
             </button>
-            {!isLoading && !!data?.results?.length && (
+            {!isLoading && !!files.length && (
               <button
                 onClick={standalone ? () => {} : addMedia}
                 disabled={selected.length === 0}

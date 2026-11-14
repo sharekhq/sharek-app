@@ -41,14 +41,11 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => {} }),
 }));
-// A month heading's count; any other key is the paged list, which answers
-// every file.
+// A month heading's count.
 jest.mock('swr', () => ({
   __esModule: true,
   default: (key: string) => ({
-    data: key.startsWith('/media/month?')
-      ? { count: served(key).length }
-      : { results: media, pages: 1 },
+    data: { count: served(key).length },
     mutate: async () => undefined,
     isLoading: false,
   }),

@@ -75,13 +75,6 @@ jest.mock('swr', () => ({
         isLoading: false,
       };
     }
-    if (key.startsWith('get-media-')) {
-      return {
-        data: { results: shownMedia, pages: 6 },
-        isLoading: false,
-        mutate: async (): Promise<void> => undefined,
-      };
-    }
     if (key.startsWith('/media/month?')) {
       return {
         data: { count: shownMedia.length },
