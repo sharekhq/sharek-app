@@ -1,6 +1,6 @@
 import { act, FC } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import useSWR, { SWRConfig } from 'swr';
+import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 
 // Spec 057 (research R4, contracts/ui.md "MediaMonth"). How many files a month
 // holds under the list's type and search, for its heading: one count per
@@ -14,6 +14,11 @@ import useSWR, { SWRConfig } from 'swr';
 // more never refetches page 1, nothing refetches on focus or reconnect, and a
 // hook that mounts over cached pages asks for none of them (MediaBox asks).
 //
+// useRefreshMediaLibrary (research R4): one function that refetches the list
+// and its month counts together after an upload or an import, so the two
+// can't be refetched apart: the list's mutate() for the same query, and one
+// revalidation of every /media/month? key and of no other.
+//
 // SWR runs for real on a cache of its own; the doubles around useSWR and
 // useSWRInfinite only record what the hooks hand them. Only the request is
 // stubbed.
@@ -25,7 +30,12 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 jest.mock('swr', () => {
   const actual = jest.requireActual('swr');
-  return { ...actual, __esModule: true, default: jest.fn(actual.default) };
+  return {
+    ...actual,
+    __esModule: true,
+    default: jest.fn(actual.default),
+    useSWRConfig: jest.fn(actual.useSWRConfig),
+  };
 });
 jest.mock('swr/infinite', () => {
   const actual = jest.requireActual('swr/infinite');
@@ -37,6 +47,7 @@ import {
   MediaLibraryQuery,
   useMediaLibrary,
   useMediaMonthCount,
+  useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 
 // November 2026 in New York, as UTC instants: the month's start and the next
@@ -526,5 +537,137 @@ describe('useMediaLibrary', () => {
 
     expect(ids(library.renders[0].files)).toEqual(['a', 'b']);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('useRefreshMediaLibrary', () => {
+  const refresh: { latest?: () => Promise<void> } = {};
+  const RefreshProbe = ({ query }: { query: MediaLibraryQuery }) => {
+    refresh.latest = useRefreshMediaLibrary(query);
+    return null;
+  };
+  // The Media page as the hooks see it: the list, a month heading and the
+  // refresh, over one cache.
+  const Library = ({ query }: { query: MediaLibraryQuery }) => (
+    <>
+      <LibraryProbe query={query} />
+      <Probe query={query} />
+      <RefreshProbe query={query} />
+    </>
+  );
+  // The server answers the pages and, for any month, a count.
+  const serveWithCounts = (...pages: Row[][]) => {
+    servePages(...pages);
+    const answerPage = mockFetch.getMockImplementation()!;
+    mockFetch.mockImplementation(async (path: string) =>
+      path.startsWith('/media/month?')
+        ? { ok: true, status: 200, json: async () => ({ count: 2 }) }
+        : answerPage(path)
+    );
+  };
+  const runRefresh = async () => {
+    await act(async () => {
+      await refresh.latest!();
+    });
+    await settle();
+  };
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    server.failing = new Set();
+    server.gate = undefined;
+    library.renders = [];
+    library.latest = undefined;
+    refresh.latest = undefined;
+  });
+  afterEach(() => {
+    (useSWRInfinite as unknown as jest.Mock).mockImplementation(
+      jest.requireActual('swr/infinite').default
+    );
+    (useSWRConfig as unknown as jest.Mock).mockImplementation(
+      jest.requireActual('swr').useSWRConfig
+    );
+  });
+
+  it('refetches every loaded page of the list and the month count shown, once each', async () => {
+    serveWithCounts([row('a')], [row('b')]);
+    await mount(all, Library);
+    await loadMore();
+    mockFetch.mockClear();
+
+    await runRefresh();
+
+    expect(
+      mockFetch.mock.calls
+        .map(([path]: [string]) =>
+          path.startsWith('/media/month?') ? 'month' : `page ${pageOf(path)}`
+        )
+        .sort()
+    ).toEqual(['month', 'page 1', 'page 2']);
+  });
+
+  it("calls the list's mutate() once, on useMediaLibrary's key for the same query", async () => {
+    const query: MediaLibraryQuery = {
+      type: 'video',
+      sort: 'oldest',
+      search: '  ramadan  ',
+    };
+    servePages([row('a')]);
+    await mount(query, LibraryProbe);
+    const libraryKey = infiniteCalls()[0][0];
+    (useSWRInfinite as unknown as jest.Mock).mockClear();
+    const listMutate = jest.fn(async () => undefined);
+    const actual = jest.requireActual('swr/infinite').default;
+    (useSWRInfinite as unknown as jest.Mock).mockImplementation(
+      (...args: unknown[]) => ({ ...actual(...args), mutate: listMutate })
+    );
+
+    await mount(query, RefreshProbe);
+    await runRefresh();
+
+    const refreshKey = infiniteCalls()[0][0];
+    expect(refreshKey(0, null)).toBe(libraryKey(0, null));
+    expect(refreshKey(1, null)).toBe(libraryKey(1, null));
+    expect(listMutate).toHaveBeenCalledTimes(1);
+    expect(listMutate).toHaveBeenCalledWith();
+  });
+
+  it('revalidates once every /media/month? key and no other, keeping the counts shown', async () => {
+    const query: MediaLibraryQuery = {
+      type: 'video',
+      sort: 'newest',
+      search: 'eid',
+    };
+    serveWithCounts([row('a')]);
+    const globalMutate = jest.fn(async () => []);
+    const actual = jest.requireActual('swr').useSWRConfig;
+    (useSWRConfig as unknown as jest.Mock).mockImplementation(() => ({
+      ...actual(),
+      mutate: globalMutate,
+    }));
+    await mount(query, Library);
+    const monthKey = swrCalls()[0][0];
+
+    await runRefresh();
+
+    expect(globalMutate).toHaveBeenCalledTimes(1);
+    // A key filter alone: no data, so each count revalidates and stays shown
+    expect(globalMutate.mock.calls[0]).toHaveLength(1);
+    const [matches] = globalMutate.mock.calls[0] as unknown as [
+      (key?: unknown) => boolean
+    ];
+    expect(matches(monthKey)).toBe(true);
+    expect(
+      matches(`/media/month?${new URLSearchParams(november).toString()}`)
+    ).toBe(true);
+    [
+      '/media?page=1',
+      '/media?page=2&type=video&search=eid',
+      `/media/month/ids?${new URLSearchParams(november).toString()}`,
+      '/brands',
+      ['/media/month?from=x', 1],
+      undefined,
+      null,
+    ].forEach((key) => expect(matches(key)).toBe(false));
   });
 });

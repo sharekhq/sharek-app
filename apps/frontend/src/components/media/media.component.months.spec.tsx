@@ -20,6 +20,16 @@ import { chunk, range, uniq } from 'lodash';
 // IntersectionObserver that calls back as a real one does: once when it starts
 // observing, then only when the case moves the sentinel into or out of view,
 // never on a re-render or when a load ends.
+//
+// Narrowing the list (research R9, R11, R16; contracts/ui.md "MediaBox"): a
+// type filter (where the caller accepts more than one type) and a sort beside
+// the search, each change starting the list again from the top; the Media page
+// starts from its address and reports each change, the window starts afresh
+// each time it opens and never touches the address. An empty library shows
+// today's empty state; a filter or search that finds nothing says so and
+// offers to clear them. An upload or an import refreshes the list and its
+// month counts through useRefreshMediaLibrary, whose own spec pins what it
+// refetches.
 
 type Row = { id: string; name: string; path: string; createdAt: string };
 type Page = { pages: number; results: Row[] };
@@ -76,6 +86,14 @@ mockList.mutate.mockImplementation(async () => {
 });
 
 function mockUseSWRInfinite(getKey: GetKey) {
+  // A new key is another list, as SWR's: none of it cached, its first page
+  // asked for.
+  if (mockList.getKey && getKey(0, null) !== mockList.getKey(0, null)) {
+    mockList.data = undefined;
+    mockList.error = undefined;
+    mockList.pending = undefined;
+    mockList.size = 1;
+  }
   mockList.getKey = getKey;
   const [, rerender] = useReducer((count: number) => count + 1, 0);
   useEffect(() => {
@@ -141,13 +159,34 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => {} }),
 }));
+// The real hook builds Uppy once and keeps the first render's callback, so
+// this double keeps the first one too.
+const mockUploader: {
+  options?: { onUploadSuccess: (items: unknown[]) => Promise<void> };
+} = {};
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
-  useUppyUploader: () => ({
-    on: () => {},
-    off: () => {},
-    addFiles: () => {},
-    addFile: () => {},
-  }),
+  useUppyUploader: (options: {
+    onUploadSuccess: (items: unknown[]) => Promise<void>;
+  }) => {
+    if (!mockUploader.options) {
+      mockUploader.options = options;
+    }
+    return {
+      on: () => {},
+      off: () => {},
+      addFiles: () => {},
+      addFile: () => {},
+    };
+  },
+}));
+// The queries whose refresh ran, in order: the hooks stay real, but the
+// refresh only records which list it was built for.
+const mockRefreshed: unknown[] = [];
+jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
+  useRefreshMediaLibrary: (query: unknown) => async () => {
+    mockRefreshed.push(query);
+  },
 }));
 // Scenery from here down, as in media.component.limit.spec.tsx.
 jest.mock('@uppy/react', () => ({ Dashboard: () => null }));
@@ -192,7 +231,13 @@ jest.mock(
 );
 jest.mock(
   '@gitroom/frontend/components/third-parties/third-party.media-library',
-  () => ({ ThirdPartyMediaLibrary: () => null })
+  () => ({
+    ThirdPartyMediaLibrary: ({ onImported }: { onImported: () => void }) => (
+      <button type="button" onClick={onImported}>
+        import
+      </button>
+    ),
+  })
 );
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/media.settings.component',
@@ -206,8 +251,11 @@ jest.mock('react-sortablejs', () => ({
     <div>{children}</div>
   ),
 }));
+// Its title as an attribute, so the list's words stay the case's to read.
 jest.mock('@gitroom/frontend/components/ui/empty.state', () => ({
-  EmptyState: () => null,
+  EmptyState: ({ title, actions }: { title: string; actions?: ReactNode }) => (
+    <div data-empty-state={title}>{actions}</div>
+  ),
 }));
 jest.mock('@gitroom/frontend/components/layout/loading', () => ({
   LoadingComponent: () => null,
@@ -384,9 +432,17 @@ const asked = () =>
 
 const roots: Array<{ unmount: () => void }> = [];
 
+type Query = {
+  type?: 'image' | 'image-static' | 'video';
+  sort: 'newest' | 'oldest';
+  search: string;
+};
+
 const mount = async (props: {
   standalone?: boolean;
   type?: 'image' | 'image-static' | 'video';
+  initialQuery?: Query;
+  onQueryChange?: (query: Query) => void;
 }) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -453,6 +509,8 @@ beforeEach(() => {
   mockMonthKeys.length = 0;
   view.inView = false;
   observers.length = 0;
+  mockUploader.options = undefined;
+  mockRefreshed.length = 0;
 });
 
 afterEach(() => {
@@ -869,4 +927,494 @@ describe('the Media Library window with a type', () => {
       expect(shown()).toEqual(['first.jpg', `${id}.${extension}`]);
     }
   );
+});
+
+describe('narrowing the list', () => {
+  const filterGroup = () =>
+    document.querySelector('[role="group"][aria-label="media_type_filter"]');
+  const filterButtons = () =>
+    Array.from(filterGroup()?.querySelectorAll('button') ?? []);
+  const pressed = () =>
+    filterButtons()
+      .filter((node) => node.getAttribute('aria-pressed') === 'true')
+      .map((node) => node.textContent);
+  const sortSelect = () =>
+    document.querySelector(
+      'select[aria-label="media_sort"]'
+    ) as HTMLSelectElement | null;
+  const searchInput = () =>
+    document.querySelector(
+      'input[placeholder="search_media_by_name"]'
+    ) as HTMLInputElement;
+  const toolbarHidden = () => !!searchInput().closest('.hidden');
+  const emptyState = () => document.querySelector('[data-empty-state]');
+  const emptyTitle = () => emptyState()?.getAttribute('data-empty-state');
+  const within = (node: Element | null, label: string) =>
+    Array.from(node?.querySelectorAll('button') ?? []).find(
+      (each) => each.textContent === label
+    );
+  // The last page asked for, as its parts in order.
+  const lastAsked = () =>
+    Array.from(
+      new URLSearchParams(
+        String(mockList.requests[mockList.requests.length - 1]).split('?')[1]
+      ).entries()
+    );
+
+  const choose = async (label: string) => {
+    await act(async () => {
+      button(label)!.click();
+    });
+    await settle();
+  };
+  const sortBy = async (value: 'newest' | 'oldest') => {
+    const select = sortSelect()!;
+    await act(async () => {
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await settle();
+  };
+  const search = async (value: string) => {
+    const setValue = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value'
+    )!.set!;
+    await act(async () => {
+      setValue.call(searchInput(), value);
+      searchInput().dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+  // The search reaches the list 300 ms after the last keystroke.
+  const debounce = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+    await settle();
+  };
+  const unmountLast = () => act(() => roots.pop()!.unmount());
+
+  describe.each([
+    ['the Media page', { standalone: true }],
+    ['the Media Library window without a type', {}],
+  ])('%s', (_surface, surface) => {
+    it('shows a type filter: All, Images and Videos pressed apart in a group named media_type_filter, All at first', async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      expect(filterButtons().map((node) => node.textContent)).toEqual([
+        'media_filter_all',
+        'media_filter_images',
+        'media_filter_videos',
+      ]);
+      filterButtons().forEach((node) =>
+        expect(node.getAttribute('type')).toBe('button')
+      );
+      expect(pressed()).toEqual(['media_filter_all']);
+
+      await choose('media_filter_videos');
+      expect(pressed()).toEqual(['media_filter_videos']);
+    });
+
+    it('asks with type=video, sort=oldest and the trimmed search, all three together', async () => {
+      serve(november(3));
+      await mount(surface);
+      await answer();
+
+      await choose('media_filter_videos');
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+      ]);
+      await sortBy('oldest');
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+        ['sort', 'oldest'],
+      ]);
+      await search('  ramadan  ');
+      await debounce();
+
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+        ['sort', 'oldest'],
+        ['search', 'ramadan'],
+      ]);
+      expect(sortSelect()!.value).toBe('oldest');
+    });
+
+    it.each([
+      ['the filter', () => choose('media_filter_images'), ['type', 'image']],
+      ['the sort', () => sortBy('oldest'), ['sort', 'oldest']],
+      [
+        'the search',
+        async () => {
+          await search('eid');
+          await debounce();
+        },
+        ['search', 'eid'],
+      ],
+    ] as const)(
+      'starts the list again from page 1 and scrolls it to the top on a change of %s',
+      async (_change, change, param) => {
+        serve(november(40));
+        await mount(surface);
+        await answer();
+        await cross(true);
+        await cross(false);
+        await answer();
+        expect(shown()).toHaveLength(40);
+        const box = scroller();
+        box.scrollTop = 480;
+
+        await change();
+
+        expect(lastAsked()).toEqual([['page', '1'], param]);
+        expect(box.isConnected).toBe(true);
+        expect(box.scrollTop).toBe(0);
+      }
+    );
+
+    it('shows today’s empty state with Upload and Import for an empty library, and hides the toolbar', async () => {
+      serve([]);
+
+      await mount(surface);
+      await answer();
+
+      expect(emptyTitle()).toBe('you_dont_have_any_media_yet');
+      expect(within(emptyState(), 'upload')).toBeDefined();
+      expect(within(emptyState(), 'import')).toBeDefined();
+      expect(toolbarHidden()).toBe(true);
+    });
+
+    it('says media_no_type_match when the filter finds nothing, keeps the toolbar, and Show all clears the filter', async () => {
+      serve(november(3));
+      await mount(surface);
+      await answer();
+      serve([]);
+
+      await choose('media_filter_videos');
+      await answer();
+
+      expect(emptyTitle()).toBe('media_no_type_match');
+      expect(toolbarHidden()).toBe(false);
+      serve(november(3));
+      await act(async () => {
+        within(emptyState(), 'media_show_all')!.click();
+      });
+      await settle();
+      await answer();
+      expect(pressed()).toEqual(['media_filter_all']);
+      expect(lastAsked()).toEqual([['page', '1']]);
+      expect(shown()).toHaveLength(3);
+      expect(emptyState()).toBeNull();
+    });
+
+    it('says no_media_match_search when the search finds nothing', async () => {
+      serve(november(3));
+      await mount(surface);
+      await answer();
+      serve([]);
+
+      await search('zzz');
+      await debounce();
+      await answer();
+
+      expect(emptyTitle()).toBe('no_media_match_search');
+      expect(toolbarHidden()).toBe(false);
+    });
+
+    it('offers Show all when the search finds nothing, which clears the search and the filter', async () => {
+      serve(november(3));
+      await mount(surface);
+      await answer();
+      serve([]);
+      await choose('media_filter_videos');
+      await answer();
+      await search('zzz');
+      await debounce();
+      await answer();
+      expect(emptyTitle()).toBe('no_media_match_search');
+      serve(november(3));
+
+      await act(async () => {
+        within(emptyState(), 'media_show_all')!.click();
+      });
+      await debounce();
+      await answer();
+
+      expect(searchInput().value).toBe('');
+      expect(pressed()).toEqual(['media_filter_all']);
+      expect(lastAsked()).toEqual([['page', '1']]);
+      expect(shown()).toHaveLength(3);
+    });
+
+    it('refreshes the list shown through useRefreshMediaLibrary, once after an upload and once after an import', async () => {
+      serve(november(3));
+      await mount(surface);
+      await answer();
+      await choose('media_filter_videos');
+      await answer();
+
+      await act(async () => {
+        await mockUploader.options!.onUploadSuccess([]);
+      });
+      await settle();
+      const shownQuery = { type: 'video', sort: 'newest', search: '' };
+      expect(mockRefreshed).toEqual([shownQuery]);
+
+      await act(async () => {
+        button('import')!.click();
+      });
+      await settle();
+      expect(mockRefreshed).toEqual([shownQuery, shownQuery]);
+      expect(mockList.mutate).not.toHaveBeenCalled();
+    });
+
+    // Decided with the orchestrator on 2026-11-14: a library that couldn't
+    // load isn't an empty one.
+    it('shows only media_load_failed with Try again when the first load fails, not the empty state', async () => {
+      serve(november(3));
+      mockList.failing.add(1);
+
+      await mount(surface);
+      await answer();
+
+      expect(text()).toContain('media_load_failed');
+      expect(button('try_again')).toBeDefined();
+      expect(emptyState()).toBeNull();
+    });
+  });
+
+  describe.each([
+    ['the Media page', { standalone: true }],
+    ['the Media Library window', {}],
+    ['the Media Library window with a type', { type: 'image' as const }],
+  ])('%s', (_surface, surface) => {
+    it('offers the sort as a native select named media_sort, Newest first at first', async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      const select = sortSelect()!;
+      expect(
+        Array.from(select.options).map((option) => [
+          option.value,
+          option.textContent,
+        ])
+      ).toEqual([
+        ['newest', 'media_sort_newest'],
+        ['oldest', 'media_sort_oldest'],
+      ]);
+      expect(select.value).toBe('newest');
+    });
+
+    it('makes the filter’s buttons and the sort at least 44px high under a finger, each with the focus ring', async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      const controls = [...filterButtons(), sortSelect()!];
+      controls.forEach((node) => {
+        const classes = node.className.split(/\s+/);
+        expect(classes).toEqual(
+          expect.arrayContaining([
+            'focus-visible:ring-2',
+            'focus-visible:ring-brand',
+          ])
+        );
+        expect(
+          classes.some((name) => /^(coarse:)?(min-)?h-\[44px\]$/.test(name))
+        ).toBe(true);
+      });
+    });
+
+    it('hides the toolbar while the library is empty and nothing is set', async () => {
+      serve([]);
+
+      await mount(surface);
+      await answer();
+
+      expect(toolbarHidden()).toBe(true);
+    });
+  });
+
+  describe('the Media page', () => {
+    it('starts from initialQuery', async () => {
+      serve(november(3));
+
+      await mount({
+        standalone: true,
+        initialQuery: { type: 'video', sort: 'oldest', search: 'ramadan' },
+      });
+
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+        ['sort', 'oldest'],
+        ['search', 'ramadan'],
+      ]);
+      expect(pressed()).toEqual(['media_filter_videos']);
+      expect(sortSelect()!.value).toBe('oldest');
+      expect(searchInput().value).toBe('ramadan');
+    });
+
+    it('reports each change through onQueryChange, the search after its 300 ms debounce', async () => {
+      serve(november(3));
+      const onQueryChange = jest.fn();
+      await mount({ standalone: true, onQueryChange });
+      await answer();
+      expect(onQueryChange).not.toHaveBeenCalled();
+
+      await choose('media_filter_videos');
+      expect(onQueryChange).toHaveBeenLastCalledWith({
+        type: 'video',
+        sort: 'newest',
+        search: '',
+      });
+      await sortBy('oldest');
+      expect(onQueryChange).toHaveBeenLastCalledWith({
+        type: 'video',
+        sort: 'oldest',
+        search: '',
+      });
+      await search('ramadan');
+      await settle();
+      expect(onQueryChange).toHaveBeenCalledTimes(2);
+      await debounce();
+
+      expect(onQueryChange).toHaveBeenCalledTimes(3);
+      expect(onQueryChange).toHaveBeenLastCalledWith({
+        type: 'video',
+        sort: 'oldest',
+        search: 'ramadan',
+      });
+    });
+  });
+
+  describe('the Media Library window', () => {
+    it.each(['image', 'image-static', 'video'] as const)(
+      'opened with the type %s has no type filter and asks with that type on every load',
+      async (type) => {
+        serve(november(40));
+
+        await mount({ type });
+        await answer();
+        await cross(true);
+        await answer();
+
+        expect(filterGroup()).toBeNull();
+        expect(asked()).toEqual([1, 2]);
+        mockList.requests.forEach((key) =>
+          expect(
+            new URLSearchParams(String(key).split('?')[1]).get('type')
+          ).toBe(type)
+        );
+      }
+    );
+
+    it('opens on All, Newest first and an empty search each time it mounts', async () => {
+      serve(november(3));
+      await mount({});
+      await answer();
+      await choose('media_filter_videos');
+      await sortBy('oldest');
+      await search('ramadan');
+      await debounce();
+      await unmountLast();
+
+      await mount({});
+
+      expect(pressed()).toEqual(['media_filter_all']);
+      expect(sortSelect()!.value).toBe('newest');
+      expect(searchInput().value).toBe('');
+      expect(lastAsked()).toEqual([['page', '1']]);
+    });
+
+    it('opened with a type, opens on that type, Newest first and an empty search each time it mounts', async () => {
+      serve(november(3));
+      await mount({ type: 'image' });
+      await answer();
+      await sortBy('oldest');
+      await search('ramadan');
+      await debounce();
+      await unmountLast();
+
+      await mount({ type: 'image' });
+
+      expect(sortSelect()!.value).toBe('newest');
+      expect(searchInput().value).toBe('');
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'image'],
+      ]);
+    });
+
+    it('never writes the address when its filter, sort and search change', async () => {
+      const replace = jest.spyOn(window.history, 'replaceState');
+      const push = jest.spyOn(window.history, 'pushState');
+      serve(november(3));
+      await mount({});
+      await answer();
+
+      await choose('media_filter_videos');
+      await sortBy('oldest');
+      await search('ramadan');
+      await debounce();
+
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+        ['sort', 'oldest'],
+        ['search', 'ramadan'],
+      ]);
+      expect(replace).not.toHaveBeenCalled();
+      expect(push).not.toHaveBeenCalled();
+      replace.mockRestore();
+      push.mockRestore();
+    });
+
+    it('with its own type, clears only the search on Show all', async () => {
+      serve(november(3));
+      await mount({ type: 'video' });
+      await answer();
+      serve([]);
+      await search('zzz');
+      await debounce();
+      await answer();
+      expect(emptyTitle()).toBe('no_media_match_search');
+      serve(november(3));
+
+      await act(async () => {
+        within(emptyState(), 'media_show_all')!.click();
+      });
+      await debounce();
+      await answer();
+
+      expect(searchInput().value).toBe('');
+      expect(lastAsked()).toEqual([
+        ['page', '1'],
+        ['type', 'video'],
+      ]);
+      expect(shown()).toHaveLength(3);
+    });
+
+    it('with its own type and nothing of it, shows today’s empty state with Upload and Import titled media_no_type_match, no Show all and no toolbar', async () => {
+      serve([]);
+
+      await mount({ type: 'image' });
+      await answer();
+
+      expect(emptyTitle()).toBe('media_no_type_match');
+      expect(within(emptyState(), 'upload')).toBeDefined();
+      expect(within(emptyState(), 'import')).toBeDefined();
+      expect(button('media_show_all')).toBeUndefined();
+      expect(toolbarHidden()).toBe(true);
+    });
+  });
 });
