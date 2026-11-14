@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  FC,
-  Fragment,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import { FC, Fragment, ReactElement, useCallback, useState } from 'react';
 import { Media } from '@prisma/client';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
@@ -89,21 +82,21 @@ export const MediaPreview: FC<{
   const [waiting, setWaiting] = useState<string>();
   const [loaded, setLoaded] = useState<LoadedMetadata>();
 
+  // The files a step forward waited for have arrived: it moves on to the first.
+  // Set during render, as the app shell's drawer is, so no commit shows the
+  // file it was waiting to leave.
+  const from = items.findIndex((item) => item.id === waiting);
+  if (from !== -1 && from < items.length - 1) {
+    setWaiting(undefined);
+    setShown({ id: items[from + 1].id, position: from + 1 });
+  }
+
   const found = items.findIndex((item) => item.id === shown.id);
   // A file that left the list (it was deleted) gives its place to the one after
   // it, or, when it was the last, to the one before.
   const position =
     found === -1 ? Math.min(shown.position, items.length - 1) : found;
   const media: PreviewItem | undefined = items[position];
-
-  // The files a step forward waited for have arrived: it moves on to the first.
-  useEffect(() => {
-    const from = items.findIndex((item) => item.id === waiting);
-    if (from !== -1 && from < items.length - 1) {
-      setWaiting(undefined);
-      setShown({ id: items[from + 1].id, position: from + 1 });
-    }
-  }, [items, waiting]);
 
   const step = useCallback(
     (direction: MediaStepDirection) => {
