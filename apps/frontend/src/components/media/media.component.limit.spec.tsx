@@ -19,8 +19,9 @@ const media = [1, 2, 3].map((n) => ({
   id: `m${n}`,
   name: `m${n}.png`,
   path: `https://media/m${n}.png`,
+  createdAt: '2026-11-10T12:00:00.000Z',
 }));
-type Row = (typeof media)[number] & { tileImage?: string; createdAt?: string };
+type Row = (typeof media)[number] & { tileImage?: string };
 // What the library answers with; a case may swap it, and afterEach puts the
 // three plain rows back.
 let results: Row[] = media;
@@ -37,12 +38,28 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show }),
 }));
+// A month heading's count; any other key is the paged list.
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({
-    data: { results, pages: 1 },
+  default: (key: string) => ({
+    data: key.startsWith('/media/month?')
+      ? { count: results.length }
+      : { results, pages: 1 },
     mutate: async () => undefined,
     isLoading: false,
+  }),
+  useSWRConfig: () => ({ mutate: async () => undefined }),
+}));
+// The list as useSWRInfinite answers it: the rows as its one page.
+jest.mock('swr/infinite', () => ({
+  __esModule: true,
+  default: () => ({
+    data: [{ results, pages: 1 }],
+    size: 1,
+    setSize: async () => undefined,
+    mutate: async () => undefined,
+    isLoading: false,
+    isValidating: false,
   }),
 }));
 // The uploader is Uppy; what matters here is the callback MediaBox hands it.

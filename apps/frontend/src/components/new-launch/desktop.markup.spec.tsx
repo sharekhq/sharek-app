@@ -43,6 +43,7 @@ const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
   name: `photo-${n}.png`,
   path: `https://media.test/photo-${n}.png`,
+  createdAt: '2026-11-10T12:00:00.000Z',
 }));
 const tagList = [
   { id: 't1', name: 'Launch', color: '#B92D43' },
@@ -81,12 +82,33 @@ jest.mock('swr', () => ({
         mutate: async (): Promise<void> => undefined,
       };
     }
+    if (key.startsWith('/media/month?')) {
+      return {
+        data: { count: shownMedia.length },
+        isLoading: false,
+        mutate: async (): Promise<void> => undefined,
+      };
+    }
     return {
       data: undefined,
       isLoading: false,
       mutate: async (): Promise<void> => undefined,
     };
   },
+  useSWRConfig: () => ({ mutate: async (): Promise<void> => undefined }),
+}));
+// The media library's list as useSWRInfinite answers it: the files as its one
+// page.
+jest.mock('swr/infinite', () => ({
+  __esModule: true,
+  default: () => ({
+    data: [{ results: shownMedia, pages: 1 }],
+    size: 1,
+    setSize: async (): Promise<void> => undefined,
+    mutate: async (): Promise<void> => undefined,
+    isLoading: false,
+    isValidating: false,
+  }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => new Response('{}'),

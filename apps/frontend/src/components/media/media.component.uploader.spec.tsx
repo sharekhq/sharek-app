@@ -35,6 +35,18 @@ jest.mock('swr', () => ({
     mutate: () => {},
     isLoading: false,
   }),
+  useSWRConfig: () => ({ mutate: () => {} }),
+}));
+jest.mock('swr/infinite', () => ({
+  __esModule: true,
+  default: () => ({
+    data: [{ results: [], pages: 0 }],
+    size: 1,
+    setSize: () => {},
+    mutate: () => {},
+    isLoading: false,
+    isValidating: false,
+  }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({ json: async () => ({ results: [] }) }),
