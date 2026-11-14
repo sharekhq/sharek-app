@@ -57,9 +57,22 @@ jest.mock('swr', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => jest.fn(),
 }));
+// A tile opens the library's preview itself: it hands what libraryPreviewModal
+// builds to the modal manager. Both are doubles that keep their calls.
+const mockOpenModal = jest.fn();
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
+  useModals: () => ({ openModal: mockOpenModal }),
+}));
+const mockLibraryPreviewModal = jest.fn((..._args: unknown[]) => ({
+  preview: true,
+}));
+jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
+  libraryPreviewModal: (...args: unknown[]) => mockLibraryPreviewModal(...args),
+}));
 
 import {
   MediaMonth,
+  MediaTile,
   TilePicture,
 } from '@gitroom/frontend/components/media/media.library';
 import type { MediaLibraryQuery } from '@gitroom/frontend/components/media/use.media.library';
@@ -453,5 +466,158 @@ describe('MediaMonth', () => {
 
     expect(moves(head())).toBe(false);
     expect(Array.from(head().querySelectorAll('*')).some(moves)).toBe(false);
+  });
+});
+
+// Spec 057 (contracts/ui.md "MediaTile", research R14). On the Media page the
+// whole tile is one button that opens the library's preview on its file, over
+// the list the page shows. It has no corner buttons of its own: no preview
+// button and no delete, which the preview carries now.
+describe('MediaTile on the Media page', () => {
+  type Row = {
+    id: string;
+    name: string;
+    originalName: string | null;
+    path: string;
+    tileImage?: string;
+    createdAt: Date;
+  };
+  const query: MediaLibraryQuery = {
+    type: 'image',
+    sort: 'oldest',
+    search: 'beach',
+  };
+  const photo: Row = {
+    id: 'm1',
+    name: 'f3a9c2.png',
+    originalName: 'Beach day.png',
+    path: 'https://uploads/a.png',
+    createdAt: new Date('2026-11-10T12:00:00.000Z'),
+  };
+  // `originalName` is nullable; `name` never is.
+  const clip: Row = {
+    id: 'm2',
+    name: 'clip.mp4',
+    originalName: null,
+    path: 'https://uploads/b.mp4',
+    tileImage: 'https://uploads/cdn-cgi/media/mode=frame,width=400/b.mp4',
+    createdAt: new Date('2026-11-10T12:00:00.000Z'),
+  };
+  const onDeleted = jest.fn();
+
+  beforeEach(() => {
+    mockOpenModal.mockClear();
+    mockLibraryPreviewModal.mockClear();
+    onDeleted.mockClear();
+  });
+
+  const renderTile = (media: Row = photo) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() => {
+      root.render(
+        <MediaTile
+          media={media}
+          standalone={true}
+          query={query}
+          onDeleted={onDeleted}
+        />
+      );
+    });
+    return host;
+  };
+
+  const tileButton = (host: HTMLElement, name = 'Beach day.png') =>
+    host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+  // The caption: the innermost element holding the name.
+  const caption = (host: HTMLElement, name = 'Beach day.png') =>
+    Array.from(host.querySelectorAll('div'))
+      .filter((node) => node.textContent === name)
+      .at(-1);
+
+  it("is a button over the whole square, named by the file's name, with the focus ring", () => {
+    const host = renderTile();
+    const tile = tileButton(host)!;
+
+    expect(tile).toBeTruthy();
+    expect(tile.getAttribute('type')).toBe('button');
+    expect(tile.classList.contains('w-full')).toBe(true);
+    expect(tile.classList.contains('h-full')).toBe(true);
+    expect(tile.classList.contains('focus-visible:ring-2')).toBe(true);
+    expect(tile.classList.contains('focus-visible:ring-brand')).toBe(true);
+    expect(tile.contains(host.querySelector('img'))).toBe(true);
+  });
+
+  it('names a file without an original name by its stored name', () => {
+    const host = renderTile(clip);
+
+    expect(tileButton(host, 'clip.mp4')).toBeTruthy();
+    expect(tileButton(host, 'clip.mp4')!.getAttribute('title')).toBe(
+      'clip.mp4'
+    );
+    expect(caption(host, 'clip.mp4')).toBeTruthy();
+  });
+
+  it('opens the library preview on its own file when clicked, with the query and onDeleted it was given', () => {
+    const host = renderTile();
+
+    expect(mockOpenModal).not.toHaveBeenCalled();
+    act(() => {
+      tileButton(host)!.click();
+    });
+
+    expect(mockLibraryPreviewModal).toHaveBeenCalledTimes(1);
+    const [given, id, deleted] = mockLibraryPreviewModal.mock.calls[0];
+    expect(given).toBe(query);
+    expect(id).toBe('m1');
+    expect(deleted).toBe(onDeleted);
+    expect(mockOpenModal).toHaveBeenCalledTimes(1);
+    expect(mockOpenModal.mock.calls[0][0]).toBe(
+      mockLibraryPreviewModal.mock.results[0].value
+    );
+  });
+
+  it('has no preview button and no delete button of its own', () => {
+    const host = renderTile();
+    const buttons = Array.from(host.querySelectorAll('button'));
+
+    expect(buttons).toEqual([tileButton(host)]);
+    expect(
+      buttons.some((button) =>
+        /preview|delete/i.test(button.getAttribute('aria-label') || '')
+      )
+    ).toBe(false);
+  });
+
+  it('puts the play badge in the end corner', () => {
+    const host = renderTile(clip);
+    const mark = badge(host)!;
+
+    expect(mark).toBeTruthy();
+    expect(mark.classList.contains('top-[6px]')).toBe(true);
+    expect(mark.classList.contains('end-[6px]')).toBe(true);
+    expect(mark.classList.contains('start-[6px]')).toBe(false);
+  });
+
+  it('shows the name on hover and always under a finger, at every width', () => {
+    const host = renderTile();
+    const name = caption(host)!;
+
+    expect(name.classList.contains('opacity-0')).toBe(true);
+    expect(name.classList.contains('group-hover:opacity-100')).toBe(true);
+    expect(name.classList.contains('coarse:opacity-100')).toBe(true);
+    expect(name.classList.contains('mobile:hidden')).toBe(false);
+  });
+
+  it("carries the file's name as the tile's title, and group on its square wrapper", () => {
+    const host = renderTile();
+    const wrapper = host.firstElementChild!;
+
+    expect(tileButton(host)!.getAttribute('title')).toBe('Beach day.png');
+    expect(wrapper.classList.contains('group')).toBe(true);
+    expect(wrapper.classList.contains('aspect-square')).toBe(true);
+    expect(wrapper.contains(tileButton(host))).toBe(true);
   });
 });

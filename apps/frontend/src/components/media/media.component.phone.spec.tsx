@@ -20,6 +20,8 @@ const listMutate = jest.fn(async (): Promise<undefined> => undefined);
 const requests: Array<{ url: string; method: string }> = [];
 const confirm = jest.fn<Promise<boolean>, unknown[]>(async () => true);
 const uploaderEvents: Record<string, () => void> = {};
+// What a tile opens: the library preview, as the modal manager gets it.
+const openModal = jest.fn();
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
@@ -90,7 +92,7 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
     closeAll: () => undefined,
     closeCurrent: () => undefined,
-    openModal: () => undefined,
+    openModal: (...args: unknown[]) => openModal(...args),
   }),
   ModalHeaderSlotTarget: () => null,
 }));
@@ -117,6 +119,11 @@ jest.mock(
 );
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
   MediaPreview: () => null,
+  libraryPreviewModal: (query: unknown, id: string, onDeleted: unknown) => ({
+    query,
+    id,
+    onDeleted,
+  }),
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: () => null,
@@ -193,6 +200,7 @@ const band = (host: HTMLElement) =>
 
 beforeEach(() => {
   listMutate.mockClear();
+  openModal.mockClear();
   requests.length = 0;
   confirm.mockClear();
   confirm.mockImplementation(async () => true);
@@ -385,17 +393,24 @@ describe('the Media page at 1025px and below', () => {
     expect(classes(tileBox)).toContain('mobile:p-[6px]');
   });
 
-  it('keeps the names, the per-tile delete and the upload buttons', async () => {
+  it('keeps the names and the upload buttons, and a tap opens the preview', async () => {
     const host = await page();
     const name = caption(host);
-    const remove = host.querySelector(
-      'button[aria-label="Delete photo-3.png"]'
-    );
     const upload = buttonByText(host, 'Upload')!;
 
     expect(classes(name)).not.toContain('mobile:hidden');
-    expect(classes(remove)).not.toContain('mobile:hidden');
     expect(classes(upload.parentElement)).not.toContain('mobile:hidden');
+    expect(
+      host.querySelector('button[aria-label="Delete photo-3.png"]')
+    ).toBeNull();
+
+    await click(tile(host, 3));
+
+    expect(openModal).toHaveBeenCalledTimes(1);
+    expect(openModal.mock.calls[0][0]).toMatchObject({
+      id: 'm3',
+      query: { sort: 'newest', search: '' },
+    });
   });
 
   it('has no footer and no Delete Selected, since nothing can be picked', async () => {
