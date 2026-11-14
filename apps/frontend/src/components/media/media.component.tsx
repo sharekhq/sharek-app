@@ -42,7 +42,7 @@ import {
   useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
-import { groupBy } from 'lodash';
+import { groupBy, omit } from 'lodash';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -580,7 +580,7 @@ export const MediaBox: FC<{
     }
     // A tile image is only what a tile loads: the caller attaches the original.
     // @ts-ignore
-    setMedia(selected.map(({ tileImage, ...rest }) => rest));
+    setMedia(selected.map((media) => omit(media, 'tileImage')));
     modals.closeCurrent();
   }, [selected]);
 
