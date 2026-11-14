@@ -37,6 +37,7 @@ import {
 } from '@gitroom/frontend/components/media/media.library';
 import {
   MediaLibraryQuery,
+  MediaLibraryRow,
   useDeleteMedia,
   useMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
@@ -372,7 +373,7 @@ export const MediaBox: FC<{
     }
     clearSelection();
     onQueryChange?.(query);
-  }, [query, clearSelection]);
+  }, [query, clearSelection, onQueryChange]);
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const canLoadMore = hasMore && !isLoading && !isLoadingMore && !error;
   // What the sentinel does each time it comes into view: after a failed load
@@ -417,7 +418,7 @@ export const MediaBox: FC<{
       loadMore();
     }
   }, [canLoadMore, loadMore]);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState<MediaLibraryRow[]>([]);
   // Uppy keeps the upload callback it was created with, so that callback
   // counts the selection through a ref rather than its own first render's.
   const selectedRef = useRef(selected);
@@ -511,7 +512,7 @@ export const MediaBox: FC<{
 
   // A file the preview deleted leaves the picks (FR-045).
   const unselectDeleted = useCallback((id: string) => {
-    setSelected((current) => current.filter((media: any) => media.id !== id));
+    setSelected((current) => current.filter((media) => media.id !== id));
   }, []);
 
   // A month's Select all: its ids join the selection and are kept as the
@@ -916,10 +917,8 @@ export const MediaBox: FC<{
                     : undefined
                 }
               >
-                {month.files.map((media: any) => {
-                  const picked = selected.findIndex(
-                    (p: any) => p.id === media.id
-                  );
+                {month.files.map((media) => {
+                  const picked = selected.findIndex((p) => p.id === media.id);
                   return (
                     <MediaTile
                       key={media.id}
