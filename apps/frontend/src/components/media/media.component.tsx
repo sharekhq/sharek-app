@@ -12,6 +12,7 @@ import React, {
   useState,
 } from 'react';
 import { Button } from '@gitroom/react/form/button';
+import { SelectChevron } from '@gitroom/react/form/select';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { Media } from '@prisma/client';
@@ -40,6 +41,7 @@ import {
 import {
   MediaLibraryQuery,
   useMediaLibrary,
+  useRefreshMediaLibrary,
 } from '@gitroom/frontend/components/media/use.media.library';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { groupBy } from 'lodash';
@@ -279,21 +281,33 @@ export const MediaBox: FC<{
    * changes.
    */
   max?: number;
-}> = ({ type, standalone, setMedia, max }) => {
-  const [search, setSearch] = useState('');
+  /**
+   * The Media page's starting filter, sort and search, from its address
+   * (research R11). The window passes none: it opens on all files (or its
+   * type), Newest first and no search each time.
+   */
+  initialQuery?: MediaLibraryQuery;
+  /** Each new filter, sort or debounced search, for the page's address. */
+  onQueryChange?: (query: MediaLibraryQuery) => void;
+}> = ({ type, standalone, setMedia, max, initialQuery, onQueryChange }) => {
+  const [filter, setFilter] = useState(initialQuery?.type);
+  const [sort, setSort] = useState<MediaLibraryQuery['sort']>(
+    initialQuery?.sort || 'newest'
+  );
+  const [search, setSearch] = useState(initialQuery?.search || '');
   const [debouncedSearch] = useDebounce(search, 300);
   const fetch = useFetch();
   const modals = useModals();
   const toaster = useToaster();
   // The caller's type is asked of the server, which sends only its files
-  // (research R9).
-  const query: MediaLibraryQuery = {
-    type,
-    sort: 'newest',
-    search: debouncedSearch,
-  };
+  // (research R9); without one, the filter's.
+  const query: MediaLibraryQuery = useMemo(
+    () => ({ type: type || filter, sort, search: debouncedSearch }),
+    [type, filter, sort, debouncedSearch]
+  );
   const { files, hasMore, loadMore, isLoading, isLoadingMore, error, mutate } =
     useMediaLibrary(query);
+  const refresh = useRefreshMediaLibrary(query);
   // Pages already in SWR's cache aren't asked for again when the list mounts
   // (research R2): a reopened page or window asks for them once, rather than
   // draw a list another tab or Samy may have changed since. Over an empty
@@ -327,6 +341,19 @@ export const MediaBox: FC<{
   // The next page loads as the end of the list comes within about a screen
   // of the scroll box, where the sentinel sits (research R2).
   const scroller = useRef<HTMLDivElement>(null);
+  // A new filter, sort or search is another list, read from its top
+  // (FR-026); the Media page keeps it in its address (research R11).
+  const listedQuery = useRef(query);
+  useEffect(() => {
+    if (listedQuery.current === query) {
+      return;
+    }
+    listedQuery.current = query;
+    if (scroller.current) {
+      scroller.current.scrollTop = 0;
+    }
+    onQueryChange?.(query);
+  }, [query]);
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const canLoadMore = hasMore && !isLoading && !isLoadingMore && !error;
   // What the sentinel does each time it comes into view: after a failed load
@@ -378,6 +405,12 @@ export const MediaBox: FC<{
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
+  // For the same reason it refreshes through a ref: the list shown now, under
+  // the filter, sort and search set since.
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
   const t = useT();
   const overLimit = t(
     'media_selection_limit',
@@ -397,7 +430,7 @@ export const MediaBox: FC<{
         ? 'video/mp4'
         : 'image/*,video/mp4',
     onUploadSuccess: async (arr) => {
-      await mutate();
+      await refreshRef.current();
       if (standalone) {
         return;
       }
@@ -582,6 +615,12 @@ export const MediaBox: FC<{
     }
   }, [selected, mutate, t, fetch]);
 
+  const typeFilters = [
+    { value: undefined, label: t('media_filter_all', 'All') },
+    { value: 'image' as const, label: t('media_filter_images', 'Images') },
+    { value: 'video' as const, label: t('media_filter_videos', 'Videos') },
+  ];
+
   const btn = useMemo(() => {
     return (
       <button
@@ -607,7 +646,11 @@ export const MediaBox: FC<{
         <div
           className={clsx(
             'flex flex-wrap items-center gap-[12px]',
-            !isLoading && !files.length && !debouncedSearch && 'hidden'
+            !isLoading &&
+              !files.length &&
+              !filter &&
+              !debouncedSearch &&
+              'hidden'
           )}
         >
           {/* The search takes its own line at 1025px and below, so Upload
@@ -628,6 +671,50 @@ export const MediaBox: FC<{
             className="hidden"
             multiple={true}
           />
+          {/* At 1025px and below the search and Upload come first, then the
+              filter, then the sort. A caller's own type hides the filter. */}
+          {!type && (
+            <div
+              role="group"
+              aria-label={t('media_type_filter', 'File type')}
+              className="flex gap-[4px] p-[4px] border border-newTableBorder rounded-[8px] mobile:order-1 mobile:flex-1"
+            >
+              {typeFilters.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={filter === option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={clsx(
+                    'h-[34px] coarse:min-h-[44px] px-[14px] rounded-[6px] text-[14px] font-[600] whitespace-nowrap cursor-pointer focus-visible:ring-2 focus-visible:ring-brand mobile:flex-1 mobile:px-[6px]',
+                    filter === option.value
+                      ? 'bg-selectedBg text-selectedText'
+                      : 'text-muted hover:text-ink'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="relative mobile:order-1">
+            <select
+              value={sort}
+              onChange={(e) =>
+                setSort(e.target.value as MediaLibraryQuery['sort'])
+              }
+              aria-label={t('media_sort', 'Sort')}
+              className="h-[44px] appearance-none bg-newBgColorInner border border-newTableBorder rounded-[8px] ps-[14px] pe-[36px] text-[14px] coarse:text-[16px] font-[500] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="newest">
+                {t('media_sort_newest', 'Newest first')}
+              </option>
+              <option value="oldest">
+                {t('media_sort_oldest', 'Oldest first')}
+              </option>
+            </select>
+            <SelectChevron className="absolute end-[12px] top-[50%] -translate-y-[50%] pointer-events-none text-muted" />
+          </div>
           {/* the picker moves these to its footer at 1025px and below */}
           <div
             className={clsx(
@@ -636,7 +723,7 @@ export const MediaBox: FC<{
             )}
           >
             {btn}
-            <ThirdPartyMediaLibrary onImported={() => mutate()} />
+            <ThirdPartyMediaLibrary onImported={() => refresh()} />
           </div>
           {!standalone && !!files.length && (
             <div className="hidden mobile:block basis-full text-[14px] font-[600]">
@@ -698,12 +785,16 @@ export const MediaBox: FC<{
                 'w-full flex justify-center items-center flex-col'
             )}
           >
-            {!isLoading && !files.length && (
+            {/* a library that couldn't load isn't an empty one: the failure
+                line below says so */}
+            {!isLoading && !files.length && !error && (
               <EmptyState
                 illustration={<MediaEmptyIllustration />}
                 title={
                   debouncedSearch
                     ? t('no_media_match_search', 'No media matches your search')
+                    : filter || type
+                    ? t('media_no_type_match', 'No files of this type yet')
                     : t(
                         'you_dont_have_any_media_yet',
                         "You don't have any media yet"
@@ -718,6 +809,18 @@ export const MediaBox: FC<{
                 )}`}
                 actions={
                   <>
+                    {/* clears what the user set; a caller's own type stays */}
+                    {(!!filter || !!debouncedSearch) && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setFilter(undefined);
+                          setSearch('');
+                        }}
+                      >
+                        {t('media_show_all', 'Show all files')}
+                      </Button>
+                    )}
                     <Button
                       onClick={() => uploaderRef?.current?.click()}
                       innerClassName="gap-[8px]"
@@ -725,7 +828,7 @@ export const MediaBox: FC<{
                       <PlusIcon size={14} />
                       {t('upload', 'Upload')}
                     </Button>
-                    <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                    <ThirdPartyMediaLibrary onImported={() => refresh()} />
                   </>
                 }
               />
@@ -911,7 +1014,7 @@ export const MediaBox: FC<{
             {!isLoading && !!files.length && (
               <div className="hidden mobile:flex gap-[8px] mobile:child:flex-1">
                 {btn}
-                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                <ThirdPartyMediaLibrary onImported={() => refresh()} />
               </div>
             )}
             {/* the cross closes it at 1025px and below */}

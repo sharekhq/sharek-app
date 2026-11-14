@@ -646,7 +646,10 @@ describe('useRefreshMediaLibrary', () => {
       mutate: globalMutate,
     }));
     await mount(query, Library);
-    const monthKey = swrCalls()[0][0];
+    // useSWRInfinite runs through useSWR too, with its getKey
+    const monthKey = swrCalls()
+      .map(([key]) => key)
+      .find((key) => typeof key === 'string');
 
     await runRefresh();
 

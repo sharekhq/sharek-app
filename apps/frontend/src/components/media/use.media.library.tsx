@@ -4,7 +4,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Media } from '@prisma/client';
 import { uniqBy } from 'lodash';
 import { useCallback, useMemo } from 'react';
-import useSWR, { SWRResponse } from 'swr';
+import useSWR, { SWRResponse, useSWRConfig } from 'swr';
 import useSWRInfinite, { SWRInfiniteKeyedMutator } from 'swr/infinite';
 
 // What the media library lists (data-model.md): the caller's type, else the
@@ -141,4 +141,23 @@ export const useMediaLibrary = (
     error,
     mutate,
   };
+};
+
+// One refetch for the list and its month counts (research R4): every loaded
+// page of the list for this query, through its own mutate(), and every month
+// heading's count, so the two can't be refetched apart. A key filter alone
+// revalidates each count and keeps it shown until it answers.
+export const useRefreshMediaLibrary = (
+  query: MediaLibraryQuery
+): (() => Promise<void>) => {
+  const { mutate } = useMediaLibrary(query);
+  const { mutate: mutateKeys } = useSWRConfig();
+  return useCallback(async () => {
+    await Promise.all([
+      mutate(),
+      mutateKeys(
+        (key) => typeof key === 'string' && key.startsWith('/media/month?')
+      ),
+    ]);
+  }, [mutate, mutateKeys]);
 };
