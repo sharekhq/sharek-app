@@ -15,7 +15,6 @@ import { Button } from '@gitroom/react/form/button';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
-import { formatDuration } from '@gitroom/helpers/utils/format.duration';
 import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
@@ -35,6 +34,7 @@ import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/thir
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
 import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
+import { TilePicture } from '@gitroom/frontend/components/media/media.library';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -259,41 +259,6 @@ export const showMediaBox = (
 };
 const CHUNK_SIZE = 1024 * 1024;
 export const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
-
-/**
- * A video tile: the frame, plus the badge that marks it as video and carries
- * its length. The duration comes from the metadata the tile already preloads,
- * so the badge costs no extra request — and a stream, which reports a
- * non-finite duration, shows the glyph alone rather than a confident 0:00.
- *
- * The badge is `aria-hidden`: it repeats visually what the `<video>` element
- * already tells assistive technology.
- */
-const VideoTile: FC<{ url: string }> = ({ url }) => {
-  const [duration, setDuration] = useState(NaN);
-  const length = formatDuration(duration);
-  return (
-    <>
-      <VideoFrame
-        url={url}
-        onLoadedMetadata={(video) => setDuration(video.duration)}
-      />
-      <div
-        aria-hidden="true"
-        dir="ltr"
-        className="absolute z-[30] top-[6px] start-[6px] pointer-events-none flex items-center gap-[4px] h-[20px] px-[6px] rounded-[4px] bg-black/60 text-white text-[11px] font-[500]"
-      >
-        <svg width="7" height="8" viewBox="0 0 7 8" fill="none">
-          <path
-            d="M6.5 3.567a.5.5 0 0 1 0 .866L.75 7.763A.5.5 0 0 1 0 7.33V.67A.5.5 0 0 1 .75.237L6.5 3.567Z"
-            fill="currentColor"
-          />
-        </svg>
-        {!!length && <span>{length}</span>}
-      </div>
-    </>
-  );
-};
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
@@ -359,7 +324,6 @@ export const MediaBox: FC<{
     { count: max }
   );
   const uploaderRef = useRef<any>(null);
-  const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
 
   const uppy = useUppyUploader({
@@ -427,8 +391,9 @@ export const MediaBox: FC<{
     if (standalone) {
       return;
     }
+    // A tile image is only what a tile loads: the caller attaches the original.
     // @ts-ignore
-    setMedia(selected);
+    setMedia(selected.map(({ tileImage, ...rest }) => rest));
     modals.closeCurrent();
   }, [selected]);
 
@@ -823,17 +788,7 @@ export const MediaBox: FC<{
                           />
                         </svg>
                       </button>
-                      {hasExtension(media.path, 'mp4') ? (
-                        <VideoTile url={mediaDirectory.set(media.path)} />
-                      ) : (
-                        <img
-                          width="100%"
-                          height="100%"
-                          className="w-full h-full object-cover"
-                          src={mediaDirectory.set(media.path)}
-                          alt={displayName}
-                        />
-                      )}
+                      <TilePicture media={media} name={displayName} />
                       {/* Inside the clip wrapper, which is what makes an overlap
                           with a neighbouring tile structurally impossible. */}
                       <div
