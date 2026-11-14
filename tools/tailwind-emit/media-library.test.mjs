@@ -269,3 +269,163 @@ describe("The toolbar's search, type filter and sort (MediaBox)", () => {
     );
   });
 });
+
+describe("The library's preview (MediaPreview's details line, footer and controls)", () => {
+  test('the details line, the footer and its Delete emit their one rule, outside any query', async () => {
+    await assertEmits(
+      {
+        // the details line under the name, its height kept while it is empty
+        'h-[18px]': [['height', '18px']],
+        'leading-[18px]': [['line-height', '18px']],
+        // the footer after the stage, with the month and Delete
+        'pt-[16px]': [['padding-top', '16px']],
+        // Delete (symmetric padding, so the same in RTL)
+        'px-[12px]': px('padding', '12px'),
+        'rounded-[8px]': [['border-radius', '8px']],
+        'bg-surface': [['background-color', 'var(--surface)']],
+        'border-line': [['border-color', 'var(--line)']],
+        'text-ink': [['color', 'var(--ink)']],
+        'hover:border-inkSoft': [['border-color', 'var(--ink-soft)']],
+      },
+      null
+    );
+  });
+
+  test('previous and next are 44px square, and Open original 44px wide, under a coarse pointer only', async () => {
+    // Open original's and Delete's coarse:min-h-[44px] are Try again's, above.
+    await assertEmits(
+      {
+        'coarse:w-[44px]': [['width', '44px']],
+        'coarse:h-[44px]': [['height', '44px']],
+        'coarse:min-w-[44px]': [['min-width', '44px']],
+      },
+      COARSE
+    );
+  });
+});
+
+describe('The tile (MediaTile)', () => {
+  test("the frame, the button's corners, the name strip, the expand button and the order badge emit their one rule, outside any query", async () => {
+    await assertEmits(
+      {
+        // the square, its frame (brand while picked) and the tile's button
+        'rounded-[6px]': [['border-radius', '6px']],
+        'border-[4px]': [['border-width', '4px']],
+        'border-brand': [['border-color', 'var(--brand)']],
+        // the name strip over its scrim
+        'py-[6px]': py('padding', '6px'),
+        'text-[12px]': [['font-size', '12px']],
+        'from-black/75': [
+          [
+            '--tw-gradient-from',
+            'rgb(0 0 0 / 0.75) var(--tw-gradient-from-position)',
+          ],
+          ['--tw-gradient-to', 'rgb(0 0 0 / 0) var(--tw-gradient-to-position)'],
+          [
+            '--tw-gradient-stops',
+            'var(--tw-gradient-from), var(--tw-gradient-to)',
+          ],
+        ],
+        // the window's expand button, above the name strip
+        'z-[100]': [['z-index', '100']],
+        'w-[36px]': [['width', '36px']],
+        'h-[36px]': [['height', '36px']],
+        'bg-black/45': [['background-color', 'rgb(0 0 0 / 0.45)']],
+        // the order badge, above the expand button, out past the bottom
+        'z-[101]': [['z-index', '101']],
+        'text-[14px]': [['font-size', '14px']],
+        'font-[500]': [['font-weight', '500']],
+        'w-[24px]': [['width', '24px']],
+        'h-[24px]': [['height', '24px']],
+        'bg-brand': [['background-color', 'var(--brand)']],
+        '-bottom-[10px]': [['bottom', '-10px']],
+      },
+      null
+    );
+  });
+
+  test("the expand button's and the strip's states emit, outside any query", async () => {
+    const css = await assertEmits(
+      {
+        'hover:bg-black/[0.68]': [['background-color', 'rgb(0 0 0 / 0.68)']],
+        'group-hover:opacity-100': [['opacity', '1']],
+        'group-hover:pointer-events-auto': [['pointer-events', 'auto']],
+        'focus-visible:opacity-100': [['opacity', '1']],
+        'focus-visible:pointer-events-auto': [['pointer-events', 'auto']],
+        'focus-visible:ring-2': [
+          [
+            '--tw-ring-offset-shadow',
+            'var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color)',
+          ],
+          [
+            '--tw-ring-shadow',
+            'var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color)',
+          ],
+          [
+            'box-shadow',
+            'var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)',
+          ],
+        ],
+        'focus-visible:ring-brand': [['--tw-ring-color', 'var(--brand)']],
+      },
+      null
+    );
+    const selector = (className) => rules(css, className)[0].selector;
+    assert.equal(
+      selector('hover:bg-black/[0.68]'),
+      '.hover:bg-black/[0.68]:hover'
+    );
+    assert.equal(
+      selector('group-hover:pointer-events-auto'),
+      '.group:hover .group-hover:pointer-events-auto'
+    );
+    assert.equal(
+      selector('focus-visible:pointer-events-auto'),
+      '.focus-visible:pointer-events-auto:focus-visible'
+    );
+  });
+
+  test('under a coarse pointer only, the expand button and the name strip always show', async () => {
+    // The expand button's 44px square is the preview's coarse:w-[44px] and
+    // coarse:h-[44px], above.
+    await assertEmits(
+      {
+        'coarse:opacity-100': [['opacity', '1']],
+        'coarse:pointer-events-auto': [['pointer-events', 'auto']],
+      },
+      COARSE
+    );
+  });
+
+  test("at 1025px and below the tile keeps its 6px inset, and the window's name strip hides", async () => {
+    await assertEmits(
+      {
+        'mobile:p-[6px]': [['padding', '6px']],
+        'mobile:hidden': [['display', 'none']],
+      },
+      MOBILE
+    );
+  });
+
+  test("the order badge's corner is logical only", async () => {
+    const css = await emit(['-end-[10px]']);
+    const found = rules(css, '-end-[10px]');
+    assert.ok(found.length > 0, '-end-[10px] emitted no CSS');
+    for (const rule of found) {
+      assert.ok(
+        rule.selector.startsWith('.'),
+        `-end-[10px] emitted a direction-qualified rule "${rule.selector}"`
+      );
+      assert.deepEqual(
+        rule.decls,
+        [['inset-inline-end', '-10px']],
+        '-end-[10px] emitted something other than inset-inline-end: -10px'
+      );
+    }
+    assert.doesNotMatch(
+      css,
+      /(^|[\s;{])(left|right):/,
+      'a physical side was emitted'
+    );
+  });
+});
