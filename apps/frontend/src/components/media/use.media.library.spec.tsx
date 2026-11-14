@@ -1,3 +1,4 @@
+import { chunk, range } from 'lodash';
 import { act, FC } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import useSWR, { SWRConfig, useSWRConfig } from 'swr';
@@ -18,6 +19,12 @@ import useSWR, { SWRConfig, useSWRConfig } from 'swr';
 // and its month counts together after an upload or an import, so the two
 // can't be refetched apart: the list's mutate() for the same query, and one
 // revalidation of every /media/month? key and of no other.
+//
+// useDeleteMedia (research R6, contracts/media-api.md "DELETE /media"): the
+// client's one delete path, for the preview's Delete and the selection bar.
+// The ids go to DELETE /media as a JSON body, in batches of
+// MEDIA_DELETE_BATCH, one after another; it resolves to how many weren't
+// deleted, every id of a batch that answers a failure or throws.
 //
 // SWR runs for real on a cache of its own; the doubles around useSWR and
 // useSWRInfinite only record what the hooks hand them. Only the request is
@@ -43,8 +50,10 @@ jest.mock('swr/infinite', () => {
 });
 
 import useSWRInfinite from 'swr/infinite';
+import { MEDIA_DELETE_BATCH } from '@gitroom/nestjs-libraries/dtos/media/media.library.dto';
 import {
   MediaLibraryQuery,
+  useDeleteMedia,
   useMediaLibrary,
   useMediaMonthCount,
   useRefreshMediaLibrary,
@@ -672,5 +681,117 @@ describe('useRefreshMediaLibrary', () => {
       undefined,
       null,
     ].forEach((key) => expect(matches(key)).toBe(false));
+  });
+});
+
+describe('useDeleteMedia', () => {
+  const remover: { latest?: (ids: string[]) => Promise<number> } = {};
+  const DeleteProbe = () => {
+    remover.latest = useDeleteMedia();
+    return null;
+  };
+  const deleted = { ok: true, status: 200 };
+  const failed = {
+    ok: false,
+    status: 500,
+    json: async () => ({ statusCode: 500, message: 'Internal server error' }),
+  };
+  const fileIds = (count: number) => range(count).map((i) => `file-${i}`);
+  // The ids each request sent, in order.
+  const batches = () =>
+    mockFetch.mock.calls.map(
+      ([, options]: [string, RequestInit]) =>
+        JSON.parse(options.body as string).ids
+    );
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(deleted);
+    remover.latest = undefined;
+  });
+
+  it('sends DELETE /media with the JSON body { ids }, never DELETE /media/:id', async () => {
+    await mount(all, DeleteProbe);
+
+    await expect(remover.latest!(['a'])).resolves.toBe(0);
+    await expect(remover.latest!(['a', 'b'])).resolves.toBe(0);
+
+    expect(mockFetch.mock.calls).toEqual([
+      ['/media', { method: 'DELETE', body: JSON.stringify({ ids: ['a'] }) }],
+      [
+        '/media',
+        { method: 'DELETE', body: JSON.stringify({ ids: ['a', 'b'] }) },
+      ],
+    ]);
+  });
+
+  it('sends 1,201 ids as three requests of 500, 500 and 201, in order, and resolves to 0 when all went', async () => {
+    const selection = fileIds(1201);
+    await mount(all, DeleteProbe);
+
+    await expect(remover.latest!(selection)).resolves.toBe(0);
+
+    expect(
+      mockFetch.mock.calls.map(([path, options]: [string, RequestInit]) => [
+        path,
+        options.method,
+      ])
+    ).toEqual([
+      ['/media', 'DELETE'],
+      ['/media', 'DELETE'],
+      ['/media', 'DELETE'],
+    ]);
+    expect(batches().map((batch: string[]) => batch.length)).toEqual([
+      500, 500, 201,
+    ]);
+    expect(batches()).toEqual(chunk(selection, MEDIA_DELETE_BATCH));
+  });
+
+  it('sends each batch only after the one before it answers', async () => {
+    const replies: Array<() => void> = [];
+    mockFetch.mockImplementation(
+      () => new Promise((resolve) => replies.push(() => resolve(deleted)))
+    );
+    await mount(all, DeleteProbe);
+
+    const done = remover.latest!(fileIds(1201));
+    await settle();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    replies[0]();
+    await settle();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    replies[1]();
+    await settle();
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    replies[2]();
+    await expect(done).resolves.toBe(0);
+  });
+
+  it('counts every id of a batch that answers a failure as not deleted, and still sends the rest', async () => {
+    mockFetch
+      .mockResolvedValueOnce(deleted)
+      .mockResolvedValueOnce(failed)
+      .mockResolvedValueOnce(deleted);
+    await mount(all, DeleteProbe);
+
+    await expect(remover.latest!(fileIds(1201))).resolves.toBe(500);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    mockFetch.mockResolvedValueOnce(failed);
+    await expect(remover.latest!(['a'])).resolves.toBe(1);
+  });
+
+  it('counts every id of a batch whose request throws as not deleted, and still sends the rest', async () => {
+    mockFetch
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(deleted)
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await mount(all, DeleteProbe);
+
+    await expect(remover.latest!(fileIds(1201))).resolves.toBe(701);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 });
