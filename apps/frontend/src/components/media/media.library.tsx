@@ -324,7 +324,8 @@ export const MediaMonth: FC<{
         )}
         {!!selection && (
           /* Shown by the month's own named group, so hovering a tile never
-             reveals the other tiles' `group-hover:` controls. */
+             reveals the other tiles' `group-hover:` controls; hit-tested
+             only once it shows, like the tile's circle. */
           <button
             type="button"
             onClick={
@@ -333,8 +334,8 @@ export const MediaMonth: FC<{
             className={clsx(
               'cursor-pointer ms-auto px-[6px] rounded-[6px] coarse:min-h-[44px] text-[13px] font-[600] text-brandText transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
               selection.selected.size
-                ? 'opacity-100'
-                : 'opacity-0 group-hover/month:opacity-100 focus-visible:opacity-100 coarse:opacity-100'
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 pointer-events-none group-hover/month:opacity-100 group-hover/month:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto coarse:opacity-100 coarse:pointer-events-auto'
             )}
           >
             {allSelected

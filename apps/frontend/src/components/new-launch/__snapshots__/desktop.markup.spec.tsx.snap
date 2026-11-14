@@ -1861,7 +1861,7 @@ exports[`the media library from 1026px up the Media page 1`] = `
             <span class="text-[13px] text-muted">
               "3 files"
             </span>
-            <button class="coarse:min-h-[44px] coarse:opacity-100 cursor-pointer focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-brand font-[600] group-hover/month:opacity-100 ms-auto opacity-0 px-[6px] rounded-[6px] text-[13px] text-brandText transition-opacity" type="button">
+            <button class="coarse:min-h-[44px] coarse:opacity-100 coarse:pointer-events-auto cursor-pointer focus-visible:opacity-100 focus-visible:pointer-events-auto focus-visible:ring-2 focus-visible:ring-brand font-[600] group-hover/month:opacity-100 group-hover/month:pointer-events-auto ms-auto opacity-0 pointer-events-none px-[6px] rounded-[6px] text-[13px] text-brandText transition-opacity" type="button">
               "Select all"
             </button>
           </div>

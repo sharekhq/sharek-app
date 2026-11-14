@@ -487,22 +487,37 @@ describe("The selection (MediaTile's circle, MediaMonth's Select all and MediaBo
     );
   });
 
-  test("Select all shows on hover of its own month, through the month's named group", async () => {
+  test("Select all shows, and takes a press, on hover of its own month, through the month's named group", async () => {
     // group/month on the month's section is a marker that emits nothing of
-    // its own: the one rule naming it is the button's, so hovering a tile
-    // reveals no other tile's controls.
+    // its own: the rules naming it are the button's, so hovering a tile
+    // reveals no other tile's controls. Its focus and coarse states are the
+    // expand button's, above.
     const css = await assertEmits(
-      { 'group-hover/month:opacity-100': [['opacity', '1']] },
+      {
+        'group-hover/month:opacity-100': [['opacity', '1']],
+        'group-hover/month:pointer-events-auto': [['pointer-events', 'auto']],
+      },
       null
     );
-    const both = await emit(['group/month', 'group-hover/month:opacity-100']);
+    const both = await emit([
+      'group/month',
+      'group-hover/month:opacity-100',
+      'group-hover/month:pointer-events-auto',
+    ]);
     assert.deepEqual(
       rules(both, 'group/month').map(({ selector }) => selector),
-      ['.group/month:hover .group-hover/month:opacity-100']
+      [
+        '.group/month:hover .group-hover/month:pointer-events-auto',
+        '.group/month:hover .group-hover/month:opacity-100',
+      ]
     );
     assert.equal(
       rules(css, 'group-hover/month:opacity-100')[0].selector,
       '.group/month:hover .group-hover/month:opacity-100'
+    );
+    assert.equal(
+      rules(css, 'group-hover/month:pointer-events-auto')[0].selector,
+      '.group/month:hover .group-hover/month:pointer-events-auto'
     );
   });
 

@@ -46,7 +46,9 @@ import dayjs from 'dayjs';
 //   window Open preview moves to the tile's end corner and a pick keeps its
 //   brand border and order badge; on the Media page the tile opens the
 //   preview, a circle at its start corner selects it, and the month heading
-//   carries Select all.
+//   carries Select all, which like the circle takes a press only while it
+//   shows (`pointer-events-none` until the month is hovered or it has the
+//   focus, always under a finger).
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
