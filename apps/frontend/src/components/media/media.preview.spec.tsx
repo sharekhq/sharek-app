@@ -61,7 +61,6 @@ const mockLibrary = {
   more: [] as Row[][],
   gone: new Set<string>(),
   queries: [] as unknown[],
-  refreshQueries: [] as unknown[],
   listeners: new Set<() => void>(),
   loadMore: jest.fn(),
   mutate: jest.fn(),
@@ -90,15 +89,12 @@ jest.mock('@gitroom/frontend/components/media/use.media.library', () => {
       isLoadingMore: false,
       error: undefined as Error | undefined,
       mutate: mockLibrary.mutate,
+      refresh: mockLibrary.refresh,
     };
   };
   return {
     useMediaLibrary: useMediaLibraryMock,
     useDeleteMedia: () => mockLibrary.deleteMedia,
-    useRefreshMediaLibrary: (query: unknown) => {
-      mockLibrary.refreshQueries.push(query);
-      return mockLibrary.refresh;
-    },
   };
 });
 
@@ -287,7 +283,6 @@ beforeEach(() => {
   mockLibrary.more = [];
   mockLibrary.gone.clear();
   mockLibrary.queries = [];
-  mockLibrary.refreshQueries = [];
   mockLibrary.mutate.mockReset();
   mockLibrary.loadMore.mockReset().mockImplementation(async () => {
     await Promise.resolve();
@@ -741,7 +736,7 @@ describe('libraryPreviewModal', () => {
     expect(options.children.type).toBe(LibraryPreview);
   });
 
-  it('reads the list through useMediaLibrary(query), opens on startId with the original file, and refetches nothing when it mounts', async () => {
+  it('reads the list through one useMediaLibrary(query), opens on startId with the original file, and refetches nothing when it mounts', async () => {
     mockLibrary.files = rows.map((file) => ({
       ...file,
       tileImage: `https://tiles/${file.id}.webp`,
@@ -751,6 +746,7 @@ describe('libraryPreviewModal', () => {
     expect(shown()).toBe(b.path);
     expect(mockLibrary.queries.length).toBeGreaterThan(0);
     mockLibrary.queries.forEach((asked) => expect(asked).toEqual(query));
+    expect(mockLibrary.listeners.size).toBe(1);
     expect(mockLibrary.mutate).not.toHaveBeenCalled();
     expect(mockLibrary.refresh).not.toHaveBeenCalled();
     expect(mockLibrary.loadMore).not.toHaveBeenCalled();
@@ -787,8 +783,6 @@ describe('libraryPreviewModal', () => {
     expect(onDeleted).toHaveBeenCalledTimes(1);
     expect(onDeleted).toHaveBeenCalledWith('b');
     expect(mockLibrary.refresh).toHaveBeenCalledTimes(1);
-    expect(mockLibrary.refreshQueries.length).toBeGreaterThan(0);
-    mockLibrary.refreshQueries.forEach((asked) => expect(asked).toEqual(query));
     const [deleted] = mockLibrary.deleteMedia.mock.invocationCallOrder;
     const [toasted] = mockShow.mock.invocationCallOrder;
     const [told] = onDeleted.mock.invocationCallOrder;

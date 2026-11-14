@@ -16,14 +16,18 @@ import { range } from 'lodash';
 // The list is a double of useSWRInfinite holding the first page of the case's
 // server, so a month can hold files not loaded yet; a heading's count is the
 // server's files in its range. useMonthIds answers the server's ids in the
-// month asked for, useDeleteMedia how many the case says failed, and
-// useRefreshMediaLibrary records the list it was built for.
+// month asked for and useDeleteMedia how many the case says failed. The list's
+// refresh is what it asks of the two: the list's own mutate() and the month
+// counts' revalidation.
 
 type Row = { id: string; name: string; path: string; createdAt: string };
 
 // The case's server: every file, newest first, and the first key the list
 // asked for at each render.
 const mockServer = { rows: [] as Row[], keys: [] as string[] };
+// What a refresh asks: every loaded page of the list, and every month count.
+const mockListMutate = jest.fn(async (): Promise<void> => undefined);
+const mockRevalidate = jest.fn<Promise<unknown[]>, [unknown]>(async () => []);
 const mockInMonth = (month: { from: string; to: string }) =>
   mockServer.rows.filter((row) => {
     const at = Date.parse(row.createdAt);
@@ -47,7 +51,7 @@ jest.mock('swr/infinite', () => ({
       ],
       size: 1,
       setSize: async () => undefined,
-      mutate: async () => undefined,
+      mutate: mockListMutate,
       isLoading: false,
       isValidating: false,
     };
@@ -62,7 +66,7 @@ jest.mock('swr', () => ({
       : undefined,
     mutate: async () => undefined,
   }),
-  useSWRConfig: () => ({ mutate: async () => undefined }),
+  useSWRConfig: () => ({ mutate: mockRevalidate }),
 }));
 // The key, so a case reads which words are shown, whatever their wording; the
 // calls are kept, so a case reads what a counted word was told.
@@ -76,8 +80,8 @@ const mockToast = jest.fn();
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: (...args: unknown[]) => mockToast(...args) }),
 }));
-// The month's ids, loaded or not; the delete, answering how many failed; the
-// refresh, recording the list it was built for. The other hooks stay real.
+// The month's ids, loaded or not, and the delete, answering how many failed.
+// The other hooks stay real.
 const mockMonthIds = jest.fn(
   async (_query: unknown, month: { from: string; to: string }) =>
     mockInMonth(month).map((row) => row.id)
@@ -86,14 +90,10 @@ const mockDelete = { failed: 0 };
 const mockDeleteMedia = jest.fn<Promise<number>, [string[]]>(
   async () => mockDelete.failed
 );
-const mockRefreshed: unknown[] = [];
 jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
   ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
   useMonthIds: () => mockMonthIds,
   useDeleteMedia: () => mockDeleteMedia,
-  useRefreshMediaLibrary: (query: unknown) => async () => {
-    mockRefreshed.push(query);
-  },
 }));
 // The one question Delete asks, answered as the case says.
 const mockDialog = { answer: true };
@@ -245,6 +245,9 @@ const mount = async (
     );
   });
   await settle();
+  // The list asks for its cached page once when it mounts; a case counts the
+  // refetches after that.
+  mockListMutate.mockClear();
 };
 
 const press = async (node: HTMLElement | null | undefined) => {
@@ -315,7 +318,6 @@ beforeEach(() => {
   mockServer.keys = [];
   mockDelete.failed = 0;
   mockDialog.answer = true;
-  mockRefreshed.length = 0;
 });
 
 afterEach(() => {
@@ -562,9 +564,8 @@ describe('deleting the selection', () => {
     expect(mockToast).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledWith('media_deleted', 'success');
     expect(said('media_deleted')).toEqual(counted(2));
-    expect(mockRefreshed).toEqual([
-      { type: undefined, sort: 'newest', search: '' },
-    ]);
+    expect(mockListMutate).toHaveBeenCalledTimes(1);
+    expect(mockRevalidate).toHaveBeenCalledTimes(1);
     expect(ticked()).toEqual([]);
     expect(bar()).toBeUndefined();
     expect(toolbarHidden()).toBe(false);
@@ -583,7 +584,8 @@ describe('deleting the selection', () => {
     expect(mockToast).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledWith('media_not_deleted', 'warning');
     expect(said('media_not_deleted')).toEqual(counted(2));
-    expect(mockRefreshed).toHaveLength(1);
+    expect(mockListMutate).toHaveBeenCalledTimes(1);
+    expect(mockRevalidate).toHaveBeenCalledTimes(1);
     expect(ticked()).toEqual([]);
     expect(bar()).toBeUndefined();
   });
@@ -600,7 +602,8 @@ describe('deleting the selection', () => {
     expect(mockDeleteDialog).toHaveBeenCalledTimes(1);
     expect(mockDeleteMedia).not.toHaveBeenCalled();
     expect(mockToast).not.toHaveBeenCalled();
-    expect(mockRefreshed).toEqual([]);
+    expect(mockListMutate).not.toHaveBeenCalled();
+    expect(mockRevalidate).not.toHaveBeenCalled();
     expect(ticked()).toEqual(['n0.png', 'n1.png']);
     expect(said('media_selected')).toEqual(counted(2));
   });

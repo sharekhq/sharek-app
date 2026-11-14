@@ -28,8 +28,8 @@ import { chunk, range, uniq } from 'lodash';
 // each time it opens and never touches the address. An empty library shows
 // today's empty state; a filter or search that finds nothing says so and
 // offers to clear them. An upload or an import refreshes the list and its
-// month counts through useRefreshMediaLibrary, whose own spec pins what it
-// refetches.
+// month counts through useMediaLibrary's refresh, on the list's one
+// subscription; the hook's own spec pins what it refetches.
 
 type Row = { id: string; name: string; path: string; createdAt: string };
 type Page = { pages: number; results: Row[] };
@@ -150,10 +150,14 @@ const mockCount = (key: string) => {
     }).length;
 };
 const mockMonthKeys: string[] = [];
+// The month counts' revalidation, which only a refresh asks for.
+const mockRevalidate = jest.fn<Promise<unknown[]>, [unknown]>(async () => []);
 
-// The hook renders again each time the double's cache changes, as SWR's does.
+// The hook renders again each time the double's cache changes, as SWR's does,
+// and hands out a mutate() bound to its list's key, as SWR's is: mockList's
+// records that key first.
 jest.mock('swr/infinite', () => {
-  const { useEffect, useReducer } = jest.requireActual('react');
+  const { useCallback, useEffect, useReducer } = jest.requireActual('react');
   const useSWRInfiniteMock = (getKey: GetKey) => {
     const [, rerender] = useReducer((count: number) => count + 1, 0);
     useEffect(() => {
@@ -162,7 +166,12 @@ jest.mock('swr/infinite', () => {
         mockList.listeners.delete(rerender);
       };
     }, []);
-    return mockInfinite(getKey);
+    const key = getKey(0, null);
+    const mutate = useCallback(
+      (...args: unknown[]) => mockList.mutate(key, ...args),
+      [key]
+    );
+    return { ...mockInfinite(getKey), mutate };
   };
   return { __esModule: true, default: useSWRInfiniteMock };
 });
@@ -180,7 +189,7 @@ jest.mock('swr', () => ({
       mutate: async (): Promise<void> => undefined,
     };
   },
-  useSWRConfig: () => ({ mutate: async () => undefined }),
+  useSWRConfig: () => ({ mutate: mockRevalidate }),
 }));
 // The key, so a case reads which words are shown, whatever their wording.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -207,15 +216,6 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
       addFiles: () => {},
       addFile: () => {},
     };
-  },
-}));
-// The queries whose refresh ran, in order: the hooks stay real, but the
-// refresh only records which list it was built for.
-const mockRefreshed: unknown[] = [];
-jest.mock('@gitroom/frontend/components/media/use.media.library', () => ({
-  ...jest.requireActual('@gitroom/frontend/components/media/use.media.library'),
-  useRefreshMediaLibrary: (query: unknown) => async () => {
-    mockRefreshed.push(query);
   },
 }));
 // Scenery from here down, as in media.component.limit.spec.tsx.
@@ -573,7 +573,6 @@ beforeEach(() => {
   view.inView = false;
   observers.length = 0;
   mockUploader.options = undefined;
-  mockRefreshed.length = 0;
 });
 
 afterEach(async () => {
@@ -759,6 +758,15 @@ describe.each([
       expect(shown()).toHaveLength(3);
       expect(mockList.mutate).not.toHaveBeenCalled();
       expect(asked()).toEqual([1]);
+    });
+
+    it('subscribes to the list once, its refresh included', async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      expect(mockList.listeners.size).toBe(1);
     });
 
     it('keeps the scroll box mounted where it was while the list refetches', async () => {
@@ -1218,26 +1226,31 @@ describe('narrowing the list', () => {
       expect(shown()).toHaveLength(3);
     });
 
-    it('refreshes the list shown through useRefreshMediaLibrary, once after an upload and once after an import', async () => {
+    it("refreshes the list shown and its month counts through useMediaLibrary's refresh, once after an upload and once after an import", async () => {
       serve(november(3));
       await mount(surface);
       await answer();
       await choose('media_filter_videos');
       await answer();
+      expect(mockList.mutate).not.toHaveBeenCalled();
+      const shownKey = mockList.getKey!(0, null);
+      expect(shownKey).toContain('type=video');
 
+      // The uploader keeps the callback of the first render, before the
+      // filter changed.
       await act(async () => {
         await mockUploader.options!.onUploadSuccess([]);
       });
       await settle();
-      const shownQuery = { type: 'video', sort: 'newest', search: '' };
-      expect(mockRefreshed).toEqual([shownQuery]);
+      expect(mockList.mutate.mock.calls).toEqual([[shownKey]]);
+      expect(mockRevalidate).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         button('import')!.click();
       });
       await settle();
-      expect(mockRefreshed).toEqual([shownQuery, shownQuery]);
-      expect(mockList.mutate).not.toHaveBeenCalled();
+      expect(mockList.mutate.mock.calls).toEqual([[shownKey], [shownKey]]);
+      expect(mockRevalidate).toHaveBeenCalledTimes(2);
     });
 
     // Decided with the orchestrator on 2026-11-14: a library that couldn't
