@@ -1,6 +1,7 @@
 // 058 — brands from the channel list. The post card's tag names
 // (launches/calendar.post.card.tsx), which hide under the pointer keeping
-// their space. A variant or arbitrary value that Tailwind can't use emits
+// their space, and the channel ⋯ menu (launches/menu/menu.tsx), which takes
+// Samy's chat menu look from launches/post.actions.menu.tsx. A variant or arbitrary value that Tailwind can't use emits
 // nothing and the page just doesn't change, so this file asserts what Tailwind
 // emitted for each of them, with the project's own config (see emit.mjs). Each
 // phase adds its own describe.
@@ -88,6 +89,41 @@ describe("The post card's tag names (phase 3)", () => {
     assert.deepEqual(
       rules(css, 'group-hover:invisible').map((r) => r.selector),
       ['.group:hover .group-hover:invisible']
+    );
+  });
+});
+
+describe("The channel ⋯ menu's look (phase 5)", () => {
+  // The rows' svgs keep upstream's 18px and 16px attributes; the icon box
+  // (MENU_ICON) draws every one of them at 16px.
+  test('draws the svgs inside an icon box at 16px, outside any query', async () => {
+    const css = await assertEmits(
+      {
+        '[&_svg]:size-4': [
+          ['width', '1rem'],
+          ['height', '1rem'],
+        ],
+      },
+      null
+    );
+    assert.deepEqual(
+      rules(css, '[&_svg]:size-4').map((r) => r.selector),
+      ['.[&_svg]:size-4 svg']
+    );
+  });
+
+  test('spaces its panel and rows and lights a row under the pointer, outside any query', async () => {
+    const css = await assertEmits(
+      {
+        'p-[6px]': [['padding', '6px']],
+        'gap-[10px]': [['gap', '10px']],
+        'hover:bg-boxHover': [['background-color', 'var(--new-box-hover)']],
+      },
+      null
+    );
+    assert.deepEqual(
+      rules(css, 'hover:bg-boxHover').map((r) => r.selector),
+      ['.hover:bg-boxHover:hover']
     );
   });
 });
