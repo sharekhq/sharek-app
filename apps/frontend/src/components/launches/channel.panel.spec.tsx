@@ -1839,6 +1839,39 @@ describe('the row menu and the customer pencil', () => {
     });
   });
 
+  // A list the menu hands off to (Move to brand) marks its box data-open
+  // while open. On a wide screen that list is in the body, so the row loses
+  // its hover and its focus-within once the pointer or the focus moves into
+  // it; at 1025px and below its sheet renders inside the wrapper. Either way
+  // the wrapper stays shown while it is open.
+  it('keeps the ⋯ shown while its menu holds an open list, marked data-open', async () => {
+    await render(CAL, {
+      rowMenu: (c: Channel) => (
+        <>
+          <button
+            type="button"
+            aria-label={`menu ${c.id}`}
+            data-row-menu={c.id}
+          />
+          <div data-open="" />
+        </>
+      ),
+    });
+
+    CAL.forEach(({ id }) => {
+      const wrapper = document.querySelector(`[data-row-menu="${id}"]`)!
+        .parentElement!;
+      expect(wrapper.querySelector('[data-open]')).not.toBeNull();
+      expect(classes(wrapper)).toEqual(
+        expect.arrayContaining([
+          'opacity-0',
+          'has-[[aria-expanded=true]]:opacity-100',
+          'has-[[data-open]]:opacity-100',
+        ])
+      );
+    });
+  });
+
   it('puts the pencil on each customer header only with onRenameCustomer, and calls it with the customer', async () => {
     await render(CAL);
     expect(control(host, 'edit_group_name')).toHaveLength(0);
