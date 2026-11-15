@@ -12,6 +12,8 @@ import * as path from 'path';
 // GET /brands and the channel list reload. Add channels (spec 058, FR-024) is
 // the Brands page's picker, opened for a brand from the page or the calendar's
 // channel list, which moves the ticked channels on PUT /integrations/:id/group.
+// New brand from the channel ⋯'s Move to brand (spec 058, FR-015) says which
+// channel moves into the brand it makes.
 //
 // t() is the real i18next on the en and ar files, so a counted phrase renders
 // the plural form each language picks.
@@ -63,6 +65,7 @@ jest.mock('next/dynamic', () => ({
 
 import i18next from 'i18next';
 import type { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
+import type { Channel } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   DecisionEverywhere,
   decisionModalEmitter,
@@ -399,6 +402,153 @@ describe('New brand', () => {
 
     expect(request).not.toHaveBeenCalled();
     expect(field()).toBeNull();
+  });
+
+  // From the channel ⋯'s Move to brand (spec 058, FR-015 to FR-020): the
+  // window says which channel moves into the brand it creates, and the caller's
+  // onCreated moves it.
+  describe('with the channel it moves', () => {
+    const SALT: Channel = {
+      id: 'c7',
+      internalId: 'salt-sugar',
+      name: 'Salt & Sugar',
+      identifier: 'instagram',
+      picture: 'https://cdn.example.com/salt-sugar.png',
+      type: 'social',
+      customer: null,
+    };
+
+    // The sentence under the Name field, and the bordered row holding it.
+    const sentences = () =>
+      Array.from(document.querySelectorAll('span')).filter((node) =>
+        node.textContent?.endsWith('moves into it.')
+      );
+    const line = () => sentences()[0]?.parentElement ?? null;
+    const follows = (first: Node, second: Node) =>
+      !!(
+        first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+
+    it('shows one bordered line between the Name field and the buttons: the channel’s picture, and that it moves into it, its name isolated and as typed', async () => {
+      brands = [BAYT];
+      await mount();
+      await open(() => dialogs.openNewBrand(jest.fn(), SALT));
+
+      expect(sentences()).toHaveLength(1);
+      expect(sentences()[0].textContent).toBe('⁨Salt & Sugar⁩ moves into it.');
+      expect(sentences()[0].className.split(' ')).toEqual(
+        expect.arrayContaining(['min-w-0', 'text-ink', 'break-words'])
+      );
+      expect(line()!.className).toBe(
+        'flex items-center gap-[12px] p-[12px] rounded-[10px] border border-line'
+      );
+      expect(
+        line()!.querySelector(
+          'img[src="https://cdn.example.com/salt-sugar.png"]'
+        )
+      ).not.toBeNull();
+      expect(follows(field(), line()!)).toBe(true);
+      expect(follows(line()!, button('Cancel')!)).toBe(true);
+    });
+
+    it('Create brand creates it, closes, then calls onCreated with the new id', async () => {
+      brands = [BAYT];
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await type(field(), 'Salt & Sugar');
+      await click(button('Create brand'));
+
+      expect(sent('/brands')).toEqual([
+        ['POST', { name: 'Salt & Sugar', moveUngrouped: false }],
+      ]);
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onCreated).toHaveBeenCalledWith('b9');
+      expect(field()).toBeNull();
+      expect(sentences()).toEqual([]);
+    });
+
+    it('a refused creation keeps the window open with its line and today’s toast, and never calls onCreated', async () => {
+      brands = [BAYT];
+      request.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          message: 'A brand with this name already exists',
+        }),
+      });
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await type(field(), 'Bayt Al Qahwa');
+      await click(button('Create brand'));
+
+      expect(toast).toHaveBeenCalledWith(
+        'A brand with this name already exists.',
+        'warning'
+      );
+      expect(field()).not.toBeNull();
+      expect(sentences()).toHaveLength(1);
+      expect(onCreated).not.toHaveBeenCalled();
+    });
+
+    it('Cancel creates nothing and calls nothing', async () => {
+      brands = [BAYT];
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await click(button('Cancel'));
+
+      expect(request).not.toHaveBeenCalled();
+      expect(onCreated).not.toHaveBeenCalled();
+      expect(field()).toBeNull();
+    });
+
+    it.each([
+      ['stays ticked', true],
+      ['is unticked', false],
+    ])(
+      'on the first brand, shows the offer ticked under the line, and calls onCreated when it %s',
+      async (_, ticked) => {
+        channels = [{ ...SALT }, ...inBrand(2, null)];
+        const onCreated = jest.fn();
+        await mount();
+        await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+        expect(sentences()).toHaveLength(1);
+        expect(offer()!.getAttribute('aria-checked')).toBe('true');
+        expect(follows(field(), line()!)).toBe(true);
+        expect(follows(line()!, offer()!)).toBe(true);
+
+        if (!ticked) {
+          await click(offer());
+        }
+        await type(field(), 'Salt & Sugar');
+        await click(button('Create brand'));
+
+        expect(sent('/brands')).toEqual([
+          ['POST', { name: 'Salt & Sugar', moveUngrouped: ticked }],
+        ]);
+        expect(onCreated).toHaveBeenCalledTimes(1);
+        expect(onCreated).toHaveBeenCalledWith('b9');
+      }
+    );
+
+    it.each([
+      ['the + menu’s', () => dialogs.openNewBrand()],
+      ['the Brands page’s', () => dialogs.openNewBrand(jest.fn())],
+    ])('%s New brand shows no line', async (_, run) => {
+      channels = inBrand(2, null);
+      await mount();
+      await open(run);
+
+      expect(sentences()).toEqual([]);
+      expect(document.querySelector('img')).toBeNull();
+      expect(offer()).not.toBeNull();
+    });
   });
 });
 
