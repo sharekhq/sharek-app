@@ -55,6 +55,12 @@ import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialo
 const MARK = 'w-[28px] h-[28px] rounded-[7px] text-[12px]';
 const SMALL_MARK = 'w-[20px] h-[20px] rounded-[5px] text-[10px]';
 const SEPARATOR = 'h-px mx-[4px] my-[6px] bg-line';
+// The link-style row under a list: Manage brands, and Move to brand's
+// + New brand.
+const FOOTER_LINK = clsx(
+  'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
+  FOCUS_RING
+);
 
 // Up and Down move through the options, wrapping, as the channel list's
 // radios do (onRadioGroupKeyDown); the list runs top to bottom in either
@@ -422,10 +428,7 @@ export const BrandMenu: FC<{
               target="_blank"
               rel="noreferrer"
               onClick={() => setShow(false)}
-              className={clsx(
-                'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
-                FOCUS_RING
-              )}
+              className={FOOTER_LINK}
             >
               {t('brands_manage_brands', 'Manage brands')}
               <ChevronRightIcon
@@ -492,14 +495,7 @@ const MoveToBrandList: FC<{
         'Listed on its own, outside any brand'
       )}
       footer={
-        <button
-          type="button"
-          onClick={create}
-          className={clsx(
-            'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
-            FOCUS_RING
-          )}
-        >
+        <button type="button" onClick={create} className={FOOTER_LINK}>
           <PlusIcon size={14} aria-hidden="true" />
           {t('brands_new_brand', 'New brand')}
         </button>
