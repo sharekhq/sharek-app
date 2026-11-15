@@ -84,25 +84,42 @@ export const compareCustomers = (
 
 // The list's groups: the channels with no customer first, then each customer
 // A to Z, each group's channels in compareChannels order (R2). A customer
-// with no channel has no group.
-export const orderChannels = (list: Channel[]) =>
-  Object.values(groupBy(list, (channel) => channel.customer?.id || ''))
-    .map((channels) => {
+// with no channel has no group, unless it is among `brands`, the calendar's
+// every brand: then its group has no channels (spec 058, R7). A group listed
+// there takes its name from there, since the drag's move gives the channel it
+// drops `customer: { id }` alone until the list reloads, which would draw the
+// group with no name, out of its place, for that round trip.
+export const orderChannels = (
+  list: Channel[],
+  brands: Array<{ id: string; name: string }> = []
+) => {
+  const grouped = groupBy(list, (channel) => channel.customer?.id || '');
+  return [
+    ...Object.values(grouped).map((channels) => {
       const { customer } = channels[0];
       return {
         customer: customer?.id
-          ? { id: customer.id, name: customer.name || '' }
+          ? {
+              id: customer.id,
+              name:
+                (brands.find(({ id }) => id === customer.id) ?? customer)
+                  .name || '',
+            }
           : null,
         channels: [...channels].sort(compareChannels),
       };
-    })
-    .sort((a, b) =>
-      !a.customer
-        ? -1
-        : !b.customer
-        ? 1
-        : compareCustomers(a.customer, b.customer)
-    );
+    }),
+    ...brands
+      .filter(({ id }) => !grouped[id])
+      .map(({ id, name }) => ({ customer: { id, name }, channels: [] })),
+  ].sort((a, b) =>
+    !a.customer
+      ? -1
+      : !b.customer
+      ? 1
+      : compareCustomers(a.customer, b.customer)
+  );
+};
 
 // data-model.md's usable table, one rule per page (C20): whether a row can be
 // ticked or picked. It takes only the fields the rules read, so the calendar's
@@ -189,6 +206,12 @@ const ICON_BUTTON = clsx(
 // Reconnect and Finish setup, beside a row's main button and never inside it
 const ROW_ACTION = clsx(
   'shrink-0 flex items-center min-h-[28px] coarse:min-h-[44px] px-[6px] rounded-[6px] text-[12px] font-[600] text-error underline underline-offset-2 whitespace-nowrap',
+  FOCUS_RING
+);
+// A link at the end of a line of text: the hint's Show all, and Add channels
+// under a brand with no channels
+const LINK = clsx(
+  'inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2',
   FOCUS_RING
 );
 
@@ -843,6 +866,13 @@ export const ChannelPanel: FC<
     onMoveToCustomer?: (channelId: string, customerId: string) => void;
     /** shows the pencil on a customer's header */
     onRenameCustomer?: (customer: { id: string; name: string }) => void;
+    /**
+     * every brand of the organization, so the ones with no channels show;
+     * the calendar's, the list that manages brands (R7)
+     */
+    brands?: Array<{ id: string; name: string }>;
+    /** Add channels, under a brand with no channels */
+    onAddChannels?: (customer: { id: string; name: string }) => void;
     /** refreshes the list after Add Channel or Invite a customer */
     update: () => void;
     /** the rail's pictures-only state; never the sheet */
@@ -859,6 +889,8 @@ export const ChannelPanel: FC<
     rowMenu,
     onMoveToCustomer,
     onRenameCustomer,
+    brands,
+    onAddChannels,
     update,
     collapsed = false,
     onToggleCollapse,
@@ -871,7 +903,10 @@ export const ChannelPanel: FC<
   const add = useAddProvider(update);
   const invite = useAddProvider(update, true);
   const [search, setSearch] = useState('');
-  const ordered = useMemo(() => orderChannels(channels), [channels]);
+  const ordered = useMemo(
+    () => orderChannels(channels, brands),
+    [channels, brands]
+  );
 
   const hints: Record<PanelMode, string> = {
     calendar: t('channel_hint_calendar', 'Untick a channel to hide its posts.'),
@@ -924,6 +959,8 @@ export const ChannelPanel: FC<
   const groups = ordered
     .map((group) => ({
       ...group,
+      // a brand with no channels, which only `brands` lists
+      empty: !group.channels.length,
       // a customer's tick covers all its usable channels, whatever shows
       members: group.channels.filter(usable),
       channels: group.channels.filter(
@@ -936,7 +973,15 @@ export const ChannelPanel: FC<
           ].some((text) => matchesSearch(text, query))
       ),
     }))
-    .filter((group) => group.channels.length);
+    // a brand with no channels shows in an open list of an organization with
+    // channels, while nothing is typed or its name matches (R7)
+    .filter((group) =>
+      group.empty
+        ? !collapsed &&
+          !!channels.length &&
+          (!query || matchesSearch(group.customer?.name || '', query))
+        : group.channels.length
+    );
   // Analytics' radios are one Tab stop: the chosen channel, or the first shown
   // that can be picked
   const shown = groups.flatMap((group) => group.channels);
@@ -1150,14 +1195,7 @@ export const ChannelPanel: FC<
             {showAll && (
               <>
                 {' '}
-                <button
-                  type="button"
-                  onClick={showAll}
-                  className={clsx(
-                    'inline-flex items-center coarse:min-h-[44px] rounded-[4px] font-[600] text-brandText hover:underline underline-offset-2',
-                    FOCUS_RING
-                  )}
-                >
+                <button type="button" onClick={showAll} className={LINK}>
                   {t('show_all', 'Show all')}
                 </button>
               </>
@@ -1184,7 +1222,7 @@ export const ChannelPanel: FC<
         </div>
       )}
       {radioGroup(
-        groups.map(({ customer, members, channels: list }) => {
+        groups.map(({ customer, empty, members, channels: list }) => {
           if (!customer) {
             return dropZone(
               '',
@@ -1205,9 +1243,10 @@ export const ChannelPanel: FC<
               collapsed={collapsed}
               checked={checked}
               disabled={!members.length}
-              // one choice on Analytics, so no customer's tick
+              // one choice on Analytics, and nothing to tick in a brand with
+              // no channels, so no customer's tick
               onToggle={
-                props.mode === 'analytics'
+                props.mode === 'analytics' || empty
                   ? undefined
                   : () =>
                       props.onChange(
@@ -1220,7 +1259,27 @@ export const ChannelPanel: FC<
               }
               onRename={onRenameCustomer && (() => onRenameCustomer(customer))}
             >
-              {rows(list)}
+              {empty ? (
+                // at the name: the header's 4px, the chevron button's 4px,
+                // the 14px chevron, 8px, the 8px dot and 8px
+                <p className="ps-[46px] text-[12px] text-muted">
+                  {t('brands_no_channels_yet', 'No channels yet')}
+                  {onAddChannels && (
+                    <>
+                      {' · '}
+                      <button
+                        type="button"
+                        onClick={() => onAddChannels(customer)}
+                        className={LINK}
+                      >
+                        {t('brands_add_channels', 'Add channels')}
+                      </button>
+                    </>
+                  )}
+                </p>
+              ) : (
+                rows(list)
+              )}
             </CustomerGroup>
           );
         })
