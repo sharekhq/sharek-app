@@ -1425,7 +1425,8 @@ const changedTo = () => {
 const rowMenu = jest.fn((c: Channel) => (
   <button type="button" aria-label={`menu ${c.id}`} data-row-menu={c.id} />
 ));
-const onRenameCustomer = jest.fn();
+// A brand's rename, answered at once unless a case holds it open.
+const onRenameCustomer = jest.fn((): Promise<unknown> => Promise.resolve());
 
 // From a node up to and including `top`.
 const chain = (node: Element, top: Element) => {
@@ -1873,8 +1874,22 @@ describe('the row menu and the customer pencil', () => {
     });
   });
 
-  it('puts the pencil on each customer header only with onRenameCustomer, and calls it with the customer', async () => {
+  // The pencil turns the header into the field Samy's chats rename with
+  // (spec 058, research R10); the cases after 'brands with no channels'
+  // save and cancel it.
+  it('puts the pencil on each customer header only with onRenameCustomer, and it turns the header into a field holding the name', async () => {
     await render(CAL);
+    expect(control(host, 'edit_group_name')).toHaveLength(0);
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+    // Analytics passes no onRenameCustomer
+    await render(CAL, {
+      mode: 'analytics',
+      selected: null,
+      hasStatistics: () => true,
+    });
     expect(control(host, 'edit_group_name')).toHaveLength(0);
     act(() => {
       mounted.splice(0).forEach((root) => root.unmount());
@@ -1892,15 +1907,58 @@ describe('the row menu and the customer pencil', () => {
       expect(reachable(pencil)).toBe(true);
     });
 
-    await click(control(groupOf('Client 2'), 'edit_group_name')[0]);
+    const group = groupOf('Client 2');
+    const header = group.firstElementChild!;
+    await click(control(group, 'edit_group_name')[0]);
 
-    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
-    expect(onRenameCustomer).toHaveBeenCalledWith(
-      expect.objectContaining(CLIENT_2)
-    );
-    expect(chevrons(groupOf('Client 2'))[0].getAttribute('aria-expanded')).toBe(
-      'true'
-    );
+    const fields = Array.from(header.querySelectorAll('input'));
+    expect(fields).toHaveLength(1);
+    const [field] = fields;
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('Client 2');
+    expect(field.getAttribute('dir')).toBe('auto');
+    expect(field.getAttribute('aria-label')).toBe('edit_group_name');
+    // Samy's chat rename field's, in agent.chats.tsx
+    expect(classes(field)).toEqual([
+      'w-full',
+      'h-[32px]',
+      'coarse:h-[44px]',
+      'px-[8px]',
+      'rounded-[6px]',
+      'border',
+      'border-brand',
+      'ring-[3px]',
+      'ring-brandSoft',
+      'bg-newBgColorInner',
+      'text-[14px]',
+      'coarse:text-[16px]',
+      'text-ink',
+      'outline-none',
+    ]);
+    // the chevron and the colour dot stay before it, as pictures
+    const chevron = Array.from(header.querySelectorAll('svg'));
+    const dot = within(header).filter((el) => has(el, customerHue('Client 2')));
+    expect(chevron).toHaveLength(1);
+    expect(dot).toHaveLength(1);
+    [chevron[0], dot[0]].forEach((el) => {
+      expect(el.getAttribute('aria-hidden')).toBe('true');
+      expect(
+        el.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+    expect(
+      chevron[0].compareDocumentPosition(dot[0]) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // the name's button with its count, the pencil and the tick step aside
+    expect(header.querySelectorAll('button')).toHaveLength(0);
+    expect(header.querySelector('bdi')).toBeNull();
+    expect((header.textContent ?? '').trim()).toBe('');
+    // the rows stay as they were, and the other headers too
+    expect(isShown(mainButton('Two Shop'))).toBe(true);
+    expect(control(groupOf('Client 10'), 'edit_group_name')).toHaveLength(1);
+    expect(groupOf('Client 10').querySelector('input')).toBeNull();
+    expect(onRenameCustomer).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
     act(() => {
       mounted.splice(0).forEach((root) => root.unmount());
@@ -2190,6 +2248,191 @@ describe('brands with no channels', () => {
         .flatMap(classes)
         .filter((name) => PHYSICAL.test(name))
     ).toEqual([]);
+  });
+});
+
+// A brand renamed in place on the calendar's list (spec 058, research R10).
+// Enter or leaving the field saves the trimmed name through
+// onRenameCustomer, the calendar's useRenameBrand, which answers once both
+// lists have reloaded, or with nothing after a refusal; the typed name shows
+// until then. Escape cancels, and an empty or unchanged name sends nothing.
+describe('renaming a brand in place', () => {
+  const deferred = () => {
+    let resolve: (value?: unknown) => void = () => undefined;
+    const promise = new Promise<unknown>((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+  const press = async (node: Element, key: string) => {
+    await act(async () => {
+      node.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      );
+    });
+  };
+  // the field in a group's header, and the name the header shows
+  const fieldOf = (group: Element) =>
+    group.firstElementChild!.querySelector('input');
+  const nameIn = (group: Element) =>
+    group.firstElementChild!.querySelector('bdi')?.textContent;
+  const rename = async (name: string, text: string) => {
+    const group = groupOf(name);
+    await click(control(group, 'edit_group_name')[0]);
+    await type(fieldOf(group)!, text);
+    return group;
+  };
+  // the list drawn again with Client 2 renamed, as the reload draws it
+  const relist = () =>
+    act(async () => {
+      mounted[mounted.length - 1].render(
+        <ChannelPanel
+          mode="calendar"
+          channels={CAL.map((c) =>
+            c.customer?.id === CLIENT_2.id
+              ? { ...c, customer: { ...CLIENT_2, name: 'New' } }
+              : c
+          )}
+          selected={null}
+          onChange={onChange}
+          update={update}
+          onToggleCollapse={onToggleCollapse}
+          onDone={onDone}
+          onRenameCustomer={onRenameCustomer}
+        />
+      );
+    });
+
+  it('saves the trimmed name on Enter, shows it while the save runs, then the name the list gives', async () => {
+    const saving = deferred();
+    onRenameCustomer.mockReturnValueOnce(saving.promise);
+    await render(CAL, { onRenameCustomer });
+
+    const group = await rename('Client 2', '  New  ');
+    await press(fieldOf(group)!, 'Enter');
+
+    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
+    expect(onRenameCustomer).toHaveBeenCalledWith(CLIENT_2, 'New');
+    expect(fieldOf(group)).toBeNull();
+    expect(nameIn(group)).toBe('New');
+
+    await relist();
+    await act(async () => saving.resolve(new Response()));
+
+    expect(nameIn(group)).toBe('New');
+    expect(control(group, 'edit_group_name')).toHaveLength(1);
+    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('saves when the field loses the focus too', async () => {
+    await render(CAL, { onRenameCustomer });
+
+    const group = await rename('Client 10', 'Client 11');
+    await act(async () => {
+      fieldOf(group)!.blur();
+    });
+
+    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
+    expect(onRenameCustomer).toHaveBeenCalledWith(CLIENT_10, 'Client 11');
+    expect(fieldOf(group)).toBeNull();
+  });
+
+  it('shows the typed name while a refused save runs, and the old one again once it answers', async () => {
+    const saving = deferred();
+    onRenameCustomer.mockReturnValueOnce(saving.promise);
+    await render(CAL, { onRenameCustomer });
+
+    // a name another brand has, which the server refuses
+    const group = await rename('Client 2', 'Client 10');
+    await press(fieldOf(group)!, 'Enter');
+
+    expect(nameIn(group)).toBe('Client 10');
+
+    // after its toast, useRenameBrand answers nothing and reloads nothing
+    await act(async () => saving.resolve(undefined));
+
+    expect(nameIn(group)).toBe('Client 2');
+    expect(control(group, 'edit_group_name')).toHaveLength(1);
+  });
+
+  // The channel sheet's Escape listener (SplitPanel's) is on the document,
+  // where Next puts React's too, so it is modelled on React's own root,
+  // added after it, as ui/bottom.sheet.component.spec.tsx models the
+  // composer's. There, unlike on Jest's document above the root,
+  // stopPropagation alone doesn't keep the key from it (Rule 12).
+  it("cancels on Escape, which closes only the field and keeps the key from the sheet's listener", async () => {
+    await render(CAL, { onRenameCustomer });
+    const sheetEscape = jest.fn();
+    host.addEventListener('keydown', sheetEscape);
+
+    const group = await rename('Client 2', 'Something else');
+    await press(fieldOf(group)!, 'Escape');
+
+    expect(sheetEscape).not.toHaveBeenCalled();
+    expect(onRenameCustomer).not.toHaveBeenCalled();
+    expect(fieldOf(group)).toBeNull();
+    expect(nameIn(group)).toBe('Client 2');
+    expect(control(group, 'edit_group_name')).toHaveLength(1);
+  });
+
+  it.each([
+    ['an empty name', '   '],
+    ['the name it has', 'Client 2'],
+    ['the name it has with a space after it', 'Client 2 '],
+  ])('sends nothing for %s, and keeps the name', async (_case, text) => {
+    await render(CAL, { onRenameCustomer });
+
+    const group = await rename('Client 2', text);
+    await press(fieldOf(group)!, 'Enter');
+
+    expect(onRenameCustomer).not.toHaveBeenCalled();
+    expect(fieldOf(group)).toBeNull();
+    expect(nameIn(group)).toBe('Client 2');
+  });
+
+  it('renames a brand with no channels the same way', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels, onRenameCustomer });
+    const group = groupOf('مخبز الحي');
+
+    await click(control(group, 'edit_group_name')[0]);
+    const field = fieldOf(group)!;
+
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('مخبز الحي');
+    expect(field.getAttribute('dir')).toBe('auto');
+    expect(group.firstElementChild!.querySelectorAll('button')).toHaveLength(0);
+
+    await type(field, 'مخبز النور');
+    await press(field, 'Enter');
+
+    expect(onRenameCustomer).toHaveBeenCalledTimes(1);
+    expect(onRenameCustomer).toHaveBeenCalledWith(MAKHBAZ, 'مخبز النور');
+    expect(fieldOf(group)).toBeNull();
+  });
+
+  it("shows the field in a folded group's header, and leaves the fold as it is", async () => {
+    await render(CAL, { onRenameCustomer });
+    const group = groupOf('Client 2');
+    await click(chevrons(group)[0]);
+    expect(isShown(mainButton('Two Shop'))).toBe(false);
+
+    await click(control(group, 'edit_group_name')[0]);
+    const field = fieldOf(group)!;
+
+    expect(isShown(field)).toBe(true);
+    expect(document.activeElement).toBe(field);
+    // its chevron still points the way a folded group's does
+    expect(classes(group.firstElementChild!.querySelector('svg'))).toContain(
+      '-rotate-90'
+    );
+    expect(isShown(mainButton('Two Shop'))).toBe(false);
+
+    await press(field, 'Escape');
+
+    expect(chevrons(group)[0].getAttribute('aria-expanded')).toBe('false');
+    expect(isShown(mainButton('Two Shop'))).toBe(false);
+    expect(localStorage.getItem('Client 2_isOpen')).toBe('0');
   });
 });
 
