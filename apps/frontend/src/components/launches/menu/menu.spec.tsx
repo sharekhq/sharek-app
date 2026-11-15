@@ -79,6 +79,12 @@ jest.mock('@gitroom/react/form/input', () => ({ Input: () => null }));
 jest.mock('@gitroom/react/form/button', () => ({ Button: () => null }));
 
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
+import {
+  MENU_ICON,
+  MENU_ICON_DANGER,
+  MENU_ITEM,
+  MENU_PANEL,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 
 // The walk's phone: 390px wide, the trigger 120px in, the menu 202px wide.
 const SCREEN = { width: 390, height: 844 };
@@ -532,5 +538,77 @@ describe('the channel menu items, by channel state (SC-008)', () => {
     await open(flags);
 
     expect(rows()).toEqual(labels);
+  });
+});
+
+// The look of Samy's chat menu, which every ⋯ list in the app shares
+// (post.actions.menu.tsx): the panel, each row and each row's icon box take it
+// by name, and the icons draw in the box's colour. All four flags are on, which
+// no channel is at once, so that as many rows show as can: Create a new post
+// shows only while the channel needs no reconnecting and Reconnect channel only
+// while it does, so the two states between them show all 13.
+const classes = (node: Element) => node.className.split(' ').sort();
+const look = (name: string) => name.split(' ').sort();
+const EVERY_FLAG: Flags = {
+  canEnable: true,
+  canDisable: true,
+  canChangeProfilePicture: true,
+  canChangeNickName: true,
+};
+const EVERY_ROW = {
+  name: 'BlogChief News',
+  additionalSettings: JSON.stringify([
+    { title: 'Verified', type: 'checkbox', value: false },
+  ]),
+};
+
+describe.each([
+  {
+    state: 'with Create a new post',
+    channel: { ...EVERY_ROW, ...CREDENTIALS },
+    count: 12,
+  },
+  {
+    state: 'with Reconnect channel',
+    channel: { ...EVERY_ROW, refreshNeeded: true },
+    count: 11,
+  },
+])('the channel menu look (FR-001), $state', ({ channel, count }) => {
+  const shown = () => Array.from(menu().children);
+
+  beforeEach(async () => {
+    mockChannel = { ...CHANNEL, ...channel };
+    await open(EVERY_FLAG);
+    expect(shown()).toHaveLength(count);
+  });
+
+  it('draws its panel in MENU_PANEL alone', () => {
+    expect(classes(menu())).toEqual(look(MENU_PANEL));
+  });
+
+  it('draws every row in MENU_ITEM alone', () => {
+    for (const row of shown()) {
+      expect(classes(row)).toEqual(look(MENU_ITEM));
+    }
+  });
+
+  it("boxes every row's icon in MENU_ICON, and Delete's in MENU_ICON_DANGER", () => {
+    for (const row of shown()) {
+      expect(classes(row.children[0])).toEqual(
+        look(row.textContent === 'Delete' ? MENU_ICON_DANGER : MENU_ICON)
+      );
+    }
+  });
+
+  it('paints no icon green or yellow', () => {
+    expect(
+      menu().querySelectorAll('[fill="green"], [fill="yellow"]')
+    ).toHaveLength(0);
+  });
+
+  it('keeps its labels at 14px', () => {
+    for (const row of shown()) {
+      expect(row.children[1].className).toBe('text-[14px]');
+    }
   });
 });
