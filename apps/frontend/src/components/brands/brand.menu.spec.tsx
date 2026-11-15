@@ -1,4 +1,4 @@
-import { act, ComponentProps, ReactNode } from 'react';
+import { act, ComponentProps, createRef, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,12 +23,38 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
 }));
+// The channel list, a jest.fn so a case can tell whether anything asked for
+// it, its reload a spy.
+const mockIntegrationList = jest.fn();
+const mockReloadChannels = jest.fn();
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/use.integration.list',
   () => ({
-    useIntegrationList: () => ({ data: mockChannels }),
+    useIntegrationList: () => mockIntegrationList(),
   })
 );
+// What Move to brand sends and says: the requests and their answers, and the
+// toasts. Moving runs for real (useMoveChannels) on them.
+const mockRequest = jest.fn();
+const mockToast = jest.fn();
+jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
+  useFetch: () => mockRequest,
+}));
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: mockToast }),
+}));
+// GET /brands, a jest.fn so a case can tell whether it was asked for.
+const mockUseBrands = jest.fn();
+jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
+  useBrands: () => mockUseBrands(),
+}));
+// New brand, whose window and creation brand.dialogs.spec pins: what Move to
+// brand opens it with.
+const mockOpenNewBrand = jest.fn();
+jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
+  useBrandDialogs: () => ({ openNewBrand: mockOpenNewBrand }),
+}));
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({
@@ -51,7 +77,12 @@ import {
   REDUCED_MOTION_QUERY,
 } from '@gitroom/react/helpers/use.media.query';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
-import { BrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
+import type { Channel } from '@gitroom/frontend/components/launches/channel.panel';
+import type { PostActionsMenuHandle } from '@gitroom/frontend/components/launches/post.actions.menu';
+import {
+  BrandMenu,
+  MoveToBrandMenu,
+} from '@gitroom/frontend/components/brands/brand.menu';
 
 const mockTranslate = (
   key: string,
@@ -133,6 +164,10 @@ const mounted: Root[] = [];
 beforeEach(() => {
   smallWindow = false;
   reducedMotion = false;
+  mockIntegrationList.mockImplementation(() => ({
+    data: mockChannels,
+    mutate: mockReloadChannels,
+  }));
   window.matchMedia = ((query: string) => ({
     get matches() {
       return (
@@ -740,5 +775,423 @@ describe('the look', () => {
       'لا يرسل شعارًا ولا منشورات نموذجية ولا ألوانًا'
     );
     expect(manage()!.textContent).toBe('إدارة العلامات التجارية');
+  });
+});
+
+// Move to brand (spec 058, US1 and US2, FR-006 to FR-018; contracts/ui.md
+// "The Move list"), from the channel ⋯ menu: the same list, held in a box
+// laid over the ⋯ and opened through its handle, titled for the channel. Every
+// brand GET /brands gives, one with no channels too, then No brand, which
+// says what it means here, then + New brand in place of Manage brands. A pick
+// moves the channel on PUT /integrations/:id/group, the brand's id or '' for
+// No brand, and reloads the channel list; the ✓ choice sends nothing.
+describe('MoveToBrandMenu', () => {
+  // Bayt Al Qahwa's two channels, one disabled, Rawda Florist's one, Al Waha
+  // none yet, and one channel in no brand.
+  const CHANNEL: Channel = {
+    id: 'ig',
+    internalId: 'ig-1',
+    name: 'Coffee & Co',
+    identifier: 'instagram',
+    type: 'social',
+    customer: { id: 'bq', name: 'Bayt Al Qahwa' },
+  };
+  const LOOSE: Channel = {
+    id: 'tt',
+    internalId: 'tt-1',
+    name: 'Qahwa TikTok',
+    identifier: 'tiktok',
+    type: 'social',
+    customer: null,
+  };
+  const CHANNELS: Channel[] = [
+    CHANNEL,
+    {
+      ...CHANNEL,
+      id: 'fb',
+      internalId: 'fb-1',
+      identifier: 'facebook',
+      disabled: true,
+    },
+    {
+      ...LOOSE,
+      id: 'pin',
+      internalId: 'pin-1',
+      identifier: 'pinterest',
+      customer: { id: 'rf', name: 'Rawda Florist' },
+    },
+    LOOSE,
+  ];
+  // Not in the order the list shows them.
+  const MOVE_BRANDS = [
+    brand('rf', 'Rawda Florist'),
+    brand('aw', 'Al Waha'),
+    brand('bq', 'Bayt Al Qahwa', {
+      id: 'm1',
+      path: 'https://media/bq.png',
+      missing: false,
+    }),
+  ];
+  const TITLE = 'Move ⁨Coffee & Co⁩ to';
+
+  beforeEach(() => {
+    mockUseBrands.mockImplementation(() => ({
+      data: MOVE_BRANDS,
+      mutate: jest.fn(),
+    }));
+    mockIntegrationList.mockImplementation(() => ({
+      data: CHANNELS,
+      mutate: mockReloadChannels,
+    }));
+    mockRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+  });
+
+  // The channel ⋯ menu's outer box, relative, with its ⋯ button and the held
+  // box after it, as menu.tsx renders them.
+  const renderMove = async (channel = CHANNEL) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    const handle = createRef<PostActionsMenuHandle>();
+    const button = createRef<HTMLButtonElement>();
+    await act(async () => {
+      root.render(
+        <div className="relative">
+          <button ref={button} type="button" aria-haspopup="menu">
+            ⋯
+          </button>
+          <MoveToBrandMenu ref={handle} channel={channel} button={button} />
+        </div>
+      );
+    });
+    return {
+      host,
+      handle,
+      button: () => button.current!,
+      box: () => host.firstElementChild!.lastElementChild as HTMLElement,
+    };
+  };
+  const openMove = async (channel = CHANNEL) => {
+    const move = await renderMove(channel);
+    await act(async () => {
+      move.handle.current!.open();
+    });
+    return move;
+  };
+
+  const newBrand = () =>
+    Array.from(document.querySelectorAll('button')).find(
+      (node) => node.textContent === 'New brand'
+    );
+  const sheet = () =>
+    document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"]');
+  // The requests sent to a route, as [method, body].
+  const sent = (url: string) =>
+    mockRequest.mock.calls
+      .filter(([called]) => called === url)
+      .map(([, init]) => [init.method, JSON.parse(init.body)]);
+
+  it('loads nothing before it opens, and renders only a box that lets the ⋯ take every press', async () => {
+    const move = await renderMove();
+
+    expect(mockUseBrands).not.toHaveBeenCalled();
+    expect(mockIntegrationList).not.toHaveBeenCalled();
+    expect(classes(move.box())).toEqual([
+      'absolute',
+      'inset-0',
+      'pointer-events-none',
+    ]);
+    expect(move.box().children).toHaveLength(0);
+    expect(move.box().hasAttribute('data-open')).toBe(false);
+    expect(listbox()).toBeNull();
+  });
+
+  it('opens through its handle, hanging the list from its box, the list in a box that takes presses, and marks the box open', async () => {
+    // happy-dom lays nothing out: the box over the ⋯ answers a place, every
+    // other element an empty box
+    jest
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        const box = this.classList.contains('pointer-events-none');
+        return {
+          top: box ? 50 : 0,
+          bottom: box ? 86 : 0,
+          height: box ? 36 : 0,
+          left: box ? 100 : 0,
+          right: box ? 136 : 0,
+          width: box ? 36 : 0,
+          x: box ? 100 : 0,
+          y: box ? 50 : 0,
+          toJSON: () => undefined,
+        };
+      });
+    const move = await openMove();
+
+    expect(listbox()).toBeTruthy();
+    expect(move.box().getAttribute('data-open')).toBe('');
+    expect(move.box().children).toHaveLength(1);
+    expect(classes(move.box().firstElementChild!)).toEqual([
+      'pointer-events-auto',
+    ]);
+    // on a wide screen, in the body against the viewport, under the box
+    const surface = listbox()!.parentElement!;
+    expect(surface.parentElement?.tagName).toBe('BODY');
+    expect(classes(surface)).toContain('fixed');
+    expect(surface.style.left).toBe('100px');
+    expect(surface.style.top).toBe('90px');
+  });
+
+  it('is titled Move {channel} to, the name isolated and as typed, and the title names the list', async () => {
+    await openMove();
+
+    expect(listbox()!.getAttribute('aria-label')).toBe(TITLE);
+    expect(document.body.textContent).toContain(TITLE);
+  });
+
+  it('lists every brand A to Z, one with no channels too, each with its mark and its count, disabled channels counted; then No brand, then + New brand', async () => {
+    await openMove();
+
+    expect(
+      Array.from(listbox()!.querySelectorAll('[dir="auto"]')).map(
+        (node) => node.textContent
+      )
+    ).toEqual(['Al Waha', 'Bayt Al Qahwa', 'Rawda Florist']);
+    expect(options().map((node) => node.textContent)).toEqual([
+      'AAl Waha0 channels',
+      'Bayt Al Qahwa2 channels',
+      'RRawda Florist1 channel',
+      'No brandListed on its own, outside any brand',
+    ]);
+    expect(
+      option('Bayt Al Qahwa')!.querySelector('img')?.getAttribute('src')
+    ).toBe('https://media/bq.png');
+    expect(manage()).toBeNull();
+
+    const button = newBrand()!;
+    expect(button.getAttribute('type')).toBe('button');
+    expect(listbox()!.contains(button)).toBe(false);
+    expect(
+      listbox()!.compareDocumentPosition(button) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // PlusIcon
+    expect(button.querySelector('svg path')?.getAttribute('d')).toBe(
+      'M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673'
+    );
+    expect(classes(button)).toEqual(
+      expect.arrayContaining([
+        'text-brandText',
+        'min-h-[44px]',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
+
+  it.each([
+    ['its brand', CHANNEL, 'Bayt Al Qahwa'],
+    ['No brand, for a channel in none', LOOSE, 'No brand'],
+  ])('puts the ✓ on %s', async (_, channel, current) => {
+    await openMove(channel);
+
+    expect(
+      options()
+        .filter((node) => node.getAttribute('aria-selected') === 'true')
+        .map((node) => node.textContent)
+    ).toEqual([expect.stringContaining(current)]);
+    expect(options().filter(ticked)).toEqual([option(current)]);
+  });
+
+  it.each([
+    ['Rawda Florist', 'rf'],
+    ['Al Waha', 'aw'],
+    ['No brand', ''],
+  ])(
+    'a pick of %s closes the list, moves the channel, then reloads the channel list',
+    async (name, group) => {
+      const move = await openMove();
+
+      await click(option(name));
+
+      expect(listbox()).toBeNull();
+      expect(move.box().hasAttribute('data-open')).toBe(false);
+      expect(sent('/integrations/ig/group')).toEqual([['PUT', { group }]]);
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockReloadChannels).toHaveBeenCalledTimes(1);
+      expect(mockReloadChannels.mock.invocationCallOrder[0]).toBeGreaterThan(
+        mockRequest.mock.invocationCallOrder[0]
+      );
+      expect(mockToast).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['its brand', CHANNEL, 'Bayt Al Qahwa'],
+    ['No brand, for a channel in none', LOOSE, 'No brand'],
+  ])(
+    'a pick of the ✓ choice, %s, closes the list, gives the focus back to the ⋯ and sends nothing',
+    async (_, channel, current) => {
+      const move = await openMove(channel);
+
+      await click(option(current));
+
+      expect(listbox()).toBeNull();
+      expect(document.activeElement).toBe(move.button());
+      expect(mockRequest).not.toHaveBeenCalled();
+      expect(mockReloadChannels).not.toHaveBeenCalled();
+    }
+  );
+
+  it('a refused move says so in the server’s words, and the channel list reloads', async () => {
+    mockRequest.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: 'Integration not found' }),
+    });
+    await openMove();
+
+    await click(option('Rawda Florist'));
+
+    expect(mockToast).toHaveBeenCalledWith('Integration not found', 'warning');
+    expect(mockReloadChannels).toHaveBeenCalledTimes(1);
+  });
+
+  it('+ New brand closes the list and opens New brand with the channel, whose creation moves the channel into it', async () => {
+    const move = await openMove();
+
+    await click(newBrand());
+
+    expect(listbox()).toBeNull();
+    expect(document.activeElement).toBe(move.button());
+    expect(mockOpenNewBrand).toHaveBeenCalledTimes(1);
+    expect(mockOpenNewBrand).toHaveBeenCalledWith(
+      expect.any(Function),
+      CHANNEL
+    );
+    expect(mockRequest).not.toHaveBeenCalled();
+
+    // what New brand does once POST /brands answers the new brand's id
+    await act(async () => {
+      mockOpenNewBrand.mock.calls[0][0]('b9');
+    });
+
+    expect(sent('/integrations/ig/group')).toEqual([['PUT', { group: 'b9' }]]);
+    expect(mockReloadChannels).toHaveBeenCalledTimes(1);
+  });
+
+  it('a move refused once New brand has created the brand says so, and the brand stays', async () => {
+    mockRequest.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: ['group must be a string'] }),
+    });
+    await openMove();
+    await click(newBrand());
+
+    await act(async () => {
+      mockOpenNewBrand.mock.calls[0][0]('b9');
+    });
+
+    expect(mockToast).toHaveBeenCalledWith('group must be a string', 'warning');
+    // nothing else is sent: no delete of the brand just made
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens with the focus on the ✓ choice; the arrows move and Enter picks', async () => {
+    await openMove();
+
+    expect(document.activeElement).toBe(option('Bayt Al Qahwa'));
+    await press(document.activeElement, 'ArrowDown');
+    expect(document.activeElement).toBe(option('Rawda Florist'));
+    await press(document.activeElement, 'ArrowUp');
+    await press(document.activeElement, 'ArrowUp');
+    expect(document.activeElement).toBe(option('Al Waha'));
+    await press(document.activeElement, 'Enter');
+
+    expect(listbox()).toBeNull();
+    expect(sent('/integrations/ig/group')).toEqual([['PUT', { group: 'aw' }]]);
+  });
+
+  it('closes on Escape, keeps the key from the document and gives the focus back to the ⋯', async () => {
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    const move = await openMove();
+
+    await press(document.activeElement, 'Escape');
+    document.removeEventListener('keydown', documentEscape);
+
+    expect(listbox()).toBeNull();
+    expect(move.box().hasAttribute('data-open')).toBe(false);
+    expect(documentEscape).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(move.button());
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  it('closes on Tab from the list in the body and gives the focus back to the ⋯', async () => {
+    const move = await openMove();
+    option('No brand')!.focus();
+
+    await press(document.activeElement, 'Tab');
+
+    expect(listbox()).toBeNull();
+    expect(document.activeElement).toBe(move.button());
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  describe('at 1025px and below', () => {
+    beforeEach(() => {
+      smallWindow = true;
+    });
+
+    it('opens as a bottom sheet in the box that takes presses, titled the same', async () => {
+      const move = await openMove();
+
+      expect(sheet()).toBeTruthy();
+      expect(sheet()!.getAttribute('aria-label')).toBe(TITLE);
+      expect(
+        move.box().querySelector('.pointer-events-auto')!.contains(sheet())
+      ).toBe(true);
+      expect(sheet()!.contains(listbox())).toBe(true);
+      expect(sheet()!.contains(newBrand()!)).toBe(true);
+    });
+
+    // The channel sheet the ⋯ sits in closes on an Escape that reaches the
+    // document, where React's listener sits too (Next hydrates the document):
+    // its listener is modelled on React's own root, added after it.
+    it('closes on Escape, and the channel sheet around it never hears the key', async () => {
+      const move = await openMove();
+      const outerEscape = jest.fn();
+      move.host.addEventListener('keydown', outerEscape);
+
+      await press(document.activeElement, 'Escape');
+      move.host.removeEventListener('keydown', outerEscape);
+
+      expect(sheet()).toBeNull();
+      expect(outerEscape).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(move.button());
+    });
+  });
+
+  it('reads in Arabic, the channel’s name in its own direction', async () => {
+    await i18next.changeLanguage('ar');
+    await openMove();
+
+    expect(listbox()!.getAttribute('aria-label')).toBe('نقل ⁨Coffee & Co⁩ إلى');
+  });
+
+  it.each([
+    ['on a wide screen', false],
+    ['at 1025px and below', true],
+  ])('uses no physical-side classes %s', async (_, small) => {
+    smallWindow = small;
+    await openMove();
+
+    const nodes = Array.from(document.body.querySelectorAll('*'));
+    expect(nodes.flatMap((node) => classes(node).filter(physical))).toEqual([]);
   });
 });
