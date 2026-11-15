@@ -847,6 +847,35 @@ export const AiImageIcon: FC<IconProps> = ({
   </svg>
 );
 
+// Brands Icon (a palette, the side menu's Brands entry)
+export const BrandsIcon: FC<IconProps> = ({
+  size = 20,
+  className,
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={(size * 21) / 20}
+    viewBox="0 0 20 21"
+    fill="none"
+    className={className}
+    {...props}
+  >
+    <path
+      d="M10 2.25A8.25 8.25 0 1 0 10 18.75C10.96 18.75 11.6 17.97 11.6 17.05C11.6 16.61 11.44 16.23 11.16 15.95C10.89 15.68 10.72 15.29 10.72 14.85C10.72 13.94 11.46 13.2 12.37 13.2H14.35A3.9 3.9 0 0 0 18.25 9.31C18.25 5.41 14.56 2.25 10 2.25Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="5.78" cy="9.77" r="1.24" fill="currentColor" />
+    <circle cx="7.8" cy="6.1" r="1.24" fill="currentColor" />
+    <circle cx="12.2" cy="6.1" r="1.24" fill="currentColor" />
+    <circle cx="14.77" cy="9.22" r="1.24" fill="currentColor" />
+  </svg>
+);
+
 // Pencil Icon (edit)
 export const PencilIcon: FC<IconProps> = ({
   size = 16,
