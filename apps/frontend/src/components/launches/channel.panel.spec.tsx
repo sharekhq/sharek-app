@@ -1,4 +1,4 @@
-import { act, FC, ReactElement, useState } from 'react';
+import { act, ComponentProps, FC, ReactElement, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -135,7 +135,7 @@ type Channel = {
   refreshNeeded: boolean;
   inBetweenSteps: boolean;
   isCustomFields?: boolean;
-  customFields?: unknown[];
+  customFields?: ComponentProps<typeof CustomVariables>['variables'];
   customer: { id: string; name: string } | null;
 };
 
@@ -263,7 +263,9 @@ const SEARCH: Channel[] = [
   }),
 ];
 
-const CUSTOM_FIELDS = [{ key: 'service', label: 'Service', type: 'text' }];
+const CUSTOM_FIELDS: Channel['customFields'] = [
+  { key: 'service', label: 'Service', validation: '/^.{3,}$/', type: 'text' },
+];
 
 // Each state once, and two channels with more than one: the second line shows
 // the first that applies (disabled, disconnected, needs setup).
