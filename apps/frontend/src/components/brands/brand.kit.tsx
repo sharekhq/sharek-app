@@ -45,6 +45,7 @@ import {
   isLive,
   useBrandChange,
   useBrands,
+  useMoveChannels,
   withSavedBrand,
 } from '@gitroom/frontend/components/brands/use.brands';
 
@@ -355,7 +356,8 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
   const mediaDirectory = useMediaDirectory();
   const { websiteLookup } = useVariables();
   const { mutate: setBrands } = useBrands();
-  const { data: integrations, mutate: reloadChannels } = useIntegrationList();
+  const { data: integrations } = useIntegrationList();
+  const move = useMoveChannels();
 
   const { logo, examples, colours, headingFont, bodyFont } = brand.kit;
   const { about, toneOfVoice, postLanguage, callToAction, hashtags } =
@@ -379,21 +381,6 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
     }
     const saved: Brand = await response.json();
     setBrands(withSavedBrand(saved), false);
-  };
-
-  // Into a brand, or to No brand with '', through the route the calendar's
-  // channel list uses (C3). The list reloads after a refusal too, since the
-  // others may have moved.
-  const move = async (ids: string[], group: string) => {
-    await Promise.all(
-      ids.map((id) =>
-        send(`/integrations/${id}/group`, {
-          method: 'PUT',
-          body: JSON.stringify({ group }),
-        })
-      )
-    );
-    reloadChannels();
   };
 
   // Opened as the AI image window's reference row opens the library: images
