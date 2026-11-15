@@ -225,14 +225,16 @@ export const CalendarPostCard = forwardRef<
         ) : (
           <span className="cal-chip cal-chip-info">{statusLabel}</span>
         )}
-        <div
-          className={clsx(
-            post?.tags?.[0]?.tag?.color ? 'text-shadow-tags' : '',
-            'group-hover:hidden coarse:hidden cursor-pointer'
-          )}
-        >
-          {post.tags.map((p) => p.tag.name).join(', ')}
-        </div>
+        {!!post.tags.length && (
+          <div
+            className={clsx(
+              post?.tags?.[0]?.tag?.color ? 'text-shadow-tags' : '',
+              'group-hover:invisible coarse:hidden cursor-pointer'
+            )}
+          >
+            {post.tags.map((p) => p.tag.name).join(', ')}
+          </div>
+        )}
         {actions}
       </div>
       <div
