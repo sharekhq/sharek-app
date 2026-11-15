@@ -8,14 +8,37 @@ import { SWRConfig } from 'swr';
 // 502 (Sentry 159718423). It's an error SWR asks again for instead.
 //
 // SWR runs for real on a cache of its own; only the request is stubbed.
+//
+// useMoveChannels and useRenameBrand are the channel list's and the Brands
+// page's changes to a brand (spec 058): a move on PUT /integrations/:id/group
+// and a rename on PUT /integrations/customers/:id, each refusal a toast in the
+// server's words. The channel list is a spy that records its reloads.
 
 const mockFetch = jest.fn();
+const reloadChannels = jest.fn();
+const toast = jest.fn();
 
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
 }));
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: toast }),
+}));
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => (key: string, fallback: string) => fallback,
+}));
+jest.mock(
+  '@gitroom/frontend/components/launches/helpers/use.integration.list',
+  () => ({
+    useIntegrationList: () => ({ data: [], mutate: reloadChannels }),
+  })
+);
 
-import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  useBrands,
+  useMoveChannels,
+  useRenameBrand,
+} from '@gitroom/frontend/components/brands/use.brands';
 
 const mounted: Root[] = [];
 // What the hook gave on each render. SWR renders again only for what a render
@@ -32,12 +55,15 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-const load = async () => {
-  const Probe = () => {
-    const { data, error } = useBrands();
-    captured.push({ data, error });
-    return null;
-  };
+const settle = async () => {
+  for (let i = 0; i < 3; i++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+};
+
+const render = async (Probe: () => null) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -49,13 +75,69 @@ const load = async () => {
       </SWRConfig>
     );
   });
-  for (let i = 0; i < 3; i++) {
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  }
+  await settle();
+};
+
+const load = async () => {
+  await render(() => {
+    const { data, error } = useBrands();
+    captured.push({ data, error });
+    return null;
+  });
   return captured[captured.length - 1];
 };
+
+// What a hook answers, from a mounted probe.
+const mountHook = async <T,>(useHook: () => T) => {
+  const hook = {} as { current: T };
+  await render(() => {
+    hook.current = useHook();
+    return null;
+  });
+  return hook;
+};
+
+const answer = (status: number, body: unknown = {}) => ({
+  ok: status < 400,
+  status,
+  json: async () => body,
+});
+
+// The server: a route answers as the case sets it, else 200 (GET /brands an
+// empty list).
+let routes: Record<string, () => unknown> = {};
+const serve = () => {
+  routes = {};
+  mockFetch.mockImplementation(async (url: string) =>
+    url in routes ? routes[url]() : answer(200, [])
+  );
+};
+
+// The route's answer, held back until the case releases it.
+const hold = (url: string, status = 200, body: unknown = {}) => {
+  let release = () => {};
+  const held = new Promise((resolve) => {
+    release = () => resolve(answer(status, body));
+  });
+  routes[url] = () => held;
+  return async () => {
+    await act(async () => {
+      release();
+    });
+    await settle();
+  };
+};
+
+// The changes sent, as [route, body].
+const sent = () =>
+  mockFetch.mock.calls
+    .filter(([, init]) => init?.method === 'PUT')
+    .map(([url, init]) => [url, init.body]);
+
+// How many times GET /brands was asked.
+const brandLoads = () =>
+  mockFetch.mock.calls.filter(([url, init]) => url === '/brands' && !init)
+    .length;
 
 describe('useBrands', () => {
   it('gives the brands GET /brands answers', async () => {
@@ -88,5 +170,162 @@ describe('useBrands', () => {
     expect(mockFetch).toHaveBeenCalledWith('/brands');
     expect(result.data).toBeUndefined();
     expect(result.error).toBeInstanceOf(Error);
+  });
+});
+
+describe('useMoveChannels', () => {
+  beforeEach(serve);
+
+  it('sends one PUT /integrations/:id/group per channel with the brand, then reloads the channel list once', async () => {
+    const answerA = hold('/integrations/a/group');
+    const answerB = hold('/integrations/b/group');
+    const move = await mountHook(useMoveChannels);
+
+    let done = false;
+    await act(async () => {
+      move.current(['a', 'b'], 'brand-1').then(() => {
+        done = true;
+      });
+    });
+    await settle();
+
+    expect(sent()).toEqual([
+      ['/integrations/a/group', '{"group":"brand-1"}'],
+      ['/integrations/b/group', '{"group":"brand-1"}'],
+    ]);
+    // the list reloads once every move is answered
+    expect(reloadChannels).not.toHaveBeenCalled();
+    await answerA();
+    expect(reloadChannels).not.toHaveBeenCalled();
+    await answerB();
+    expect(done).toBe(true);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it("moves to No brand with ''", async () => {
+    const move = await mountHook(useMoveChannels);
+
+    await act(async () => {
+      await move.current(['a'], '');
+    });
+
+    expect(sent()).toEqual([['/integrations/a/group', '{"group":""}']]);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      'its message',
+      { message: 'Integration not found' },
+      'Integration not found',
+    ],
+    [
+      'the first of its messages',
+      { message: ['group must be a string', 'group should not be empty'] },
+      'group must be a string',
+    ],
+  ])(
+    'a refusal toasts %s, and the channel list still reloads, since the others may have moved',
+    async (_, body, words) => {
+      routes['/integrations/a/group'] = () => answer(400, body);
+      const move = await mountHook(useMoveChannels);
+
+      await act(async () => {
+        await move.current(['a', 'b'], 'brand-1');
+      });
+
+      expect(sent()).toHaveLength(2);
+      expect(toast).toHaveBeenCalledTimes(1);
+      expect(toast).toHaveBeenCalledWith(words, 'warning');
+      expect(reloadChannels).toHaveBeenCalledTimes(1);
+    }
+  );
+});
+
+describe('useRenameBrand', () => {
+  beforeEach(serve);
+
+  it('sends the new name to PUT /integrations/customers/:id, then reloads GET /brands and the channel list', async () => {
+    const rename = await mountHook(useRenameBrand);
+    expect(brandLoads()).toBe(1);
+
+    await act(async () => {
+      await rename.current({ id: 'c1', name: 'Old' }, 'New');
+    });
+
+    expect(sent()).toEqual([['/integrations/customers/c1', '{"name":"New"}']]);
+    expect(brandLoads()).toBe(2);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('settles only once the channel list has reloaded', async () => {
+    let reloaded = () => {};
+    reloadChannels.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          reloaded = resolve;
+        })
+    );
+    const rename = await mountHook(useRenameBrand);
+
+    let done = false;
+    await act(async () => {
+      rename.current({ id: 'c1', name: 'Old' }, 'New').then(() => {
+        done = true;
+      });
+    });
+    await settle();
+
+    expect(brandLoads()).toBe(2);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(done).toBe(false);
+
+    await act(async () => {
+      reloaded();
+    });
+    await settle();
+
+    expect(done).toBe(true);
+  });
+
+  it('settles only once GET /brands has answered again', async () => {
+    const rename = await mountHook(useRenameBrand);
+    const answerBrands = hold('/brands', 200, []);
+
+    let done = false;
+    await act(async () => {
+      rename.current({ id: 'c1', name: 'Old' }, 'New').then(() => {
+        done = true;
+      });
+    });
+    await settle();
+
+    expect(brandLoads()).toBe(2);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(done).toBe(false);
+
+    await answerBrands();
+
+    expect(done).toBe(true);
+  });
+
+  it('a refusal toasts the server’s message and reloads nothing', async () => {
+    routes['/integrations/customers/c1'] = () =>
+      answer(400, { message: 'A group with this name already exists' });
+    const rename = await mountHook(useRenameBrand);
+
+    await act(async () => {
+      await rename.current({ id: 'c1', name: 'Old' }, 'New');
+    });
+
+    expect(sent()).toEqual([['/integrations/customers/c1', '{"name":"New"}']]);
+    expect(toast).toHaveBeenCalledWith(
+      'A group with this name already exists',
+      'warning'
+    );
+    expect(brandLoads()).toBe(1);
+    expect(reloadChannels).not.toHaveBeenCalled();
   });
 });
