@@ -701,8 +701,9 @@ const isProse = (raw: string) => {
   // so "Auto (based on performance)" stays reportable.
   if (/^[a-z-]+\(/.test(text)) return false;
   // A class list, of one token or many. Every token must look like a utility class,
-  // a Tailwind arbitrary property such as [direction:ltr], or an arbitrary media
-  // variant such as [@media(max-width:400px)]:px-[8px], and at least one must carry
+  // a Tailwind arbitrary property such as [direction:ltr], an arbitrary media
+  // variant such as [@media(max-width:400px)]:px-[8px], or an arbitrary selector
+  // variant such as [&_svg]:size-4, and at least one must carry
   // the hyphen, colon or bracket that makes it one, so plain English is never
   // mistaken for classes: "1 hour" and "24 hours" carry none and stay reportable,
   // and "Order Online" and "Post / Reel" fail on their capitals.
@@ -712,7 +713,8 @@ const isProse = (raw: string) => {
       (token) =>
         /^!?-?[a-z0-9][\w./%(),[\]#:!-]*$/.test(token) ||
         /^!?\[[a-z-]+:[^\s\]]+\]$/.test(token) ||
-        /^\[@media[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token)
+        /^\[@media[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token) ||
+        /^\[&[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token)
     ) &&
     tokens.some((token) => /[-:[]/.test(token))
   )
