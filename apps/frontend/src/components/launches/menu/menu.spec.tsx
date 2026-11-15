@@ -22,8 +22,9 @@ jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => undefined }),
 }));
+const mockOpenModal = jest.fn();
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ openModal: () => undefined }),
+  useModals: () => ({ openModal: mockOpenModal }),
 }));
 jest.mock('@gitroom/frontend/components/launches/time.table', () => ({
   TimeTable: () => null,
@@ -47,9 +48,27 @@ jest.mock('@gitroom/frontend/components/launches/calendar.context', () => ({
 jest.mock('@gitroom/frontend/components/launches/bot.picture', () => ({
   BotPicture: () => null,
 }));
-jest.mock('@gitroom/frontend/components/launches/customer.modal', () => ({
-  CustomerModal: () => null,
-}));
+// Move to brand's list (brands/brand.menu.tsx), its own spec's: here only what
+// the menu hands it, its last props and what the menu asks of its handle.
+const mockMove = {
+  props: {} as Record<string, unknown>,
+  open: jest.fn(),
+  close: jest.fn(),
+};
+jest.mock('@gitroom/frontend/components/brands/brand.menu', () => {
+  const { forwardRef, useImperativeHandle } =
+    jest.requireActual<typeof import('react')>('react');
+  return {
+    MoveToBrandMenu: forwardRef((props: Record<string, unknown>, handle) => {
+      mockMove.props = props;
+      useImperativeHandle(handle, () => ({
+        open: mockMove.open,
+        close: mockMove.close,
+      }));
+      return <i data-testid="move-to-brand" />;
+    }),
+  };
+});
 jest.mock('@gitroom/frontend/components/launches/settings.modal', () => ({
   SettingsModal: () => null,
 }));
@@ -610,5 +629,51 @@ describe.each([
     for (const row of shown()) {
       expect(row.children[1].className).toBe('text-[14px]');
     }
+  });
+});
+
+// Move to brand opened a window with a datalist whose dropdown didn't work
+// (customer.modal.tsx). It now closes the ⋯ list and opens the brand list
+// held over the ⋯ (MoveToBrandMenu), which hangs from the ⋯ and hands the
+// focus back to it.
+describe('Move to brand (FR-006, FR-010, FR-013, FR-014)', () => {
+  const marker = () => document.querySelector('[data-testid="move-to-brand"]');
+  const moveRow = () =>
+    Array.from(menu().children).find(
+      (row) => row.textContent === 'Move / add to group'
+    ) as HTMLElement;
+
+  beforeEach(() => {
+    mockOpenModal.mockClear();
+    mockMove.open.mockClear();
+    mockMove.close.mockClear();
+  });
+
+  it("holds the brand list in the ⋯'s box, after the ⋯, for the calendar's channel", async () => {
+    await render();
+    const button = trigger();
+
+    expect(marker()).not.toBeNull();
+    expect(marker()?.parentElement).toBe(button.parentElement);
+    expect(
+      button.compareDocumentPosition(marker() as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(mockMove.props.channel).toBe(mockChannel);
+    expect(
+      (mockMove.props.button as { current: HTMLElement | null }).current
+    ).toBe(button);
+  });
+
+  it('closes the ⋯ list and opens the brand list, with no window', async () => {
+    await open({ canDisable: true });
+
+    await act(async () => {
+      moveRow().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(menu()).toBeNull();
+    expect(mockMove.open).toHaveBeenCalledTimes(1);
+    expect(mockOpenModal).not.toHaveBeenCalled();
   });
 });
