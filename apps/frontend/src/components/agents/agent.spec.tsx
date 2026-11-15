@@ -38,6 +38,9 @@ let mockCollapse = '0';
 const mockSetCookie = jest.fn();
 // The keys of anything the page loads itself.
 const mockKeys: unknown[] = [];
+// What GET /brands answers: nothing, unless a case gives the organization
+// brands.
+let mockBrands: unknown;
 // What the page last handed each marker, and the context the chats panel read.
 let mockSplits: Partial<
   Record<'chats' | 'channels', ComponentProps<typeof SplitPanel>>
@@ -62,7 +65,10 @@ jest.mock('swr', () => ({
   __esModule: true,
   default: (key: unknown) => {
     mockKeys.push(key);
-    return { data: undefined, mutate: () => undefined };
+    return {
+      data: key === '/brands' ? mockBrands : undefined,
+      mutate: () => undefined,
+    };
   },
 }));
 jest.mock('next/navigation', () => ({
@@ -271,6 +277,7 @@ beforeEach(() => {
   mockParams = { id: 'chat-1' };
   mockCollapse = '0';
   mockKeys.length = 0;
+  mockBrands = undefined;
   mockSplits = {};
   mockPanel = undefined;
   mockChats = undefined;
@@ -385,6 +392,19 @@ describe('the channel list (FR-025, C6)', () => {
     // Add Channel, Invite and Reconnect refresh the shared list
     await run(() => mockPanel!.update());
     expect(mockMutate).toHaveBeenCalledTimes(1);
+  });
+
+  // Brands with no channels show where the list manages brands, the
+  // calendar's (spec 058, R7), so Samy's list is handed no brands even while
+  // the page has them for the brand chip.
+  it("hands the list no brands, Add channels or New brand, which stay the calendar's", async () => {
+    mockBrands = [{ id: 'waha', name: 'Al Waha' }];
+    await mount();
+
+    expect(mockKeys).toContain('/brands');
+    expect(mockPanel!.brands).toBeUndefined();
+    expect(mockPanel!.onAddChannels).toBeUndefined();
+    expect(mockPanel!.onNewBrand).toBeUndefined();
   });
 
   it("collapses to the icon rail and back from the panel's own control, on the shared collapseMenu cookie", async () => {
