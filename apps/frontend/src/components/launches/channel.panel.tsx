@@ -413,9 +413,13 @@ const ChannelRow: FC<{
       )}
       {/* The ⋯ shows on its row's hover, while the focus is anywhere in its
           row, its own included, and always on a touch screen. Its menu opens
-          inside it, so it also shows while that is open. */}
+          inside it, so it also shows while that is open, and while a list the
+          menu hands off to (Move to brand) is open, its box marked data-open:
+          on a wide screen that list is in the body, so the row loses its hover
+          and its focus once they move into it, and at 1025px and below its
+          sheet renders in here. */}
       {!collapsed && menu && (
-        <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 coarse:opacity-100 transition-opacity">
+        <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 has-[[data-open]]:opacity-100 coarse:opacity-100 transition-opacity">
           {menu}
         </span>
       )}
