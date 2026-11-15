@@ -29,9 +29,11 @@ let mockCollapse = '0';
 const mockSetCollapse = jest.fn();
 // The list as GET /integrations/list gives it; a case reassigns it to refresh.
 let mockChannels: Channel[] = [];
-// The brands as GET /brands gives them, and the Brands page's windows.
+// The brands as GET /brands gives them, the Brands page's windows, and the
+// rename the list saves in place.
 let mockBrands: Array<Pick<Brand, 'id' | 'name'>> = [];
 const mockDialogs = { openNewBrand: jest.fn(), openAddChannels: jest.fn() };
+const mockRename = jest.fn();
 // Where the calendar's selection starts, and what the provider last had.
 let mockStart: string[] | null = null;
 let mockCalendar: {
@@ -73,6 +75,7 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
   ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: mockBrands }),
+  useRenameBrand: () => mockRename,
 }));
 jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
   useBrandDialogs: () => mockDialogs,
@@ -260,7 +263,6 @@ const run = async (callback: () => unknown) => {
     await callback();
   });
 };
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
 const marker = (id: string) =>
   host.querySelector<HTMLElement>(`[data-testid="${id}"]`);
@@ -464,31 +466,27 @@ describe('the channel list (C6, FR-005)', () => {
     });
   });
 
-  it("renames a customer through today's Edit group name modal", async () => {
+  // The pencil turns the name into a field in the list, which saves through
+  // useRenameBrand: it reloads both lists and toasts a refusal itself, so the
+  // page opens no window and says nothing of its own (FR-039, FR-041).
+  it("saves a brand's rename in place through useRenameBrand, with no window and no toast", async () => {
     mockChannels = [
       mockChannel(1, { customer: { id: 'c-2', name: 'Client 2' } }),
     ];
     await mount();
 
-    expect(typeof mockPanel?.onRenameCustomer).toBe('function');
-    // not awaited: the rename waits on the modal
-    await run(() => {
-      mockPanel!.onRenameCustomer!({ id: 'c-2', name: 'Client 2' });
-    });
-
-    expect(mockOpenModal).toHaveBeenCalledTimes(1);
-    const [{ title, children }] = mockOpenModal.mock.calls[0];
-    expect(title).toBe('edit_group_name');
-    const modal = children(jest.fn());
-    expect(modal.props).toEqual(
-      expect.objectContaining({ id: 'c-2', name: 'Client 2' })
+    expect(mockPanel!.onRenameCustomer).toBe(mockRename);
+    await run(() =>
+      mockPanel!.onRenameCustomer!({ id: 'c-2', name: 'Client 2' }, 'New')
     );
 
-    // saved: the list reloads with the new name, and says so
-    await run(() => modal.props.resolve('Client Two'));
-    await flush();
-    expect(mockMutate).toHaveBeenCalledTimes(1);
-    expect(mockToast).toHaveBeenCalledWith('group_updated', 'success');
+    expect(mockRename).toHaveBeenCalledTimes(1);
+    expect(mockRename).toHaveBeenCalledWith(
+      { id: 'c-2', name: 'Client 2' },
+      'New'
+    );
+    expect(mockOpenModal).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalledWith('group_updated', 'success');
   });
 
   it("opens as a sheet from the top bar's chip and closes from Done or the sheet", async () => {
