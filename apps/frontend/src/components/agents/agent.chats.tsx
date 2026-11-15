@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  FC,
-  KeyboardEvent,
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-} from 'react';
+import { FC, useCallback, useContext, useState } from 'react';
 import clsx from 'clsx';
 import { groupBy } from 'lodash';
 import Link from 'next/link';
@@ -21,6 +14,7 @@ import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import {
   FOCUS_RING,
   matchesSearch,
+  NameField,
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
@@ -106,47 +100,19 @@ export const useChatActions = () => {
 };
 
 // A chat's name edited in place, in its row or in the chat header (C22).
-// Enter or leaving the field saves the trimmed name, Escape cancels, and an
-// empty or unchanged name sends nothing, so the old title stays.
 export const ChatTitleField: FC<{ chat: Chat; onClose: () => void }> = ({
   chat,
   onClose,
 }) => {
   const t = useT();
   const { rename } = useChatActions();
-  const [value, setValue] = useState(chat.title);
-  const cancelled = useRef(false);
-
-  // Both keys end the edit by leaving the field, so it ends in one place.
-  const keys = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
-      // the field's alone, or the drawer around it would close too
-      e.stopPropagation();
-      cancelled.current = true;
-      e.currentTarget.blur();
-    } else if (e.key === 'Enter') {
-      e.currentTarget.blur();
-    }
-  };
-
-  const close = () => {
-    const title = value.trim();
-    if (!cancelled.current && title && title !== chat.title) {
-      rename(chat, title);
-    }
-    onClose();
-  };
 
   return (
-    <input
-      autoFocus
-      dir="auto"
-      value={value}
-      aria-label={t('rename', 'Rename')}
-      onChange={(e) => setValue(e.target.value)}
-      onKeyDown={keys}
-      onBlur={close}
-      className="w-full h-[32px] coarse:h-[44px] px-[8px] rounded-[6px] border border-brand ring-[3px] ring-brandSoft bg-newBgColorInner text-[14px] coarse:text-[16px] text-ink outline-none"
+    <NameField
+      value={chat.title}
+      label={t('rename', 'Rename')}
+      onSave={(title) => rename(chat, title)}
+      onClose={onClose}
     />
   );
 };

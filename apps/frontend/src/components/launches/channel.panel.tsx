@@ -8,6 +8,7 @@ import {
   ReactNode,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import clsx from 'clsx';
@@ -706,6 +707,53 @@ export const SearchField = forwardRef<
     </div>
   );
 });
+
+// A name edited in place, which Samy's chats have too (a chat's title in its
+// row or the chat header). Enter or leaving the field saves the trimmed name,
+// Escape cancels, and an empty or unchanged name sends nothing, so the old
+// one stays.
+export const NameField: FC<{
+  value: string;
+  label: string;
+  onSave: (name: string) => void;
+  onClose: () => void;
+}> = ({ value, label, onSave, onClose }) => {
+  const [typed, setTyped] = useState(value);
+  const cancelled = useRef(false);
+
+  // Both keys end the edit by leaving the field, so it ends in one place.
+  const keys = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      // the field's alone, or the drawer around it would close too
+      e.stopPropagation();
+      cancelled.current = true;
+      e.currentTarget.blur();
+    } else if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  const close = () => {
+    const name = typed.trim();
+    if (!cancelled.current && name && name !== value) {
+      onSave(name);
+    }
+    onClose();
+  };
+
+  return (
+    <input
+      autoFocus
+      dir="auto"
+      value={typed}
+      aria-label={label}
+      onChange={(e) => setTyped(e.target.value)}
+      onKeyDown={keys}
+      onBlur={close}
+      className="w-full h-[32px] coarse:h-[44px] px-[8px] rounded-[6px] border border-brand ring-[3px] ring-brandSoft bg-newBgColorInner text-[14px] coarse:text-[16px] text-ink outline-none"
+    />
+  );
+};
 
 // case and accents aside, so "cafe" finds "Café"
 const fold = (text: string) =>
