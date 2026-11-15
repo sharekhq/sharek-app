@@ -1218,6 +1218,47 @@ describe('the shapes the previous detector could not see', () => {
     ).toEqual([]);
   });
 
+  // And so is an arbitrary selector variant, which styles what an element holds
+  // rather than the element: post.actions.menu.tsx's MENU_ICON draws an icon given
+  // at another size at 16px with [&_svg]:size-4, so upstream's menu icons needn't
+  // change. A `>` already reads as markup, so the child combinator's row holds
+  // without the variant being known; it is here so it stays that way.
+  it.each([
+    [
+      'in a class constant',
+      `const MENU_ICON = 'flex text-muted [&_svg]:size-4';`,
+    ],
+    ['with a child combinator', `const ICON = 'flex [&>svg]:w-4';`],
+    [
+      'in a class map',
+      `export const C = () => <Menu classNames={{ item: '[&_path]:fill-current' }} />;`,
+    ],
+  ])(
+    'reports nothing for an arbitrary selector variant %s',
+    (_name, source) => {
+      expect(shapesReportedIn(source)).toEqual([]);
+    }
+  );
+
+  // The counterpart: a bracket is a variant only when it opens with & and a colon
+  // and a class follow it. A bracket in a sentence is still prose.
+  it.each([
+    [
+      'in a text node',
+      `export const C = () => <div>Auto [beta] mode</div>;`,
+      'Auto [beta] mode',
+    ],
+    [
+      'in a toast',
+      `const save = () => { toaster.show('Save [draft]', 'success'); };`,
+      'Save [draft]',
+    ],
+  ])('still reports a bracket in prose %s', (_name, source, text) => {
+    expect(shapesReportedIn(source).map((literal) => literal.text)).toContain(
+      text
+    );
+  });
+
   // The same for an inline default beside a key: tolerated, as long as both locales
   // carry the key.
   it('reports nothing for an inline default beside a key both locales carry', () => {
