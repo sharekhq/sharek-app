@@ -514,7 +514,7 @@ describe('post actions menu', () => {
       await mount(hinted());
       await click(trigger());
 
-      const items = [...document.querySelectorAll('[role="menuitem"]')];
+      const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
       expect(items.length).toBe(3);
       for (const item of items) {
         expect(classes(item)).toEqual(look(MENU_ITEM));

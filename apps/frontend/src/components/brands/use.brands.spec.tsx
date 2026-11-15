@@ -251,7 +251,7 @@ describe('useRenameBrand', () => {
     expect(brandLoads()).toBe(1);
 
     await act(async () => {
-      await rename.current({ id: 'c1', name: 'Old' }, 'New');
+      await rename.current({ id: 'c1' }, 'New');
     });
 
     expect(sent()).toEqual([['/integrations/customers/c1', '{"name":"New"}']]);
@@ -272,7 +272,7 @@ describe('useRenameBrand', () => {
 
     let done = false;
     await act(async () => {
-      rename.current({ id: 'c1', name: 'Old' }, 'New').then(() => {
+      rename.current({ id: 'c1' }, 'New').then(() => {
         done = true;
       });
     });
@@ -296,7 +296,7 @@ describe('useRenameBrand', () => {
 
     let done = false;
     await act(async () => {
-      rename.current({ id: 'c1', name: 'Old' }, 'New').then(() => {
+      rename.current({ id: 'c1' }, 'New').then(() => {
         done = true;
       });
     });
@@ -317,7 +317,7 @@ describe('useRenameBrand', () => {
     const rename = await mountHook(useRenameBrand);
 
     await act(async () => {
-      await rename.current({ id: 'c1', name: 'Old' }, 'New');
+      await rename.current({ id: 'c1' }, 'New');
     });
 
     expect(sent()).toEqual([['/integrations/customers/c1', '{"name":"New"}']]);

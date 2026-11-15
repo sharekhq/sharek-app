@@ -513,7 +513,7 @@ describe('New brand', () => {
     ])(
       'on the first brand, shows the offer ticked under the line, and calls onCreated when it %s',
       async (_, ticked) => {
-        channels = [{ ...SALT }, ...inBrand(2, null)];
+        channels = [{ ...SALT, customer: null }, ...inBrand(2, null)];
         const onCreated = jest.fn();
         await mount();
         await open(() => dialogs.openNewBrand(onCreated, SALT));
