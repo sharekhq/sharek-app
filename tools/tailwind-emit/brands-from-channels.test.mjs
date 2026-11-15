@@ -1,10 +1,13 @@
 // 058 — brands from the channel list. The post card's tag names
 // (launches/calendar.post.card.tsx), which hide under the pointer keeping
-// their space, and the channel ⋯ menu (launches/menu/menu.tsx), which takes
-// Samy's chat menu look from launches/post.actions.menu.tsx. A variant or arbitrary value that Tailwind can't use emits
-// nothing and the page just doesn't change, so this file asserts what Tailwind
-// emitted for each of them, with the project's own config (see emit.mjs). Each
-// phase adds its own describe.
+// their space; the channel ⋯ menu (launches/menu/menu.tsx), which takes
+// Samy's chat menu look from launches/post.actions.menu.tsx; and Move to
+// brand: the row's ⋯ it keeps shown (launches/channel.panel.tsx), its list's
+// + New brand (brands/brand.menu.tsx) and New brand's line for the channel it
+// moves (brands/brand.dialogs.tsx). A variant or arbitrary value that Tailwind
+// can't use emits nothing and the page just doesn't change, so this file
+// asserts what Tailwind emitted for each of them, with the project's own config
+// (see emit.mjs). Each phase adds its own describe.
 //
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { describe, test } from 'node:test';
@@ -124,6 +127,77 @@ describe("The channel ⋯ menu's look (phase 5)", () => {
     assert.deepEqual(
       rules(css, 'hover:bg-boxHover').map((r) => r.selector),
       ['.hover:bg-boxHover:hover']
+    );
+  });
+});
+
+describe('Move to brand (phase 7)', () => {
+  // On a wide screen the list hangs in the body, so the row loses its hover
+  // and its focus once they move into it; the held box, data-open while the
+  // list is open, keeps the row's ⋯ shown.
+  test("keeps the row's ⋯ shown while its list is open, outside any query", async () => {
+    const css = await assertEmits(
+      { 'has-[[data-open]]:opacity-100': [['opacity', '1']] },
+      null
+    );
+    assert.deepEqual(
+      rules(css, 'has-[[data-open]]:opacity-100').map((r) => r.selector),
+      ['.has-[[data-open]]:opacity-100:has([data-open])']
+    );
+  });
+
+  test("spaces the list's + New brand, 44px high, with its ring for focus only, outside any query", async () => {
+    const css = await assertEmits(
+      {
+        'gap-[8px]': [['gap', '8px']],
+        'min-h-[44px]': [['min-height', '44px']],
+        // symmetric, so the same in RTL
+        'px-[10px]': [
+          ['padding-left', '10px'],
+          ['padding-right', '10px'],
+        ],
+        'rounded-[8px]': [['border-radius', '8px']],
+        'text-[13px]': [['font-size', '13px']],
+        'font-[600]': [['font-weight', '600']],
+        'focus-visible:ring-2': [
+          [
+            '--tw-ring-offset-shadow',
+            'var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color)',
+          ],
+          [
+            '--tw-ring-shadow',
+            'var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color)',
+          ],
+          [
+            'box-shadow',
+            'var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)',
+          ],
+        ],
+        'focus-visible:ring-brand': [['--tw-ring-color', 'var(--brand)']],
+      },
+      null
+    );
+    assert.deepEqual(
+      ['focus-visible:ring-2', 'focus-visible:ring-brand'].map(
+        (className) => rules(css, className)[0].selector
+      ),
+      [
+        '.focus-visible:ring-2:focus-visible',
+        '.focus-visible:ring-brand:focus-visible',
+      ]
+    );
+  });
+
+  test("frames New brand's line for the channel it moves, a long name wrapping inside it, outside any query", async () => {
+    await assertEmits(
+      {
+        'gap-[12px]': [['gap', '12px']],
+        'p-[12px]': [['padding', '12px']],
+        'rounded-[10px]': [['border-radius', '10px']],
+        'text-[14px]': [['font-size', '14px']],
+        'break-words': [['overflow-wrap', 'break-word']],
+      },
+      null
     );
   });
 });
