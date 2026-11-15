@@ -1912,6 +1912,286 @@ describe('the row menu and the customer pencil', () => {
   });
 });
 
+// GET /brands for CAL's organization, out of order: its three customers, and
+// two brands with no channels, one sorting among them and one, in Arabic,
+// after them.
+const DAR = { id: 'c-dar', name: 'Dar Al Ward' };
+const MAKHBAZ = { id: 'c-makhbaz', name: 'مخبز الحي' };
+const BRANDS = [NOOR, MAKHBAZ, CLIENT_10, DAR, CLIENT_2];
+const BRAND_NAMES = [
+  'Client 2',
+  'Client 10',
+  'Dar Al Ward',
+  'Noor Dental',
+  'مخبز الحي',
+];
+const onAddChannels = jest.fn();
+
+// The calendar's list shows every brand (spec 058, research R7): the ones
+// with no channel come from GET /brands, each a group among the others A to
+// Z, with its header but no tick, and one line under it to add channels.
+// Samy's and Analytics' lists, which pass no brands, show today's groups.
+describe('brands with no channels', () => {
+  const shape = (
+    list: Channel[],
+    brands: Array<{ id: string; name: string }>
+  ) =>
+    orderChannels(list, brands).map((group) => [
+      group.customer?.name ?? null,
+      group.channels.map((c: Channel) => c.id),
+    ]);
+  // the one line under an empty brand's header
+  const lineOf = (name: string) => {
+    const found = within(groupOf(name)).filter((el) => el.tagName === 'P');
+    expect(found).toHaveLength(1);
+    return found[0];
+  };
+  // the list drawn again with other channels, as a reload draws it
+  const rerender = (channels: Channel[]) =>
+    act(async () => {
+      mounted[mounted.length - 1].render(
+        <ChannelPanel
+          mode="calendar"
+          channels={channels}
+          selected={null}
+          onChange={onChange}
+          update={update}
+          onToggleCollapse={onToggleCollapse}
+          onDone={onDone}
+          brands={BRANDS}
+          onAddChannels={onAddChannels}
+        />
+      );
+    });
+  // a left or right side in a class, which an Arabic page wouldn't mirror
+  const PHYSICAL =
+    /^([\w-]+:)*-?(m[lr]|p[lr]|left|right|border-[lr]|rounded-[lr]|rounded-[tb][lr]|text-(left|right)|float-(left|right))(-|$)/;
+
+  it('adds each brand no channel is in as a group with no channels, among the others A to Z after the channels in no brand, each brand once', () => {
+    const brands = [BAYT, CLIENT_2, CLIENT_10, NOOR, RAWDA, DAR, MAKHBAZ];
+
+    expect(shape(ORDER, [...brands].reverse())).toEqual([
+      ...ORDERED.slice(0, 4),
+      ['Dar Al Ward', []],
+      ...ORDERED.slice(4),
+      ['مخبز الحي', []],
+    ]);
+    expect(orderChannels(ORDER, brands)[4].customer).toEqual(DAR);
+  });
+
+  // The drag's optimistic move (changeItemGroup, launches.component.tsx)
+  // gives the dropped channel customer: { id } alone until the list reloads.
+  it("names a listed group from the brands while its channel's customer is an id alone, so it keeps its name and its place", () => {
+    const moved = {
+      ...channel('moved', { name: 'Moved Shop' }),
+      customer: { id: DAR.id },
+    };
+    const groups = orderChannels([...GROUPS, moved], BRANDS);
+
+    expect(groups.map((group) => group.customer)).toEqual([
+      null,
+      CLIENT_2,
+      CLIENT_10,
+      DAR,
+      NOOR,
+      MAKHBAZ,
+    ]);
+    expect(groups[3].channels.map((c: Channel) => c.id)).toEqual(['moved']);
+  });
+
+  it("draws an empty brand's header with its chevron, its colour, its name, the count 0 and the pencil, and no tick", async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels, onRenameCustomer });
+
+    expect(customerGroups(host).map(labelOf)).toEqual(BRAND_NAMES);
+    [DAR, MAKHBAZ].forEach(({ name }) => {
+      const group = groupOf(name);
+      const [chevron, ...others] = chevrons(group);
+      expect(others).toHaveLength(0);
+      expect(chevron.getAttribute('aria-expanded')).toBe('true');
+      expect(nameOf(chevron)).toBe(`${name} 0`);
+      expect(within(group).some((el) => has(el, customerHue(name)))).toBe(true);
+      expect(
+        Array.from(group.querySelectorAll('bdi')).map((bdi) => bdi.textContent)
+      ).toEqual([name]);
+      expect(control(group, 'edit_group_name')).toHaveLength(1);
+      expect(group.querySelector('[role="checkbox"]')).toBeNull();
+      expect(rowButtons(group)).toHaveLength(0);
+    });
+  });
+
+  it('puts one line under it, at the name, saying it has no channels yet, with Add channels as a link that calls onAddChannels with the brand', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels });
+    const group = groupOf('Dar Al Ward');
+    const line = lineOf('Dar Al Ward');
+
+    expect(classes(line)).toEqual(
+      expect.arrayContaining(['ps-[46px]', 'text-[12px]', 'text-muted'])
+    );
+    expect(line.textContent).toBe(
+      'brands_no_channels_yet · brands_add_channels'
+    );
+    // under the header, not in it
+    expect(chevrons(group)[0].parentElement!.contains(line)).toBe(false);
+    const [add, ...others] = control(line, 'brands_add_channels');
+    expect(others).toHaveLength(0);
+    expect(add.tagName).toBe('BUTTON');
+    expect(add.getAttribute('type')).toBe('button');
+    expect(classes(add)).toEqual(
+      expect.arrayContaining([
+        'coarse:min-h-[44px]',
+        'text-brandText',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    expect(reachable(add)).toBe(true);
+    // only the brands with no channels have it
+    expect(control(host, 'brands_add_channels')).toHaveLength(2);
+
+    await click(add);
+
+    expect(onAddChannels).toHaveBeenCalledTimes(1);
+    expect(onAddChannels).toHaveBeenCalledWith(DAR);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('folds the line with the chevron, writing <name>_isOpen', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels });
+    expect(isShown(lineOf('Dar Al Ward'))).toBe(true);
+
+    await click(chevrons(groupOf('Dar Al Ward'))[0]);
+
+    expect(isShown(lineOf('Dar Al Ward'))).toBe(false);
+    expect(localStorage.getItem('Dar Al Ward_isOpen')).toBe('0');
+  });
+
+  it('keeps a brand whose last channel leaves, as a brand with no channels', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels });
+    expect(nameOf(chevrons(groupOf('Client 10'))[0])).toBe('Client 10 2');
+
+    await rerender(CAL.filter((c) => c.customer?.id !== CLIENT_10.id));
+
+    expect(customerGroups(host).map(labelOf)).toEqual(BRAND_NAMES);
+    const group = groupOf('Client 10');
+    expect(nameOf(chevrons(group)[0])).toBe('Client 10 0');
+    expect(group.querySelector('[role="checkbox"]')).toBeNull();
+    expect(control(group, 'brands_add_channels')).toHaveLength(1);
+  });
+
+  it("shows today's empty state and no group when the organization has no channels", async () => {
+    await render([], { brands: BRANDS, onAddChannels });
+
+    expect(host.querySelector('[data-testid="no-channels"]')).not.toBeNull();
+    expect(leaf(host, 'no_channels')).toHaveLength(1);
+    expect(customerGroups(host)).toHaveLength(0);
+    expect(control(host, 'brands_add_channels')).toHaveLength(0);
+  });
+
+  it('shows no brand with no channels on the folded rail', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels, collapsed: true });
+
+    expect(customerGroups(host).map(labelOf)).toEqual([
+      'Client 2',
+      'Client 10',
+      'Noor Dental',
+    ]);
+  });
+
+  it('shows a brand with no channels while a search is typed only when its name matches, and No channel matches only when nothing does', async () => {
+    await render(SEARCH, { brands: [NOOR, RAWDA, DAR], onAddChannels });
+    const search = host.querySelector('input') as HTMLInputElement;
+    expect(customerGroups(host).map(labelOf)).toEqual([
+      'Dar Al Ward',
+      'Noor Dental',
+      'روضة للزهور',
+    ]);
+
+    await type(search, 'ward');
+
+    expect(customerGroups(host).filter(isShown).map(labelOf)).toEqual([
+      'Dar Al Ward',
+    ]);
+    expect(shownNames()).toEqual([]);
+    expect(leaf(host, 'no_channel_matches')).toHaveLength(0);
+
+    await type(search, 'lamsa');
+
+    expect(customerGroups(host).filter(isShown)).toHaveLength(0);
+    expect(shownNames()).toEqual(['Lamsa Studio', 'Lamsa Pages']);
+    expect(leaf(host, 'no_channel_matches')).toHaveLength(0);
+
+    await type(search, 'zzqx');
+
+    expect(customerGroups(host).filter(isShown)).toHaveLength(0);
+    expect(leaf(host, 'no_channel_matches')).toHaveLength(1);
+  });
+
+  it('leaves what the ticks, the group ticks and Show all send as today', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels });
+
+    await click(mainButton('Lamsa Studio'));
+    expect(changedTo()).toEqual(sorted(without('lamsa')));
+    onChange.mockClear();
+
+    await click(tickOf('Client 2'));
+    expect(changedTo()).toEqual(sorted(without('two-shop', 'two-cafe')));
+    onChange.mockClear();
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+    await render(CAL, {
+      brands: BRANDS,
+      onAddChannels,
+      selected: without('two-cafe'),
+    });
+    await click(control(host, 'show_all')[0]);
+
+    expect(changedTo()).toBeNull();
+  });
+
+  it.each([
+    ['the calendar without brands', { onAddChannels }],
+    ['Samy', { mode: 'samy', selected: [] }],
+    [
+      'Analytics',
+      { mode: 'analytics', selected: null, hasStatistics: () => true },
+    ],
+  ])('shows no brand with no channels on %s', async (_, values) => {
+    await render(CAL, values);
+
+    expect(customerGroups(host).map(labelOf)).toEqual([
+      'Client 2',
+      'Client 10',
+      'Noor Dental',
+    ]);
+    expect(control(host, 'brands_add_channels')).toHaveLength(0);
+  });
+
+  it("gives Show all Add channels' link classes", async () => {
+    await render(CAL, {
+      brands: BRANDS,
+      onAddChannels,
+      selected: without('two-cafe'),
+    });
+    const [showAll] = control(host, 'show_all');
+    const [add] = control(groupOf('Dar Al Ward'), 'brands_add_channels');
+
+    expect(classes(showAll)).toEqual(classes(add));
+  });
+
+  it('sets no left or right side in an empty brand, only start and end', async () => {
+    await render(CAL, { brands: BRANDS, onAddChannels, onRenameCustomer });
+    const group = groupOf('Dar Al Ward');
+
+    expect(
+      [group, ...within(group)]
+        .flatMap(classes)
+        .filter((name) => PHYSICAL.test(name))
+    ).toEqual([]);
+  });
+});
+
 describe('dragging a channel to a customer (C16, C27)', () => {
   const onMoveToCustomer = jest.fn();
   // the drag monitor at every render, read through the latest
@@ -1944,7 +2224,7 @@ describe('dragging a channel to a customer (C16, C27)', () => {
     monitors.length = 0;
   });
 
-  const renderDraggable = () =>
+  const renderDraggable = (values: Record<string, unknown> = {}) =>
     mount(
       <DNDProvider>
         <Monitor />
@@ -1957,6 +2237,7 @@ describe('dragging a channel to a customer (C16, C27)', () => {
           onToggleCollapse={onToggleCollapse}
           onDone={onDone}
           onMoveToCustomer={onMoveToCustomer}
+          {...values}
         />
       </DNDProvider>
     );
@@ -2071,6 +2352,21 @@ describe('dragging a channel to a customer (C16, C27)', () => {
       expect(onChange).not.toHaveBeenCalled();
     }
   );
+
+  // spec 058: a brand with no channels takes one as every brand does
+  it('takes a channel dropped on a brand with no channels, calling onMoveToCustomer with the channel and the brand', async () => {
+    await renderDraggable({ brands: BRANDS, onAddChannels });
+    expect(classes(groupOf('Dar Al Ward').parentElement)).toContain(
+      'rounded-[10px]'
+    );
+
+    pickUp('Lamsa Studio');
+    dropOn(chevrons(groupOf('Dar Al Ward'))[0]);
+
+    expect(onMoveToCustomer).toHaveBeenCalledTimes(1);
+    expect(onMoveToCustomer).toHaveBeenCalledWith('lamsa', DAR.id);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 
   // Samy and Analytics have no DNDProvider (C16).
   it('without onMoveToCustomer, renders outside any DNDProvider with nothing to drag', async () => {
