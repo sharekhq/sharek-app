@@ -21,7 +21,7 @@ import {
   useCalendar,
 } from '@gitroom/frontend/components/launches/calendar.context';
 import { BotPicture } from '@gitroom/frontend/components/launches/bot.picture';
-import { CustomerModal } from '@gitroom/frontend/components/launches/customer.modal';
+import { MoveToBrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import { Integration } from '@prisma/client';
 import { SettingsModal } from '@gitroom/frontend/components/launches/settings.modal';
 import { CustomVariables } from '@gitroom/frontend/components/launches/add.provider.component';
@@ -39,6 +39,7 @@ import {
   MENU_ICON_DANGER,
   MENU_ITEM,
   MENU_PANEL,
+  PostActionsMenuHandle,
 } from '@gitroom/frontend/components/launches/post.actions.menu';
 
 const RenameChannelModal: FC<{
@@ -116,6 +117,7 @@ export const Menu: FC<{
   });
   const showRef = useRef(undefined);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const move = useRef<PostActionsMenuHandle>(null);
 
   // Escape closes the open menu and hands the focus back to its button, as
   // post.actions.menu.tsx's does. It is heard on the way down and goes no
@@ -371,27 +373,9 @@ export const Menu: FC<{
     setShow(false);
   }, [integrations, t]);
   const addToCustomer = useCallback(() => {
-    const findIntegration = integrations.find(
-      (integration) => integration.id === id
-    );
-    modal.openModal({
-      title: t('move_add_to_group', 'Move / Add to group'),
-      withCloseButton: false,
-      closeOnEscape: true,
-      closeOnClickOutside: true,
-      children: (
-        <CustomerModal
-          // @ts-ignore
-          integration={findIntegration}
-          onClose={() => {
-            mutate();
-            toast.show(t('customer_updated', 'Customer Updated'), 'success');
-          }}
-        />
-      ),
-    });
     setShow(false);
-  }, [integrations, t]);
+    move.current?.open();
+  }, []);
   const renameChannel = useCallback(() => {
     const findIntegration = integrations.find(
       (integration) => integration.id === id
@@ -463,6 +447,11 @@ export const Menu: FC<{
           />
         </svg>
       </button>
+      <MoveToBrandMenu
+        ref={move}
+        channel={findIntegration}
+        button={buttonRef}
+      />
       <div>
         <div ref={showRef} />
       </div>
