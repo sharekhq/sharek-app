@@ -287,6 +287,30 @@ const EXEMPT: readonly Exemption[] = [
       "A dayjs format pattern from upstream's timezone code (2f671180), the zoned dayjs's default for a bare `.format()`, never rendered.",
   },
   {
+    file: 'components/media/media.component.tsx',
+    text: '0px 0px 100% 0px',
+    reason:
+      "An IntersectionObserver's rootMargin, never text: the Media library's sentinel asks for the next page about one screen before the list's end (spec 057, research R2).",
+  },
+  {
+    file: 'components/media/use.media.library.tsx',
+    text: 'Failed to load the month count',
+    reason:
+      "Thrown, never rendered: the month count's fetcher Error becomes SWR's `error`, which MediaMonth never reads; its count stays a skeleton bar until SWR's retry brings it.",
+  },
+  {
+    file: 'components/media/use.media.library.tsx',
+    text: 'Failed to load the files',
+    reason:
+      "Thrown, never rendered: the list's fetcher Error becomes useSWRInfinite's `error`, which MediaBox only tests, showing media_load_failed and try_again through t().",
+  },
+  {
+    file: 'components/media/use.media.library.tsx',
+    text: "Failed to load the month's files",
+    reason:
+      "Thrown, never rendered: useMonthIds' Error is caught by MediaMonth's Select all, which shows error_occurred through t() instead.",
+  },
+  {
     file: 'components/videos/providers/veo3.provider.tsx',
     text: 'Google',
     reason:

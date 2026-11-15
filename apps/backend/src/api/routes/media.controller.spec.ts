@@ -13,7 +13,14 @@ jest.mock(
   () => ({ MediaService: class {} })
 );
 
-import { BadRequestException, HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  INestApplication,
+  ValidationPipe,
+} from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { MediaController } from './media.controller';
 import {
   AuthorizationActions,
@@ -392,5 +399,210 @@ describe('saveMedia', () => {
       'https://media.example/a.png',
       'photo.png'
     );
+  });
+});
+
+// The media library's list, its month counts and its bulk delete
+// (contracts/media-api.md): the controller hands the service the organization
+// and the validated query or body, and answers what the service answers, except
+// the bulk delete, which answers nothing (Rule 12).
+describe('the media library routes', () => {
+  const month = { from: '2026-10-01T04:00:00Z', to: '2026-11-01T04:00:00Z' };
+
+  it('getMedia hands the query to getLibraryPage and answers its page', async () => {
+    const page = { pages: 7, results: [{ id: 'media-1' }] };
+    const getLibraryPage = jest.fn().mockResolvedValue(page);
+    const query = { page: 2, search: 'logo', type: 'video', sort: 'oldest' };
+
+    await expect(
+      makeController({ getLibraryPage }).getMedia(org, query as any)
+    ).resolves.toBe(page);
+    expect(getLibraryPage).toHaveBeenCalledWith('org-1', query);
+  });
+
+  it('getMonthCount hands the range to countMonth and answers its count', async () => {
+    const countMonth = jest.fn().mockResolvedValue({ count: 23 });
+
+    await expect(
+      makeController({ countMonth }).getMonthCount(org, month as any)
+    ).resolves.toEqual({ count: 23 });
+    expect(countMonth).toHaveBeenCalledWith('org-1', month);
+  });
+
+  it('getMonthIds hands the range to monthIds and answers its ids', async () => {
+    const monthIds = jest.fn().mockResolvedValue({ ids: ['media-1'] });
+
+    await expect(
+      makeController({ monthIds }).getMonthIds(org, month as any)
+    ).resolves.toEqual({ ids: ['media-1'] });
+    expect(monthIds).toHaveBeenCalledWith('org-1', month);
+  });
+
+  it('deleteManyMedia hands the ids to the service and answers nothing', async () => {
+    const deleteManyMedia = jest.fn().mockResolvedValue({ count: 2 });
+
+    await expect(
+      makeController({ deleteManyMedia }).deleteManyMedia(org, {
+        ids: ['media-1', 'media-2'],
+      })
+    ).resolves.toBeUndefined();
+    expect(deleteManyMedia).toHaveBeenCalledWith('org-1', [
+      'media-1',
+      'media-2',
+    ]);
+  });
+
+  // The client counts a failed batch's files as not deleted.
+  it('deleteManyMedia waits for the service and lets its failure through', async () => {
+    const failure = new HttpException('the database fell over', 500);
+    const deleteManyMedia = jest.fn().mockRejectedValue(failure);
+
+    await expect(
+      makeController({ deleteManyMedia }).deleteManyMedia(org, {
+        ids: ['media-1'],
+      })
+    ).rejects.toBe(failure);
+  });
+});
+
+// Real routing and the global ValidationPipe, as main.ts sets it: the list's
+// type and sort, a month's range and the bulk delete's ids are checked before
+// the service, "month" is a route of its own rather than a file's id, and
+// upstream's DELETE /media/:id still answers beside DELETE /media.
+describe('the media library routes, through the router', () => {
+  const media = {
+    getLibraryPage: jest.fn(),
+    countMonth: jest.fn(),
+    monthIds: jest.fn(),
+    getMediaStatus: jest.fn(),
+    deleteManyMedia: jest.fn(),
+    deleteMedia: jest.fn(),
+  };
+  const range = 'from=2026-10-01T04:00:00Z&to=2026-11-01T04:00:00Z';
+  let app: INestApplication;
+  let url: string;
+
+  const send = (method: string, path: string, body?: object) =>
+    fetch(url + path, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [MediaController],
+      providers: [{ provide: MediaService, useValue: media }],
+    }).compile();
+    app = module.createNestApplication();
+    app.use((req: { org: unknown }, _res: unknown, next: () => void) => {
+      req.org = { id: 'org-1' };
+      next();
+    });
+    app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    await app.listen(0, '127.0.0.1');
+    url = await app.getUrl();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    media.getLibraryPage
+      .mockReset()
+      .mockResolvedValue({ pages: 0, results: [] });
+    media.countMonth.mockReset().mockResolvedValue({ count: 23 });
+    media.monthIds.mockReset().mockResolvedValue({ ids: ['media-1'] });
+    media.getMediaStatus.mockReset().mockResolvedValue({ status: 'ready' });
+    media.deleteManyMedia.mockReset().mockResolvedValue({ count: 2 });
+    media.deleteMedia.mockReset().mockResolvedValue({ id: 'abc' });
+  });
+
+  it('GET /media hands getLibraryPage the page as a number, the type and the sort', async () => {
+    const response = await send('GET', '/media?page=2&type=video&sort=oldest');
+
+    expect(response.status).toBe(200);
+    expect(media.getLibraryPage).toHaveBeenCalledWith('org-1', {
+      page: 2,
+      type: 'video',
+      sort: 'oldest',
+    });
+  });
+
+  it('GET /media refuses a type it does not know with a 400, before the service', async () => {
+    const response = await send('GET', '/media?type=gif');
+
+    expect(response.status).toBe(400);
+    expect(media.getLibraryPage).not.toHaveBeenCalled();
+  });
+
+  it('GET /media/month answers countMonth’s count for the range', async () => {
+    const response = await send('GET', `/media/month?${range}`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ count: 23 });
+    expect(media.countMonth).toHaveBeenCalledWith('org-1', {
+      from: '2026-10-01T04:00:00Z',
+      to: '2026-11-01T04:00:00Z',
+    });
+  });
+
+  it('GET /media/month/ids answers monthIds’ ids, not a file’s status', async () => {
+    const response = await send('GET', `/media/month/ids?${range}`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ids: ['media-1'] });
+    expect(media.monthIds).toHaveBeenCalledWith('org-1', {
+      from: '2026-10-01T04:00:00Z',
+      to: '2026-11-01T04:00:00Z',
+    });
+    expect(media.getMediaStatus).not.toHaveBeenCalled();
+  });
+
+  it.each(['/media/month', '/media/month/ids'])(
+    'GET %s refuses a from that is no date with a 400, before the service',
+    async (path) => {
+      const response = await send(
+        'GET',
+        `${path}?from=yesterday&to=2026-11-01T04:00:00Z`
+      );
+
+      expect(response.status).toBe(400);
+      expect(media.countMonth).not.toHaveBeenCalled();
+      expect(media.monthIds).not.toHaveBeenCalled();
+    }
+  );
+
+  it('DELETE /media refuses 501 ids with a 400, before the service', async () => {
+    const response = await send('DELETE', '/media', {
+      ids: Array.from({ length: 501 }, (_, n) => `media-${n}`),
+    });
+
+    expect(response.status).toBe(400);
+    expect(media.deleteManyMedia).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /media hands deleteManyMedia the ids and answers an empty 200', async () => {
+    const response = await send('DELETE', '/media', {
+      ids: ['media-1', 'media-2'],
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe('');
+    expect(media.deleteManyMedia).toHaveBeenCalledWith('org-1', [
+      'media-1',
+      'media-2',
+    ]);
+    expect(media.deleteMedia).not.toHaveBeenCalled();
+  });
+
+  // Upstream's route, today's: a guard.
+  it('DELETE /media/abc still reaches upstream’s deleteMedia', async () => {
+    const response = await send('DELETE', '/media/abc');
+
+    expect(response.status).toBe(200);
+    expect(media.deleteMedia).toHaveBeenCalledWith('org-1', 'abc');
+    expect(media.deleteManyMedia).not.toHaveBeenCalled();
   });
 });

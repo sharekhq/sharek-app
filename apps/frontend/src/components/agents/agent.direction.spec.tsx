@@ -83,6 +83,11 @@ jest.mock('i18next', () => ({
   __esModule: true,
   default: { language: 'en', dir: () => language.dir },
 }));
+// The media preview's Delete asks through deleteDialog, whose module sets up the
+// app's i18next when it loads, which the stand-in above cannot.
+jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
+  deleteDialog: async () => false,
+}));
 
 import { useContext } from 'react';
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';

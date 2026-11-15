@@ -62,6 +62,11 @@ jest.mock('i18next', () => ({
   __esModule: true,
   default: { t: (key: string, fallback: string) => fallback },
 }));
+// The media preview's Delete asks through deleteDialog, whose module sets up the
+// app's i18next when it loads, which the stand-in above cannot.
+jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
+  deleteDialog: async () => false,
+}));
 const mockIntegrations = [{ id: 'ig-1', name: 'Instagram' }];
 jest.mock(
   '@gitroom/frontend/components/launches/helpers/use.integration.list',

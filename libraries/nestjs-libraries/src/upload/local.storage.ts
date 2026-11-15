@@ -138,6 +138,11 @@ export class LocalStorage implements IUploadProvider {
     }
   }
 
+  // The server's own disk has no resizing service, so a tile loads the file
+  tileImage(path: string): string {
+    return path;
+  }
+
   // Accepts either the public URL or the filesystem path. Callers can pass a
   // stored media name or path, so only a file inside the upload directory is
   // ever deleted: resolve() collapses any `..` segments before the comparison

@@ -19,6 +19,11 @@ export interface IUploadProvider {
     ext: string
   ): Promise<UploadedStream>;
   removeFile(filePath: string): Promise<void>;
+  // The address a Media library tile loads for this file: a small copy of an
+  // image, or one still of a video, where this storage makes one; else the
+  // file itself. Only tiles use it: previews, posts and publishing always use
+  // the stored path.
+  tileImage(path: string, kind: 'image' | 'video'): string;
   // Presigned URLs handed to the media processor, which has no storage
   // credentials; only cloud storage can mint them
   signDownloadUrl?(fileName: string): Promise<string>;

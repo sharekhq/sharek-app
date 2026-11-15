@@ -19,7 +19,12 @@ const media = [1, 2, 3].map((n) => ({
   id: `m${n}`,
   name: `m${n}.png`,
   path: `https://media/m${n}.png`,
+  createdAt: '2026-11-10T12:00:00.000Z',
 }));
+type Row = (typeof media)[number] & { tileImage?: string };
+// What the library answers with; a case may swap it, and afterEach puts the
+// three plain rows back.
+let results: Row[] = media;
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
@@ -33,12 +38,26 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show }),
 }));
+// A month heading's count.
 jest.mock('swr', () => ({
   __esModule: true,
   default: () => ({
-    data: { results: media, pages: 1 },
+    data: { count: results.length },
     mutate: async () => undefined,
     isLoading: false,
+  }),
+  useSWRConfig: () => ({ mutate: async () => undefined }),
+}));
+// The list as useSWRInfinite answers it: the rows as its one page.
+jest.mock('swr/infinite', () => ({
+  __esModule: true,
+  default: () => ({
+    data: [{ results, pages: 1 }],
+    size: 1,
+    setSize: async () => undefined,
+    mutate: async () => undefined,
+    isLoading: false,
+    isValidating: false,
   }),
 }));
 // The uploader is Uppy; what matters here is the callback MediaBox hands it.
@@ -114,7 +133,7 @@ jest.mock('next/dynamic', () => ({ __esModule: true, default: () => () => null }
 
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { ModalHeaderSlotTarget } from '@gitroom/frontend/components/layout/new-modal';
-import { MediaPreview } from '@gitroom/frontend/components/media/media.preview';
+import { LibraryPreview } from '@gitroom/frontend/components/media/media.preview';
 
 const LIMIT = 'You can choose up to 2 images here.';
 
@@ -157,6 +176,15 @@ const confirm = async () => {
   });
 };
 
+// The tile carries its file's name as a tooltip, whatever it draws inside.
+const pickByName = async (name: string) => {
+  await act(async () => {
+    document
+      .querySelector(`[title="${name}"]`)
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+};
+
 const ids = (setMedia: jest.Mock) =>
   (setMedia.mock.calls[0][0] as { id: string }[]).map((item) => item.id);
 
@@ -166,6 +194,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   uploader.options = undefined;
+  results = media;
   jest.clearAllMocks();
 });
 
@@ -216,12 +245,34 @@ describe('MediaBox without a limit', () => {
     expect(show).not.toHaveBeenCalled();
     expect(ids(setMedia)).toEqual(['m1', 'm2', 'm3']);
   });
+
+  // A tile image is only what a tile loads: the caller attaches the original.
+  it('hands back the rows picked, in order, with their originals and no tile image', async () => {
+    const [first, second] = [1, 2].map((n) => ({
+      id: `t${n}`,
+      name: `t${n}.png`,
+      path: `https://media/t${n}.png`,
+      createdAt: '2026-11-10T12:00:00.000Z',
+    }));
+    results = [first, second].map((row) => ({
+      ...row,
+      tileImage: `https://media/cdn-cgi/image/width=384,height=384/${row.name}`,
+    }));
+    const setMedia = render();
+
+    await pickByName('t2.png');
+    await pickByName('t1.png');
+    await confirm();
+
+    expect(setMedia).toHaveBeenCalledTimes(1);
+    expect(setMedia.mock.calls[0][0]).toStrictEqual([second, first]);
+  });
 });
 
-// The only test of the library's way into its viewer. The options are read back
-// rather than rendered, because a tile's button is all this file can reach.
-describe('Open preview in the Media library', () => {
-  it('opens the viewer on the page of media at the tile clicked, with its options', async () => {
+// The window's way into its viewer. The options are read back rather than
+// rendered, because a tile's button is all this file can reach.
+describe('the expand button in the Media Library window', () => {
+  it("opens the library preview on that file, with today's options", async () => {
     render();
 
     await act(async () => {
@@ -239,7 +290,11 @@ describe('Open preview in the Media library', () => {
       cardClassName: 'phone:!p-[16px]',
     });
     expect(options.title.type).toBe(ModalHeaderSlotTarget);
-    expect(options.children.type).toBe(MediaPreview);
-    expect(options.children.props).toEqual({ items: media, index: 1 });
+    expect(options.children.type).toBe(LibraryPreview);
+    expect(options.children.props).toEqual({
+      query: { type: 'image', sort: 'newest', search: '' },
+      startId: 'm2',
+      onDeleted: expect.any(Function),
+    });
   });
 });

@@ -51,3 +51,16 @@ describe('LocalStorage.removeFile', () => {
     expect(existsSync(join(uploads, '2026', 'a.png'))).toBe(false);
   });
 });
+
+// A self-hosted server's own disk has no resizing service, so a Media library
+// tile loads the file itself.
+describe('LocalStorage.tileImage', () => {
+  it.each([
+    ['an image by its public URL', 'image', 'https://app.test/uploads/a.png'],
+    ['a video by its public URL', 'video', 'https://app.test/uploads/a.mp4'],
+    ['an image by its disk path', 'image', '/srv/uploads/2026/a.png'],
+    ['a video by its disk path', 'video', '/srv/uploads/2026/a.mp4'],
+  ] as const)('answers the path itself for %s', (_label, kind, path) => {
+    expect(new LocalStorage('/srv/uploads').tileImage(path, kind)).toBe(path);
+  });
+});

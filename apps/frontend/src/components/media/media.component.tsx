@@ -12,11 +12,8 @@ import React, {
   useState,
 } from 'react';
 import { Button } from '@gitroom/react/form/button';
-import useSWR from 'swr';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { SelectChevron } from '@gitroom/react/form/select';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
-import { formatDuration } from '@gitroom/helpers/utils/format.duration';
-import { Media } from '@prisma/client';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
@@ -34,7 +31,18 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { ThirdPartyMedia } from '@gitroom/frontend/components/third-parties/third-party.media';
 import { ReactSortable } from 'react-sortablejs';
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
-import { mediaPreviewModal } from '@gitroom/frontend/components/media/media.preview';
+import {
+  MediaMonth,
+  MediaTile,
+} from '@gitroom/frontend/components/media/media.library';
+import {
+  MediaLibraryQuery,
+  MediaLibraryRow,
+  useDeleteMedia,
+  useMediaLibrary,
+} from '@gitroom/frontend/components/media/use.media.library';
+import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import { groupBy, omit } from 'lodash';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
@@ -45,7 +53,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-  DeleteCircleIcon,
   CloseCircleIcon,
   DragHandleIcon,
   MediaSettingsIcon,
@@ -259,41 +266,6 @@ export const showMediaBox = (
 };
 const CHUNK_SIZE = 1024 * 1024;
 export const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
-
-/**
- * A video tile: the frame, plus the badge that marks it as video and carries
- * its length. The duration comes from the metadata the tile already preloads,
- * so the badge costs no extra request — and a stream, which reports a
- * non-finite duration, shows the glyph alone rather than a confident 0:00.
- *
- * The badge is `aria-hidden`: it repeats visually what the `<video>` element
- * already tells assistive technology.
- */
-const VideoTile: FC<{ url: string }> = ({ url }) => {
-  const [duration, setDuration] = useState(NaN);
-  const length = formatDuration(duration);
-  return (
-    <>
-      <VideoFrame
-        url={url}
-        onLoadedMetadata={(video) => setDuration(video.duration)}
-      />
-      <div
-        aria-hidden="true"
-        dir="ltr"
-        className="absolute z-[30] top-[6px] start-[6px] pointer-events-none flex items-center gap-[4px] h-[20px] px-[6px] rounded-[4px] bg-black/60 text-white text-[11px] font-[500]"
-      >
-        <svg width="7" height="8" viewBox="0 0 7 8" fill="none">
-          <path
-            d="M6.5 3.567a.5.5 0 0 1 0 .866L.75 7.763A.5.5 0 0 1 0 7.33V.67A.5.5 0 0 1 .75.237L6.5 3.567Z"
-            fill="currentColor"
-          />
-        </svg>
-        {!!length && <span>{length}</span>}
-      </div>
-    </>
-  );
-};
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
@@ -306,52 +278,159 @@ export const MediaBox: FC<{
    * changes.
    */
   max?: number;
-}> = ({ type, standalone, setMedia, max }) => {
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  /**
+   * The Media page's starting filter, sort and search, from its address
+   * (research R11). The window passes none: it opens on all files (or its
+   * type), Newest first and no search each time.
+   */
+  initialQuery?: MediaLibraryQuery;
+  /** Each new filter, sort or debounced search, for the page's address. */
+  onQueryChange?: (query: MediaLibraryQuery) => void;
+}> = ({ type, standalone, setMedia, max, initialQuery, onQueryChange }) => {
+  const [filter, setFilter] = useState(initialQuery?.type);
+  const [sort, setSort] = useState<MediaLibraryQuery['sort']>(
+    initialQuery?.sort || 'newest'
+  );
+  const [search, setSearch] = useState(initialQuery?.search || '');
   const [debouncedSearch] = useDebounce(search, 300);
-  const fetch = useFetch();
   const modals = useModals();
   const toaster = useToaster();
+  // The caller's type is asked of the server, which sends only its files
+  // (research R9); without one, the filter's.
+  const query: MediaLibraryQuery = useMemo(
+    () => ({ type: type || filter, sort, search: debouncedSearch }),
+    [type, filter, sort, debouncedSearch]
+  );
+  const {
+    files,
+    hasMore,
+    loadMore,
+    isLoading,
+    isLoadingMore,
+    error,
+    mutate,
+    refresh,
+  } = useMediaLibrary(query);
+  // Pages already in SWR's cache aren't asked for again when the list mounts
+  // (research R2): a reopened page or window asks for them once, rather than
+  // draw a list another tab or Samy may have changed since. Over an empty
+  // cache the first load is that request.
+  const refetchOnMount = useRef(!isLoading);
   useEffect(() => {
-    setPage(0);
-  }, [debouncedSearch]);
-  const loadMedia = useCallback(async () => {
-    const params = new URLSearchParams({ page: String(page + 1) });
-    if (debouncedSearch.trim()) {
-      params.set('search', debouncedSearch.trim());
+    if (refetchOnMount.current) {
+      refetchOnMount.current = false;
+      mutate();
     }
-    return (await fetch(`/media?${params.toString()}`)).json();
-  }, [page, debouncedSearch]);
-  const { data, mutate, isLoading } = useSWR(
-    `get-media-${page}-${debouncedSearch}`,
-    loadMedia
-  );
-  // The tiles and the preview read the same array, so they can never disagree
-  // about a position or a count.
-  const visibleMedia = useMemo(
+  }, [mutate]);
+  // The loaded files by month in the user's timezone, in list order, each
+  // month with its name and its bounds as UTC instants: a month whose files
+  // come on two loads gets one heading (research R3). The tiles and the
+  // preview read the same files, so they can never disagree about a position.
+  const months = useMemo(
     () =>
-      ((data?.results || []) as Media[]).filter((f) => {
-        if (type === 'video') {
-          return hasExtension(f.path, 'mp4');
-        } else if (type === 'image') {
-          return !hasExtension(f.path, 'mp4');
-        } else if (type === 'image-static') {
-          return ['jpg', 'jpeg', 'png'].some((ext) =>
-            hasExtension(f.path, ext)
-          );
-        }
-        return true;
+      Object.values(
+        groupBy(files, (media) => newDayjs(media.createdAt).format('YYYY-MM'))
+      ).map((monthFiles) => {
+        const start = newDayjs(monthFiles[0].createdAt).startOf('month');
+        return {
+          label: start.format('MMMM YYYY'),
+          from: start.utc().format(),
+          to: start.add(1, 'month').utc().format(),
+          files: monthFiles,
+        };
       }),
-    [data?.results, type]
+    [files]
   );
-  const [selected, setSelected] = useState([]);
+  // The next page loads as the end of the list comes within about a screen
+  // of the scroll box, where the sentinel sits (research R2).
+  const scroller = useRef<HTMLDivElement>(null);
+  // The Media page's selection (data-model.md): the ids selected, loaded or
+  // not, and the ids each month's Select all fetched, by the month's start.
+  const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
+  const [monthIds, setMonthIds] = useState<Record<string, string[]>>({});
+  // How many times it was cleared: as rendered, for a Select all to keep
+  // from its press, and now, which its answer is checked against.
+  const [clears, setClears] = useState(0);
+  const clearsNow = useRef(clears);
+  const selecting = selection.size > 0;
+  const clearSelection = useCallback(() => {
+    clearsNow.current += 1;
+    setClears(clearsNow.current);
+    setSelection(new Set());
+    setMonthIds({});
+  }, []);
+  // A new filter, sort or search is another list, read from its top
+  // (FR-026); the Media page keeps it in its address (research R11) and
+  // clears its selection, so Delete never removes a file no longer listed.
+  const listedQuery = useRef(query);
+  useEffect(() => {
+    if (listedQuery.current === query) {
+      return;
+    }
+    listedQuery.current = query;
+    if (scroller.current) {
+      scroller.current.scrollTop = 0;
+    }
+    clearSelection();
+    onQueryChange?.(query);
+  }, [query, clearSelection, onQueryChange]);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const canLoadMore = hasMore && !isLoading && !isLoadingMore && !error;
+  // What the sentinel does each time it comes into view: after a failed load
+  // it asks again, else it loads the next page when one can start. The
+  // observer is built once, so it calls this through a ref.
+  const sentinelShown = useCallback(() => {
+    if (error) {
+      mutate();
+    } else if (canLoadMore) {
+      loadMore();
+    }
+  }, [error, canLoadMore, loadMore, mutate]);
+  const sentinelShownRef = useRef(sentinelShown);
+  useEffect(() => {
+    sentinelShownRef.current = sentinelShown;
+  }, [sentinelShown]);
+  // An observer calls back only when the sentinel comes into or goes out of
+  // view, so whether it is in view is kept: a page that lands while it still
+  // is (a first page too short to fill the list) asks for the next one below.
+  const sentinelInView = useRef(false);
+  useEffect(() => {
+    if (!sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        sentinelInView.current = entry.isIntersecting;
+        if (entry.isIntersecting) {
+          sentinelShownRef.current();
+        }
+      },
+      { root: scroller.current, rootMargin: '0px 0px 100% 0px' }
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+      sentinelInView.current = false;
+    };
+  }, [sentinel]);
+  useEffect(() => {
+    if (canLoadMore && sentinelInView.current) {
+      loadMore();
+    }
+  }, [canLoadMore, loadMore]);
+  const [selected, setSelected] = useState<MediaLibraryRow[]>([]);
   // Uppy keeps the upload callback it was created with, so that callback
   // counts the selection through a ref rather than its own first render's.
   const selectedRef = useRef(selected);
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
+  // For the same reason it refreshes through a ref: the list shown now, under
+  // the filter, sort and search set since.
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
   const t = useT();
   const overLimit = t(
     'media_selection_limit',
@@ -359,7 +438,6 @@ export const MediaBox: FC<{
     { count: max }
   );
   const uploaderRef = useRef<any>(null);
-  const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
 
   const uppy = useUppyUploader({
@@ -372,7 +450,7 @@ export const MediaBox: FC<{
         ? 'video/mp4'
         : 'image/*,video/mp4',
     onUploadSuccess: async (arr) => {
-      await mutate();
+      await refreshRef.current();
       if (standalone) {
         return;
       }
@@ -407,6 +485,15 @@ export const MediaBox: FC<{
   const addRemoveSelected = useCallback(
     (media: any) => () => {
       if (standalone) {
+        setSelection((current) => {
+          const next = new Set(current);
+          if (next.has(media.id)) {
+            next.delete(media.id);
+          } else {
+            next.add(media.id);
+          }
+          return next;
+        });
         return;
       }
       const exists = selected.find((p: any) => p.id === media.id);
@@ -423,12 +510,77 @@ export const MediaBox: FC<{
     [selected, max, toaster, overLimit]
   );
 
+  // A file the preview deleted leaves the picks (FR-045).
+  const unselectDeleted = useCallback((id: string) => {
+    setSelected((current) => current.filter((media) => media.id !== id));
+  }, []);
+
+  // A month's Select all: its ids join the selection and are kept as the
+  // month's, for its heading to read Clear (research R5). An answer after
+  // another filter, sort or search, Clear or Delete is the selection's
+  // before them, and selects nothing.
+  const selectMonth = useCallback(
+    (pressed: number, from: string, ids: string[]) => {
+      if (pressed !== clearsNow.current) {
+        return;
+      }
+      setMonthIds((current) => ({ ...current, [from]: ids }));
+      setSelection((current) => new Set([...current, ...ids]));
+    },
+    []
+  );
+  const unselect = useCallback((ids: string[]) => {
+    setSelection((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  // The selection bar's Delete (research R6): one question, every selected
+  // id through the one client delete path, which says how it went, then the
+  // list and its month counts refetch, so the files that failed stay. From
+  // the question until the delete ends, Delete is disabled.
+  const deleteMedia = useDeleteMedia();
+  const [deleting, setDeleting] = useState(false);
+  const deleteSelection = useCallback(async () => {
+    const ids = Array.from(selection);
+    const count = {
+      count: ids.length,
+      value: ids.length.toLocaleString('en-US'),
+    };
+    setDeleting(true);
+    try {
+      if (
+        !(await deleteDialog(
+          t(
+            'media_delete_body',
+            "They'll be removed from your media library.",
+            count
+          ),
+          t('delete', 'Delete'),
+          t('media_delete_title', 'Delete {{value}} files?', count),
+          t('cancel', 'Cancel'),
+          true
+        ))
+      ) {
+        return;
+      }
+      await deleteMedia(ids);
+      clearSelection();
+      await refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }, [selection, deleteMedia, t, clearSelection, refresh]);
+
   const addMedia = useCallback(async () => {
     if (standalone) {
       return;
     }
+    // A tile image is only what a tile loads: the caller attaches the original.
     // @ts-ignore
-    setMedia(selected);
+    setMedia(selected.map((media) => omit(media, 'tileImage')));
     modals.closeCurrent();
   }, [selected]);
 
@@ -500,65 +652,11 @@ export const MediaBox: FC<{
     [toaster, t]
   );
 
-  const maximize = useCallback(
-    (media: Media, index: number) => (e: any) => {
-      e.stopPropagation();
-      modals.openModal(mediaPreviewModal(visibleMedia, index));
-    },
-    [visibleMedia]
-  );
-
-  const deleteImage = useCallback(
-    (media: Media) => async (e: any) => {
-      e.stopPropagation();
-      if (
-        !(await deleteDialog(
-          t(
-            'are_you_sure_you_want_to_delete_this_file',
-            'Are you sure you want to delete this file?'
-          )
-        ))
-      ) {
-        return;
-      }
-      await fetch(`/media/${media.id}`, {
-        method: 'DELETE',
-      });
-      mutate();
-    },
-    [mutate]
-  );
-
-  // at 1025px and below there is no hover, so the picks are deleted together
-  const deleteSelected = useCallback(async () => {
-    if (
-      !(await deleteDialog(
-        t(
-          'are_you_sure_you_want_to_delete_selected_media',
-          'Are you sure you want to delete the selected media?'
-        )
-      ))
-    ) {
-      return;
-    }
-    const toDelete = selected;
-    setSelected([]);
-    try {
-      await Promise.all(
-        toDelete.map((media: { id: string }) =>
-          fetch(`/media/${media.id}`, {
-            method: 'DELETE',
-          })
-        )
-      );
-    } finally {
-      const result = await mutate();
-      // deleting a whole last page leaves nothing to show there
-      if (page >= (result?.pages || 1)) {
-        setPage(Math.max(0, (result?.pages || 1) - 1));
-      }
-    }
-  }, [selected, mutate, page, t, fetch]);
+  const typeFilters: { value: MediaLibraryQuery['type']; label: string }[] = [
+    { value: undefined, label: t('media_filter_all', 'All') },
+    { value: 'image', label: t('media_filter_images', 'Images') },
+    { value: 'video', label: t('media_filter_videos', 'Videos') },
+  ];
 
   const btn = useMemo(() => {
     return (
@@ -582,24 +680,64 @@ export const MediaBox: FC<{
   return (
     <DropFiles disabled={loading} className="flex flex-col flex-1" onDrop={dragAndDrop}>
       <div className="flex flex-col flex-1">
+        {/* The Media page's, in the toolbar's place while anything is selected */}
+        {selecting && (
+          <div className="flex items-center gap-[12px] min-h-[44px]">
+            <div className="text-[15px] font-[600]">
+              {t('media_selected', '{{value}} selected', {
+                count: selection.size,
+                value: selection.size.toLocaleString('en-US'),
+              })}
+            </div>
+            <Button variant="quiet" onClick={clearSelection}>
+              {t('media_clear_selection', 'Clear')}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={deleteSelection}
+              disabled={deleting}
+              className="ms-auto"
+              innerClassName="gap-[8px]"
+            >
+              <TrashIcon size={18} />
+              {t('delete', 'Delete')}
+            </Button>
+          </div>
+        )}
         <div
           className={clsx(
             'flex flex-wrap items-center gap-[12px]',
             !isLoading &&
-              !data?.results?.length &&
+              !files.length &&
+              !filter &&
               !debouncedSearch &&
-              'hidden'
+              'hidden',
+            selecting && 'hidden'
           )}
         >
           {/* The search takes its own line at 1025px and below, so Upload
               and Import wrap below it instead of off the edge. */}
-          <div className="flex-1 mobile:basis-full">
+          <div className="relative flex-1 mobile:basis-full">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              aria-hidden="true"
+              className="absolute start-[14px] top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('search_media_by_name', 'Search by file name')}
-              className="w-full h-[44px] px-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
+              className="w-full h-[44px] ps-[42px] pe-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
             />
           </div>
           <input
@@ -609,6 +747,50 @@ export const MediaBox: FC<{
             className="hidden"
             multiple={true}
           />
+          {/* At 1025px and below the search and Upload come first, then the
+              filter, then the sort. A caller's own type hides the filter. */}
+          {!type && (
+            <div
+              role="group"
+              aria-label={t('media_type_filter', 'File type')}
+              className="flex gap-[4px] p-[4px] border border-newTableBorder rounded-[8px] mobile:order-1 mobile:flex-1"
+            >
+              {typeFilters.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={filter === option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={clsx(
+                    'h-[34px] coarse:min-h-[44px] px-[14px] rounded-[6px] text-[14px] font-[600] whitespace-nowrap cursor-pointer focus-visible:ring-2 focus-visible:ring-brand mobile:flex-1 mobile:px-[6px]',
+                    filter === option.value
+                      ? 'bg-selectedBg text-selectedText'
+                      : 'text-muted hover:text-ink'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="relative mobile:order-1">
+            <select
+              value={sort}
+              onChange={(e) =>
+                setSort(e.target.value as MediaLibraryQuery['sort'])
+              }
+              aria-label={t('media_sort', 'Sort')}
+              className="h-[44px] appearance-none bg-newBgColorInner border border-newTableBorder rounded-[8px] ps-[14px] pe-[36px] text-[14px] coarse:text-[16px] font-[500] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="newest">
+                {t('media_sort_newest', 'Newest first')}
+              </option>
+              <option value="oldest">
+                {t('media_sort_oldest', 'Oldest first')}
+              </option>
+            </select>
+            <SelectChevron className="absolute end-[12px] top-[50%] -translate-y-[50%] pointer-events-none text-muted" />
+          </div>
           {/* the picker moves these to its footer at 1025px and below */}
           <div
             className={clsx(
@@ -617,27 +799,15 @@ export const MediaBox: FC<{
             )}
           >
             {btn}
-            <ThirdPartyMediaLibrary onImported={() => mutate()} />
+            <ThirdPartyMediaLibrary onImported={() => refresh()} />
           </div>
-          {!standalone && !!data?.results?.length && (
+          {!standalone && !!files.length && (
             <div className="hidden mobile:block basis-full text-[14px] font-[600]">
               {t(
                 'select_or_upload_pictures_max_1gb',
                 'Select or upload pictures (maximum 1 GB per upload).'
               )}
             </div>
-          )}
-          {!!selected.length && (
-            <button
-              type="button"
-              onClick={deleteSelected}
-              className="hidden mobile:flex basis-full justify-center items-center gap-[8px] min-h-[44px] text-[15px] font-[600] text-error rounded-[8px] select-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <TrashIcon size={18} />
-              {t('delete_selected_count', 'Delete Selected ({{count}})', {
-                count: selected.length,
-              })}
-            </button>
           )}
         </div>
         <div
@@ -665,27 +835,30 @@ export const MediaBox: FC<{
           <div className="w-full h-[46px] uppyChange" />
         </div>
         <div className="flex-1 relative">
+          {/* Stays mounted while pages load and while the list refetches, so
+              the list stays where the user was (FR-033). */}
           <div
+            ref={scroller}
             className={clsx(
               // at 1025px and below the tiles carry a 6px pad, which this
               // offset lines up with the sides and the bottom; not the top,
               // where it would lie over the toolbar's last line
               'absolute inset-0 mobile:-inset-x-[6px] mobile:-bottom-[6px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner',
-              !isLoading && !data?.results?.length
-                ? 'w-full flex justify-center items-center flex-col'
-                : // Capped at eight columns past the target width: auto-fill
-                  // would otherwise keep adding 150px columns, so a wide screen
-                  // gets denser rather than bigger and 32 items stop filling
-                  // whole rows. Below 2xl this changes nothing.
-                  'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0 content-start'
+              !isLoading &&
+                !files.length &&
+                'w-full flex justify-center items-center flex-col'
             )}
           >
-            {!isLoading && !data?.results?.length && (
+            {/* a library that couldn't load isn't an empty one: the failure
+                line below says so */}
+            {!isLoading && !files.length && !error && (
               <EmptyState
                 illustration={<MediaEmptyIllustration />}
                 title={
                   debouncedSearch
                     ? t('no_media_match_search', 'No media matches your search')
+                    : filter || type
+                    ? t('media_no_type_match', 'No files of this type yet')
                     : t(
                         'you_dont_have_any_media_yet',
                         "You don't have any media yet"
@@ -700,6 +873,18 @@ export const MediaBox: FC<{
                 )}`}
                 actions={
                   <>
+                    {/* clears what the user set; a caller's own type stays */}
+                    {(!!filter || !!debouncedSearch) && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setFilter(undefined);
+                          setSearch('');
+                        }}
+                      >
+                        {t('media_show_all', 'Show all files')}
+                      </Button>
+                    )}
                     <Button
                       onClick={() => uploaderRef?.current?.click()}
                       innerClassName="gap-[8px]"
@@ -707,164 +892,102 @@ export const MediaBox: FC<{
                       <PlusIcon size={14} />
                       {t('upload', 'Upload')}
                     </Button>
-                    <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                    <ThirdPartyMediaLibrary onImported={() => refresh()} />
                   </>
                 }
               />
             )}
-            {isLoading && (
+            {months.map((month) => (
+              <MediaMonth
+                key={month.from}
+                query={query}
+                label={month.label}
+                from={month.from}
+                to={month.to}
+                selection={
+                  standalone
+                    ? {
+                        ids: month.files.map((media) => media.id),
+                        selected: selection,
+                        fetched: monthIds[month.from],
+                        onSelectAll: (ids) =>
+                          selectMonth(clears, month.from, ids),
+                        onClear: unselect,
+                      }
+                    : undefined
+                }
+              >
+                {month.files.map((media) => {
+                  const picked = selected.findIndex((p) => p.id === media.id);
+                  return (
+                    <MediaTile
+                      key={media.id}
+                      media={media}
+                      standalone={standalone}
+                      query={query}
+                      onDeleted={unselectDeleted}
+                      order={picked === -1 ? undefined : picked + 1}
+                      selected={selection.has(media.id)}
+                      selecting={selecting}
+                      onToggle={addRemoveSelected(media)}
+                    />
+                  );
+                })}
+              </MediaMonth>
+            ))}
+            {(isLoading || isLoadingMore) && (
               <>
-                {/* One skeleton per item the page will hold — MEDIA_PAGE_SIZE
-                    in media.repository.ts. */}
-                {[...new Array(32)].map((_, i) => (
-                  <div
-                    className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
-                    key={i}
-                  >
-                    <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
+                {/* While the first page loads, one skeleton per file it will
+                    hold (MEDIA_PAGE_SIZE in media.repository.ts) under a
+                    heading's; while a further page loads, a row of them
+                    after the last month. */}
+                {isLoading && (
+                  <div className="py-[10px]">
+                    <div className="w-[120px] h-[20px] rounded-[4px] bg-newSep animate-pulse" />
                   </div>
-                ))}
+                )}
+                {/* Capped at eight columns past the target width: auto-fill
+                    would otherwise keep adding 150px columns, so a wide screen
+                    gets denser rather than bigger and 32 items stop filling
+                    whole rows. Below 2xl this changes nothing. */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0">
+                  {[...new Array(isLoading ? 32 : 8)].map((_, i) => (
+                    <div
+                      className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
+                      key={i}
+                    >
+                      <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
+                    </div>
+                  ))}
+                </div>
               </>
             )}
-            {visibleMedia.map((media: any, index: number) => {
-              // `originalName` is nullable; `name` never is. Without this the
-              // caption, the tooltip, the alt text and the delete button's
-              // label are all empty for older uploads.
-              const displayName = media.originalName || media.name;
-              return (
-                <div
-                  className={clsx(
-                    'group rounded-[6px] aspect-square mobile:p-[6px]',
-                    !standalone && 'cursor-pointer'
-                  )}
-                  key={media.id}
+            {!!error && (
+              <div className="flex items-center justify-center gap-[8px] py-[16px] text-[13px]">
+                {t('media_load_failed', "Couldn't load more files.")}
+                <button
+                  type="button"
+                  onClick={() => mutate()}
+                  className="px-[8px] rounded-[4px] coarse:min-h-[44px] font-[600] text-brandText focus-visible:ring-2 focus-visible:ring-brand"
                 >
-                  <div
-                    className={clsx(
-                      'w-full h-full rounded-[6px] border-[4px] relative',
-                      !!selected.find((p) => p.id === media.id)
-                        ? 'border-brand'
-                        : 'border-transparent'
-                    )}
-                    onClick={addRemoveSelected(media)}
-                  >
-                    {!!selected.find((p: any) => p.id === media.id) ? (
-                      <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-brand absolute -bottom-[10px] -end-[10px]">
-                        {selected.findIndex((z: any) => z.id === media.id) + 1}
-                      </div>
-                    ) : (
-                      /* Inside the tile and revealed by opacity rather than
-                         `display`, so the button can take focus at all — a
-                         `hidden` control is out of the tab order, which would
-                         leave its focus ring unreachable, and a 36px target
-                         hanging over the tile edge would swallow clicks meant
-                         for the neighbouring cell.
-                         An `opacity: 0` element is still hit-tested and there is
-                         no hover on touch, so it stays `pointer-events-none`
-                         until it is actually revealed — otherwise a tap on this
-                         corner would open the delete prompt instead of selecting
-                         the item. Under a coarse pointer that reasoning holds in
-                         the picker and inverts in the library: there the tile
-                         selects nothing, and hover-only would mean media can
-                         never be deleted on touch at all. */
-                      <button
-                        type="button"
-                        onClick={deleteImage(media)}
-                        aria-label={t('delete_media_named', 'Delete {{name}}', {
-                          name: displayName,
-                        })}
-                        className={clsx(
-                          'cursor-pointer z-[100] flex items-center justify-center absolute top-[4px] end-[4px] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity focus-visible:ring-2 focus-visible:ring-brand',
-                          standalone &&
-                            'coarse:opacity-100 coarse:pointer-events-auto',
-                          // the picker deletes its picks together there
-                          !standalone && 'mobile:hidden'
-                        )}
-                      >
-                        <DeleteCircleIcon size={28} />
-                      </button>
-                    )}
-                    {/* The tile carries the tooltip, not the caption strip: the
-                        strip is pointer-events-none, so a `title` on it would
-                        never be reachable. */}
-                    <div
-                      title={displayName}
-                      className="w-full h-full rounded-[6px] overflow-hidden relative"
-                    >
-                      {/* A 36px circle matching the lightbox's own prev/next
-                          controls, revealed by colour rather than by growing
-                          50% under the cursor. A button rather than a div
-                          because this is the only way into the preview, and a
-                          div cannot be reached from the keyboard. */}
-                      <button
-                        type="button"
-                        onClick={maximize(media, index)}
-                        aria-label={t('open_preview', 'Open preview')}
-                        className={clsx(
-                          'cursor-pointer absolute z-[20] left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] w-[36px] h-[36px] coarse:w-[44px] coarse:h-[44px] rounded-full flex items-center justify-center text-white bg-black/45 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-black/[0.68] transition-all focus-visible:ring-2 focus-visible:ring-brand',
-                          // Only in the library, where the tile itself does
-                          // nothing on tap. In the picker the tile selects, and
-                          // a live 36px control in its centre would swallow the
-                          // tap that selects the item — the primary action here.
-                          standalone &&
-                            'coarse:opacity-100 coarse:pointer-events-auto'
-                        )}
-                      >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 14 14"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M2 9H0V14H5V12H2V9ZM0 5H2V2H5V0H0V5ZM12 12H9V14H14V9H12V12ZM9 0V2H12V5H14V0H9Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                      </button>
-                      {hasExtension(media.path, 'mp4') ? (
-                        <VideoTile url={mediaDirectory.set(media.path)} />
-                      ) : (
-                        <img
-                          width="100%"
-                          height="100%"
-                          className="w-full h-full object-cover"
-                          src={mediaDirectory.set(media.path)}
-                          alt={displayName}
-                        />
-                      )}
-                      {/* Inside the clip wrapper, which is what makes an overlap
-                          with a neighbouring tile structurally impossible. */}
-                      <div
-                        dir="ltr"
-                        className={clsx(
-                          'absolute z-[30] inset-x-0 bottom-0 px-[8px] py-[6px] truncate text-[12px] text-white bg-gradient-to-t from-black/75 to-transparent opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity pointer-events-none',
-                          !standalone && 'mobile:hidden'
-                        )}
-                      >
-                        {displayName}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  {t('try_again', 'Try again')}
+                </button>
+              </div>
+            )}
+            {!!files.length && !hasMore && !error && (
+              <div className="py-[16px] text-center text-[13px] text-muted">
+                {t('media_end', "That's all your files")}
+              </div>
+            )}
+            {hasMore && <div ref={setSentinel} />}
           </div>
         </div>
-        {(data?.pages || 0) > 1 && (
-          <Pagination
-            current={page}
-            totalPages={data?.pages}
-            setPage={setPage}
-          />
-        )}
         {!standalone && (
           <div className="flex justify-end mt-[32px] gap-[8px] mobile:flex-col mobile:mt-[16px] mobile:gap-[12px]">
-            {!isLoading && !!data?.results?.length && (
+            {!isLoading && !!files.length && (
               <div className="hidden mobile:flex gap-[8px] mobile:child:flex-1">
                 {btn}
-                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                <ThirdPartyMediaLibrary onImported={() => refresh()} />
               </div>
             )}
             {/* the cross closes it at 1025px and below */}
@@ -874,7 +997,7 @@ export const MediaBox: FC<{
             >
               {t('cancel', 'Cancel')}
             </button>
-            {!isLoading && !!data?.results?.length && (
+            {!isLoading && !!files.length && (
               <button
                 onClick={standalone ? () => {} : addMedia}
                 disabled={selected.length === 0}

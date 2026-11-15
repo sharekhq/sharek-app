@@ -32,7 +32,7 @@ jest.mock(
   })
 );
 
-import { HttpException } from '@nestjs/common';
+import { BadRequestException, HttpException } from '@nestjs/common';
 import { WorkflowNotFoundError } from '@temporalio/common';
 import sharp from 'sharp';
 import { MediaService } from './media.service';
@@ -91,6 +91,8 @@ const makeService = (
     // The Media rows the organization's library answers with for a reference
     // lookup, in the order the database returns them.
     references?: Array<{ id: string; path: string }>;
+    // The page of the organization's media list the repository answers with.
+    library?: { pages: number; results: Array<Record<string, unknown>> };
     // What BrandService.kitFor answers for the brand a request names: only
     // the kit's images still in Media, or the 404 for a brand that isn't one
     // of the organization's live brands.
@@ -117,6 +119,12 @@ const makeService = (
   const repository = {
     getMediaByIds: jest.fn().mockResolvedValue(over.references ?? []),
     getMediaByPaths: jest.fn().mockResolvedValue(over.references ?? []),
+    getMedia: jest
+      .fn()
+      .mockResolvedValue(over.library ?? { pages: 0, results: [] }),
+    countMediaInRange: jest.fn().mockResolvedValue(0),
+    getMediaIdsInRange: jest.fn().mockResolvedValue([]),
+    deleteManyMedia: jest.fn().mockResolvedValue(undefined),
   };
   const brands = {
     kitFor:
@@ -3464,5 +3472,217 @@ describe('every credit refusal carries its reset date', () => {
 
     expect(err).toBeInstanceOf(SubscriptionException);
     expect(err.getResponse()).toMatchObject({ resetsAt: RESETS_AT });
+  });
+});
+
+// The public API's media list and Samy's media tool read the library through
+// this call with three arguments, and both must answer exactly what they answer
+// today: the media library's tile image is never added here (spec 057, Rule 3,
+// FR-055, FR-056, SC-008).
+describe('getMedia, as the public API and Samy read it', () => {
+  const library = () => ({
+    pages: 1,
+    results: [
+      {
+        id: 'media-1',
+        name: 'logo.png',
+        originalName: 'logo.png',
+        path: 'https://media/logo.png',
+        thumbnail: null,
+        alt: null,
+        thumbnailTimestamp: null,
+        createdAt: new Date('2026-11-10T12:00:00.000Z'),
+      },
+      {
+        id: 'media-2',
+        name: 'clip.mp4',
+        originalName: 'clip.mp4',
+        path: 'https://media/clip.mp4',
+        thumbnail: 'https://media/clip-cover.png',
+        alt: null,
+        thumbnailTimestamp: 1200,
+        createdAt: new Date('2026-11-10T12:00:00.000Z'),
+      },
+    ],
+  });
+
+  it('passes the three arguments through and answers the repository unchanged', async () => {
+    const { service, repository } = makeService({ library: library() });
+    // A storage that has a tile image of its own for every file.
+    const tileImage = jest.fn().mockReturnValue('https://tiles/other.webp');
+    (service as any).storage.tileImage = tileImage;
+
+    const answer = await service.getMedia('org-1', 2, 'logo');
+
+    expect(repository.getMedia.mock.calls).toStrictEqual([
+      ['org-1', 2, 'logo'],
+    ]);
+    expect(answer).toStrictEqual(library());
+    expect(tileImage).not.toHaveBeenCalled();
+  });
+});
+
+// The Media library's own reads (spec 057, research R7, R10). Unlike getMedia
+// above, its page adds a tile image to a row whose storage has one other than
+// the file itself; the month reads refuse a range no month spans before any
+// query; a bulk delete answers nothing and leaves the files in storage (Rules
+// 3, 7, 12; FR-013 to FR-015, FR-039, FR-040, FR-057).
+describe('getLibraryPage, as the Media library reads a page', () => {
+  const row = (id: string, path: string) => ({
+    id,
+    name: id,
+    originalName: id,
+    path,
+    thumbnail: null,
+    alt: null,
+    thumbnailTimestamp: null,
+    createdAt: new Date('2026-11-10T12:00:00.000Z'),
+  });
+  const library = () => ({
+    pages: 3,
+    results: [
+      row('media-1', 'https://media/clip.mp4'),
+      row('media-2', 'https://media/CLIP.MP4'),
+      row('media-3', 'https://media/a.mp4?v=1'),
+      row('media-4', 'https://media/logo.png'),
+      row('media-5', 'https://elsewhere/photo.jpg'),
+    ],
+  });
+  // A storage with a tile image for its own files only: a file stored
+  // anywhere else answers its own path, as CloudflareStorage does.
+  const withTiles = () => {
+    const made = makeService({ library: library() });
+    const tileImage = jest.fn((path: string) =>
+      path.startsWith('https://media/') ? `https://tiles/${path}` : path
+    );
+    (made.service as any).storage.tileImage = tileImage;
+    return { ...made, tileImage };
+  };
+  const query = {
+    page: 2,
+    search: 'x',
+    type: 'video' as const,
+    sort: 'oldest' as const,
+  };
+
+  it('asks the repository for the page with its type and sort', async () => {
+    const { service, repository } = withTiles();
+
+    await service.getLibraryPage('org-1', query);
+
+    expect(repository.getMedia.mock.calls).toStrictEqual([
+      ['org-1', 2, 'x', { type: 'video', sort: 'oldest' }],
+    ]);
+  });
+
+  it('asks for a video tile when .mp4 is anywhere in the address, in any case', async () => {
+    const { service, tileImage } = withTiles();
+
+    await service.getLibraryPage('org-1', query);
+
+    expect(tileImage.mock.calls).toStrictEqual([
+      ['https://media/clip.mp4', 'video'],
+      ['https://media/CLIP.MP4', 'video'],
+      ['https://media/a.mp4?v=1', 'video'],
+      ['https://media/logo.png', 'image'],
+      ['https://elsewhere/photo.jpg', 'image'],
+    ]);
+  });
+
+  it('adds a tile image only where it differs from the path', async () => {
+    const { service } = withTiles();
+
+    const answer = await service.getLibraryPage('org-1', query);
+
+    expect(answer.pages).toBe(3);
+    expect(answer.results.slice(0, 4)).toStrictEqual(
+      library()
+        .results.slice(0, 4)
+        .map((media) => ({
+          ...media,
+          tileImage: `https://tiles/${media.path}`,
+        }))
+    );
+    // The file stored elsewhere comes back as the repository answered it.
+    expect('tileImage' in answer.results[4]).toBe(false);
+    expect(answer.results[4]).toStrictEqual(library().results[4]);
+  });
+});
+
+describe('countMonth and monthIds, as the Media library reads a month', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  // A month in the user's timezone starts at a local midnight, not UTC's.
+  const FROM = '2026-11-01T04:00:00.000Z';
+  const range = (days: number) => ({
+    from: FROM,
+    to: new Date(Date.parse(FROM) + days * DAY).toISOString(),
+    search: 'x',
+    type: 'video' as const,
+  });
+
+  describe.each([
+    ['countMonth', 'countMediaInRange'],
+    ['monthIds', 'getMediaIdsInRange'],
+  ] as const)('%s', (method, read) => {
+    it.each([
+      ['ends where it starts', 0],
+      ['ends before it starts', -1],
+      ['is 33 days long', 33],
+    ])('refuses a range that %s, before any query', async (_, days) => {
+      const { service, repository } = makeService();
+
+      await expect(service[method]('org-1', range(days))).rejects.toThrow(
+        BadRequestException
+      );
+      expect(repository[read]).not.toHaveBeenCalled();
+    });
+
+    it.each([31, 32])('reads a range of %i days', async (days) => {
+      const { service, repository } = makeService();
+
+      await service[method]('org-1', range(days));
+
+      expect(repository[read].mock.calls).toStrictEqual([
+        ['org-1', range(days)],
+      ]);
+    });
+  });
+
+  it('countMonth answers the count', async () => {
+    const { service, repository } = makeService();
+    repository.countMediaInRange.mockResolvedValue(23);
+
+    const answer = await service.countMonth('org-1', range(30));
+
+    expect(answer).toStrictEqual({ count: 23 });
+  });
+
+  it('monthIds answers the ids', async () => {
+    const { service, repository } = makeService();
+    repository.getMediaIdsInRange.mockResolvedValue(['media-1', 'media-2']);
+
+    const answer = await service.monthIds('org-1', range(30));
+
+    expect(answer).toStrictEqual({ ids: ['media-1', 'media-2'] });
+  });
+});
+
+describe('deleteManyMedia, as the Media library deletes a selection', () => {
+  it('deletes the ids through the repository and answers nothing', async () => {
+    const { service, repository } = makeService();
+    // Whatever the write answers, the route answers no body (Rule 12).
+    repository.deleteManyMedia.mockResolvedValue({ count: 2 });
+    const removeFile = jest.fn();
+    (service as any).storage.removeFile = removeFile;
+    const ids = ['media-1', 'media-2'];
+
+    const answer = await service.deleteManyMedia('org-1', ids);
+
+    expect(answer).toBeUndefined();
+    expect(repository.deleteManyMedia.mock.calls).toStrictEqual([
+      ['org-1', ids],
+    ]);
+    // Posts that use the files keep them (FR-057).
+    expect(removeFile).not.toHaveBeenCalled();
   });
 });

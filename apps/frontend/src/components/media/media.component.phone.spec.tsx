@@ -5,7 +5,7 @@ import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 // The media library at 1025px and below (spec 044, US4): upstream's
 // full-screen picker in Sharek's skin, and the pieces upstream applies to the
 // Media page there. Classes say what the layout is (no layout runs here); the
-// behaviour is real: Delete Selected, the page it leaves, the uploader's
+// behaviour is real: picking, the preview a tap opens, the uploader's
 // messages keeping the progress band open.
 type Result = { results: typeof shownMedia; pages: number };
 
@@ -13,14 +13,11 @@ const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
   name: `photo-${n}.png`,
   path: `https://media.test/photo-${n}.png`,
+  createdAt: '2026-11-10T12:00:00.000Z',
 }));
-// Pages the server has, before and after a delete.
-let pages = 6;
-let pagesAfterMutate = 6;
-const keys: string[] = [];
-const requests: Array<{ url: string; method: string }> = [];
-const confirm = jest.fn<Promise<boolean>, unknown[]>(async () => true);
 const uploaderEvents: Record<string, () => void> = {};
+// What a tile opens: the library preview, as the modal manager gets it.
+const openModal = jest.fn();
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
@@ -30,30 +27,33 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
         params && name in params ? String(params[name]) : whole
       ),
 }));
+// A month heading's count.
 jest.mock('swr', () => ({
   __esModule: true,
-  default: (key: string) => {
-    keys.push(key);
-    return {
-      data: { results: shownMedia, pages } as Result,
-      isLoading: false,
-      mutate: async (): Promise<Result> => {
-        pages = pagesAfterMutate;
-        return { results: shownMedia, pages };
-      },
-    };
-  },
+  default: () => ({
+    data: { count: shownMedia.length },
+    isLoading: false,
+    mutate: async (): Promise<undefined> => undefined,
+  }),
+  useSWRConfig: () => ({ mutate: async (): Promise<undefined> => undefined }),
+}));
+// The list as useSWRInfinite answers it: the files as its one page.
+jest.mock('swr/infinite', () => ({
+  __esModule: true,
+  default: () => ({
+    data: [{ results: shownMedia, pages: 1 }] as Result[],
+    size: 1,
+    setSize: async (): Promise<undefined> => undefined,
+    mutate: async (): Promise<undefined> => undefined,
+    isLoading: false,
+    isValidating: false,
+  }),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
-  useFetch:
-    () =>
-    async (url: string, init: RequestInit = {}) => {
-      requests.push({ url, method: init.method || 'GET' });
-      return new Response('{}');
-    },
+  useFetch: () => async () => new Response('{}'),
 }));
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: (...args: unknown[]) => confirm(...args),
+  deleteDialog: async () => false,
 }));
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: () => ({
@@ -83,7 +83,7 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({
     closeAll: () => undefined,
     closeCurrent: () => undefined,
-    openModal: () => undefined,
+    openModal: (...args: unknown[]) => openModal(...args),
   }),
   ModalHeaderSlotTarget: () => null,
 }));
@@ -110,6 +110,11 @@ jest.mock(
 );
 jest.mock('@gitroom/frontend/components/media/media.preview', () => ({
   MediaPreview: () => null,
+  libraryPreviewModal: (query: unknown, id: string, onDeleted: unknown) => ({
+    query,
+    id,
+    onDeleted,
+  }),
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: () => null,
@@ -173,8 +178,6 @@ const buttonByText = (host: HTMLElement, text: string) =>
   );
 const classes = (node: Element | null | undefined) =>
   (node?.getAttribute('class') || '').split(' ');
-const deletes = () =>
-  requests.filter((r) => r.method === 'DELETE').map((r) => r.url);
 // The caption that names a tile: the innermost element holding the name.
 const caption = (host: HTMLElement) =>
   Array.from(host.querySelectorAll('div'))
@@ -185,12 +188,7 @@ const band = (host: HTMLElement) =>
   host.querySelector('.uppyChange')!.parentElement!;
 
 beforeEach(() => {
-  pages = 6;
-  pagesAfterMutate = 6;
-  keys.length = 0;
-  requests.length = 0;
-  confirm.mockClear();
-  confirm.mockImplementation(async () => true);
+  openModal.mockClear();
 });
 
 afterEach(() => {
@@ -225,74 +223,20 @@ describe('the size every media library opens at', () => {
   });
 });
 
-describe('Delete Selected in the picker', () => {
-  const pickTwo = async () => {
+// The window deletes nothing itself (FR-046): a file is deleted from the
+// preview its expand button opens.
+describe('the picker has no Delete Selected', () => {
+  it('at any width, with picks', async () => {
     const host = await picker();
     await click(tile(host, 1));
     await click(tile(host, 2));
-    return host;
-  };
 
-  it('counts what is picked, as one translated label, on a 44px red button', async () => {
-    const host = await pickTwo();
-    const remove = buttonByText(host, 'Delete Selected (2)')!;
-
-    expect(remove.getAttribute('type')).toBe('button');
-    expect(classes(remove)).toEqual(
-      expect.arrayContaining([
-        'hidden',
-        'mobile:flex',
-        'min-h-[44px]',
-        'text-error',
-        'focus-visible:ring-brand',
-      ])
-    );
-  });
-
-  it('is not there while nothing is picked', async () => {
-    const host = await picker();
-
+    expect(buttonByText(host, 'Add selected media')!.disabled).toBe(false);
     expect(
       Array.from(host.querySelectorAll('button')).some((button) =>
         (button.textContent || '').startsWith('Delete Selected')
       )
     ).toBe(false);
-  });
-
-  it('deletes every pick once confirmed, and reloads the list', async () => {
-    const host = await pickTwo();
-    keys.length = 0;
-
-    await click(buttonByText(host, 'Delete Selected (2)'));
-
-    expect(confirm).toHaveBeenCalledWith(
-      'Are you sure you want to delete the selected media?'
-    );
-    expect(deletes()).toEqual(['/media/m1', '/media/m2']);
-    expect(buttonByText(host, 'Delete Selected (2)')).toBeUndefined();
-  });
-
-  it('deletes nothing when the confirm is cancelled', async () => {
-    confirm.mockImplementation(async () => false);
-    const host = await pickTwo();
-
-    await click(buttonByText(host, 'Delete Selected (2)'));
-
-    expect(deletes()).toEqual([]);
-    expect(buttonByText(host, 'Delete Selected (2)')).toBeTruthy();
-  });
-
-  it('steps back a page when the one it emptied was the last', async () => {
-    pages = 2;
-    pagesAfterMutate = 1;
-    const host = await picker();
-    await click(host.querySelector('button[aria-label="Go to next page"]'));
-    expect(keys.at(-1)).toBe('get-media-1-');
-    await click(tile(host, 1));
-
-    await click(buttonByText(host, 'Delete Selected (1)'));
-
-    expect(keys.at(-1)).toBe('get-media-0-');
   });
 });
 
@@ -310,15 +254,19 @@ describe('the picker at 1025px and below', () => {
     );
   });
 
-  it('hides the file names and the per-tile delete on its tiles', async () => {
+  it('hides the file names on its tiles, and the expand button shows under a finger', async () => {
     const host = await picker();
     const name = caption(host);
-    const remove = host.querySelector(
-      'button[aria-label="Delete photo-3.png"]'
-    );
+    const expand = host.querySelectorAll('button[aria-label="Open preview"]');
 
     expect(classes(name)).toContain('mobile:hidden');
-    expect(classes(remove)).toContain('mobile:hidden');
+    expect(expand).toHaveLength(3);
+    expect(classes(expand[2])).toEqual(
+      expect.arrayContaining([
+        'coarse:opacity-100',
+        'coarse:pointer-events-auto',
+      ])
+    );
   });
 
   it('keeps Add disabled and grey until something is picked, then brand', async () => {
@@ -377,20 +325,27 @@ describe('the Media page at 1025px and below', () => {
     expect(classes(tileBox)).toContain('mobile:p-[6px]');
   });
 
-  it('keeps the names, the per-tile delete and the upload buttons', async () => {
+  it('keeps the names and the upload buttons, and a tap opens the preview', async () => {
     const host = await page();
     const name = caption(host);
-    const remove = host.querySelector(
-      'button[aria-label="Delete photo-3.png"]'
-    );
     const upload = buttonByText(host, 'Upload')!;
 
     expect(classes(name)).not.toContain('mobile:hidden');
-    expect(classes(remove)).not.toContain('mobile:hidden');
     expect(classes(upload.parentElement)).not.toContain('mobile:hidden');
+    expect(
+      host.querySelector('button[aria-label="Delete photo-3.png"]')
+    ).toBeNull();
+
+    await click(tile(host, 3));
+
+    expect(openModal).toHaveBeenCalledTimes(1);
+    expect(openModal.mock.calls[0][0]).toMatchObject({
+      id: 'm3',
+      query: { sort: 'newest', search: '' },
+    });
   });
 
-  it('has no footer and no Delete Selected, since nothing can be picked', async () => {
+  it('has no footer and no Delete Selected; picks are deleted from the selection bar', async () => {
     const host = await page();
     await click(tile(host, 1));
 
@@ -428,31 +383,20 @@ describe('the upload progress band at 1025px and below', () => {
   });
 });
 
-describe('the pagination at 1025px and below', () => {
+// The list loads more as it scrolls (media.component.months.spec.tsx), so no
+// width shows arrows, page numbers or "1 / 6".
+describe('no page control at any width: the list loads as it scrolls', () => {
   it.each([
     ['the picker', picker],
     ['the Media page', page],
-  ])('reads "2 / 6" in %s, between two 44px arrows', async (_name, open) => {
+  ])('has no page arrows, numbers or count in %s', async (_name, open) => {
     const host = await open();
-    await click(host.querySelector('button[aria-label="Go to next page"]'));
-    const counter = Array.from(host.querySelectorAll('li')).find(
-      (item) => item.textContent === '2 / 6'
-    );
 
-    expect(classes(counter)).toEqual(
-      expect.arrayContaining(['hidden', 'mobile:flex'])
-    );
     for (const name of ['Go to previous page', 'Go to next page']) {
-      // the chevrons point the way the pages go, right to left in Arabic
-      expect(
-        classes(host.querySelector(`button[aria-label="${name}"] svg`))
-      ).toContain('rtl:rotate-180');
-      expect(
-        classes(host.querySelector(`button[aria-label="${name}"]`))
-      ).toEqual(
-        expect.arrayContaining(['mobile:h-[44px]', 'mobile:min-w-[44px]'])
-      );
+      expect(host.querySelector(`button[aria-label="${name}"]`)).toBeNull();
     }
+    expect(host.querySelector('[aria-current="page"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/\d+ \/ \d+/);
   });
 });
 
@@ -490,11 +434,11 @@ describe('the tiles under the toolbar at 1025px and below', () => {
     'scroll beneath the toolbar in %s, reaching 6px past the sides and the bottom only',
     async (_name, open) => {
       const host = await open();
-      const grid = tile(host, 1)!.closest('.group')!.parentElement;
+      const list = tile(host, 1)!.closest('.overflow-y-auto');
 
-      expect(classes(grid)).toContain('inset-0');
+      expect(classes(list)).toContain('inset-0');
       expect(
-        classes(grid).filter((name) =>
+        classes(list).filter((name) =>
           /^mobile:-?(inset|top|bottom)/.test(name)
         )
       ).toEqual(['mobile:-inset-x-[6px]', 'mobile:-bottom-[6px]']);
