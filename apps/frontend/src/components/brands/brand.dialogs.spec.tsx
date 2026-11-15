@@ -9,7 +9,9 @@ import * as path from 'path';
 // app's confirmation, which says what happens to the brand's channels and
 // images and sends DELETE /brands/:id; and Rename, which is the calendar's own
 // rename dialog on PUT /integrations/customers/:id (C3). After each change both
-// GET /brands and the channel list reload.
+// GET /brands and the channel list reload. Add channels (spec 058, FR-024) is
+// the Brands page's picker, opened for a brand from the page or the calendar's
+// channel list, which moves the ticked channels on PUT /integrations/:id/group.
 //
 // t() is the real i18next on the en and ar files, so a counted phrase renders
 // the plural form each language picks.
@@ -23,6 +25,7 @@ let brands: Array<{ id: string; name: string }> | undefined = [];
 let channels: Array<{
   id: string;
   name: string;
+  identifier?: string;
   customer: { id: string; name: string } | null;
 }> = [];
 
@@ -528,5 +531,87 @@ describe('Rename', () => {
     expect(reloadBrands).toHaveBeenCalled();
     expect(reloadChannels).toHaveBeenCalled();
     expect(document.querySelector('[data-testid="rename"]')).toBeNull();
+  });
+});
+
+describe('openAddChannels', () => {
+  const WARDAT = { id: 'b1', name: 'Wardat' };
+  const channel = (
+    id: string,
+    name: string,
+    identifier: string,
+    customer: { id: string; name: string } | null
+  ) => ({ id, name, identifier, customer });
+
+  // The picker's rows, each a ticked or unticked channel.
+  const rows = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="checkbox"]'));
+
+  beforeEach(() => {
+    brands = [WARDAT, NOOR];
+    channels = [
+      channel('c1', 'Wardat Shop', 'instagram', WARDAT),
+      channel('c2', 'Noor Clinic', 'instagram', NOOR),
+      channel('c3', 'Rawda Florist', 'facebook', null),
+      channel('c4', 'Bayt', 'linkedin', null),
+    ];
+  });
+
+  it('opens Add channels with the channels not in the brand, in the channel list’s order, each saying its brand', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    expect(text()).toContain('Add channels');
+    expect(text()).toContain('A channel in another brand moves to this one.');
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Rawda Florist'),
+      expect.stringContaining('Noor Clinic'),
+      expect.stringContaining('Bayt'),
+    ]);
+    expect(rows()[0].textContent).toContain('No brand');
+    expect(rows()[1].textContent).toContain('Noor Dental');
+    expect(text()).not.toContain('Wardat Shop');
+    expect(
+      rows().every((row) => row.getAttribute('aria-checked') === 'false')
+    ).toBe(true);
+    expect(button('Add')!.disabled).toBe(true);
+  });
+
+  it('Add closes it and moves the ticked channels into the brand, then the channel list reloads', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    await click(rows()[0]);
+    await click(rows()[1]);
+    await click(button('Add'));
+
+    expect(sent('/integrations/c3/group')).toEqual([['PUT', { group: 'b1' }]]);
+    expect(sent('/integrations/c2/group')).toEqual([['PUT', { group: 'b1' }]]);
+    expect(sent('/integrations/c4/group')).toEqual([]);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(rows()).toEqual([]);
+    expect(button('Add')).toBeUndefined();
+  });
+
+  it('Cancel closes it and sends nothing', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    await click(rows()[0]);
+    await click(button('Cancel'));
+
+    expect(request).not.toHaveBeenCalled();
+    expect(reloadChannels).not.toHaveBeenCalled();
+    expect(rows()).toEqual([]);
+  });
+
+  it('says so when every channel is in the brand already', async () => {
+    channels = [channel('c1', 'Wardat Shop', 'instagram', WARDAT)];
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    expect(rows()).toEqual([]);
+    expect(text()).toContain('No other channels to add.');
   });
 });
