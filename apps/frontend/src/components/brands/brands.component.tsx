@@ -26,10 +26,10 @@ import {
   TrashIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import {
-  BrandChannel,
   BrandKit,
   SMALL_BUTTON,
 } from '@gitroom/frontend/components/brands/brand.kit';
+import { BrandChannel } from '@gitroom/frontend/components/brands/brand.channels';
 import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 import {
   kitIsEmpty,

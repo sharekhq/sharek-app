@@ -58,6 +58,8 @@ jest.mock('@gitroom/frontend/components/brands/brand.kit', () => ({
   BrandKit: ({ brand }: { brand: { id: string } }) => (
     <div data-testid="brand-kit" data-brand={brand.id} />
   ),
+}));
+jest.mock('@gitroom/frontend/components/brands/brand.channels', () => ({
   BrandChannel: ({ channel }: { channel: Channel }) => (
     <div data-testid="channel">{channel.name}</div>
   ),

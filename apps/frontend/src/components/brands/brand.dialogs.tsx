@@ -11,12 +11,17 @@ import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import { Channel } from '@gitroom/frontend/components/launches/channel.panel';
+import {
+  Channel,
+  compareChannels,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import {
   Brand,
   useBrandChange,
   useBrands,
+  useMoveChannels,
 } from '@gitroom/frontend/components/brands/use.brands';
+import { ChannelPicker } from '@gitroom/frontend/components/brands/brand.channels';
 import {
   MoveChannelsOffer,
   useCreateBrand,
@@ -103,12 +108,14 @@ const NewBrand: FC<{
   );
 };
 
-// The Brands page's dialogs, for its New brand button, its Rename button and
-// its ⋯ menu. Each change reloads GET /brands and the channel list, which says
-// each channel's brand everywhere in the app.
+// The Brands page's dialogs, for its New brand button, its Rename button, its
+// ⋯ menu and its Add channels. Each change reloads the channel list, which says
+// each channel's brand everywhere in the app, and GET /brands when it changes
+// a brand.
 export const useBrandDialogs = () => {
   const t = useT();
   const send = useBrandChange();
+  const move = useMoveChannels();
   const modals = useModals();
   const { mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
@@ -182,5 +189,25 @@ export const useBrandDialogs = () => {
       ),
     });
 
-  return { openNewBrand, openDeleteBrand, openRenameBrand };
+  // Add channels: the organization's channels in no brand or another one, in
+  // the channel list's order, the ticked ones moving into the brand. From the
+  // brand's Channels card, and from an empty brand in the calendar's list.
+  const openAddChannels = (brand: Pick<Brand, 'id' | 'name'>) =>
+    modals.openModal({
+      title: t('brands_add_channels', 'Add channels'),
+      children: (close) => (
+        <ChannelPicker
+          channels={channels
+            .filter((channel) => channel.customer?.id !== brand.id)
+            .sort(compareChannels)}
+          onAdd={(ids) => {
+            close();
+            move(ids, brand.id);
+          }}
+          onCancel={close}
+        />
+      ),
+    });
+
+  return { openNewBrand, openDeleteBrand, openRenameBrand, openAddChannels };
 };
