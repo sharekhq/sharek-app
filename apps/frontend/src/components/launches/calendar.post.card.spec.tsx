@@ -21,7 +21,10 @@ jest.mock(
   () => ({ CreationMethodBadge: () => null })
 );
 
-import { CalendarPostCard } from '@gitroom/frontend/components/launches/calendar.post.card';
+import {
+  CalendarPost,
+  CalendarPostCard,
+} from '@gitroom/frontend/components/launches/calendar.post.card';
 
 const tag = (name: string, color = '') => ({ tag: { name, color } });
 
@@ -34,7 +37,7 @@ const post = (tags: Array<ReturnType<typeof tag>>) =>
     intervalInDays: null,
     integration: { picture: '/pic.jpg', providerIdentifier: 'instagram' },
     tags,
-  } as any);
+  } as unknown as CalendarPost);
 
 const mounted: Array<{ unmount: () => void }> = [];
 
