@@ -39,6 +39,8 @@ import {
   isUsable,
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
+import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
+import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 
 export const EditGroupNameModal: FC<{
   name: string;
@@ -131,6 +133,8 @@ export const LaunchesComponent = () => {
   const [channelsOpen, setChannelsOpen] = useState(false);
   const railCollapsed = collapseMenu === '1' && !channelsOpen;
   const { isLoading, data: integrations, mutate } = useIntegrationList();
+  const { data: brands } = useBrands();
+  const { openNewBrand, openAddChannels } = useBrandDialogs();
 
   const totalNonDisabledChannels = useMemo(() => {
     return (
@@ -298,6 +302,9 @@ export const LaunchesComponent = () => {
                 }}
                 onMoveToCustomer={changeItemGroup}
                 onRenameCustomer={renameCustomer}
+                brands={brands}
+                onAddChannels={openAddChannels}
+                onNewBrand={() => openNewBrand()}
                 update={() => update(true)}
                 collapsed={railCollapsed}
                 onToggleCollapse={() =>
