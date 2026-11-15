@@ -148,6 +148,67 @@ describe('a bottom sheet', () => {
     expect(document.body.classList.contains('bottomSheetOpen')).toBe(false);
   });
 
+  // The Move sheet opens over the calendar's channel sheet (spec 058), each
+  // here in a scroller of its own. The slots stay put, so closing one sheet
+  // leaves the other mounted as it was.
+  const stacked = (channels: boolean, move: boolean) => (
+    <>
+      <div style={{ overflowY: 'auto' }}>{channels && sheet()}</div>
+      <div style={{ overflowY: 'auto' }}>
+        {move && (
+          <BottomSheet title="Move BlogChief to" onClose={jest.fn()}>
+            <button type="button">No brand</button>
+          </BottomSheet>
+        )}
+      </div>
+    </>
+  );
+  const marked = () => document.body.classList.contains('bottomSheetOpen');
+
+  it('keeps the page marked while the channel sheet is still open under a closed Move sheet', async () => {
+    await render(stacked(true, true));
+
+    expect(marked()).toBe(true);
+
+    await render(stacked(true, false));
+
+    expect(marked()).toBe(true);
+
+    await render(stacked(false, false));
+
+    expect(marked()).toBe(false);
+  });
+
+  it('keeps the page marked until the last sheet closes, when the first closes first', async () => {
+    await render(stacked(true, true));
+    await render(stacked(false, true));
+
+    expect(marked()).toBe(true);
+
+    await render(stacked(false, false));
+
+    expect(marked()).toBe(false);
+  });
+
+  it('gives back only the scroller of the sheet that closes, as before', async () => {
+    await render(stacked(true, true));
+    const [channelsScroller, moveScroller] = Array.from(
+      host.children
+    ) as HTMLElement[];
+
+    expect(channelsScroller.style.overflowY).toBe('hidden');
+    expect(moveScroller.style.overflowY).toBe('hidden');
+
+    await render(stacked(true, false));
+
+    expect(channelsScroller.style.overflowY).toBe('hidden');
+    expect(moveScroller.style.overflowY).toBe('auto');
+
+    await render(stacked(false, false));
+
+    expect(channelsScroller.style.overflowY).toBe('auto');
+  });
+
   // What scrolls behind a sheet is the composer's full-screen overlay
   // (new-modal's removeLayout path, overflow-y auto), not the body, which the
   // modal manager already holds still.
