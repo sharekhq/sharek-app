@@ -30,7 +30,6 @@ import useCookie from 'react-use-cookie';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 import { ChannelsAfterPayment } from '@gitroom/frontend/components/layout/check.payment';
 import { HubspotInstalled } from '@gitroom/frontend/components/launches/hubspot.installed';
-import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
 import {
@@ -39,7 +38,10 @@ import {
   isUsable,
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
-import { useBrands } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  useBrands,
+  useRenameBrand,
+} from '@gitroom/frontend/components/brands/use.brands';
 import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 
 export const EditGroupNameModal: FC<{
@@ -126,7 +128,6 @@ export const LaunchesComponent = () => {
   const toast = useToaster();
   const fireEvents = useFireEvents();
   const t = useT();
-  const modal = useModals();
   const reconnectChannel = useReconnectChannel();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
@@ -135,6 +136,7 @@ export const LaunchesComponent = () => {
   const { isLoading, data: integrations, mutate } = useIntegrationList();
   const { data: brands } = useBrands();
   const { openNewBrand, openAddChannels } = useBrandDialogs();
+  const renameBrand = useRenameBrand();
 
   const totalNonDisabledChannels = useMemo(() => {
     return (
@@ -181,30 +183,6 @@ export const LaunchesComponent = () => {
       setReload(false);
     }
   }, []);
-  const renameCustomer = useCallback(
-    async (customer: { id: string; name: string }) => {
-      const val: string | undefined = await new Promise((resolve) => {
-        modal.openModal({
-          title: t('edit_group_name', 'Edit group name'),
-          onClose: () => resolve(undefined),
-          children: (close) => (
-            <EditGroupNameModal
-              name={customer.name}
-              id={customer.id}
-              close={close}
-              resolve={resolve}
-            />
-          ),
-        });
-      });
-      if (!val) {
-        return;
-      }
-      await mutate();
-      toast.show(t('group_updated', 'Group Updated'), 'success');
-    },
-    [mutate, modal, toast, t]
-  );
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -301,7 +279,7 @@ export const LaunchesComponent = () => {
                   );
                 }}
                 onMoveToCustomer={changeItemGroup}
-                onRenameCustomer={renameCustomer}
+                onRenameCustomer={renameBrand}
                 brands={brands}
                 onAddChannels={openAddChannels}
                 onNewBrand={() => openNewBrand()}
