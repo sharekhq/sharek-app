@@ -91,6 +91,7 @@ import {
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
+import { BrandsIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   CalendarWeekProvider,
   Integrations,
@@ -2189,6 +2190,66 @@ describe('brands with no channels', () => {
         .flatMap(classes)
         .filter((name) => PHYSICAL.test(name))
     ).toEqual([]);
+  });
+});
+
+// The calendar's + offers New brand between Add Channel and Invite a
+// customer, with the side menu's Brands icon (spec 058, research R9). Samy's
+// and Analytics', which pass no onNewBrand, keep today's two items.
+describe('New brand in the + menu', () => {
+  const onNewBrand = jest.fn();
+
+  it('lists Add Channel, New brand and Invite a customer in that order with onNewBrand, New brand with the Brands icon at 16px, muted, and its hint', async () => {
+    const icon = (
+      await mount(
+        <BrandsIcon size={16} aria-hidden="true" className="text-muted" />
+      )
+    ).innerHTML;
+    await render(GROUPS, { onNewBrand });
+
+    await click(control(host, 'add_a_channel')[0]);
+
+    const [add, brand, invite, ...rest] = menuItems();
+    expect(rest).toHaveLength(0);
+    expect(leaf(add, 'add_channel')).toHaveLength(1);
+    expect(leaf(brand, 'brands_new_brand')).toHaveLength(1);
+    expect(leaf(brand, 'brands_new_brand_hint')).toHaveLength(1);
+    expect(leaf(invite, 'invite_a_customer')).toHaveLength(1);
+    const svg = brand.querySelector('svg')!;
+    expect(svg.outerHTML).toBe(icon);
+    expect(svg.getAttribute('width')).toBe('16');
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(classes(svg)).toContain('text-muted');
+    // reached by Tab, so it shows the ring (FR-051)
+    expect(classes(brand)).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
+
+  it('calls onNewBrand once, with nothing, when New brand is chosen, and opens neither Add Channel nor Invite a customer', async () => {
+    await render(GROUPS, { onNewBrand });
+    await click(control(host, 'add_a_channel')[0]);
+
+    await click(menuItems()[1]);
+
+    expect(onNewBrand).toHaveBeenCalledTimes(1);
+    expect(onNewBrand).toHaveBeenCalledWith();
+    expect(mockOpened).toEqual([]);
+    expect(menuItems()).toHaveLength(0);
+  });
+
+  it("keeps today's two items without onNewBrand", async () => {
+    await render(GROUPS);
+    await click(control(host, 'add_a_channel')[0]);
+
+    const [add, invite, ...rest] = menuItems();
+    expect(rest).toHaveLength(0);
+    expect(leaf(add, 'add_channel')).toHaveLength(1);
+    expect(leaf(invite, 'invite_a_customer')).toHaveLength(1);
+    expect(leaf(host, 'brands_new_brand')).toHaveLength(0);
   });
 });
 
