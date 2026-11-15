@@ -4,17 +4,18 @@ import { createRoot, Root } from 'react-dom/client';
 // The calendar page (spec 051, pages-ui.md): the calendar column first, then
 // the shared channel list at the end, in either direction, as its filter. The
 // list is ChannelPanel in calendar mode inside SplitPanel, with the page's ⋯
-// menu, drag to a customer and the customer rename; the rail's own Add
-// Channel, Create Post, generator, build number and the phone row above the
-// filters are gone, since the top bar and Settings hold them now. The
-// composer gets the list in compareChannels order (C14), and a channel that is
-// disabled while hidden shows again (C19).
+// menu, drag to a customer and the customer rename, and with every brand, New
+// brand and Add channels (spec 058); the rail's own Add Channel, Create Post,
+// generator, build number and the phone row above the filters are gone, since
+// the top bar and Settings hold them now. The composer gets the list in
+// compareChannels order (C14), and a channel that is disabled while hidden
+// shows again (C19).
 //
 // What is under test is the page's own wiring, so the panel, the sheet, the
-// top bar, the grid and the ⋯ menu are markers that record what the page hands
-// them. The calendar's state is a small provider that keeps the selection as
-// the real one does. compareChannels is the real one. useT gives the key, so
-// each case names the string it expects.
+// top bar, the grid, the ⋯ menu and the Brands page's windows are markers that
+// record what the page hands them. The calendar's state is a small provider
+// that keeps the selection as the real one does. compareChannels is the real
+// one. useT gives the key, so each case names the string it expects.
 type Channel = ReturnType<typeof mockChannel>;
 
 const mockVariables = { billingEnabled: true, showUpstreamExtras: false };
@@ -28,6 +29,9 @@ let mockCollapse = '0';
 const mockSetCollapse = jest.fn();
 // The list as GET /integrations/list gives it; a case reassigns it to refresh.
 let mockChannels: Channel[] = [];
+// The brands as GET /brands gives them, and the Brands page's windows.
+let mockBrands: Array<Pick<Brand, 'id' | 'name'>> = [];
+const mockDialogs = { openNewBrand: jest.fn(), openAddChannels: jest.fn() };
 // Where the calendar's selection starts, and what the provider last had.
 let mockStart: string[] | null = null;
 let mockCalendar: {
@@ -65,6 +69,13 @@ jest.mock(
 );
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
+}));
+jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
+  useBrands: () => ({ data: mockBrands }),
+}));
+jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
+  useBrandDialogs: () => mockDialogs,
 }));
 jest.mock('react-use-cookie', () => ({
   __esModule: true,
@@ -209,6 +220,7 @@ import {
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
+import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 
 function mockChannel(n: number, values: Record<string, unknown> = {}) {
   return {
@@ -271,6 +283,7 @@ beforeEach(() => {
   mockVariables.showUpstreamExtras = false;
   mockUser = { tier: { ai: true, current: 'pro' }, totalChannels: 10 };
   mockChannels = [mockChannel(1), mockChannel(2)];
+  mockBrands = [];
   mockStart = null;
   mockCollapse = '0';
   mockPanel = undefined;
@@ -520,6 +533,58 @@ describe('the channel list (C6, FR-005)', () => {
     expect(mockPanel?.collapsed).toBe(false);
     await run(() => mockPanel!.onToggleCollapse());
     expect(mockSetCollapse).toHaveBeenLastCalledWith('1');
+  });
+});
+
+// The calendar's list is the one that manages brands, so it alone gets every
+// brand, New brand in its + menu and Add channels under an empty brand; the
+// windows are the Brands page's, which move and reload on their own.
+describe('the brands the list manages (spec 058)', () => {
+  it('hands the list every brand GET /brands gives, so the ones with no channels show (FR-021, FR-031)', async () => {
+    mockBrands = [
+      { id: 'b-1', name: 'Wardat' },
+      { id: 'b-2', name: 'Noor Clinic' },
+    ];
+    mockChannels = [
+      mockChannel(1, { customer: { id: 'b-1', name: 'Wardat' } }),
+      mockChannel(2),
+    ];
+    await mount();
+
+    expect(mockPanel!.brands).toBe(mockBrands);
+  });
+
+  it("opens the Brands page's Add channels for the brand an empty brand's Add channels names (FR-024)", async () => {
+    mockBrands = [{ id: 'b-2', name: 'Noor Clinic' }];
+    await mount();
+
+    expect(typeof mockPanel?.onAddChannels).toBe('function');
+    await run(() =>
+      mockPanel!.onAddChannels!({ id: 'b-2', name: 'Noor Clinic' })
+    );
+
+    expect(mockDialogs.openAddChannels).toHaveBeenCalledTimes(1);
+    expect(mockDialogs.openAddChannels).toHaveBeenCalledWith({
+      id: 'b-2',
+      name: 'Noor Clinic',
+    });
+    expect(mockDialogs.openNewBrand).not.toHaveBeenCalled();
+    // the window moves and reloads; the page sends nothing itself
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it("opens the normal New brand window from the + menu's New brand, with no channel and nothing to run after (FR-033, FR-034)", async () => {
+    await mount();
+
+    expect(typeof mockPanel?.onNewBrand).toBe('function');
+    await run(() => mockPanel!.onNewBrand!());
+
+    expect(mockDialogs.openNewBrand).toHaveBeenCalledTimes(1);
+    expect(mockDialogs.openNewBrand.mock.calls[0]).toEqual([]);
+    expect(mockDialogs.openAddChannels).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });
 
