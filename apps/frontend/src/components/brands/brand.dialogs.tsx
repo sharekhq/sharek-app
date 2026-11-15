@@ -13,6 +13,7 @@ import { useIntegrationList } from '@gitroom/frontend/components/launches/helper
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import {
   Channel,
+  ChannelPicture,
   compareChannels,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import {
@@ -39,14 +40,16 @@ const EditGroupNameModal = dynamic(() =>
 // widening the card.
 const DIALOG_WIDTH = 520;
 
-// New brand (board BrandsNew): the name, and on the organization's first
-// brand only, the offer to move the channels in no brand into it, ticked
-// (FR-005). A refusal, a taken name among them, keeps the dialog open and
-// says why in a toast.
+// New brand (board BrandsNew): the name, opened from a channel's Move to
+// brand the channel that moves into it, and on the organization's first brand
+// only, the offer to move the channels in no brand into it, ticked (FR-005).
+// A refusal, a taken name among them, keeps the dialog open and says why in a
+// toast.
 const NewBrand: FC<{
   close: () => void;
   onCreated: (id: string) => void;
-}> = ({ close, onCreated }) => {
+  channel?: Channel;
+}> = ({ close, onCreated, channel }) => {
   const t = useT();
   const toaster = useToaster();
   const { ungrouped, create } = useCreateBrand();
@@ -81,6 +84,17 @@ const NewBrand: FC<{
         autoFocus
         onChange={(e) => setName(e.target.value)}
       />
+      {!!channel && (
+        <div className="flex items-center gap-[12px] p-[12px] rounded-[10px] border border-line">
+          <ChannelPicture channel={channel} />
+          <span className="min-w-0 text-[14px] text-ink break-words">
+            {t('brands_channel_moves_into_it', '{{channel}} moves into it.', {
+              channel: isolate(channel.name),
+              interpolation: { escapeValue: false },
+            })}
+          </span>
+        </div>
+      )}
       {!!ungrouped && (
         <MoveChannelsOffer
           checked={move}
@@ -126,7 +140,9 @@ export const useBrandDialogs = () => {
     reloadChannels();
   };
 
-  const openNewBrand = (onCreated?: (id: string) => void) =>
+  // With the channel being moved, the window says it moves into the new
+  // brand, and onCreated moves it.
+  const openNewBrand = (onCreated?: (id: string) => void, channel?: Channel) =>
     modals.openModal({
       title: t('brands_new_brand', 'New brand'),
       size: DIALOG_WIDTH,
@@ -137,6 +153,7 @@ export const useBrandDialogs = () => {
             reload();
             onCreated?.(id);
           }}
+          channel={channel}
         />
       ),
     });
