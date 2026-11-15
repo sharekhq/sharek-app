@@ -71,7 +71,12 @@ export const useDialogFocus = <T extends HTMLElement>(active: boolean) => {
 // and whatever scrolls behind the sheet (the composer's full-screen overlay at
 // 1025px and below) is held still. Attach the ref to the sheet's root: the
 // scrollers are its ancestors. Shared by the bottom sheets and the calendar's
-// channel sheet (ui/split.panel.tsx).
+// channel sheet (ui/split.panel.tsx). Sheets can stack (the Move sheet over
+// the channel sheet), so the open ones are counted: the first to open marks
+// the body and the last to close unmarks it, while each sheet gives back only
+// the scrollers it held.
+let openSheets = 0;
+
 export const useSheetBackdrop = <T extends HTMLElement>(active: boolean) => {
   const root = useRef<T>(null);
 
@@ -79,7 +84,10 @@ export const useSheetBackdrop = <T extends HTMLElement>(active: boolean) => {
     if (!active) {
       return;
     }
-    document.body.classList.add('bottomSheetOpen');
+    openSheets += 1;
+    if (openSheets === 1) {
+      document.body.classList.add('bottomSheetOpen');
+    }
     const held: Array<[HTMLElement, string]> = [];
     for (
       let node = root.current?.parentElement;
@@ -92,7 +100,10 @@ export const useSheetBackdrop = <T extends HTMLElement>(active: boolean) => {
       }
     }
     return () => {
-      document.body.classList.remove('bottomSheetOpen');
+      openSheets -= 1;
+      if (openSheets === 0) {
+        document.body.classList.remove('bottomSheetOpen');
+      }
       held.forEach(([node, overflowY]) => {
         node.style.overflowY = overflowY;
       });
