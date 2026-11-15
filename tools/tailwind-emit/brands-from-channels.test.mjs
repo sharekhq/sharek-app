@@ -1,10 +1,12 @@
 // 058 — brands from the channel list. The post card's tag names
 // (launches/calendar.post.card.tsx), which hide under the pointer keeping
 // their space; the channel ⋯ menu (launches/menu/menu.tsx), which takes
-// Samy's chat menu look from launches/post.actions.menu.tsx; and Move to
-// brand: the row's ⋯ it keeps shown (launches/channel.panel.tsx), its list's
-// + New brand (brands/brand.menu.tsx) and New brand's line for the channel it
-// moves (brands/brand.dialogs.tsx). A variant or arbitrary value that Tailwind
+// Samy's chat menu look from launches/post.actions.menu.tsx; Move to brand:
+// the row's ⋯ it keeps shown (launches/channel.panel.tsx), its list's + New
+// brand (brands/brand.menu.tsx) and New brand's line for the channel it moves
+// (brands/brand.dialogs.tsx); and a brand with no channels in the channel
+// list: the line under its header and its Add channels
+// (launches/channel.panel.tsx). A variant or arbitrary value that Tailwind
 // can't use emits nothing and the page just doesn't change, so this file
 // asserts what Tailwind emitted for each of them, with the project's own config
 // (see emit.mjs). Each phase adds its own describe.
@@ -16,6 +18,8 @@ import assert from 'node:assert/strict';
 import postcss from 'postcss';
 
 import { emit } from './emit.mjs';
+
+const COARSE = '(pointer: coarse)';
 
 const collapse = (s) => s.replace(/\s+/g, ' ').trim();
 const unescape = (s) =>
@@ -198,6 +202,45 @@ describe('Move to brand (phase 7)', () => {
         'break-words': [['overflow-wrap', 'break-word']],
       },
       null
+    );
+  });
+});
+
+describe('A brand with no channels (phase 8)', () => {
+  // New brand in the + menu adds no class of its own: BrandsIcon is sized by
+  // its attributes and takes text-muted, and its row is the menu's look.
+  test('puts the line under its header at the name, on the logical side only', async () => {
+    const css = await assertEmits(
+      { 'ps-[46px]': [['padding-inline-start', '46px']] },
+      null
+    );
+    assert.deepEqual(
+      rules(css, 'ps-[46px]').map((r) => r.selector),
+      ['.ps-[46px]']
+    );
+  });
+
+  test('sizes the line and its Add channels and underlines Add channels under the pointer, outside any query', async () => {
+    // Add channels' ring is + New brand's, above.
+    const css = await assertEmits(
+      {
+        'text-[12px]': [['font-size', '12px']],
+        'rounded-[4px]': [['border-radius', '4px']],
+        'font-[600]': [['font-weight', '600']],
+        'hover:underline': [['text-decoration-line', 'underline']],
+      },
+      null
+    );
+    assert.deepEqual(
+      rules(css, 'hover:underline').map((r) => r.selector),
+      ['.hover:underline:hover']
+    );
+  });
+
+  test('makes Add channels 44px high under a coarse pointer only', async () => {
+    await assertEmits(
+      { 'coarse:min-h-[44px]': [['min-height', '44px']] },
+      COARSE
     );
   });
 });
