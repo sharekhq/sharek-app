@@ -1,6 +1,15 @@
 'use client';
 
-import { FC, KeyboardEvent, ReactNode, useEffect, useRef } from 'react';
+import {
+  FC,
+  forwardRef,
+  KeyboardEvent,
+  ReactNode,
+  RefObject,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import Link from 'next/link';
@@ -19,17 +28,27 @@ import {
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
-import { useHangingPanel } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import {
+  PostActionsMenuHandle,
+  useHangingPanel,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import {
   CheckmarkIcon,
   ChevronRightIcon,
+  PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import {
   BrandMark,
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
-import { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  Brand,
+  useBrands,
+  useMoveChannels,
+} from '@gitroom/frontend/components/brands/use.brands';
+import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 
 // A brand's mark in its row (board BrandMenu), and the smaller overlapping
 // marks of Each channel's brand.
@@ -423,3 +442,124 @@ export const BrandMenu: FC<{
     </div>
   );
 };
+
+// Move to brand's list, mounted while it is open, so the brands and the
+// channel list load when it opens, not with every channel row: a pick moves
+// the channel (nothing for the ✓ choice), + New brand opens New brand with
+// the channel and moves it into the brand once it is created.
+const MoveToBrandList: FC<{
+  hanging: HangingPanel;
+  sheet: boolean;
+  channel: Channel;
+  onClose: () => void;
+}> = ({ hanging, sheet, channel, onClose }) => {
+  const t = useT();
+  const { data: brands } = useBrands();
+  // A brand's channels come from the channel list, a disabled one too (C4).
+  const { data } = useIntegrationList();
+  const channels: Channel[] = data;
+  const move = useMoveChannels();
+  const { openNewBrand } = useBrandDialogs();
+  // '' is the route's No brand
+  const current = channel.customer?.id || '';
+
+  const pick = (choice: string) => {
+    const group = choice === NO_BRAND ? '' : choice;
+    onClose();
+    if (group !== current) {
+      move([channel.id], group);
+    }
+  };
+
+  const create = () => {
+    onClose();
+    openNewBrand((id) => move([channel.id], id), channel);
+  };
+
+  return (
+    <BrandList
+      hanging={hanging}
+      sheet={sheet}
+      title={t('brands_move_channel_to', 'Move {{channel}} to', {
+        channel: isolate(channel.name),
+        interpolation: { escapeValue: false },
+      })}
+      brands={brands ?? []}
+      channels={channels}
+      value={current || NO_BRAND}
+      noBrandSub={t(
+        'brands_no_brand_on_its_own',
+        'Listed on its own, outside any brand'
+      )}
+      footer={
+        <button
+          type="button"
+          onClick={create}
+          className={clsx(
+            'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
+            FOCUS_RING
+          )}
+        >
+          <PlusIcon size={14} aria-hidden="true" />
+          {t('brands_new_brand', 'New brand')}
+        </button>
+      }
+      onPick={pick}
+      onClose={onClose}
+    />
+  );
+};
+
+/**
+ * Move to brand (spec 058, contracts/ui.md "The Move list"), for the channel
+ * ⋯ menu (menu/menu.tsx): the brand list, titled for the channel, opened
+ * through its handle by the menu's Move to brand. It is a held box, as a
+ * held PostActionsMenu is: laid over the ⋯ in the menu's relative box, it
+ * lets every press through to the ⋯ and hangs the list from it, from its
+ * other side in Arabic, and at 1025px and below holds the sheet, which takes
+ * presses. `data-open` while open keeps the row's ⋯ shown (channel.panel.tsx)
+ * while the pointer or the focus is in a list the body holds. Escape and Tab
+ * close it as BrandMenu's do, the focus going back to the ⋯ (`button`).
+ */
+export const MoveToBrandMenu = forwardRef<
+  PostActionsMenuHandle,
+  { channel: Channel; button: RefObject<HTMLButtonElement | null> }
+>(function MoveToBrandMenu({ channel, button }, handle) {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const hanging = useHangingPanel();
+  const { ref, show, setShow, below } = hanging;
+
+  useImperativeHandle(
+    handle,
+    () => ({
+      open: () => setShow(below()),
+      close: () => setShow(false),
+    }),
+    [below, setShow]
+  );
+
+  const close = () => {
+    setShow(false);
+    button.current?.focus();
+  };
+
+  return (
+    <div
+      ref={ref}
+      onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
+      data-open={show ? '' : undefined}
+      className="absolute inset-0 pointer-events-none"
+    >
+      {show && (
+        <div className="pointer-events-auto">
+          <MoveToBrandList
+            hanging={hanging}
+            sheet={isMobile}
+            channel={channel}
+            onClose={close}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
