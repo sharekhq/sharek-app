@@ -18,7 +18,8 @@
 // only: the lookup now reads the site's own logo, colours and fonts, and the
 // wording is the table approved with that spec's mockup
 // (contracts/brands-website.md, Words). Spec 056 adds the "Details for Samy"
-// card on a brand's page, in all eight languages (DETAILS).
+// card on a brand's page, in all eight languages (DETAILS). Spec 058 adds the
+// brand words of the channel list, in en and ar only (FROM_CHANNELS).
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -408,6 +409,34 @@ const DETAILS = [
     'brands_details_hashtags_placeholder',
     'e.g. #StudyAbroad #YourBrand',
     'مثل: #ادرس_في_الخارج #علامتك',
+  ],
+] as const;
+
+// Spec 058 (its tasks.md T039; FR-049): brands from the channel list. The Move
+// list's title and No brand's line in it (MoveToBrandList), the New brand
+// window's line naming the channel it moves, an empty brand's line on the
+// channel list, and the hint under the + menu's New brand. en and ar are
+// research R13's table, the words the maintainer approved with the mockups;
+// {{channel}} is the channel's name, isolated in the sentence.
+const FROM_CHANNELS = [
+  ['brands_move_channel_to', 'Move {{channel}} to', 'نقل {{channel}} إلى'],
+  [
+    'brands_no_brand_on_its_own',
+    'Listed on its own, outside any brand',
+    'تظهر وحدها، خارج العلامات التجارية',
+  ],
+  [
+    'brands_channel_moves_into_it',
+    '{{channel}} moves into it.',
+    'ستنتقل {{channel}} إليها.',
+  ],
+  // A key of its own: no_channels, the list's empty state, says لا توجد قنوات
+  // بعد in Arabic.
+  ['brands_no_channels_yet', 'No channels yet', 'لا قنوات بعد'],
+  [
+    'brands_new_brand_hint',
+    'Group your channels and give Samy their logo and colours',
+    'اجمع قنواتك وأعط سامي شعارها وألوانها',
   ],
 ] as const;
 
@@ -803,8 +832,10 @@ const componentsIn = (dir: string) => {
 // for part 2, Samy's components, where the chip and the note sit, and the AI
 // image dialog with its Brand field and reference images; for part 3, the
 // onboarding components, where the "Your brand" step sits (the website card is
-// among the Brands components). A file not written yet reads as empty, so its
-// keys fail to be found rather than the suite failing to load.
+// among the Brands components); for spec 058, the channel list, where an empty
+// brand's line and the + menu's New brand sit (the Move list and the New brand
+// window are among the Brands components). A file not written yet reads as
+// empty, so its keys fail to be found rather than the suite failing to load.
 const SOURCES = () =>
   [
     ...componentsIn('components/brands'),
@@ -815,6 +846,7 @@ const SOURCES = () =>
     path.join(FRONTEND_DIR, 'components/launches/ai.image.brand.tsx'),
     path.join(FRONTEND_DIR, 'components/launches/ai.image.references.tsx'),
     ...componentsIn('components/onboarding'),
+    path.join(FRONTEND_DIR, 'components/launches/channel.panel.tsx'),
   ]
     .filter((file) => fs.existsSync(file))
     .map((file) => fs.readFileSync(file, 'utf8'))
@@ -824,7 +856,7 @@ describe('Brands locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
-  it.each([...STRINGS, ...DETAILS])(
+  it.each([...STRINGS, ...DETAILS, ...FROM_CHANNELS])(
     'reads %s as "%s" in en and "%s" in ar',
     (key, enText, arText) => {
       expect(en[key]).toBe(enText);
@@ -861,13 +893,12 @@ describe('Brands locale keys', () => {
 
   // Identical bytes in both locales means the English was copied across rather
   // than translated, which reads as done and is not.
-  it.each([...STRINGS, ...REUSED, ...DETAILS].map(([key]) => key))(
-    'translates %s: its Arabic is not its English',
-    (key) => {
-      expect(typeof ar[key]).toBe('string');
-      expect(ar[key]).not.toBe(en[key]);
-    }
-  );
+  it.each(
+    [...STRINGS, ...REUSED, ...DETAILS, ...FROM_CHANNELS].map(([key]) => key)
+  )('translates %s: its Arabic is not its English', (key) => {
+    expect(typeof ar[key]).toBe('string');
+    expect(ar[key]).not.toBe(en[key]);
+  });
 
   it.each(PLURALS.map(([key]) => key))(
     'translates %s: no Arabic form is an English one',
@@ -884,8 +915,9 @@ describe('Brands locale keys', () => {
 
   // Red until the components exist (T018 to T026, for part 2 T053, T055 and
   // T060, for part 3 T074 and T076, for spec 054's four new keys its T018,
-  // and for spec 056's details its T032): a key no t() call reads is a string
-  // the app shows in English or not at all.
+  // and for spec 056's details its T032; spec 058's components came before
+  // its keys): a key no t() call reads is a string the app shows in English or
+  // not at all.
   describe('every string the app renders', () => {
     const referenced = Array.from(
       SOURCES().matchAll(
@@ -895,11 +927,16 @@ describe('Brands locale keys', () => {
     );
 
     it.each(
-      [...STRINGS, ...REUSED, ...SAME, ...PLURALS, ...DETAILS].map(
-        ([key]) => key
-      )
+      [
+        ...STRINGS,
+        ...REUSED,
+        ...SAME,
+        ...PLURALS,
+        ...DETAILS,
+        ...FROM_CHANNELS,
+      ].map(([key]) => key)
     )(
-      'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog or onboarding: %s',
+      'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog, onboarding or the channel list: %s',
       (key) => {
         expect(referenced).toContain(key);
       }
@@ -977,4 +1014,30 @@ describe("a brand's details for Samy in all eight languages", () => {
       expect(value.trim()).not.toBe('');
     }
   );
+});
+
+// Spec 058's words beyond their wording (FR-049, FR-050): the channel's name
+// stays a placeholder in both languages, so a reworded sentence still names
+// it; the Arabic carries no mark but tanween fath; and no_channels, the list's
+// empty state, keeps its own words beside brands_no_channels_yet.
+describe('the brand words of the channel list (spec 058)', () => {
+  const en = readLocale('en');
+  const ar = readLocale('ar');
+
+  it.each(FROM_CHANNELS.filter(([, enText]) => enText.includes('{{channel}}')))(
+    'keeps {{channel}} in en and ar: %s',
+    (key) => {
+      expect(en[key]).toContain('{{channel}}');
+      expect(ar[key]).toContain('{{channel}}');
+    }
+  );
+
+  it.each(FROM_CHANNELS)('%s carries no mark but tanween fath', (key) => {
+    expect(ar[key]).not.toMatch(/[ٌ-ْ]/);
+  });
+
+  it('keeps no_channels as it was in en and ar', () => {
+    expect(en.no_channels).toBe('No channels yet');
+    expect(ar.no_channels).toBe('لا توجد قنوات بعد');
+  });
 });
