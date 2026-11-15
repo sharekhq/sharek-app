@@ -26,6 +26,7 @@ import {
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
 import { Check } from '@gitroom/frontend/components/launches/tags.component';
 import {
+  BrandsIcon,
   CheckmarkIcon,
   PencilIcon,
 } from '@gitroom/frontend/components/ui/icons';
@@ -873,6 +874,8 @@ export const ChannelPanel: FC<
     brands?: Array<{ id: string; name: string }>;
     /** Add channels, under a brand with no channels */
     onAddChannels?: (customer: { id: string; name: string }) => void;
+    /** shows New brand in the + menu (R9) */
+    onNewBrand?: () => void;
     /** refreshes the list after Add Channel or Invite a customer */
     update: () => void;
     /** the rail's pictures-only state; never the sheet */
@@ -891,6 +894,7 @@ export const ChannelPanel: FC<
     onRenameCustomer,
     brands,
     onAddChannels,
+    onNewBrand,
     update,
     collapsed = false,
     onToggleCollapse,
@@ -1124,6 +1128,26 @@ export const ChannelPanel: FC<
                 ),
                 onClick: add,
               },
+              ...(onNewBrand
+                ? [
+                    {
+                      key: 'brand',
+                      icon: (
+                        <BrandsIcon
+                          size={16}
+                          aria-hidden="true"
+                          className="text-muted"
+                        />
+                      ),
+                      label: t('brands_new_brand', 'New brand'),
+                      hint: t(
+                        'brands_new_brand_hint',
+                        'Group your channels and give Samy their logo and colours'
+                      ),
+                      onClick: onNewBrand,
+                    },
+                  ]
+                : []),
               {
                 key: 'invite',
                 icon: (
