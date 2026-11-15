@@ -701,8 +701,9 @@ const isProse = (raw: string) => {
   // so "Auto (based on performance)" stays reportable.
   if (/^[a-z-]+\(/.test(text)) return false;
   // A class list, of one token or many. Every token must look like a utility class,
-  // a Tailwind arbitrary property such as [direction:ltr], or an arbitrary media
-  // variant such as [@media(max-width:400px)]:px-[8px], and at least one must carry
+  // a Tailwind arbitrary property such as [direction:ltr], an arbitrary media
+  // variant such as [@media(max-width:400px)]:px-[8px], or an arbitrary selector
+  // variant such as [&_svg]:size-4, and at least one must carry
   // the hyphen, colon or bracket that makes it one, so plain English is never
   // mistaken for classes: "1 hour" and "24 hours" carry none and stay reportable,
   // and "Order Online" and "Post / Reel" fail on their capitals.
@@ -712,7 +713,8 @@ const isProse = (raw: string) => {
       (token) =>
         /^!?-?[a-z0-9][\w./%(),[\]#:!-]*$/.test(token) ||
         /^!?\[[a-z-]+:[^\s\]]+\]$/.test(token) ||
-        /^\[@media[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token)
+        /^\[@media[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token) ||
+        /^\[&[^\s\]]+\]:[\w./%(),[\]#:!-]+$/.test(token)
     ) &&
     tokens.some((token) => /[-:[]/.test(token))
   )
@@ -1216,6 +1218,47 @@ describe('the shapes the previous detector could not see', () => {
         `const BUTTON = 'flex px-[10px] [@media(max-width:400px)]:px-[8px] [@media(max-width:340px)]:hidden';`
       )
     ).toEqual([]);
+  });
+
+  // And so is an arbitrary selector variant, which styles what an element holds
+  // rather than the element: post.actions.menu.tsx's MENU_ICON draws an icon given
+  // at another size at 16px with [&_svg]:size-4, so upstream's menu icons needn't
+  // change. A `>` already reads as markup, so the child combinator's row holds
+  // without the variant being known; it is here so it stays that way.
+  it.each([
+    [
+      'in a class constant',
+      `const MENU_ICON = 'flex text-muted [&_svg]:size-4';`,
+    ],
+    ['with a child combinator', `const ICON = 'flex [&>svg]:w-4';`],
+    [
+      'in a class map',
+      `export const C = () => <Menu classNames={{ item: '[&_path]:fill-current' }} />;`,
+    ],
+  ])(
+    'reports nothing for an arbitrary selector variant %s',
+    (_name, source) => {
+      expect(shapesReportedIn(source)).toEqual([]);
+    }
+  );
+
+  // The counterpart: a bracket is a variant only when it opens with & and a colon
+  // and a class follow it. A bracket in a sentence is still prose.
+  it.each([
+    [
+      'in a text node',
+      `export const C = () => <div>Auto [beta] mode</div>;`,
+      'Auto [beta] mode',
+    ],
+    [
+      'in a toast',
+      `const save = () => { toaster.show('Save [draft]', 'success'); };`,
+      'Save [draft]',
+    ],
+  ])('still reports a bracket in prose %s', (_name, source, text) => {
+    expect(shapesReportedIn(source).map((literal) => literal.text)).toContain(
+      text
+    );
   });
 
   // The same for an inline default beside a key: tolerated, as long as both locales

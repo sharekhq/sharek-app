@@ -9,7 +9,11 @@ import * as path from 'path';
 // app's confirmation, which says what happens to the brand's channels and
 // images and sends DELETE /brands/:id; and Rename, which is the calendar's own
 // rename dialog on PUT /integrations/customers/:id (C3). After each change both
-// GET /brands and the channel list reload.
+// GET /brands and the channel list reload. Add channels (spec 058, FR-024) is
+// the Brands page's picker, opened for a brand from the page or the calendar's
+// channel list, which moves the ticked channels on PUT /integrations/:id/group.
+// New brand from the channel ⋯'s Move to brand (spec 058, FR-015) says which
+// channel moves into the brand it makes.
 //
 // t() is the real i18next on the en and ar files, so a counted phrase renders
 // the plural form each language picks.
@@ -23,6 +27,7 @@ let brands: Array<{ id: string; name: string }> | undefined = [];
 let channels: Array<{
   id: string;
   name: string;
+  identifier?: string;
   customer: { id: string; name: string } | null;
 }> = [];
 
@@ -60,6 +65,7 @@ jest.mock('next/dynamic', () => ({
 
 import i18next from 'i18next';
 import type { EditGroupNameModal } from '@gitroom/frontend/components/launches/launches.component';
+import type { Channel } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   DecisionEverywhere,
   decisionModalEmitter,
@@ -397,6 +403,153 @@ describe('New brand', () => {
     expect(request).not.toHaveBeenCalled();
     expect(field()).toBeNull();
   });
+
+  // From the channel ⋯'s Move to brand (spec 058, FR-015 to FR-020): the
+  // window says which channel moves into the brand it creates, and the caller's
+  // onCreated moves it.
+  describe('with the channel it moves', () => {
+    const SALT: Channel = {
+      id: 'c7',
+      internalId: 'salt-sugar',
+      name: 'Salt & Sugar',
+      identifier: 'instagram',
+      picture: 'https://cdn.example.com/salt-sugar.png',
+      type: 'social',
+      customer: null,
+    };
+
+    // The sentence under the Name field, and the bordered row holding it.
+    const sentences = () =>
+      Array.from(document.querySelectorAll('span')).filter((node) =>
+        node.textContent?.endsWith('moves into it.')
+      );
+    const line = () => sentences()[0]?.parentElement ?? null;
+    const follows = (first: Node, second: Node) =>
+      !!(
+        first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+
+    it('shows one bordered line between the Name field and the buttons: the channel’s picture, and that it moves into it, its name isolated and as typed', async () => {
+      brands = [BAYT];
+      await mount();
+      await open(() => dialogs.openNewBrand(jest.fn(), SALT));
+
+      expect(sentences()).toHaveLength(1);
+      expect(sentences()[0].textContent).toBe('⁨Salt & Sugar⁩ moves into it.');
+      expect(sentences()[0].className.split(' ')).toEqual(
+        expect.arrayContaining(['min-w-0', 'text-ink', 'break-words'])
+      );
+      expect(line()!.className).toBe(
+        'flex items-center gap-[12px] p-[12px] rounded-[10px] border border-line'
+      );
+      expect(
+        line()!.querySelector(
+          'img[src="https://cdn.example.com/salt-sugar.png"]'
+        )
+      ).not.toBeNull();
+      expect(follows(field(), line()!)).toBe(true);
+      expect(follows(line()!, button('Cancel')!)).toBe(true);
+    });
+
+    it('Create brand creates it, closes, then calls onCreated with the new id', async () => {
+      brands = [BAYT];
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await type(field(), 'Salt & Sugar');
+      await click(button('Create brand'));
+
+      expect(sent('/brands')).toEqual([
+        ['POST', { name: 'Salt & Sugar', moveUngrouped: false }],
+      ]);
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onCreated).toHaveBeenCalledWith('b9');
+      expect(field()).toBeNull();
+      expect(sentences()).toEqual([]);
+    });
+
+    it('a refused creation keeps the window open with its line and today’s toast, and never calls onCreated', async () => {
+      brands = [BAYT];
+      request.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          message: 'A brand with this name already exists',
+        }),
+      });
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await type(field(), 'Bayt Al Qahwa');
+      await click(button('Create brand'));
+
+      expect(toast).toHaveBeenCalledWith(
+        'A brand with this name already exists.',
+        'warning'
+      );
+      expect(field()).not.toBeNull();
+      expect(sentences()).toHaveLength(1);
+      expect(onCreated).not.toHaveBeenCalled();
+    });
+
+    it('Cancel creates nothing and calls nothing', async () => {
+      brands = [BAYT];
+      const onCreated = jest.fn();
+      await mount();
+      await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+      await click(button('Cancel'));
+
+      expect(request).not.toHaveBeenCalled();
+      expect(onCreated).not.toHaveBeenCalled();
+      expect(field()).toBeNull();
+    });
+
+    it.each([
+      ['stays ticked', true],
+      ['is unticked', false],
+    ])(
+      'on the first brand, shows the offer ticked under the line, and calls onCreated when it %s',
+      async (_, ticked) => {
+        channels = [{ ...SALT, customer: null }, ...inBrand(2, null)];
+        const onCreated = jest.fn();
+        await mount();
+        await open(() => dialogs.openNewBrand(onCreated, SALT));
+
+        expect(sentences()).toHaveLength(1);
+        expect(offer()!.getAttribute('aria-checked')).toBe('true');
+        expect(follows(field(), line()!)).toBe(true);
+        expect(follows(line()!, offer()!)).toBe(true);
+
+        if (!ticked) {
+          await click(offer());
+        }
+        await type(field(), 'Salt & Sugar');
+        await click(button('Create brand'));
+
+        expect(sent('/brands')).toEqual([
+          ['POST', { name: 'Salt & Sugar', moveUngrouped: ticked }],
+        ]);
+        expect(onCreated).toHaveBeenCalledTimes(1);
+        expect(onCreated).toHaveBeenCalledWith('b9');
+      }
+    );
+
+    it.each([
+      ['the + menu’s', () => dialogs.openNewBrand()],
+      ['the Brands page’s', () => dialogs.openNewBrand(jest.fn())],
+    ])('%s New brand shows no line', async (_, run) => {
+      channels = inBrand(2, null);
+      await mount();
+      await open(run);
+
+      expect(sentences()).toEqual([]);
+      expect(document.querySelector('img')).toBeNull();
+      expect(offer()).not.toBeNull();
+    });
+  });
 });
 
 describe('Delete', () => {
@@ -528,5 +681,87 @@ describe('Rename', () => {
     expect(reloadBrands).toHaveBeenCalled();
     expect(reloadChannels).toHaveBeenCalled();
     expect(document.querySelector('[data-testid="rename"]')).toBeNull();
+  });
+});
+
+describe('openAddChannels', () => {
+  const WARDAT = { id: 'b1', name: 'Wardat' };
+  const channel = (
+    id: string,
+    name: string,
+    identifier: string,
+    customer: { id: string; name: string } | null
+  ) => ({ id, name, identifier, customer });
+
+  // The picker's rows, each a ticked or unticked channel.
+  const rows = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="checkbox"]'));
+
+  beforeEach(() => {
+    brands = [WARDAT, NOOR];
+    channels = [
+      channel('c1', 'Wardat Shop', 'instagram', WARDAT),
+      channel('c2', 'Noor Clinic', 'instagram', NOOR),
+      channel('c3', 'Rawda Florist', 'facebook', null),
+      channel('c4', 'Bayt', 'linkedin', null),
+    ];
+  });
+
+  it('opens Add channels with the channels not in the brand, in the channel list’s order, each saying its brand', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    expect(text()).toContain('Add channels');
+    expect(text()).toContain('A channel in another brand moves to this one.');
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Rawda Florist'),
+      expect.stringContaining('Noor Clinic'),
+      expect.stringContaining('Bayt'),
+    ]);
+    expect(rows()[0].textContent).toContain('No brand');
+    expect(rows()[1].textContent).toContain('Noor Dental');
+    expect(text()).not.toContain('Wardat Shop');
+    expect(
+      rows().every((row) => row.getAttribute('aria-checked') === 'false')
+    ).toBe(true);
+    expect(button('Add')!.disabled).toBe(true);
+  });
+
+  it('Add closes it and moves the ticked channels into the brand, then the channel list reloads', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    await click(rows()[0]);
+    await click(rows()[1]);
+    await click(button('Add'));
+
+    expect(sent('/integrations/c3/group')).toEqual([['PUT', { group: 'b1' }]]);
+    expect(sent('/integrations/c2/group')).toEqual([['PUT', { group: 'b1' }]]);
+    expect(sent('/integrations/c4/group')).toEqual([]);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(reloadChannels).toHaveBeenCalledTimes(1);
+    expect(rows()).toEqual([]);
+    expect(button('Add')).toBeUndefined();
+  });
+
+  it('Cancel closes it and sends nothing', async () => {
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    await click(rows()[0]);
+    await click(button('Cancel'));
+
+    expect(request).not.toHaveBeenCalled();
+    expect(reloadChannels).not.toHaveBeenCalled();
+    expect(rows()).toEqual([]);
+  });
+
+  it('says so when every channel is in the brand already', async () => {
+    channels = [channel('c1', 'Wardat Shop', 'instagram', WARDAT)];
+    await mount();
+    await open(() => dialogs.openAddChannels(WARDAT));
+
+    expect(rows()).toEqual([]);
+    expect(text()).toContain('No other channels to add.');
   });
 });

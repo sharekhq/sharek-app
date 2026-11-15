@@ -4,17 +4,18 @@ import { createRoot, Root } from 'react-dom/client';
 // The calendar page (spec 051, pages-ui.md): the calendar column first, then
 // the shared channel list at the end, in either direction, as its filter. The
 // list is ChannelPanel in calendar mode inside SplitPanel, with the page's ⋯
-// menu, drag to a customer and the customer rename; the rail's own Add
-// Channel, Create Post, generator, build number and the phone row above the
-// filters are gone, since the top bar and Settings hold them now. The
-// composer gets the list in compareChannels order (C14), and a channel that is
-// disabled while hidden shows again (C19).
+// menu, drag to a customer and the customer rename, and with every brand, New
+// brand and Add channels (spec 058); the rail's own Add Channel, Create Post,
+// generator, build number and the phone row above the filters are gone, since
+// the top bar and Settings hold them now. The composer gets the list in
+// compareChannels order (C14), and a channel that is disabled while hidden
+// shows again (C19).
 //
 // What is under test is the page's own wiring, so the panel, the sheet, the
-// top bar, the grid and the ⋯ menu are markers that record what the page hands
-// them. The calendar's state is a small provider that keeps the selection as
-// the real one does. compareChannels is the real one. useT gives the key, so
-// each case names the string it expects.
+// top bar, the grid, the ⋯ menu and the Brands page's windows are markers that
+// record what the page hands them. The calendar's state is a small provider
+// that keeps the selection as the real one does. compareChannels is the real
+// one. useT gives the key, so each case names the string it expects.
 type Channel = ReturnType<typeof mockChannel>;
 
 const mockVariables = { billingEnabled: true, showUpstreamExtras: false };
@@ -28,6 +29,11 @@ let mockCollapse = '0';
 const mockSetCollapse = jest.fn();
 // The list as GET /integrations/list gives it; a case reassigns it to refresh.
 let mockChannels: Channel[] = [];
+// The brands as GET /brands gives them, the Brands page's windows, and the
+// rename the list saves in place.
+let mockBrands: Array<Pick<Brand, 'id' | 'name'>> = [];
+const mockDialogs = { openNewBrand: jest.fn(), openAddChannels: jest.fn() };
+const mockRename = jest.fn();
 // Where the calendar's selection starts, and what the provider last had.
 let mockStart: string[] | null = null;
 let mockCalendar: {
@@ -65,6 +71,14 @@ jest.mock(
 );
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => mockFetch,
+}));
+jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
+  useBrands: () => ({ data: mockBrands }),
+  useRenameBrand: () => mockRename,
+}));
+jest.mock('@gitroom/frontend/components/brands/brand.dialogs', () => ({
+  useBrandDialogs: () => mockDialogs,
 }));
 jest.mock('react-use-cookie', () => ({
   __esModule: true,
@@ -209,6 +223,7 @@ import {
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
+import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 
 function mockChannel(n: number, values: Record<string, unknown> = {}) {
   return {
@@ -248,7 +263,6 @@ const run = async (callback: () => unknown) => {
     await callback();
   });
 };
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
 const marker = (id: string) =>
   host.querySelector<HTMLElement>(`[data-testid="${id}"]`);
@@ -271,6 +285,7 @@ beforeEach(() => {
   mockVariables.showUpstreamExtras = false;
   mockUser = { tier: { ai: true, current: 'pro' }, totalChannels: 10 };
   mockChannels = [mockChannel(1), mockChannel(2)];
+  mockBrands = [];
   mockStart = null;
   mockCollapse = '0';
   mockPanel = undefined;
@@ -451,31 +466,27 @@ describe('the channel list (C6, FR-005)', () => {
     });
   });
 
-  it("renames a customer through today's Edit group name modal", async () => {
+  // The pencil turns the name into a field in the list, which saves through
+  // useRenameBrand: it reloads both lists and toasts a refusal itself, so the
+  // page opens no window and says nothing of its own (FR-039, FR-041).
+  it("saves a brand's rename in place through useRenameBrand, with no window and no toast", async () => {
     mockChannels = [
       mockChannel(1, { customer: { id: 'c-2', name: 'Client 2' } }),
     ];
     await mount();
 
-    expect(typeof mockPanel?.onRenameCustomer).toBe('function');
-    // not awaited: the rename waits on the modal
-    await run(() => {
-      mockPanel!.onRenameCustomer!({ id: 'c-2', name: 'Client 2' });
-    });
-
-    expect(mockOpenModal).toHaveBeenCalledTimes(1);
-    const [{ title, children }] = mockOpenModal.mock.calls[0];
-    expect(title).toBe('edit_group_name');
-    const modal = children(jest.fn());
-    expect(modal.props).toEqual(
-      expect.objectContaining({ id: 'c-2', name: 'Client 2' })
+    expect(mockPanel!.onRenameCustomer).toBe(mockRename);
+    await run(() =>
+      mockPanel!.onRenameCustomer!({ id: 'c-2', name: 'Client 2' }, 'New')
     );
 
-    // saved: the list reloads with the new name, and says so
-    await run(() => modal.props.resolve('Client Two'));
-    await flush();
-    expect(mockMutate).toHaveBeenCalledTimes(1);
-    expect(mockToast).toHaveBeenCalledWith('group_updated', 'success');
+    expect(mockRename).toHaveBeenCalledTimes(1);
+    expect(mockRename).toHaveBeenCalledWith(
+      { id: 'c-2', name: 'Client 2' },
+      'New'
+    );
+    expect(mockOpenModal).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalledWith('group_updated', 'success');
   });
 
   it("opens as a sheet from the top bar's chip and closes from Done or the sheet", async () => {
@@ -520,6 +531,58 @@ describe('the channel list (C6, FR-005)', () => {
     expect(mockPanel?.collapsed).toBe(false);
     await run(() => mockPanel!.onToggleCollapse());
     expect(mockSetCollapse).toHaveBeenLastCalledWith('1');
+  });
+});
+
+// The calendar's list is the one that manages brands, so it alone gets every
+// brand, New brand in its + menu and Add channels under an empty brand; the
+// windows are the Brands page's, which move and reload on their own.
+describe('the brands the list manages (spec 058)', () => {
+  it('hands the list every brand GET /brands gives, so the ones with no channels show (FR-021, FR-031)', async () => {
+    mockBrands = [
+      { id: 'b-1', name: 'Wardat' },
+      { id: 'b-2', name: 'Noor Clinic' },
+    ];
+    mockChannels = [
+      mockChannel(1, { customer: { id: 'b-1', name: 'Wardat' } }),
+      mockChannel(2),
+    ];
+    await mount();
+
+    expect(mockPanel!.brands).toBe(mockBrands);
+  });
+
+  it("opens the Brands page's Add channels for the brand an empty brand's Add channels names (FR-024)", async () => {
+    mockBrands = [{ id: 'b-2', name: 'Noor Clinic' }];
+    await mount();
+
+    expect(typeof mockPanel?.onAddChannels).toBe('function');
+    await run(() =>
+      mockPanel!.onAddChannels!({ id: 'b-2', name: 'Noor Clinic' })
+    );
+
+    expect(mockDialogs.openAddChannels).toHaveBeenCalledTimes(1);
+    expect(mockDialogs.openAddChannels).toHaveBeenCalledWith({
+      id: 'b-2',
+      name: 'Noor Clinic',
+    });
+    expect(mockDialogs.openNewBrand).not.toHaveBeenCalled();
+    // the window moves and reloads; the page sends nothing itself
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it("opens the normal New brand window from the + menu's New brand, with no channel and nothing to run after (FR-033, FR-034)", async () => {
+    await mount();
+
+    expect(typeof mockPanel?.onNewBrand).toBe('function');
+    await run(() => mockPanel!.onNewBrand!());
+
+    expect(mockDialogs.openNewBrand).toHaveBeenCalledTimes(1);
+    expect(mockDialogs.openNewBrand.mock.calls[0]).toEqual([]);
+    expect(mockDialogs.openAddChannels).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 });
 

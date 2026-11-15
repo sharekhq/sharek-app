@@ -122,6 +122,20 @@ export const useHangingPanel = () => {
   return { ref, panelRef, show, setShow, below };
 };
 
+// The look of every ⋯ list in the app, Samy's chat menu's: 6px inside the
+// list's edge, its items touching, 10px from an icon to its text. Every
+// PostActionsMenu draws its list with them, and upstream's channel ⋯
+// (menu/menu.tsx), which draws its own rows, takes them by name. The item's
+// ring is written out, not channel.panel.tsx's FOCUS_RING: that file imports
+// this one. MENU_ICON draws an icon given at another size or colour at 16px
+// in the muted colour; MENU_ICON_DANGER is a danger item's.
+export const MENU_PANEL =
+  'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default p-[6px]';
+export const MENU_ITEM =
+  'flex items-center gap-[10px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand';
+export const MENU_ICON = 'flex text-muted [&_svg]:size-4';
+export const MENU_ICON_DANGER = 'flex text-error';
+
 // The week grid gives a day a 58px column (`minmax(58px, 1fr)`, calendar.tsx:358),
 // and the post card's actions have never fitted it: finding 69 of the 2026-08
 // responsive audit measured ~200px of unshrinkable controls under a coarse
@@ -213,12 +227,9 @@ export const PostActionsMenu = forwardRef<
   // trigger's start edge, where a + at the end of the screen leaves it a few
   // pixels, and a list that can wrap would shrink to its longest word there
   // and then grow by a few pixels on each pass of the layout effect above.
-  // It is spaced as the canvas spaces it too, 6px inside its edge, its items
-  // touching and 10px from an icon to its text, which leaves its hints 210px.
-  // So is every list that opens from a button of its own, the chat's ⋯ with no
-  // hints among them; the post card's keeps the spacing it had.
+  // Spaced as every list is (MENU_PANEL, MENU_ITEM), the post card's among
+  // them, it leaves its hints 210px.
   const hinted = actions.some((action) => action.hint);
-  const compact = hinted || !!trigger;
 
   const panel = show && (
     <div
@@ -233,9 +244,8 @@ export const PostActionsMenu = forwardRef<
       // inherits. It names its own foreground so the list reads as app chrome
       // wherever it opens.
       className={clsx(
-        'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default',
+        MENU_PANEL,
         hinted && 'min-w-[260px] max-w-[270px]',
-        compact ? 'p-[6px]' : 'p-[12px] gap-[16px]',
         held && 'pointer-events-auto'
       )}
     >
@@ -244,20 +254,15 @@ export const PostActionsMenu = forwardRef<
           key={action.key}
           role="menuitem"
           tabIndex={0}
-          className={clsx(
-            'flex py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors',
-            compact ? 'gap-[10px]' : 'gap-[12px]',
-            action.hint ? 'items-start' : 'items-center'
-          )}
+          className={MENU_ITEM}
           onClick={() => choose(action)}
           onKeyDown={pressKeys(() => choose(action))}
         >
           {/* beside a label and its hint, the icon stays level with the label */}
           <div
             className={clsx(
-              'flex',
-              action.danger && 'text-error',
-              action.hint && 'mt-[2px]'
+              action.danger ? MENU_ICON_DANGER : 'flex',
+              action.hint && 'self-start mt-[2px]'
             )}
           >
             {action.icon}

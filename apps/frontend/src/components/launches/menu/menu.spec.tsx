@@ -11,7 +11,8 @@ import { createRoot } from 'react-dom/client';
 // its own `left` plus that offset.
 
 // Everything below is scenery: the menu has to mount. Only the calendar's one
-// channel is read, and none of it is asserted on.
+// channel is read: its fields and the four flags choose the menu's rows, which
+// the items table at the end pins.
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({ json: async () => ({}) }),
 }));
@@ -21,31 +22,53 @@ jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => undefined }),
 }));
+const mockOpenModal = jest.fn();
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ openModal: () => undefined }),
+  useModals: () => ({ openModal: mockOpenModal }),
 }));
 jest.mock('@gitroom/frontend/components/launches/time.table', () => ({
   TimeTable: () => null,
 }));
+// The channel as GET /integrations/list sends it, which sends
+// `additionalSettings` as '[]' when the channel has none. A case sets its own.
+const CHANNEL = {
+  id: 'channel',
+  name: 'BlogChief',
+  originalName: 'BlogChief',
+  identifier: 'instagram-standalone',
+  additionalSettings: '[]',
+};
+let mockChannel: Record<string, unknown> = CHANNEL;
 jest.mock('@gitroom/frontend/components/launches/calendar.context', () => ({
   useCalendar: () => ({
-    integrations: [
-      {
-        id: 'channel',
-        name: 'BlogChief',
-        originalName: 'BlogChief',
-        identifier: 'instagram-standalone',
-      },
-    ],
+    integrations: [mockChannel],
     reloadCalendarView: () => undefined,
   }),
 }));
 jest.mock('@gitroom/frontend/components/launches/bot.picture', () => ({
   BotPicture: () => null,
 }));
-jest.mock('@gitroom/frontend/components/launches/customer.modal', () => ({
-  CustomerModal: () => null,
-}));
+// Move to brand's list (brands/brand.menu.tsx), its own spec's: here only what
+// the menu hands it, its last props and what the menu asks of its handle.
+const mockMove = {
+  props: {} as Record<string, unknown>,
+  open: jest.fn(),
+  close: jest.fn(),
+};
+jest.mock('@gitroom/frontend/components/brands/brand.menu', () => {
+  const { forwardRef, useImperativeHandle } =
+    jest.requireActual<typeof import('react')>('react');
+  return {
+    MoveToBrandMenu: forwardRef((props: Record<string, unknown>, handle) => {
+      mockMove.props = props;
+      useImperativeHandle(handle, () => ({
+        open: mockMove.open,
+        close: mockMove.close,
+      }));
+      return <i data-testid="move-to-brand" />;
+    }),
+  };
+});
 jest.mock('@gitroom/frontend/components/launches/settings.modal', () => ({
   SettingsModal: () => null,
 }));
@@ -75,6 +98,12 @@ jest.mock('@gitroom/react/form/input', () => ({ Input: () => null }));
 jest.mock('@gitroom/react/form/button', () => ({ Button: () => null }));
 
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
+import {
+  MENU_ICON,
+  MENU_ICON_DANGER,
+  MENU_ITEM,
+  MENU_PANEL,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 
 // The walk's phone: 390px wide, the trigger 120px in, the menu 202px wide.
 const SCREEN = { width: 390, height: 844 };
@@ -94,7 +123,17 @@ const trigger = () =>
 const mounted: Array<{ unmount: () => void }> = [];
 const size = { width: window.innerWidth, height: window.innerHeight };
 
-const render = async (label?: string) => {
+// The four flags the channel list passes, all off unless a case sets one: a
+// disabled channel at the plan's limit, with no bot picture or nickname.
+const NO_FLAGS = {
+  canEnable: false,
+  canDisable: false,
+  canChangeProfilePicture: false,
+  canChangeNickName: false,
+};
+type Flags = Partial<typeof NO_FLAGS>;
+
+const render = async (label?: string, flags: Flags = {}) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -102,10 +141,8 @@ const render = async (label?: string) => {
   await act(async () => {
     root.render(
       <Menu
-        canEnable={false}
-        canDisable={false}
-        canChangeProfilePicture={false}
-        canChangeNickName={false}
+        {...NO_FLAGS}
+        {...flags}
         refreshChannel={() => () => undefined}
         id="channel"
         mutate={() => undefined}
@@ -120,8 +157,8 @@ const click = async () => {
     trigger().dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
 };
-const open = async () => {
-  await render();
+const open = async (flags?: Flags) => {
+  await render(undefined, flags);
   await click();
 };
 const press = async (node: Element, key: string) => {
@@ -165,6 +202,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   triggerLeft = 120;
   containerLeft = 0;
+  mockChannel = CHANNEL;
   jest.restoreAllMocks();
   Object.defineProperty(window, 'innerWidth', {
     configurable: true,
@@ -307,5 +345,335 @@ describe('the trigger (FR-052)', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(field);
     expect(documentEscape).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Which rows the menu shows, in which order, for each state a channel can be
+// in, as on main at 5be5e781c. Spec 058 restyles the menu and hands its Move /
+// add to group to a brand list, and keeps every row, its order and its
+// condition, so this table stays as it is.
+const rows = () => Array.from(menu().children).map((row) => row.textContent);
+// A channel signed in with fields of its own (dev.to's API key), not OAuth.
+const CREDENTIALS = {
+  isCustomFields: true,
+  customFields: [
+    {
+      key: 'apiKey',
+      label: 'API key',
+      validation: '/^.{3,}$/',
+      type: 'password',
+    },
+  ],
+};
+
+describe('the channel menu items, by channel state (SC-008)', () => {
+  it.each<{
+    state: string;
+    flags: Flags;
+    channel?: Record<string, unknown>;
+    labels: string[];
+  }>([
+    {
+      state: 'an enabled channel',
+      flags: { canDisable: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a disabled channel with room on the plan',
+      flags: { canEnable: true },
+      labels: [
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Enable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: "a disabled channel at the plan's limit",
+      flags: {},
+      labels: [
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel that needs reconnecting',
+      flags: { canDisable: true },
+      channel: { refreshNeeded: true },
+      labels: [
+        'Copy Channel ID',
+        'Reconnect channel',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with credentials that needs reconnecting',
+      flags: { canDisable: true },
+      channel: { refreshNeeded: true, ...CREDENTIALS },
+      labels: [
+        'Copy Channel ID',
+        'Update Credentials',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with credentials',
+      flags: { canDisable: true },
+      channel: CREDENTIALS,
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Update Credentials',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with no additional settings',
+      flags: { canDisable: true },
+      channel: { additionalSettings: '[]' },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with additional settings',
+      flags: { canDisable: true },
+      // X's, as x.provider.ts sends them
+      channel: {
+        additionalSettings: JSON.stringify([
+          {
+            title: 'Verified',
+            description: 'Is this a verified user? (Premium)',
+            type: 'checkbox',
+            value: false,
+          },
+        ]),
+      },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Additional Settings',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change its picture',
+      flags: { canDisable: true, canChangeProfilePicture: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Picture',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change its nickname',
+      flags: { canDisable: true, canChangeNickName: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Nickname',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change both',
+      flags: {
+        canDisable: true,
+        canChangeProfilePicture: true,
+        canChangeNickName: true,
+      },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Picture / Nickname',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a renamed channel',
+      flags: { canDisable: true },
+      channel: { name: 'BlogChief News' },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Reset to original name',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+  ])('$state', async ({ flags, channel, labels }) => {
+    mockChannel = { ...CHANNEL, ...channel };
+    await open(flags);
+
+    expect(rows()).toEqual(labels);
+  });
+});
+
+// The look of Samy's chat menu, which every ⋯ list in the app shares
+// (post.actions.menu.tsx): the panel, each row and each row's icon box take it
+// by name, and the icons draw in the box's colour. All four flags are on, which
+// no channel is at once, so that as many rows show as can: Create a new post
+// shows only while the channel needs no reconnecting and Reconnect channel only
+// while it does, so the two states between them show all 13.
+const classes = (node: Element) => node.className.split(' ').sort();
+const look = (name: string) => name.split(' ').sort();
+const EVERY_FLAG: Flags = {
+  canEnable: true,
+  canDisable: true,
+  canChangeProfilePicture: true,
+  canChangeNickName: true,
+};
+const EVERY_ROW = {
+  name: 'BlogChief News',
+  additionalSettings: JSON.stringify([
+    { title: 'Verified', type: 'checkbox', value: false },
+  ]),
+};
+
+describe.each([
+  {
+    state: 'with Create a new post',
+    channel: { ...EVERY_ROW, ...CREDENTIALS },
+    count: 12,
+  },
+  {
+    state: 'with Reconnect channel',
+    channel: { ...EVERY_ROW, refreshNeeded: true },
+    count: 11,
+  },
+])('the channel menu look (FR-001), $state', ({ channel, count }) => {
+  const shown = () => Array.from(menu().children);
+
+  beforeEach(async () => {
+    mockChannel = { ...CHANNEL, ...channel };
+    await open(EVERY_FLAG);
+    expect(shown()).toHaveLength(count);
+  });
+
+  it('draws its panel in MENU_PANEL alone', () => {
+    expect(classes(menu())).toEqual(look(MENU_PANEL));
+  });
+
+  it('draws every row in MENU_ITEM alone', () => {
+    for (const row of shown()) {
+      expect(classes(row)).toEqual(look(MENU_ITEM));
+    }
+  });
+
+  it("boxes every row's icon in MENU_ICON, and Delete's in MENU_ICON_DANGER", () => {
+    for (const row of shown()) {
+      expect(classes(row.children[0])).toEqual(
+        look(row.textContent === 'Delete' ? MENU_ICON_DANGER : MENU_ICON)
+      );
+    }
+  });
+
+  it('paints no icon green or yellow', () => {
+    expect(
+      menu().querySelectorAll('[fill="green"], [fill="yellow"]')
+    ).toHaveLength(0);
+  });
+
+  it('keeps its labels at 14px', () => {
+    for (const row of shown()) {
+      expect(row.children[1].className).toBe('text-[14px]');
+    }
+  });
+});
+
+// Move to brand opened a window with a datalist whose dropdown didn't work
+// (customer.modal.tsx). It now closes the ⋯ list and opens the brand list
+// held over the ⋯ (MoveToBrandMenu), which hangs from the ⋯ and hands the
+// focus back to it.
+describe('Move to brand (FR-006, FR-010, FR-013, FR-014)', () => {
+  const marker = () => document.querySelector('[data-testid="move-to-brand"]');
+  const moveRow = () =>
+    Array.from(menu().children).find(
+      (row) => row.textContent === 'Move / add to group'
+    ) as HTMLElement;
+
+  beforeEach(() => {
+    mockOpenModal.mockClear();
+    mockMove.open.mockClear();
+    mockMove.close.mockClear();
+  });
+
+  it("holds the brand list in the ⋯'s box, after the ⋯, for the calendar's channel", async () => {
+    await render();
+    const button = trigger();
+
+    expect(marker()).not.toBeNull();
+    expect(marker()?.parentElement).toBe(button.parentElement);
+    expect(
+      button.compareDocumentPosition(marker() as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(mockMove.props.channel).toBe(mockChannel);
+    expect(
+      (mockMove.props.button as { current: HTMLElement | null }).current
+    ).toBe(button);
+  });
+
+  it('closes the ⋯ list and opens the brand list, with no window', async () => {
+    await open({ canDisable: true });
+
+    await act(async () => {
+      moveRow().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(menu()).toBeNull();
+    expect(mockMove.open).toHaveBeenCalledTimes(1);
+    expect(mockOpenModal).not.toHaveBeenCalled();
   });
 });

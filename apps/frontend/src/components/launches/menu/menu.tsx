@@ -21,7 +21,7 @@ import {
   useCalendar,
 } from '@gitroom/frontend/components/launches/calendar.context';
 import { BotPicture } from '@gitroom/frontend/components/launches/bot.picture';
-import { CustomerModal } from '@gitroom/frontend/components/launches/customer.modal';
+import { MoveToBrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import { Integration } from '@prisma/client';
 import { SettingsModal } from '@gitroom/frontend/components/launches/settings.modal';
 import { CustomVariables } from '@gitroom/frontend/components/launches/add.provider.component';
@@ -34,6 +34,13 @@ import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/m
 import copy from 'copy-to-clipboard';
 import { Input } from '@gitroom/react/form/input';
 import { Button } from '@gitroom/react/form/button';
+import {
+  MENU_ICON,
+  MENU_ICON_DANGER,
+  MENU_ITEM,
+  MENU_PANEL,
+  PostActionsMenuHandle,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 
 const RenameChannelModal: FC<{
   name: string;
@@ -110,6 +117,7 @@ export const Menu: FC<{
   });
   const showRef = useRef(undefined);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const move = useRef<PostActionsMenuHandle>(null);
 
   // Escape closes the open menu and hands the focus back to its button, as
   // post.actions.menu.tsx's does. It is heard on the way down and goes no
@@ -365,27 +373,9 @@ export const Menu: FC<{
     setShow(false);
   }, [integrations, t]);
   const addToCustomer = useCallback(() => {
-    const findIntegration = integrations.find(
-      (integration) => integration.id === id
-    );
-    modal.openModal({
-      title: t('move_add_to_group', 'Move / Add to group'),
-      withCloseButton: false,
-      closeOnEscape: true,
-      closeOnClickOutside: true,
-      children: (
-        <CustomerModal
-          // @ts-ignore
-          integration={findIntegration}
-          onClose={() => {
-            mutate();
-            toast.show(t('customer_updated', 'Customer Updated'), 'success');
-          }}
-        />
-      ),
-    });
     setShow(false);
-  }, [integrations, t]);
+    move.current?.open();
+  }, []);
   const renameChannel = useCallback(() => {
     const findIntegration = integrations.find(
       (integration) => integration.id === id
@@ -457,6 +447,11 @@ export const Menu: FC<{
           />
         </svg>
       </button>
+      <MoveToBrandMenu
+        ref={move}
+        channel={findIntegration}
+        button={buttonRef}
+      />
       <div>
         <div ref={showRef} />
       </div>
@@ -465,14 +460,14 @@ export const Menu: FC<{
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
           style={{ left: show.x, top: show.y }}
-          className={`fixed p-[12px] bg-newBgColorInner shadow-menu flex flex-col gap-[16px] z-[100] rounded-[8px] border border-tableBorder text-nowrap`}
+          className={MENU_PANEL}
         >
           {canDisable && !findIntegration?.refreshNeeded && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={createPost(findIntegration!)}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -482,7 +477,7 @@ export const Menu: FC<{
                 >
                   <path
                     d="M21 4H11C9.14409 4.00199 7.36477 4.74012 6.05245 6.05245C4.74012 7.36477 4.00199 9.14409 4 11V21C4.00199 22.8559 4.74012 24.6352 6.05245 25.9476C7.36477 27.2599 9.14409 27.998 11 28H17C17.1075 27.9999 17.2142 27.9826 17.3162 27.9487C20.595 26.855 26.855 20.595 27.9487 17.3162C27.9826 17.2142 27.9999 17.1075 28 17V11C27.998 9.14409 27.2599 7.36477 25.9476 6.05245C24.6352 4.74012 22.8559 4.00199 21 4ZM17 25.9275V22C17 20.6739 17.5268 19.4021 18.4645 18.4645C19.4021 17.5268 20.6739 17 22 17H25.9275C24.77 19.6938 19.6938 24.77 17 25.9275Z"
-                    fill="green"
+                    fill="currentColor"
                   />
                 </svg>
               </div>
@@ -492,10 +487,10 @@ export const Menu: FC<{
             </div>
           )}
           <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            className={MENU_ITEM}
             onClick={copyChannelId(findIntegration)}
           >
-            <div>
+            <div className={MENU_ICON}>
               <svg
                 width="18"
                 height="18"
@@ -523,20 +518,20 @@ export const Menu: FC<{
             findIntegration?.refreshNeeded &&
             !findIntegration.customFields && (
               <div
-                className="flex gap-[12px] items-center py-[8px] px-[10px]"
+                className={MENU_ITEM}
                 onClick={refreshChannel(findIntegration!)}
               >
-                <div>
+                <div className={MENU_ICON}>
                   <svg
                     width={18}
                     height={18}
                     viewBox="0 0 32 32"
-                    fill="yellow"
+                    fill="currentColor"
                     xmlns="http://www.w3.org/2000/svg"
                   >
                     <path
                       d="M3.00079 15.9999C3.00343 13.6138 3.95249 11.3262 5.63975 9.63891C7.327 7.95165 9.61465 7.00259 12.0008 6.99995H25.587L24.2933 5.70745C24.1056 5.5198 24.0002 5.26531 24.0002 4.99995C24.0002 4.73458 24.1056 4.48009 24.2933 4.29245C24.4809 4.1048 24.7354 3.99939 25.0008 3.99939C25.2661 3.99939 25.5206 4.10481 25.7083 4.29245L28.7083 7.29245C28.8013 7.38532 28.875 7.49561 28.9253 7.61701C28.9757 7.7384 29.0016 7.86853 29.0016 7.99995C29.0016 8.13136 28.9757 8.26149 28.9253 8.38289C28.875 8.50428 28.8013 8.61457 28.7083 8.70745L25.7083 11.7074C25.5206 11.8951 25.2661 12.0005 25.0008 12.0005C24.7354 12.0005 24.4809 11.8951 24.2933 11.7074C24.1056 11.5198 24.0002 11.2653 24.0002 10.9999C24.0002 10.7346 24.1056 10.4801 24.2933 10.2924L25.587 8.99995H12.0008C10.1449 9.00193 8.36556 9.74007 7.05323 11.0524C5.74091 12.3647 5.00277 14.144 5.00079 15.9999C5.00079 16.2652 4.89543 16.5195 4.70789 16.7071C4.52036 16.8946 4.266 16.9999 4.00079 16.9999C3.73557 16.9999 3.48122 16.8946 3.29368 16.7071C3.10614 16.5195 3.00079 16.2652 3.00079 15.9999ZM28.0008 14.9999C27.7356 14.9999 27.4812 15.1053 27.2937 15.2928C27.1061 15.4804 27.0008 15.7347 27.0008 15.9999C26.9988 17.8559 26.2607 19.6352 24.9483 20.9475C23.636 22.2598 21.8567 22.998 20.0008 22.9999H6.41454L7.70829 21.7074C7.8012 21.6145 7.8749 21.5042 7.92518 21.3828C7.97546 21.2614 8.00134 21.1313 8.00134 20.9999C8.00134 20.8686 7.97546 20.7384 7.92518 20.6171C7.8749 20.4957 7.8012 20.3854 7.70829 20.2924C7.61538 20.1995 7.50508 20.1258 7.38368 20.0756C7.26229 20.0253 7.13218 19.9994 7.00079 19.9994C6.86939 19.9994 6.73928 20.0253 6.61789 20.0756C6.4965 20.1258 6.3862 20.1995 6.29329 20.2924L3.29329 23.2924C3.20031 23.3853 3.12655 23.4956 3.07623 23.617C3.0259 23.7384 3 23.8685 3 23.9999C3 24.1314 3.0259 24.2615 3.07623 24.3829C3.12655 24.5043 3.20031 24.6146 3.29329 24.7074L6.29329 27.7074C6.3862 27.8004 6.4965 27.8741 6.61789 27.9243C6.73928 27.9746 6.86939 28.0005 7.00079 28.0005C7.13218 28.0005 7.26229 27.9746 7.38368 27.9243C7.50508 27.8741 7.61538 27.8004 7.70829 27.7074C7.8012 27.6145 7.8749 27.5042 7.92518 27.3828C7.97546 27.2614 8.00134 27.1313 8.00134 26.9999C8.00134 26.8686 7.97546 26.7384 7.92518 26.6171C7.8749 26.4957 7.8012 26.3854 7.70829 26.2924L6.41454 24.9999H20.0008C22.3869 24.9973 24.6746 24.0482 26.3618 22.361C28.0491 20.6737 28.9981 18.3861 29.0008 15.9999C29.0008 15.7347 28.8954 15.4804 28.7079 15.2928C28.5204 15.1053 28.266 14.9999 28.0008 14.9999Z"
-                      fill="yellow"
+                      fill="currentColor"
                     />
                   </svg>
                 </div>
@@ -547,10 +542,10 @@ export const Menu: FC<{
             )}
           {!!findIntegration?.isCustomFields && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={updateCredentials}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   width={18}
                   height={18}
@@ -571,10 +566,10 @@ export const Menu: FC<{
           )}
           {findIntegration?.additionalSettings !== '[]' && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={additionalSettings}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -595,10 +590,10 @@ export const Menu: FC<{
           )}
           {(canChangeProfilePicture || canChangeNickName) && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={changeBotPicture}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -624,10 +619,10 @@ export const Menu: FC<{
             </div>
           )}
           <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            className={MENU_ITEM}
             onClick={renameChannel}
           >
-            <div>
+            <div className={MENU_ICON}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width={18}
@@ -647,10 +642,10 @@ export const Menu: FC<{
           </div>
           {findIntegration?.name !== findIntegration?.originalName && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={resetChannelName}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={18}
@@ -670,10 +665,10 @@ export const Menu: FC<{
             </div>
           )}
           <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            className={MENU_ITEM}
             onClick={addToCustomer}
           >
-            <div>
+            <div className={MENU_ICON}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width={18}
@@ -692,10 +687,10 @@ export const Menu: FC<{
             </div>
           </div>
           <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            className={MENU_ITEM}
             onClick={editTimeTable}
           >
-            <div>
+            <div className={MENU_ICON}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="18"
@@ -715,10 +710,10 @@ export const Menu: FC<{
           </div>
           {canEnable && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={enableChannel}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -740,10 +735,10 @@ export const Menu: FC<{
 
           {canDisable && (
             <div
-              className="flex gap-[12px] items-center py-[8px] px-[10px]"
+              className={MENU_ITEM}
               onClick={disableChannel}
             >
-              <div>
+              <div className={MENU_ICON}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="16"
@@ -764,10 +759,10 @@ export const Menu: FC<{
           )}
 
           <div
-            className="flex gap-[12px] items-center py-[8px] px-[10px]"
+            className={MENU_ITEM}
             onClick={deleteChannel}
           >
-            <div>
+            <div className={MENU_ICON_DANGER}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"

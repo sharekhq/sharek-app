@@ -17,6 +17,10 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 
 import {
+  MENU_ICON,
+  MENU_ICON_DANGER,
+  MENU_ITEM,
+  MENU_PANEL,
   PostAction,
   PostActionsMenu,
   PostActionsMenuHandle,
@@ -61,6 +65,27 @@ const mount = async (list: PostAction[] = actions(), trigger?: ReactNode) => {
       <PostActionsMenu actions={list} label="Post actions" trigger={trigger} />
     );
   });
+};
+
+// a month chip's menu, which what owns it opens and closes through its ref
+const mountHeld = async () => {
+  calls.length = 0;
+  const menu = createRef<PostActionsMenuHandle>();
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
+  await act(async () => {
+    root.render(
+      <PostActionsMenu
+        ref={menu}
+        held
+        actions={actions()}
+        label="Post actions"
+      />
+    );
+  });
+  return menu;
 };
 
 const trigger = () =>
@@ -396,14 +421,30 @@ describe('post actions menu', () => {
     }
   });
 
-  // The post card's list has no hints and keeps the spacing it had.
-  it('spaces a list without hints as before', async () => {
-    await mount();
-    await click(trigger());
+  // The post card's lists, its button's and a month chip's held one, have no
+  // trigger of their own and no hints, and are spaced as Samy's chat menu is
+  // all the same (FR-035): every ⋯ list in the app has one spacing.
+  it.each([
+    [
+      'with no trigger',
+      async () => {
+        await mount();
+        await click(trigger());
+      },
+    ],
+    [
+      'held',
+      async () => {
+        const menu = await mountHeld();
+        act(() => menu.current!.open());
+      },
+    ],
+  ])('spaces the post card list %s as the chat menu', async (_name, open) => {
+    await open();
 
-    expect(spacing(panel()!)).toEqual(['gap-[16px]', 'p-[12px]']);
+    expect(spacing(panel()!)).toEqual(['p-[6px]']);
     for (const item of document.querySelectorAll('[role="menuitem"]')) {
-      expect(spacing(item)).toEqual(['gap-[12px]', 'px-[10px]', 'py-[8px]']);
+      expect(spacing(item)).toEqual(['gap-[10px]', 'px-[10px]', 'py-[8px]']);
     }
   });
 
@@ -419,6 +460,96 @@ describe('post actions menu', () => {
     for (const item of document.querySelectorAll('[role="menuitem"]')) {
       expect(spacing(item)).toEqual(['gap-[10px]', 'px-[10px]', 'py-[8px]']);
     }
+  });
+
+  // The look of every ⋯ list is stated once, by name, and upstream's channel ⋯
+  // (menu/menu.tsx), which draws its own rows, takes it from here.
+  describe('the shared look', () => {
+    const classes = (node: Element) => node.className.split(' ').sort();
+    const look = (...names: string[]) => names.join(' ').split(' ').sort();
+    const hinted = () =>
+      actions().map((action) =>
+        action.key === 'preview'
+          ? { ...action, hint: 'Shows it as it will publish' }
+          : action
+      );
+
+    it('exports the classes of the chat menu, its items with a focus ring', () => {
+      expect(MENU_PANEL).toBe(
+        'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default p-[6px]'
+      );
+      expect(MENU_ITEM).toBe(
+        'flex items-center gap-[10px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand'
+      );
+      expect(MENU_ICON).toBe('flex text-muted [&_svg]:size-4');
+      expect(MENU_ICON_DANGER).toBe('flex text-error');
+    });
+
+    it('draws a list without hints in MENU_PANEL alone', async () => {
+      await mount();
+      await click(trigger());
+
+      expect(classes(panel()!)).toEqual(look(MENU_PANEL));
+    });
+
+    it('gives a list with hints their width, and nothing else', async () => {
+      await mount(hinted());
+      await click(trigger());
+
+      expect(classes(panel()!)).toEqual(
+        look(MENU_PANEL, 'min-w-[260px] max-w-[270px]')
+      );
+    });
+
+    it('lets a held list take the touches back, and nothing else', async () => {
+      const menu = await mountHeld();
+      act(() => menu.current!.open());
+
+      expect(classes(panel()!)).toEqual(
+        look(MENU_PANEL, 'pointer-events-auto')
+      );
+    });
+
+    it('draws every item in MENU_ITEM, with a hint or without', async () => {
+      await mount(hinted());
+      await click(trigger());
+
+      const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
+      expect(items.length).toBe(3);
+      for (const item of items) {
+        expect(classes(item)).toEqual(look(MENU_ITEM));
+      }
+    });
+
+    it('boxes a danger item icon in MENU_ICON_DANGER', async () => {
+      await mount();
+      await click(trigger());
+
+      expect(classes(menuItem('Delete').firstElementChild!)).toEqual(
+        look(MENU_ICON_DANGER)
+      );
+    });
+
+    // MENU_ITEM centres its children; beside a label and its hint the icon
+    // stays level with the label from the top of the item.
+    it('keeps a hinted item icon level with its label', async () => {
+      await mount(hinted());
+      await click(trigger());
+
+      expect(classes(menuItem('Preview').firstElementChild!)).toEqual(
+        look('flex self-start mt-[2px]')
+      );
+    });
+
+    // The callers pass their icons at the size and colour they want them.
+    it('boxes a plain item icon in flex alone', async () => {
+      await mount();
+      await click(trigger());
+
+      expect(classes(menuItem('Duplicate').firstElementChild!)).toEqual([
+        'flex',
+      ]);
+    });
   });
 
   // An item a keyboard can reach but only a click can run leaves the keyboard

@@ -4,6 +4,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { useCallback } from 'react';
 import useSWR from 'swr';
 
@@ -101,5 +102,46 @@ export const useBrandChange = () => {
       }
     }
     return undefined;
+  };
+};
+
+// Channels into a brand, or to No brand with '', through the route the
+// calendar's channel list uses (C3), one request each. The list reloads after
+// a refusal too, since the others may have moved.
+export const useMoveChannels = () => {
+  const send = useBrandChange();
+  const { mutate: reloadChannels } = useIntegrationList();
+
+  return async (ids: string[], group: string) => {
+    await Promise.all(
+      ids.map((id) =>
+        send(`/integrations/${id}/group`, {
+          method: 'PUT',
+          body: JSON.stringify({ group }),
+        })
+      )
+    );
+    reloadChannels();
+  };
+};
+
+// A brand's new name, on the route the calendar's rename dialog uses (C3).
+// Once the server takes it, GET /brands and the channel list reload, and the
+// answer comes only after both have, so a name shown while it saves gives way
+// to the new one with no flash of the old. A refusal reloads nothing.
+export const useRenameBrand = () => {
+  const send = useBrandChange();
+  const { mutate: reloadBrands } = useBrands();
+  const { mutate: reloadChannels } = useIntegrationList();
+
+  return async (brand: Pick<Brand, 'id'>, name: string) => {
+    const response = await send(`/integrations/customers/${brand.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+    if (response) {
+      await Promise.all([reloadBrands(), reloadChannels()]);
+    }
+    return response;
   };
 };

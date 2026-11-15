@@ -1,6 +1,15 @@
 'use client';
 
-import { FC, KeyboardEvent, ReactNode, useEffect, useRef } from 'react';
+import {
+  FC,
+  forwardRef,
+  KeyboardEvent,
+  ReactNode,
+  RefObject,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import Link from 'next/link';
@@ -19,23 +28,39 @@ import {
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
-import { useHangingPanel } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import {
+  PostActionsMenuHandle,
+  useHangingPanel,
+} from '@gitroom/frontend/components/launches/post.actions.menu';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import {
   CheckmarkIcon,
   ChevronRightIcon,
+  PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import {
   BrandMark,
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
-import { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  Brand,
+  useBrands,
+  useMoveChannels,
+} from '@gitroom/frontend/components/brands/use.brands';
+import { useBrandDialogs } from '@gitroom/frontend/components/brands/brand.dialogs';
 
 // A brand's mark in its row (board BrandMenu), and the smaller overlapping
 // marks of Each channel's brand.
 const MARK = 'w-[28px] h-[28px] rounded-[7px] text-[12px]';
 const SMALL_MARK = 'w-[20px] h-[20px] rounded-[5px] text-[10px]';
 const SEPARATOR = 'h-px mx-[4px] my-[6px] bg-line';
+// The link-style row under a list: Manage brands, and Move to brand's
+// + New brand.
+const FOOTER_LINK = clsx(
+  'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
+  FOCUS_RING
+);
 
 // Up and Down move through the options, wrapping, as the channel list's
 // radios do (onRadioGroupKeyDown); the list runs top to bottom in either
@@ -53,6 +78,33 @@ const onListKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   }
   event.preventDefault();
   options[(from + step + options.length) % options.length].focus();
+};
+
+type HangingPanel = ReturnType<typeof useHangingPanel>;
+
+// The keys of the box that holds a brand list. Escape is the list's alone
+// while it is open. The AI image dialog behind it closes on an Escape that
+// reaches the document (new-modal.tsx), where React's listener sits too, so
+// only stopImmediatePropagation keeps the key from it, as the bottom sheets
+// do. The list hanging in the body comes after the rest of the page, so Tab
+// and Shift+Tab in it close it as a menu does, `close` giving the focus back
+// to the button; the sheet keeps its own Tab.
+const onMenuKeyDown = (
+  e: KeyboardEvent<HTMLDivElement>,
+  { panelRef, show }: HangingPanel,
+  close: () => void
+) => {
+  if (e.key === 'Tab' && panelRef.current?.contains(e.target as Node)) {
+    e.preventDefault();
+    close();
+    return;
+  }
+  if (e.key !== 'Escape' || !show) {
+    return;
+  }
+  e.stopPropagation();
+  e.nativeEvent.stopImmediatePropagation();
+  close();
 };
 
 // A choice: its mark, its name and the line under it, and a ✓ when it is the
@@ -109,64 +161,53 @@ const Option: FC<{
 );
 
 /**
- * The brand list (contracts/pages-ui.md part 2; boards BrandMenu and
- * SamyPhoneSheet), opened from a button the caller draws: Samy's brand chip,
- * titled for a message, and the AI image dialog's Brand field, titled for an
- * image. The brands A to Z, as the channel list orders them, each with its
- * mark and channel count; No brand; Manage brands to the Brands page. When
- * the picked channels span two or more brands, Each channel's brand comes
- * first. A ✓ marks the current choice; a pick hands on a brand's id,
- * NO_BRAND or EACH_BRAND and closes the list.
+ * A brand list while it is open, mounted with it: its title, Each channel's
+ * brand when `each` spans two or more brands, the brands A to Z, as the
+ * channel list orders them, each with its mark and its count of `channels`,
+ * No brand, then the `footer` its owner gives. A pick hands the choice on.
  *
- * On a wide screen the list hangs from the button as PostActionsMenu's does,
- * against the viewport, so Samy's message box, which clips its content, can't
- * hide it. It renders into the body: Samy's chat is a transformed box (`trz`,
- * agent.chat.tsx), and `fixed` inside one measures from that box, not the
- * viewport. So it sits over the modals (200 and up, new-modal.tsx), the AI
+ * On a wide screen it hangs from its owner's box as PostActionsMenu's list
+ * does, against the viewport, so Samy's message box, which clips its content,
+ * can't hide it. It renders into the body: Samy's chat is a transformed box
+ * (`trz`, agent.chat.tsx), and `fixed` inside one measures from that box, not
+ * the viewport. So it sits over the modals (200 and up, new-modal.tsx), the AI
  * image dialog among them, which no longer hold it. At 1025px and below it
  * opens as SplitPanel's bottom sheet, as the channel sheet does. Neither
  * animates.
  */
-export const BrandMenu: FC<{
-  // the organization's brands, as useBrands() gives them
+const BrandList: FC<{
+  // the owner's useHangingPanel(), whose box the list hangs from
+  hanging: HangingPanel;
+  // 1025px and below, read by the owner, which is there before the list
+  // opens: useMediaQuery answers false on its first render
+  sheet: boolean;
+  // shown over the options; it names the listbox and the sheet
+  title: string;
   brands: Brand[];
-  // the current choice, a brand's id, NO_BRAND or EACH_BRAND; none while
-  // the chip waits for one
+  // the channels each brand's count is taken over
+  channels: Channel[];
   value?: string;
-  // the ids of the brands the picked channels belong to: two or more offer
-  // Each channel's brand, with their marks
   each?: string[];
-  // titles the list for a message (the chip) or an image (the dialog)
-  variant: 'message' | 'image';
+  // No brand's line
+  noBrandSub: string;
+  footer: ReactNode;
   onPick: (choice: string) => void;
-  // the button's accessible name, what it shows, and its classes
-  label: string;
-  trigger: ReactNode;
-  triggerClassName: string;
+  onClose: () => void;
 }> = ({
+  hanging: { panelRef, show },
+  sheet,
+  title,
   brands,
+  channels,
   value,
   each,
-  variant,
+  noBrandSub,
+  footer,
   onPick,
-  label,
-  trigger,
-  triggerClassName,
+  onClose,
 }) => {
   const t = useT();
-  const isMobile = useMediaQuery(MOBILE_QUERY);
-  // A brand's channels come from the channel list, a disabled one too (C4).
-  const { data } = useIntegrationList();
-  const channels: Channel[] = data;
-  const { ref, panelRef, show, setShow, below } = useHangingPanel();
-  const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const open = !!show;
-
-  const title =
-    variant === 'image'
-      ? t('brands_for_this_image', 'Brand for this image')
-      : t('brands_for_this_message', 'Brand for this message');
 
   // The focus opens on the current choice, else on the first option, so the
   // arrows work at once. It scrolls nothing: a browser scrolls the boxes
@@ -174,44 +215,11 @@ export const BrandMenu: FC<{
   // closes it (useHangingPanel). The sheet's dialog takes it after, as every
   // SplitPanel sheet does, once its own media query has answered.
   useEffect(() => {
-    if (!open) {
-      return;
-    }
     (
       list.current?.querySelector<HTMLElement>('[aria-selected="true"]') ??
       list.current?.querySelector<HTMLElement>('[role="option"]')
     )?.focus({ preventScroll: true });
-  }, [open]);
-
-  const close = () => {
-    setShow(false);
-    button.current?.focus();
-  };
-
-  const pick = (choice: string) => {
-    close();
-    onPick(choice);
-  };
-
-  // Escape is the list's alone while it is open. The AI image dialog behind
-  // it closes on an Escape that reaches the document (new-modal.tsx), where
-  // React's listener sits too, so only stopImmediatePropagation keeps the key
-  // from it, as the bottom sheets do. The list hanging in the body comes
-  // after the rest of the page, so Tab and Shift+Tab in it close it as a
-  // menu does, the focus back on the button; the sheet keeps its own Tab.
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Tab' && panelRef.current?.contains(e.target as Node)) {
-      e.preventDefault();
-      close();
-      return;
-    }
-    if (e.key !== 'Escape' || !open) {
-      return;
-    }
-    e.stopPropagation();
-    e.nativeEvent.stopImmediatePropagation();
-    close();
-  };
+  }, []);
 
   const sorted = [...brands].sort(compareCustomers);
   const spanned = sorted.filter((brand) => each?.includes(brand.id));
@@ -223,7 +231,7 @@ export const BrandMenu: FC<{
         aria-hidden="true"
         className={clsx(
           'px-[10px] font-[600]',
-          isMobile
+          sheet
             ? 'pt-[14px] pb-[8px] text-[15px] text-ink'
             : 'pt-[8px] pb-[6px] text-[12px] text-muted'
         )}
@@ -260,8 +268,8 @@ export const BrandMenu: FC<{
                 'One image per brand, a credit each'
               )}
               selected={value === EACH_BRAND}
-              sheet={isMobile}
-              onPick={() => pick(EACH_BRAND)}
+              sheet={sheet}
+              onPick={() => onPick(EACH_BRAND)}
             />
             <div aria-hidden="true" className={SEPARATOR} />
           </>
@@ -278,8 +286,8 @@ export const BrandMenu: FC<{
               ).length,
             })}
             selected={value === brand.id}
-            sheet={isMobile}
-            onPick={() => pick(brand.id)}
+            sheet={sheet}
+            onPick={() => onPick(brand.id)}
           />
         ))}
         <div aria-hidden="true" className={SEPARATOR} />
@@ -291,36 +299,103 @@ export const BrandMenu: FC<{
             />
           }
           name={t('brands_no_brand', 'No brand')}
-          sub={t('brands_no_brand_sub', 'Sends no logo, examples or colours')}
+          sub={noBrandSub}
           selected={value === NO_BRAND}
-          sheet={isMobile}
-          onPick={() => pick(NO_BRAND)}
+          sheet={sheet}
+          onPick={() => onPick(NO_BRAND)}
         />
       </div>
-      {/* A new tab, so the AI image dialog, a post editor under it, or
-          Samy's message box keep what is in them. */}
-      <Link
-        href="/brands"
-        target="_blank"
-        rel="noreferrer"
-        onClick={() => setShow(false)}
-        className={clsx(
-          'self-start flex items-center gap-[8px] min-h-[44px] px-[10px] rounded-[8px] text-[13px] font-[600] text-brandText',
-          FOCUS_RING
-        )}
-      >
-        {t('brands_manage_brands', 'Manage brands')}
-        <ChevronRightIcon
-          size={14}
-          aria-hidden="true"
-          className="rtl:rotate-180"
-        />
-      </Link>
+      {footer}
     </>
   );
 
+  return sheet ? (
+    <SplitPanel open onClose={onClose} label={title}>
+      <div className="flex flex-col">{content}</div>
+    </SplitPanel>
+  ) : (
+    show &&
+      createPortal(
+        <div
+          ref={panelRef}
+          style={{ left: show.x, top: show.y }}
+          className="fixed z-[300] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
+        >
+          {content}
+        </div>,
+        document.body
+      )
+  );
+};
+
+/**
+ * The brand list (contracts/pages-ui.md part 2; boards BrandMenu and
+ * SamyPhoneSheet), opened from a button the caller draws: Samy's brand chip,
+ * titled for a message, and the AI image dialog's Brand field, titled for an
+ * image. The brands A to Z, as the channel list orders them, each with its
+ * mark and channel count; No brand; Manage brands to the Brands page. When
+ * the picked channels span two or more brands, Each channel's brand comes
+ * first. A ✓ marks the current choice; a pick hands on a brand's id,
+ * NO_BRAND or EACH_BRAND and closes the list. It hangs from the button, and
+ * at 1025px and below opens as a bottom sheet (BrandList).
+ */
+export const BrandMenu: FC<{
+  // the organization's brands, as useBrands() gives them
+  brands: Brand[];
+  // the current choice, a brand's id, NO_BRAND or EACH_BRAND; none while
+  // the chip waits for one
+  value?: string;
+  // the ids of the brands the picked channels belong to: two or more offer
+  // Each channel's brand, with their marks
+  each?: string[];
+  // titles the list for a message (the chip) or an image (the dialog)
+  variant: 'message' | 'image';
+  onPick: (choice: string) => void;
+  // the button's accessible name, what it shows, and its classes
+  label: string;
+  trigger: ReactNode;
+  triggerClassName: string;
+}> = ({
+  brands,
+  value,
+  each,
+  variant,
+  onPick,
+  label,
+  trigger,
+  triggerClassName,
+}) => {
+  const t = useT();
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  // A brand's channels come from the channel list, a disabled one too (C4).
+  const { data } = useIntegrationList();
+  const channels: Channel[] = data;
+  const hanging = useHangingPanel();
+  const { ref, show, setShow, below } = hanging;
+  const button = useRef<HTMLButtonElement>(null);
+  const open = !!show;
+
+  const title =
+    variant === 'image'
+      ? t('brands_for_this_image', 'Brand for this image')
+      : t('brands_for_this_message', 'Brand for this message');
+
+  const close = () => {
+    setShow(false);
+    button.current?.focus();
+  };
+
+  const pick = (choice: string) => {
+    close();
+    onPick(choice);
+  };
+
   return (
-    <div ref={ref} onKeyDown={onKeyDown} className="flex">
+    <div
+      ref={ref}
+      onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
+      className="flex"
+    >
       <button
         ref={button}
         type="button"
@@ -332,23 +407,155 @@ export const BrandMenu: FC<{
       >
         {trigger}
       </button>
-      {show &&
-        (isMobile ? (
-          <SplitPanel open onClose={close} label={title}>
-            <div className="flex flex-col">{content}</div>
-          </SplitPanel>
-        ) : (
-          createPortal(
-            <div
-              ref={panelRef}
-              style={{ left: show.x, top: show.y }}
-              className="fixed z-[300] w-[300px] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
+      {show && (
+        <BrandList
+          hanging={hanging}
+          sheet={isMobile}
+          title={title}
+          brands={brands}
+          channels={channels}
+          value={value}
+          each={each}
+          noBrandSub={t(
+            'brands_no_brand_sub',
+            'Sends no logo, examples or colours'
+          )}
+          footer={
+            // A new tab, so the AI image dialog, a post editor under it, or
+            // Samy's message box keep what is in them.
+            <Link
+              href="/brands"
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setShow(false)}
+              className={FOOTER_LINK}
             >
-              {content}
-            </div>,
-            document.body
-          )
-        ))}
+              {t('brands_manage_brands', 'Manage brands')}
+              <ChevronRightIcon
+                size={14}
+                aria-hidden="true"
+                className="rtl:rotate-180"
+              />
+            </Link>
+          }
+          onPick={pick}
+          onClose={close}
+        />
+      )}
     </div>
   );
 };
+
+// Move to brand's list, mounted while it is open, so the brands and the
+// channel list load when it opens, not with every channel row: a pick moves
+// the channel (nothing for the ✓ choice), + New brand opens New brand with
+// the channel and moves it into the brand once it is created.
+const MoveToBrandList: FC<{
+  hanging: HangingPanel;
+  sheet: boolean;
+  channel: Channel;
+  onClose: () => void;
+}> = ({ hanging, sheet, channel, onClose }) => {
+  const t = useT();
+  const { data: brands } = useBrands();
+  // A brand's channels come from the channel list, a disabled one too (C4).
+  const { data } = useIntegrationList();
+  const channels: Channel[] = data;
+  const move = useMoveChannels();
+  const { openNewBrand } = useBrandDialogs();
+  // '' is the route's No brand
+  const current = channel.customer?.id || '';
+
+  const pick = (choice: string) => {
+    const group = choice === NO_BRAND ? '' : choice;
+    onClose();
+    if (group !== current) {
+      move([channel.id], group);
+    }
+  };
+
+  const create = () => {
+    onClose();
+    openNewBrand((id) => move([channel.id], id), channel);
+  };
+
+  return (
+    <BrandList
+      hanging={hanging}
+      sheet={sheet}
+      title={t('brands_move_channel_to', 'Move {{channel}} to', {
+        channel: isolate(channel.name),
+        interpolation: { escapeValue: false },
+      })}
+      brands={brands ?? []}
+      channels={channels}
+      value={current || NO_BRAND}
+      noBrandSub={t(
+        'brands_no_brand_on_its_own',
+        'Listed on its own, outside any brand'
+      )}
+      footer={
+        <button type="button" onClick={create} className={FOOTER_LINK}>
+          <PlusIcon size={14} aria-hidden="true" />
+          {t('brands_new_brand', 'New brand')}
+        </button>
+      }
+      onPick={pick}
+      onClose={onClose}
+    />
+  );
+};
+
+/**
+ * Move to brand (spec 058, contracts/ui.md "The Move list"), for the channel
+ * ⋯ menu (menu/menu.tsx): the brand list, titled for the channel, opened
+ * through its handle by the menu's Move to brand. It is a held box, as a
+ * held PostActionsMenu is: laid over the ⋯ in the menu's relative box, it
+ * lets every press through to the ⋯ and hangs the list from it, from its
+ * other side in Arabic, and at 1025px and below holds the sheet, which takes
+ * presses. `data-open` while open keeps the row's ⋯ shown (channel.panel.tsx)
+ * while the pointer or the focus is in a list the body holds. Escape and Tab
+ * close it as BrandMenu's do, the focus going back to the ⋯ (`button`).
+ */
+export const MoveToBrandMenu = forwardRef<
+  PostActionsMenuHandle,
+  { channel: Channel; button: RefObject<HTMLButtonElement | null> }
+>(function MoveToBrandMenu({ channel, button }, handle) {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const hanging = useHangingPanel();
+  const { ref, show, setShow, below } = hanging;
+
+  useImperativeHandle(
+    handle,
+    () => ({
+      open: () => setShow(below()),
+      close: () => setShow(false),
+    }),
+    [below, setShow]
+  );
+
+  const close = () => {
+    setShow(false);
+    button.current?.focus();
+  };
+
+  return (
+    <div
+      ref={ref}
+      onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
+      data-open={show ? '' : undefined}
+      className="absolute inset-0 pointer-events-none"
+    >
+      {show && (
+        <div className="pointer-events-auto">
+          <MoveToBrandList
+            hanging={hanging}
+            sheet={isMobile}
+            channel={channel}
+            onClose={close}
+          />
+        </div>
+      )}
+    </div>
+  );
+});

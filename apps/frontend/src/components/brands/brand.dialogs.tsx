@@ -11,12 +11,18 @@ import { Input } from '@gitroom/react/form/input';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
-import { Channel } from '@gitroom/frontend/components/launches/channel.panel';
+import {
+  Channel,
+  ChannelPicture,
+  compareChannels,
+} from '@gitroom/frontend/components/launches/channel.panel';
 import {
   Brand,
   useBrandChange,
   useBrands,
+  useMoveChannels,
 } from '@gitroom/frontend/components/brands/use.brands';
+import { ChannelPicker } from '@gitroom/frontend/components/brands/brand.channels';
 import {
   MoveChannelsOffer,
   useCreateBrand,
@@ -34,14 +40,16 @@ const EditGroupNameModal = dynamic(() =>
 // widening the card.
 const DIALOG_WIDTH = 520;
 
-// New brand (board BrandsNew): the name, and on the organization's first
-// brand only, the offer to move the channels in no brand into it, ticked
-// (FR-005). A refusal, a taken name among them, keeps the dialog open and
-// says why in a toast.
+// New brand (board BrandsNew): the name, opened from a channel's Move to
+// brand the channel that moves into it, and on the organization's first brand
+// only, the offer to move the channels in no brand into it, ticked (FR-005).
+// A refusal, a taken name among them, keeps the dialog open and says why in a
+// toast.
 const NewBrand: FC<{
   close: () => void;
   onCreated: (id: string) => void;
-}> = ({ close, onCreated }) => {
+  channel?: Channel;
+}> = ({ close, onCreated, channel }) => {
   const t = useT();
   const toaster = useToaster();
   const { ungrouped, create } = useCreateBrand();
@@ -76,6 +84,17 @@ const NewBrand: FC<{
         autoFocus
         onChange={(e) => setName(e.target.value)}
       />
+      {!!channel && (
+        <div className="flex items-center gap-[12px] p-[12px] rounded-[10px] border border-line">
+          <ChannelPicture channel={channel} />
+          <span className="min-w-0 text-[14px] text-ink break-words">
+            {t('brands_channel_moves_into_it', '{{channel}} moves into it.', {
+              channel: isolate(channel.name),
+              interpolation: { escapeValue: false },
+            })}
+          </span>
+        </div>
+      )}
       {!!ungrouped && (
         <MoveChannelsOffer
           checked={move}
@@ -103,12 +122,14 @@ const NewBrand: FC<{
   );
 };
 
-// The Brands page's dialogs, for its New brand button, its Rename button and
-// its ⋯ menu. Each change reloads GET /brands and the channel list, which says
-// each channel's brand everywhere in the app.
+// The Brands page's dialogs, for its New brand button, its Rename button, its
+// ⋯ menu and its Add channels. Each change reloads the channel list, which says
+// each channel's brand everywhere in the app, and GET /brands when it changes
+// a brand.
 export const useBrandDialogs = () => {
   const t = useT();
   const send = useBrandChange();
+  const move = useMoveChannels();
   const modals = useModals();
   const { mutate: reloadBrands } = useBrands();
   const { data: integrations, mutate: reloadChannels } = useIntegrationList();
@@ -119,7 +140,9 @@ export const useBrandDialogs = () => {
     reloadChannels();
   };
 
-  const openNewBrand = (onCreated?: (id: string) => void) =>
+  // With the channel being moved, the window says it moves into the new
+  // brand, and onCreated moves it.
+  const openNewBrand = (onCreated?: (id: string) => void, channel?: Channel) =>
     modals.openModal({
       title: t('brands_new_brand', 'New brand'),
       size: DIALOG_WIDTH,
@@ -130,6 +153,7 @@ export const useBrandDialogs = () => {
             reload();
             onCreated?.(id);
           }}
+          channel={channel}
         />
       ),
     });
@@ -182,5 +206,25 @@ export const useBrandDialogs = () => {
       ),
     });
 
-  return { openNewBrand, openDeleteBrand, openRenameBrand };
+  // Add channels: the organization's channels in no brand or another one, in
+  // the channel list's order, the ticked ones moving into the brand. From the
+  // brand's Channels card, and from an empty brand in the calendar's list.
+  const openAddChannels = (brand: Pick<Brand, 'id' | 'name'>) =>
+    modals.openModal({
+      title: t('brands_add_channels', 'Add channels'),
+      children: (close) => (
+        <ChannelPicker
+          channels={channels
+            .filter((channel) => channel.customer?.id !== brand.id)
+            .sort(compareChannels)}
+          onAdd={(ids) => {
+            close();
+            move(ids, brand.id);
+          }}
+          onCancel={close}
+        />
+      ),
+    });
+
+  return { openNewBrand, openDeleteBrand, openRenameBrand, openAddChannels };
 };
