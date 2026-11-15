@@ -11,7 +11,8 @@ import { createRoot } from 'react-dom/client';
 // its own `left` plus that offset.
 
 // Everything below is scenery: the menu has to mount. Only the calendar's one
-// channel is read, and none of it is asserted on.
+// channel is read: its fields and the four flags choose the menu's rows, which
+// the items table at the end pins.
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => async () => ({ json: async () => ({}) }),
 }));
@@ -27,16 +28,19 @@ jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
 jest.mock('@gitroom/frontend/components/launches/time.table', () => ({
   TimeTable: () => null,
 }));
+// The channel as GET /integrations/list sends it, which sends
+// `additionalSettings` as '[]' when the channel has none. A case sets its own.
+const CHANNEL = {
+  id: 'channel',
+  name: 'BlogChief',
+  originalName: 'BlogChief',
+  identifier: 'instagram-standalone',
+  additionalSettings: '[]',
+};
+let mockChannel: Record<string, unknown> = CHANNEL;
 jest.mock('@gitroom/frontend/components/launches/calendar.context', () => ({
   useCalendar: () => ({
-    integrations: [
-      {
-        id: 'channel',
-        name: 'BlogChief',
-        originalName: 'BlogChief',
-        identifier: 'instagram-standalone',
-      },
-    ],
+    integrations: [mockChannel],
     reloadCalendarView: () => undefined,
   }),
 }));
@@ -94,7 +98,17 @@ const trigger = () =>
 const mounted: Array<{ unmount: () => void }> = [];
 const size = { width: window.innerWidth, height: window.innerHeight };
 
-const render = async (label?: string) => {
+// The four flags the channel list passes, all off unless a case sets one: a
+// disabled channel at the plan's limit, with no bot picture or nickname.
+const NO_FLAGS = {
+  canEnable: false,
+  canDisable: false,
+  canChangeProfilePicture: false,
+  canChangeNickName: false,
+};
+type Flags = Partial<typeof NO_FLAGS>;
+
+const render = async (label?: string, flags: Flags = {}) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -102,10 +116,8 @@ const render = async (label?: string) => {
   await act(async () => {
     root.render(
       <Menu
-        canEnable={false}
-        canDisable={false}
-        canChangeProfilePicture={false}
-        canChangeNickName={false}
+        {...NO_FLAGS}
+        {...flags}
         refreshChannel={() => () => undefined}
         id="channel"
         mutate={() => undefined}
@@ -120,8 +132,8 @@ const click = async () => {
     trigger().dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
 };
-const open = async () => {
-  await render();
+const open = async (flags?: Flags) => {
+  await render(undefined, flags);
   await click();
 };
 const press = async (node: Element, key: string) => {
@@ -165,6 +177,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   triggerLeft = 120;
   containerLeft = 0;
+  mockChannel = CHANNEL;
   jest.restoreAllMocks();
   Object.defineProperty(window, 'innerWidth', {
     configurable: true,
@@ -307,5 +320,217 @@ describe('the trigger (FR-052)', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(field);
     expect(documentEscape).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Which rows the menu shows, in which order, for each state a channel can be
+// in, as on main at 5be5e781c. Spec 058 restyles the menu and hands its Move /
+// add to group to a brand list, and keeps every row, its order and its
+// condition, so this table stays as it is.
+const rows = () => Array.from(menu().children).map((row) => row.textContent);
+// A channel signed in with fields of its own (dev.to's API key), not OAuth.
+const CREDENTIALS = {
+  isCustomFields: true,
+  customFields: [
+    {
+      key: 'apiKey',
+      label: 'API key',
+      validation: '/^.{3,}$/',
+      type: 'password',
+    },
+  ],
+};
+
+describe('the channel menu items, by channel state (SC-008)', () => {
+  it.each<{
+    state: string;
+    flags: Flags;
+    channel?: Record<string, unknown>;
+    labels: string[];
+  }>([
+    {
+      state: 'an enabled channel',
+      flags: { canDisable: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a disabled channel with room on the plan',
+      flags: { canEnable: true },
+      labels: [
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Enable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: "a disabled channel at the plan's limit",
+      flags: {},
+      labels: [
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel that needs reconnecting',
+      flags: { canDisable: true },
+      channel: { refreshNeeded: true },
+      labels: [
+        'Copy Channel ID',
+        'Reconnect channel',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with credentials that needs reconnecting',
+      flags: { canDisable: true },
+      channel: { refreshNeeded: true, ...CREDENTIALS },
+      labels: [
+        'Copy Channel ID',
+        'Update Credentials',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with credentials',
+      flags: { canDisable: true },
+      channel: CREDENTIALS,
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Update Credentials',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with no additional settings',
+      flags: { canDisable: true },
+      channel: { additionalSettings: '[]' },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'an enabled channel with additional settings',
+      flags: { canDisable: true },
+      // X's, as x.provider.ts sends them
+      channel: {
+        additionalSettings: JSON.stringify([
+          {
+            title: 'Verified',
+            description: 'Is this a verified user? (Premium)',
+            type: 'checkbox',
+            value: false,
+          },
+        ]),
+      },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Additional Settings',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change its picture',
+      flags: { canDisable: true, canChangeProfilePicture: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Picture',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change its nickname',
+      flags: { canDisable: true, canChangeNickName: true },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Nickname',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a bot that can change both',
+      flags: {
+        canDisable: true,
+        canChangeProfilePicture: true,
+        canChangeNickName: true,
+      },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Change Bot Picture / Nickname',
+        'Rename channel',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+    {
+      state: 'a renamed channel',
+      flags: { canDisable: true },
+      channel: { name: 'BlogChief News' },
+      labels: [
+        'Create a new post',
+        'Copy Channel ID',
+        'Rename channel',
+        'Reset to original name',
+        'Move / add to group',
+        'Edit Time Slots',
+        'Disable Channel',
+        'Delete',
+      ],
+    },
+  ])('$state', async ({ flags, channel, labels }) => {
+    mockChannel = { ...CHANNEL, ...channel };
+    await open(flags);
+
+    expect(rows()).toEqual(labels);
   });
 });
