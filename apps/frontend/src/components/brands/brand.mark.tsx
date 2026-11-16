@@ -1,13 +1,16 @@
 'use client';
 
-import { FC } from 'react';
+import { FC, SyntheticEvent, useState } from 'react';
 import clsx from 'clsx';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
-import SafeImage from '@gitroom/react/helpers/safe.image';
 import {
   Brand,
   liveLogo,
 } from '@gitroom/frontend/components/brands/use.brands';
+import {
+  LOGO_TILE_DARK,
+  LOGO_TILE_LIGHT,
+} from '@gitroom/frontend/components/brands/brand.website';
 
 export type LogoTone = 'light' | 'dark' | null;
 
@@ -62,6 +65,72 @@ export const logoTone = (pixels: ArrayLike<number>): LogoTone => {
   return dark >= visible * NEARLY_ALL ? 'dark' : null;
 };
 
+// Each logo's tone once read, by src, so a mark mounted later draws its tile
+// from the first render.
+const tones = new Map<string, LogoTone>();
+
+// A loaded logo's tone, read on a SAMPLE × SAMPLE canvas; null where the
+// browser gives no 2D context or refuses the pixels.
+const readTone = (img: HTMLImageElement): LogoTone => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = SAMPLE;
+    canvas.height = SAMPLE;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return null;
+    }
+    context.drawImage(img, 0, 0, SAMPLE, SAMPLE);
+    return logoTone(context.getImageData(0, 0, SAMPLE, SAMPLE).data);
+  } catch {
+    return null;
+  }
+};
+
+// A brand's logo, on a tile that follows its tone: a light logo on the dark
+// one, a dark logo on the light one, any other on the initial's. Asked for
+// with CORS so its pixels can be read; where that request fails it loads
+// again without, and keeps the initial's tile.
+const LogoMark: FC<{ src: string; className: string }> = ({
+  src,
+  className,
+}) => {
+  const [cors, setCors] = useState(true);
+  const [tone, setTone] = useState<LogoTone>(() => tones.get(src) ?? null);
+
+  const read = (event: SyntheticEvent<HTMLImageElement>) => {
+    if (!cors) {
+      return;
+    }
+    const found = readTone(event.currentTarget);
+    tones.set(src, found);
+    setTone(found);
+  };
+
+  const fallBack = () => setCors(false);
+
+  return (
+    <img
+      src={src}
+      alt=""
+      crossOrigin={cors ? 'anonymous' : undefined}
+      onLoad={read}
+      onError={fallBack}
+      className={clsx(
+        'flex-none object-contain p-[3px] bg-surface2',
+        className
+      )}
+      style={
+        tone === 'light'
+          ? LOGO_TILE_DARK
+          : tone === 'dark'
+          ? LOGO_TILE_LIGHT
+          : undefined
+      }
+    />
+  );
+};
+
 // A brand's logo, or its initial while it has none or the logo was deleted
 // from Media. Decoration: the brand's name is beside it. The Brands page's
 // and the brand list's (brand.menu.tsx); each gives its size. The logo fits
@@ -76,13 +145,10 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
 
   if (logo) {
     return (
-      <SafeImage
+      <LogoMark
+        key={logo.path}
         src={mediaDirectory.set(logo.path)}
-        alt=""
-        className={clsx(
-          'flex-none object-contain p-[3px] bg-surface2',
-          className
-        )}
+        className={className}
       />
     );
   }
