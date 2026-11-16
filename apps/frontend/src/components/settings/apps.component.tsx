@@ -5,6 +5,12 @@ import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { DeveloperComponent } from '@gitroom/frontend/components/developer/developer.component';
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 export const AppsComponent: FC<{ canManageApps: boolean }> = ({
   canManageApps,
@@ -15,18 +21,16 @@ export const AppsComponent: FC<{ canManageApps: boolean }> = ({
 
   return (
     <div className="flex flex-col gap-[20px]">
-      <h3 className="text-[20px]">{t('apps', 'Apps')}</h3>
+      <h3 className="text-[20px] font-[600]">{t('apps', 'Apps')}</h3>
       {canManageApps && (
-        <div className="flex gap-[6px]">
+        <div className={clsx(SWITCH_GROUP, 'self-start')}>
           {(['apps', 'approved_apps'] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               className={clsx(
-                'cursor-pointer px-[20px] h-[44px] coarse:min-h-[44px] text-[15px] font-[600] rounded-[8px] transition-colors focus-visible:ring-2 focus-visible:ring-brand',
-                current === tab
-                  ? 'bg-brandSoft text-brandText font-[600]'
-                  : 'bg-btnSimple text-muted hover:bg-boxHover hover:text-textColor'
+                SWITCH_OPTION,
+                current === tab ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
               )}
               onClick={() => setSubTab(tab)}
             >

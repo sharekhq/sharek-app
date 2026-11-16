@@ -12,6 +12,12 @@ import {
 } from '@gitroom/frontend/components/media/media.component';
 import copy from 'copy-to-clipboard';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { buttonClassName } from '@gitroom/react/form/button';
+
+// The tab's buttons, from the dashboard's one button set.
+const SMALL_BUTTON = buttonClassName({ variant: 'secondary', size: 'small' });
+const PRIMARY_BUTTON = buttonClassName({ variant: 'primary', size: 'medium' });
+const GHOST_BUTTON = buttonClassName({ variant: 'ghost', size: 'medium' });
 
 const useOAuthApp = () => {
   const fetch = useFetch();
@@ -49,7 +55,7 @@ const CopyButton = ({
           'success'
         );
       }}
-      className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+      className={SMALL_BUTTON}
     >
       <svg
         width="14"
@@ -275,7 +281,7 @@ export const DeveloperComponent: FC = () => {
             </div>
             <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
               <a
-                className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+                className={SMALL_BUTTON}
                 href="https://docs.sharek.app/api/oauth"
                 target="_blank"
               >
@@ -288,7 +294,7 @@ export const DeveloperComponent: FC = () => {
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
+              className={PRIMARY_BUTTON}
             >
               {t('create_oauth_app', 'Create OAuth App')}
             </button>
@@ -331,7 +337,7 @@ export const DeveloperComponent: FC = () => {
                 {t('app_name', 'App Name')} *
               </label>
               <input
-                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] text-textColor outline-none"
+                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] text-textColor outline-none"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('placeholder_my_application', 'My Application')}
@@ -369,7 +375,7 @@ export const DeveloperComponent: FC = () => {
                 <button
                   type="button"
                   onClick={openMedia}
-                  className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600]"
+                  className={SMALL_BUTTON}
                 >
                   {t('choose_image', 'Choose Image')}
                 </button>
@@ -380,7 +386,7 @@ export const DeveloperComponent: FC = () => {
                 {t('redirect_url', 'Redirect URL')} *
               </label>
               <input
-                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] text-textColor outline-none"
+                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] text-textColor outline-none"
                 value={redirectUrl}
                 onChange={(e) => setRedirectUrl(e.target.value)}
                 placeholder="https://yourapp.com/callback"
@@ -390,14 +396,14 @@ export const DeveloperComponent: FC = () => {
               <button
                 type="button"
                 onClick={createApp}
-                className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
+                className={PRIMARY_BUTTON}
               >
                 {t('create', 'Create')}
               </button>
               <button
                 type="button"
                 onClick={() => setCreating(false)}
-                className="cursor-pointer px-[20px] h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[15px] font-[600]"
+                className={GHOST_BUTTON}
               >
                 {t('cancel', 'Cancel')}
               </button>
@@ -438,7 +444,7 @@ export const DeveloperComponent: FC = () => {
           </div>
           <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <a
-              className="cursor-pointer px-[16px] h-[36px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              className={SMALL_BUTTON}
               href="https://docs.sharek.app/api/oauth"
               target="_blank"
             >
@@ -455,7 +461,7 @@ export const DeveloperComponent: FC = () => {
                 {t('app_name', 'App Name')} *
               </label>
               <input
-                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] text-textColor outline-none"
+                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] text-textColor outline-none"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('placeholder_my_application', 'My Application')}
@@ -590,7 +596,7 @@ export const DeveloperComponent: FC = () => {
             <div className="text-[13px] font-[600] text-muted">
               {t('client_secret', 'Client Secret')}
             </div>
-            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] flex items-center overflow-hidden">
               {plaintextSecret ? (
                 <code className="text-[14px] flex-1 truncate">
                   {plaintextSecret}

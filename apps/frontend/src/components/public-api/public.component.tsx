@@ -12,6 +12,16 @@ import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal'
 import { McpClientIcon } from '@gitroom/frontend/components/public-api/mcp.client.icons';
 import clsx from 'clsx';
 import i18next from 'i18next';
+import { buttonClassName } from '@gitroom/react/form/button';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
+
+// The tab's copy, reveal, rotate and wizard buttons and its docs links.
+const SMALL_BUTTON = buttonClassName({ variant: 'secondary', size: 'small' });
 
 // Remote clients can't set headers, they get a URL to paste (hint = where)
 export const remoteMcpClients = {
@@ -349,7 +359,7 @@ export const CopyButton = ({
           'success'
         );
       }}
-      className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+      className={SMALL_BUTTON}
     >
       <svg
         width="14"
@@ -416,7 +426,7 @@ const McpSection = ({
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
           <a
-            className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+            className={SMALL_BUTTON}
             href="https://docs.sharek.app/mcp/introduction"
             target="_blank"
           >
@@ -431,16 +441,14 @@ const McpSection = ({
             <div className="text-[13px] font-[600] text-muted">
               {t('auth_method', 'Authentication')}
             </div>
-            <div className="flex gap-[6px]">
+            <div className={clsx(SWITCH_GROUP, 'self-start')}>
               {(['oauth', 'apikey'] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   className={clsx(
-                    'cursor-pointer px-[14px] h-[36px] coarse:min-h-[44px] text-[13px] font-[500] rounded-[8px] transition-colors focus-visible:ring-2 focus-visible:ring-brand',
-                    auth === m
-                      ? 'bg-brandSoft text-brandText font-[600]'
-                      : 'bg-btnSimple text-muted hover:bg-boxHover hover:text-textColor'
+                    SWITCH_OPTION,
+                    auth === m ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
                   )}
                   onClick={() => setAuth(m)}
                 >
@@ -456,7 +464,7 @@ const McpSection = ({
           <div className="text-[13px] font-[600] text-muted">
             {t('mcp_client', 'Client')}
           </div>
-          <div className="flex flex-wrap gap-[6px]">
+          <div className={clsx(SWITCH_GROUP, 'flex-wrap')}>
             {[
               ...Object.keys(remoteMcpClients),
               ...mcpClients,
@@ -466,10 +474,11 @@ const McpSection = ({
                 key={client}
                 type="button"
                 className={clsx(
-                  'cursor-pointer px-[14px] h-[36px] coarse:min-h-[44px] text-[13px] font-[500] rounded-[8px] transition-colors flex items-center gap-[8px] focus-visible:ring-2 focus-visible:ring-brand',
+                  SWITCH_OPTION,
+                  'gap-[8px]',
                   activeClient === client
-                    ? 'bg-brandSoft text-brandText font-[600]'
-                    : 'bg-btnSimple text-muted hover:bg-boxHover hover:text-textColor'
+                    ? SWITCH_OPTION_ON
+                    : SWITCH_OPTION_IDLE
                 )}
                 onClick={() =>
                   setActiveClient(client as AnyMcpClient)
@@ -499,7 +508,7 @@ const McpSection = ({
               <button
                 type="button"
                 onClick={() => setRevealed(!revealed)}
-                className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+                className={SMALL_BUTTON}
               >
                 <svg
                   width="14"
@@ -614,7 +623,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
           <a
-            className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+            className={SMALL_BUTTON}
             href="https://docs.sharek.app/cli/introduction"
             target="_blank"
           >
@@ -624,16 +633,14 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
-        <div className="flex gap-[6px]">
+        <div className={clsx(SWITCH_GROUP, 'self-start')}>
           {(['local', 'ci'] as const).map((m) => (
             <button
               key={m}
               type="button"
               className={clsx(
-                'cursor-pointer px-[14px] h-[36px] coarse:min-h-[44px] text-[13px] font-[500] rounded-[8px] transition-colors focus-visible:ring-2 focus-visible:ring-brand',
-                mode === m
-                  ? 'bg-brandSoft text-brandText font-[600]'
-                  : 'bg-btnSimple text-muted hover:bg-boxHover hover:text-textColor'
+                SWITCH_OPTION,
+                mode === m ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
               )}
               onClick={() => setMode(m)}
             >
@@ -658,7 +665,7 @@ const CliSection = ({ apiKey }: { apiKey: string }) => {
             <button
               type="button"
               onClick={() => setRevealed(!revealed)}
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+              className={SMALL_BUTTON}
             >
               <svg
                 width="14"
@@ -770,7 +777,7 @@ const PublicApiContent = () => {
           </div>
           <div className="flex gap-[6px] shrink-0 pt-[2px]">
             <a
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+              className={SMALL_BUTTON}
               href="https://docs.sharek.app/api/introduction"
               target="_blank"
             >
@@ -778,7 +785,7 @@ const PublicApiContent = () => {
             {t('read_the_docs', 'Docs')}
             </a>
             <a
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-quiet border border-line hover:bg-surface2 text-ink transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+              className={SMALL_BUTTON}
               href="https://www.npmjs.com/package/n8n-nodes-sharek"
               target="_blank"
             >
@@ -788,7 +795,7 @@ const PublicApiContent = () => {
           </div>
         </div>
         <div className="p-[20px] flex flex-col gap-[16px]">
-          <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+          <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] flex items-center overflow-hidden">
             <code className="text-[14px] flex-1 truncate">
               {reveal ? (
                 user.publicApi
@@ -809,7 +816,7 @@ const PublicApiContent = () => {
             <button
               type="button"
               onClick={() => setReveal(!reveal)}
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+              className={SMALL_BUTTON}
             >
               <svg
                 width="14"
@@ -837,11 +844,7 @@ const PublicApiContent = () => {
               {reveal ? t('hide', 'Hide') : t('reveal', 'Reveal')}
             </button>
             <CopyButton text={user.publicApi} label={t('copy', 'Copy')} />
-            <button
-              type="button"
-              onClick={rotateKey}
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
-            >
+            <button type="button" onClick={rotateKey} className={SMALL_BUTTON}>
               <svg
                 width="14"
                 height="14"
@@ -867,7 +870,7 @@ const PublicApiContent = () => {
               onClick={() =>
                 window.open(`${frontEndUrl}/modal/dark/all`, '_blank')
               }
-              className="cursor-pointer px-[16px] h-[36px] coarse:min-h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px] focus-visible:ring-2 focus-visible:ring-brand"
+              className={SMALL_BUTTON}
             >
               <svg
                 width="14"
@@ -916,7 +919,7 @@ export const PublicComponent = () => {
 
   return (
     <div className="flex flex-col gap-[20px]">
-      <h3 className="text-[20px]">
+      <h3 className="text-[20px] font-[600]">
         {t('developers', 'Developers')}
         {currentOrg?.name ? ` - ${currentOrg.name}` : ''}
       </h3>

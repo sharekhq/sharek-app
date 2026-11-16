@@ -174,8 +174,8 @@ const half = (option: Element) => {
   return 'mixed';
 };
 const options = (host: HTMLElement, first: string) =>
-  Array.from(
-    button(host, first).parentElement!.querySelectorAll(':scope > button')
+  Array.from(button(host, first).parentElement!.children).filter(
+    (element) => element.tagName === 'BUTTON'
   );
 
 afterEach(() => {
