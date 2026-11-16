@@ -12,8 +12,12 @@
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -209,5 +213,124 @@ describe('Every new class', () => {
       rules(css, 'disabled:opacity-50').map((r) => r.selector),
       ['.disabled:opacity-50:disabled']
     );
+  });
+});
+
+// Samy's chat is styled from global.scss against CopilotKit 1.72's own
+// stylesheet, which the app loads after it, so a global.scss rule only takes
+// where its selector outweighs CopilotKit's. The describes below read both
+// sheets, as those rules are no class.
+const require = createRequire(import.meta.url);
+// Classes and attributes; `:has()` weighs as its argument.
+const weight = (selector) => (selector.match(/[.[]/g) || []).length;
+// The compound a selector styles: its last, once `(…)` arguments are gone.
+const subject = (selector) =>
+  selector
+    .replace(/\([^()]*\)/g, '')
+    .split(/[\s>+~]+/)
+    .pop();
+const vendorSheet = () =>
+  postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+const appSheet = () =>
+  postcss.parse(
+    sass.compile(
+      fileURLToPath(
+        new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
+      ),
+      {
+        loadPaths: [
+          fileURLToPath(new URL('../../node_modules', import.meta.url)),
+        ],
+      }
+    ).css
+  );
+
+// Samy's column (§4): the messages and the message box sit on the page's
+// gutter, PAGE_PADDING's 20px and 12px at 1025px and below, as the header
+// above them does. Both are CopilotKit's boxes, padded from global.scss's
+// `.agent` block.
+describe("Samy's column", () => {
+  const MESSAGES = '.copilotKitMessagesContainer';
+  const INPUT = '.copilotKitInputContainer';
+  // Every padding declaration on a rule that styles one of the two boxes, in
+  // sheet order, as [selector, property, value, !important, the at-rule it
+  // sits in]; `which` picks the selectors.
+  const paddings = (sheet, which) => {
+    const found = [];
+    sheet.walkDecls(/^padding/, (decl) => {
+      const rule = decl.parent;
+      if (rule.type !== 'rule') return;
+      const atRule =
+        rule.parent.type === 'atrule'
+          ? `@${rule.parent.name} ${collapse(rule.parent.params)}`
+          : null;
+      for (const selector of rule.selectors.map(collapse)) {
+        if (which(selector)) {
+          found.push([
+            selector,
+            decl.prop,
+            decl.value,
+            !!decl.important,
+            atRule,
+          ]);
+        }
+      }
+    });
+    return found;
+  };
+  const isBox = (selector) => [MESSAGES, INPUT].includes(subject(selector));
+  const own = (selector) =>
+    selector === `.agent ${MESSAGES}` || selector === `.agent ${INPUT}`;
+
+  test('pads the messages 20px and the message box 0 20px, 12px at 1025px and below', () => {
+    assert.deepEqual(paddings(appSheet(), own), [
+      [`.agent ${MESSAGES}`, 'padding', '20px', false, null],
+      [`.agent ${INPUT}`, 'padding', '0 20px', true, null],
+      [`.agent ${MESSAGES}`, 'padding', '12px', false, MOBILE],
+      [`.agent ${INPUT}`, 'padding', '0 12px', true, MOBILE],
+    ]);
+  });
+
+  test("out-ranks CopilotKit's padding on each box", () => {
+    const vendor = paddings(vendorSheet(), isBox);
+    assert.deepEqual(
+      vendor.map(([selector, prop, value, , atRule]) => [
+        selector,
+        prop,
+        value,
+        atRule,
+      ]),
+      [
+        [INPUT, 'padding', '0', null],
+        [INPUT, 'padding-bottom', '15px', null],
+        [MESSAGES, 'padding', '1rem 24px', null],
+      ],
+      "CopilotKit's padding on Samy's boxes changed; re-check contracts/ui.md §4"
+    );
+
+    const app = paddings(appSheet(), own);
+    assert.equal(app.length, 4);
+    for (const [selector] of app) {
+      for (const [theirs] of vendor.filter(
+        ([other]) => subject(other) === subject(selector)
+      )) {
+        assert.ok(
+          weight(selector) > weight(theirs),
+          `${selector} doesn't outweigh CopilotKit's ${theirs}`
+        );
+      }
+    }
+  });
+
+  test('nests no `.agent` inside `.agent`', () => {
+    const nested = [];
+    appSheet().walkRules((rule) => {
+      for (const selector of rule.selectors.map(collapse)) {
+        if (selector.startsWith('.agent .agent')) nested.push(selector);
+      }
+    });
+    assert.deepEqual(nested, []);
   });
 });
