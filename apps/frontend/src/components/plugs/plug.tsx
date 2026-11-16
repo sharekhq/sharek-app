@@ -27,6 +27,7 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/modal.wrapper.component';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 export function convertBackRegex(s: string) {
   const matches = s.match(/\/(.*)\/([a-z]*)/);
   const pattern = matches?.[1] || '';
@@ -214,7 +215,10 @@ export const PlugItem: FC<{
       key={plug.title}
       className="w-full h-full min-h-[100px] rounded-[12px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card cursor-pointer"
     >
-      <div key={plug.title} className="p-[20px] h-full flex flex-col flex-1 gap-[15px]">
+      <div
+        key={plug.title}
+        className={clsx(CARD_PADDING, 'h-full flex flex-col flex-1 gap-[15px]')}
+      >
         <div className="flex">
           <div className="text-lg flex-1">
             {t(deriveTranslationKey('plug', plug.title), plug.title)}
