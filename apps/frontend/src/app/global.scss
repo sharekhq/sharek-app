@@ -941,6 +941,33 @@ html[dir='rtl'] .lbox {
   }
 }
 
+/* Samy's text on a wide screen: messages 15px with 24px lines, and the message
+   box 15px under a mouse or trackpad. At 1025px and below, and under a finger
+   at any width, the box keeps 16px so iOS doesn't zoom into it. The `.agent`
+   ancestors outrank CopilotKit's rules, which load after this file, and the
+   16px box rule below. Outside the `.agent { }` block on purpose: nested in it,
+   these selectors would read `.agent .agent` and match nothing. */
+@media (min-width: 1026px) {
+  .agent .copilotKitMessages .copilotKitMessage,
+  .agent .copilotKitMessages .copilotKitParagraph {
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  /* Arabic keeps its taller lines (the `html[lang='ar']` rule further down),
+     out-ranking the 24px above. */
+  html[lang='ar'] .agent .copilotKitMessages .copilotKitMessage,
+  html[lang='ar'] .agent .copilotKitMessages .copilotKitParagraph {
+    line-height: 1.65;
+  }
+}
+
+@media (min-width: 1026px) and (pointer: fine) {
+  .agent .copilotKitInputContainer .copilotKitInput > textarea {
+    font-size: 15px;
+  }
+}
+
 /* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem).
    The container ancestor is required: CopilotKit's stylesheet loads after
    global.scss, so an equal-specificity selector would lose the cascade. */
