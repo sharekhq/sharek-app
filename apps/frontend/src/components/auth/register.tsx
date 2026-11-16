@@ -146,7 +146,7 @@ export function RegisterAfter({
       <form className="flex-1 flex" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col flex-1">
           <div>
-            <h1 className="text-[40px] font-[500] -tracking-[0.8px] text-start">
+            <h1 className="text-[32px] font-[600] leading-[1.2] text-start">
               {t('sign_up', 'Sign Up')}
             </h1>
           </div>
@@ -235,7 +235,8 @@ export function RegisterAfter({
                 <div className="w-full flex">
                   <Button
                     type="submit"
-                    className="flex-1 rounded-[10px] !h-[52px]"
+                    size="large"
+                    className="flex-1"
                     loading={loading}
                   >
                     {t('create_account', 'Create Account')}
