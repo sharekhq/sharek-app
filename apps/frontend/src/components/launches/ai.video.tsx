@@ -899,12 +899,17 @@ export const Modal: FC<{
             <ModalActionBar>
               {phase === 'result' ? (
                   <>
-                    <Button variant="secondary" onClick={backFromResult}>
+                    <Button
+                      variant="secondary"
+                      size="large"
+                      onClick={backFromResult}
+                    >
                       {handshake?.backLabel}
                     </Button>
                     <div className="flex-1" />
                     <Button
                       variant="ghost"
+                      size="large"
                       onClick={() => handshake?.regenerate()}
                     >
                       {t('regenerate', 'Regenerate')}
@@ -912,7 +917,9 @@ export const Modal: FC<{
                         · {t('one_credit', '1 credit')}
                       </span>
                     </Button>
-                    <Button onClick={useVideoInPost}>{acceptLabel}</Button>
+                    <Button size="large" onClick={useVideoInPost}>
+                      {acceptLabel}
+                    </Button>
                   </>
                 ) : videoOwnsActions(type.identifier) ? (
                   // The provider owns the whole row: it is the only side that
@@ -928,7 +935,9 @@ export const Modal: FC<{
                       {t('video_uses_one_credit', 'Uses 1 video credit')}
                     </CostNote>
                     <div className="flex-1" />
-                    <Button type="submit">{t('generate', 'Generate')}</Button>
+                    <Button type="submit" size="large">
+                      {t('generate', 'Generate')}
+                    </Button>
                   </>
                 )}
             </ModalActionBar>
