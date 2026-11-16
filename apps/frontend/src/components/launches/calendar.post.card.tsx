@@ -209,7 +209,7 @@ export const CalendarPostCard = forwardRef<
       <div
         className={clsx(
           post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2',
+          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-t-[8px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2',
           compact && 'mobile:hidden'
         )}
         style={{
