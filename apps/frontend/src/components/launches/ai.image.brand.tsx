@@ -12,6 +12,7 @@ import SafeImage from '@gitroom/react/helpers/safe.image';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { BrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import {
+  BrandLogo,
   BrandMark,
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
@@ -254,10 +255,11 @@ export const BrandField: FC<{
           <div className="flex items-center gap-[6px] text-[12px] text-muted">
             <span>{t('brands_goes_along', 'Goes along:')}</span>
             {logoPath && (
-              <SafeImage
+              <BrandLogo
+                key={logoPath}
                 src={mediaDirectory.set(logoPath)}
                 alt={t('brands_logo', 'Logo')}
-                className={clsx(KIT_THUMBNAIL, 'object-contain')}
+                className={KIT_THUMBNAIL}
               />
             )}
             {example && (

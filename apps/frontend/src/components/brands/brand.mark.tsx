@@ -99,11 +99,14 @@ const readTone = (img: HTMLImageElement): LogoTone => {
 // one, a dark logo on the light one, any other on the initial's. Asked for
 // with CORS so its pixels can be read, once per src; where that request fails
 // it loads again without and keeps the initial's tile, and later marks of it
-// ask without CORS from the start.
-const BrandLogo: FC<{ src: string; className: string }> = ({
-  src,
-  className,
-}) => {
+// ask without CORS from the start. BrandMark's, as decoration (no alt), and
+// the AI image window's Goes along logo (ai.image.brand.tsx), named Logo.
+// Each caller keys it by the logo's path.
+export const BrandLogo: FC<{
+  src: string;
+  className: string;
+  alt?: string;
+}> = ({ src, className, alt = '' }) => {
   const [cors, setCors] = useState(() => !refused.has(src));
   const [tone, setTone] = useState<LogoTone>(() => tones.get(src) ?? null);
 
@@ -124,7 +127,7 @@ const BrandLogo: FC<{ src: string; className: string }> = ({
   return (
     <img
       src={src}
-      alt=""
+      alt={alt}
       crossOrigin={cors ? 'anonymous' : undefined}
       onLoad={read}
       onError={fallBack}
