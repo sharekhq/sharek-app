@@ -135,8 +135,9 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/billing/finish.trial', () => ({
   FinishTrial: () => null,
 }));
+// Leaves a mark, so a case can tell whether the page offers Log out.
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => null,
+  LogoutComponent: () => <span data-logout />,
 }));
 jest.mock('@gitroom/react/form/textarea', () => ({ Textarea: () => null }));
 
@@ -792,6 +793,18 @@ describe('the FAQ', () => {
     const host = await render(sub);
 
     expect(host.querySelector('[data-faq]')).toBeNull();
+  });
+});
+
+// Log out lives in the account menu; the billing page does not repeat it (FR-020, FR-021).
+describe('Log out', () => {
+  it.each([
+    ['paid on the web', SUB],
+    ['managed by the app store', subscription('TEAM', { platform: 'mobile' })],
+  ])('is not on the billing page (%s)', async (_state, sub) => {
+    const host = await render(sub);
+
+    expect(host.querySelector('[data-logout]')).toBeNull();
   });
 });
 

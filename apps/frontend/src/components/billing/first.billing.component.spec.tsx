@@ -94,8 +94,9 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/ui/logo-text.component', () => ({
   LogoTextComponent: () => null,
 }));
+// Leaves a mark, so a case can tell whether the checkout offers Log out.
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => null,
+  LogoutComponent: () => <span data-logout />,
 }));
 jest.mock(
   '@gitroom/frontend/components/developer/developer.icon.component',
@@ -222,6 +223,14 @@ describe('the paywall', () => {
     const host = await render();
 
     expect(host.querySelector('[data-testid="invoices-icon"]')).not.toBeNull();
+  });
+
+  // With no plan yet the checkout is the whole screen, so it keeps its own Log out (FR-021).
+  it('keeps Log out in its header', async () => {
+    mockEmbedded = {};
+    const host = await render();
+
+    expect(host.querySelectorAll('[data-logout]')).toHaveLength(1);
   });
 });
 
