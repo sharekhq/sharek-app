@@ -50,6 +50,42 @@ export const liveLogo = (brand?: Brand) => {
 export const liveExamples = (brand?: Brand) =>
   (brand?.kit.examples ?? []).filter(isLive);
 
+// Which of the kit's five items a brand's card on the Brands overview shows
+// as done (FR-013). A logo or an example counts only while it is still in
+// Media, as it goes along with a render; examples are done from one.
+export const kitStatus = (brand: Brand) => ({
+  logo: !!liveLogo(brand),
+  colours: brand.kit.colours.length > 0,
+  fonts: !!(brand.kit.headingFont || brand.kit.bodyFont),
+  examples: liveExamples(brand).length,
+  about: !!brand.details.about?.trim(),
+});
+
+// The one note a brand's card ends with, the first that holds (FR-013): no
+// channels; an empty kit, read on the three items kitIsEmpty counts as the
+// chips read them; every item done; else none.
+export const kitNote = (
+  status: ReturnType<typeof kitStatus>,
+  channels: number
+): 'no_channels' | 'empty' | 'ready' | null => {
+  if (channels === 0) {
+    return 'no_channels';
+  }
+  if (!status.logo && !status.colours && status.examples === 0) {
+    return 'empty';
+  }
+  if (
+    status.logo &&
+    status.colours &&
+    status.fonts &&
+    status.examples > 0 &&
+    status.about
+  ) {
+    return 'ready';
+  }
+  return null;
+};
+
 export const useBrands = () => {
   const fetch = useFetch();
 
