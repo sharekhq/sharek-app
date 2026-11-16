@@ -42,6 +42,11 @@ import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
+  CHIP,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
+import {
   AiImageIcon,
   CheckmarkIcon,
 } from '@gitroom/frontend/components/ui/icons';
@@ -114,16 +119,8 @@ const previewBox = (size: string) => {
 const pillClasses =
   'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
 
-const CHIP_BASE =
-  'cursor-pointer rounded-full px-[12px] h-[30px] flex items-center gap-[5px] text-[12px] font-[600] border transition-colors focus-visible:ring-2 focus-visible:ring-brand';
-
 const chipClasses = (selected: boolean) =>
-  clsx(
-    CHIP_BASE,
-    selected
-      ? 'bg-brandSoft border-brand text-brandText'
-      : 'bg-newBgColorInner border-newColColor text-textItemBlur hover:border-textItemFocused'
-  );
+  clsx(CHIP, selected ? CHIP_ON : CHIP_IDLE);
 
 /**
  * A refused reference comes back named by the number on its thumbnail, and is
@@ -746,10 +743,7 @@ const AiImageModal: FC<{
             <button
               type="button"
               onClick={() => setCatalogOpen(true)}
-              className={clsx(
-                CHIP_BASE,
-                'bg-quiet border-transparent text-inkSoft'
-              )}
+              className={chipClasses(false)}
             >
               {t('all_styles', 'All styles')}
               <svg
@@ -1162,7 +1156,7 @@ export const AiImage: FC<{
         data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         aria-label={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         className={clsx(
-          'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-ai text-aiAccent px-[8px]'
+          'cursor-pointer h-[32px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[8px] justify-center items-center flex bg-ai text-aiAccent px-[12px]'
         )}
       >
         {loading && (
@@ -1172,14 +1166,14 @@ export const AiImage: FC<{
         )}
         <div
           className={clsx(
-            'flex gap-[5px] items-center',
+            'flex gap-[6px] items-center',
             loading && 'invisible'
           )}
         >
           <div>
             <AiImageIcon className="mobile:w-[20px] mobile:h-[20px]" />
           </div>
-          <div className="text-[10px] font-[600] mobile:hidden block">
+          <div className="text-[13px] font-[600] mobile:hidden block">
             {t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
           </div>
         </div>

@@ -264,7 +264,6 @@ export const CreateThumbnail: FC<{
         <Button
           variant="secondary"
           className="flex-1"
-          innerClassName="gap-[8px]"
           onClick={onBack}
         >
           <svg
@@ -435,7 +434,6 @@ export const MediaComponentInner: FC<{
                 <Button
                   variant="secondary"
                   disabled={loading}
-                  innerClassName="gap-[8px]"
                   onClick={() => setIsEditingThumbnail(true)}
                 >
                   {thumbnail || newThumbnail ? (
@@ -453,7 +451,6 @@ export const MediaComponentInner: FC<{
                 <Button
                   variant="secondary"
                   disabled={loading}
-                  innerClassName="gap-[8px]"
                   onClick={() =>
                     modals.openModal({
                       title: t('media_library', 'Media Library'),
@@ -485,8 +482,7 @@ export const MediaComponentInner: FC<{
                 </Button>
                 {(thumbnail || newThumbnail) && (
                   <Button
-                    variant="ghost"
-                    className="!text-error"
+                    variant="dangerGhost"
                     disabled={loading}
                     onClick={() => {
                       setNewThumbnail(null);

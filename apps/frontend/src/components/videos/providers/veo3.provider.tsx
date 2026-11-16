@@ -67,7 +67,7 @@ const VEO3Settings: FC = () => {
             <Button
               key={option}
               type="button"
-              variant="ghost"
+              variant="secondary"
               className={clsx(
                 '!flex-1',
                 selected === option &&
