@@ -182,7 +182,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       // items out of the Tab order and the accessibility tree.
                       inert={isSmallScreen && !drawerOpen}
                       className={clsx(
-                        'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
+                        'fixed h-full w-[84px] start-[8px] flex flex-1 top-0 [container:rail/size]',
                         // Small screens: off-canvas drawer anchored to the inline-start edge.
                         'mobile:start-0 mobile:w-[100px] mobile:px-[8px] mobile:z-[190] mobile:bg-newBgColor',
                         'mobile:transition-transform mobile:duration-300 mobile:ease-out',
@@ -196,8 +196,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       {/* min-w-0: without it, nowrap menu labels inflate this
                           flex-1 column past the 84px rail (min-width:auto),
                           so labels never overflow → ellipsis/shrink dead. */}
-                      <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px] min-w-0">
-                        <div className="flex justify-center">
+                      <div className="flex flex-col h-full gap-[16px] flex-1 py-[12px] min-w-0">
+                        <div className="flex justify-center mb-[16px]">
                           <Logo />
                         </div>
                         <TopMenu />
