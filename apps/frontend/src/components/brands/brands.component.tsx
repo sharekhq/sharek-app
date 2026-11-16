@@ -9,6 +9,7 @@ import {
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import {
@@ -118,8 +119,8 @@ const BrandsList: FC<{
         type="button"
         onClick={onNewBrand}
         className={clsx(
-          'mx-[4px] mb-[8px] flex items-center gap-[8px] h-[40px] coarse:h-[44px] px-[12px] rounded-[8px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink text-[14px] font-[600] cursor-pointer',
-          FOCUS_RING
+          buttonClassName({ variant: 'secondary' }),
+          'mx-[4px] mb-[8px]'
         )}
       >
         <PlusIcon size={16} aria-hidden="true" />
@@ -286,9 +287,9 @@ export const BrandsComponent: FC = () => {
               <button
                 type="button"
                 onClick={() => openWebsite(brand)}
-                className={clsx(SMALL_BUTTON, 'gap-[6px] mobile:hidden')}
+                className={clsx(SMALL_BUTTON, 'mobile:hidden')}
               >
-                <WebsiteIcon size={15} />
+                <WebsiteIcon size={16} />
                 {fillFromWebsite}
               </button>
             )}
@@ -296,9 +297,9 @@ export const BrandsComponent: FC = () => {
             <button
               type="button"
               onClick={() => openRenameBrand(brand)}
-              className={clsx(SMALL_BUTTON, 'gap-[6px] mobile:hidden')}
+              className={clsx(SMALL_BUTTON, 'mobile:hidden')}
             >
-              <PencilIcon size={15} aria-hidden="true" />
+              <PencilIcon size={16} aria-hidden="true" />
               {rename}
             </button>
             <PostActionsMenu

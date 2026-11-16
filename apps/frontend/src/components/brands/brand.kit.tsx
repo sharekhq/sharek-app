@@ -16,7 +16,7 @@ import {
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
   MediaBox,
@@ -66,12 +66,12 @@ type KitChange = Partial<{
 
 type Picked = { id: string; path: string }[];
 
-// The boards' small ghost button: Replace, Remove and Upload logo, and the
-// brand's Rename.
-export const SMALL_BUTTON = clsx(
-  'inline-flex items-center justify-center h-[36px] coarse:h-[44px] px-[12px] rounded-[8px] border border-line text-ink text-[13px] font-[600] whitespace-nowrap cursor-pointer hover:border-inkSoft transition-colors',
-  FOCUS_RING
-);
+// The boards' small button: Replace, Remove and Upload logo, and the brand's
+// Rename and Fill from my website.
+export const SMALL_BUTTON = buttonClassName({
+  variant: 'secondary',
+  size: 'small',
+});
 
 // One of the kit's cards: its heading with a count, its own parts, then the
 // line that says what it is for.
@@ -588,10 +588,10 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
             </div>
           )}
           <Button
-            variant="ghost"
+            variant="secondary"
+            size="small"
             onClick={() => openAddChannels(brand)}
             className="w-full"
-            innerClassName="gap-[8px]"
           >
             <PlusIcon aria-hidden="true" />
             {t('brands_add_channels', 'Add channels')}
