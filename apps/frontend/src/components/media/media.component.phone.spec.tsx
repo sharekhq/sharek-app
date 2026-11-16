@@ -211,10 +211,10 @@ describe('the size every media library opens at', () => {
     })) as unknown as typeof window.matchMedia;
   };
 
-  it('fills the screen at 1025px and below', () => {
+  it('sits 8px in from the screen at 1025px and below', () => {
     screen(true);
 
-    expect(mediaLibrarySize()).toBe('100%');
+    expect(mediaLibrarySize()).toBe('calc(100% - 16px)');
   });
 
   it('leaves 80px around it from 1026px up', () => {
