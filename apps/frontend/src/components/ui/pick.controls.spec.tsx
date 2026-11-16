@@ -24,9 +24,11 @@ import {
 const tokens = (classes: string) => classes.split(' ');
 
 describe('the switch', () => {
-  it('draws its group as a bordered strip with 8px corners', () => {
+  // A page may hold the group taller than its options (Analytics' and
+  // Calendar's coarse:min-h-[54px]); the options stay centred in it.
+  it('draws its group as a bordered strip with 8px corners, its options centred', () => {
     expect(SWITCH_GROUP).toBe(
-      'inline-flex shrink-0 gap-[2px] p-[3px] border border-line rounded-[8px]'
+      'inline-flex items-center shrink-0 gap-[2px] p-[3px] border border-line rounded-[8px]'
     );
   });
 
