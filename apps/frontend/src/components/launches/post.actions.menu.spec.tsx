@@ -526,7 +526,9 @@ describe('post actions menu', () => {
       await mount(hinted());
       await click(trigger());
 
-      for (const item of document.querySelectorAll('[role="menuitem"]')) {
+      for (const item of Array.from(
+        document.querySelectorAll('[role="menuitem"]')
+      )) {
         expect(classes(item)).toEqual(
           expect.arrayContaining([
             'min-h-[36px]',
