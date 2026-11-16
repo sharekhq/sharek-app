@@ -16,6 +16,13 @@ import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.acti
 import { isUsable } from '@gitroom/frontend/components/launches/channel.panel';
 import { CheckmarkIcon } from '@gitroom/frontend/components/ui/icons';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
+import { buttonClassName } from '@gitroom/react/form/button';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 // Helper function to get start and end dates based on display type
 function getDateRange(
@@ -56,18 +63,20 @@ const segment =
 // A view in the segmented control, which shows above 1025px; at 1025px and
 // below the view button's menu takes its place. Each is as wide as its word,
 // as the board draws them, and 44px wide at least on touch.
-const viewPill =
-  'pt-[6px] pb-[5px] cursor-pointer px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] focus-visible:ring-2 focus-visible:ring-brand';
-const statePill =
-  'pt-[6px] pb-[5px] cursor-pointer min-w-[80px] px-[12px] text-center rounded-[6px] coarse:flex coarse:justify-center coarse:items-center mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:min-w-fit mobile:py-0 mobile:px-[8px] mobile:whitespace-nowrap';
-const selectedPill = 'text-brandText bg-brandSoft font-[600]';
+const viewPill = clsx(SWITCH_OPTION, 'coarse:min-w-[44px]');
+const statePill = clsx(
+  SWITCH_OPTION,
+  'min-w-[80px] mobile:flex mobile:flex-1 mobile:items-center mobile:justify-center mobile:min-w-fit mobile:h-auto mobile:min-h-0 mobile:px-[8px] mobile:whitespace-nowrap'
+);
 // Today and the arrows: 54px on touch screens above 1025px, 44px at 1025px
 // and below.
-const control =
-  'h-[42px] coarse:h-[54px] mobile:h-[44px] flex items-center justify-center rounded-[8px] bg-newBgColorInner border border-newTableBorder hover:text-textItemFocused hover:bg-boxFocused transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand';
+const control = clsx(
+  buttonClassName({ variant: 'secondary' }),
+  'coarse:h-[54px] mobile:h-[44px] transition-all'
+);
 const arrow = clsx(
   control,
-  'text-textColor rtl:rotate-180 w-[42px] coarse:min-w-[44px] mobile:w-[44px]'
+  'rtl:rotate-180 w-[42px] coarse:min-w-[44px] mobile:w-[44px]'
 );
 
 // The calendar's top bar (R8). The page owns the channel sheet the phone's
@@ -431,11 +440,7 @@ export const Filters: FC<{
       )}
       {!isListView && (
         <div className="flex flex-grow flex-row items-center gap-[8px] mobile:order-3 mobile:basis-full mobile:min-w-0">
-          <button
-            type="button"
-            onClick={setToday}
-            className={clsx(control, 'px-[9px] text-[14px] font-[500]')}
-          >
+          <button type="button" onClick={setToday} className={control}>
             {t('today', 'Today')}
           </button>
           <button
@@ -553,7 +558,12 @@ export const Filters: FC<{
               </svg>
             </div>
           </div>
-          <div className="flex flex-row p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:min-w-0 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]">
+          <div
+            className={clsx(
+              SWITCH_GROUP,
+              'coarse:min-h-[54px] mobile:order-1 mobile:flex-1 mobile:min-w-0 mobile:overflow-x-auto mobile:py-0 mobile:h-[44px] mobile:min-h-[44px]'
+            )}
+          >
             {listStateOptions.map((option) => (
               <div
                 key={option.value}
@@ -563,7 +573,9 @@ export const Filters: FC<{
                 <span
                   className={clsx(
                     statePill,
-                    calendar.listState === option.value && selectedPill
+                    calendar.listState === option.value
+                      ? SWITCH_OPTION_ON
+                      : SWITCH_OPTION_IDLE
                   )}
                 >
                   {option.label}
@@ -613,7 +625,9 @@ export const Filters: FC<{
             </button>
           </div>
         )}
-        <div className="flex flex-row shrink-0 gap-[2px] p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:hidden">
+        <div
+          className={clsx(SWITCH_GROUP, 'coarse:min-h-[54px] mobile:hidden')}
+        >
           {views.map((view) => (
             <button
               key={view.value}
@@ -622,7 +636,9 @@ export const Filters: FC<{
               onClick={view.select}
               className={clsx(
                 viewPill,
-                calendar.display === view.value && selectedPill
+                calendar.display === view.value
+                  ? SWITCH_OPTION_ON
+                  : SWITCH_OPTION_IDLE
               )}
             >
               {view.label}

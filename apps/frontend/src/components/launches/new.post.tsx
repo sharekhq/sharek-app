@@ -1,4 +1,6 @@
 import React, { useCallback } from 'react';
+import clsx from 'clsx';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { useCalendar } from '@gitroom/frontend/components/launches/calendar.context';
@@ -71,7 +73,10 @@ export const NewPost = () => {
   return (
     <button
       onClick={createAPost}
-      className="text-white flex-1 pt-[12px] pb-[14px] ps-[16px] pe-[20px] group-[.sidebar]:p-0 min-h-[44px] max-h-[44px] rounded-md bg-btnPrimary flex justify-center items-center gap-[5px] outline-none"
+      className={clsx(
+        buttonClassName({ size: 'large' }),
+        'flex-1 group-[.sidebar]:p-0'
+      )}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -79,7 +84,7 @@ export const NewPost = () => {
         height="20"
         viewBox="0 0 21 20"
         fill="none"
-        className="min-w-[21px] min-h-[20px]"
+        className="w-[16px] h-[16px] shrink-0"
       >
         <path
           d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
@@ -89,7 +94,7 @@ export const NewPost = () => {
           strokeLinejoin="round"
         />
       </svg>
-      <div className="text-[14px] group-[.sidebar]:hidden">
+      <div className="group-[.sidebar]:hidden">
         {t('create_new_post', 'Create Post')}
       </div>
     </button>
