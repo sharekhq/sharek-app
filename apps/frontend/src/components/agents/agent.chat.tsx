@@ -228,14 +228,17 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
   // Samy's welcome shows while this holds. Before the paint, and outside the
   // effect below, which waits for the list: the page keeps the chat when the
   // thread changes, so an older chat opened from a new one clears it here.
+  // Not before the connect either: until then the chat sends into a stand-in
+  // agent this hook does not see.
   useLayoutEffect(() => {
     setEmpty(
-      stored !== null &&
+      isAvailable &&
+        stored !== null &&
         stored.length === 0 &&
         messages.length === 0 &&
         restore.current.length === 0
     );
-  }, [stored, messages, setEmpty]);
+  }, [isAvailable, stored, messages, setEmpty]);
 
   // A list written before the agent connects is emptied by the connect, and the
   // connect can also empty the chat after the list is shown.
