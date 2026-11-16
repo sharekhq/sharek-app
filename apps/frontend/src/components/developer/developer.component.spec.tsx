@@ -132,29 +132,62 @@ describe('the OAuth app once it exists', () => {
     };
   });
 
-  it('offers Docs and Copy ID as the small secondary button', async () => {
+  it('offers Docs, Edit App, Copy ID and Rotate Secret as the small secondary button', async () => {
     const host = await render();
 
     expect(classes(control(host, 'Docs'))).toEqual(look('secondary', 'small'));
+    expect(classes(control(host, 'Edit App'))).toEqual(
+      look('secondary', 'small')
+    );
     expect(classes(control(host, 'Copy ID'))).toEqual(
+      look('secondary', 'small')
+    );
+    expect(classes(control(host, 'Rotate Secret'))).toEqual(
       look('secondary', 'small')
     );
   });
 
-  it('shows the client secret in a 40px box', async () => {
+  // FR-028: Delete App sits on the app's row and opens a confirmation, so it
+  // is red text with no fill; the confirmation's own button is the filled one.
+  it('offers Delete App as the small red-text button', async () => {
     const host = await render();
+
+    expect(classes(control(host, 'Delete App'))).toEqual(
+      look('dangerGhost', 'small')
+    );
+  });
+
+  it('shows the client ID and the client secret in 40px boxes', async () => {
+    const host = await render();
+    const clientId = Array.from(host.querySelectorAll('code')).find(
+      (element) => element.textContent === 'client-123'
+    )!;
     const secret = Array.from(host.querySelectorAll('span')).find(
       (element) =>
         element.textContent === 'Secret is only shown on creation or rotation'
     )!;
 
+    expectFieldHeight(clientId.parentElement!);
     expectFieldHeight(secret.parentElement!);
   });
 
-  it('makes the app name field 40px when editing', async () => {
+  it('draws the edit form like the new app form: Choose Image small secondary, Save medium primary and Cancel medium ghost', async () => {
     const host = await render();
     await click(control(host, 'Edit App'));
 
-    expectFieldHeight(host.querySelector('input')!);
+    expect(classes(control(host, 'Choose Image'))).toEqual(
+      look('secondary', 'small')
+    );
+    expect(classes(control(host, 'Save'))).toEqual(look('primary', 'medium'));
+    expect(classes(control(host, 'Cancel'))).toEqual(look('ghost', 'medium'));
+  });
+
+  it('makes the app name and redirect URL fields 40px when editing', async () => {
+    const host = await render();
+    await click(control(host, 'Edit App'));
+    const [name, redirectUrl] = Array.from(host.querySelectorAll('input'));
+
+    expectFieldHeight(name);
+    expectFieldHeight(redirectUrl);
   });
 });
