@@ -671,6 +671,30 @@ describe('the shell held to the screen', () => {
   });
 });
 
+// The rail is a size container named rail, so the sidebar's short size follows
+// the rail's own height (an admin's is 60px shorter), not the screen's. The
+// tall sidebar needs about 815px: the column's gap is 16px and the logo row
+// adds 16px under itself, so the logo stays 32px above Calendar and the two
+// groups may come within 16px of each other on a tight screen (spec 059, US4).
+describe("the rail's container and its tight-screen gap", () => {
+  it("names the rail a size container, so the sidebar's short size follows its height (FR-010)", async () => {
+    const shell = await mount();
+    expect(classesOf(shell.drawer)).toContain('[container:rail/size]');
+  });
+
+  it("keeps the logo 32px above Calendar, from a 16px gap and the logo row's 16px margin (FR-010)", async () => {
+    const shell = await mount();
+    const column = shell.drawer.firstElementChild as HTMLElement;
+    const logoRow = column.firstElementChild as HTMLElement;
+
+    expect(classesOf(column).filter((c) => c.startsWith('gap-'))).toEqual([
+      'gap-[16px]',
+    ]);
+    expect(classesOf(logoRow)).toEqual(['flex', 'justify-center', 'mb-[16px]']);
+    expect(logoRow.nextElementSibling?.textContent).toBe('Calendar');
+  });
+});
+
 describe('the rail on desktop (1440px)', () => {
   beforeEach(() => {
     width = 1440;
