@@ -89,6 +89,14 @@ export const CHECKERBOARD: CSSProperties = {
   backgroundPosition: '0 0, 8px 8px',
 };
 
+// A small logo tile behind a light or a dark logo, read from the logo's own
+// pixels (brand.mark.tsx). Fixed, the same in both themes, as CHECKERBOARD is.
+export const LOGO_TILE_DARK: CSSProperties = { backgroundColor: '#2A2326' };
+export const LOGO_TILE_LIGHT: CSSProperties = {
+  backgroundColor: '#F7F5F4',
+  boxShadow: 'inset 0 0 0 1px rgba(26, 20, 19, 0.08)',
+};
+
 // The canvas's globe, on the card's heading and the button beside Rename.
 // Decoration: the words are beside it.
 export const WebsiteIcon: FC<IconProps> = ({

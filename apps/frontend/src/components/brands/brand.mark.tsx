@@ -9,6 +9,59 @@ import {
   liveLogo,
 } from '@gitroom/frontend/components/brands/use.brands';
 
+export type LogoTone = 'light' | 'dark' | null;
+
+// A logo's tone, read on a SAMPLE × SAMPLE copy of it (research R1): a pixel
+// is visible from alpha SEE_THROUGH up; a logo with under OPAQUE_SHARE of its
+// pixels see-through has its own background; a visible pixel is light from
+// luminance LIGHT_Y up and dark from DARK_Y down; NEARLY_ALL of the visible
+// pixels decide.
+const SAMPLE = 32;
+const SEE_THROUGH = 128;
+const OPAQUE_SHARE = 0.01;
+const LIGHT_Y = 0.5;
+const DARK_Y = 0.1;
+const NEARLY_ALL = 0.9;
+
+// WCAG's relative luminance of an sRGB colour, each channel 0 to 255.
+const luminance = (r: number, g: number, b: number) => {
+  const [lr, lg, lb] = [r, g, b].map((channel) => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+};
+
+// 'light' or 'dark' for a logo nearly all one or the other on a see-through
+// ground; null for a coloured, mixed or empty one, or one with its own
+// background. pixels: RGBA quadruples, as getImageData gives them.
+export const logoTone = (pixels: ArrayLike<number>): LogoTone => {
+  let seeThrough = 0;
+  let light = 0;
+  let dark = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] < SEE_THROUGH) {
+      seeThrough++;
+      continue;
+    }
+    const y = luminance(pixels[i], pixels[i + 1], pixels[i + 2]);
+    if (y >= LIGHT_Y) {
+      light++;
+    } else if (y <= DARK_Y) {
+      dark++;
+    }
+  }
+  const total = pixels.length / 4;
+  const visible = total - seeThrough;
+  if (!visible || seeThrough < total * OPAQUE_SHARE) {
+    return null;
+  }
+  if (light >= visible * NEARLY_ALL) {
+    return 'light';
+  }
+  return dark >= visible * NEARLY_ALL ? 'dark' : null;
+};
+
 // A brand's logo, or its initial while it has none or the logo was deleted
 // from Media. Decoration: the brand's name is beside it. The Brands page's
 // and the brand list's (brand.menu.tsx); each gives its size. The logo fits
