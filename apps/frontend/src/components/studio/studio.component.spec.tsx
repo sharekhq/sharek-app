@@ -641,7 +641,7 @@ describe('a card', () => {
         ['width', 'height', 'loading', 'decoding', 'alt'].map((name) =>
           picture?.getAttribute(name)
         )
-      ).toEqual(['640', '400', 'lazy', 'async', '']);
+      ).toEqual(['640', '360', 'lazy', 'async', '']);
       expect(classes(picture)).toContain('object-cover');
       // the 56px tile is gone
       expect(card(name)!.querySelector('[class*="w-[56px]"]')).toBeNull();
