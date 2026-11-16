@@ -14,6 +14,7 @@ import { Button } from '@gitroom/react/form/button';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import {
   CheckmarkIcon,
   IconProps,
@@ -736,7 +737,13 @@ export const BrandWebsiteCard: FC<{ brand: Pick<Brand, 'id' | 'kit'> }> = ({
 }) => {
   const t = useT();
   return (
-    <section className="flex flex-col gap-[12px] min-w-0 p-[16px] rounded-[12px] border border-line bg-surface">
+    <section
+      className={clsx(
+        'flex flex-col gap-[12px] min-w-0',
+        CARD_PADDING,
+        'rounded-[12px] border border-line bg-surface'
+      )}
+    >
       <div className="flex items-center gap-[8px]">
         <WebsiteIcon size={18} className="flex-none text-muted" />
         <h3 className="text-[15px] font-[600] text-ink">

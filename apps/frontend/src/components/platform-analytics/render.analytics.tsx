@@ -1,4 +1,5 @@
 import { FC, useCallback, useMemo } from 'react';
+import clsx from 'clsx';
 import { Integration } from '@prisma/client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -9,6 +10,7 @@ import {
 } from '@gitroom/frontend/components/platform-analytics/metric.chart';
 import { useReconnectChannel } from '@gitroom/frontend/components/launches/channel.panel';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import i18next from 'i18next';
 
@@ -103,7 +105,13 @@ const AnalyticsChart: FC<{
   const name = metricLabel(item.label);
 
   return (
-    <figure className="flex flex-col gap-[2px] min-w-0 px-[16px] pt-[16px] pb-[10px] bg-surface border border-line rounded-[12px]">
+    <figure
+      className={clsx(
+        'flex flex-col gap-[2px] min-w-0',
+        CARD_PADDING,
+        'bg-surface border border-line rounded-[12px]'
+      )}
+    >
       <figcaption className="text-[14px] font-semibold text-ink">
         {name}
       </figcaption>
