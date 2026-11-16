@@ -681,7 +681,7 @@ const ReviewScreen: FC<{
           <>
             <Button
               type="button"
-              variant="quiet"
+              variant="secondary"
               onClick={add}
               disabled={slides.length >= MAX_SLIDES}
             >

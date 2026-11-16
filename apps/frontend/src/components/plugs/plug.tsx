@@ -230,7 +230,7 @@ export const PlugItem: FC<{
         <div className="flex-1">
           {t(deriveTranslationKey('plug', plug.description), plug.description)}
         </div>
-        <Button variant="quiet">
+        <Button variant="secondary">
           {!data ? t('set_plug', 'Set Plug') : t('edit_plug', 'Edit Plug')}
         </Button>
       </div>

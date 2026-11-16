@@ -1057,7 +1057,7 @@ const AiImageModal: FC<{
               branded={!!brand}
               action={
                 <Button
-                  variant="quiet"
+                  variant="secondary"
                   onClick={applyEdit}
                   disabled={editOverflow}
                 >
@@ -1079,7 +1079,7 @@ const AiImageModal: FC<{
         <ModalActionBar>
           {phase === 'result' ? (
             <>
-              <Button variant="quiet" onClick={backToPrompt}>
+              <Button variant="secondary" onClick={backToPrompt}>
                 {t('back_to_prompt', 'Back to prompt')}
               </Button>
               <div className="flex-1" />

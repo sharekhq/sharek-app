@@ -899,7 +899,7 @@ export const Modal: FC<{
             <ModalActionBar>
               {phase === 'result' ? (
                   <>
-                    <Button variant="quiet" onClick={backFromResult}>
+                    <Button variant="secondary" onClick={backFromResult}>
                       {handshake?.backLabel}
                     </Button>
                     <div className="flex-1" />

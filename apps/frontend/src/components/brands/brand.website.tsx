@@ -452,7 +452,7 @@ export const WebsiteLookupFields: FC<{
           />
           <Button
             type="submit"
-            variant="quiet"
+            variant="secondary"
             loading={busy === 'lookUp'}
             aria-busy={busy === 'lookUp'}
             disabled={!address.trim() || !!busy}

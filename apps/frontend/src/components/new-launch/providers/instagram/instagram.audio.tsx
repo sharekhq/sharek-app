@@ -187,7 +187,7 @@ export const InstagramAudioSelector: FC<{
           >
             <Button
               type="button"
-              variant="quiet"
+              variant="secondary"
               disabled={true}
               className="!h-[42px] !px-[16px] text-[14px]"
             >
@@ -263,7 +263,7 @@ export const InstagramAudioSelector: FC<{
         <div className="flex">
           <Button
             type="button"
-            variant="quiet"
+            variant="secondary"
             className="!h-[42px] !px-[16px] text-[14px]"
             onClick={() => setOpen(true)}
           >
@@ -301,7 +301,7 @@ export const InstagramAudioSelector: FC<{
             </div>
             <Button
               type="button"
-              variant="quiet"
+              variant="secondary"
               className="!h-[42px] !px-[16px] text-[14px]"
               onClick={() => {
                 stopPreview();

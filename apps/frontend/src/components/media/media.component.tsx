@@ -689,7 +689,7 @@ export const MediaBox: FC<{
                 value: selection.size.toLocaleString('en-US'),
               })}
             </div>
-            <Button variant="quiet" onClick={clearSelection}>
+            <Button variant="secondary" onClick={clearSelection}>
               {t('media_clear_selection', 'Clear')}
             </Button>
             <Button

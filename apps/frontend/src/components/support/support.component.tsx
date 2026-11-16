@@ -248,7 +248,7 @@ export const SupportComponent = () => {
             <div>
               <Button
                 type="button"
-                variant="quiet"
+                variant="secondary"
                 className={FOCUS_RING}
                 onClick={() => {
                   form.reset();

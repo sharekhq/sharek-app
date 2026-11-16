@@ -25,41 +25,71 @@ const ReactLoading = ({ color = '#fff', width = 20, height = 20 }: { type?: stri
     />
   );
 };
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'danger'
+  | 'dangerGhost';
+export type ButtonSize = 'large' | 'medium' | 'small';
+// The dashboard's one button set: hand-made buttons that can't be a
+// <Button> take the same look from here.
+export const buttonClassName = ({
+  variant = 'primary',
+  size = 'medium',
+}: { variant?: ButtonVariant; size?: ButtonSize } = {}): string =>
+  clsx(
+    'flex items-center justify-center gap-[6px] rounded-[8px] font-[600] cursor-pointer relative coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand',
+    {
+      primary: 'bg-brand text-white',
+      secondary: 'bg-quiet text-ink border border-line hover:bg-surface2',
+      ghost: 'bg-transparent text-ink hover:bg-boxHover',
+      danger: 'bg-error text-white',
+      dangerGhost: 'bg-transparent text-error hover:bg-boxHover',
+    }[variant],
+    {
+      large: 'h-[44px] px-[20px] text-[14px]',
+      medium: 'h-[40px] px-[16px] text-[14px]',
+      small: 'h-[32px] px-[12px] text-[13px]',
+    }[size]
+  );
 export const Button: FC<
   DetailedHTMLProps<
     ButtonHTMLAttributes<HTMLButtonElement>,
     HTMLButtonElement
   > & {
+    // legacy: the same as variant="secondary"; variant wins over it
     secondary?: boolean;
     loading?: boolean;
     innerClassName?: string;
-    variant?: 'primary' | 'quiet' | 'ghost' | 'danger' | 'ai';
+    variant?: ButtonVariant;
+    size?: ButtonSize;
   }
-> = ({ children, loading, innerClassName, secondary, variant, ...props }) => {
+> = ({
+  children,
+  loading,
+  innerClassName,
+  secondary,
+  variant,
+  size,
+  ...props
+}) => {
   const ref = useRef<HTMLButtonElement | null>(null);
   const [height, setHeight] = useState<number | null>(null);
   useEffect(() => {
     setHeight(ref.current?.offsetHeight || 40);
   }, []);
-  const variantClass = {
-    primary: 'bg-brand text-white',
-    quiet: 'bg-quiet text-ink border border-line',
-    ghost: 'bg-transparent text-ink border border-line',
-    danger: 'bg-error text-white',
-    ai: 'bg-aiSoft text-aiAccent',
-  }[variant || 'primary'];
   return (
     <button
       {...props}
       type={props.type || 'button'}
       ref={ref}
       className={clsx(
+        buttonClassName({
+          variant: variant ?? (secondary ? 'secondary' : 'primary'),
+          size,
+        }),
         (props.disabled || loading) && 'opacity-50 pointer-events-none',
-        `${
-          // legacy `secondary` used to paint bg-third = the modal's own
-          // background (invisible button); it now means the ghost style
-          secondary ? 'bg-transparent text-ink border border-line' : variantClass
-        } px-[24px] h-[40px] coarse:h-[44px] rounded-[8px] cursor-pointer items-center justify-center flex relative focus-visible:ring-2 focus-visible:ring-brand`,
         props?.className
       )}
     >
@@ -76,7 +106,7 @@ export const Button: FC<
       <div
         className={clsx(
           innerClassName,
-          'flex-1 items-center justify-center flex',
+          'flex-1 items-center justify-center flex gap-[6px]',
           loading && 'invisible'
         )}
       >

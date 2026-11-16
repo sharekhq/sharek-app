@@ -409,7 +409,7 @@ export const StudioComponent: FC = () => {
               no close button — so the offer waits for one. */}
           {!!integrations?.length && (
             <Button
-              variant="quiet"
+              variant="secondary"
               onClick={createPost}
               innerClassName="gap-[8px]"
             >
@@ -529,7 +529,7 @@ export const StudioComponent: FC = () => {
             'Try another word, or clear the search to see every tool.'
           )}
           actions={
-            <Button variant="quiet" onClick={clearSearch}>
+            <Button variant="secondary" onClick={clearSearch}>
               {t('studio_clear_search', 'Clear search')}
             </Button>
           }

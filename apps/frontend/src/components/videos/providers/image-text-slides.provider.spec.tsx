@@ -290,7 +290,7 @@ describe('the Slides row', () => {
       expect(count.className.split(' ')).toEqual(
         expect.arrayContaining([
           '!flex-1',
-          'px-[24px]',
+          'px-[16px]',
           'mobile:min-w-0',
           'mobile:px-[8px]',
         ])

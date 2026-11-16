@@ -262,7 +262,7 @@ export const CreateThumbnail: FC<{
 
       <div className="flex gap-[12px] !mt-[20px]">
         <Button
-          variant="quiet"
+          variant="secondary"
           className="flex-1"
           innerClassName="gap-[8px]"
           onClick={onBack}
@@ -433,7 +433,7 @@ export const MediaComponentInner: FC<{
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-[12px] mt-[6px]">
                 <Button
-                  variant="quiet"
+                  variant="secondary"
                   disabled={loading}
                   innerClassName="gap-[8px]"
                   onClick={() => setIsEditingThumbnail(true)}
@@ -451,7 +451,7 @@ export const MediaComponentInner: FC<{
                   )}
                 </Button>
                 <Button
-                  variant="quiet"
+                  variant="secondary"
                   disabled={loading}
                   innerClassName="gap-[8px]"
                   onClick={() =>
@@ -516,7 +516,7 @@ export const MediaComponentInner: FC<{
       {!isEditingThumbnail && (
         <div className="flex gap-[12px] !mt-[20px]">
           <Button
-            variant="quiet"
+            variant="secondary"
             className="flex-1"
             disabled={loading}
             onClick={onClose}
