@@ -60,9 +60,9 @@ const ErrorDetailsModal: FC<{ row: ErrorRow }> = ({ row }) => {
   }, [parsedMessage, parsedBody, row, toaster]);
 
   return (
-    <div className="rounded-[4px] border border-newTableBorder bg-newBgColorInner px-[16px] pb-[16px] relative w-full max-h-[80vh] overflow-auto">
+    <div className="rounded-[12px] border border-newTableBorder bg-newBgColorInner px-[16px] pb-[16px] relative w-full max-h-[80vh] overflow-auto">
       <div className="sticky top-0 bg-newBgColorInner py-[16px] flex items-center justify-between gap-[12px] z-10 border-b border-newTableBorder mb-[12px]">
-        <div className="text-[16px] font-[600]">Error Details</div>
+        <div className="text-[20px] font-[600]">Error Details</div>
         <div className="flex gap-[8px] items-center">
           <Button onClick={copyAll}>Copy Debug Code</Button>
           <button
@@ -247,7 +247,7 @@ export const AdminErrorsComponent: FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-[12px] items-end bg-newBgColorInner border border-newTableBorder rounded-[8px] p-[12px]">
+      <div className="flex flex-wrap gap-[12px] items-end bg-newBgColorInner border border-newTableBorder rounded-[12px] p-[12px]">
         <div className="flex flex-col gap-[6px]">
           <div className="text-[12px] opacity-70">Platform</div>
           <div className="relative">
@@ -257,7 +257,7 @@ export const AdminErrorsComponent: FC = () => {
                 setPage(0);
                 setPlatform(e.target.value);
               }}
-              className="bg-newBgColorInner h-[38px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor min-w-[180px]"
+              className="bg-newBgColorInner h-[40px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor min-w-[180px]"
             >
               <option value="">All platforms</option>
               {(platforms || []).map((p) => (
@@ -280,13 +280,13 @@ export const AdminErrorsComponent: FC = () => {
                 if (e.key === 'Enter') onApplyEmail();
               }}
               placeholder="user@example.com"
-              className="bg-newBgColorInner h-[38px] border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor min-w-[240px]"
+              className="bg-newBgColorInner h-[40px] border border-newTableBorder rounded-[8px] px-[10px] text-[14px] text-textColor min-w-[240px]"
             />
             <Button onClick={onApplyEmail}>Apply</Button>
           </div>
         </div>
 
-        <label className="flex items-center gap-[6px] text-[13px] cursor-pointer h-[38px]">
+        <label className="flex items-center gap-[6px] text-[13px] cursor-pointer h-[40px]">
           <input
             type="checkbox"
             checked={unknownFirst}
@@ -307,7 +307,7 @@ export const AdminErrorsComponent: FC = () => {
                 setPage(0);
                 setLimit(parseInt(e.target.value, 10));
               }}
-              className="bg-newBgColorInner h-[38px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor"
+              className="bg-newBgColorInner h-[40px] w-full appearance-none border border-newTableBorder rounded-[8px] ps-[10px] pe-[30px] text-[14px] text-textColor"
             >
               {[10, 20, 50, 100].map((n) => (
                 <option key={n} value={n}>
@@ -331,7 +331,7 @@ export const AdminErrorsComponent: FC = () => {
       ) : !data || data.items.length === 0 ? (
         <div className="opacity-70">No errors found.</div>
       ) : (
-        <div className="border border-newTableBorder rounded-[8px] overflow-hidden">
+        <div className="border border-newTableBorder rounded-[12px] overflow-hidden">
           <div className="grid grid-cols-[170px_120px_220px_1fr_220px] gap-[12px] px-[12px] py-[10px] bg-newBgColorInner text-[12px] uppercase opacity-70 border-b border-newTableBorder">
             <div>Created</div>
             <div>Platform</div>
