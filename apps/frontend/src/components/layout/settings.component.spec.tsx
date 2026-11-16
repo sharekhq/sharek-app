@@ -207,7 +207,7 @@ describe('the Settings tabs', () => {
         'Auto Post',
         'Sets',
         'Signatures',
-        'Developers',
+        'Sharek API',
         'Plugs',
         'Apps',
       ].sort()
@@ -221,12 +221,15 @@ describe('the Settings tabs', () => {
     expect(labels(await settings())).toContain('Integrations');
   });
 
-  it('keeps the Developers name, and never asks for an Agents / Dev label', async () => {
+  it('names the API tab Sharek API, and never asks for an Agents / Dev label', async () => {
     const host = await settings();
 
+    expect(labels(host)).toContain('Sharek API');
+    expect(labels(host)).not.toContain('Developers');
     expect(labels(host)).not.toContain('Agents / Dev');
     expect(labels(host)).not.toContain('Agents');
-    expect(mockAsked).toContain('developers');
+    expect(mockAsked).toContain('sharek_api');
+    expect(mockAsked).not.toContain('developers');
     expect(mockAsked).not.toContain('agents_dev');
     expect(mockAsked).not.toContain('agents');
   });
@@ -245,12 +248,12 @@ describe('the Settings tabs', () => {
     ).toBe('false');
   });
 
-  it('offers Developers only with API access, and then Apps shows approved apps only', async () => {
+  it('offers Sharek API only with API access, and then Apps shows approved apps only', async () => {
     mockUser = { ...admin(), tier: { ...admin().tier, public_api: false } };
     mockParams = new URLSearchParams('tab=apps');
     const host = await settings();
 
-    expect(labels(host)).not.toContain('Developers');
+    expect(labels(host)).not.toContain('Sharek API');
     expect(
       host
         .querySelector('[data-panel="apps"]')
@@ -291,7 +294,7 @@ describe('a Settings address that names a tab', () => {
     expect(selected(host)).toEqual(['Plugs']);
   });
 
-  it('opens Developers by the key it has always had', async () => {
+  it('opens Sharek API by the key it has always had', async () => {
     mockParams = new URLSearchParams('tab=api');
 
     expect(panel(await settings())).toBe('api');
@@ -343,7 +346,7 @@ describe("the page's menu", () => {
     await settings();
 
     expect(mockMenu?.list).toHaveLength(9);
-    expect(mockMenu?.list).toContainEqual({ tab: 'api', label: 'Developers' });
+    expect(mockMenu?.list).toContainEqual({ tab: 'api', label: 'Sharek API' });
     expect(mockMenu?.tab).toBe('plugs');
     expect(mockMenu?.onChange).toBeInstanceOf(Function);
     expect(mockMenu?.showLogout).toBe(true);
@@ -402,7 +405,7 @@ describe('switching tabs', () => {
 
   it('writes the tab picked into the address as ?tab=<key> and opens its panel', async () => {
     const host = await open('/settings');
-    await pick(host, 'Developers');
+    await pick(host, 'Sharek API');
 
     expect(replace).toHaveBeenLastCalledWith(null, '', '/settings?tab=api');
     expect(panel(host)).toBe('api');

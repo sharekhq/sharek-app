@@ -185,7 +185,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('the Developers tab', () => {
+describe('the Sharek API tab', () => {
   // FR-026: the copy, reveal, rotate and wizard buttons and the Docs and N8N
   // links are one small secondary button, drawn from the shared look and
   // nothing else (the hand-written string they repeated is gone).
@@ -333,7 +333,7 @@ describe('the Developers tab', () => {
   it('heads the tab at 20px semibold with the organization name', async () => {
     const heading = (await render()).querySelector('h3')!;
 
-    expect(heading.textContent).toBe('Developers - Acme');
+    expect(heading.textContent).toBe('Sharek API - Acme');
     expect(classes(heading)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
     );

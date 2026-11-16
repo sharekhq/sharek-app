@@ -4,7 +4,7 @@ import { createRoot, Root } from 'react-dom/client';
 // Settings' menu (spec 059, US5, FR-020 to FR-022, FR-024, FR-025, FR-046;
 // contracts/ui.md §6): each tab the list holds as a 36px row at 14px with its
 // icon, in three groups, Global settings and Teams with no label, then
-// Posting, then Connections; the open tab marked as Brands' list marks its
+// Posting, then Developers; the open tab marked as Brands' list marks its
 // brand; under the tabs Log out, the lifetime line and the version. Above
 // 1025px it sits in SplitPanel; at 1025px and below it is one sideways strip,
 // scrolled to the open tab. Which tabs the list holds is settings.component's
@@ -86,7 +86,7 @@ const LIST = [
   { tab: 'autopost', label: 'Auto post' },
   { tab: 'sets', label: 'Sets' },
   { tab: 'signatures', label: 'Signatures' },
-  { tab: 'api', label: 'Developers' },
+  { tab: 'api', label: 'Sharek API' },
   { tab: 'integrations', label: 'Integrations' },
   { tab: 'plugs', label: 'Plugs' },
   { tab: 'apps', label: 'Apps' },
@@ -233,34 +233,36 @@ const drawing = async (name: string) => {
 };
 
 describe('the Settings menu', () => {
-  it('groups the tabs: Global settings and Teams with no label, then Posting, then Connections', async () => {
-    expect(groups(await menu())).toEqual([
+  it('groups the tabs: Global settings and Teams with no label, then Posting, then Developers', async () => {
+    const host = await menu();
+
+    expect(groups(host)).toEqual([
       { label: null, rows: ['Global settings', 'Teams'] },
-      { label: 'Posting', rows: ['Auto post', 'Sets', 'Signatures'] },
       {
-        label: 'Connections',
-        rows: ['Developers', 'Webhooks', 'Plugs', 'Apps', 'Integrations'],
+        label: 'Posting',
+        rows: ['Auto post', 'Plugs', 'Sets', 'Signatures'],
+      },
+      {
+        label: 'Developers',
+        rows: ['Sharek API', 'Webhooks', 'Apps', 'Integrations'],
       },
     ]);
     expect(mockAsked).toEqual(
-      expect.arrayContaining([
-        'settings_group_posting',
-        'settings_group_connections',
-      ])
+      expect.arrayContaining(['settings_group_posting', 'developers'])
     );
+    expect(mockAsked).not.toContain('settings_group_connections');
+    expect(host.textContent).not.toContain('Connections');
   });
 
   it('names a labelled group for screen readers, and leaves the first unnamed', async () => {
-    const [first, posting, connections] = Array.from(
-      nav(await menu()).children
-    );
+    const [first, posting, developers] = Array.from(nav(await menu()).children);
 
     expect(first.getAttribute('role')).toBeNull();
     expect(first.getAttribute('aria-label')).toBeNull();
     expect(posting.getAttribute('role')).toBe('group');
     expect(posting.getAttribute('aria-label')).toBe('Posting');
-    expect(connections.getAttribute('role')).toBe('group');
-    expect(connections.getAttribute('aria-label')).toBe('Connections');
+    expect(developers.getAttribute('role')).toBe('group');
+    expect(developers.getAttribute('aria-label')).toBe('Developers');
   });
 
   it('draws no Teams row for a member', async () => {
@@ -270,7 +272,7 @@ describe('the Settings menu', () => {
     });
   });
 
-  it('draws no Posting group, label included, on the free plan', async () => {
+  it('draws Posting with Plugs and Developers with Apps on the free plan', async () => {
     const host = await menu({
       list: LIST.filter((item) =>
         ['global_settings', 'plugs', 'apps'].includes(item.tab)
@@ -279,15 +281,15 @@ describe('the Settings menu', () => {
 
     expect(groups(host)).toEqual([
       { label: null, rows: ['Global settings'] },
-      { label: 'Connections', rows: ['Plugs', 'Apps'] },
+      { label: 'Posting', rows: ['Plugs'] },
+      { label: 'Developers', rows: ['Apps'] },
     ]);
-    expect(host.textContent).not.toContain('Posting');
   });
 
-  it('ends Connections at Apps while third-party integrations are off', async () => {
+  it('ends Developers at Apps while third-party integrations are off', async () => {
     expect(groups(await menu({ list: without('integrations') }))[2]).toEqual({
-      label: 'Connections',
-      rows: ['Developers', 'Webhooks', 'Plugs', 'Apps'],
+      label: 'Developers',
+      rows: ['Sharek API', 'Webhooks', 'Apps'],
     });
   });
 
@@ -382,7 +384,7 @@ describe('the Settings menu', () => {
 
     expect(labels.map((label) => label.textContent)).toEqual([
       'Posting',
-      'Connections',
+      'Developers',
     ]);
     for (const label of labels) {
       expect(classes(label)).toEqual([
