@@ -97,6 +97,7 @@ import {
   useAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 let attachments: ReturnType<typeof useAttachments>;
 const Probe = () => {
@@ -770,15 +771,54 @@ describe('the two buttons', () => {
       expect(button.innerHTML).not.toContain('phone:hidden');
       // `.agent` paints this class's last child as Send.
       expect(classes(button)).not.toContain('copilotKitInputControlButton');
+      // FR-026's small size, with the phone's 44px and the narrowest
+      // screens' steps on top
       expect(classes(button)).toEqual(
         expect.arrayContaining([
           'h-[32px]',
-          'coarse:h-[44px]',
+          'px-[12px]',
+          'gap-[6px]',
+          'rounded-[8px]',
+          'text-[13px]',
+          'font-[600]',
+          'coarse:min-h-[44px]',
           'phone:h-[44px]',
+          '[@media(max-width:400px)]:px-[8px]',
+          '[@media(max-width:400px)]:gap-[4px]',
+          '[@media(max-width:400px)]:text-[12px]',
           'focus-visible:ring-2',
           'focus-visible:ring-brand',
         ])
       );
+    }
+  });
+
+  // FR-026, Question 4: AI Image keeps its AI tint at the small size, so none
+  // of the secondary colours, which Tailwind emits after the tint's, is on it.
+  it('are the small secondary button, AI Image in its AI tint', async () => {
+    const { host } = await render();
+    const [insert, image] = Array.from(tools(host).querySelectorAll('button'));
+
+    expect(classes(insert)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'secondary', size: 'small' }).split(/\s+/)
+      )
+    );
+    expect(classes(image)).toEqual(
+      expect.arrayContaining([
+        'bg-aiSoft',
+        'text-aiAccent',
+        'border-transparent',
+        'hover:border-aiAccent',
+      ])
+    );
+    for (const name of [
+      'bg-quiet',
+      'text-ink',
+      'border-line',
+      'hover:bg-surface2',
+    ]) {
+      expect(classes(image)).not.toContain(name);
     }
   });
 
