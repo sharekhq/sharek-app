@@ -23,6 +23,7 @@ import {
   SplitPanel,
 } from '@gitroom/frontend/components/ui/split.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
 import {
   PencilIcon,
   PlusIcon,
@@ -369,65 +370,63 @@ export const BrandsComponent: FC = () => {
       {/* Held to the window, as Analytics' numbers are: the page scrolls in
           its own box, so the list stays put. On a phone the box is static,
           and the page scrolls. */}
-      <div className="bg-newBgColorInner flex-1 min-w-0 relative">
-        <div className="absolute inset-0 overflow-y-auto flex flex-col mobile:static scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-          {!current ? (
-            isMobile ? (
-              <div className="px-[8px] pb-[20px]">{list}</div>
-            ) : (
-              <EmptyState
-                illustration={
-                  <span className="flex gap-[8px]">
-                    {[0, 1, 2].map((tile) => (
-                      <span
-                        key={tile}
-                        className="w-[44px] h-[44px] rounded-[11px] border-[1.5px] border-dashed border-line"
-                      />
-                    ))}
-                  </span>
-                }
-                title={t('brands_empty_title', 'Give each brand its own look')}
-                description={t(
-                  'brands_empty_body',
-                  "Add a logo, a few example posts, colours and fonts. When you pick a brand's channels, Samy and Sharek's AI keep your images in its look."
-                )}
-                actionLabel={t('brands_new_brand', 'New brand')}
-                onAction={newBrand}
-              />
-            )
+      <PageScroll>
+        {!current ? (
+          isMobile ? (
+            <div className="px-[8px] pb-[20px]">{list}</div>
           ) : (
-            <div className="w-full max-w-[960px] mx-auto flex flex-col gap-[20px] px-[32px] py-[24px] mobile:px-[14px] mobile:py-[16px]">
-              {isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setChosen(null)}
-                  className={clsx(
-                    'self-start flex items-center gap-[4px] h-[44px] -my-[8px] -ms-[6px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
-                    FOCUS_RING
-                  )}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="rtl:-scale-x-100"
-                  >
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                  {t('brands_all_brands', 'Brands')}
-                </button>
+            <EmptyState
+              illustration={
+                <span className="flex gap-[8px]">
+                  {[0, 1, 2].map((tile) => (
+                    <span
+                      key={tile}
+                      className="w-[44px] h-[44px] rounded-[11px] border-[1.5px] border-dashed border-line"
+                    />
+                  ))}
+                </span>
+              }
+              title={t('brands_empty_title', 'Give each brand its own look')}
+              description={t(
+                'brands_empty_body',
+                "Add a logo, a few example posts, colours and fonts. When you pick a brand's channels, Samy and Sharek's AI keep your images in its look."
               )}
-              {page}
-            </div>
-          )}
-        </div>
-      </div>
+              actionLabel={t('brands_new_brand', 'New brand')}
+              onAction={newBrand}
+            />
+          )
+        ) : (
+          <div className="w-full max-w-[960px] mx-auto flex flex-col gap-[20px] px-[32px] py-[24px] mobile:px-[14px] mobile:py-[16px]">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setChosen(null)}
+                className={clsx(
+                  'self-start flex items-center gap-[4px] h-[44px] -my-[8px] -ms-[6px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
+                  FOCUS_RING
+                )}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="rtl:-scale-x-100"
+                >
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+                {t('brands_all_brands', 'Brands')}
+              </button>
+            )}
+            {page}
+          </div>
+        )}
+      </PageScroll>
     </div>
   );
 };
