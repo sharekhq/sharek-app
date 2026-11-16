@@ -194,4 +194,23 @@ describe('the side menu', () => {
     expect(svg?.getAttribute('width')).toBe('20');
     expect(svg?.getAttribute('height')).toBe('21');
   });
+
+  // Both groups keep their items 8px apart, 4px on a short rail (under 800px
+  // tall): the rail's own height decides, not the window's (FR-008, FR-010).
+  it('spaces the items of both groups 8px apart, 4px on a short rail', async () => {
+    await menu();
+    const groups = ['/launches', '/settings'].map(
+      (path) => document.querySelector(`[data-path="${path}"]`)?.parentElement
+    );
+
+    expect(groups[0]).toBeTruthy();
+    expect(groups[0]).not.toBe(groups[1]);
+    groups.forEach((group) => {
+      const classes = (group?.getAttribute('class') ?? '').split(/\s+/);
+      expect(classes.filter((c) => /(^|:)gap-/.test(c)).sort()).toEqual([
+        'gap-[8px]',
+        'railShort:gap-[4px]',
+      ]);
+    });
+  });
 });

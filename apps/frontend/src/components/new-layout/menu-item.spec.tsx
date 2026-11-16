@@ -105,7 +105,7 @@ describe.each([
     expect(classesOf(tile)).not.toContain('text-selectedText');
   });
 
-  it('holds the icon in a centred 40px tile, 36px in short windows, that marking does not resize', async () => {
+  it('holds the icon in a centred 40px tile, 36px on a short rail, that marking does not resize', async () => {
     const currentItem = await render('/launches', onClick);
     const otherItem = await render('/media', onClick);
     const mark = ['bg-selectedBg', 'text-selectedText'];
@@ -119,8 +119,8 @@ describe.each([
         expect.arrayContaining([
           'w-[40px]',
           'h-[40px]',
-          'custom:w-[36px]',
-          'custom:h-[36px]',
+          'railShort:w-[36px]',
+          'railShort:h-[36px]',
           'rounded-[12px]',
           'flex',
           'items-center',
@@ -148,7 +148,9 @@ describe.each([
     expect(classesOf(tileOf(item))).toContain('transition-colors');
   });
 
-  it('spaces tile and label as the rail does: 4px top, 6px bottom, 5px between, 2px in short windows', async () => {
+  // The label sits 4px under its icon at every height; a short rail (under
+  // 800px tall) trims only the item's padding and the tile (FR-008, FR-009).
+  it('spaces tile and label as the rail does: 4px top, 6px bottom, 4px between, 2px padding on a short rail', async () => {
     const item = await render('/media', onClick);
     const classes = classesOf(item);
 
@@ -157,15 +159,28 @@ describe.each([
         'pt-[4px]',
         'pb-[6px]',
         'px-[4px]',
-        'gap-[5px]',
-        'custom:py-[2px]',
-        'custom:gap-[2px]',
+        'gap-[4px]',
+        'railShort:py-[2px]',
       ])
     );
     // the tile sets the height: no height floor, no other padding or gap
     expect(
       classes.filter((c) => /(^|:)(min-h|py|gap)-/.test(c)).sort()
-    ).toEqual(['custom:gap-[2px]', 'custom:py-[2px]', 'gap-[5px]']);
+    ).toEqual(['gap-[4px]', 'railShort:py-[2px]']);
+  });
+
+  // The window's height queries are gone: the rail's own height decides,
+  // so an item and its tile carry no custom: or minCustom: class.
+  it('sizes by the rail, not the window: no custom: or minCustom: class', async () => {
+    const item = await render('/launches', onClick);
+    const everyClass = [
+      item,
+      ...Array.from(item.querySelectorAll('*')),
+    ].flatMap(classesOf);
+
+    expect(
+      everyClass.filter((c) => /(^|:)(custom|minCustom):/.test(c))
+    ).toEqual([]);
   });
 
   it.each([
