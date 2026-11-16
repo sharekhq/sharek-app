@@ -635,8 +635,8 @@ const ReviewScreen: FC<{
               value={slide.text}
               onChange={(e) => setText(index, e.target.value)}
               dir={slideDir(slide.text)}
-              // 16px, the app's own default: this is the text the user came
-              // here to edit, so it cannot be the smallest input in the flow.
+              // 14px, as every field in Studio's windows; 16px under a finger,
+              // where a smaller size makes iOS zoom in on focus.
               className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[14px] coarse:text-[16px] outline-none text-textColor resize-y"
             />
             <div className="flex justify-between items-baseline gap-[10px] text-[11px]">
