@@ -453,6 +453,45 @@ describe('the change figure on a chart', () => {
   });
 });
 
+// Above 1025px the charts sit two to a row, and a chart alone in the last row
+// spans it instead of leaving half the row empty (FR-018); a chart card has the
+// dashboard's 12px corners, as a tile has (FR-035).
+describe('the charts on a wide screen', () => {
+  const metrics = [
+    metric('Reach', [1, 2, 3]),
+    metric('Views', [1, 2, 3, 4]),
+    metric('Likes', [1, 2, 3, 4, 5]),
+  ];
+
+  it('sets the charts two to a row, and spans the row with a chart alone in it', async () => {
+    const host = await render(metrics);
+
+    const [reach, views] = Array.from(host.querySelectorAll('figure'));
+    const charts = commonBox(reach, views);
+    expect(classes(charts)).toEqual(
+      expect.arrayContaining([
+        'grid',
+        'grid-cols-2',
+        'mobile:grid-cols-1',
+        '[&>*:last-child:nth-child(odd)]:col-span-full',
+      ])
+    );
+    // the cards are the grid's own children, which the > * selector reaches
+    expect(reach.parentElement).toBe(charts);
+  });
+
+  it('rounds a chart card 12px', async () => {
+    const host = await render(metrics);
+
+    const figures = Array.from(host.querySelectorAll('figure'));
+    expect(figures).toHaveLength(3);
+    figures.forEach((figure) => {
+      expect(classes(figure)).toContain('rounded-[12px]');
+      expect(classes(figure)).not.toContain('rounded-[14px]');
+    });
+  });
+});
+
 // At 1025px and below (mobile:), the tiles sit two to a row and the charts
 // one to a row, under the tiles (FR-042, the AnalyticsPhone board).
 describe('the layout at 1025px and below', () => {
