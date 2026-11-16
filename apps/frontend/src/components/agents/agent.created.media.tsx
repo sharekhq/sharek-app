@@ -137,9 +137,7 @@ const MediaCard: FC<{
   children: ReactNode;
 }> = ({ ratio, waiting, children }) => (
   <div
-    // A picture stops at 480px tall, so a tall card alone is only as wide as that
-    // allows, and the picture lands in the room the card kept.
-    className="relative overflow-hidden aspect-[var(--card-ratio)] w-[190px] phone:w-[150px] only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)] rounded-[16px]"
+    className="relative overflow-hidden aspect-[var(--card-ratio)] w-[190px] phone:w-[150px] rounded-[16px]"
     style={{ '--card-ratio': ratio } as CSSProperties}
   >
     <div
