@@ -50,15 +50,10 @@ const STRINGS = [
     'يجدول سامي المنشورات على القنوات التي تحددها.',
   ],
   // Older than spec 051, in en and ar alone until walk 3 (T077), with en and
-  // ar as they are. The chat's title and welcome (agent.chat.tsx), and
+  // ar as they are. The chat's title (agent.chat.tsx), and
   // CopilotKit's eight labels, shared with the composer's assistant
   // (assistant.labels.ts): the box's placeholder, the reply buttons' names.
   ['samy', 'Samy', 'سامي'],
-  [
-    'samy_welcome_message',
-    "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers.",
-    'مرحبًا، أنا سامي 👋 — مساعدك في شارك. أستطيع جدولة منشور واحد أو عدة منشورات على قنواتك المتصلة، وتوليد الصور والفيديوهات لها. اختر القنوات التي تريدها من لوحة القنوات، وستجد محادثاتنا السابقة في لوحة المحادثات. يمكنك أيضًا استخدامي كخادم MCP — راجع الإعدادات ← المطورون.',
-  ],
   ['assistant_placeholder', 'Type a message...', 'اكتب رسالة...'],
   [
     'assistant_error',
@@ -123,8 +118,7 @@ const STRINGS = [
     'إذا اكتمل هذا الفيديو فستجده في مكتبة الوسائط',
   ],
   ['opening_post_editor', 'Opening the post editor…', 'جاري فتح محرر المنشور…'],
-  // Settings' tab (settings.component.tsx), which the welcome's "Settings →
-  // Developers" names, so the tab reads as the welcome does.
+  // Settings' tab (settings.component.tsx), where the MCP setup lives.
   ['developers', 'Developers', 'المطورون'],
 ] as const;
 

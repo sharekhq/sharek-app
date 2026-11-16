@@ -19,7 +19,8 @@
 // wording is the table approved with that spec's mockup
 // (contracts/brands-website.md, Words). Spec 056 adds the "Details for Samy"
 // card on a brand's page, in all eight languages (DETAILS). Spec 058 adds the
-// brand words of the channel list, in en and ar only (FROM_CHANNELS).
+// brand words of the channel list, in en and ar only (FROM_CHANNELS). Spec 059
+// adds the All brands overview, in en and ar only (OVERVIEW).
 import * as fs from 'fs';
 import * as path from 'path';
 import { languages } from '@gitroom/react/translation/i18n.config';
@@ -440,6 +441,60 @@ const FROM_CHANNELS = [
   ],
 ] as const;
 
+// Spec 059 (its tasks.md T045; contracts/strings.md §1 Brands overview): the
+// All brands overview on wide screens. Its list row and title, the line under
+// the title, a card's kit count, its examples chip and the missing mark, the
+// No brand card's help, and a card's two notes; a card with no channels reuses
+// brands_no_channels_yet above. {{n}} is a count of kit items or examples.
+const OVERVIEW = [
+  ['brands_overview_title', 'All brands', 'كل العلامات التجارية'],
+  [
+    'brands_overview_used_by',
+    "Samy and Sharek's AI use each brand's kit to keep images on-brand.",
+    'يستخدم سامي والذكاء الاصطناعي في شارك هوية كل علامة لتبقى الصور متسقة معها.',
+  ],
+  ['brands_overview_kit', 'kit {{n}} of 5', 'الهوية {{n}} من 5'],
+  ['brands_kit_examples', 'Examples', 'منشورات نموذجية'],
+  [
+    'brands_kit_examples_n',
+    '{{n}} of 3 examples',
+    '{{n}} من 3 منشورات نموذجية',
+  ],
+  ['brands_kit_missing', 'missing', 'ناقص'],
+  [
+    'brands_overview_no_brand_help',
+    "These channels post without a brand's look. Move one with its ⋯ in the Calendar.",
+    'تنشر هذه القنوات دون مظهر علامة. انقل أيًا منها من زر ⋯ في التقويم.',
+  ],
+  [
+    'brands_overview_empty_kit',
+    'Empty kit: Samy uses no look',
+    'الهوية فارغة: لا يستخدم سامي أي مظهر',
+  ],
+  [
+    'brands_overview_ready',
+    'Ready: Samy and Studio use this kit',
+    'جاهزة: يستخدم سامي والاستوديو هذه الهوية',
+  ],
+] as const;
+
+// The overview's line counts the channels in no brand, among PLURALS below.
+const OVERVIEW_UNGROUPED = [
+  'brands_overview_ungrouped',
+  {
+    one: '1 channel not in a brand',
+    other: '{{count}} channels not in a brand',
+  },
+  {
+    zero: 'لا قنوات خارج العلامات التجارية',
+    one: 'قناة واحدة خارج العلامات التجارية',
+    two: 'قناتان خارج العلامات التجارية',
+    few: '{{count}} قنوات خارج العلامات التجارية',
+    many: '{{count}} قناة خارج العلامات التجارية',
+    other: '{{count}} قناة خارج العلامات التجارية',
+  },
+] as const;
+
 // Keys the app already carries whose en and ar are the canvas's words. rename
 // keeps the Arabic Samy's chats read, إعادة تسمية, where the canvas writes
 // إعادة التسمية, so Rename reads one way across the app.
@@ -662,6 +717,7 @@ const PLURALS = [
       other: 'تتسع هويتك لـ{{count}} لون آخر.',
     },
   ],
+  OVERVIEW_UNGROUPED,
 ] as const;
 
 // The words that change (contracts/pages-ui.md, board Rename): today's screens
@@ -834,8 +890,10 @@ const componentsIn = (dir: string) => {
 // onboarding components, where the "Your brand" step sits (the website card is
 // among the Brands components); for spec 058, the channel list, where an empty
 // brand's line and the + menu's New brand sit (the Move list and the New brand
-// window are among the Brands components). A file not written yet reads as
-// empty, so its keys fail to be found rather than the suite failing to load.
+// window are among the Brands components); spec 059's All brands overview,
+// brands/brands.overview.tsx, is among the Brands components too. A file not
+// written yet reads as empty, so its keys fail to be found rather than the
+// suite failing to load.
 const SOURCES = () =>
   [
     ...componentsIn('components/brands'),
@@ -856,7 +914,7 @@ describe('Brands locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
 
-  it.each([...STRINGS, ...DETAILS, ...FROM_CHANNELS])(
+  it.each([...STRINGS, ...DETAILS, ...FROM_CHANNELS, ...OVERVIEW])(
     'reads %s as "%s" in en and "%s" in ar',
     (key, enText, arText) => {
       expect(en[key]).toBe(enText);
@@ -894,7 +952,9 @@ describe('Brands locale keys', () => {
   // Identical bytes in both locales means the English was copied across rather
   // than translated, which reads as done and is not.
   it.each(
-    [...STRINGS, ...REUSED, ...DETAILS, ...FROM_CHANNELS].map(([key]) => key)
+    [...STRINGS, ...REUSED, ...DETAILS, ...FROM_CHANNELS, ...OVERVIEW].map(
+      ([key]) => key
+    )
   )('translates %s: its Arabic is not its English', (key) => {
     expect(typeof ar[key]).toBe('string');
     expect(ar[key]).not.toBe(en[key]);
@@ -934,6 +994,7 @@ describe('Brands locale keys', () => {
         ...PLURALS,
         ...DETAILS,
         ...FROM_CHANNELS,
+        ...OVERVIEW,
       ].map(([key]) => key)
     )(
       'is read by a t() call in the Brands page, the sidebar, Samy, the AI image dialog, onboarding or the channel list: %s',
@@ -1039,5 +1100,36 @@ describe('the brand words of the channel list (spec 058)', () => {
   it('keeps no_channels as it was in en and ar', () => {
     expect(en.no_channels).toBe('No channels yet');
     expect(ar.no_channels).toBe('لا توجد قنوات بعد');
+  });
+});
+
+// Spec 059's words beyond their wording (contracts/strings.md §1 Brands
+// overview): a count stays a placeholder in both languages; the Arabic,
+// every plural form of the ungrouped line among it, carries no mark but
+// tanween fath; and brands_no_channels_yet, which a card with no channels
+// reuses, reads as spec 058 left it.
+describe('the All brands overview (spec 059)', () => {
+  const en = readLocale('en');
+  const ar = readLocale('ar');
+
+  const placeholders = (text: string) =>
+    (text.match(/\{\{\w+\}\}/g) ?? []).sort();
+
+  it.each(OVERVIEW)('keeps the placeholders of %s in ar', (key, enText) => {
+    expect(typeof ar[key]).toBe('string');
+    expect(placeholders(ar[key])).toEqual(placeholders(enText));
+  });
+
+  it.each([
+    ...OVERVIEW.map(([key]) => key),
+    ...forms('ar').map((form) => `${OVERVIEW_UNGROUPED[0]}_${form}`),
+  ])('%s carries no mark but tanween fath', (key) => {
+    expect(typeof ar[key]).toBe('string');
+    expect(ar[key]).not.toMatch(/[ٌ-ْ]/);
+  });
+
+  it('keeps brands_no_channels_yet as spec 058 left it in en and ar', () => {
+    expect(en.brands_no_channels_yet).toBe('No channels yet');
+    expect(ar.brands_no_channels_yet).toBe('لا قنوات بعد');
   });
 });
