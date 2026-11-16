@@ -28,7 +28,6 @@ import { FinishTrial } from '@gitroom/frontend/components/billing/finish.trial';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { useDubClickId } from '@gitroom/frontend/components/layout/dubAnalytics';
-import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import useCookie from 'react-use-cookie';
 import { usePaymentAction } from '@gitroom/frontend/components/billing/use.payment.action';
 import {
@@ -795,9 +794,6 @@ export const MainBillingComponent: FC<{
             )}
           </div>
         </div>
-        <div className="flex justify-center mt-[20px]">
-          <LogoutComponent />
-        </div>
       </div>
     );
   }
@@ -1045,9 +1041,6 @@ export const MainBillingComponent: FC<{
         </div>
       )}
       {!!subscription?.id && <BillingHistory />}
-      <div className="flex justify-center mt-[20px]">
-        <LogoutComponent />
-      </div>
     </div>
   );
 };
