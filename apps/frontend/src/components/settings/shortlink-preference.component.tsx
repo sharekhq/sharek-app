@@ -73,7 +73,7 @@ const ShortlinkPreferenceComponent = () => {
 
   return (
     <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
-      <div className="mt-[4px]">
+      <div className="mt-[4px] font-[600]">
         {t('shortlink_settings', 'Shortlink Settings')}
       </div>
       <div className="flex items-center justify-between gap-[24px] phone:flex-col phone:items-start phone:gap-[12px]">

@@ -35,7 +35,9 @@ const AuthenticationComponent = () => {
 
   return (
     <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
-      <div className="mt-[4px]">{t('authentication', 'Authentication')}</div>
+      <div className="mt-[4px] font-[600]">
+        {t('authentication', 'Authentication')}
+      </div>
       <div className="flex items-center justify-between gap-[24px] phone:flex-col phone:items-start phone:gap-[12px]">
         <div className="text-[14px] shrink-0">{method.label}</div>
         {method.showEmail && (

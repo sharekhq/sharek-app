@@ -58,7 +58,9 @@ const MetricComponent = () => {
   );
   return (
     <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
-      <div className="mt-[4px]">{t('date_metrics', 'Date Metrics')}</div>
+      <div className="mt-[4px] font-[600]">
+        {t('date_metrics', 'Date Metrics')}
+      </div>
       <Select name="metric" disableForm={true} label="" onChange={changeMetric} value={currentMetric ? 'US' : 'GLOBAL'}>
         {dateMetrics.map((metric) => (
           <option
@@ -70,7 +72,7 @@ const MetricComponent = () => {
         ))}
       </Select>
 
-      <div className="mt-[4px]">{t('timezone', 'Timezone')}</div>
+      <div className="mt-[4px] font-[600]">{t('timezone', 'Timezone')}</div>
       <Select
         name="timezone"
         disableForm={true}
