@@ -74,7 +74,7 @@ export const ChatHeader: FC = () => {
   const chat = data?.threads.find((item) => item.id === threadId);
 
   return (
-    <div className="flex-none flex items-center gap-[6px] mobile:gap-[4px] h-[56px] mobile:h-[52px] ps-[20px] pe-[16px] mobile:ps-[6px] mobile:pe-[6px] border-b border-line">
+    <div className="flex-none flex items-center gap-[6px] mobile:gap-[4px] h-[56px] mobile:h-[52px] px-[20px] mobile:px-[12px] border-b border-line">
       <button
         type="button"
         aria-label={t('show_chats', 'Show chats')}
