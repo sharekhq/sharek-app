@@ -185,12 +185,7 @@ export const InstagramAudioSelector: FC<{
             )}
             className="inline-flex"
           >
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={true}
-              className="!h-[42px] !px-[16px] text-[14px]"
-            >
+            <Button type="button" variant="secondary" disabled={true}>
               {t('instagram_add_audio', 'Add audio')}
             </Button>
           </span>
@@ -264,7 +259,6 @@ export const InstagramAudioSelector: FC<{
           <Button
             type="button"
             variant="secondary"
-            className="!h-[42px] !px-[16px] text-[14px]"
             onClick={() => setOpen(true)}
           >
             {t('instagram_add_audio', 'Add audio')}
@@ -302,7 +296,6 @@ export const InstagramAudioSelector: FC<{
             <Button
               type="button"
               variant="secondary"
-              className="!h-[42px] !px-[16px] text-[14px]"
               onClick={() => {
                 stopPreview();
                 setOpen(false);
@@ -344,12 +337,10 @@ export const InstagramAudioSelector: FC<{
                   {!!audio.previewUrl && (
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="secondary"
+                      size="small"
                       className={clsx(
-                        'px-3 py-1 text-xs',
-                        playingId === audio.id
-                          ? '!bg-brand !text-white'
-                          : '!bg-sixth'
+                        playingId === audio.id && '!bg-brand !text-white'
                       )}
                       onClick={(e) => {
                         e.stopPropagation();

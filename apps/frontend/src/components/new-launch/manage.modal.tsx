@@ -75,7 +75,7 @@ import {
 import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.
@@ -551,6 +551,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <div className="flex-1 flex">
                     <Button
                       type="button"
+                      variant="secondary"
                       className={answerButtonClasses}
                       onClick={() => {
                         modal.closeById('republish-post');
@@ -1242,7 +1243,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             {existingData?.integration && (
               <button
                 onClick={deletePost}
-                className="cursor-pointer flex coarse:min-h-[44px] text-error gap-[8px] items-center text-[15px] font-[600]"
+                className={buttonClassName({
+                  variant: 'dangerGhost',
+                  size: 'large',
+                })}
               >
                 <div>
                   <TrashIcon />
@@ -1262,7 +1266,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   selectedIntegrations.length === 0 || loading || locked
                 }
                 onClick={schedule('draft')}
-                className="relative cursor-pointer disabled:cursor-not-allowed px-[20px] h-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] text-[15px] font-[600]"
+                className={clsx(
+                  buttonClassName({ variant: 'secondary', size: 'large' }),
+                  'disabled:cursor-not-allowed'
+                )}
               >
                 {loading && (
                   <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
@@ -1276,7 +1283,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
             )}
             {addEditSets && (
               <button
-                className="text-white text-[15px] font-[600] min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center h-[44px] rounded-[8px] bg-brand ps-[20px] pe-[16px]"
+                className={clsx(
+                  buttonClassName({ size: 'large' }),
+                  'min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80'
+                )}
                 disabled={
                   selectedIntegrations.length === 0 || loading || locked
                 }
@@ -1307,19 +1317,17 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     publishBlocked
                   }
                   onClick={schedule('schedule')}
-                  className="text-white relative min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center h-[44px] rounded-[8px] bg-brand ps-[20px] pe-[16px]"
+                  className={clsx(
+                    buttonClassName({ size: 'large' }),
+                    'min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80'
+                  )}
                 >
                   {loading && (
                     <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
                       <div className="animate-spin h-[20px] w-[20px] border-4 border-white border-t-transparent rounded-full" />
                     </div>
                   )}
-                  <div
-                    className={clsx(
-                      'text-[15px] font-[600]',
-                      loading && 'invisible'
-                    )}
-                  >
+                  <div className={clsx(loading && 'invisible')}>
                     {selectedIntegrations.length === 0
                       ? t('check_circles_above', 'Check the circles above')
                       : scheduleLabel}

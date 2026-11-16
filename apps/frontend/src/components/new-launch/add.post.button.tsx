@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@gitroom/react/form/button';
+import { buttonClassName } from '@gitroom/react/form/button';
 import React, { FC } from 'react';
+import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { PostComment } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
 export const AddPostButton: FC<{
@@ -17,7 +18,10 @@ export const AddPostButton: FC<{
       <button
         type="button"
         onClick={onClick}
-        className="select-none cursor-pointer h-[34px] coarse:min-h-[44px] rounded-[6px] flex bg-quiet border border-line text-ink gap-[8px] justify-center items-center pl-[16px] pr-[20px] text-[13px] font-[600] mt-[12px] focus-visible:ring-2 focus-visible:ring-brand mobile:w-[44px] mobile:h-[44px] mobile:p-0 mobile:mt-0 mobile:rounded-[8px]"
+        className={clsx(
+          buttonClassName({ variant: 'secondary', size: 'small' }),
+          'select-none mt-[12px] mobile:w-[44px] mobile:h-[44px] mobile:p-0 mobile:mt-0'
+        )}
       >
         <div>
           <svg
