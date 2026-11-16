@@ -20,7 +20,10 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
-import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import {
+  GROUP_LABEL,
+  SplitPanel,
+} from '@gitroom/frontend/components/ui/split.panel';
 
 // The window, as the media query reports it: 1025px or narrower unless a case
 // widens it, and what listens for it to change.
@@ -557,5 +560,15 @@ describe('the start-side drawer at 1025px and below', () => {
 
     await resize(false);
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+});
+
+// A group's label in a panel's list (the Brands page's "Not in a brand",
+// Samy's chat dates, Settings' groups): one look, kept once here.
+describe('the group label', () => {
+  it('exports the look of a group label', () => {
+    expect(GROUP_LABEL).toBe(
+      'px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted'
+    );
   });
 });
