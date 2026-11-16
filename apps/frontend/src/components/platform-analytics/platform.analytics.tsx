@@ -22,6 +22,12 @@ import {
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 const allowedIntegrations = [
   'facebook',
   'instagram',
@@ -301,7 +307,10 @@ export const PlatformAnalytics = () => {
                 role="radiogroup"
                 aria-label={t('period', 'Period')}
                 onKeyDown={onRadioGroupKeyDown}
-                className="flex shrink-0 gap-[2px] p-[4px] ms-auto border border-newTableBorder rounded-[8px] text-[14px] font-[500] coarse:min-h-[54px] mobile:ms-0 mobile:w-full mobile:min-h-[44px]"
+                className={clsx(
+                  SWITCH_GROUP,
+                  'ms-auto coarse:min-h-[54px] mobile:ms-0 mobile:w-full mobile:min-h-[44px]'
+                )}
               >
                 {options.map((option) => (
                   <button
@@ -312,10 +321,11 @@ export const PlatformAnalytics = () => {
                     tabIndex={keys === option.key ? 0 : -1}
                     onClick={() => setKey(option.key)}
                     className={clsx(
-                      'pt-[6px] pb-[5px] px-[12px] rounded-[6px] text-center whitespace-nowrap cursor-pointer coarse:flex coarse:justify-center coarse:items-center coarse:min-w-[44px] mobile:flex-1',
-                      FOCUS_RING,
-                      keys === option.key &&
-                        'text-brandText bg-brandSoft font-[600]'
+                      SWITCH_OPTION,
+                      keys === option.key
+                        ? SWITCH_OPTION_ON
+                        : SWITCH_OPTION_IDLE,
+                      'mobile:flex-1'
                     )}
                   >
                     {option.value}
