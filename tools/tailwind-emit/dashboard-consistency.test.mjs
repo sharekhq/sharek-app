@@ -199,6 +199,30 @@ describe('Every new class', () => {
     );
   });
 
+  // The shared Button's focus ring (form/button.tsx) stands 2px off the
+  // button on a gap of the surface, so a brand or red fill can't hide it
+  // (FR-046).
+  test("stands the buttons' focus ring 2px off on a gap of the surface, on keyboard focus only, outside any query", async () => {
+    const css = await assertEmits(
+      {
+        'focus-visible:ring-offset-2': [['--tw-ring-offset-width', '2px']],
+        'focus-visible:ring-offset-surface': [
+          ['--tw-ring-offset-color', 'var(--surface)'],
+        ],
+      },
+      null
+    );
+    assert.deepEqual(
+      ['focus-visible:ring-offset-2', 'focus-visible:ring-offset-surface'].map(
+        (className) => rules(css, className).map((r) => r.selector)
+      ),
+      [
+        ['.focus-visible:ring-offset-2:focus-visible'],
+        ['.focus-visible:ring-offset-surface:focus-visible'],
+      ]
+    );
+  });
+
   test("moves the on/off switch's knob to the end in either direction", async () => {
     // `:where()` adds nothing, so the rtl: rule wins on order alone.
     const css = await assertEmits(
