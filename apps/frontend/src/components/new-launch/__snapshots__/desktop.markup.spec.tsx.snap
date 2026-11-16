@@ -1866,9 +1866,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
             </button>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -1881,9 +1881,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -1896,9 +1896,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
@@ -1986,9 +1986,9 @@ exports[`the media library from 1026px up the picker 1`] = `
             </span>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -2003,9 +2003,9 @@ exports[`the media library from 1026px up the picker 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -2020,9 +2020,9 @@ exports[`the media library from 1026px up the picker 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
@@ -2120,9 +2120,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
             </span>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-brand h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-brand h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -2140,9 +2140,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
                 </div>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-brand h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-brand h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -2160,9 +2160,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
                 </div>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
