@@ -30,10 +30,10 @@ export type ButtonVariant =
   | 'secondary'
   | 'ghost'
   | 'danger'
-  | 'dangerGhost';
+  | 'dangerGhost'
+  | 'ai';
 export type ButtonSize = 'large' | 'medium' | 'small';
-// The dashboard's one button set: hand-made buttons that can't be a
-// <Button> take the same look from here.
+// The dashboard's one button set, for hand-made buttons and for <button>s left plain to keep an upstream diff small.
 export const buttonClassName = ({
   variant = 'primary',
   size = 'medium',
@@ -46,6 +46,7 @@ export const buttonClassName = ({
       ghost: 'bg-transparent text-ink hover:bg-boxHover',
       danger: 'bg-error text-white',
       dangerGhost: 'bg-transparent text-error hover:bg-boxHover',
+      ai: 'bg-aiSoft text-aiAccent border border-transparent hover:border-aiAccent',
     }[variant],
     {
       large: 'h-[44px] px-[20px] text-[14px]',

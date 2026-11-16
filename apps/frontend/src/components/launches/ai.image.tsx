@@ -1,4 +1,4 @@
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import {
   FC,
   ReactNode,
@@ -1156,7 +1156,8 @@ export const AiImage: FC<{
         data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         aria-label={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         className={clsx(
-          'cursor-pointer h-[32px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[8px] justify-center items-center flex bg-ai text-aiAccent px-[12px]'
+          buttonClassName({ variant: 'ai', size: 'small' }),
+          'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] mobile:px-0'
         )}
       >
         {loading && (
@@ -1173,7 +1174,7 @@ export const AiImage: FC<{
           <div>
             <AiImageIcon className="mobile:w-[20px] mobile:h-[20px]" />
           </div>
-          <div className="text-[13px] font-[600] mobile:hidden block">
+          <div className="mobile:hidden block">
             {t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
           </div>
         </div>

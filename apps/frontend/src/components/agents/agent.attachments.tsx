@@ -434,10 +434,9 @@ const TOOL_BUTTON = clsx(
   buttonClassName({ variant: 'secondary', size: 'small' }),
   TOOL_STEPS
 );
-// AI Image keeps its AI tint at the small size. Tailwind emits the secondary
-// look's bg-quiet and text-ink after the tint's classes, so it draws its own.
+// AI Image keeps its AI tint at the small size.
 const AI_TOOL_BUTTON = clsx(
-  'flex items-center justify-center gap-[6px] h-[32px] coarse:min-h-[44px] px-[12px] rounded-[8px] border border-transparent bg-aiSoft text-aiAccent hover:border-aiAccent text-[13px] font-[600] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand',
+  buttonClassName({ variant: 'ai', size: 'small' }),
   TOOL_STEPS
 );
 const TOOL_ICON =
