@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Button, buttonClassName } from './button';
 
 // One button set for the whole dashboard (spec 059, FR-026 to FR-031): four kinds (plus a
-// red-text row action) in three sizes, 8px corners, 14px semibold text (13px small), 6px
-// between an icon and its label, and at least 44px under a finger.
+// red-text row action and the AI tint) in three sizes, 8px corners, 14px semibold text
+// (13px small), 6px between an icon and its label, and at least 44px under a finger.
 const EVERY_LOOK = [
   'flex',
   'items-center',
@@ -31,6 +31,14 @@ const KIND = {
   ghost: ['bg-transparent', 'text-ink', 'hover:bg-boxHover'],
   danger: ['bg-error', 'text-white'],
   dangerGhost: ['bg-transparent', 'text-error', 'hover:bg-boxHover'],
+  // The AI tools' tint (Question 4), its clear border showing on hover.
+  ai: [
+    'bg-aiSoft',
+    'text-aiAccent',
+    'border',
+    'border-transparent',
+    'hover:border-aiAccent',
+  ],
 } as const;
 const MEDIUM = ['h-[40px]', 'px-[16px]', 'text-[14px]'];
 

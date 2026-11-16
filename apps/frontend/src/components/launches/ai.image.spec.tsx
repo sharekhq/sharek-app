@@ -127,6 +127,7 @@ import {
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
+import { buttonClassName } from '@gitroom/react/form/button';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
@@ -274,7 +275,7 @@ const generate = async (
     <AiImage value="" onChange={onChange} destination={destination} />
   );
 
-  await click(document.querySelector('.bg-ai'));
+  await click(document.querySelector('.bg-aiSoft'));
   await type(
     document.querySelector('textarea') as HTMLTextAreaElement,
     'a pomegranate on a table'
@@ -555,7 +556,7 @@ describe('as the composer button', () => {
   it('renders the ✦ button and opens the generator from it, as before', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
 
-    const trigger = document.querySelector('.bg-ai');
+    const trigger = document.querySelector('.bg-aiSoft');
     expect(trigger?.textContent?.trim()).toBe('AI Image');
 
     await click(trigger);
@@ -580,7 +581,7 @@ describe('with a trigger of its own', () => {
       />
     );
 
-    expect(document.querySelector('.bg-ai')).toBeNull();
+    expect(document.querySelector('.bg-aiSoft')).toBeNull();
 
     await click(document.querySelector('[data-testid="card"]'));
 
@@ -663,7 +664,7 @@ describe('the action that accepts the result', () => {
 describe('the hint under the prompt', () => {
   it('tells the user to put the exact words in quotes', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
 
     expect(document.body.textContent).toContain(
       'Put the words you want on the image in quotes.'
@@ -697,7 +698,7 @@ describe('reference images', () => {
   /** Opens the window on its compose step. */
   const compose = async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
   };
 
   it('numbers attached images in the order they were picked', async () => {
@@ -942,7 +943,7 @@ describe('editing the result', () => {
   // after the compose step has moved on to another.
   it('keeps the preset the image was made at', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await type(field(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
     renders(done);
@@ -1321,7 +1322,7 @@ describe('the version strip', () => {
   // version picked in the strip need not share with the latest.
   it('edits the version picked, at the preset it was made at', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await type(field(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
     renders(done);
@@ -1640,7 +1641,7 @@ describe('a second click while the credits are checked', () => {
 describe('keyboard visibility', () => {
   it('rings the prompt field', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
 
     expect(field().className).toContain('focus-visible:ring-2');
     expect(field().className).toContain('focus-visible:ring-brand');
@@ -1658,7 +1659,7 @@ describe('keyboard visibility', () => {
   // already carries its own.
   it('rings every button on the compose step', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     const interactive = Array.from(document.querySelectorAll('button'));
 
     expect(interactive.length).toBeGreaterThan(0);
@@ -1670,7 +1671,7 @@ describe('keyboard visibility', () => {
 
   it('rings every button in the style catalog', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const interactive = Array.from(document.querySelectorAll('button'));
 
@@ -1700,7 +1701,7 @@ describe('keyboard visibility', () => {
   // the box and has to key off focus-within.
   it('rings the style search around its box', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const box = document.querySelector('input[placeholder="Search styles"]')!
       .parentElement!;
@@ -1715,7 +1716,7 @@ describe('keyboard visibility', () => {
 describe('the style search under a finger', () => {
   it('types at 16px on a touch screen, 14px with a mouse', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const search = document.querySelector(
       'input[placeholder="Search styles"]'
@@ -1748,7 +1749,7 @@ describe("the styles in the dashboard's one chip look", () => {
 
   it('draws Auto current on arrival, the popular styles and All styles idle, and moves the current one with a click', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
 
     expect(half(button('✦Auto'))).toBe('on');
     IMAGE_POPULAR_STYLES.forEach((entry) =>
@@ -1764,7 +1765,7 @@ describe("the styles in the dashboard's one chip look", () => {
 
   it("draws the catalog's styles as the same chips, the chosen one current", async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
     await click(button('Watercolor'));
     await click(button('All styles'));
     const chips = Array.from(document.querySelectorAll('button')).filter(
@@ -1781,12 +1782,13 @@ describe("the styles in the dashboard's one chip look", () => {
   });
 
   // Question 4: the editor's AI image tile keeps its AI tint and takes the
-  // small size beside Insert Media: 32px with 8px corners and 12px sides, its
-  // label 13px semibold 6px from its 16px icon, still 44px under a finger
-  // and at 1025px and below.
+  // small size beside Insert Media, from the one button set's AI look: 32px
+  // with 8px corners and 12px sides, its label 13px semibold 6px from its
+  // 16px icon, still 44px under a finger, and a 44px square at 1025px and
+  // below, where the look's border would widen it past its 20px icon.
   it("draws the editor's AI image tile at the small size in its AI tint", async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    const tile = document.querySelector('.bg-ai')!;
+    const tile = document.querySelector('.bg-aiSoft')!;
     const own = tile.className.split(' ');
     const label = Array.from(tile.querySelectorAll('div')).find(
       (node) => node.textContent === 'AI Image' && !node.children.length
@@ -1794,22 +1796,16 @@ describe("the styles in the dashboard's one chip look", () => {
 
     expect(own).toEqual(
       expect.arrayContaining([
-        'h-[32px]',
-        'rounded-[8px]',
-        'px-[12px]',
-        'bg-ai',
-        'text-aiAccent',
+        ...buttonClassName({ variant: 'ai', size: 'small' }).split(' '),
         'coarse:h-[44px]',
         'coarse:min-w-[44px]',
         'mobile:h-[44px]',
         'mobile:min-w-[44px]',
+        'mobile:px-0',
       ])
     );
-    ['h-[30px]', 'rounded-[6px]', 'px-[8px]'].forEach((name) =>
+    ['h-[30px]', 'rounded-[6px]', 'px-[8px]', 'bg-ai'].forEach((name) =>
       expect(own).not.toContain(name)
-    );
-    expect(label.className.split(' ')).toEqual(
-      expect.arrayContaining(['text-[13px]', 'font-[600]'])
     );
     expect(label.className).not.toContain('text-[10px]');
     expect(label.parentElement!.className.split(' ')).toContain('gap-[6px]');
@@ -1842,7 +1838,7 @@ describe('the Brand field', () => {
 
   const compose = async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
   };
 
   // Closes the window and opens it again from the same button.
@@ -1850,7 +1846,7 @@ describe('the Brand field', () => {
     act(() => {
       closeEveryModal?.();
     });
-    await click(document.querySelector('.bg-ai'));
+    await click(document.querySelector('.bg-aiSoft'));
   };
 
   const brandButton = () =>

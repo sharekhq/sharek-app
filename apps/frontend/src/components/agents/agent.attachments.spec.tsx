@@ -840,8 +840,9 @@ describe('the two buttons', () => {
     }
   });
 
-  // FR-026, Question 4: AI Image keeps its AI tint at the small size, so none
-  // of the secondary colours, which Tailwind emits after the tint's, is on it.
+  // FR-026, Question 4: AI Image keeps its AI tint at the small size, the one
+  // button set's AI look, so none of the secondary colours, which Tailwind
+  // emits after the tint's, is on it.
   it('are the small secondary button, AI Image in its AI tint', async () => {
     const { host } = await render();
     const [insert, image] = Array.from(tools(host).querySelectorAll('button'));
@@ -852,12 +853,9 @@ describe('the two buttons', () => {
       )
     );
     expect(classes(image)).toEqual(
-      expect.arrayContaining([
-        'bg-aiSoft',
-        'text-aiAccent',
-        'border-transparent',
-        'hover:border-aiAccent',
-      ])
+      expect.arrayContaining(
+        buttonClassName({ variant: 'ai', size: 'small' }).split(/\s+/)
+      )
     );
     for (const name of [
       'bg-quiet',

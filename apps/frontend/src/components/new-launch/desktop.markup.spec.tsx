@@ -301,6 +301,7 @@ import { PostComment } from '@gitroom/frontend/components/new-launch/providers/p
 import { SignatureBox } from '@gitroom/frontend/components/signature';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { InformationComponent } from '@gitroom/frontend/components/launches/information.component';
 import {
   MediaBox,
@@ -693,6 +694,24 @@ describe('the tool buttons from 1026px up', () => {
     ['AI video', <AiVideo key="v" value="" onChange={jest.fn()} />],
   ])('%s', async (_name, element) => {
     expect(pin(await render(element))).toMatchSnapshot();
+  });
+
+  // FR-026: AI Video sits beside AI Image in the AI look at the small size, the
+  // one button set's, its label 6px from its icon.
+  it("sets AI Video at AI Image's small AI look", async () => {
+    const tile = async (element: ReactElement) =>
+      (await render(element)).querySelector('[aria-label]')!;
+    const image = await tile(<AiImage value="" onChange={jest.fn()} />);
+    const video = await tile(<AiVideo value="" onChange={jest.fn()} />);
+    const own = (element: Element) => element.className.split(' ').sort();
+
+    expect(own(video)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'ai', size: 'small' }).split(' ')
+      )
+    );
+    expect(own(video)).toEqual(own(image));
+    expect(own(video.lastElementChild!)).toEqual(own(image.lastElementChild!));
   });
 
   it('the media strip', async () => {

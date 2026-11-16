@@ -336,7 +336,7 @@ describe('as the composer button', () => {
   it('renders the ✦ button and opens the chooser from it, as before', async () => {
     await mount(<AiVideo value="" onChange={jest.fn()} />);
 
-    const trigger = document.querySelector('.bg-ai');
+    const trigger = document.querySelector('.bg-aiSoft');
     expect(trigger?.textContent?.trim()).toBe('AI Video');
 
     await click(trigger);
@@ -352,7 +352,7 @@ describe('with a trigger of its own', () => {
       <AiVideo value="" onChange={jest.fn()} renderTrigger={cardTrigger} />
     );
 
-    expect(document.querySelector('.bg-ai')).toBeNull();
+    expect(document.querySelector('.bg-aiSoft')).toBeNull();
 
     await click(document.querySelector('[data-testid="card"]'));
 
