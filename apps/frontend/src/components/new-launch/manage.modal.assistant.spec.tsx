@@ -120,6 +120,14 @@ jest.mock(
 import { ManageModal } from '@gitroom/frontend/components/new-launch/manage.modal';
 import { ASSISTANT_LABELS } from '@gitroom/frontend/components/ui/assistant.labels';
 
+// The preview column's fit watches the column's height. Nothing is measured
+// here, and the DOM this suite installs has no observers.
+class NoObserver {
+  observe(): void {}
+  disconnect(): void {}
+}
+Object.assign(global, { ResizeObserver: NoObserver });
+
 const render = () => {
   capturedLabels.length = 0;
   const container = document.createElement('div');

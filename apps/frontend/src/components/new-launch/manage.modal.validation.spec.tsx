@@ -151,6 +151,14 @@ jest.mock(
 import { ManageModal } from '@gitroom/frontend/components/new-launch/manage.modal';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
+// The preview column's fit watches the column's height. Nothing is measured
+// here, and the DOM this suite installs has no observers.
+class NoObserver {
+  observe(): void {}
+  disconnect(): void {}
+}
+Object.assign(global, { ResizeObserver: NoObserver });
+
 const integration = {
   id: 'int-1',
   identifier: 'youtube',

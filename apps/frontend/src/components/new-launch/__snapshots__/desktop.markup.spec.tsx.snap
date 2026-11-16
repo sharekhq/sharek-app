@@ -578,7 +578,13 @@ exports[`the composer shell from 1026px up a new post 1`] = `
         </div>
         <div class="bg-panel flex-1 relative">
           <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
-            <i data-mock="ShowAllProviders" />
+            <div class="h-full">
+              <div class="mx-auto relative">
+                <div class="origin-top-left rtl:origin-top-right">
+                  <i data-mock="ShowAllProviders" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -801,7 +807,13 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
         </div>
         <div class="bg-panel flex-1 relative">
           <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
-            <i data-mock="ShowAllProviders" />
+            <div class="h-full">
+              <div class="mx-auto relative">
+                <div class="origin-top-left rtl:origin-top-right">
+                  <i data-mock="ShowAllProviders" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1006,7 +1018,13 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
         </div>
         <div class="bg-panel flex-1 relative">
           <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
-            <i data-mock="ShowAllProviders" />
+            <div class="h-full">
+              <div class="mx-auto relative">
+                <div class="origin-top-left rtl:origin-top-right">
+                  <i data-mock="ShowAllProviders" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1220,7 +1238,13 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
         </div>
         <div class="bg-panel flex-1 relative">
           <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
-            <i data-mock="ShowAllProviders" />
+            <div class="h-full">
+              <div class="mx-auto relative">
+                <div class="origin-top-left rtl:origin-top-right">
+                  <i data-mock="ShowAllProviders" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1398,7 +1422,13 @@ exports[`the composer shell from 1026px up an existing post with another channel
         </div>
         <div class="bg-panel flex-1 relative">
           <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
-            <i data-mock="ShowAllProviders" />
+            <div class="h-full">
+              <div class="mx-auto relative">
+                <div class="origin-top-left rtl:origin-top-right">
+                  <i data-mock="ShowAllProviders" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -76,6 +76,7 @@ import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
 import { Button, buttonClassName } from '@gitroom/react/form/button';
+import { PreviewFit } from '@gitroom/frontend/components/new-launch/preview.fit';
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.
@@ -1215,7 +1216,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 scrollClasses="!pe-[20px]"
                 className="absolute mobile:static top-0 p-[20px] pe-[8px] mobile:p-[16px] left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
               >
-                <ShowAllProviders ref={ref} />
+                <PreviewFit>
+                  <ShowAllProviders ref={ref} />
+                </PreviewFit>
               </Scrollable>
             </div>
           </div>
