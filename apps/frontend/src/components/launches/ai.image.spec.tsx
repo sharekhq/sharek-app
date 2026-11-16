@@ -130,6 +130,7 @@ import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { buttonClassName } from '@gitroom/react/form/button';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import { LOGO_TILE_DARK } from '@gitroom/frontend/components/brands/brand.mark';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 import {
   CHIP,
@@ -2130,6 +2131,42 @@ describe('the Brand field', () => {
     expect(
       goesAlong()?.querySelector('[role="img"]')?.getAttribute('aria-label')
     ).toBe('Example post');
+  });
+
+  // D29: the logo going along takes the tone tile every small brand logo
+  // has (brand.mark.tsx), so a white logo on a see-through ground shows. Its
+  // own src, as brand.mark keeps each src's tone once read; happy-dom has no
+  // 2D canvas, so the read gets one that answers white pixels.
+  it('puts a white logo going along on the dark tile once it loads', async () => {
+    const canvas = window.HTMLCanvasElement.prototype;
+    const getContext = canvas.getContext;
+    const data = new Uint8ClampedArray(32 * 32 * 4);
+    data.fill(255, 0, 300 * 4);
+    canvas.getContext = jest.fn(() => ({
+      drawImage: jest.fn(),
+      getImageData: () => ({ data }),
+    })) as never;
+    try {
+      brandList = [
+        RAWDA,
+        { ...BAYT, kit: { ...BAYT.kit, logo: kitImage('bq-logo-white') } },
+      ];
+      await compose();
+      await pick('Bayt Al Qahwa');
+      const logo =
+        goesAlong()!.querySelector<HTMLImageElement>('img[alt="Logo"]')!;
+
+      expect(logo.getAttribute('crossorigin')).toBe('anonymous');
+      act(() => {
+        logo.dispatchEvent(new Event('load'));
+      });
+
+      const probe = document.createElement('div');
+      Object.assign(probe.style, LOGO_TILE_DARK);
+      expect(logo.style.backgroundColor).toBe(probe.style.backgroundColor);
+    } finally {
+      canvas.getContext = getContext;
+    }
   });
 
   it("shows the brand's second example once its first is gone from Media", async () => {
