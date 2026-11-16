@@ -1321,7 +1321,7 @@ export const MultiMediaComponent: FC<{
                 aria-label={t('insert_media', 'Insert Media')}
                 className={clsx(
                   buttonClassName({ variant: 'secondary', size: 'small' }),
-                  'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px]'
+                  'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] mobile:px-0'
                 )}
               >
                 <div className="flex gap-[6px] items-center">
