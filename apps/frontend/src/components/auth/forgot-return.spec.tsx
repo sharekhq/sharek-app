@@ -76,3 +76,31 @@ describe('the forgot-password flow', () => {
     expect(buttonShape(reset)).toEqual(buttonShape(request));
   });
 });
+
+describe('the new-password page', () => {
+  const classes = (element: Element) => element.className.split(/\s+/);
+
+  it('has one heading at the page-title scale', async () => {
+    const host = await render(<ForgotReturn token="token" />);
+
+    const headings = host.querySelectorAll('h1');
+    expect(headings).toHaveLength(1);
+    expect(classes(headings[0])).toEqual(
+      expect.arrayContaining(['text-[32px]', 'font-[600]', 'leading-[1.2]'])
+    );
+    expect(classes(headings[0])).not.toContain('text-[40px]');
+    expect(classes(headings[0])).not.toContain('text-3xl');
+    expect(classes(headings[0])).not.toContain('font-bold');
+  });
+
+  it('changes the password with the shared large button', async () => {
+    const host = await render(<ForgotReturn token="token" />);
+
+    const submit = host.querySelector('button[type="submit"]')!;
+    expect(submit.textContent).toBe('Change Password');
+    expect(classes(submit)).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+    expect(classes(submit)).not.toContain('!h-[52px]');
+  });
+});
