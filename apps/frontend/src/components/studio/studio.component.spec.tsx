@@ -186,6 +186,14 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
 });
 
 import { StudioComponent } from '@gitroom/frontend/components/studio/studio.component';
+import {
+  CHIP,
+  CHIP_COUNT,
+  CHIP_COUNT_IDLE,
+  CHIP_COUNT_ON,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 const mounted: Root[] = [];
 
@@ -1256,5 +1264,92 @@ describe('the type scale', () => {
     // Fix 04: a one-sentence subtitle capped at 72ch broke onto two lines at
     // every desktop width. It is a subtitle, not a paragraph.
     expect(intro.className).not.toContain('max-w-[72ch]');
+  });
+});
+
+// Spec 059 (FR-026, FR-033 to FR-035, contracts/inventory.md D, E and G): the
+// chips are the dashboard's one chip look, the search the page's 40px field
+// rather than a side panel's 36px, the cards' corners 12px, and Create a
+// post's icon 6px from its label. A chip is CHIP plus CHIP_ON or CHIP_IDLE,
+// whole and alone, never both, as Tailwind emits the idle colours after the
+// current ones; its count is CHIP_COUNT plus CHIP_COUNT_ON or CHIP_COUNT_IDLE.
+describe("the dashboard's one look", () => {
+  const words = (value: string) => value.split(' ');
+  // Which half a node carries over its base: 'on', 'idle', or 'mixed' for
+  // anything else.
+  const half = (
+    node: Element | undefined,
+    base: string,
+    on: string,
+    idle: string
+  ) => {
+    const own = classes(node);
+    expect(own).toEqual(expect.arrayContaining(words(base)));
+    const has = (part: string) =>
+      words(part).filter((name) => own.includes(name)).length;
+    if (has(on) === words(on).length && !has(idle)) return 'on';
+    if (has(idle) === words(idle).length && !has(on)) return 'idle';
+    return 'mixed';
+  };
+  const looks = () =>
+    chips().map((node) => [
+      half(node, CHIP, CHIP_ON, CHIP_IDLE),
+      half(node.children[1], CHIP_COUNT, CHIP_COUNT_ON, CHIP_COUNT_IDLE),
+    ]);
+
+  it('draws the chips and their counts in the chip look, All current on arrival and the current one moving with a click', async () => {
+    await mount();
+
+    expect(looks()).toEqual([
+      ['on', 'on'],
+      ['idle', 'idle'],
+      ['idle', 'idle'],
+      ['idle', 'idle'],
+    ]);
+
+    await click(chip('Video'));
+
+    expect(looks()).toEqual([
+      ['idle', 'idle'],
+      ['idle', 'idle'],
+      ['on', 'on'],
+      ['idle', 'idle'],
+    ]);
+  });
+
+  it("draws the search as the page's 40px field, not a side panel's 36px", async () => {
+    await mount();
+
+    expect(classes(search())).toEqual(
+      expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+    );
+    expect(classes(search())).not.toContain('h-[36px]');
+  });
+
+  it('rounds every card and the no-match box at 12px', async () => {
+    await mount();
+    const cards = Array.from(document.querySelectorAll('section button'));
+
+    expect(cards).toHaveLength(4);
+    cards.forEach((node) => {
+      expect(classes(node)).toContain('rounded-[12px]');
+      expect(classes(node)).not.toContain('rounded-[14px]');
+    });
+
+    await type('zzz');
+    const box = document.querySelector('.border-dashed');
+
+    expect(classes(box)).toContain('rounded-[12px]');
+    expect(classes(box)).not.toContain('rounded-[14px]');
+  });
+
+  it("puts Create a post's 16px plus 6px from its label", async () => {
+    await mount();
+    await click(card('AI image generator'));
+    const inner = button('Create a post')!.children[0];
+
+    expect(classes(inner)).toContain('gap-[6px]');
+    expect(classes(inner)).not.toContain('gap-[8px]');
+    expect(inner.querySelector('svg')!.getAttribute('width')).toBe('16');
   });
 });
