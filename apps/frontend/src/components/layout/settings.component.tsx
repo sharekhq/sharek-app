@@ -32,7 +32,10 @@ import { GlobalSettings } from '@gitroom/frontend/components/settings/global.set
 import { AppsComponent } from '@gitroom/frontend/components/settings/apps.component';
 import { ThirdPartyComponent } from '@gitroom/frontend/components/third-parties/third-party.component';
 import { Plugs } from '@gitroom/frontend/components/plugs/plugs';
-import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  PageScroll,
+  PAGE_PADDING,
+} from '@gitroom/frontend/components/ui/page.scroll';
 import { SettingsMenu } from '@gitroom/frontend/components/settings/settings.menu';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
@@ -161,7 +164,7 @@ export const SettingsPopup: FC<{
       {/* min-w-0: the same min-width:auto floor one level in — this pane is the
           flex item that holds the panels, and a panel wider than the frame
           floors it here too, bleeding past the right edge at 820. */}
-      <PageScroll className="p-[20px] gap-[12px]">
+      <PageScroll className={clsx(PAGE_PADDING, 'gap-[12px]')}>
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(submit)}>
             {!!getRef && (
