@@ -177,3 +177,18 @@ describe('an existing post', () => {
     expect((await render()).querySelector('[data-current]')).toBeNull();
   });
 });
+
+// The compose window shares the window shell's 24px corners on a wide screen,
+// and still fills a phone's screen edge to edge with none.
+describe('the compose card', () => {
+  it('rounds its corners at 24px, and drops them on a phone', async () => {
+    existing = {};
+    const card = (await render()).querySelector('.bg-newBgColorInner')!;
+    const classes = (card.getAttribute('class') ?? '').split(/\s+/);
+
+    expect(classes).toEqual(
+      expect.arrayContaining(['rounded-[24px]', 'mobile:rounded-none'])
+    );
+    expect(classes).not.toContain('rounded-[20px]');
+  });
+});

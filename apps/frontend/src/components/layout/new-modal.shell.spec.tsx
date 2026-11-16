@@ -148,9 +148,12 @@ describe('the modal shell on small screens', () => {
   it('sets the title at 20px, 28px short of the close control', async () => {
     const { title } = await open({});
 
+    // One size at every width: 20px, as the first-run window's titles.
     expect(classesOf(title)).toEqual(
-      expect.arrayContaining(['mobile:text-[20px]', 'mobile:pe-[28px]'])
+      expect.arrayContaining(['text-[20px]', 'mobile:pe-[28px]'])
     );
+    expect(classesOf(title)).not.toContain('text-[24px]');
+    expect(classesOf(title)).not.toContain('mobile:text-[20px]');
   });
 
   it('draws the close control as a 44px box flush in the corner, keeping its focus ring', async () => {

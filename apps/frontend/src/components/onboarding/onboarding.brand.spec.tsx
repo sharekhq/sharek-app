@@ -373,6 +373,17 @@ describe('onboarding has four steps, "Your brand" second', () => {
     expect(line?.textContent).not.toMatch(/tool|studio|MCP|CLI/i);
   });
 
+  it('sets its heading at 20px at every width, as the other steps', async () => {
+    await toBrandStep();
+
+    const classes = classesOf(textNode(TITLE)!);
+    expect(classes).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-semibold'])
+    );
+    expect(classes).not.toContain('text-[24px]');
+    expect(classes).not.toContain('phone:text-[20px]');
+  });
+
   it('keeps each dot round on a rail too narrow for four labels, which wrap instead', async () => {
     await mount();
 

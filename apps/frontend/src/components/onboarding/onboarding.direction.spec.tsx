@@ -180,6 +180,28 @@ describe('the onboarding modal gives its width back on a phone', () => {
   });
 });
 
+// The first-run window takes the window shell's 24px corners and its 20px
+// title, one size at every width.
+describe("the first-run window's frame", () => {
+  it('rounds the window at 24px, as every other window', () => {
+    const container = mount();
+    expect(anyHas(container, 'div', 'rounded-[24px]')).toBe(true);
+    expect(anyHas(container, 'div', 'rounded-[20px]')).toBe(false);
+  });
+
+  it('sets the step title at 20px at every width', () => {
+    const title = Array.from(mount().querySelectorAll('div')).find(
+      (node) => node.textContent === 'Connect Your Channels'
+    )!;
+    const classes = title.className.split(/\s+/);
+    expect(classes).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-semibold'])
+    );
+    expect(classes).not.toContain('text-[24px]');
+    expect(classes).not.toContain('phone:text-[20px]');
+  });
+});
+
 describe('the onboarding action rows fit the width they are given', () => {
   it('gives the lone continue button the full row on the channels step', () => {
     // Alone on its row, so it takes the whole of it: the label
