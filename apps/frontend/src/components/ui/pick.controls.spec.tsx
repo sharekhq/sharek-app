@@ -1,4 +1,5 @@
-import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   CHIP,
   CHIP_COUNT,
@@ -22,6 +23,10 @@ import {
 // ones, so idle colours left on the current option would win.
 
 const tokens = (classes: string) => classes.split(' ');
+
+// Every control's focus ring (Rule 7), written out as the shared Button and
+// the post actions menu write it.
+const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 
 describe('the switch', () => {
   // A page may hold the group taller than its options (Analytics' and
@@ -81,8 +86,14 @@ describe('the chip', () => {
     );
   });
 
-  it('draws the current chip in the selected colours', () => {
-    expect(CHIP_ON).toBe('bg-selectedBg text-selectedText border-transparent');
+  // The selected fill is solid brand in dark, where a brand ring beside it
+  // would vanish: the current chip (Tab lands on it in Studio's radiogroup)
+  // takes the selected ring, as the menu's current item and the date picker's
+  // picked day do (colors.scss --selected-ring).
+  it('draws the current chip in the selected colours, its focus ring in the selected ring', () => {
+    expect(CHIP_ON).toBe(
+      'bg-selectedBg text-selectedText border-transparent focus-visible:ring-selectedRing'
+    );
   });
 
   it('draws the count in a chip as a 20px badge at 11px', () => {
@@ -91,5 +102,18 @@ describe('the chip', () => {
     );
     expect(CHIP_COUNT_IDLE).toBe('bg-panel text-muted');
     expect(CHIP_COUNT_ON).toBe('bg-surface');
+  });
+});
+
+describe('the module', () => {
+  // A ui/ module draws its own ring rather than reaching into a feature folder
+  // (the 1,300-line launches/channel.panel) for it.
+  it('imports nothing from launches/channel.panel', () => {
+    const source = fs.readFileSync(
+      path.join(__dirname, 'pick.controls.ts'),
+      'utf8'
+    );
+
+    expect(source).not.toMatch(/launches\/channel\.panel/);
   });
 });

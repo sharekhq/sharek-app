@@ -187,6 +187,24 @@ describe('the Plugs tab', () => {
     expect(mockPush).toHaveBeenCalledWith('/launches');
   });
 
+  // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+  // shared Button's own gap with no override on its inner row (ui/empty.state,
+  // so every EmptyState with an actionLabel).
+  it("draws the empty state's plus glyph at 16px, 6px from Connect a channel", async () => {
+    mockIntegrations = [channel('c', 'youtube')];
+    const host = await plugs();
+
+    const glyph = Array.from(host.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('connect_a_channel'))!
+      .querySelector('svg')!;
+    const row = glyph.parentElement!.className.split(' ');
+
+    expect(glyph.getAttribute('width')).toBe('16');
+    expect(glyph.getAttribute('height')).toBe('16');
+    expect(row).toContain('gap-[6px]');
+    expect(row).not.toContain('gap-[8px]');
+  });
+
   // The tab sits inside Settings: no channel drawer and no toggle that opens one.
   it('carries no channel drawer', async () => {
     const host = await plugs();

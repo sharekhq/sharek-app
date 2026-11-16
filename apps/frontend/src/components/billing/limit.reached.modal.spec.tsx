@@ -183,6 +183,23 @@ describe('a viewer who can buy', () => {
     expect(buttons(host)).toContain('Upgrade plan');
     expect(buttons(host)).toContain('Not now');
   });
+
+  // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+  // shared Button's own gap with no override on its inner row.
+  it("draws Upgrade plan's arrow at 16px, 6px from its word", async () => {
+    const host = await render({ section: 'videos_per_month' });
+
+    const upgrade = Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Upgrade plan'
+    )!;
+    const glyph = upgrade.querySelector('svg')!;
+    const row = upgrade.firstElementChild!.className.split(' ');
+
+    expect(glyph.getAttribute('width')).toBe('16');
+    expect(glyph.getAttribute('height')).toBe('16');
+    expect(row).toContain('gap-[6px]');
+    expect(row).not.toContain('gap-[8px]');
+  });
 });
 
 describe('a viewer who cannot buy', () => {
