@@ -76,9 +76,11 @@ const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
 const showModalEmitter = new EventEmitter();
-// at 1025px and below every media library takes the whole screen
+// at 1025px and below every media library sits 8px in from the screen, as every window does
 export const mediaLibrarySize = () =>
-  window.matchMedia(MOBILE_QUERY).matches ? '100%' : 'calc(100% - 80px)';
+  window.matchMedia(MOBILE_QUERY).matches
+    ? 'calc(100% - 16px)'
+    : 'calc(100% - 80px)';
 const MediaEmptyIllustration = () => (
   <svg
     width="132"
