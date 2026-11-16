@@ -244,8 +244,8 @@ describe('the preview column', () => {
     window.matchMedia = ((query: string) => ({
       matches: false,
       media: query,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
     })) as unknown as typeof window.matchMedia;
   });
 
