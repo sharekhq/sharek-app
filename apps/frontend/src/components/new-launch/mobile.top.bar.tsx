@@ -80,7 +80,7 @@ export const MobileTopBar: FC<{
             'aria-expanded': open,
           })}
           className={clsx(
-            'relative min-w-[92px] h-[44px] rounded-[8px] flex justify-center items-center gap-[8px] text-[14px] font-[600] bg-brand text-white disabled:bg-btnSimple disabled:text-muted disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand',
+            'relative min-w-[92px] h-[44px] rounded-[8px] flex justify-center items-center gap-[8px] text-[14px] font-[600] bg-brand text-white disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-brand',
             single ? 'px-[16px]' : 'ps-[20px] pe-[12px]'
           )}
         >

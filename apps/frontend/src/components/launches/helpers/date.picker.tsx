@@ -356,7 +356,7 @@ export const DatePicker: FC<{
   // date: still 44px (upstream draws 34), no outer margin, and a shorter date
   // line that truncates.
   const row =
-    'px-[16px] border border-newTextColor/10 rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ml-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0';
+    'px-[16px] border border-newTextColor/10 mobile:border-line rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ml-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0';
   const lines = (
     <>
       <div>
