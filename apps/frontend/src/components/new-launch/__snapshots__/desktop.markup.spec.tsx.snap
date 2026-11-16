@@ -448,7 +448,7 @@ exports[`the character counter from 1026px up one channel, within its limit 1`] 
 
 exports[`the composer shell from 1026px up a new post 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -671,7 +671,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
 
 exports[`the composer shell from 1026px up a new post that a channel blocks from publishing 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -894,7 +894,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
 
 exports[`the composer shell from 1026px up a new post with no channel picked 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -1099,7 +1099,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
 
 exports[`the composer shell from 1026px up a set being added 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -1294,7 +1294,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
 
 exports[`the composer shell from 1026px up an existing post with another channel, on its own channel 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">

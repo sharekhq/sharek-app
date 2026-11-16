@@ -53,7 +53,7 @@ export const OnboardingModal: FC<OnboardingModalProps> = ({ onClose }) => {
   return (
     <div className="w-full min-h-full flex-1 p-[24px] phone:p-[8px] flex relative">
       <style>{`#support-discord {display: none}`}</style>
-      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] flex-col relative">
+      <div className="flex flex-1 bg-newBgColorInner rounded-[24px] flex-col relative">
         <button
           className="outline-none absolute end-[20px] top-[20px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa focus-visible:ring-2 focus-visible:ring-brand coarse:min-w-[44px] coarse:min-h-[44px] coarse:end-[6px] coarse:top-[6px] coarse:flex coarse:items-center coarse:justify-center"
           type="button"
@@ -178,7 +178,7 @@ const OnboardingStep1: FC<{ onNext: () => void; onSkip: () => void }> = ({
   return (
     <div className="flex flex-col gap-[24px]">
       <div className="flex gap-[4px] flex-col text-center">
-        <div className="text-[24px] phone:text-[20px] font-semibold">
+        <div className="text-[20px] font-semibold">
           {t('connect_your_channels', 'Connect Your Channels')}
         </div>
         <div className="text-[14px] text-muted">
@@ -565,7 +565,7 @@ const OnboardingStep2: FC<{ onBack: () => void; onNext: () => void }> = ({
   return (
     <div className="flex flex-col gap-[24px] flex-1">
       <div className="flex gap-[4px] flex-col text-center">
-        <div className="text-[24px] phone:text-[20px] font-semibold">
+        <div className="text-[20px] font-semibold">
           {t('connect_your_ai_agent', 'Connect Your AI Agent')}
         </div>
         <div className="text-[14px] text-muted">
@@ -712,7 +712,7 @@ const OnboardingStep3: FC<{ onBack: () => void; onFinish: () => void }> = ({
   return (
     <div className="flex flex-col gap-[24px] flex-1">
       <div className="flex gap-[4px] flex-col text-center">
-        <div className="text-[24px] phone:text-[20px] font-semibold">
+        <div className="text-[20px] font-semibold">
           {t('watch_tutorial_title', 'Learn How to Use Sharek')}
         </div>
         <div className="text-[14px] text-muted">
