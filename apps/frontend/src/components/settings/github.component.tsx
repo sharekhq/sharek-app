@@ -34,7 +34,7 @@ const ConnectedComponent: FC<{
   }, [t]);
 
   return (
-    <div className="my-[16px] mt-[16px] h-[90px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
+    <div className="my-[16px] mt-[16px] h-[90px] bg-sixth border-fifth border rounded-[12px] p-[24px]">
       <div className={`flex items-center gap-[8px]`}>
         <div>
           <SafeImage src="/icons/github.svg" alt="GitHub" width={40} height={40} />
@@ -42,7 +42,9 @@ const ConnectedComponent: FC<{
         <div className="flex-1">
           <strong>{t('connected', 'Connected:')}</strong> {login}
         </div>
-        <Button onClick={disconnect}>{t('disconnect', 'Disconnect')}</Button>
+        <Button variant="dangerGhost" size="small" onClick={disconnect}>
+          {t('disconnect', 'Disconnect')}
+        </Button>
       </div>
     </div>
   );
@@ -88,7 +90,7 @@ const ConnectComponent: FC<{
   }, [url, t]);
 
   return (
-    <div className="my-[16px] mt-[16px] h-[100px] bg-sixth border-fifth border rounded-[4px] px-[24px] flex">
+    <div className="my-[16px] mt-[16px] h-[100px] bg-sixth border-fifth border rounded-[12px] px-[24px] flex">
       <div className={`flex items-center gap-[8px] flex-1`}>
         <div>
           <SafeImage src="/icons/github.svg" alt="GitHub" width={40} height={40} />
@@ -113,7 +115,7 @@ const ConnectComponent: FC<{
           placeholder={t('placeholder_full_github_url', 'Full GitHub URL')}
         />
         <Button
-          className="h-[44px] mt-[7px]"
+          className="mt-[7px]"
           disabled={
             !url.match(
               /https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/
@@ -195,7 +197,7 @@ export const GithubComponent: FC<{
         </Fragment>
       ))}
       {githubState.filter((f) => !f.login).length === 0 && (
-        <div className="my-[16px] mt-[16px] h-[90px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
+        <div className="my-[16px] mt-[16px] h-[90px] bg-sixth border-fifth border rounded-[12px] p-[24px]">
           <div className={`flex items-center gap-[8px]`}>
             <div>
               <SafeImage

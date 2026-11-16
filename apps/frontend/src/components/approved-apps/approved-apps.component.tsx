@@ -68,7 +68,7 @@ export const ApprovedAppsComponent: FC = () => {
         )}
       </div>
 
-      <div className="bg-sixth border-fifth border rounded-[4px] p-[24px]">
+      <div className="bg-sixth border-fifth border rounded-[12px] p-[24px]">
         {!apps?.length ? (
           <div className="text-muted">
             {t('no_approved_apps', 'No approved apps yet.')}
@@ -78,7 +78,7 @@ export const ApprovedAppsComponent: FC = () => {
             {apps.map((app: any) => (
               <div
                 key={app.id}
-                className="flex items-center justify-between p-[12px] border border-fifth rounded-[4px] phone:flex-col phone:items-start phone:gap-[12px]"
+                className="flex items-center justify-between p-[12px] border border-fifth rounded-[12px] phone:flex-col phone:items-start phone:gap-[12px]"
               >
                 <div className="flex items-center gap-[12px] min-w-0">
                   {app.oauthApp?.picture?.path ? (
@@ -109,7 +109,12 @@ export const ApprovedAppsComponent: FC = () => {
                     </div>
                   </div>
                 </div>
-                <Button className="phone:w-full" onClick={revokeApp(app)}>
+                <Button
+                  variant="dangerGhost"
+                  size="small"
+                  className="phone:w-full"
+                  onClick={revokeApp(app)}
+                >
                   {t('revoke', 'Revoke')}
                 </Button>
               </div>
