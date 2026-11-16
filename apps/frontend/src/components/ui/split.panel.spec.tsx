@@ -22,6 +22,8 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import {
   GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
   SplitPanel,
 } from '@gitroom/frontend/components/ui/split.panel';
 
@@ -570,5 +572,15 @@ describe('the group label', () => {
     expect(GROUP_LABEL).toBe(
       'px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted'
     );
+  });
+});
+
+// A row of a panel's list (the Brands page's brands, Samy's chats, Settings'
+// tabs): the open row's selected tint and the hover the others show, kept
+// once here.
+describe('a list row', () => {
+  it("exports the open row's tint and the others' hover", () => {
+    expect(LIST_ROW_ON).toBe('bg-brandSoft2');
+    expect(LIST_ROW_IDLE).toBe('hover:bg-boxHover');
   });
 });
