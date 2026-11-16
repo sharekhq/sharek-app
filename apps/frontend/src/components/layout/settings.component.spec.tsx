@@ -491,3 +491,39 @@ describe('the build number under Log out', () => {
     expect(line(notLifetime, 'Pro tier')).toBeUndefined();
   });
 });
+
+// Settings scrolls in its card (spec 059, FR-002, contracts/routes.md). The
+// window used to scroll, menu and panel together (1293px at 900 tall); the
+// open tab's panel now scrolls inside PageScroll's box, the dashboard page's
+// one scroller, with the pane's own 20px inset and 12px gap on the box, and the
+// menu stays outside it. happy-dom applies no media queries or Tailwind, so the
+// widths are pinned by the classes that carry them (page.scroll.spec pins
+// PageScroll's own).
+describe("the open tab's panel", () => {
+  const HOST = ['bg-newBgColorInner', 'flex-1', 'min-w-0', 'relative'];
+  const BOX = [
+    'absolute',
+    'inset-0',
+    'overflow-y-auto',
+    'flex',
+    'flex-col',
+    'mobile:static',
+    'scrollbar',
+    'scrollbar-thumb-fifth',
+    'scrollbar-track-newBgColor',
+  ];
+  const classesOf = (el: Element) =>
+    (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+
+  it("scrolls inside PageScroll's box, with the pane's inset and gap on the box, and the menu outside it", async () => {
+    mockParams = new URLSearchParams('tab=plugs');
+    const host = await settings();
+    const form = host.querySelector('[data-panel="plugs"]')!.closest('form')!;
+    const box = form.parentElement!;
+
+    expect(classesOf(box.parentElement!)).toEqual(HOST);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[12px]']);
+    expect(box.children).toHaveLength(1);
+    expect(box.contains(tabs(host)[0])).toBe(false);
+  });
+});
