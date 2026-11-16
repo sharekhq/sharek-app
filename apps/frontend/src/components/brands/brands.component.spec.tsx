@@ -812,6 +812,18 @@ describe('the overview', () => {
     });
   });
 
+  it("pads every card, New brand's too, 20px in, 16px at 1025px and below (spec 060, FR-022)", async () => {
+    const host = await render();
+
+    expect(cards(host)).toHaveLength(7);
+    cards(host).forEach((node) => {
+      expect(classes(node)).toEqual(
+        expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+      );
+      expect(classes(node)).not.toContain('p-[16px]');
+    });
+  });
+
   it("sits full width, 20px in from the page's card, 12px at 1025px and below, a brand's page too (spec 060, FR-001)", async () => {
     const host = await render();
 

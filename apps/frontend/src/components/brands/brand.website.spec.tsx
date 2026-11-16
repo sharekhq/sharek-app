@@ -352,6 +352,16 @@ describe('the full card', () => {
     expect(card()!.textContent).not.toContain('Add to kit');
   });
 
+  it('sits 20px in, 16px at 1025px and below (spec 060, FR-022)', async () => {
+    await mountCard();
+
+    const classes = classesOf(card()!);
+    expect(classes).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+    );
+    expect(classes).not.toContain('p-[16px]');
+  });
+
   // The server looks a bare domain up on https:// (BrandWebsiteDto), so the
   // card sends the address as typed, trimmed.
   it('sends the address as typed, trimmed, a bare domain or one with its own scheme; Enter looks up too', async () => {

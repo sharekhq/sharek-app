@@ -399,6 +399,16 @@ describe('a brand kit', () => {
       expect(card(title)).toBeDefined();
     }
   });
+
+  it('pads each card 20px in, 16px at 1025px and below (spec 060, FR-022)', async () => {
+    await mount(brand());
+
+    const classes = classesOf(card('Logo'));
+    expect(classes).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+    );
+    expect(classes).not.toContain('p-[16px]');
+  });
 });
 
 describe('the Logo card', () => {
