@@ -520,7 +520,7 @@ describe('the page surface', () => {
     const { outer, box } = scroller(host);
 
     expect(classesOf(outer)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]']);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'mobile:p-[12px]']);
     expect(box.children).toHaveLength(1);
     expect(box.querySelector('form')).not.toBeNull();
   });
@@ -534,7 +534,7 @@ describe('the page surface', () => {
 
     const { outer, box } = scroller(host);
     expect(classesOf(outer)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]']);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'mobile:p-[12px]']);
     expect(box.children).toHaveLength(1);
     expect(box.textContent).toContain('#1042');
   });

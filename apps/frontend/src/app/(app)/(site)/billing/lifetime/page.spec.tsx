@@ -55,7 +55,7 @@ describe('the lifetime deal page', () => {
     const { outer, box } = await mount();
 
     expect(classesOf(outer)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]']);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'mobile:p-[12px]']);
     expect(box.children).toHaveLength(1);
     expect(box.querySelector('[data-testid="lifetime"]')?.textContent).toBe(
       'Lifetime deal'

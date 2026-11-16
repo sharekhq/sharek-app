@@ -128,7 +128,12 @@ describe('the billing page', () => {
     const box = outer.firstElementChild as HTMLElement;
 
     expect(classesOf(outer)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[12px]']);
+    expect(classesOf(box)).toEqual([
+      ...BOX,
+      'p-[20px]',
+      'mobile:p-[12px]',
+      'gap-[12px]',
+    ]);
     expect(box.children).toHaveLength(1);
     expect(box.querySelector('[data-testid="billing"]')?.textContent).toBe(
       'Billing'

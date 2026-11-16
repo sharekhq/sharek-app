@@ -479,7 +479,12 @@ describe("the open tab's panel", () => {
     const box = form.parentElement!;
 
     expect(classesOf(box.parentElement!)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[12px]']);
+    expect(classesOf(box)).toEqual([
+      ...BOX,
+      'p-[20px]',
+      'mobile:p-[12px]',
+      'gap-[12px]',
+    ]);
     expect(box.children).toHaveLength(1);
     expect(box.contains(tabs(host)[0])).toBe(false);
   });

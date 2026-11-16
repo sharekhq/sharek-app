@@ -54,7 +54,12 @@ describe('the Studio page', () => {
     const { outer, box } = await mount();
 
     expect(classesOf(outer)).toEqual(HOST);
-    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[15px]']);
+    expect(classesOf(box)).toEqual([
+      ...BOX,
+      'p-[20px]',
+      'mobile:p-[12px]',
+      'gap-[15px]',
+    ]);
     expect(box.children).toHaveLength(1);
     expect(box.querySelector('[data-testid="studio"]')?.textContent).toBe(
       'Studio'
