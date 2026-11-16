@@ -1809,22 +1809,22 @@ exports[`the media library from 1026px up the Media page 1`] = `
           <circle cx="11" cy="11" r="7" />
           <path d="M20 20l-3.5-3.5" />
         </svg>
-        <input class="bg-newBgColorInner border border-newColColor coarse:text-[16px] focus:border-brand h-[44px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
+        <input class="bg-newBgColorInner border border-newColColor coarse:h-[44px] coarse:text-[16px] focus:border-brand h-[40px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
-      <div aria-label="File type" class="border border-newTableBorder flex gap-[4px] p-[4px] rounded-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] px-[14px] rounded-[6px] text-[14px] text-selectedText whitespace-nowrap" type="button">
+      <div aria-label="File type" class="flex gap-[8px]" role="group">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Images"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Videos"
         </button>
       </div>
       <div class="relative">
-        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[44px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
+        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:h-[44px] coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[40px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
           <option value="newest">
             "Newest first"
           </option>
@@ -1837,8 +1837,8 @@ exports[`the media library from 1026px up the Media page 1`] = `
         </svg>
       </div>
       <div class="flex flex-wrap gap-[8px]">
-        <button class="bg-btnPrimary changeColor cursor-pointer flex gap-[8px] h-[44px] items-center justify-center px-[18px] relative rounded-[8px] text-white">
-          <svg fill="none" height="14" viewBox="0 0 16 16" width="14" xmlns="http://www.w3.org/2000/svg">
+        <button class="bg-brand coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-white">
+          <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
             <path d="M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
           </svg>
           <div>
@@ -1932,22 +1932,22 @@ exports[`the media library from 1026px up the picker 1`] = `
           <circle cx="11" cy="11" r="7" />
           <path d="M20 20l-3.5-3.5" />
         </svg>
-        <input class="bg-newBgColorInner border border-newColColor coarse:text-[16px] focus:border-brand h-[44px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
+        <input class="bg-newBgColorInner border border-newColColor coarse:h-[44px] coarse:text-[16px] focus:border-brand h-[40px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
-      <div aria-label="File type" class="border border-newTableBorder flex gap-[4px] p-[4px] rounded-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] px-[14px] rounded-[6px] text-[14px] text-selectedText whitespace-nowrap" type="button">
+      <div aria-label="File type" class="flex gap-[8px]" role="group">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Images"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Videos"
         </button>
       </div>
       <div class="relative">
-        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[44px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
+        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:h-[44px] coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[40px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
           <option value="newest">
             "Newest first"
           </option>
@@ -1960,8 +1960,8 @@ exports[`the media library from 1026px up the picker 1`] = `
         </svg>
       </div>
       <div class="flex flex-wrap gap-[8px]">
-        <button class="bg-btnPrimary changeColor cursor-pointer flex gap-[8px] h-[44px] items-center justify-center px-[18px] relative rounded-[8px] text-white">
-          <svg fill="none" height="14" viewBox="0 0 16 16" width="14" xmlns="http://www.w3.org/2000/svg">
+        <button class="bg-brand coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-white">
+          <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
             <path d="M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
           </svg>
           <div>
@@ -2045,10 +2045,10 @@ exports[`the media library from 1026px up the picker 1`] = `
       </div>
     </div>
     <div class="flex gap-[8px] justify-end mt-[32px]">
-      <button class="border border-newTextColor/10 cursor-pointer flex h-[52px] items-center justify-center px-[20px] rounded-[10px]">
+      <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink">
         "Cancel"
       </button>
-      <button class="bg-brand cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex h-[52px] items-center justify-center px-[20px] rounded-[10px] text-white" disabled="">
+      <button class="bg-brand coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-white" disabled="">
         "Add selected media"
       </button>
     </div>
@@ -2066,22 +2066,22 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
           <circle cx="11" cy="11" r="7" />
           <path d="M20 20l-3.5-3.5" />
         </svg>
-        <input class="bg-newBgColorInner border border-newColColor coarse:text-[16px] focus:border-brand h-[44px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
+        <input class="bg-newBgColorInner border border-newColColor coarse:h-[44px] coarse:text-[16px] focus:border-brand h-[40px] outline-none pe-[14px] ps-[42px] rounded-[8px] text-[14px] w-full" placeholder="Search by file name" type="text" value="" />
       </div>
       <input class="hidden" multiple="" type="file" />
-      <div aria-label="File type" class="border border-newTableBorder flex gap-[4px] p-[4px] rounded-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] px-[14px] rounded-[6px] text-[14px] text-selectedText whitespace-nowrap" type="button">
+      <div aria-label="File type" class="flex gap-[8px]" role="group">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Images"
         </button>
-        <button aria-pressed="false" class="coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[34px] hover:text-ink px-[14px] rounded-[6px] text-[14px] text-muted whitespace-nowrap" type="button">
+        <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
           "Videos"
         </button>
       </div>
       <div class="relative">
-        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[44px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
+        <select aria-label="Sort" class="appearance-none bg-newBgColorInner border border-newTableBorder coarse:h-[44px] coarse:text-[16px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[500] h-[40px] outline-none pe-[36px] ps-[14px] rounded-[8px] text-[14px]">
           <option value="newest">
             "Newest first"
           </option>
@@ -2094,8 +2094,8 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
         </svg>
       </div>
       <div class="flex flex-wrap gap-[8px]">
-        <button class="bg-btnPrimary changeColor cursor-pointer flex gap-[8px] h-[44px] items-center justify-center px-[18px] relative rounded-[8px] text-white">
-          <svg fill="none" height="14" viewBox="0 0 16 16" width="14" xmlns="http://www.w3.org/2000/svg">
+        <button class="bg-brand coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-white">
+          <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
             <path d="M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
           </svg>
           <div>
@@ -2185,10 +2185,10 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
       </div>
     </div>
     <div class="flex gap-[8px] justify-end mt-[32px]">
-      <button class="border border-newTextColor/10 cursor-pointer flex h-[52px] items-center justify-center px-[20px] rounded-[10px]">
+      <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink">
         "Cancel"
       </button>
-      <button class="bg-brand cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex h-[52px] items-center justify-center px-[20px] rounded-[10px] text-white">
+      <button class="bg-brand coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-white">
         "Add selected media"
       </button>
     </div>
@@ -2381,8 +2381,8 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
   </div>
   <div class="b1 border-newColColor border-t flex gap-[8px] px-[12px] text-textColor w-full">
     <div class="b2 flex flex-wrap gap-[4px] items-center py-[10px]">
-      <div aria-label="Insert Media" class="bg-surface border border-line coarse:h-[44px] coarse:min-w-[44px] cursor-pointer flex h-[30px] items-center justify-center px-[8px] rounded-[6px]" data-tooltip-content="Insert Media" data-tooltip-id="tooltip">
-        <div class="flex gap-[8px] items-center">
+      <div aria-label="Insert Media" class="bg-quiet border border-line coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-ink" data-tooltip-content="Insert Media" data-tooltip-id="tooltip">
+        <div class="flex gap-[6px] items-center">
           <div>
             <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
               <g clip-path="url(#clip0_insertmedia)">
@@ -2395,13 +2395,13 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
               </defs>
             </svg>
           </div>
-          <div class="block font-[600] text-[12px]">
+          <div class="block">
             "Insert Media"
           </div>
         </div>
       </div>
-      <div aria-label="Design Media" class="bg-surface border border-line coarse:h-[44px] coarse:min-w-[44px] cursor-pointer flex h-[30px] items-center justify-center px-[8px] rounded-[6px]" data-tooltip-content="Design Media" data-tooltip-id="tooltip">
-        <div class="flex gap-[5px] items-center">
+      <div aria-label="Design Media" class="bg-quiet border border-line coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-ink" data-tooltip-content="Design Media" data-tooltip-id="tooltip">
+        <div class="flex gap-[6px] items-center">
           <div>
             <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
               <g clip-path="url(#clip0_designmedia)">
@@ -2414,7 +2414,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
               </defs>
             </svg>
           </div>
-          <div class="block font-[600] text-[12px]">
+          <div class="block">
             "Design Media"
           </div>
         </div>
