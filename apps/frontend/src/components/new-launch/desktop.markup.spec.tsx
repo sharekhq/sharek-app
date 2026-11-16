@@ -502,6 +502,30 @@ describe('the composer shell from 1026px up', () => {
     expect(pin(host)).toMatchSnapshot();
   });
 
+  // FR-026: a text button's icon is 16px, 6px from its label (the button's
+  // own gap-[6px], with no other gap over it).
+  it("sets Delete Post's trash 16px, 6px from its label", async () => {
+    existing = { integration: 'int-1', posts: [] };
+    const host = await render(shell(), {
+      integrations: channels,
+      selectedIntegrations: selected(instagram),
+      current: 'int-1',
+      date: at,
+    });
+    const remove = Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Post'
+    )!;
+    const icon = remove.querySelector('svg')!;
+
+    expect([icon.getAttribute('width'), icon.getAttribute('height')]).toEqual([
+      '16',
+      '16',
+    ]);
+    expect(
+      remove.className.split(' ').filter((token) => token.startsWith('gap-'))
+    ).toEqual(['gap-[6px]']);
+  });
+
   it('a set being added', async () => {
     const host = await render(shell({ addEditSets: () => undefined }), {
       integrations: channels,
