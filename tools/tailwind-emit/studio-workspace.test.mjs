@@ -89,12 +89,12 @@ async function assertEmits(table, atRule) {
 
 // PreviewFit's three boxes: the room (h-full), the sizer (relative mx-auto)
 // and the content box (absolute top-0 start-0, with the origin below), and
-// Instagram's box around the slider (w-full rounded-[8px] overflow-hidden,
-// the slider h-full). h-full, relative and absolute are channel-panels'
-// order cases; top-0, start-0 and rounded-[8px] are asserted in
+// Instagram's slider, drawn at the shape its preview sets in --ig-ratio
+// (aspect-[var(--ig-ratio)]). h-full, relative and absolute are
+// channel-panels' order cases; top-0 and start-0 are asserted in
 // media-library and others.
 describe('Part 1: the preview fit', () => {
-  test("the sizer's and Instagram's box's own forms emit their one rule, outside any query", async () => {
+  test("the sizer's and Instagram's slider's own forms emit their one rule, outside any query", async () => {
     await assertEmits(
       {
         // the sizer, centred in Post preview's column
@@ -102,10 +102,8 @@ describe('Part 1: the preview fit', () => {
           ['margin-left', 'auto'],
           ['margin-right', 'auto'],
         ],
-        // Instagram's box, the column's width, its slides clipped at its
-        // rounded corners
-        'w-full': [['width', '100%']],
-        'overflow-hidden': [['overflow', 'hidden']],
+        // Instagram's slider, in its first slide's shape
+        'aspect-[var(--ig-ratio)]': [['aspect-ratio', 'var(--ig-ratio)']],
       },
       null
     );

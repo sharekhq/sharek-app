@@ -4,7 +4,7 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
-import { FC, useState } from 'react';
+import { CSSProperties, FC, useState } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { SliderComponent } from '@gitroom/frontend/components/third-parties/slider.component';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -56,7 +56,10 @@ export const InstagramPreview: FC<{
     return { text: finalValue, images: p.image };
   });
   return (
-    <div className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]">
+    <div
+      className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]"
+      style={{ '--ig-ratio': clampInstagram(ratio) } as CSSProperties}
+    >
       <div className="flex gap-[10px] items-center">
         <div className="w-[36px] h-[36px]">
           <img
@@ -70,28 +73,23 @@ export const InstagramPreview: FC<{
         </div>
       </div>
       {!!renderContent?.[0]?.images?.length ? (
-        <div
-          className="w-full rounded-[8px] overflow-hidden"
-          style={{ aspectRatio: String(clampInstagram(ratio)) }}
-        >
-          <SliderComponent
-            className="h-full"
-            list={renderContent?.[0]?.images.map((image, index) => (
-              <a
-                key={`image_${index}`}
-                className="flex-1"
-                href={mediaDir.set(image.path)}
-                target="_blank"
-              >
-                <VideoOrImage
-                  autoplay={true}
-                  src={mediaDir.set(image.path)}
-                  onShape={index === 0 ? setRatio : undefined}
-                />
-              </a>
-            ))}
-          />
-        </div>
+        <SliderComponent
+          className="aspect-[var(--ig-ratio)] rounded-[8px] overflow-hidden"
+          list={renderContent?.[0]?.images.map((image, index) => (
+            <a
+              key={`image_${index}`}
+              className="flex-1"
+              href={mediaDir.set(image.path)}
+              target="_blank"
+            >
+              <VideoOrImage
+                autoplay={true}
+                src={mediaDir.set(image.path)}
+                onShape={index === 0 ? setRatio : undefined}
+              />
+            </a>
+          ))}
+        />
       ) : (
         <div
           style={{ background: 'url(/no-video-youtube.png)' }}
