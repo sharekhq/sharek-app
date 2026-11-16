@@ -421,6 +421,17 @@ describe('MediaMonth', () => {
     expect(Number(layer![1])).toBeGreaterThan(101);
   });
 
+  // The list sits 6px outside the page's inset under mobile, for the tiles' own
+  // 6px pad; the heading has none, so it takes 6px back to line up with the
+  // page's gutter (spec 060, FR-002, decisions D20).
+  it("pads its heading 6px at each side under mobile, onto the page's gutter", () => {
+    const { host } = renderMonths();
+
+    const head = heading(sections(host)[0]);
+    expect(head.querySelector('h2')!.parentElement).toBe(head);
+    expect(head.classList.contains('mobile:px-[6px]')).toBe(true);
+  });
+
   it("keeps each heading inside its own month's section, so the next month's heading pushes it up", () => {
     const { host } = renderMonths([november, october]);
 
