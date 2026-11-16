@@ -243,24 +243,45 @@ describe('Every new class', () => {
   });
 });
 
+// Samy's chat is styled from global.scss against CopilotKit 1.72's own
+// stylesheet, which the app loads after it, so a global.scss rule only takes
+// where its selector outweighs CopilotKit's. The describes below read both
+// sheets, as those rules are no class.
+const require = createRequire(import.meta.url);
+// Classes and attributes; `:has()` weighs as its argument.
+const weight = (selector) => (selector.match(/[.[]/g) || []).length;
+// The compound a selector styles: its last, once `(…)` arguments are gone.
+const subject = (selector) =>
+  selector
+    .replace(/\([^()]*\)/g, '')
+    .split(/[\s>+~]+/)
+    .pop();
+const vendorSheet = () =>
+  postcss.parse(
+    readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+  );
+const appSheet = () =>
+  postcss.parse(
+    sass.compile(
+      fileURLToPath(
+        new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
+      ),
+      {
+        loadPaths: [
+          fileURLToPath(new URL('../../node_modules', import.meta.url)),
+        ],
+      }
+    ).css
+  );
+
 // Samy's welcome (agents/agent.welcome.tsx) is CopilotChat's
 // RenderSuggestionsList, drawn straight inside footer.copilotKitMessagesFooter,
 // the second child of the scrolling .copilotKitMessages column. Auto block
 // margins centre it in the room the empty messages leave; CopilotKit's own
-// footer rule, which the app loads after global.scss, sets
-// `margin: 8px auto 0 auto`, so global.scss's rule must outrank it by
-// specificity. This describe reads global.scss itself, as that is no class.
+// footer rule sets `margin: 8px auto 0 auto`, so global.scss's rule must
+// outrank it by specificity.
 describe("Samy's welcome", () => {
-  const require = createRequire(import.meta.url);
   const FOOTER = '.copilotKitMessagesFooter';
-  // Classes and attributes; `:has()` weighs as its argument.
-  const weight = (selector) => (selector.match(/[.[]/g) || []).length;
-  // The compound a selector styles: its last, once `(…)` arguments are gone.
-  const subject = (selector) =>
-    selector
-      .replace(/\([^()]*\)/g, '')
-      .split(/[\s>+~]+/)
-      .pop();
   // Every margin declaration whose rule styles the footer itself, in any
   // query, as [selector, declaration].
   const footerMargins = (sheet) => {
@@ -276,31 +297,14 @@ describe("Samy's welcome", () => {
   };
 
   test("sits centred in the empty chat, out-ranking CopilotKit's footer margin", () => {
-    const vendor = footerMargins(
-      postcss.parse(
-        readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
-      )
-    );
+    const vendor = footerMargins(vendorSheet());
     assert.deepEqual(
       vendor.map(([selector, decl]) => [selector, decl.prop, decl.value]),
       [[FOOTER, 'margin', '8px auto 0 auto']],
       `CopilotKit's ${FOOTER} margin changed; re-check design note D4`
     );
 
-    const app = footerMargins(
-      postcss.parse(
-        sass.compile(
-          fileURLToPath(
-            new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
-          ),
-          {
-            loadPaths: [
-              fileURLToPath(new URL('../../node_modules', import.meta.url)),
-            ],
-          }
-        ).css
-      )
-    );
+    const app = footerMargins(appSheet());
     assert.deepEqual(
       app.map(([selector, decl]) => [
         selector,
@@ -320,5 +324,151 @@ describe("Samy's welcome", () => {
       ]
     );
     assert.ok(weight(app[0][0]) > weight(FOOTER));
+  });
+});
+
+// Samy's messages and message box at 15px on a wide screen (research R11).
+// CopilotKit sets both at 1rem, and global.scss sets the box at 1rem too, so
+// each wide-screen rule must outweigh those; phones and a coarse pointer keep
+// 16px, so iOS doesn't zoom into the box. Arabic keeps its taller lines.
+describe("Samy's text", () => {
+  const WIDE = '@media (min-width: 1026px)';
+  const WIDE_FINE = '@media (min-width: 1026px) and (pointer: fine)';
+  const BOX = '.copilotKitInput > textarea';
+  const isMessage = (selector) => {
+    const own = subject(selector).match(/\.[\w-]+/g) || [];
+    return (
+      own.includes('.copilotKitMessage') || own.includes('.copilotKitParagraph')
+    );
+  };
+  const isBox = (selector) => selector.endsWith(BOX);
+  // Every font-size and line-height declaration on a selector `which` picks,
+  // in sheet order, as [selector, property, value, the at-rule it sits in].
+  const sizes = (sheet, which) => {
+    const found = [];
+    sheet.walkDecls(/^(font-size|line-height)$/, (decl) => {
+      const rule = decl.parent;
+      if (rule.type !== 'rule') return;
+      const atRule =
+        rule.parent.type === 'atrule'
+          ? `@${rule.parent.name} ${collapse(rule.parent.params)}`
+          : null;
+      for (const selector of rule.selectors.map(collapse)) {
+        if (which(selector)) {
+          found.push([selector, decl.prop, decl.value, atRule]);
+        }
+      }
+    });
+    return found;
+  };
+  const MESSAGE = '.agent .copilotKitMessages .copilotKitMessage';
+  const PARAGRAPH = '.agent .copilotKitMessages .copilotKitParagraph';
+  const ARABIC = 'html[lang=ar] ';
+
+  test("sets Samy's messages at 15px with 24px lines above 1025px, out-ranking CopilotKit's", () => {
+    const vendor = sizes(vendorSheet(), isMessage);
+    assert.deepEqual(
+      vendor,
+      [
+        ['.copilotKitMessage', 'font-size', '1rem', null],
+        ['.copilotKitMessage', 'line-height', '1.5', null],
+        [
+          '.copilotKitMessage.copilotKitUserMessage',
+          'line-height',
+          '1.75',
+          null,
+        ],
+        ['.copilotKitMessage.copilotKitUserMessage', 'font-size', '1rem', null],
+        ['.copilotKitParagraph', 'line-height', '1.75', null],
+        ['.copilotKitParagraph', 'font-size', '1rem', null],
+      ],
+      "CopilotKit's message sizes changed; re-check research R11"
+    );
+
+    const wide = sizes(appSheet(), isMessage).filter(
+      ([selector, , , atRule]) =>
+        atRule === WIDE && !selector.startsWith(ARABIC)
+    );
+    assert.deepEqual(wide, [
+      [MESSAGE, 'font-size', '15px', WIDE],
+      [PARAGRAPH, 'font-size', '15px', WIDE],
+      [MESSAGE, 'line-height', '24px', WIDE],
+      [PARAGRAPH, 'line-height', '24px', WIDE],
+    ]);
+    const theirs = Math.max(...vendor.map(([selector]) => weight(selector)));
+    for (const [selector] of wide) {
+      assert.ok(
+        weight(selector) > theirs,
+        `${selector} doesn't outweigh CopilotKit's message rules`
+      );
+    }
+  });
+
+  test("keeps Arabic's 1.65 lines above 1025px, out-ranking the 24px", () => {
+    const arabic = sizes(appSheet(), isMessage).filter(
+      ([selector, , , atRule]) => atRule === WIDE && selector.startsWith(ARABIC)
+    );
+    assert.deepEqual(arabic, [
+      [ARABIC + MESSAGE, 'line-height', '1.65', WIDE],
+      [ARABIC + PARAGRAPH, 'line-height', '1.65', WIDE],
+    ]);
+    for (const [selector] of arabic) {
+      const latin = selector.slice(ARABIC.length);
+      assert.ok(
+        weight(selector) > weight(latin),
+        `${selector} doesn't outweigh ${latin}`
+      );
+    }
+  });
+
+  test('sets the message box at 15px above 1025px under a fine pointer only', () => {
+    const app = sizes(appSheet(), isBox);
+    const queried = app.filter(([, , , atRule]) => atRule !== null);
+    assert.deepEqual(queried, [
+      [
+        '.agent .copilotKitInputContainer .copilotKitInput > textarea',
+        'font-size',
+        '15px',
+        WIDE_FINE,
+      ],
+    ]);
+    for (const [selector] of app.filter(([, , , atRule]) => atRule === null)) {
+      assert.ok(
+        weight(queried[0][0]) > weight(selector),
+        `${queried[0][0]} doesn't outweigh ${selector}`
+      );
+    }
+  });
+
+  test("keeps the 16px message box and Arabic's 1.65 lines outside any query", () => {
+    const app = appSheet();
+    assert.deepEqual(
+      sizes(app, isBox).filter(([, , , atRule]) => atRule === null),
+      [
+        [
+          '.copilotKitInputContainer .copilotKitInput > textarea',
+          'font-size',
+          '1rem',
+          null,
+        ],
+      ]
+    );
+    assert.deepEqual(
+      sizes(app, isMessage).filter(([, , , atRule]) => atRule === null),
+      [[`${ARABIC}.copilotKitMessage`, 'line-height', '1.65', null]]
+    );
+  });
+
+  // Nested in the `.agent { }` block, a selector that already starts with
+  // `.agent` compiles to `.agent .agent …` and matches nothing.
+  test('names .agent at most once in every selector', () => {
+    appSheet().walkRules((rule) => {
+      for (const selector of rule.selectors.map(collapse)) {
+        assert.ok(
+          (selector.match(/\.agent(?![\w-])/g) || []).length <= 1,
+          `${selector} names .agent twice`
+        );
+      }
+    });
   });
 });
