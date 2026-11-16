@@ -16,8 +16,12 @@
 // Run with: node --test 'tools/tailwind-emit/*.test.mjs'
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -236,5 +240,85 @@ describe('Every new class', () => {
         '.[&>*:last-child:nth-child(odd)]:col-span-full>*:last-child:nth-child(odd)',
       ]
     );
+  });
+});
+
+// Samy's welcome (agents/agent.welcome.tsx) is CopilotChat's
+// RenderSuggestionsList, drawn straight inside footer.copilotKitMessagesFooter,
+// the second child of the scrolling .copilotKitMessages column. Auto block
+// margins centre it in the room the empty messages leave; CopilotKit's own
+// footer rule, which the app loads after global.scss, sets
+// `margin: 8px auto 0 auto`, so global.scss's rule must outrank it by
+// specificity. This describe reads global.scss itself, as that is no class.
+describe("Samy's welcome", () => {
+  const require = createRequire(import.meta.url);
+  const FOOTER = '.copilotKitMessagesFooter';
+  // Classes and attributes; `:has()` weighs as its argument.
+  const weight = (selector) => (selector.match(/[.[]/g) || []).length;
+  // The compound a selector styles: its last, once `(…)` arguments are gone.
+  const subject = (selector) =>
+    selector
+      .replace(/\([^()]*\)/g, '')
+      .split(/[\s>+~]+/)
+      .pop();
+  // Every margin declaration whose rule styles the footer itself, in any
+  // query, as [selector, declaration].
+  const footerMargins = (sheet) => {
+    const found = [];
+    sheet.walkDecls(/^margin/, (decl) => {
+      for (const selector of decl.parent.selector.split(',').map(collapse)) {
+        if (names(subject(selector), FOOTER.slice(1))) {
+          found.push([selector, decl]);
+        }
+      }
+    });
+    return found;
+  };
+
+  test("sits centred in the empty chat, out-ranking CopilotKit's footer margin", () => {
+    const vendor = footerMargins(
+      postcss.parse(
+        readFileSync(require.resolve('@copilotkit/react-ui/styles.css'), 'utf8')
+      )
+    );
+    assert.deepEqual(
+      vendor.map(([selector, decl]) => [selector, decl.prop, decl.value]),
+      [[FOOTER, 'margin', '8px auto 0 auto']],
+      `CopilotKit's ${FOOTER} margin changed; re-check design note D4`
+    );
+
+    const app = footerMargins(
+      postcss.parse(
+        sass.compile(
+          fileURLToPath(
+            new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
+          ),
+          {
+            loadPaths: [
+              fileURLToPath(new URL('../../node_modules', import.meta.url)),
+            ],
+          }
+        ).css
+      )
+    );
+    assert.deepEqual(
+      app.map(([selector, decl]) => [
+        selector,
+        decl.prop,
+        decl.value,
+        !!decl.important,
+        decl.parent.parent.type,
+      ]),
+      [
+        [
+          '.agent .copilotKitMessagesFooter:has(> [data-samy-welcome])',
+          'margin-block',
+          'auto',
+          false,
+          'root',
+        ],
+      ]
+    );
+    assert.ok(weight(app[0][0]) > weight(FOOTER));
   });
 });
