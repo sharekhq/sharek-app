@@ -15,11 +15,23 @@ const chat = { messages: [] as Array<Record<string, unknown>> };
 // The interface language: English draws each English default, Arabic each key,
 // so every string is shown to come through its key.
 const locale = { lang: 'en' };
+// How far down CopilotKit has scrolled its list when the welcome arrives. It
+// keeps the list at its bottom (useScrollToBottom), so on a chat too short for
+// the block the list is already scrolled down; happy-dom lays nothing out, so
+// the stand-in sets that offset itself.
+const list = { scrollTop: 0 };
 
 jest.mock('@copilotkit/react-ui', () => ({
   CopilotChat: ({ Input, suggestions, RenderSuggestionsList }: any) => (
     <>
-      <div className="copilotKitMessages">
+      <div
+        className="copilotKitMessages"
+        ref={(element) => {
+          if (element) {
+            element.scrollTop = list.scrollTop;
+          }
+        }}
+      >
         <div className="copilotKitMessagesContainer" />
         <footer className="copilotKitMessagesFooter">
           {suggestions?.length > 0 && (
@@ -193,6 +205,7 @@ beforeEach(() => {
   params.id = 'new';
   chat.messages = [];
   locale.lang = 'en';
+  list.scrollTop = 0;
   (URL as any).createObjectURL = jest.fn(() => 'blob:x');
   (URL as any).revokeObjectURL = jest.fn();
 });
@@ -214,6 +227,21 @@ describe('Samy’s welcome on a new chat', () => {
     expect(welcome(host)).not.toBeNull();
     expect(footer(host).children).toHaveLength(1);
     expect(welcome(host)!.getAttribute('dir')).toBe('ltr');
+  });
+
+  it('opens at its top on a chat too short for it', async () => {
+    list.scrollTop = 480;
+    const host = await mount();
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve())
+      );
+    });
+
+    expect(welcome(host)).not.toBeNull();
+    expect(
+      host.querySelector<HTMLElement>('.copilotKitMessages')!.scrollTop
+    ).toBe(0);
   });
 
   it('shows the tile with Samy’s icon, the heading, the line and the hint', async () => {
