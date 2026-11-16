@@ -1,7 +1,7 @@
 // The Teams tab in the dashboard's one look: a member's Remove is small red
 // text with no fill, the tab's card has 12px corners and its heading is 20px
 // semibold.
-import { act } from 'react';
+import { act, ReactElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -42,17 +42,20 @@ jest.mock('swr', () => ({
   }),
 }));
 
-import { TeamsComponent } from '@gitroom/frontend/components/settings/teams.component';
+import {
+  AddMember,
+  TeamsComponent,
+} from '@gitroom/frontend/components/settings/teams.component';
 
 const mounted: Root[] = [];
 
-const render = async () => {
+const render = async (element: ReactElement = <TeamsComponent />) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(<TeamsComponent />);
+    root.render(element);
   });
   return host;
 };
@@ -125,16 +128,35 @@ describe('the teams tab in the dashboard look', () => {
     );
   });
 
+  // Its content sits 20px in, 16px at 1025px and below (spec 060 FR-022).
   it('rounds the card 12px and sets the heading 20px semibold', async () => {
     const host = await render();
-    const card = host.querySelector('.border.p-\\[24px\\]')!;
+    const card = host.querySelector('.bg-sixth')!;
 
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['bg-sixth', 'border-fifth', 'rounded-[12px]'])
+      expect.arrayContaining([
+        'bg-sixth',
+        'border-fifth',
+        'rounded-[12px]',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
     expect(classes(host.querySelector('h3')!)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
+  });
+
+  // A window's action row is one height: its buttons are large (spec 060
+  // FR-026).
+  it("draws the invite window's Send Invitation Link as a large button", async () => {
+    const host = await render(<AddMember />);
+    const [send] = buttons(host, 'Send Invitation Link');
+
+    expect(classes(send)).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
     );
   });
 });

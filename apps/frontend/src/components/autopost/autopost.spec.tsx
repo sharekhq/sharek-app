@@ -114,12 +114,35 @@ describe("an Auto Post row's buttons", () => {
 });
 
 describe("Auto Post's form", () => {
-  it('draws Send Test as a medium secondary button, as Webhooks does', async () => {
+  // A window's action row is one height: its buttons are large (spec 060
+  // FR-026).
+  it('draws Send Test as a large secondary button, as Webhooks does', async () => {
     swrData = undefined;
     const host = await render(<AddOrEditWebhook reload={jest.fn()} />);
 
     expect(classes(button(host, 'Send Test'))).toEqual(
-      expect.arrayContaining(look('secondary', 'medium'))
+      expect.arrayContaining(look('secondary', 'large'))
+    );
+  });
+
+  // Save shows once the feed's address is checked, as on a saved feed.
+  it('draws Save as a large button', async () => {
+    swrData = undefined;
+    const host = await render(
+      <AddOrEditWebhook
+        reload={jest.fn()}
+        data={{
+          id: 'feed-1',
+          title: 'News',
+          url: 'https://feeds.example.org/',
+          syncLast: true,
+          integrations: '[]',
+        }}
+      />
+    );
+
+    expect(classes(button(host, 'Save'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
     );
   });
 });
@@ -137,12 +160,20 @@ describe("Auto Post's panel", () => {
     const host = await render();
 
     // FR-035: a Settings card has the dashboard's 12px corners, a panel's
-    // heading is 20px semibold.
+    // heading is 20px semibold; its content sits 20px in, 16px at 1025px and
+    // below (spec 060 FR-022).
     const card = host.querySelector('.bg-sixth')!;
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'border',
+        'border-fifth',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
     expect(classes(host.querySelector('h3')!)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
     );
