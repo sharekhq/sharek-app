@@ -18,6 +18,10 @@ import { buttonClassName } from '@gitroom/react/form/button';
 const SMALL_BUTTON = buttonClassName({ variant: 'secondary', size: 'small' });
 const PRIMARY_BUTTON = buttonClassName({ variant: 'primary', size: 'medium' });
 const GHOST_BUTTON = buttonClassName({ variant: 'ghost', size: 'medium' });
+const DANGER_GHOST_BUTTON = buttonClassName({
+  variant: 'dangerGhost',
+  size: 'small',
+});
 
 const useOAuthApp = () => {
   const fetch = useFetch();
@@ -499,7 +503,7 @@ export const DeveloperComponent: FC = () => {
                 <button
                   type="button"
                   onClick={openMedia}
-                  className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600]"
+                  className={SMALL_BUTTON}
                 >
                   {t('choose_image', 'Choose Image')}
                 </button>
@@ -510,7 +514,7 @@ export const DeveloperComponent: FC = () => {
                 {t('redirect_url', 'Redirect URL')} *
               </label>
               <input
-                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] text-textColor outline-none"
+                className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] text-textColor outline-none"
                 value={redirectUrl}
                 onChange={(e) => setRedirectUrl(e.target.value)}
                 placeholder="https://yourapp.com/callback"
@@ -520,14 +524,14 @@ export const DeveloperComponent: FC = () => {
               <button
                 type="button"
                 onClick={updateApp}
-                className="cursor-pointer px-[20px] h-[44px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink rounded-[8px] text-[15px] font-[600]"
+                className={PRIMARY_BUTTON}
               >
                 {t('save', 'Save')}
               </button>
               <button
                 type="button"
                 onClick={() => setEditing(false)}
-                className="cursor-pointer px-[20px] h-[44px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[15px] font-[600]"
+                className={GHOST_BUTTON}
               >
                 {t('cancel', 'Cancel')}
               </button>
@@ -566,7 +570,7 @@ export const DeveloperComponent: FC = () => {
               <button
                 type="button"
                 onClick={startEditing}
-                className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+                className={SMALL_BUTTON}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                 {t('edit_app', 'Edit App')}
@@ -588,7 +592,7 @@ export const DeveloperComponent: FC = () => {
             <div className="text-[13px] font-[600] text-muted">
               {t('client_id', 'Client ID')}
             </div>
-            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[40px] coarse:h-[44px] flex items-center overflow-hidden">
               <code className="text-[14px] flex-1 truncate">{app.clientId}</code>
             </div>
           </div>
@@ -622,7 +626,7 @@ export const DeveloperComponent: FC = () => {
             <button
               type="button"
               onClick={rotateSecret}
-              className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              className={SMALL_BUTTON}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 11-.57-8.38L21.5 8" /></svg>
               {t('rotate_secret', 'Rotate Secret')}
@@ -630,7 +634,7 @@ export const DeveloperComponent: FC = () => {
             <button
               type="button"
               onClick={deleteApp}
-              className="cursor-pointer px-[16px] h-[36px] bg-error hover:opacity-90 text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+              className={DANGER_GHOST_BUTTON}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
               {t('delete_app', 'Delete App')}
