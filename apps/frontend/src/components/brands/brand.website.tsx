@@ -70,8 +70,8 @@ export const FIELD_LOOK = clsx(
 export const TEXT_FIELD = clsx('h-[40px] coarse:h-[44px]', FIELD_LOOK);
 
 // The app's focus ring standing off by a gap of the surface, where the
-// control's own red would hide it (Add to kit) or read as it (the picked
-// logo's border). Beside FOCUS_RING or the Button's own ring.
+// control's own red would read as it (the picked logo's border). Beside
+// FOCUS_RING; the shared Button stands its own ring off the same way.
 const RING_GAP =
   'focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 
@@ -703,7 +703,6 @@ const BrandWebsite: FC<{
             loading={lookup.busy === 'save'}
             disabled={!lookup.kept || !!lookup.busy}
             onClick={add}
-            className={RING_GAP}
           >
             {t('brands_add_to_kit', 'Add to kit')}
           </Button>
