@@ -41,7 +41,7 @@ const post = (tags: Array<ReturnType<typeof tag>>) =>
 
 const mounted: Array<{ unmount: () => void }> = [];
 
-const mount = (tags: Array<ReturnType<typeof tag>>) => {
+const mount = (tags: Array<ReturnType<typeof tag>>, compact = false) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -52,6 +52,7 @@ const mount = (tags: Array<ReturnType<typeof tag>>) => {
         post={post(tags)}
         state="DRAFT"
         isBeforeNow={false}
+        compact={compact}
         actions={<button aria-label="Post actions" />}
       />
     );
@@ -67,6 +68,12 @@ afterEach(() => {
 const strip = (host: HTMLElement) =>
   Array.from(host.querySelectorAll('div')).find((el) =>
     el.className.split(' ').includes('bg-surface2')
+  )!;
+
+// the card's body, under the strip: the part a click opens the post from
+const body = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll('div')).find((el) =>
+    el.className.split(' ').includes('bg-surface')
   )!;
 
 const chip = (host: HTMLElement) => host.querySelector('.cal-chip')!;
@@ -105,5 +112,33 @@ describe("the post card's tag names", () => {
     expect(strip(host).children[1].className.split(' ')).toContain(
       'text-shadow-tags'
     );
+  });
+});
+
+// A box inside a card rounds at 8px (FR-023): the card, and its body's bottom
+// corners on logical sides, so a month chip on a phone rounds whole at 8px too.
+describe("the post card's corners", () => {
+  it('rounds the card at 8px, not 10px', () => {
+    const classes = (
+      mount([]).firstElementChild as HTMLElement
+    ).className.split(' ');
+
+    expect(classes).toContain('rounded-[8px]');
+    expect(classes).not.toContain('rounded-[10px]');
+  });
+
+  it("rounds the body's bottom corners at 8px, on logical sides", () => {
+    const classes = body(mount([])).className.split(' ');
+
+    expect(classes).toContain('rounded-b-[8px]');
+    expect(classes).not.toContain('rounded-br-[10px]');
+    expect(classes).not.toContain('rounded-bl-[10px]');
+  });
+
+  it("rounds a compact card's body whole at 8px under mobile", () => {
+    const classes = body(mount([], true)).className.split(' ');
+
+    expect(classes).toContain('mobile:rounded-[8px]');
+    expect(classes).not.toContain('mobile:rounded-[10px]');
   });
 });

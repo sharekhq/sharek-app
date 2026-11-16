@@ -886,6 +886,19 @@ describe('MediaTile on the Media page', () => {
     expect(wrapper.contains(tileButton(host))).toBe(true);
   });
 
+  // A box inside a card rounds at 8px (FR-023): the square wrapper, the frame
+  // and the tile button alike.
+  it('rounds its square wrapper, its frame and its button at 8px, not 6px', () => {
+    const host = renderTile();
+
+    [host.firstElementChild!, frame(host), tileButton(host)!].forEach(
+      (node) => {
+        expect(classes(node)).toContain('rounded-[8px]');
+        expect(classes(node)).not.toContain('rounded-[6px]');
+      }
+    );
+  });
+
   // FR-035 to FR-037, FR-050: the selection circle, in the top-start corner
   // (top-right in Arabic, by `start-`), beside the tile button.
   it('has a circle beside the tile button, never inside it, in the top start corner: a 40px hit box, 44px under a finger, holding a 24px ring, with the focus ring', () => {
