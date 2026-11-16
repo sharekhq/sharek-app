@@ -132,7 +132,7 @@ export const useHangingPanel = () => {
 export const MENU_PANEL =
   'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default p-[6px]';
 export const MENU_ITEM =
-  'flex items-center gap-[10px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand';
+  'flex items-center gap-[10px] min-h-[36px] coarse:min-h-[44px] py-[8px] px-[10px] rounded-[8px] text-[14px] font-[500] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand';
 export const MENU_ICON = 'flex text-muted [&_svg]:size-4';
 export const MENU_ICON_DANGER = 'flex text-error';
 
@@ -272,7 +272,7 @@ export const PostActionsMenu = forwardRef<
             // within the list's width.
             <div className="flex flex-col gap-[2px]">
               <div className="text-[14px]">{action.label}</div>
-              <div className="text-[12px] text-muted text-wrap">
+              <div className="text-[12px] font-[400] text-muted text-wrap">
                 {action.hint}
               </div>
             </div>
