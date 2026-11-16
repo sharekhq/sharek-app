@@ -17,6 +17,8 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import copy from 'copy-to-clipboard';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 const roles = [
   {
@@ -107,7 +109,7 @@ export const AddMember = () => {
               {t('send_invitation_via_email', 'Send invitation via email?')}
             </div>
           </div>
-          <Button type="submit" className="mt-[18px]">
+          <Button type="submit" size="large" className="mt-[18px]">
             {sendEmail ? t('send_invitation_link', 'Send Invitation Link') : t('copy_link', 'Copy Link')}
           </Button>
         </div>
@@ -181,7 +183,13 @@ export const TeamsComponent = () => {
           'Invite your assistant or team member to manage your account'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
+      <div
+        className={clsx(
+          'my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px]',
+          CARD_PADDING,
+          'flex flex-col gap-[24px]'
+        )}
+      >
         <div className="flex flex-col gap-[16px]">
           {(data || []).map((p) => (
             <div key={p.user.id} className="flex items-center">

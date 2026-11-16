@@ -9,6 +9,7 @@ import { Button } from '@gitroom/react/form/button';
 import { Input } from '@gitroom/react/form/input';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
@@ -187,7 +188,13 @@ export const Sets: FC = () => {
           'Manage your content sets for easy reuse across posts.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
+      <div
+        className={clsx(
+          'my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px]',
+          CARD_PADDING,
+          'flex gap-[24px]'
+        )}
+      >
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[2fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">

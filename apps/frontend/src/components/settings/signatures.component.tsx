@@ -3,6 +3,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { Button } from '@gitroom/react/form/button';
 import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { TopTitle } from '@gitroom/frontend/components/launches/helpers/top.title.component';
 import { array, boolean, object, string } from 'yup';
@@ -74,7 +75,13 @@ export const SignaturesComponent: FC<{
           'You can add signatures to your account to be used in your posts.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] mobile:p-[12px] flex gap-[24px]">
+      <div
+        className={clsx(
+          'my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px]',
+          CARD_PADDING,
+          'flex gap-[24px]'
+        )}
+      >
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div
@@ -240,7 +247,9 @@ const AddOrRemoveSignature: FC<{
             </option>
           </Select>
 
-          <Button type="submit">{t('save', 'Save')}</Button>
+          <Button type="submit" size="large">
+            {t('save', 'Save')}
+          </Button>
         </div>
       </form>
     </FormProvider>

@@ -14,6 +14,7 @@ import { Select } from '@gitroom/react/form/select';
 import { PickPlatforms } from '@gitroom/frontend/components/launches/helpers/pick.platform.component';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
@@ -69,7 +70,13 @@ export const Webhooks: FC = () => {
           'Webhooks are a way to get notified when something happens in Sharek via\n        an HTTP request.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
+      <div
+        className={clsx(
+          'my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px]',
+          CARD_PADDING,
+          'flex gap-[24px]'
+        )}
+      >
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[1fr,1fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
@@ -295,6 +302,7 @@ export const AddOrEditWebhook: FC<{
             <div className="flex gap-[10px]">
               <Button
                 type="submit"
+                size="large"
                 className="mt-[24px]"
                 disabled={
                   !form.formState.isValid ||
@@ -307,6 +315,7 @@ export const AddOrEditWebhook: FC<{
               <Button
                 type="button"
                 secondary={true}
+                size="large"
                 className="mt-[24px]"
                 onClick={sendTest}
                 disabled={

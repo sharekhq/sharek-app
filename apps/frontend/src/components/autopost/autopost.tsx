@@ -13,6 +13,7 @@ import { Select } from '@gitroom/react/form/select';
 import { PickPlatforms } from '@gitroom/frontend/components/launches/helpers/pick.platform.component';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { CopilotTextarea } from '@copilotkit/react-textarea';
 import { Slider } from '@gitroom/react/form/slider';
@@ -77,7 +78,13 @@ export const Autopost: FC = () => {
           'Autopost creates drafts from your RSS new items, review and schedule them from the calendar to publish them'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
+      <div
+        className={clsx(
+          'my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px]',
+          CARD_PADDING,
+          'flex gap-[24px]'
+        )}
+      >
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[1fr,1fr,1fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
@@ -403,6 +410,7 @@ export const AddOrEditWebhook: FC<{
               {valid === url && (syncLast || !!lastUrl) && (
                 <Button
                   type="submit"
+                  size="large"
                   className="mt-[24px]"
                   disabled={
                     valid !== url ||
@@ -417,6 +425,7 @@ export const AddOrEditWebhook: FC<{
               <Button
                 type="button"
                 variant="secondary"
+                size="large"
                 className="mt-[24px]"
                 onClick={sendTest}
                 disabled={
