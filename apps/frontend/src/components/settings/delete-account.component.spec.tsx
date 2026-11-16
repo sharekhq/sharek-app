@@ -156,16 +156,24 @@ describe('deleting the account', () => {
   });
 });
 
-// A card's corners are 12px with a 1px line, on Settings as on every other page (FR-035).
+// A card's corners are 12px with a 1px line, on Settings as on every other page (FR-035),
+// its content 20px in, 16px at 1025px and below (spec 060 FR-022).
 describe('the card', () => {
   it('has 12px corners and a 1px line', async () => {
     const card = (await render(<DeleteAccountComponent />))
       .firstElementChild as HTMLElement;
 
     expect(card.className.split(' ')).toEqual(
-      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'border',
+        'border-fifth',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(card.className).not.toContain('rounded-[4px]');
+    expect(card.className.split(' ')).not.toContain('p-[24px]');
   });
 
   // A card's title is semibold at the panel's 16px, as the review page draws
