@@ -167,6 +167,11 @@ const welcome = (host: HTMLElement) =>
   );
 const ideas = (host: HTMLElement) =>
   Array.from(welcome(host)!.querySelectorAll<HTMLButtonElement>('ul button'));
+// The line and the hint: the block's own paragraphs, none inside an idea.
+const paragraphs = (block: HTMLElement) =>
+  Array.from(block.children)
+    .filter((child) => child.tagName === 'P')
+    .map((child) => child.textContent);
 const input = () => inputProps[inputProps.length - 1];
 const attach = async (id: string, ext: string) => {
   await act(async () =>
@@ -229,9 +234,7 @@ describe('Samy’s welcome on a new chat', () => {
     expect(icon.getAttribute('data-icon')).toBe('SamyIcon');
     expect(icon.getAttribute('size')).toBe('26');
     expect(block.querySelector('h2')!.textContent).toBe("Hi, I'm Samy 👋");
-    expect(
-      Array.from(block.querySelectorAll(':scope > p')).map((p) => p.textContent)
-    ).toEqual([
+    expect(paragraphs(block)).toEqual([
       "Tell me what you want to post. I'll write it, make the pictures and schedule it on your channels.",
       "Tick channels in the Channels panel and I'll post to those.",
     ]);
@@ -310,9 +313,10 @@ describe('Samy’s welcome on a new chat', () => {
 
     expect(block.getAttribute('dir')).toBe('rtl');
     expect(block.querySelector('h2')!.textContent).toBe('samy_welcome_title');
-    expect(
-      Array.from(block.querySelectorAll(':scope > p')).map((p) => p.textContent)
-    ).toEqual(['samy_welcome_line', 'samy_welcome_hint']);
+    expect(paragraphs(block)).toEqual([
+      'samy_welcome_line',
+      'samy_welcome_hint',
+    ]);
     expect(block.querySelector('ul')!.getAttribute('aria-label')).toBe(
       'samy_welcome_ideas'
     );

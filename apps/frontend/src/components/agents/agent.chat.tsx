@@ -77,6 +77,10 @@ import {
   BrandChip,
   BrandNote,
 } from '@gitroom/frontend/components/agents/agent.brand.chip';
+import {
+  SamyWelcome,
+  samyIdeas,
+} from '@gitroom/frontend/components/agents/agent.welcome';
 
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
@@ -134,16 +138,14 @@ export const AgentChat: FC = () => {
                   <CopilotChat
                     className="w-full h-full"
                     labels={{
-                      // The eight shared controls. First, so Samy's own two below always
-                      // win. Its custom input reads labels.placeholder, so a missing one is
+                      // The eight shared controls. First, so Samy's own title below always
+                      // wins. Its custom input reads labels.placeholder, so a missing one is
                       // English in the field the user types into.
                       ...assistantLabels(t),
                       title: t('samy', 'Samy'),
-                      initial: t(
-                        'samy_welcome_message',
-                        "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
-                      ),
                     }}
+                    suggestions={samyIdeas(t)}
+                    RenderSuggestionsList={SamyWelcome}
                     UserMessage={Message}
                     AssistantMessage={Reply}
                     Input={NewInput}
