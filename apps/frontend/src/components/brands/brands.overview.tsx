@@ -201,7 +201,7 @@ export const BrandsOverview: FC<{
           ),
         ].join(' · ')}
       />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[16px]">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(max(240px,calc((100%_-_32px)/3)),1fr))] gap-[16px]">
         {brands.map((brand) => (
           <BrandCard
             key={brand.id}

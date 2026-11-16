@@ -26,7 +26,10 @@ import {
   SplitPanel,
 } from '@gitroom/frontend/components/ui/split.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
-import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  PageScroll,
+  PAGE_PADDING,
+} from '@gitroom/frontend/components/ui/page.scroll';
 import {
   GridIcon,
   PencilIcon,
@@ -385,7 +388,7 @@ export const BrandsComponent: FC = () => {
       <PageScroll>
         {!current && !overview ? (
           isMobile ? (
-            <div className="px-[8px] pb-[20px]">{list}</div>
+            <div className="px-[12px] pb-[20px]">{list}</div>
           ) : (
             <EmptyState
               illustration={
@@ -408,13 +411,15 @@ export const BrandsComponent: FC = () => {
             />
           )
         ) : (
-          <div className="w-full max-w-[960px] mx-auto flex flex-col gap-[20px] px-[32px] py-[24px] mobile:px-[14px] mobile:py-[16px]">
+          <div
+            className={clsx('w-full flex flex-col gap-[20px]', PAGE_PADDING)}
+          >
             {isMobile && (
               <button
                 type="button"
                 onClick={() => setChosen(null)}
                 className={clsx(
-                  'self-start flex items-center gap-[4px] h-[44px] -my-[8px] -ms-[6px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
+                  'self-start flex items-center gap-[4px] h-[44px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
                   FOCUS_RING
                 )}
               >
