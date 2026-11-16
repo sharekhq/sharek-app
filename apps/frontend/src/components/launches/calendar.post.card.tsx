@@ -162,7 +162,7 @@ export const CalendarPostCard = forwardRef<
       ref={ref}
       className={clsx(
         'w-full flex h-full flex-1 flex-col group',
-        'relative rounded-[10px] border border-line',
+        'relative rounded-[8px] border border-line',
         // a finger holds the card to drag it (dnd.provider.tsx); held that
         // long, iOS would select its text or open the picture's menu
         'coarse:select-none coarse:[-webkit-touch-callout:none]',
@@ -244,10 +244,10 @@ export const CalendarPostCard = forwardRef<
         onTouchEnd={endHold}
         onTouchCancel={cancelHold}
         className={clsx(
-          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
+          'gap-[5px] w-full flex h-full flex-1 rounded-b-[8px] p-[8px] text-[14px] bg-surface',
           'relative',
           compact &&
-            'mobile:p-[4px] mobile:rounded-[10px] mobile:justify-center',
+            'mobile:p-[4px] mobile:rounded-[8px] mobile:justify-center',
           isBeforeNow && '!grayscale'
         )}
       >

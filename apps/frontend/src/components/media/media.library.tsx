@@ -153,10 +153,10 @@ export const MediaTile: FC<{
   const openPreview = () =>
     modals.openModal(libraryPreviewModal(query, media.id, onDeleted));
   return (
-    <div className="group rounded-[6px] aspect-square mobile:p-[6px]">
+    <div className="group rounded-[8px] aspect-square mobile:p-[6px]">
       <div
         className={clsx(
-          'w-full h-full rounded-[6px] border-[4px] relative',
+          'w-full h-full rounded-[8px] border-[4px] relative',
           order || selected ? 'border-brand' : 'border-transparent'
         )}
       >
@@ -167,7 +167,7 @@ export const MediaTile: FC<{
           title={name}
           aria-label={name}
           onClick={standalone && !selecting ? openPreview : onToggle}
-          className="block w-full h-full rounded-[6px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+          className="block w-full h-full rounded-[8px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
         >
           <TilePicture
             media={media}
