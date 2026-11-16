@@ -233,6 +233,37 @@ describe('the Developers tab', () => {
     }
   });
 
+  // FR-026: each of those buttons' icons is 16px, 6px from its label (the
+  // button's own gap-[6px]).
+  it("draws every copy, reveal, rotate, wizard and docs button's icon at 16px", async () => {
+    const host = await render();
+    await click(button(host, 'API Key'));
+    await click(button(host, 'Cursor'));
+    await click(button(host, 'CI / Remote servers'));
+
+    const labels = [
+      'Reveal',
+      'Copy',
+      'Copy URL',
+      'Copy All',
+      'Rotate Key',
+      'Open Wizard',
+      'Docs',
+      'N8N Node',
+    ];
+    const icons = Array.from(host.querySelectorAll('button, a'))
+      .filter((element) => labels.includes(element.textContent ?? ''))
+      .map((element) => element.querySelector('svg'));
+
+    expect(icons).toHaveLength(13);
+    for (const icon of icons) {
+      expect([
+        icon?.getAttribute('width'),
+        icon?.getAttribute('height'),
+      ]).toEqual(['16', '16']);
+    }
+  });
+
   // FR-032: the sign-in method, the client and where the CLI runs are view
   // switches in the dashboard's one look: each row is a switch group (the
   // clients wrap), the current option takes the current half and the others

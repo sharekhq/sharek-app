@@ -73,6 +73,10 @@ const expectFieldHeight = (element: Element) => {
   expect(classes(element)).not.toContain('h-[44px]');
 };
 
+// Every icon a text button or link carries, beside the label.
+const buttonIcons = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll('button svg, a svg'));
+
 beforeEach(() => {
   oauthApp = null;
 });
@@ -82,6 +86,29 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+});
+
+// FR-026: a text button's icon is 16px, 6px from its label (the button's own
+// gap-[6px]), before there is an app (Docs) and once there is one (Docs, Edit
+// App, Copy ID, Rotate Secret and Delete App).
+it("draws every text button's icon at 16px", async () => {
+  const before = buttonIcons(await render());
+  oauthApp = {
+    name: 'Acme Scheduler',
+    description: '',
+    redirectUrl: 'https://acme.example/callback',
+    clientId: 'client-123',
+  };
+  const after = buttonIcons(await render());
+
+  expect(before).toHaveLength(1);
+  expect(after).toHaveLength(5);
+  for (const icon of [...before, ...after]) {
+    expect([icon.getAttribute('width'), icon.getAttribute('height')]).toEqual([
+      '16',
+      '16',
+    ]);
+  }
 });
 
 describe('the OAuth app before there is one', () => {
