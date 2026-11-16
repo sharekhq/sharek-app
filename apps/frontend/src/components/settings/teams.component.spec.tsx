@@ -103,6 +103,19 @@ describe('the teams tab in the dashboard look', () => {
     }
   });
 
+  it("sets Remove's icon 16px, 6px from its label", async () => {
+    const host = await render();
+
+    for (const remove of buttons(host, 'Remove')) {
+      const icon = remove.querySelector('svg')!;
+      expect(icon.getAttribute('width')).toBe('16');
+      expect(icon.getAttribute('height')).toBe('16');
+      const line = classes(icon.parentElement!.parentElement!);
+      expect(line).toContain('gap-[6px]');
+      expect(line).not.toContain('gap-[4px]');
+    }
+  });
+
   it('keeps Add another member the medium primary button', async () => {
     const host = await render();
     const [add] = buttons(host, 'Add another member');
