@@ -70,14 +70,14 @@ export const Autopost: FC = () => {
   );
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">{t('autopost', 'Autopost')}</h3>
+      <h3 className="text-[20px] font-[600]">{t('autopost', 'Autopost')}</h3>
       <div className="text-muted mt-[4px]">
         {t(
           'autopost_creates_drafts_from_your_rss_new_items',
           'Autopost creates drafts from your RSS new items, review and schedule them from the calendar to publish them'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[1fr,1fr,1fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
@@ -99,14 +99,22 @@ export const Autopost: FC = () => {
                   </div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={addWebhook(p)}>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={addWebhook(p)}
+                      >
                         {t('edit', 'Edit')}
                       </Button>
                     </div>
                   </div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={deleteHook(p)}>
+                      <Button
+                        variant="dangerGhost"
+                        size="small"
+                        onClick={deleteHook(p)}
+                      >
                         {t('delete', 'Delete')}
                       </Button>
                     </div>
@@ -408,6 +416,7 @@ export const AddOrEditWebhook: FC<{
               )}
               <Button
                 type="button"
+                variant="secondary"
                 className="mt-[24px]"
                 onClick={sendTest}
                 disabled={
