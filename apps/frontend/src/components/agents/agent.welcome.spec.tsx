@@ -1,4 +1,4 @@
-import { act, ComponentProps, ReactNode } from 'react';
+import { act, ComponentProps, ComponentType, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // Samy's welcome, drawn where CopilotKit 1.72 draws its suggestions: the
@@ -8,8 +8,8 @@ import { createRoot, Root } from 'react-dom/client';
 // chat's own LoadMessages decides whether the chat is empty, and the real
 // attachments provider holds the tray, as in agent.chat.input.spec.
 const sent = jest.fn();
-const inputProps: Array<Record<string, any>> = [];
-const aiImageProps: Array<Record<string, any>> = [];
+const inputProps: Array<ComponentProps<typeof Input>> = [];
+const aiImageProps: Array<ComponentProps<typeof AiImage>> = [];
 const params = { id: 'new' };
 const chat = { messages: [] as Array<Record<string, unknown>> };
 // The interface language: English draws each English default, Arabic each key,
@@ -22,7 +22,22 @@ const locale = { lang: 'en' };
 const list = { scrollTop: 0 };
 
 jest.mock('@copilotkit/react-ui', () => ({
-  CopilotChat: ({ Input, suggestions, RenderSuggestionsList }: any) => (
+  CopilotChat: ({
+    Input,
+    suggestions,
+    RenderSuggestionsList,
+  }: {
+    Input: ComponentType<{
+      inProgress: boolean;
+      onSend: (text: string) => void;
+    }>;
+    suggestions?: unknown[];
+    RenderSuggestionsList: ComponentType<{
+      suggestions: unknown[];
+      onSuggestionClick: (message: string) => void;
+      isLoading: boolean;
+    }>;
+  }) => (
     <>
       <div
         className="copilotKitMessages"
@@ -58,7 +73,7 @@ jest.mock('@copilotkit/react-core', () => ({
   }),
 }));
 jest.mock('@gitroom/frontend/components/agents/agent.input', () => ({
-  Input: (props: { attachments: ReactNode; tools: ReactNode }) => {
+  Input: (props: ComponentProps<typeof Input>) => {
     inputProps.push(props);
     return (
       <div>
@@ -95,9 +110,7 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   MediaBox: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: {
-    renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  }) => {
+  AiImage: (props: ComponentProps<typeof AiImage>) => {
     aiImageProps.push(props);
     return <>{props.renderTrigger(() => undefined, false)}</>;
   },
@@ -157,6 +170,8 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => {
 
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
+import type { Input } from '@gitroom/frontend/components/agents/agent.input';
+import type { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 
 const mounted: Root[] = [];
 
@@ -206,8 +221,10 @@ beforeEach(() => {
   chat.messages = [];
   locale.lang = 'en';
   list.scrollTop = 0;
-  (URL as any).createObjectURL = jest.fn(() => 'blob:x');
-  (URL as any).revokeObjectURL = jest.fn();
+  Object.assign(URL, {
+    createObjectURL: jest.fn(() => 'blob:x'),
+    revokeObjectURL: jest.fn(),
+  });
 });
 
 afterEach(() => {

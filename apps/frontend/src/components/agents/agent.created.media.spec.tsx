@@ -1,4 +1,4 @@
-import { act, ReactNode, SyntheticEvent } from 'react';
+import { act, FC, ReactNode, SyntheticEvent } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // An image Samy made, in the chat. CopilotKit draws a tool call through the card
@@ -793,7 +793,7 @@ describe('isInLatestExchange', () => {
 // nothing shows before it has.
 describe('whether the chat is empty', () => {
   let seen: ReturnType<typeof useChatRun>;
-  const Reader = () => {
+  const Reader: FC = () => {
     seen = useChatRun();
     return null;
   };

@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, FC } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // For the first cases the seam is the className, so everything the component
@@ -9,7 +9,7 @@ import { createRoot } from 'react-dom/client';
 const request = jest.fn();
 const reset = jest.fn();
 let confirmed = false;
-const dialog = jest.fn(async (_message: string, _confirm: string) => confirmed);
+const dialog = jest.fn<Promise<boolean>, unknown[]>(async () => confirmed);
 const variables = { isGeneral: true, isSecured: false };
 
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
@@ -225,7 +225,7 @@ describe('LogoutComponent sign-out', () => {
   describe('useLogout', () => {
     const hook = () => {
       let logout: (() => Promise<void>) | undefined;
-      const Probe = () => {
+      const Probe: FC = () => {
         logout = useLogout();
         return null;
       };

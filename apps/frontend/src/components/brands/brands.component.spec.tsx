@@ -1,4 +1,4 @@
-import { act, ComponentProps } from 'react';
+import { act, ComponentProps, FC, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { SWRConfig, useSWRConfig } from 'swr';
 import * as fs from 'fs';
@@ -119,7 +119,10 @@ import i18next from 'i18next';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { buttonClassName } from '@gitroom/react/form/button';
 import type { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
-import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import type {
+  Brand,
+  BrandImage,
+} from '@gitroom/frontend/components/brands/use.brands';
 import { BrandsComponent } from '@gitroom/frontend/components/brands/brands.component';
 
 const mockTranslate = (
@@ -280,8 +283,11 @@ const settle = async () => {
 // The page's SWR cache asking again, as a dialog has it do once it changed
 // the brands.
 let revalidate: ReturnType<typeof useSWRConfig>['mutate'];
-const Revalidate = () => {
-  revalidate = useSWRConfig().mutate;
+const Revalidate: FC = () => {
+  const { mutate } = useSWRConfig();
+  useEffect(() => {
+    revalidate = mutate;
+  }, [mutate]);
   return null;
 };
 
@@ -494,12 +500,16 @@ describe('the list', () => {
 // and No brand while a channel is in none. The cards read the brands and
 // the channel list the page has already loaded.
 describe('the overview', () => {
-  const live = (id: string) => ({
+  const live = (id: string): BrandImage => ({
     id,
     path: `https://media/${id}.png`,
     missing: false,
   });
-  const deleted = (id: string) => ({ id, path: null, missing: true });
+  const deleted = (id: string): BrandImage => ({
+    id,
+    path: null,
+    missing: true,
+  });
   // Bayt Al Qahwa's kit is full; Client 2's too, with no channels; Client
   // 10's is empty; noor Dental has only a font, its logo, an example and
   // its About (spaces) gone or empty; Rawda Florist a colour and one

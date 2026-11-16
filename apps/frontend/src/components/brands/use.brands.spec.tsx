@@ -40,6 +40,7 @@ jest.mock(
 
 import {
   Brand,
+  BrandImage,
   kitNote,
   kitStatus,
   useBrands,
@@ -363,12 +364,12 @@ const brand = (
 });
 
 // A kit image still in Media, and one deleted from it.
-const live = (id: string) => ({
+const live = (id: string): BrandImage => ({
   id,
   path: `https://media/${id}.png`,
   missing: false,
 });
-const deleted = (id: string) => ({ id, path: null, missing: true });
+const deleted = (id: string): BrandImage => ({ id, path: null, missing: true });
 
 // Every item of the kit done.
 const FULL = brand(

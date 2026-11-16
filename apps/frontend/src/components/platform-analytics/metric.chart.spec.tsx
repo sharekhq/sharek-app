@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ChartConfiguration } from 'chart.js';
+import type { ChartConfiguration, LinearScaleOptions } from 'chart.js';
 
 // Analytics' chart of one metric over its period (spec 051, R20, FR-032 and
 // FR-052): every daily point on labelled axes with light gridlines, in the
@@ -308,7 +308,13 @@ describe('MetricChart', () => {
   // A metric counted in whole things labels its value axis with whole numbers
   // only, never 0.5 on a short range (FR-019). The series comes straight from
   // each provider, so a total can arrive as a numeric string, which counts as
-  // the number it spells.
+  // the number it spells. The value axis as these cases read it: chart.js's
+  // own step option, and the component's formatter, which takes the tick alone.
+  type ValueAxis = {
+    ticks: Pick<LinearScaleOptions['ticks'], 'precision'> & {
+      callback: (tick: number) => string;
+    };
+  };
   it.each<[string, number[]]>([
     ['whole numbers', [0, 1, 2, 1]],
     ['all zeros', [0, 0, 0]],
@@ -320,7 +326,7 @@ describe('MetricChart', () => {
     'labels the value axis with whole numbers only, for %s',
     async (_, totals) => {
       await mount(days(totals));
-      const { y } = drawn().config.options.scales;
+      const y = drawn().config.options.scales.y as ValueAxis;
 
       expect(y.ticks.precision).toBe(0);
       // the compact formatter is the same
@@ -331,7 +337,7 @@ describe('MetricChart', () => {
 
   it("leaves the value axis chart.js's own steps for a series with a fraction", async () => {
     await mount(days([0.5, 1, 2.25]));
-    const { y } = drawn().config.options.scales;
+    const y = drawn().config.options.scales.y as ValueAxis;
 
     expect(y.ticks.precision).toBeUndefined();
     expect(y.ticks.callback(12400)).toBe('12.4K');
