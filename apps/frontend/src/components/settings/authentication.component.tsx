@@ -3,6 +3,8 @@
 import React from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 const AuthenticationComponent = () => {
   const t = useT();
@@ -34,7 +36,13 @@ const AuthenticationComponent = () => {
   }
 
   return (
-    <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
+    <div
+      className={clsx(
+        'my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px]',
+        CARD_PADDING,
+        'flex flex-col gap-[24px]'
+      )}
+    >
       <div className="mt-[4px] font-[600]">
         {t('authentication', 'Authentication')}
       </div>

@@ -12,6 +12,8 @@ import {
   browserTimezone,
   isTimezone,
 } from '@gitroom/frontend/components/layout/set.timezone';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 const dateMetrics = [
   { key: 'clock_format_12', label: 'AM:PM', value: 'US' },
   { key: 'clock_format_24', label: '24 hours', value: 'GLOBAL' },
@@ -57,7 +59,13 @@ const MetricComponent = () => {
     []
   );
   return (
-    <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
+    <div
+      className={clsx(
+        'my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px]',
+        CARD_PADDING,
+        'flex flex-col gap-[24px]'
+      )}
+    >
       <div className="mt-[4px] font-[600]">
         {t('date_metrics', 'Date Metrics')}
       </div>

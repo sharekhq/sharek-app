@@ -11,6 +11,8 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { TrashIcon } from '@gitroom/frontend/components/ui/icons';
 import { resetAnalyticsIdentity } from '@gitroom/react/helpers/posthog';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 interface DeleteAccountInfo {
   hasSubscription: boolean;
@@ -133,7 +135,13 @@ const DeleteAccountComponent: FC<{ isLink?: boolean }> = ({ isLink }) => {
   }
 
   return (
-    <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
+    <div
+      className={clsx(
+        'my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px]',
+        CARD_PADDING,
+        'flex flex-col gap-[24px]'
+      )}
+    >
       {loadingOverlay}
       <div className="mt-[4px] font-[600]">
         {t('delete_account', 'Delete Account')}
