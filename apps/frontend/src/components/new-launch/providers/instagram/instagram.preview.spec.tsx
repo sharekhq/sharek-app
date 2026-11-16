@@ -93,12 +93,11 @@ const load = async (
   });
 };
 
-/** The aspect ratio the box around the slider is drawn at, read from its style. */
+/** The shape the slider is drawn at: the --ig-ratio an ancestor of it sets. */
 const boxRatio = (host: HTMLElement) => {
-  const box = slide(host).closest<HTMLElement>('[style*="aspect-ratio"]');
+  const box = slide(host).closest<HTMLElement>('[style*="--ig-ratio"]');
   expect(box).not.toBeNull();
-  const [width, height = 1] = box!.style.aspectRatio.split('/').map(Number);
-  return width / height;
+  return Number(box!.style.getPropertyValue('--ig-ratio'));
 };
 
 describe("Instagram preview's media shape", () => {
@@ -130,9 +129,12 @@ describe("Instagram preview's media shape", () => {
     expect(boxRatio(host)).toBeCloseTo(0.8, 4);
   });
 
-  it('no longer fixes the box at 585px tall', async () => {
+  it('draws the slider in the shape --ig-ratio holds, no longer 585px tall', async () => {
     const host = await showPreview([IMAGE]);
+    const slider = slide(host).closest('a')!.parentElement!;
 
+    expect(slider.classList.contains('aspect-[var(--ig-ratio)]')).toBe(true);
+    expect(slider.classList.contains('h-[585px]')).toBe(false);
     expect(
       Array.from(host.querySelectorAll('*')).filter((element) =>
         element.classList.contains('h-[585px]')
