@@ -229,6 +229,18 @@ describe('the cover of a video', () => {
     });
   });
 
+  // The frame picker's Back, with its arrow, the same way.
+  it("keeps the frame picker's Back arrow 6px from its label", async () => {
+    const { container } = render();
+    await click(button(container, 'Create thumbnail'));
+    const box = button(container, 'Back')!
+      .querySelector('svg')!
+      .parentElement!.className.split(' ');
+
+    expect(box).toContain('gap-[6px]');
+    expect(box).not.toContain('gap-[8px]');
+  });
+
   // Spec 059 (FR-028): Remove sits on the row and asks nothing first, so it
   // is red text with no fill, the shared dangerGhost, and carries no red of
   // its own over another kind's ink.
