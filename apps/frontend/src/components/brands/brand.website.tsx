@@ -504,7 +504,7 @@ export const WebsiteLookupFields: FC<{
                   onClick={() => lookup.pick(link)}
                   style={CHECKERBOARD}
                   className={clsx(
-                    'relative flex items-center justify-center w-[76px] h-[76px] rounded-[10px] cursor-pointer disabled:cursor-default transition-colors',
+                    'relative flex items-center justify-center w-[76px] h-[76px] rounded-[8px] cursor-pointer disabled:cursor-default transition-colors',
                     link === logo
                       ? 'border-2 border-brand'
                       : 'border border-line hover:border-inkSoft',
@@ -556,13 +556,13 @@ export const WebsiteLookupFields: FC<{
                   }
                   onClick={() => lookup.toggle(code)}
                   className={clsx(
-                    'relative flex w-[44px] h-[44px] rounded-[10px] cursor-pointer disabled:cursor-default',
+                    'relative flex w-[44px] h-[44px] rounded-[8px] cursor-pointer disabled:cursor-default',
                     FOCUS_RING
                   )}
                 >
                   <span
                     className={clsx(
-                      'w-full h-full rounded-[10px] ring-1 ring-inset ring-line transition-opacity',
+                      'w-full h-full rounded-[8px] ring-1 ring-inset ring-line transition-opacity',
                       !ticked.includes(code) && 'opacity-40'
                     )}
                     style={{ backgroundColor: code }}
