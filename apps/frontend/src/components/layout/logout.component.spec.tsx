@@ -9,10 +9,11 @@ import { createRoot } from 'react-dom/client';
 const request = jest.fn();
 const reset = jest.fn();
 let confirmed = false;
+const dialog = jest.fn(async (_message: string, _confirm: string) => confirmed);
 const variables = { isGeneral: true, isSecured: false };
 
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: async () => confirmed,
+  deleteDialog: (message: string, confirm: string) => dialog(message, confirm),
 }));
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
@@ -30,7 +31,10 @@ jest.mock('@gitroom/react/helpers/posthog', () => ({
   resetAnalyticsIdentity: () => reset(),
 }));
 
-import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
+import {
+  LogoutComponent,
+  useLogout,
+} from '@gitroom/frontend/components/layout/logout.component';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -58,6 +62,27 @@ const target = (host: HTMLElement) => {
   if (!el) throw new Error('no logout target');
   return el;
 };
+
+// LogoutComponent keeps drawing exactly what it drew before Log out became a
+// hook other menus can call (spec 059): the sentence in its error colour, and
+// the glyph alone in its touch box.
+describe('LogoutComponent markup', () => {
+  it('renders the text variant as today', () => {
+    expect(render(false).innerHTML).toBe(
+      '<div class="cursor-pointer coarse:min-h-[44px] coarse:flex coarse:items-center">' +
+        '<span class="text-error">Logout from Sharek</span></div>'
+    );
+  });
+
+  it('renders the icon variant as today', () => {
+    const box = target(render(true));
+    expect(box.className).toBe(
+      'cursor-pointer coarse:min-h-[44px] coarse:flex coarse:items-center coarse:min-w-[44px] coarse:justify-center'
+    );
+    expect(box.children).toHaveLength(1);
+    expect(box.firstElementChild?.tagName.toLowerCase()).toBe('svg');
+  });
+});
 
 describe('LogoutComponent touch target', () => {
   // Measured on the deployed paywall header at 390px under a forced coarse
@@ -152,6 +177,7 @@ describe('LogoutComponent sign-out', () => {
   beforeEach(() => {
     confirmed = true;
     variables.isSecured = true;
+    dialog.mockClear();
     request.mockReset().mockResolvedValue({ status: 200 });
     reset.mockReset();
     Object.defineProperty(window, 'location', {
@@ -191,5 +217,58 @@ describe('LogoutComponent sign-out', () => {
     expect(reset).not.toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
     expect(window.location.href).toBe('');
+  });
+
+  // The callback LogoutComponent runs, as a hook, so another menu can draw its
+  // own Log out row and keep the same confirmation (spec 059, the Settings
+  // menu's foot). A probe holds what the hook returns.
+  describe('useLogout', () => {
+    const hook = () => {
+      let logout: (() => Promise<void>) | undefined;
+      const Probe = () => {
+        logout = useLogout();
+        return null;
+      };
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      mounted.push(root);
+      act(() => {
+        root.render(<Probe />);
+      });
+      if (!logout) throw new Error('useLogout returned nothing');
+      return logout;
+    };
+
+    it('asks for confirmation, then logs out', async () => {
+      const logout = hook();
+      expect(dialog).not.toHaveBeenCalled();
+
+      await act(() => logout());
+
+      expect(dialog).toHaveBeenCalledTimes(1);
+      expect(dialog).toHaveBeenCalledWith(
+        'Are you sure you want to logout?',
+        'Yes logout'
+      );
+      expect(request).toHaveBeenCalledWith('/user/logout', { method: 'POST' });
+      expect(request.mock.invocationCallOrder[0]).toBeGreaterThan(
+        dialog.mock.invocationCallOrder[0]
+      );
+      expect(reset).toHaveBeenCalledTimes(1);
+      expect(window.location.href).toBe('/');
+    });
+
+    it('does nothing when the confirmation is refused', async () => {
+      confirmed = false;
+      const logout = hook();
+
+      await act(() => logout());
+
+      expect(dialog).toHaveBeenCalledTimes(1);
+      expect(request).not.toHaveBeenCalled();
+      expect(reset).not.toHaveBeenCalled();
+      expect(window.location.href).toBe('');
+    });
   });
 });
