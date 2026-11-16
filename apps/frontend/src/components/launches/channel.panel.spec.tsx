@@ -88,6 +88,7 @@ import {
   compareChannels,
   isUsable,
   orderChannels,
+  SearchField,
   useReconnectChannel,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { DNDProvider } from '@gitroom/frontend/components/launches/helpers/dnd.provider';
@@ -1343,12 +1344,17 @@ describe('the sticky block (C28)', () => {
 
   // SplitPanel's scroller has no top padding, since a sticky block sticks
   // that far below a padded scroller's top and rows would show above it.
-  it('carries the 20px above the header itself, on the rail and collapsed', async () => {
+  // Spec 060 (FR-003): the rail's content starts 12px under its top; a
+  // phone's sheet keeps its 20px.
+  it('carries the 12px above the header itself, 20px on a phone, on the rail and collapsed', async () => {
     for (const collapsed of [false, true]) {
       await render(SEARCH, { collapsed });
       const [block] = stickyBlocks();
 
-      expect(classes(block)).toContain('pt-[20px]');
+      expect(classes(block)).toEqual(
+        expect.arrayContaining(['pt-[12px]', 'mobile:pt-[20px]'])
+      );
+      expect(classes(block)).not.toContain('pt-[20px]');
     }
   });
 
@@ -1369,6 +1375,22 @@ describe('the sticky block (C28)', () => {
     const search = block.querySelector('input')!.parentElement!;
     expect(classes(search)).toContain('mx-[4px]');
     expect(classes(search).filter((name) => /^p[xse]-/.test(name))).toEqual([]);
+  });
+
+  // Spec 060 (FR-003): only a panel's search takes the 4px; Studio's page
+  // search sits on the page's gutter.
+  it("keeps the 4px margin on a panel's search, and none on the page's", async () => {
+    for (const [size, margin] of [
+      ['panel', true],
+      ['page', false],
+    ] as const) {
+      const box = await mount(
+        <SearchField label="search" value="" onChange={onChange} size={size} />
+      );
+      const search = box.querySelector('input')!.parentElement!;
+
+      expect(classes(search).includes('mx-[4px]')).toBe(margin);
+    }
   });
 
   it('keeps the collapsed header centred, with no inset of its own', async () => {

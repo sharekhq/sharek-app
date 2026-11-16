@@ -701,7 +701,8 @@ describe('the header', () => {
       expect.arrayContaining([
         'sticky',
         'top-0',
-        'pt-[20px]',
+        'pt-[12px]',
+        'mobile:pt-[20px]',
         'bg-newBgColorInner',
       ])
     );
