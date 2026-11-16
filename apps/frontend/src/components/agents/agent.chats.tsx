@@ -19,7 +19,11 @@ import {
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
-import { GROUP_LABEL } from '@gitroom/frontend/components/ui/split.panel';
+import {
+  GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
+} from '@gitroom/frontend/components/ui/split.panel';
 import {
   CloseIcon,
   PencilIcon,
@@ -216,9 +220,8 @@ const ChatRow: FC<{ chat: Chat; current: boolean; onPin: () => void }> = ({
     <div
       className={clsx(
         'group flex items-center gap-[4px] pe-[4px] rounded-[8px] transition-colors',
-        current
-          ? 'bg-brandSoft2 text-ink font-[600]'
-          : 'text-inkSoft hover:bg-boxHover hover:text-ink'
+        current ? LIST_ROW_ON : LIST_ROW_IDLE,
+        current ? 'text-ink font-[600]' : 'text-inkSoft hover:text-ink'
       )}
     >
       {/* Picking a chat closes the drawer it may be in. */}

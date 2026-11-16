@@ -16,6 +16,12 @@ import {
 export const GROUP_LABEL =
   'px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted';
 
+// A row of a panel's list, the Brands page's brands, Samy's chats and
+// Settings' tabs: the open row's selected tint and the hover the others show.
+// Each row keeps its own text colour and weight.
+export const LIST_ROW_ON = 'bg-brandSoft2';
+export const LIST_ROW_IDLE = 'hover:bg-boxHover';
+
 /**
  * A side rail on a wide screen, a bottom sheet or a start-side drawer at
  * 1025px and below.

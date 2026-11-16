@@ -21,6 +21,8 @@ import {
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
 import {
   GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
   SplitPanel,
 } from '@gitroom/frontend/components/ui/split.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
@@ -78,7 +80,7 @@ const ListRow: FC<{
       onClick={onClick}
       className={clsx(
         'flex items-center gap-[12px] w-full min-h-[52px] px-[10px] py-[8px] rounded-[10px] text-start cursor-pointer transition-colors',
-        current ? 'bg-brandSoft2' : 'hover:bg-boxHover',
+        current ? LIST_ROW_ON : LIST_ROW_IDLE,
         FOCUS_RING
       )}
     >

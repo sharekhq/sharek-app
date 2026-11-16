@@ -14,6 +14,8 @@ import { useLogout } from '@gitroom/frontend/components/layout/logout.component'
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
   SplitPanel,
 } from '@gitroom/frontend/components/ui/split.panel';
 import {
@@ -62,9 +64,10 @@ const MenuRow: FC<{
     onClick={onClick}
     className={clsx(
       'flex items-center gap-[10px] min-h-[36px] coarse:min-h-[44px] px-[10px] rounded-[8px] text-[14px] text-start cursor-pointer transition-colors mobile:shrink-0 mobile:whitespace-nowrap mobile:px-[14px]',
+      current ? LIST_ROW_ON : LIST_ROW_IDLE,
       current
-        ? 'bg-brandSoft2 text-ink font-[600]'
-        : 'text-inkSoft font-[500] hover:bg-boxHover hover:text-ink',
+        ? 'text-ink font-[600]'
+        : 'text-inkSoft font-[500] hover:text-ink',
       FOCUS_RING
     )}
   >
