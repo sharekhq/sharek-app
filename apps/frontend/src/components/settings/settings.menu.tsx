@@ -20,25 +20,25 @@ import {
 } from '@gitroom/frontend/components/ui/split.panel';
 import {
   CodeIcon,
+  ExitIcon,
   GridIcon,
   IconProps,
   LayersIcon,
   LinkIcon,
-  LogoutIcon,
-  PencilIcon,
+  PenIcon,
   PlugIcon,
   PuzzleIcon,
   RssIcon,
   SlidersIcon,
-  UserIcon,
+  UsersIcon,
 } from '@gitroom/frontend/components/ui/icons';
 
 const ICONS: Record<string, FC<IconProps>> = {
   global_settings: SlidersIcon,
-  teams: UserIcon,
+  teams: UsersIcon,
   autopost: RssIcon,
   sets: LayersIcon,
-  signatures: PencilIcon,
+  signatures: PenIcon,
   api: CodeIcon,
   webhooks: LinkIcon,
   plugs: PlugIcon,
@@ -173,7 +173,7 @@ export const SettingsMenu: FC<{
       <div className="flex flex-col gap-[2px] border-t border-line pt-[10px] mt-[12px] mobile:mt-[8px]">
         {showLogout && (
           <MenuRow
-            icon={LogoutIcon}
+            icon={ExitIcon}
             label={t('log_out', 'Log out')}
             onClick={logout}
           />
