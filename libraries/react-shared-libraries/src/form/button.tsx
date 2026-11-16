@@ -39,7 +39,7 @@ export const buttonClassName = ({
   size = 'medium',
 }: { variant?: ButtonVariant; size?: ButtonSize } = {}): string =>
   clsx(
-    'flex items-center justify-center gap-[6px] rounded-[8px] font-[600] cursor-pointer relative coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand',
+    'flex items-center justify-center gap-[6px] rounded-[8px] font-[600] cursor-pointer relative coarse:min-h-[44px] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
     {
       primary: 'bg-brand text-white',
       secondary: 'bg-quiet text-ink border border-line hover:bg-surface2',
