@@ -336,6 +336,19 @@ describe('the disclosure', () => {
     expect(host.querySelector('form')!.className).toContain('mobile:order-2');
   });
 
+  // A card of text and controls is inset 16px on phones and 20px above
+  // (SC-006, decisions D31).
+  it('insets the Reply to panel 20px, 16px on phones', async () => {
+    const host = await render();
+    const panel = Array.from(host.querySelectorAll('aside div'))
+      .find((node) => node.textContent === 'Reply to')!
+      .closest('aside')!;
+
+    expect(panel.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+    );
+  });
+
   it('names what travels with the enquiry', async () => {
     const host = await render();
     const text = aside(host).textContent || '';
