@@ -409,6 +409,21 @@ describe('selecting on the Media page', () => {
     expect(remove.querySelector('svg')).toBeTruthy();
   });
 
+  // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+  // shared Button's own gap with no override on its inner row.
+  it("draws Delete's trash glyph at 16px, 6px from its word", async () => {
+    mockServer.rows = november(3);
+    await mount();
+    await press(circleOf('n1.png'));
+
+    const glyph = barButton('delete')!.querySelector('svg')!;
+
+    expect(glyph.getAttribute('width')).toBe('16');
+    expect(glyph.getAttribute('height')).toBe('16');
+    expect(classes(glyph.parentElement!)).toContain('gap-[6px]');
+    expect(classes(glyph.parentElement!)).not.toContain('gap-[8px]');
+  });
+
   it("shows every tile's circle while anything is selected", async () => {
     mockServer.rows = november(3);
     await mount();

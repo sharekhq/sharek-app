@@ -1203,6 +1203,22 @@ describe('narrowing the list', () => {
       expect(toolbarHidden()).toBe(true);
     });
 
+    // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+    // shared Button's own gap with no override on its inner row.
+    it("draws the empty state's Upload plus at 16px, 6px from its word", async () => {
+      serve([]);
+
+      await mount(surface);
+      await answer();
+
+      const glyph = within(emptyState(), 'upload')!.querySelector('svg')!;
+
+      expect(glyph.getAttribute('width')).toBe('16');
+      expect(glyph.getAttribute('height')).toBe('16');
+      expect(classesOf(glyph.parentElement)).toContain('gap-[6px]');
+      expect(classesOf(glyph.parentElement)).not.toContain('gap-[8px]');
+    });
+
     it('says media_no_type_match when the filter finds nothing, keeps the toolbar, and Show all clears the filter', async () => {
       serve(november(3));
       await mount(surface);
