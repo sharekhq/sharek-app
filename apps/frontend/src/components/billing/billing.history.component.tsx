@@ -9,6 +9,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Select } from '@gitroom/react/form/select';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { buttonClassName } from '@gitroom/react/form/button';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 interface Invoice {
   id: string;
@@ -204,7 +205,8 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       className={clsx(
         'flex flex-col gap-[20px]',
         !modal &&
-          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft p-[24px] phone:p-[16px]'
+          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft',
+        !modal && CARD_PADDING
       )}
     >
       <div className="flex items-center gap-[12px] phone:flex-col phone:items-stretch">

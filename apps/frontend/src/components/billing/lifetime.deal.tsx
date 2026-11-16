@@ -12,6 +12,8 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useRouter } from 'next/navigation';
 import { useFireEvents } from '@gitroom/helpers/utils/use.fire.events';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 export const LifetimeDeal = () => {
   const t = useT();
   const fetch = useFetch();
@@ -80,7 +82,13 @@ export const LifetimeDeal = () => {
   }
   return (
     <div className="flex gap-[30px]">
-      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[12px]">
+      <div
+        className={clsx(
+          'border border-line bg-sixth',
+          CARD_PADDING,
+          'flex flex-col gap-[20px] flex-1 rounded-[12px]'
+        )}
+      >
         <div className="text-[30px]">
           {t('current_package', 'Current Package:')}
           {user?.totalChannels > 8 ? 'EXTRA' : user?.tier?.current}
@@ -109,7 +117,13 @@ export const LifetimeDeal = () => {
         </div>
       </div>
 
-      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[12px]">
+      <div
+        className={clsx(
+          'border border-line bg-sixth',
+          CARD_PADDING,
+          'flex flex-col gap-[20px] flex-1 rounded-[12px]'
+        )}
+      >
         <div className="text-[30px]">
           {t('next_package', 'Next Package:')}
           {user?.tier?.current === 'PRO'
