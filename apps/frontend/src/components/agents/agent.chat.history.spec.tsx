@@ -355,6 +355,20 @@ describe('AgentChat telling the chat whether it is empty', () => {
     expect(run.empty).toBe(true);
   });
 
+  // Before the connect, the chat sends into a stand-in agent this hook does not
+  // see, so an idea clicked then would leave the welcome up (review S1).
+  it('an empty new chat is not empty to the welcome until the chat is connected', async () => {
+    params.id = 'new';
+    chat.isAvailable = false;
+    await render();
+    expect(run.empty).toBe(false);
+
+    chat.isAvailable = true;
+    await render();
+
+    expect(run.empty).toBe(true);
+  });
+
   it('is not once the first message is sent', async () => {
     params.id = 'new';
     await render();
