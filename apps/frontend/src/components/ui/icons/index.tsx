@@ -1160,7 +1160,6 @@ export const SlidersIcon: FC<IconProps> = ({
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1182,7 +1181,6 @@ export const RssIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1207,7 +1205,6 @@ export const LayersIcon: FC<IconProps> = ({
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1228,7 +1225,6 @@ export const CodeIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1248,7 +1244,6 @@ export const LinkIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1269,7 +1264,6 @@ export const PlugIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1290,7 +1284,6 @@ export const GridIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1317,7 +1310,6 @@ export const PuzzleIcon: FC<IconProps> = ({
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
@@ -1337,7 +1329,6 @@ export const BulbIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true"
     className={className}
     {...props}
   >
