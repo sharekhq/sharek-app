@@ -1813,7 +1813,7 @@ exports[`the media library from 1026px up the Media page 1`] = `
       </div>
       <input class="hidden" multiple="" type="file" />
       <div aria-label="File type" class="flex gap-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-selectedRing font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
         <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
@@ -1936,7 +1936,7 @@ exports[`the media library from 1026px up the picker 1`] = `
       </div>
       <input class="hidden" multiple="" type="file" />
       <div aria-label="File type" class="flex gap-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-selectedRing font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
         <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
@@ -2070,7 +2070,7 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
       </div>
       <input class="hidden" multiple="" type="file" />
       <div aria-label="File type" class="flex gap-[8px]" role="group">
-        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
+        <button aria-pressed="true" class="bg-selectedBg border border-transparent coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-selectedRing font-[600] gap-[6px] h-[32px] inline-flex items-center px-[12px] rounded-full text-[13px] text-selectedText transition-colors whitespace-nowrap" type="button">
           "All"
         </button>
         <button aria-pressed="false" class="bg-surface border border-line coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-panel inline-flex items-center px-[12px] rounded-full text-[13px] text-inkSoft transition-colors whitespace-nowrap" type="button">
