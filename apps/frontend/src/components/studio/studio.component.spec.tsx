@@ -254,10 +254,11 @@ const lockedCards = () =>
 /** The banner's Upgrade action: the chips carry the word too, inside a card. */
 const upgradeActions = () =>
   buttons().filter((node) => node.textContent?.trim() === 'Upgrade');
-const introLine = () => document.querySelector('p');
 const search = () =>
   document.querySelector<HTMLInputElement>('input[type="search"]');
 const chipGroup = () => document.querySelector('[role="radiogroup"]');
+/** The page's top row, which holds the chips. */
+const topRow = () => chipGroup()!.parentElement!;
 const chips = () =>
   Array.from(
     chipGroup()?.querySelectorAll<HTMLElement>('[role="radio"]') ?? []
@@ -357,17 +358,33 @@ afterEach(() => {
 });
 
 // The page (spec 055, US1 scenarios 1 to 4 and 8, FR-001, FR-004 to FR-007,
-// FR-011, FR-016): the intro and the search on one row, the category chips,
-// then Tools and then Models, each section hidden while it has nothing to show.
+// FR-011, FR-016; spec 060 FR-006, FR-007, decisions D25): no intro, the
+// search and the category chips on one row, then Tools and then Models, each
+// section hidden while it has nothing to show.
 describe('the page', () => {
-  it('shows the intro and the search on one row, then the chips, then Tools, then Models', async () => {
+  it('shows the search and the chips on one row, then Tools, then Models', async () => {
     await mount();
 
-    const row = introLine()!.parentElement!;
-    expect(introLine()!.textContent).toBe(
+    expect(document.body.textContent).not.toContain(
       'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
     );
-    expect(row.contains(search())).toBe(true);
+    // The search first in the DOM, so first in tab order; flex-row-reverse
+    // draws the chips at the start edge in either direction.
+    const row = topRow();
+    expect(row.children).toHaveLength(2);
+    expect(row.children[0].contains(search())).toBe(true);
+    expect(row.children[1]).toBe(chipGroup());
+    expect(classes(row)).toEqual(
+      expect.arrayContaining([
+        'flex',
+        'flex-row-reverse',
+        'items-center',
+        'phone:flex-col',
+      ])
+    );
+    expect(classes(chipGroup())).toEqual(
+      expect.arrayContaining(['flex-1', 'min-w-0'])
+    );
     expect(search()!.getAttribute('aria-label')).toBe(
       'Search tools and models'
     );
@@ -379,8 +396,7 @@ describe('the page', () => {
     expect(section('Models')!.querySelector('p')?.textContent).toBe(
       'Choose the exact AI model when you want full control over the result.'
     );
-    expect(precedes(row, chipGroup()!)).toBe(true);
-    expect(precedes(chipGroup()!, section('Tools')!)).toBe(true);
+    expect(precedes(row, section('Tools')!)).toBe(true);
     expect(precedes(section('Tools')!, section('Models')!)).toBe(true);
   });
 
@@ -428,7 +444,7 @@ describe('the page', () => {
   it('stacks the row and keeps the chips in one sideways row on a phone', async () => {
     await mount();
 
-    const row = introLine()!.parentElement!;
+    const row = topRow();
     const searchBox = Array.from(row.children).find((node) =>
       node.contains(search())
     );
@@ -597,7 +613,7 @@ describe('the search', () => {
 });
 
 // A card (spec 055, US1 scenarios 5, 6 and 8, FR-008, FR-009, FR-013, FR-015,
-// FR-017; research R4 to R7): a sample picture in a 16:10 frame, then the
+// FR-017; research R4 to R7): a sample picture in a 16:9 frame, then the
 // listing's text; on a phone, a row with the picture on the start side.
 describe('a card', () => {
   it.each([
@@ -606,7 +622,7 @@ describe('a card', () => {
     ['Image Text Slides', '/studio/covers/image-text-slides.webp'],
     ['Veo 3', '/studio/covers/veo3.webp'],
   ])(
-    'frames the picture %s declares at 16:10, lazily and as decoration',
+    'frames the picture %s declares at 16:9, lazily and as decoration',
     async (name, cover) => {
       await mount();
 
@@ -614,11 +630,12 @@ describe('a card', () => {
       expect(classes(frame)).toEqual(
         expect.arrayContaining([
           'relative',
-          'aspect-[16/10]',
+          'aspect-video',
           'overflow-hidden',
           'bg-surface2',
         ])
       );
+      expect(classes(frame)).not.toContain('aspect-[16/10]');
       const picture = frame.querySelector(`img[src="${cover}"]`);
       expect(
         ['width', 'height', 'loading', 'decoding', 'alt'].map((name) =>
@@ -631,24 +648,21 @@ describe('a card', () => {
     }
   );
 
+  // spec 060 FR-009: the chip above already names the category, so a card
+  // carries no category line.
   it.each([
-    [
-      'AI image generator',
-      'Images',
-      'Turn a written prompt into a post-ready image.',
-    ],
-    ['Image Text Slides', 'Video', 'A narrated slideshow of AI images.'],
+    ['AI image generator', 'Turn a written prompt into a post-ready image.'],
+    ['Image Text Slides', 'A narrated slideshow of AI images.'],
     [
       'Image editor',
-      'Edit & enhance',
       'Design and edit images — text, your brand colors, layers.',
     ],
   ])(
-    'heads the tool %s with its category, then its name and description',
-    async (name, category, description) => {
+    'shows the tool %s’s name and description only',
+    async (name, description) => {
       await mount();
 
-      expect(linesOf(name)).toEqual([category, name, description]);
+      expect(linesOf(name)).toEqual([name, description]);
     }
   );
 
@@ -660,8 +674,9 @@ describe('a card', () => {
     const frame = frameOf('Avatar Ad');
     expect(frame.querySelector('img')).toBeNull();
     expect(classes(frame)).toEqual(
-      expect.arrayContaining(['aspect-[16/10]', 'bg-surface2'])
+      expect.arrayContaining(['aspect-video', 'bg-surface2'])
     );
+    expect(classes(frame)).not.toContain('aspect-[16/10]');
     expect(glyphOf(frame)?.querySelector('svg')).toBeTruthy();
   });
 
@@ -672,7 +687,8 @@ describe('a card', () => {
 
     const frame = frameOf('AI image generator');
     expect(frame.querySelector('img')).toBeNull();
-    expect(classes(frame)).toContain('aspect-[16/10]');
+    expect(classes(frame)).toContain('aspect-video');
+    expect(classes(frame)).not.toContain('aspect-[16/10]');
     expect(glyphOf(frame)?.querySelector('svg')).toBeTruthy();
   });
 
@@ -778,8 +794,9 @@ describe('a card', () => {
         frame.querySelector('img[src="/studio/covers/veo3.webp"]')
       ).toBeNull();
       expect(classes(frame)).toEqual(
-        expect.arrayContaining(['aspect-[16/10]', 'bg-surface2'])
+        expect.arrayContaining(['aspect-video', 'bg-surface2'])
       );
+      expect(classes(frame)).not.toContain('aspect-[16/10]');
       expect(playBadge(frame)).toBeTruthy();
       expect(frame.textContent).not.toContain('0:08');
     });
@@ -804,17 +821,13 @@ describe('a card', () => {
     });
   });
 
-  // FR-009, research R4: a model with no maker has no "by" line, so it shows
-  // the category line as a tool does.
-  it('gives a model with no maker no plate and no maker line, and its category line', async () => {
+  // FR-009, research R4: a model with no maker has no "by" line, and as a
+  // tool no category line (spec 060 FR-009).
+  it('gives a model with no maker no plate and no maker line, only its name and description', async () => {
     providers = [{ identifier: 'sora', title: 'Sora' }];
     await mount();
 
-    expect(linesOf('Sora')).toEqual([
-      'Video',
-      'Sora',
-      'Generate a video with AI.',
-    ]);
+    expect(linesOf('Sora')).toEqual(['Sora', 'Generate a video with AI.']);
     expect(frameOf('Sora').querySelector('img')).toBeNull();
   });
 
@@ -826,8 +839,9 @@ describe('a card', () => {
 
     const frame = frameOf('Sora');
     expect(classes(frame)).toEqual(
-      expect.arrayContaining(['relative', 'aspect-[16/10]', 'bg-surface2'])
+      expect.arrayContaining(['relative', 'aspect-video', 'bg-surface2'])
     );
+    expect(classes(frame)).not.toContain('aspect-[16/10]');
     expect(playBadge(frame)).toBeTruthy();
     expect(frame.querySelector('[dir="ltr"]')).toBeNull();
     expect(frame.querySelector('svg')).toBeNull();
@@ -886,7 +900,7 @@ describe('a card', () => {
 
   // FR-015, US1 scenario 8: on a phone a row, the picture first, so on the
   // start side in either direction; the maker line stays.
-  it('becomes a row on a phone, without its category line or facts', async () => {
+  it('becomes a row on a phone, without its facts', async () => {
     await mount();
 
     expect(classes(card('Veo 3'))).toEqual(
@@ -900,21 +914,19 @@ describe('a card', () => {
         'phone:min-h-[100px]',
       ])
     );
-    expect(classes(textOf('AI image generator').children[0])).toContain(
-      'phone:hidden'
-    );
     expect(classes(textOf('Veo 3').children[3])).toContain('phone:hidden');
     expect(classes(textOf('Veo 3').children[1])).not.toContain('phone:hidden');
   });
 
-  // FR-015, research R7: four across at 1440, one column on a phone.
+  // FR-015, research R7, spec 060 FR-008: five across at 1440, one column on
+  // a phone.
   it('lays the cards out in a grid that fills the width', async () => {
     await mount();
 
     expect(classes(section('Tools')!.children[1])).toEqual(
       expect.arrayContaining([
         'grid',
-        'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]',
+        'grid-cols-[repeat(auto-fill,minmax(220px,1fr))]',
         'gap-[16px]',
         'phone:grid-cols-1',
       ])
@@ -1108,7 +1120,7 @@ describe('when the plan excludes the tools', () => {
     expect(upgradeActions()).toHaveLength(1);
 
     const [banner] = upgradeActions();
-    expect(precedes(banner, introLine()!)).toBe(true);
+    expect(precedes(banner, search()!)).toBe(true);
   });
 
   it('sends that action to billing', async () => {
@@ -1203,7 +1215,7 @@ describe('the video catalog follows the platform', () => {
 // nothing renders below 13.
 //
 // The card's two lines are asserted rather than the page's, because the card is
-// the repeated object: a tier that moved on the intro but not on the card would
+// the repeated object: a tier that moved on a heading but not on the card would
 // look fixed on a screenshot of the top of the page and wrong everywhere else.
 describe('the type scale', () => {
   // Scoped to the card rather than the document: the upsell banner carries the
@@ -1213,12 +1225,13 @@ describe('the type scale', () => {
       (node) => node.textContent === text
     )!.className;
 
-  it('sets the card’s category line at 12px, muted', async () => {
+  // spec 060 FR-009: the category line is gone, a model keeps its maker line.
+  it('sets a model’s maker line at 12px, muted', async () => {
     await mount();
 
-    const category = lineOf('AI image generator', 'Images');
-    expect(category).toContain('text-[12px]');
-    expect(category).toContain('text-muted');
+    const maker = lineOf('Veo 3', 'by ⁨Google⁩ · Video');
+    expect(maker).toContain('text-[12px]');
+    expect(maker).toContain('text-muted');
   });
 
   // Long names (German, Portuguese, long Arabic) wrap to two lines at most.
@@ -1244,26 +1257,17 @@ describe('the type scale', () => {
     expect(description).toContain('min-h-[3em]');
   });
 
-  // The canvas's section head: an 18px heading, its subtitle at 13px beside it.
-  it('sets the section heading at 18px and its subtitle at 13px', async () => {
+  // The canvas's section head: a 20px semibold heading, its subtitle at 13px
+  // beside it (spec 060 FR-010).
+  it('sets the section heading at 20px semibold and its subtitle at 13px', async () => {
     await mount();
 
-    expect(classes(section('Tools')!.querySelector('h2'))).toContain(
-      'text-[18px]'
+    expect(classes(section('Tools')!.querySelector('h2'))).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-[600]'])
     );
     expect(classes(section('Tools')!.querySelector('p'))).toContain(
       'text-[13px]'
     );
-  });
-
-  it('sets the page intro at 14px and lets it run', async () => {
-    await mount();
-    const intro = document.querySelector('p')!;
-
-    expect(intro.className).toContain('text-[14px]');
-    // Fix 04: a one-sentence subtitle capped at 72ch broke onto two lines at
-    // every desktop width. It is a subtitle, not a paragraph.
-    expect(intro.className).not.toContain('max-w-[72ch]');
   });
 });
 
