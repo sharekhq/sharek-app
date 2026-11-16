@@ -1168,7 +1168,7 @@ export const ChannelPanel: FC<
                     <path d="M12 5v14M5 12h14" />
                   </svg>
                 ),
-                label: t('add_channel', 'Add Channel'),
+                label: t('add_channel', 'Add channel'),
                 hint: t(
                   'add_channel_hint',
                   'Connect an account you can log in to'

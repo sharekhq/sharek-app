@@ -733,6 +733,7 @@ describe('the top bar above 1025px', () => {
     // this looking for words nothing says any more
     const pickerTip = i18next.t('select_customer_tooltip');
     const pickerWords = i18next.t('select_customer');
+    const channelsWords = i18next.t('select_channels');
 
     expect(
       host.querySelector(`[data-tooltip-content="${pickerTip}"]`)
@@ -740,12 +741,12 @@ describe('the top bar above 1025px', () => {
     expect(host.querySelector('[role="radiogroup"]')).toBeNull();
     expect(
       buttons(host).filter((b) =>
-        (b.getAttribute('aria-label') ?? '').startsWith('Select Channels')
+        (b.getAttribute('aria-label') ?? '').startsWith(channelsWords)
       )
     ).toHaveLength(0);
     // the funnel's path, ui/icons' FilterIcon
     expect(host.querySelector('path[d^="M2.5 4.16667H17.5"]')).toBeNull();
-    [pickerTip, pickerWords, 'Select Channels'].forEach((words) =>
+    [pickerTip, pickerWords, channelsWords].forEach((words) =>
       expect(host.textContent).not.toContain(words)
     );
   });
