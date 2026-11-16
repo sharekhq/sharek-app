@@ -101,7 +101,6 @@ jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
   FOCUS_RING: 'focus-visible:ring-2 focus-visible:ring-brand',
 }));
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => <div data-logout />,
   useLogout: () => () => undefined,
 }));
 
@@ -183,8 +182,8 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({
     matches: false,
     media: query,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
+    addEventListener: (): void => undefined,
+    removeEventListener: (): void => undefined,
   })) as unknown as typeof window.matchMedia;
 });
 
