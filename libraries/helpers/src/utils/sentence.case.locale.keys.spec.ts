@@ -96,6 +96,43 @@ const FEATURE_NAMES = [
   ['generate_ai_image', 'Generate AI Image'],
 ] as const;
 
+// The sign-in pages (spec 060, FR-031, contracts/strings.md §3): [key, en in
+// sentence case, ar as it is on main].
+const SIGN_IN_PAGES = [
+  ['sign_in', 'Sign in', 'تسجيل الدخول'],
+  ['sign_up', 'Sign up', 'تسجيل حساب'],
+  ['continue_with', 'Continue with', 'المتابعة باستخدام'],
+  ['or', 'or', 'أو'],
+  ['email_address', 'Email address', 'عنوان البريد الإلكتروني'],
+  ['don_t_have_an_account', "Don't have an account?", 'ليس لديك حساب؟'],
+  [
+    'already_have_an_account',
+    'Already have an account?',
+    'هل لديك حساب بالفعل؟',
+  ],
+  ['create_account', 'Create account', 'إنشاء حساب'],
+  [
+    'resend_activation_email',
+    'Resend activation email',
+    'إعادة إرسال بريد التفعيل',
+  ],
+  ['forgot_password_1', 'Forgot password', 'نسيت كلمة المرور'],
+  [
+    'send_password_reset_email',
+    'Send password reset email',
+    'إرسال بريد إعادة تعيين كلمة المرور',
+  ],
+  ['label_new_password', 'New password', 'كلمة المرور الجديدة'],
+  ['label_repeat_password', 'Repeat password', 'أعد إدخال كلمة المرور'],
+  ['change_password', 'Change password', 'تغيير كلمة المرور'],
+] as const;
+
+// Documents' names keep their capitals.
+const DOCUMENT_NAMES = [
+  ['terms_of_service', 'Terms of Service'],
+  ['privacy_policy', 'Privacy Policy'],
+] as const;
+
 describe('Sentence case locale keys', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
@@ -108,6 +145,24 @@ describe('Sentence case locale keys', () => {
     'keeps the Arabic of %s as it is on main',
     (key, _enText, arText) => {
       expect(ar[key]).toBe(arText);
+    }
+  );
+
+  it.each(SIGN_IN_PAGES)('reads %s as "%s" in en', (key, enText) => {
+    expect(en[key]).toBe(enText);
+  });
+
+  it.each(SIGN_IN_PAGES)(
+    'keeps the Arabic of %s as it is on main',
+    (key, _enText, arText) => {
+      expect(ar[key]).toBe(arText);
+    }
+  );
+
+  it.each(DOCUMENT_NAMES)(
+    'keeps the document name %s as "%s" in en',
+    (key, enText) => {
+      expect(en[key]).toBe(enText);
     }
   );
 

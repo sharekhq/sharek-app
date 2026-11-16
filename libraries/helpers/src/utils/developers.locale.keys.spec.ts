@@ -73,6 +73,9 @@ describe('Developers surfaces locale keys', () => {
   });
 });
 
+// The API tab's name, the brand Latin glued to API (FR-018, spec 060 D26).
+const LATIN_IN_BOTH = ['sharek_api'];
+
 describe('Developers surfaces — every string they render', () => {
   const en = readLocale('en');
   const ar = readLocale('ar');
@@ -108,6 +111,13 @@ describe('Developers surfaces — every string they render', () => {
     expect(ar[key].length).toBeGreaterThan(0);
     // Identical bytes in both locales means the English was copied across
     // rather than translated, which reads as done and is not.
-    expect(ar[key]).not.toBe(en[key]);
+    if (!LATIN_IN_BOTH.includes(key)) {
+      expect(ar[key]).not.toBe(en[key]);
+    }
+  });
+
+  it('names the API tab Sharek API in both', () => {
+    expect(en.sharek_api).toBe('Sharek API');
+    expect(ar.sharek_api).toBe('Sharek API');
   });
 });

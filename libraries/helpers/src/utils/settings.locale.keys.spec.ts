@@ -25,7 +25,6 @@ const readLocale = (lng: string) =>
 // [key, en, ar]
 const STRINGS = [
   ['settings_group_posting', 'Posting', 'النشر'],
-  ['settings_group_connections', 'Connections', 'الربط'],
   ['settings_version', 'Version {{version}}', 'الإصدار {{version}}'],
   ['log_out', 'Log out', 'تسجيل الخروج'],
 ] as const;
@@ -88,6 +87,26 @@ describe('Settings menu locale keys', () => {
   it.each(REUSED)('carries the reused %s in en and ar', (key) => {
     expect(typeof en[key]).toBe('string');
     expect(typeof ar[key]).toBe('string');
+  });
+
+  // The Developers group is labelled with the reused developers key (spec 060,
+  // FR-017), so the Connections label leaves every locale.
+  it('has no settings_group_connections in any locale', () => {
+    const locales = fs
+      .readdirSync(LOCALES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(locales).toContain('en');
+    expect(
+      locales.filter((lng) => 'settings_group_connections' in readLocale(lng))
+    ).toEqual([]);
+  });
+
+  // The API tab's name keeps the brand Latin, glued to the untranslated API
+  // (FR-018): the one key here whose Arabic is its English.
+  it('reads sharek_api as Sharek API in en and ar, the brand Latin beside API (FR-018)', () => {
+    expect(en.sharek_api).toBe('Sharek API');
+    expect(ar.sharek_api).toBe('Sharek API');
   });
 
   it('keeps logout_from_sharek for Billing and the paywall', () => {
