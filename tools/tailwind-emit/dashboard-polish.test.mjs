@@ -334,3 +334,33 @@ describe("Samy's column", () => {
     assert.deepEqual(nested, []);
   });
 });
+
+// The sign-in showcase (§15): the fades over the top and bottom of the
+// pictures blend into the page, so they start from the theme's `--bg`, the
+// colour bg-newBgColor paints the page with, instead of a fixed dark one.
+describe('The sign-in showcase', () => {
+  // Every background declaration on a rule whose selector is `.name`.
+  const backgrounds = (sheet, name) => {
+    const found = [];
+    sheet.walkDecls(/^background/, (decl) => {
+      const rule = decl.parent;
+      if (rule.type === 'rule' && rule.selectors.includes(name)) {
+        found.push([decl.prop, collapse(decl.value)]);
+      }
+    });
+    return found;
+  };
+
+  for (const fade of ['.blackGradTopBg', '.blackGradBottomBg']) {
+    test(`${fade} fades from the theme's background`, () => {
+      const found = backgrounds(appSheet(), fade);
+      assert.deepEqual(found, [
+        [
+          'background',
+          'linear-gradient(180deg, var(--bg) 0%, transparent 100%)',
+        ],
+      ]);
+      for (const [, value] of found) assert.ok(!value.includes('#'), value);
+    });
+  }
+});
