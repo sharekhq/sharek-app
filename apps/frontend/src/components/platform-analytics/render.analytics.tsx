@@ -103,7 +103,7 @@ const AnalyticsChart: FC<{
   const name = metricLabel(item.label);
 
   return (
-    <figure className="flex flex-col gap-[2px] min-w-0 px-[16px] pt-[16px] pb-[10px] bg-surface border border-line rounded-[14px]">
+    <figure className="flex flex-col gap-[2px] min-w-0 px-[16px] pt-[16px] pb-[10px] bg-surface border border-line rounded-[12px]">
       <figcaption className="text-[14px] font-semibold text-ink">
         {name}
       </figcaption>
@@ -264,7 +264,7 @@ export const RenderAnalytics: FC<{
         </div>
       )}
       {data?.some((item: AnalyticsDataItem) => !isTotal(item)) && (
-        <div className="grid grid-cols-2 gap-[16px] items-start mobile:grid-cols-1 mobile:gap-[10px]">
+        <div className="grid grid-cols-2 [&>*:last-child:nth-child(odd)]:col-span-full gap-[16px] items-start mobile:grid-cols-1 mobile:gap-[10px]">
           {data.map(
             (item: AnalyticsDataItem, index: number) =>
               !isTotal(item) && (
