@@ -127,6 +127,14 @@ describe("the post card's corners", () => {
     expect(classes).not.toContain('rounded-[10px]');
   });
 
+  it("rounds the strip's top corners at 8px, the card's own", () => {
+    const classes = strip(mount([])).className.split(' ');
+
+    expect(classes).toContain('rounded-t-[8px]');
+    expect(classes).not.toContain('rounded-tr-[10px]');
+    expect(classes).not.toContain('rounded-tl-[10px]');
+  });
+
   it("rounds the body's bottom corners at 8px, on logical sides", () => {
     const classes = body(mount([])).className.split(' ');
 
