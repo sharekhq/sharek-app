@@ -76,9 +76,11 @@ const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
 const showModalEmitter = new EventEmitter();
-// at 1025px and below every media library takes the whole screen
+// at 1025px and below every media library sits 8px in from the screen, as every window does
 export const mediaLibrarySize = () =>
-  window.matchMedia(MOBILE_QUERY).matches ? '100%' : 'calc(100% - 80px)';
+  window.matchMedia(MOBILE_QUERY).matches
+    ? 'calc(100% - 16px)'
+    : 'calc(100% - 80px)';
 const MediaEmptyIllustration = () => (
   <svg
     width="132"
@@ -953,10 +955,10 @@ export const MediaBox: FC<{
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] 2xl:grid-cols-8 mobile:grid-cols-2 gap-[6px] mobile:gap-0">
                   {[...new Array(isLoading ? 32 : 8)].map((_, i) => (
                     <div
-                      className="rounded-[6px] cursor-pointer aspect-square mobile:p-[6px]"
+                      className="rounded-[8px] cursor-pointer aspect-square mobile:p-[6px]"
                       key={i}
                     >
-                      <div className="w-full h-full bg-newSep rounded-[6px] animate-pulse" />
+                      <div className="w-full h-full bg-newSep rounded-[8px] animate-pulse" />
                     </div>
                   ))}
                 </div>

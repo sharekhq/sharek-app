@@ -388,7 +388,7 @@ describe('post actions menu', () => {
     );
     expect(hint).toBeTruthy();
     expect(hint!.className.split(' ')).toEqual(
-      expect.arrayContaining(['text-[12px]', 'text-muted'])
+      expect.arrayContaining(['text-[12px]', 'font-[400]', 'text-muted'])
     );
     expect(hint!.parentElement).not.toBe(item);
     expect(hint!.previousElementSibling!.textContent).toBe('Preview Post');
@@ -479,7 +479,7 @@ describe('post actions menu', () => {
         'fixed bg-newBgColorInner text-textColor shadow-menu flex flex-col z-[100] rounded-[8px] border border-tableBorder text-nowrap cursor-default p-[6px]'
       );
       expect(MENU_ITEM).toBe(
-        'flex items-center gap-[10px] py-[8px] px-[10px] rounded-[8px] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand'
+        'flex items-center gap-[10px] min-h-[36px] coarse:min-h-[44px] py-[8px] px-[10px] rounded-[8px] text-[14px] font-[500] cursor-pointer hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand'
       );
       expect(MENU_ICON).toBe('flex text-muted [&_svg]:size-4');
       expect(MENU_ICON_DANGER).toBe('flex text-error');
@@ -518,6 +518,29 @@ describe('post actions menu', () => {
       expect(items.length).toBe(3);
       for (const item of items) {
         expect(classes(item)).toEqual(look(MENU_ITEM));
+      }
+    });
+
+    // Every row is one height and one weight, 44px under a finger (FR-028).
+    it('draws an item at least 36px tall, 44px under a finger, at 14px medium', async () => {
+      await mount(hinted());
+      await click(trigger());
+
+      for (const item of Array.from(
+        document.querySelectorAll('[role="menuitem"]')
+      )) {
+        expect(classes(item)).toEqual(
+          expect.arrayContaining([
+            'min-h-[36px]',
+            'coarse:min-h-[44px]',
+            'text-[14px]',
+            'font-[500]',
+            'px-[10px]',
+            'rounded-[8px]',
+            'focus-visible:ring-2',
+            'focus-visible:ring-brand',
+          ])
+        );
       }
     });
 

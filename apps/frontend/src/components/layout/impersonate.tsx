@@ -247,7 +247,8 @@ const ApplyCouponModal: FC<{ close: () => void }> = ({ close }) => {
                 <Button
                   onClick={handleCancelCoupon}
                   loading={cancelling}
-                  className="!bg-red-700 rounded-[4px] !h-[24px] !px-[10px] text-[12px]"
+                  variant="danger"
+                  size="small"
                 >
                   {t('cancel', 'Cancel')}
                 </Button>
@@ -302,17 +303,11 @@ const ApplyCouponModal: FC<{ close: () => void }> = ({ close }) => {
               )}
             </div>
           )}
-          {!!error && <div className="text-red-400 text-[12px]">{error}</div>}
+          {!!error && <div className="text-error text-[12px]">{error}</div>}
           <div className="flex gap-[12px] justify-end">
-            <Button onClick={close} className="rounded-[4px]">
-              {t('close', 'Close')}
-            </Button>
+            <Button onClick={close}>{t('close', 'Close')}</Button>
             {info.supported && (
-              <Button
-                onClick={handleApply}
-                loading={applying}
-                className="!bg-blue-700 rounded-[4px]"
-              >
+              <Button onClick={handleApply} loading={applying}>
                 {t('apply', 'Apply')}
               </Button>
             )}
@@ -513,26 +508,18 @@ const ChargesModal: FC<{ close: () => void }> = ({ close }) => {
         )}
       </div>
       <div className="flex gap-[12px] justify-end">
-        <Button
-          onClick={handleApplyCoupon}
-          className="!bg-blue-700 rounded-[4px]"
-        >
+        <Button onClick={handleApplyCoupon}>
           {t('apply_coupon', 'Apply Coupon')}
         </Button>
         <Button
           onClick={handleRefund}
           loading={refunding}
           disabled={!selected.size}
-          className="rounded-[4px]"
         >
           {t('refund_selected', 'Refund Selected')}
           {selected.size > 0 && ` (${selected.size})`}
         </Button>
-        <Button
-          onClick={handleCancel}
-          loading={cancelling}
-          className="!bg-red-700 rounded-[4px]"
-        >
+        <Button onClick={handleCancel} loading={cancelling} variant="danger">
           {t('cancel_subscription', 'Cancel Subscription')}
         </Button>
       </div>
@@ -552,12 +539,14 @@ const ManageBilling = () => {
   }, []);
 
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-red-700 text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('manage_billing', 'Manage Billing')}
-    </div>
+    </Button>
   );
 };
 
@@ -684,7 +673,6 @@ const AddAnnouncementModal: FC<{ close: () => void }> = ({ close }) => {
           onClick={handleSubmit}
           loading={saving}
           disabled={!title.trim() || !description.trim()}
-          className="rounded-[4px]"
         >
           {t('create_announcement', 'Create Announcement')}
         </Button>
@@ -705,12 +693,14 @@ const AddAnnouncement = () => {
   }, []);
 
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-green-700 text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('add_announcement', 'Add Announcement')}
-    </div>
+    </Button>
   );
 };
 
@@ -770,7 +760,7 @@ const AddTeamMemberModal: FC<{ close: () => void }> = ({ close }) => {
             <option value="USER">{t('user', 'User')}</option>
             <option value="ADMIN">{t('admin', 'Admin')}</option>
           </Select>
-          <Button type="submit" loading={saving} className="rounded-[4px]">
+          <Button type="submit" loading={saving}>
             {t('add_team_member', 'Add Team Member')}
           </Button>
         </div>
@@ -791,12 +781,14 @@ const AddTeamMember = () => {
   }, []);
 
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-teal-700 text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('add_team_member', 'Add Team Member')}
-    </div>
+    </Button>
   );
 };
 
@@ -806,12 +798,14 @@ const ViewErrors = () => {
     window.location.href = '/admin/errors';
   }, []);
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-blue-700 text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('view_errors', 'View Errors')}
-    </div>
+    </Button>
   );
 };
 
@@ -821,12 +815,14 @@ const ViewStats = () => {
     window.location.href = '/admin/stats';
   }, []);
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-[#5C5652] text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('view_stats', 'View Stats')}
-    </div>
+    </Button>
   );
 };
 
@@ -843,12 +839,14 @@ const ImportDebugPost = () => {
   }, []);
 
   return (
-    <div
-      className="px-[10px] rounded-[4px] bg-yellow-600 text-white cursor-pointer whitespace-nowrap"
+    <Button
+      variant="secondary"
+      size="small"
+      className="whitespace-nowrap"
       onClick={handleClick}
     >
       {t('import_debug_post', 'Import Debug Post')}
-    </div>
+    </Button>
   );
 };
 
@@ -981,7 +979,7 @@ const SwitchUser = () => {
         onClick={doSwitch}
         loading={switching}
         disabled={!selected}
-        className="rounded-[4px] whitespace-nowrap"
+        className="whitespace-nowrap"
       >
         {t('switch_user', 'Switch User')}
       </Button>
@@ -991,12 +989,12 @@ const SwitchUser = () => {
             className="bg-primary/80 fixed start-0 top-0 w-full h-full z-[998]"
             onClick={() => setName('')}
           />
-          <div className="absolute top-[100%] start-0 w-max min-w-full max-w-[90vw] bg-sixth border border-customColor6 text-textColor z-[999]">
+          <div className="absolute top-[100%] start-0 w-max min-w-full max-w-[90vw] bg-sixth border border-line text-textColor z-[999]">
             {mapData.map((item: any) => (
               <div
                 onClick={pick(item)}
                 key={item?.id}
-                className="p-[10px] border-b border-customColor6 hover:bg-tableBorder cursor-pointer whitespace-nowrap truncate"
+                className="p-[10px] border-b border-line hover:bg-tableBorder cursor-pointer whitespace-nowrap truncate"
               >
                 {t('user_1', 'user:')}
                 {item?.id?.split('-')?.at(-1)} -{' '}
@@ -1075,7 +1073,7 @@ export const Impersonate = () => {
   }, [data]);
   return (
     <div>
-      <div className="bg-[#44403D] h-[52px] phone:h-auto phone:py-[8px] phone:px-[12px] flex justify-center items-center border-input border rounded-[8px] text-white">
+      <div className="bg-surface2 h-[52px] phone:h-auto phone:py-[8px] phone:px-[12px] flex justify-center items-center border-line border rounded-[8px] text-ink">
         <div
           className={`relative flex flex-col ${
             user?.impersonate ? 'w-full px-[20px]' : 'w-[600px] phone:w-full'
@@ -1088,12 +1086,13 @@ export const Impersonate = () => {
                   {t('currently_impersonating', 'Currently Impersonating')}
                 </div>
                 <div>
-                  <div
-                    className="px-[10px] rounded-[4px] bg-red-500 text-white cursor-pointer"
+                  <Button
+                    variant="danger"
+                    size="small"
                     onClick={stopImpersonating}
                   >
                     X
-                  </div>
+                  </Button>
                 </div>
                 {user?.tier?.current === 'FREE' && <Subscription />}
                 {user?.tier?.team_members && <AddTeamMember />}

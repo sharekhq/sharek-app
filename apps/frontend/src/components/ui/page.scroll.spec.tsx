@@ -11,7 +11,11 @@ import { createRoot } from 'react-dom/client';
 // classes; this is the one they share. happy-dom applies no media queries or
 // Tailwind, so the widths are pinned by the classes that carry them, and
 // tools/tailwind-emit pins that they emit.
-import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  CARD_PADDING,
+  PAGE_PADDING,
+  PageScroll,
+} from '@gitroom/frontend/components/ui/page.scroll';
 
 const HOST = ['bg-newBgColorInner', 'flex-1', 'min-w-0', 'relative'];
 const BOX = [
@@ -92,5 +96,17 @@ describe('PageScroll', () => {
     );
 
     expect(source).not.toMatch(/['"]use client['"]/);
+  });
+});
+
+// The padding every dashboard page and card shares (spec 060, contracts/ui.md
+// §1): one string each, so a page or card never spells its own.
+describe('PAGE_PADDING and CARD_PADDING', () => {
+  it("pads a page's content 20px inside its card, 12px at 1025px and below", () => {
+    expect(PAGE_PADDING).toBe('p-[20px] mobile:p-[12px]');
+  });
+
+  it("pads a card's content 20px, 16px at 1025px and below", () => {
+    expect(CARD_PADDING).toBe('p-[20px] mobile:p-[16px]');
   });
 });

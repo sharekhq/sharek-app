@@ -21,15 +21,15 @@ export default async function AuthLayout({
   const language = await requestLanguage();
 
   return (
-    <div className="bg-[#0E0E0E] flex flex-1 p-[12px] gap-[12px] min-h-screen w-screen text-white">
+    <div className="bg-newBgColor flex flex-1 p-[12px] gap-[12px] min-h-screen w-screen text-ink">
       {/*<style>{`html, body {overflow-x: hidden;}`}</style>*/}
       <ReturnUrlComponent />
-      <div className="flex flex-col py-[40px] px-[20px] flex-1 lg:w-[600px] lg:flex-none rounded-[12px] text-white p-[12px] bg-[#1A1919]">
-        <div className="w-full max-w-[440px] mx-auto justify-center gap-[20px] h-full flex flex-col text-white">
+      <div className="flex flex-col py-[40px] px-[20px] flex-1 lg:w-[600px] lg:flex-none rounded-[12px] text-ink p-[12px] bg-newBgColorInner">
+        <div className="w-full max-w-[440px] mx-auto justify-center gap-[20px] h-full flex flex-col text-ink">
           <LogoTextComponent />
           <div className="flex">{children}</div>
         </div>
-        <div className="w-full max-w-[440px] mx-auto text-center text-[11px] text-white/40 pb-[8px]">
+        <div className="w-full max-w-[440px] mx-auto text-center text-[11px] text-muted pb-[8px]">
           {t('auth_copyright', '© 2026 Sharek')}
         </div>
       </div>

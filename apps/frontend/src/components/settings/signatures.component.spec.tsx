@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, ReactElement } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -10,8 +10,9 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => jest.fn(),
 }));
+const mockOpenModal = jest.fn();
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
-  useModals: () => ({ openModal: jest.fn(), closeAll: jest.fn() }),
+  useModals: () => ({ openModal: mockOpenModal, closeAll: jest.fn() }),
 }));
 jest.mock('swr', () => ({
   __esModule: true,
@@ -203,16 +204,53 @@ describe('the signatures tab in the dashboard look', () => {
     );
   });
 
+  // Its content sits 20px in, 16px at 1025px and below (spec 060 FR-022).
   it('rounds the card 12px and sets the heading 20px semibold', async () => {
     const host = await render();
-    const card = rows(host)[0].closest('.border.p-\\[24px\\]')!;
+    const card = rows(host)[0].closest('.bg-sixth')!;
 
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['bg-sixth', 'border-fifth', 'rounded-[12px]'])
+      expect.arrayContaining([
+        'bg-sixth',
+        'border-fifth',
+        'rounded-[12px]',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
+    expect(classes(card)).not.toContain('mobile:p-[12px]');
     expect(classes(host.querySelector('h3')!)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
+  });
+
+  // A window's action row is one height: its buttons are large (spec 060
+  // FR-026).
+  it("draws the signature window's Save as a large button", async () => {
+    mockOpenModal.mockClear();
+    const host = await render();
+    const add = Array.from(host.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Add a signature'
+    )!;
+    await act(async () => {
+      add.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const modal = document.createElement('div');
+    document.body.appendChild(modal);
+    const root = createRoot(modal);
+    mounted.push(root);
+    await act(async () => {
+      root.render(mockOpenModal.mock.calls[0][0].children as ReactElement);
+    });
+    const save = Array.from(modal.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Save'
+    )!;
+
+    expect(classes(save)).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
     );
   });
 });

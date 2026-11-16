@@ -644,6 +644,23 @@ describe('the bar', () => {
     expect(host.querySelector('[class*="overflow-x"]')).toBeNull();
   });
 
+  it("insets its sides by the page's gutter, 20px and 12px at 1025px and below", async () => {
+    const { host } = await render(<ChatHeader />);
+    const row = classes(bar(host));
+
+    expect(row).toEqual(
+      expect.arrayContaining(['px-[20px]', 'mobile:px-[12px]'])
+    );
+    for (const old of [
+      'ps-[20px]',
+      'pe-[16px]',
+      'mobile:ps-[6px]',
+      'mobile:pe-[6px]',
+    ]) {
+      expect(row).not.toContain(old);
+    }
+  });
+
   it('gives the title the room between them at 1025px and below', async () => {
     const { host } = await render(<ChatHeader />);
 

@@ -172,6 +172,18 @@ describe('the plug modal', () => {
     // double-translation rather than pass unnoticed.
     expect(text).toContain('label_the_amount_of_likes_to_trigger_the_repost');
   });
+
+  // A window's action row is one height: its button is the large one (spec 060 FR-026).
+  it('draws its Activate as the large button', () => {
+    const container = mount(<PlugPop plug={PLUG} settings={SETTINGS} />);
+    const button = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'activate'
+    )!;
+
+    expect(button.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
 });
 
 // The card finds its saved row by `methodName`, and translating the title must not

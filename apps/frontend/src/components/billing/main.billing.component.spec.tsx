@@ -135,8 +135,9 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/billing/finish.trial', () => ({
   FinishTrial: () => null,
 }));
+// Leaves a mark, so a case can tell whether the page offers Log out.
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => null,
+  LogoutComponent: () => <span data-logout />,
 }));
 jest.mock('@gitroom/react/form/textarea', () => ({ Textarea: () => null }));
 
@@ -421,13 +422,19 @@ describe('the plan cards', () => {
     );
   });
 
-  // Every card on the dashboard has 12px corners (FR-035).
+  // Every card on the dashboard has 12px corners (FR-035), its content 20px in, 16px at 1025px
+  // and below (spec 060 FR-022).
   it('rounds every plan card to 12px corners', async () => {
     const host = await render(subscription('TEAM'));
 
     for (const name of ['Standard', 'Team', 'Pro', 'Ultimate']) {
       expect(own(card(host, name))).toContain('rounded-[12px]');
       expect(own(card(host, name))).not.toContain('rounded-[14px]');
+      expect(own(card(host, name))).toEqual(
+        expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+      );
+      expect(own(card(host, name))).not.toContain('p-[24px]');
+      expect(own(card(host, name))).not.toContain('phone:p-[20px]');
     }
   });
 
@@ -792,6 +799,18 @@ describe('the FAQ', () => {
     const host = await render(sub);
 
     expect(host.querySelector('[data-faq]')).toBeNull();
+  });
+});
+
+// Log out lives in the account menu; the billing page does not repeat it (FR-020, FR-021).
+describe('Log out', () => {
+  it.each([
+    ['paid on the web', SUB],
+    ['managed by the app store', subscription('TEAM', { platform: 'mobile' })],
+  ])('is not on the billing page (%s)', async (_state, sub) => {
+    const host = await render(sub);
+
+    expect(host.querySelector('[data-logout]')).toBeNull();
   });
 });
 

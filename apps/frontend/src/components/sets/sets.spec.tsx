@@ -102,12 +102,20 @@ describe("Sets' panel", () => {
     const host = await render();
 
     // FR-035: a Settings card has the dashboard's 12px corners, a panel's
-    // heading is 20px semibold.
+    // heading is 20px semibold; its content sits 20px in, 16px at 1025px and
+    // below (spec 060 FR-022).
     const card = host.querySelector('.bg-sixth')!;
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'border',
+        'border-fifth',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
     expect(classes(host.querySelector('h3')!)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
     );

@@ -966,7 +966,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
   return (
     <div className="w-full h-full flex-1 p-[40px] mobile:p-0 mobile:h-auto mobile:min-h-full flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[20px] mobile:rounded-none flex-col">
+      <div className="flex flex-1 bg-newBgColorInner rounded-[24px] mobile:rounded-none flex-col">
         <MobileTopBar
           onBack={askClose}
           actions={mobileActions}

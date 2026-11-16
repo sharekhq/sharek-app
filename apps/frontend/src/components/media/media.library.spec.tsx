@@ -421,6 +421,17 @@ describe('MediaMonth', () => {
     expect(Number(layer![1])).toBeGreaterThan(101);
   });
 
+  // The list sits 6px outside the page's inset under mobile, for the tiles' own
+  // 6px pad; the heading has none, so it takes 6px back to line up with the
+  // page's gutter (spec 060, FR-002, decisions D20).
+  it("pads its heading 6px at each side under mobile, onto the page's gutter", () => {
+    const { host } = renderMonths();
+
+    const head = heading(sections(host)[0]);
+    expect(head.querySelector('h2')!.parentElement).toBe(head);
+    expect(head.classList.contains('mobile:px-[6px]')).toBe(true);
+  });
+
   it("keeps each heading inside its own month's section, so the next month's heading pushes it up", () => {
     const { host } = renderMonths([november, october]);
 
@@ -873,6 +884,19 @@ describe('MediaTile on the Media page', () => {
     expect(wrapper.classList.contains('group')).toBe(true);
     expect(wrapper.classList.contains('aspect-square')).toBe(true);
     expect(wrapper.contains(tileButton(host))).toBe(true);
+  });
+
+  // A box inside a card rounds at 8px (FR-023): the square wrapper, the frame
+  // and the tile button alike.
+  it('rounds its square wrapper, its frame and its button at 8px, not 6px', () => {
+    const host = renderTile();
+
+    [host.firstElementChild!, frame(host), tileButton(host)!].forEach(
+      (node) => {
+        expect(classes(node)).toContain('rounded-[8px]');
+        expect(classes(node)).not.toContain('rounded-[6px]');
+      }
+    );
   });
 
   // FR-035 to FR-037, FR-050: the selection circle, in the top-start corner

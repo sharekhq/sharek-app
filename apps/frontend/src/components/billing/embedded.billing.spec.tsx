@@ -63,6 +63,7 @@ jest.mock('@stripe/react-stripe-js/checkout', () => {
 });
 
 import { EmbeddedBilling } from '@gitroom/frontend/components/billing/embedded.billing';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 const mounted: Array<{ unmount: () => void }> = [];
 const render = async () => {
@@ -109,5 +110,83 @@ describe('the checkout amounts', () => {
     const host = await render();
 
     expect(isolated(host)).toContain(amount);
+  });
+});
+
+// The checkout's headings and coupon form take the app's sizes (FR-032, decisions D14).
+describe("the checkout's look", () => {
+  const classesOf = (element: Element | null | undefined) =>
+    Array.from(element?.classList ?? []);
+  const headingOf = (host: HTMLElement, text: string) =>
+    Array.from(host.querySelectorAll('h4')).find(
+      (h4) => h4.textContent === text
+    );
+
+  it('sets the order summary heading at 20px semibold, never bold', async () => {
+    const host = await render();
+
+    const heading = classesOf(headingOf(host, 'Order Summary'));
+    expect(heading).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
+    expect(heading).not.toContain('font-[700]');
+  });
+
+  describe('with the coupon form open', () => {
+    // No code is applied yet, so the form can open.
+    const applied = mockCheckout.discountAmounts;
+    beforeEach(() => {
+      mockCheckout.discountAmounts = [];
+    });
+    afterEach(() => {
+      mockCheckout.discountAmounts = applied;
+    });
+    const openForm = async () => {
+      const host = await render();
+      const link = Array.from(host.querySelectorAll('button')).find(
+        (button) => button.textContent === 'Have a discount coupon?'
+      );
+      await act(async () => {
+        link?.click();
+      });
+      return host;
+    };
+
+    it('sets its heading at 16px semibold', async () => {
+      const host = await openForm();
+
+      const heading = classesOf(headingOf(host, 'Discount Coupon'));
+      expect(heading).toEqual(
+        expect.arrayContaining(['text-[16px]', 'font-[600]'])
+      );
+      expect(heading).not.toContain('text-[18px]');
+    });
+
+    it('makes the field 40px high, 44px under a finger as Apply is', async () => {
+      const host = await openForm();
+
+      const field = classesOf(
+        host.querySelector('input[placeholder="Enter coupon code"]')
+      );
+      expect(field).toContain('h-[40px]');
+      expect(field).toContain('coarse:h-[44px]');
+      expect(field).not.toContain('h-[44px]');
+    });
+
+    it('makes Apply the secondary medium button', async () => {
+      const host = await openForm();
+
+      const apply = classesOf(
+        Array.from(host.querySelectorAll('button')).find(
+          (button) => button.textContent === 'Apply'
+        )
+      );
+      expect(apply).toEqual(
+        expect.arrayContaining(
+          buttonClassName({ variant: 'secondary', size: 'medium' }).split(' ')
+        )
+      );
+      expect(apply).not.toContain('bg-boxFocused');
+    });
   });
 });

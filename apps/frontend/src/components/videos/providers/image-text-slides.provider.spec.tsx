@@ -14,6 +14,12 @@ const failRender = jest.fn();
 const claimRender = jest.fn(() => true);
 // The modal's action bar, which the provider fills through a portal.
 let actionsSlot: HTMLDivElement | null = null;
+// The voice list the selector loads. Empty, so it says it is loading, unless a
+// case gives it voices.
+let voiceList: {
+  voices: Array<{ id: string; name: string; preview_url: string }>;
+  arabicVoices?: Array<{ id: string; name: string; preview_url: string }>;
+} = { voices: [] };
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders.
@@ -52,7 +58,7 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
 }));
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({ data: { voices: [] }, isLoading: false }),
+  default: () => ({ data: voiceList, isLoading: false }),
 }));
 
 import { videosList } from '@gitroom/frontend/components/videos/video.wrapper';
@@ -331,6 +337,112 @@ describe('the Slides row', () => {
     await click(counts()[1]);
 
     expect(chosen()).toEqual(['2']);
+  });
+});
+
+// Spec 060 (FR-026, FR-027, contracts/ui.md §9): the window's action rows are
+// one height, the shared button's large size; the voice sets are a 40px row,
+// 44px under a finger, each set's name and count on one line; a script line
+// types at 14px with a mouse, 16px under a finger.
+describe("the window's action rows and boxes", () => {
+  const own = (node: Element | null | undefined) =>
+    node?.className.split(' ') ?? [];
+
+  const voice = (id: string) => ({ id, name: id, preview_url: '' });
+
+  afterEach(() => {
+    voiceList = { voices: [] };
+  });
+
+  // The setup screen, with the bar its actions are portalled into.
+  const setUp = async () => {
+    request.mockImplementation(() => Promise.resolve(answer(200, true)));
+    actionsSlot = document.createElement('div');
+    document.body.appendChild(actionsSlot);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    const Harness: FC = () => {
+      const methods = useForm();
+      return (
+        <FormProvider {...methods}>
+          <Slides />
+        </FormProvider>
+      );
+    };
+    await act(async () => {
+      root.render(<Harness />);
+    });
+  };
+
+  it('draws Continue at the large size', async () => {
+    await setUp();
+
+    expect(own(buttonStarting('Continue'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
+
+  it('draws Add slide, Back and Create video at the large size', async () => {
+    await review(() => Promise.resolve(rendered()));
+
+    [
+      buttonStarting('Add slide'),
+      buttonStarting('Back'),
+      buttonStarting('Create video'),
+    ].forEach((action) =>
+      expect(own(action)).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      )
+    );
+  });
+
+  it('draws the voice sets as a 40px row, 44px under a finger, at 14px', async () => {
+    voiceList = {
+      voices: [voice('en-1'), voice('en-2')],
+      arabicVoices: [voice('ar-1')],
+    };
+    await setUp();
+    const sets = Array.from(document.querySelectorAll('button[aria-pressed]'));
+
+    expect(sets).toHaveLength(2);
+    for (const set of sets) {
+      expect(own(set)).toEqual(
+        expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]', 'text-[14px]'])
+      );
+      expect(own(set)).not.toContain('h-[52px]');
+      expect(own(set)).not.toContain('flex-col');
+    }
+  });
+
+  it("writes each set's voice count at 12px", async () => {
+    voiceList = {
+      voices: [voice('en-1'), voice('en-2')],
+      arabicVoices: [voice('ar-1')],
+    };
+    await setUp();
+    const counts = Array.from(
+      document.querySelectorAll('button[aria-pressed] > span')
+    ).filter((span) => /voices$/.test(span.textContent || ''));
+
+    expect(counts.map((count) => count.textContent)).toEqual([
+      '2 voices',
+      '1 voices',
+    ]);
+    for (const count of counts) {
+      expect(own(count)).toContain('text-[12px]');
+    }
+  });
+
+  it('types a script line at 14px with a mouse, 16px under a finger', async () => {
+    await review(() => Promise.resolve(rendered()));
+    const line = document.querySelector('textarea');
+
+    expect(own(line)).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+    expect(own(line)).not.toContain('text-[16px]');
   });
 });
 

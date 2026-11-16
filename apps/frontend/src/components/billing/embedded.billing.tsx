@@ -3,6 +3,7 @@
 import { Stripe } from '@stripe/stripe-js';
 
 import { FC, useEffect, useState } from 'react';
+import clsx from 'clsx';
 import {
   PaymentElement,
   BillingAddressElement,
@@ -11,7 +12,7 @@ import {
 } from '@stripe/react-stripe-js/checkout';
 import { modeEmitter } from '@gitroom/frontend/components/layout/mode.component';
 import useCookie from 'react-use-cookie';
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -147,7 +148,7 @@ const StripeInputs: FC<{
       {/*  <BillingAddressElement />*/}
       {/*</div>*/}
       <div>
-        <h4 className="mb-[32px] text-[24px] font-[700]">
+        <h4 className="mb-[32px] text-[20px] font-[600]">
           {checkout.type === 'loading' ? '' : t('billing_payment', 'Payment')}
         </h4>
         <PaymentElement
@@ -220,7 +221,7 @@ const PriceBreakdown: FC = () => {
 
   return (
     <div className="mt-[40px]">
-      <h4 className="mb-[16px] text-[24px] font-[700]">
+      <h4 className="mb-[16px] text-[20px] font-[600]">
         {t('billing_order_summary', 'Order Summary')}
       </h4>
       <div className="rounded-[12px] border border-newColColor p-[20px] flex flex-col gap-[12px]">
@@ -556,7 +557,7 @@ export const CouponInput: FC<{ autoApplyCoupon?: string }> = ({
   return (
     <div className="mt-[40px]">
       <div className="flex items-center gap-[12px] mb-[12px]">
-        <h4 className="text-[18px] font-[600] text-textColor">
+        <h4 className="text-[16px] font-[600] text-textColor">
           {t('billing_discount_coupon', 'Discount Coupon')}
         </h4>
         <button
@@ -578,7 +579,7 @@ export const CouponInput: FC<{ autoApplyCoupon?: string }> = ({
           placeholder={t('billing_enter_coupon_code', 'Enter coupon code')}
           disabled={isApplying}
           autoFocus
-          className="flex-1 h-[44px] px-[16px] rounded-[8px] border border-newColColor bg-newBgColor text-textColor focus:outline-none focus:border-boxFocused disabled:opacity-50"
+          className="flex-1 h-[40px] coarse:h-[44px] px-[16px] rounded-[8px] border border-newColColor bg-newBgColor text-textColor focus:outline-none focus:border-boxFocused disabled:opacity-50"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -594,7 +595,10 @@ export const CouponInput: FC<{ autoApplyCoupon?: string }> = ({
           type="button"
           onClick={() => handleApplyCoupon()}
           disabled={isApplying || !couponCode.trim()}
-          className="h-[44px] px-[24px] rounded-[8px] bg-boxFocused text-textItemFocused font-[600] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className={clsx(
+            buttonClassName({ variant: 'secondary', size: 'medium' }),
+            'disabled:opacity-50 disabled:cursor-not-allowed'
+          )}
         >
           {isApplying
             ? t('billing_applying', 'Applying...')

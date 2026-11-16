@@ -66,7 +66,7 @@ export const VideoPromptField: FC<{
           ),
         },
       })}
-      className={clsx(message && '!border-error')}
+      className={clsx('text-[14px]', message && '!border-error')}
       aria-invalid={!!message}
       error={
         message ? (

@@ -841,12 +841,27 @@ html[dir='rtl'] .lbox {
 }
 
 .agent {
-  /* The 24px inline padding this surface has always had, upstream's, and no
-     bottom padding: the chat's wrapper already leaves the board's 20px under
-     the box (`pb-[20px]` in agent.chat.tsx), and the popup's 15px from the
-     rule beside `.poweredBy` would make it 35 here. */
+  /* The page's gutter (PAGE_PADDING in ui/page.scroll.tsx): 20px, 12px at
+     1025px and below. CopilotKit's `.copilotKitMessagesContainer` rule
+     (padding: 1rem 24px) loads after this file; `.agent` out-ranks it. The
+     box's `!important` is as it was. No bottom padding on the box: the chat's
+     wrapper already leaves 20px under it (`pb-[20px]` in agent.chat.tsx). */
+  .copilotKitMessagesContainer {
+    padding: 20px;
+  }
+
   .copilotKitInputContainer {
-    padding: 0 24px !important;
+    padding: 0 20px !important;
+  }
+
+  @media (max-width: 1025px) {
+    .copilotKitMessagesContainer {
+      padding: 12px;
+    }
+
+    .copilotKitInputContainer {
+      padding: 0 12px !important;
+    }
   }
 
   /* v3 round 4: the user's own messages read soft, not shouting — the brand
@@ -1027,12 +1042,12 @@ html[dir='rtl'] .lbox {
 }
 
 .blackGradBottomBg {
-  background: linear-gradient(180deg, #1A1416 0%, rgba(26, 20, 22, 0) 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, transparent 100%);
   rotate: 180deg;
 }
 
 .blackGradTopBg {
-  background: linear-gradient(180deg, #1A1416 0%, rgba(26, 20, 22, 0) 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, transparent 100%);
 }
 
 .billing-form input {

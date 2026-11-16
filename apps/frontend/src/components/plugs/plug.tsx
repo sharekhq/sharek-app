@@ -165,7 +165,9 @@ export const PlugPop: FC<{
             })}
           </div>
           <div className="mt-[20px]">
-            <Button type="submit">{t('activate', 'Activate')}</Button>
+            <Button type="submit" size="large">
+              {t('activate', 'Activate')}
+            </Button>
           </div>
         </div>
       </form>

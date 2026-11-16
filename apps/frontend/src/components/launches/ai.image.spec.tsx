@@ -130,6 +130,7 @@ import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { buttonClassName } from '@gitroom/react/form/button';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import { LOGO_TILE_DARK } from '@gitroom/frontend/components/brands/brand.mark';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
 import {
   CHIP,
@@ -1728,6 +1729,58 @@ describe('the style search under a finger', () => {
   });
 });
 
+// Spec 060 (FR-026, FR-027, contracts/ui.md §9): the window's action row is
+// one height, the shared button's large size, and its boxes type at 14px with
+// a mouse, 16px under a finger, as the style search does.
+describe("the window's action row and boxes", () => {
+  const own = (node: Element | null | undefined) =>
+    node?.className.split(' ') ?? [];
+
+  it('draws Generate at the large size', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-aiSoft'));
+
+    expect(own(button('Generate'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
+
+  it('draws Back to prompt, Regenerate and Use image at the large size', async () => {
+    renders(done);
+    await generate();
+
+    [
+      button('Back to prompt'),
+      buttonStarting('Regenerate'),
+      button('Use image'),
+    ].forEach((action) =>
+      expect(own(action)).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      )
+    );
+  });
+
+  it('types the prompt at 14px with a mouse, 16px under a finger', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-aiSoft'));
+
+    expect(own(field())).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+    expect(own(field())).not.toContain('text-[16px]');
+  });
+
+  it('types the edit at 14px with a mouse, 16px under a finger', async () => {
+    renders(done);
+    await generate();
+
+    expect(own(field())).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+    expect(own(field())).not.toContain('text-[16px]');
+  });
+});
+
 // Spec 059 (FR-033, contracts/inventory.md D): the styles filter the window's
 // list in the dashboard's one chip look, Studio's, and All styles is one of
 // them. A chip is CHIP plus CHIP_ON or CHIP_IDLE, whole and alone, never
@@ -1930,6 +1983,16 @@ describe('the Brand field', () => {
     expect(own).not.toContain('h-[44px]');
   });
 
+  // Spec 060 (decisions D10): No brand or a name, the one control's text is
+  // semibold, as the shared button's is.
+  it("names its brand in the shared button's weight", async () => {
+    await compose();
+
+    expect(brandButton()!.className.split(' ')).toEqual(
+      expect.arrayContaining(['text-[14px]', 'font-[600]'])
+    );
+  });
+
   // FR-020: No brand sends nothing from any kit.
   it('generates as today on No brand, with no brand on the request', async () => {
     await compose();
@@ -2068,6 +2131,42 @@ describe('the Brand field', () => {
     expect(
       goesAlong()?.querySelector('[role="img"]')?.getAttribute('aria-label')
     ).toBe('Example post');
+  });
+
+  // D29: the logo going along takes the tone tile every small brand logo
+  // has (brand.mark.tsx), so a white logo on a see-through ground shows. Its
+  // own src, as brand.mark keeps each src's tone once read; happy-dom has no
+  // 2D canvas, so the read gets one that answers white pixels.
+  it('puts a white logo going along on the dark tile once it loads', async () => {
+    const canvas = window.HTMLCanvasElement.prototype;
+    const getContext = canvas.getContext;
+    const data = new Uint8ClampedArray(32 * 32 * 4);
+    data.fill(255, 0, 300 * 4);
+    canvas.getContext = jest.fn(() => ({
+      drawImage: jest.fn(),
+      getImageData: () => ({ data }),
+    })) as never;
+    try {
+      brandList = [
+        RAWDA,
+        { ...BAYT, kit: { ...BAYT.kit, logo: kitImage('bq-logo-white') } },
+      ];
+      await compose();
+      await pick('Bayt Al Qahwa');
+      const logo =
+        goesAlong()!.querySelector<HTMLImageElement>('img[alt="Logo"]')!;
+
+      expect(logo.getAttribute('crossorigin')).toBe('anonymous');
+      act(() => {
+        logo.dispatchEvent(new Event('load'));
+      });
+
+      const probe = document.createElement('div');
+      Object.assign(probe.style, LOGO_TILE_DARK);
+      expect(logo.style.backgroundColor).toBe(probe.style.backgroundColor);
+    } finally {
+      canvas.getContext = getContext;
+    }
   });
 
   it("shows the brand's second example once its first is gone from Media", async () => {

@@ -739,7 +739,7 @@ export const SearchField = forwardRef<
   const { label, value, onChange, size = 'panel' } = props;
   return (
     // a margin, since the icon is placed from this box's edge
-    <div className="relative mx-[4px]">
+    <div className={clsx('relative', size === 'panel' && 'mx-[4px]')}>
       <svg
         width="16"
         height="16"
@@ -1112,7 +1112,7 @@ export const ChannelPanel: FC<
           under them (C28), so the block sits above everything in a row,
           the badge's z-10 included. Past SplitPanel's 8px, each takes the
           rest of the board's inset itself. */}
-      <div className="sticky top-0 z-20 bg-newBgColorInner flex flex-col gap-[8px] pt-[20px] pb-[8px]">
+      <div className="sticky top-0 z-20 bg-newBgColorInner flex flex-col gap-[8px] pt-[12px] mobile:pt-[20px] pb-[8px]">
         <div
           className={clsx(
             'flex items-center gap-[4px]',

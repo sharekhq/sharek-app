@@ -21,7 +21,10 @@ import {
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
-import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  PageScroll,
+  PAGE_PADDING,
+} from '@gitroom/frontend/components/ui/page.scroll';
 import {
   SWITCH_GROUP,
   SWITCH_OPTION,
@@ -290,7 +293,7 @@ export const PlatformAnalytics = () => {
       {/* Held to the window, as the calendar's grid and Samy's chat are: the
           numbers scroll in their own box, so the channel list stays put. On a
           phone the box is static, and the page scrolls as before. */}
-      <PageScroll className="p-[20px] mobile:p-[12px] gap-[12px]">
+      <PageScroll className={clsx(PAGE_PADDING, 'gap-[12px]')}>
         {currentIntegration ? (
           <>
             {/* The top bar. At 1025px and below the channel button takes the

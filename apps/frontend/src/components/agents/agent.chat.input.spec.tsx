@@ -268,12 +268,10 @@ describe('the box', () => {
     );
     const rule = fs
       .readFileSync(path.join(__dirname, '../../app/global.scss'), 'utf8')
-      .match(
-        /\.agent \{\s*(?:\/\*[\s\S]*?\*\/\s*)?\.copilotKitInputContainer \{([^}]*)\}/
-      )![1];
+      .match(/\.agent \{[\s\S]*?\.copilotKitInputContainer \{([^}]*)\}/)![1];
 
     expect(wrapper).toBeDefined();
-    expect(rule.trim()).toBe('padding: 0 24px !important;');
+    expect(rule.trim()).toBe('padding: 0 20px !important;');
   });
 
   it('leaves unsent attachments behind on another thread', async () => {

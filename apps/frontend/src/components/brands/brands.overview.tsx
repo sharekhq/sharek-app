@@ -6,6 +6,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { NO_BRAND } from '@gitroom/nestjs-libraries/dtos/brands/brand.dto';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import { CheckmarkIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import {
   BrandMark,
   NoBrandMark,
@@ -44,7 +45,9 @@ export const PageTop: FC<{
 // A card's mark, and the look a brand's card and No brand's share.
 const CARD_MARK = 'w-[44px] h-[44px] rounded-[11px] text-[15px]';
 const CARD = clsx(
-  'flex flex-col gap-[12px] p-[16px] rounded-[12px] border border-line bg-surface text-start cursor-pointer hover:border-inkSoft transition-colors',
+  'flex flex-col gap-[12px]',
+  CARD_PADDING,
+  'rounded-[12px] border border-line bg-surface text-start cursor-pointer hover:border-inkSoft transition-colors',
   FOCUS_RING
 );
 const NOTE = 'text-[12.5px] text-muted';
@@ -201,7 +204,8 @@ export const BrandsOverview: FC<{
           ),
         ].join(' · ')}
       />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[16px]">
+      {/* At most three across, at least 240px each: 32px is the two 16px gaps. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(max(240px,calc((100%_-_32px)/3)),1fr))] gap-[16px]">
         {brands.map((brand) => (
           <BrandCard
             key={brand.id}
@@ -214,7 +218,9 @@ export const BrandsOverview: FC<{
           type="button"
           onClick={onNewBrand}
           className={clsx(
-            'flex flex-col items-center justify-center gap-[8px] min-h-[150px] p-[16px] rounded-[12px] border-[1.5px] border-dashed border-line text-[14px] font-[600] text-muted hover:text-ink cursor-pointer transition-colors',
+            'flex flex-col items-center justify-center gap-[8px] min-h-[150px]',
+            CARD_PADDING,
+            'rounded-[12px] border-[1.5px] border-dashed border-line text-[14px] font-[600] text-muted hover:text-ink cursor-pointer transition-colors',
             FOCUS_RING
           )}
         >

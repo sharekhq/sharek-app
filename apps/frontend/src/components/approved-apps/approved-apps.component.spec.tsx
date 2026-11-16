@@ -71,7 +71,8 @@ describe('the approved apps under Apps', () => {
 });
 
 // The dashboard's one button set: a row's Revoke is small red text with no
-// fill, and the list's card and each app's row have 12px corners.
+// fill, and the list's card and each app's row have 12px corners. The card's
+// content sits 20px in, 16px at 1025px and below (spec 060 FR-022).
 describe('the approved apps in the dashboard look', () => {
   const app = {
     id: 'app-1',
@@ -81,12 +82,19 @@ describe('the approved apps in the dashboard look', () => {
 
   it('rounds the card 12px when no app is approved yet', async () => {
     const host = await render();
-    const card = host.querySelector('.border.p-\\[24px\\]')!;
+    const card = host.querySelector('.bg-sixth.border')!;
 
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['bg-sixth', 'border-fifth', 'rounded-[12px]'])
+      expect.arrayContaining([
+        'bg-sixth',
+        'border-fifth',
+        'rounded-[12px]',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
   });
 
   it("rounds each app's row 12px and draws its Revoke as small red text with no fill", async () => {

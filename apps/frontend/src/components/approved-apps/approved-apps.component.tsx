@@ -8,6 +8,8 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { getTimezone } from '@gitroom/frontend/components/layout/set.timezone';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 const useApprovedApps = () => {
   const fetch = useFetch();
@@ -68,7 +70,12 @@ export const ApprovedAppsComponent: FC = () => {
         )}
       </div>
 
-      <div className="bg-sixth border-fifth border rounded-[12px] p-[24px]">
+      <div
+        className={clsx(
+          'bg-sixth border-fifth border rounded-[12px]',
+          CARD_PADDING
+        )}
+      >
         {!apps?.length ? (
           <div className="text-muted">
             {t('no_approved_apps', 'No approved apps yet.')}

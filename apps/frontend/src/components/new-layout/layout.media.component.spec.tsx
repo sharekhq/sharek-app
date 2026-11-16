@@ -112,6 +112,16 @@ describe('the Media page reads its address once for the starting query (R11)', (
     }
   );
 
+  // PAGE_PADDING (spec 060, FR-001): 20px around the page's content, 12px at
+  // 1025px and below, as the other page boxes.
+  it("insets the page's content 20px, 12px under mobile", async () => {
+    await open('/media');
+
+    const root = document.body.lastElementChild!.firstElementChild!;
+    expect(root.classList.contains('p-[20px]')).toBe(true);
+    expect(root.classList.contains('mobile:p-[12px]')).toBe(true);
+  });
+
   it('stays the standalone page, not the window', async () => {
     await open('/media?type=video');
 

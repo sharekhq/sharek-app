@@ -1,13 +1,150 @@
 'use client';
 
-import { FC } from 'react';
+import { CSSProperties, FC, SyntheticEvent, useState } from 'react';
 import clsx from 'clsx';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
-import SafeImage from '@gitroom/react/helpers/safe.image';
 import {
   Brand,
   liveLogo,
 } from '@gitroom/frontend/components/brands/use.brands';
+
+// The small tile behind a light or a dark logo, read from the logo's own
+// pixels. Fixed, the same in both themes, as brand.website.tsx's CHECKERBOARD
+// is behind the kit's big tile.
+export const LOGO_TILE_DARK: CSSProperties = { backgroundColor: '#2A2326' };
+export const LOGO_TILE_LIGHT: CSSProperties = {
+  backgroundColor: '#F7F5F4',
+  boxShadow: 'inset 0 0 0 1px rgba(26, 20, 19, 0.08)',
+};
+
+export type LogoTone = 'light' | 'dark' | null;
+
+// A logo's tone, read on a SAMPLE × SAMPLE copy of it (research R1): a pixel
+// is visible from alpha SEE_THROUGH up; a logo with under OPAQUE_SHARE of its
+// pixels see-through has its own background; a visible pixel is light from
+// luminance LIGHT_Y up and dark from DARK_Y down; NEARLY_ALL of the visible
+// pixels decide.
+const SAMPLE = 32;
+const SEE_THROUGH = 128;
+const OPAQUE_SHARE = 0.01;
+const LIGHT_Y = 0.5;
+const DARK_Y = 0.1;
+const NEARLY_ALL = 0.9;
+
+// WCAG's relative luminance of an sRGB colour, each channel 0 to 255.
+const luminance = (r: number, g: number, b: number) => {
+  const [lr, lg, lb] = [r, g, b].map((channel) => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+};
+
+// 'light' or 'dark' for a logo nearly all one or the other on a see-through
+// ground; null for a coloured, mixed or empty one, or one with its own
+// background. pixels: RGBA quadruples, as getImageData gives them.
+export const logoTone = (pixels: ArrayLike<number>): LogoTone => {
+  let seeThrough = 0;
+  let light = 0;
+  let dark = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] < SEE_THROUGH) {
+      seeThrough++;
+      continue;
+    }
+    const y = luminance(pixels[i], pixels[i + 1], pixels[i + 2]);
+    if (y >= LIGHT_Y) {
+      light++;
+    } else if (y <= DARK_Y) {
+      dark++;
+    }
+  }
+  const total = pixels.length / 4;
+  const visible = total - seeThrough;
+  if (!visible || seeThrough < total * OPAQUE_SHARE) {
+    return null;
+  }
+  if (light >= visible * NEARLY_ALL) {
+    return 'light';
+  }
+  return dark >= visible * NEARLY_ALL ? 'dark' : null;
+};
+
+// Each logo's tone once read, by src, so a mark mounted later draws its tile
+// from the first render.
+const tones = new Map<string, LogoTone>();
+
+// Each logo whose CORS request failed, by src, so a later mark skips it.
+const refused = new Set<string>();
+
+// A loaded logo's tone, read on a SAMPLE × SAMPLE canvas; null where the
+// browser gives no 2D context or refuses the pixels.
+const readTone = (img: HTMLImageElement): LogoTone => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = SAMPLE;
+    canvas.height = SAMPLE;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      return null;
+    }
+    context.drawImage(img, 0, 0, SAMPLE, SAMPLE);
+    return logoTone(context.getImageData(0, 0, SAMPLE, SAMPLE).data);
+  } catch {
+    return null;
+  }
+};
+
+// A brand's logo, on a tile that follows its tone: a light logo on the dark
+// one, a dark logo on the light one, any other on the initial's. Asked for
+// with CORS so its pixels can be read, once per src; where that request fails
+// it loads again without and keeps the initial's tile, and later marks of it
+// ask without CORS from the start. BrandMark's, as decoration (no alt), and
+// the AI image window's Goes along logo (ai.image.brand.tsx), named Logo.
+// Each caller keys it by the logo's path.
+export const BrandLogo: FC<{
+  src: string;
+  className: string;
+  alt?: string;
+}> = ({ src, className, alt = '' }) => {
+  const [cors, setCors] = useState(() => !refused.has(src));
+  const [tone, setTone] = useState<LogoTone>(() => tones.get(src) ?? null);
+
+  const read = (event: SyntheticEvent<HTMLImageElement>) => {
+    if (!cors || tones.has(src)) {
+      return;
+    }
+    const found = readTone(event.currentTarget);
+    tones.set(src, found);
+    setTone(found);
+  };
+
+  const fallBack = () => {
+    refused.add(src);
+    setCors(false);
+  };
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      crossOrigin={cors ? 'anonymous' : undefined}
+      onLoad={read}
+      onError={fallBack}
+      className={clsx(
+        'flex-none object-contain p-[3px] bg-surface2',
+        className
+      )}
+      style={
+        tone === 'light'
+          ? LOGO_TILE_DARK
+          : tone === 'dark'
+          ? LOGO_TILE_LIGHT
+          : undefined
+      }
+    />
+  );
+};
 
 // A brand's logo, or its initial while it has none or the logo was deleted
 // from Media. Decoration: the brand's name is beside it. The Brands page's
@@ -23,13 +160,10 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
 
   if (logo) {
     return (
-      <SafeImage
+      <BrandLogo
+        key={logo.path}
         src={mediaDirectory.set(logo.path)}
-        alt=""
-        className={clsx(
-          'flex-none object-contain p-[3px] bg-surface2',
-          className
-        )}
+        className={className}
       />
     );
   }

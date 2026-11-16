@@ -153,10 +153,10 @@ export const MediaTile: FC<{
   const openPreview = () =>
     modals.openModal(libraryPreviewModal(query, media.id, onDeleted));
   return (
-    <div className="group rounded-[6px] aspect-square mobile:p-[6px]">
+    <div className="group rounded-[8px] aspect-square mobile:p-[6px]">
       <div
         className={clsx(
-          'w-full h-full rounded-[6px] border-[4px] relative',
+          'w-full h-full rounded-[8px] border-[4px] relative',
           order || selected ? 'border-brand' : 'border-transparent'
         )}
       >
@@ -167,7 +167,7 @@ export const MediaTile: FC<{
           title={name}
           aria-label={name}
           onClick={standalone && !selecting ? openPreview : onToggle}
-          className="block w-full h-full rounded-[6px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+          className="block w-full h-full rounded-[8px] overflow-hidden relative cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
         >
           <TilePicture
             media={media}
@@ -307,7 +307,7 @@ export const MediaMonth: FC<{
   };
   return (
     <section className="group/month mb-[10px]">
-      <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] bg-newBgColorInner">
+      <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] mobile:px-[6px] bg-newBgColorInner">
         <h2 className="text-[16px] font-[600]">{label}</h2>
         {data ? (
           <span className="text-[13px] text-muted">

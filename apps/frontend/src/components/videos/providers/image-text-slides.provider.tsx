@@ -166,7 +166,7 @@ const VoiceSelector: FC = () => {
                 aria-pressed={selected}
                 onClick={() => setActiveSet(set.id)}
                 className={clsx(
-                  'flex-1 min-w-0 h-[52px] px-[8px] rounded-[8px] border flex flex-col items-center justify-center gap-[1px] whitespace-nowrap transition-colors',
+                  'flex-1 min-w-0 h-[40px] coarse:h-[44px] px-[12px] rounded-[8px] border flex items-center justify-center gap-[8px] text-[14px] whitespace-nowrap transition-colors',
                   'focus-visible:ring-2 focus-visible:ring-brand',
                   selected
                     ? 'bg-brandSoft border-brand text-brandText font-[600]'
@@ -199,7 +199,7 @@ const VoiceSelector: FC = () => {
                 </span>
                 <span
                   className={clsx(
-                    'text-[11px] font-[400]',
+                    'text-[12px] font-[400]',
                     selected ? 'opacity-80' : 'text-muted'
                   )}
                 >
@@ -463,7 +463,12 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
               {t('video_nothing_charged_yet', 'Nothing is charged yet')}
             </CostNote>
             <span className="flex-1" />
-            <Button type="button" onClick={plan} disabled={loading}>
+            <Button
+              type="button"
+              size="large"
+              onClick={plan}
+              disabled={loading}
+            >
               {loading
                 ? t('writing_script', 'Writing the script…')
                 : t('continue', 'Continue')}
@@ -630,9 +635,9 @@ const ReviewScreen: FC<{
               value={slide.text}
               onChange={(e) => setText(index, e.target.value)}
               dir={slideDir(slide.text)}
-              // 16px, the app's own default: this is the text the user came
-              // here to edit, so it cannot be the smallest input in the flow.
-              className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[16px] outline-none text-textColor resize-y"
+              // 14px, as every field in Studio's windows; 16px under a finger,
+              // where a smaller size makes iOS zoom in on focus.
+              className="w-full min-h-[62px] bg-newBgColorInner border border-newTableBorder rounded-[7px] px-[12px] py-[10px] text-[14px] coarse:text-[16px] outline-none text-textColor resize-y"
             />
             <div className="flex justify-between items-baseline gap-[10px] text-[11px]">
               <span className={tooLong ? 'text-brandText font-[600]' : 'text-muted'}>
@@ -682,17 +687,19 @@ const ReviewScreen: FC<{
             <Button
               type="button"
               variant="secondary"
+              size="large"
               onClick={add}
               disabled={slides.length >= MAX_SLIDES}
             >
               {t('add_slide', 'Add slide')}
             </Button>
             <span className="flex-1" />
-            <Button type="button" variant="ghost" onClick={onBack}>
+            <Button type="button" variant="ghost" size="large" onClick={onBack}>
               {t('back', 'Back')}
             </Button>
             <Button
               type="button"
+              size="large"
               onClick={onCreate}
               // An empty row is dropped server-side, so blocking here is the only
               // thing that stops a slide vanishing without explanation.

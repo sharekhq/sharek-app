@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import clsx from 'clsx';
 import {
   CalendarWeekProvider,
   useCalendar,
@@ -16,6 +17,7 @@ import { Filters } from '@gitroom/frontend/components/launches/filters';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import { PAGE_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { useUser } from '../layout/user.context';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
 import { useSearchParams } from 'next/navigation';
@@ -237,7 +239,13 @@ export const LaunchesComponent = () => {
             {/* min-w-0: without it this flex-1 column keeps min-width:auto and is
             pinned to the filter bar's min-content (847px), which starves the
             channels rail at every width below ~1220. */}
-            <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px] mobile:min-h-[600px]">
+            <div
+              className={clsx(
+                'bg-newBgColorInner flex-1 min-w-0 flex-col flex',
+                PAGE_PADDING,
+                'gap-[12px] mobile:min-h-[600px]'
+              )}
+            >
               <Filters
                 onOpenChannels={() => setChannelsOpen(true)}
                 channelsOpen={channelsOpen}

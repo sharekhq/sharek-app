@@ -78,11 +78,13 @@ const STRINGS = [
 
 const VEO3_KEYS: readonly string[] = ['video_type_veo3_fact_sound'];
 
-// The old catalogue's categories, which the new four replace.
+// The old catalogue's categories, which the new four replace, and the intro
+// sentence that left Studio (spec 060, FR-007).
 const REMOVED = [
   'studio_category_design',
   'studio_category_ai_images',
   'studio_category_ai_video',
+  'studio_intro',
 ];
 
 const placeholders = (value: string) =>

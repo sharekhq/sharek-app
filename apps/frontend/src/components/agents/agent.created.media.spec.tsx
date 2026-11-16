@@ -74,6 +74,16 @@ const show = async (result: unknown, mayWait = false, args?: unknown) => {
 
 const classes = (node: Element) => node.className.split(/\s+/);
 
+// A card is 190px, or 150px on a phone, alone or in a row.
+const expectOneCardWidth = (card: Element) => {
+  expect(classes(card)).toEqual(
+    expect.arrayContaining(['w-[190px]', 'phone:w-[150px]'])
+  );
+  expect(classes(card).filter((name) => name.startsWith('only:w-'))).toEqual(
+    []
+  );
+};
+
 const MADE = { id: 'm1', path: 'https://media.sharek.app/made.png' };
 
 afterEach(() => {
@@ -307,18 +317,10 @@ describe('the size of a card', () => {
     );
   });
 
-  // The picture stops at 480px tall, so a tall card alone is as wide as that allows,
-  // or a story's card would stand 747px high and shrink when its picture landed.
-  it('does the same for a waiting card, which stops as tall as a picture does', async () => {
+  it('keeps a waiting card at 190px, or 150px on a phone, even alone', async () => {
     const host = await show(undefined, true);
 
-    expect(classes(host.firstElementChild!)).toEqual(
-      expect.arrayContaining([
-        'w-[190px]',
-        'phone:w-[150px]',
-        'only:w-[min(420px,calc(480px*var(--card-ratio)),100cqw)]',
-      ])
-    );
+    expectOneCardWidth(host.firstElementChild!);
   });
 });
 
@@ -596,6 +598,7 @@ describe('a video card', () => {
 
     expect(host.textContent).toContain("This video couldn't be made");
     expect(host.textContent).not.toContain(RENDERING);
+    expectOneCardWidth(host.firstElementChild!);
     expect(host.innerHTML).not.toContain('animate-pulse');
     expect(statusCheck).not.toHaveBeenCalled();
   });
@@ -610,6 +613,7 @@ describe('a video card', () => {
 
       expect(host.textContent).toContain(POINTER);
       expect(host.textContent).not.toMatch(/couldn't be made|no longer/);
+      expectOneCardWidth(host.firstElementChild!);
       expect(host.querySelector('a')?.getAttribute('href')).toBe('/media');
       expect(classes(host.querySelector('a')!)).toEqual(
         expect.arrayContaining([

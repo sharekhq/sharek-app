@@ -898,39 +898,48 @@ export const Modal: FC<{
           {phase !== 'rendering' && (
             <ModalActionBar>
               {phase === 'result' ? (
-                  <>
-                    <Button variant="secondary" onClick={backFromResult}>
-                      {handshake?.backLabel}
-                    </Button>
-                    <div className="flex-1" />
-                    <Button
-                      variant="ghost"
-                      onClick={() => handshake?.regenerate()}
-                    >
-                      {t('regenerate', 'Regenerate')}
-                      <span className="ms-[6px] font-[500] opacity-75">
-                        · {t('one_credit', '1 credit')}
-                      </span>
-                    </Button>
-                    <Button onClick={useVideoInPost}>{acceptLabel}</Button>
-                  </>
-                ) : videoOwnsActions(type.identifier) ? (
-                  // The provider owns the whole row: it is the only side that
-                  // knows which of its screens is showing, and so whether the
-                  // next click spends a credit (FR-018).
-                  <div
-                    ref={setActionsSlot}
-                    className="video-actions-content flex-1 flex items-center gap-[10px]"
-                  />
-                ) : (
-                  <>
-                    <CostNote>
-                      {t('video_uses_one_credit', 'Uses 1 video credit')}
-                    </CostNote>
-                    <div className="flex-1" />
-                    <Button type="submit">{t('generate', 'Generate')}</Button>
-                  </>
-                )}
+                <>
+                  <Button
+                    variant="secondary"
+                    size="large"
+                    onClick={backFromResult}
+                  >
+                    {handshake?.backLabel}
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    variant="ghost"
+                    size="large"
+                    onClick={() => handshake?.regenerate()}
+                  >
+                    {t('regenerate', 'Regenerate')}
+                    <span className="ms-[6px] font-[500] opacity-75">
+                      · {t('one_credit', '1 credit')}
+                    </span>
+                  </Button>
+                  <Button size="large" onClick={useVideoInPost}>
+                    {acceptLabel}
+                  </Button>
+                </>
+              ) : videoOwnsActions(type.identifier) ? (
+                // The provider owns the whole row: it is the only side that
+                // knows which of its screens is showing, and so whether the
+                // next click spends a credit (FR-018).
+                <div
+                  ref={setActionsSlot}
+                  className="video-actions-content flex-1 flex items-center gap-[10px]"
+                />
+              ) : (
+                <>
+                  <CostNote>
+                    {t('video_uses_one_credit', 'Uses 1 video credit')}
+                  </CostNote>
+                  <div className="flex-1" />
+                  <Button type="submit" size="large">
+                    {t('generate', 'Generate')}
+                  </Button>
+                </>
+              )}
             </ModalActionBar>
           )}
         </FormProvider>

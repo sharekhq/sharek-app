@@ -13,7 +13,10 @@ import { Input } from '@gitroom/react/form/input';
 import { Textarea } from '@gitroom/react/form/textarea';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
-import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  PageScroll,
+  PAGE_PADDING,
+} from '@gitroom/frontend/components/ui/page.scroll';
 import { SUPPORT_APP_VERSION_MAX } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 
 const CATEGORIES = ['channels', 'billing', 'technical', 'other'] as const;
@@ -30,7 +33,7 @@ const FOCUS_RING =
 // inside it, never the window. That surface is already white, so the form sits
 // straight on it — a white card here would be a card on a card.
 const Page = ({ children }: { children: React.ReactNode }) => (
-  <PageScroll className="p-[20px]">{children}</PageScroll>
+  <PageScroll className={PAGE_PADDING}>{children}</PageScroll>
 );
 
 // Started at the same edge as the page title, the way every sibling page lays

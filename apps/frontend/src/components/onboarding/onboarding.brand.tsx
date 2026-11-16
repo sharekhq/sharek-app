@@ -91,7 +91,7 @@ export const OnboardingBrand: FC<{
   return (
     <div className="flex flex-col gap-[24px]">
       <div className="flex gap-[4px] flex-col text-center">
-        <div className="text-[24px] phone:text-[20px] font-semibold">
+        <div className="text-[20px] font-semibold">
           {t('brands_onboard_title', 'Set up your brand')}
         </div>
         <div className="text-[14px] text-muted">

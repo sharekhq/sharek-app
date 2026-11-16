@@ -162,7 +162,7 @@ export const FirstBillingComponent = () => {
   const Headline = () => {
     return (
       <>
-        <div className="text-[46px] font-[600] leading-[110%] mobile:text-[36px] mobile:!text-[30px] whitespace-pre-line text-balance">
+        <div className="text-[32px] font-[600] leading-[1.2] whitespace-pre-line text-balance">
           {t('billing_headline_lead', 'Plan a week of content in')}{' '}
           <span className="text-brand">
             {t('billing_headline_highlight', 'one sitting')}
@@ -293,7 +293,7 @@ export const FirstBillingComponent = () => {
             <Headline />
           </div>
           {data?.blocked ? (
-            <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">
+            <div className="mt-[24px] p-[24px] rounded-[12px] border border-newColColor text-[16px] font-[500]">
               {data.alreadySubscribed
                 ? t(
                     'billing_subscription_already_active',
@@ -305,7 +305,7 @@ export const FirstBillingComponent = () => {
                   )}
             </div>
           ) : stripeFailed ? (
-            <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500]">
+            <div className="mt-[24px] p-[24px] rounded-[12px] border border-newColColor text-[16px] font-[500]">
               {t(
                 'billing_stripe_load_failed',
                 'The payment form could not be loaded. Please disable ad blockers or privacy extensions for this page and reload.'
@@ -314,7 +314,7 @@ export const FirstBillingComponent = () => {
           ) : !isLoading && (error || (data && !data.client_secret)) ? (
             // A failed Stripe call comes back as an error body without a
             // client_secret, and Stripe throws when it is mounted without one.
-            <div className="mt-[24px] p-[24px] rounded-[20px] border-[1.5px] border-newColColor text-[16px] font-[500] flex flex-col items-start gap-[16px]">
+            <div className="mt-[24px] p-[24px] rounded-[12px] border border-newColColor text-[16px] font-[500] flex flex-col items-start gap-[16px]">
               <div>
                 {t(
                   'billing_checkout_failed',
@@ -346,7 +346,7 @@ export const FirstBillingComponent = () => {
               <Headline />
             </div>
             <div className="flex mb-[24px] mobile:flex-col mobile:gap-[24px]">
-              <div className="flex-1 text-[24px] font-[700]">
+              <div className="flex-1 text-[20px] font-[600]">
                 {t('billing_choose_plan', 'Choose a Plan')}
               </div>
               <div className="h-[44px] px-[6px] mobile:px-0 flex items-center justify-center mobile:justify-start gap-[12px] border border-newColColor rounded-[12px] select-none">
@@ -376,7 +376,7 @@ export const FirstBillingComponent = () => {
                       when the control sat inline with the heading and had a
                       row to share; it now has the full column, and the label
                       never wraps, so the pair stays one line. */}
-                  <div className="bg-brand text-[white] px-[8px] rounded-[4px] whitespace-nowrap">
+                  <div className="bg-brand text-white px-[8px] rounded-[4px] whitespace-nowrap">
                     {t('billing_20_percent_off', '20% Off')}
                   </div>
                 </div>
@@ -389,10 +389,10 @@ export const FirstBillingComponent = () => {
                     onClick={() => setTier(key)}
                     key={key}
                     className={clsx(
-                      'cursor-pointer select-none w-[266px] h-[138px] mobile:w-full mobile:h-[124px] p-[24px] mobile:p-[15px] rounded-[20px] flex flex-col',
+                      'cursor-pointer select-none w-[266px] h-[138px] mobile:w-full mobile:h-[124px] p-[24px] mobile:p-[15px] rounded-[12px] flex flex-col',
                       key === tier
-                        ? 'border-[1.5px] border-brand bg-brandSoft'
-                        : 'border-[1.5px] border-newColColor'
+                        ? 'border border-brand bg-brandSoft'
+                        : 'border border-newColColor'
                     )}
                   >
                     <div className="text-[20px] mobile:text-[18px] font-[500]">
@@ -417,7 +417,7 @@ export const FirstBillingComponent = () => {
               )}
             </div>
             <div className="flex flex-col mt-[54px] gap-[24px] mobile:mt-[40px]">
-              <div className="text-[24px] font-[700]">
+              <div className="text-[20px] font-[600]">
                 {t('billing_features', 'Features')}
               </div>
               <BillingFeatures tier={tier} />

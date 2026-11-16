@@ -26,3 +26,11 @@ export const PageScroll: FC<{ className?: string; children: ReactNode }> = ({
     </div>
   </div>
 );
+
+// A dashboard page's content, 20px inside its card on every side above
+// 1025px, 12px at 1025px and below (FR-001).
+export const PAGE_PADDING = 'p-[20px] mobile:p-[12px]';
+
+// A card that holds text and controls pads its content by this (FR-022). A
+// card made of rows keeps its rows' own padding.
+export const CARD_PADDING = 'p-[20px] mobile:p-[16px]';

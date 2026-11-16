@@ -530,4 +530,38 @@ describe('the date picker opening somewhere else', () => {
     expect(classes).toContain('h-[44px]');
     expect(classes.filter((name) => name.startsWith('mobile:h-'))).toEqual([]);
   });
+
+  // On a phone the date takes the theme's line; on a laptop it keeps the line
+  // its siblings, the repeat and tags controls, draw.
+  it("draws the theme's line on a phone and its siblings' line on a laptop", async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePicker date={at} onChange={jest.fn()} onOpen={jest.fn()} />
+      );
+    });
+
+    expect(host.firstElementChild!.className.split(' ')).toEqual(
+      expect.arrayContaining(['mobile:border-line', 'border-newTextColor/10'])
+    );
+  });
+
+  it('keeps its 7px gap on the start side, so Arabic mirrors English', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePicker date={at} onChange={jest.fn()} onOpen={jest.fn()} />
+      );
+    });
+
+    const classes = host.firstElementChild!.className.split(' ');
+    expect(classes).toContain('ms-[7px]');
+    expect(classes).not.toContain('ml-[7px]');
+  });
 });

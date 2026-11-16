@@ -162,7 +162,7 @@ export const CalendarPostCard = forwardRef<
       ref={ref}
       className={clsx(
         'w-full flex h-full flex-1 flex-col group',
-        'relative rounded-[10px] border border-line',
+        'relative rounded-[8px] border border-line',
         // a finger holds the card to drag it (dnd.provider.tsx); held that
         // long, iOS would select its text or open the picture's menu
         'coarse:select-none coarse:[-webkit-touch-callout:none]',
@@ -209,7 +209,7 @@ export const CalendarPostCard = forwardRef<
       <div
         className={clsx(
           post?.tags?.[0]?.tag?.color ? 'text-white' : 'text-inkSoft',
-          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-tr-[10px] rounded-tl-[10px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2',
+          'relative text-[11px] max-h-[24px] h-[24px] min-h-[24px] coarse:max-h-[44px] coarse:h-[44px] coarse:min-h-[44px] w-full rounded-t-[8px] flex items-center justify-center gap-[10px] px-[5px] bg-surface2',
           compact && 'mobile:hidden'
         )}
         style={{
@@ -244,10 +244,10 @@ export const CalendarPostCard = forwardRef<
         onTouchEnd={endHold}
         onTouchCancel={cancelHold}
         className={clsx(
-          'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-surface',
+          'gap-[5px] w-full flex h-full flex-1 rounded-b-[8px] p-[8px] text-[14px] bg-surface',
           'relative',
           compact &&
-            'mobile:p-[4px] mobile:rounded-[10px] mobile:justify-center',
+            'mobile:p-[4px] mobile:rounded-[8px] mobile:justify-center',
           isBeforeNow && '!grayscale'
         )}
       >

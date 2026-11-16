@@ -118,7 +118,7 @@ const STRINGS = [
     'إذا اكتمل هذا الفيديو فستجده في مكتبة الوسائط',
   ],
   ['opening_post_editor', 'Opening the post editor…', 'جاري فتح محرر المنشور…'],
-  // Settings' tab (settings.component.tsx), where the MCP setup lives.
+  // Settings' Developers group (settings.menu.tsx), where the MCP setup lives.
   ['developers', 'Developers', 'المطورون'],
 ] as const;
 

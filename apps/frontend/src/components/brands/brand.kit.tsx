@@ -28,6 +28,7 @@ import {
   compareChannels,
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { CloseIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
 import { BrandColourPopover } from '@gitroom/frontend/components/brands/brand.colour.popover';
 import { BrandChannel } from '@gitroom/frontend/components/brands/brand.channels';
@@ -81,7 +82,13 @@ const Card: FC<{
   help: string;
   children: ReactNode;
 }> = ({ title, count, help, children }) => (
-  <section className="flex flex-col gap-[12px] min-w-0 p-[16px] rounded-[12px] border border-line bg-surface">
+  <section
+    className={clsx(
+      'flex flex-col gap-[12px] min-w-0',
+      CARD_PADDING,
+      'rounded-[12px] border border-line bg-surface'
+    )}
+  >
     <div className="flex items-center gap-[8px]">
       <h3 className="text-[15px] font-[600] text-ink">{title}</h3>
       {count}

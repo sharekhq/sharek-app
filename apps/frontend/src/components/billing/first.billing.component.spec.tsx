@@ -94,8 +94,9 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/ui/logo-text.component', () => ({
   LogoTextComponent: () => null,
 }));
+// Leaves a mark, so a case can tell whether the checkout offers Log out.
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => null,
+  LogoutComponent: () => <span data-logout />,
 }));
 jest.mock(
   '@gitroom/frontend/components/developer/developer.icon.component',
@@ -223,6 +224,14 @@ describe('the paywall', () => {
 
     expect(host.querySelector('[data-testid="invoices-icon"]')).not.toBeNull();
   });
+
+  // With no plan yet the checkout is the whole screen, so it keeps its own Log out (FR-021).
+  it('keeps Log out in its header', async () => {
+    mockEmbedded = {};
+    const host = await render();
+
+    expect(host.querySelectorAll('[data-logout]')).toHaveLength(1);
+  });
 });
 
 describe("the plans' feature rows", () => {
@@ -272,5 +281,124 @@ describe("the plans' feature rows", () => {
     expect(rows.map((row) => row.label).join(' ')).not.toMatch(
       /Unlimited posts per month/
     );
+  });
+});
+
+// The checkout with no plan takes the app's heading sizes and card edges (FR-032, decisions D14).
+describe("the checkout's look", () => {
+  const classesOf = (element: Element | undefined) =>
+    Array.from(element?.classList ?? []);
+  const cardOf = (host: HTMLElement, text: string) =>
+    Array.from(host.querySelectorAll('div')).find(
+      (div) =>
+        div.classList.contains('mt-[24px]') &&
+        div.classList.contains('p-[24px]') &&
+        (div.textContent ?? '').includes(text)
+    );
+  const leaf = (host: HTMLElement, text: string) =>
+    Array.from(host.querySelectorAll('div')).find(
+      (div) => div.textContent === text
+    );
+
+  it.each([
+    [
+      'the refused checkout',
+      () => {
+        mockEmbedded = { blocked: true, alreadySubscribed: true };
+      },
+      'Your subscription is already active.',
+    ],
+    [
+      'the checkout Stripe could not load',
+      () => {
+        mockEmbedded = {};
+        mockLoadStripe.mockImplementationOnce(() =>
+          Promise.reject(new Error('blocked'))
+        );
+      },
+      'Please disable ad blockers',
+    ],
+    [
+      'the checkout the server could not prepare',
+      () => {
+        mockEmbedded = { statusCode: 400, message: 'x' };
+      },
+      'Please try again in a moment.',
+    ],
+  ])(
+    "gives %s's info card a 12px radius and a 1px border",
+    async (_what, arrange, text) => {
+      arrange();
+      const host = await render();
+
+      const card = classesOf(cardOf(host, text));
+      expect(card).toEqual(
+        expect.arrayContaining([
+          'rounded-[12px]',
+          'border',
+          'border-newColColor',
+        ])
+      );
+      expect(card).not.toContain('rounded-[20px]');
+      expect(card).not.toContain('border-[1.5px]');
+    }
+  );
+
+  it('gives every plan tile a 12px radius and a 1px border', async () => {
+    mockEmbedded = {};
+    const host = await render();
+
+    const tiles = Array.from(host.querySelectorAll('div')).filter((div) =>
+      div.classList.contains('w-[266px]')
+    );
+    expect(tiles.length).toBeGreaterThan(1);
+    tiles.forEach((tile) => {
+      expect(classesOf(tile)).toEqual(
+        expect.arrayContaining(['rounded-[12px]', 'border'])
+      );
+      expect(classesOf(tile)).not.toContain('rounded-[20px]');
+      expect(classesOf(tile)).not.toContain('border-[1.5px]');
+    });
+  });
+
+  it('sets the hero at 32px semibold, never 46px', async () => {
+    mockEmbedded = {};
+    const host = await render();
+
+    const heroes = Array.from(host.querySelectorAll('div')).filter((div) =>
+      div.classList.contains('text-balance')
+    );
+    expect(heroes).toHaveLength(2);
+    heroes.forEach((hero) => {
+      expect(classesOf(hero)).toEqual(
+        expect.arrayContaining(['text-[32px]', 'font-[600]'])
+      );
+      expect(classesOf(hero)).not.toContain('text-[46px]');
+    });
+  });
+
+  it.each(['Choose a Plan', 'Features'])(
+    'sets the %s heading at 20px semibold, never bold',
+    async (heading) => {
+      mockEmbedded = {};
+      const host = await render();
+
+      const element = classesOf(leaf(host, heading));
+      expect(element).toEqual(
+        expect.arrayContaining(['text-[20px]', 'font-[600]'])
+      );
+      expect(element).not.toContain('font-[700]');
+    }
+  );
+
+  it('writes no text-[white]', async () => {
+    mockEmbedded = {};
+    const host = await render();
+
+    const classes = Array.from(host.querySelectorAll('[class]'), (element) =>
+      Array.from(element.classList)
+    ).flat();
+    expect(classes).toContain('bg-brand');
+    expect(classes).not.toContain('text-[white]');
   });
 });

@@ -142,6 +142,20 @@ describe('Send Test', () => {
   });
 });
 
+// A window's action row is one height: Save and Send Test are large (spec 060
+// FR-026).
+describe("the webhook window's buttons", () => {
+  it('draw Save and Send Test large', async () => {
+    const host = await render();
+
+    for (const label of ['Save', 'Send Test']) {
+      expect(classes(button(host, label))).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      );
+    }
+  });
+});
+
 describe('a long webhook URL', () => {
   // Two hooks to one service differ only at the end of the address, so the
   // URL wraps rather than truncates. Unbroken, it ran out of its card at 390
@@ -223,12 +237,20 @@ describe("Webhooks' panel", () => {
     const host = await render(<Webhooks />);
 
     // FR-035: a Settings card has the dashboard's 12px corners, a panel's
-    // heading is 20px semibold.
+    // heading is 20px semibold; its content sits 20px in, 16px at 1025px and
+    // below (spec 060 FR-022).
     const card = host.querySelector('.bg-sixth')!;
     expect(classes(card)).toEqual(
-      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'border',
+        'border-fifth',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(card)).not.toContain('p-[24px]');
     expect(classes(host.querySelector('h3')!)).toEqual(
       expect.arrayContaining(['text-[20px]', 'font-[600]'])
     );

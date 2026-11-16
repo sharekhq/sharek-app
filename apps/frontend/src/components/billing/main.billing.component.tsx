@@ -28,7 +28,7 @@ import { FinishTrial } from '@gitroom/frontend/components/billing/finish.trial';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { useDubClickId } from '@gitroom/frontend/components/layout/dubAnalytics';
-import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import useCookie from 'react-use-cookie';
 import { usePaymentAction } from '@gitroom/frontend/components/billing/use.payment.action';
 import {
@@ -238,7 +238,8 @@ const PlanCard: FC<{
   return (
     <div
       className={clsx(
-        'flex flex-col gap-[20px] rounded-[12px] bg-newBgColorInner shadow-soft p-[24px] phone:p-[20px]',
+        'flex flex-col gap-[20px] rounded-[12px] bg-newBgColorInner shadow-soft',
+        CARD_PADDING,
         // the current plan is outlined, not filled: red stays for the buttons that change the plan
         current ? 'border-[1.5px] border-brand' : 'border border-newTableBorder'
       )}
@@ -795,9 +796,6 @@ export const MainBillingComponent: FC<{
             )}
           </div>
         </div>
-        <div className="flex justify-center mt-[20px]">
-          <LogoutComponent />
-        </div>
       </div>
     );
   }
@@ -1045,9 +1043,6 @@ export const MainBillingComponent: FC<{
         </div>
       )}
       {!!subscription?.id && <BillingHistory />}
-      <div className="flex justify-center mt-[20px]">
-        <LogoutComponent />
-      </div>
     </div>
   );
 };

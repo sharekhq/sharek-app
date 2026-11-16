@@ -12,6 +12,7 @@ import SafeImage from '@gitroom/react/helpers/safe.image';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { BrandMenu } from '@gitroom/frontend/components/brands/brand.menu';
 import {
+  BrandLogo,
   BrandMark,
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
@@ -247,17 +248,18 @@ export const BrandField: FC<{
                 />
               </>
             }
-            triggerClassName="flex-1 min-w-0 h-[40px] coarse:h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+            triggerClassName="flex-1 min-w-0 h-[40px] coarse:h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] font-[600] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
           />
         </div>
         {(logoPath || example) && (
           <div className="flex items-center gap-[6px] text-[12px] text-muted">
             <span>{t('brands_goes_along', 'Goes along:')}</span>
             {logoPath && (
-              <SafeImage
+              <BrandLogo
+                key={logoPath}
                 src={mediaDirectory.set(logoPath)}
                 alt={t('brands_logo', 'Logo')}
-                className={clsx(KIT_THUMBNAIL, 'object-contain')}
+                className={KIT_THUMBNAIL}
               />
             )}
             {example && (

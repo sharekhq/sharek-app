@@ -275,6 +275,12 @@ const EXEMPT: readonly Exemption[] = [
     reason: "CSS, never text: CHECKERBOARD's background-position, as above.",
   },
   {
+    file: 'components/brands/brand.mark.tsx',
+    text: 'inset 0 0 0 1px rgba(26, 20, 19, 0.08)',
+    reason:
+      "CSS, never text: LOGO_TILE_LIGHT's box-shadow, the hairline round the fixed light tile a dark logo sits on, a style object as CHECKERBOARD is.",
+  },
+  {
     file: 'components/launches/calendar.tsx',
     text: 'YYYY-MM-DD HH:mm',
     reason:

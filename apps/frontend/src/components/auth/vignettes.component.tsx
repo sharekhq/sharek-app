@@ -50,7 +50,7 @@ export const VignettesComponent: FC<{ language: string }> = ({ language }) => {
                 column.map(({ slug, height }) => (
                   <div
                     key={`${pass}_${slug}`}
-                    className="rounded-[16px] overflow-hidden border border-[#2b2a2a]"
+                    className="rounded-[16px] overflow-hidden border border-line"
                   >
                     {/* Decorative: the headline beside them carries the claim,
                         and alt text here would be English in every language —

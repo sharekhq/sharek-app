@@ -163,15 +163,23 @@ describe('the timezone setting', () => {
   });
 
   // A card's corners are 12px with a 1px line, on Settings as on every other
-  // page (FR-035).
+  // page (FR-035), its content 20px in, 16px at 1025px and below (spec 060
+  // FR-022).
   it('sits in a 12px card', async () => {
     const card = (await render(<MetricComponent />))
       .firstElementChild as HTMLElement;
 
     expect(card.className.split(' ')).toEqual(
-      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'border',
+        'border-fifth',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
     );
     expect(card.className).not.toContain('rounded-[4px]');
+    expect(card.className.split(' ')).not.toContain('p-[24px]');
   });
 
   // A card's titles are semibold at the panel's 16px, as the review page

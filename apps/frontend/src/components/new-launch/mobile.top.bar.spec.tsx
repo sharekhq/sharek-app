@@ -154,6 +154,14 @@ describe('the Post button', () => {
     );
   });
 
+  it('fades while disabled, keeping its brand colours', async () => {
+    await render(bar(three(), { disabled: true }));
+
+    expect(classes(post())).toContain('disabled:opacity-50');
+    expect(classes(post())).not.toContain('disabled:bg-btnSimple');
+    expect(classes(post())).not.toContain('disabled:text-muted');
+  });
+
   it('says it opens a menu, and whether it is open', async () => {
     await render(bar(three()));
 

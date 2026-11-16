@@ -294,6 +294,32 @@ describe('tiles and charts', () => {
     );
   });
 
+  // A chart is a card: its content sits 20px in, 16px at 1025px and below; a
+  // tile keeps its compact padding (spec 060, FR-022, decisions D18).
+  it('pads a chart 20px in, 16px at 1025px and below, and leaves a tile its compact padding', async () => {
+    const host = await render([
+      metric('Followers', [480]),
+      metric('Page Impressions', [1, 2, 3]),
+    ]);
+
+    const chart = host.querySelector('figure')!.className.split(' ');
+    expect(chart).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+    );
+    ['px-[16px]', 'pt-[16px]', 'pb-[10px]'].forEach((name) =>
+      expect(chart).not.toContain(name)
+    );
+    const tile = leaf(host, en.analytics_metric_followers)!.parentElement!;
+    expect(tile.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'px-[16px]',
+        'py-[14px]',
+        'mobile:px-[12px]',
+        'mobile:py-[10px]',
+      ])
+    );
+  });
+
   // Each chart takes the supporting brand hue of its metric's place in the
   // list, as the cards did before spec 051 and post statistics still do, so a
   // metric keeps its colour whether the ones before it are tiles or charts.

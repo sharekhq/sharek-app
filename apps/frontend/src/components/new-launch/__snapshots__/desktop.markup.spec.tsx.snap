@@ -448,7 +448,7 @@ exports[`the character counter from 1026px up one channel, within its limit 1`] 
 
 exports[`the composer shell from 1026px up a new post 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -629,7 +629,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
       </div>
       <div class="flex gap-[8px] items-center justify-end pe-[20px]">
         <div>
-          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
             <div>
               <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -671,7 +671,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
 
 exports[`the composer shell from 1026px up a new post that a channel blocks from publishing 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -852,7 +852,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
       </div>
       <div class="flex gap-[8px] items-center justify-end pe-[20px]">
         <div>
-          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
             <div>
               <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -894,7 +894,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
 
 exports[`the composer shell from 1026px up a new post with no channel picked 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -1057,7 +1057,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
       </div>
       <div class="flex gap-[8px] items-center justify-end pe-[20px]">
         <div>
-          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
             <div>
               <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1099,7 +1099,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
 
 exports[`the composer shell from 1026px up a set being added 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -1271,7 +1271,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
       </div>
       <div class="flex gap-[8px] items-center justify-end pe-[20px]">
         <div>
-          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
             <div>
               <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1294,7 +1294,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
 
 exports[`the composer shell from 1026px up an existing post with another channel, on its own channel 1`] = `
 "<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[20px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
@@ -1459,7 +1459,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
           </div>
         </button>
         <div>
-          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+          <div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
             <div>
               <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1500,7 +1500,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
 `;
 
 exports[`the date picker from 1026px up closed 1`] = `
-"<div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+"<div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
   <div>
     <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
       <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1514,7 +1514,7 @@ exports[`the date picker from 1026px up closed 1`] = `
 `;
 
 exports[`the date picker from 1026px up open 1`] = `
-"<div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ml-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
+"<div class="border border-newTextColor/10 cursor-pointer flex flex-1 font-[600] gap-[8px] h-[44px] items-center justify-center ms-[7px] px-[16px] relative rounded-[8px] select-none text-[15px]">
   <div>
     <svg fill="none" height="19" viewBox="0 0 17 19" width="17" xmlns="http://www.w3.org/2000/svg">
       <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1866,9 +1866,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
             </button>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -1881,9 +1881,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -1896,9 +1896,9 @@ exports[`the media library from 1026px up the Media page 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
@@ -1986,9 +1986,9 @@ exports[`the media library from 1026px up the picker 1`] = `
             </span>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -2003,9 +2003,9 @@ exports[`the media library from 1026px up the picker 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -2020,9 +2020,9 @@ exports[`the media library from 1026px up the picker 1`] = `
                 </button>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
@@ -2120,9 +2120,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
             </span>
           </div>
           <div class="2xl:grid-cols-8 gap-[6px] grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-brand h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-1.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-brand h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-1.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-1.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-1.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-1.png" />
                   </div>
@@ -2140,9 +2140,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
                 </div>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-brand h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-2.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-brand h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-2.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-2.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-2.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-2.png" />
                   </div>
@@ -2160,9 +2160,9 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
                 </div>
               </div>
             </div>
-            <div class="aspect-square group rounded-[6px]">
-              <div class="border-[4px] border-transparent h-full relative rounded-[6px] w-full">
-                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[6px] w-full" title="photo-3.png" type="button">
+            <div class="aspect-square group rounded-[8px]">
+              <div class="border-[4px] border-transparent h-full relative rounded-[8px] w-full">
+                <button aria-label="photo-3.png" class="block cursor-pointer focus-visible:ring-2 focus-visible:ring-brand h-full overflow-hidden relative rounded-[8px] w-full" title="photo-3.png" type="button">
                   <div class="bg-panel h-full relative w-full">
                     <img alt="photo-3.png" class="h-full object-contain w-full" decoding="async" loading="lazy" src="https://media.test/photo-3.png" />
                   </div>
