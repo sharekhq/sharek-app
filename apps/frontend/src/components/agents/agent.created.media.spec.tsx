@@ -42,12 +42,14 @@ jest.mock('next/link', () => ({
 import { SWRConfig } from 'swr';
 import {
   CardMayWaitContext,
+  ChatRunProvider,
   CreatedImage,
   CreatedVideo,
   drawsWaitingCard,
   isInLatestExchange,
   keepChatAtBottom,
   ReportedVideo,
+  useChatRun,
 } from '@gitroom/frontend/components/agents/agent.created.media';
 
 const mounted: Root[] = [];
@@ -784,6 +786,48 @@ describe('isInLatestExchange', () => {
   it('does not hold for a message it can’t find', () => {
     expect(isInLatestExchange(messages, 'gone')).toBe(false);
     expect(isInLatestExchange(undefined, 'a1')).toBe(false);
+  });
+});
+
+// Samy's welcome reads whether the chat is empty, which LoadMessages decides, so
+// nothing shows before it has.
+describe('whether the chat is empty', () => {
+  let seen: ReturnType<typeof useChatRun>;
+  const Reader = () => {
+    seen = useChatRun();
+    return null;
+  };
+  const mount = async (node: ReactNode) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(node);
+    });
+  };
+
+  it('is not, outside a chat, and setting it there does nothing', async () => {
+    await mount(<Reader />);
+
+    expect(seen.empty).toBe(false);
+    expect(() => seen.setEmpty(true)).not.toThrow();
+    expect(seen.empty).toBe(false);
+  });
+
+  it('is not until something sets it, then holds what was set', async () => {
+    await mount(
+      <ChatRunProvider>
+        <Reader />
+      </ChatRunProvider>
+    );
+    expect(seen.empty).toBe(false);
+
+    await act(async () => seen.setEmpty(true));
+    expect(seen.empty).toBe(true);
+
+    await act(async () => seen.setEmpty(false));
+    expect(seen.empty).toBe(false);
   });
 });
 

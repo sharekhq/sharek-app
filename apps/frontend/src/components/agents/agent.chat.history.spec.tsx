@@ -17,8 +17,12 @@ const chat = {
 const params = { id: 'thread-1' };
 type Row = StoredAgentMessage & { id: string };
 const fetched: Record<string, Array<(rows: Row[]) => void>> = {};
-// What a component inside the chat reads about the run, as a card's parent does.
-const run = { running: undefined as boolean | undefined };
+// What a component inside the chat reads about the run, as a card's parent does,
+// and whether the chat is empty, as Samy's welcome does.
+const run = {
+  running: undefined as boolean | undefined,
+  empty: undefined as boolean | undefined,
+};
 // The thread id AgentChat hands CopilotKit, one entry a render.
 const given: Array<string | undefined> = [];
 
@@ -27,7 +31,9 @@ jest.mock('@copilotkit/react-ui', () => ({
     const {
       ChatRunContext,
     } = require('@gitroom/frontend/components/agents/agent.created.media');
-    run.running = require('react').useContext(ChatRunContext).running;
+    const context = require('react').useContext(ChatRunContext);
+    run.running = context.running;
+    run.empty = context.empty;
     return null;
   },
 }));
@@ -139,6 +145,7 @@ beforeEach(() => {
   chat.isLoading = false;
   chat.messages = [];
   run.running = undefined;
+  run.empty = undefined;
   chat.setMessages.mockReset();
   params.id = 'thread-1';
   given.length = 0;
@@ -333,6 +340,73 @@ describe('AgentChat reopened thread', () => {
     chat.isLoading = false;
     await render();
     expect(run.running).toBe(false);
+  });
+});
+
+// Samy's welcome shows while the chat is empty: a new chat with nothing sent,
+// and nothing else (data-model "Chat emptiness").
+describe('AgentChat telling the chat whether it is empty', () => {
+  const sent = [{ id: 'm1', role: 'user', content: 'hello' }];
+
+  it('is empty in a new chat with nothing sent', async () => {
+    params.id = 'new';
+    await render();
+
+    expect(run.empty).toBe(true);
+  });
+
+  it('is not once the first message is sent', async () => {
+    params.id = 'new';
+    await render();
+    expect(run.empty).toBe(true);
+
+    chat.messages = sent;
+    await render();
+
+    expect(run.empty).toBe(false);
+  });
+
+  // The connect can empty the chat for a moment, and the list is put back.
+  it('is not when the connect empties a new chat that has messages', async () => {
+    params.id = 'new';
+    await render();
+    chat.messages = sent;
+    await render();
+
+    chat.messages = [];
+    await render();
+
+    expect(run.empty).toBe(false);
+  });
+
+  it('is not while a reopened chat loads', async () => {
+    await render();
+
+    expect(fetched['thread-1']).toHaveLength(1);
+    expect(run.empty).toBe(false);
+  });
+
+  // The page keeps the chat when the thread changes, and only the loader is new,
+  // so the welcome from /agents/new must go before the older chat's list arrives.
+  it('is not once an older chat is opened from a new one, before its list arrives', async () => {
+    params.id = 'new';
+    await render();
+    expect(run.empty).toBe(true);
+
+    params.id = 'thread-1';
+    await render();
+
+    expect(fetched['thread-1']).toHaveLength(1);
+    expect(run.empty).toBe(false);
+  });
+
+  it('is not once a reopened chat shows its messages', async () => {
+    await render();
+    await answer('thread-1', stored);
+    chat.messages = shown;
+    await render();
+
+    expect(run.empty).toBe(false);
   });
 });
 
