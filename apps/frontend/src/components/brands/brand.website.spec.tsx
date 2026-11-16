@@ -759,10 +759,13 @@ describe('the full card', () => {
         ])
       );
     }
-    // the canvas's field (.inp.lg), 44px at every pointer, the fonts' too
+    // the dashboard's field, 40px and 44px under a coarse pointer (spec 059,
+    // FR-034), the fonts' too
     for (const node of [field(), ...fields]) {
-      expect(classesOf(node)).toContain('h-[44px]');
-      expect(classesOf(node)).not.toContain('h-[40px]');
+      expect(classesOf(node)).toEqual(
+        expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+      );
+      expect(classesOf(node)).not.toContain('h-[44px]');
     }
     for (const node of logos()) {
       expect(classesOf(node)).toEqual(

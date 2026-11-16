@@ -100,6 +100,7 @@ jest.mock(
 
 import i18next from 'i18next';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+import { buttonClassName } from '@gitroom/react/form/button';
 import type { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { BrandsComponent } from '@gitroom/frontend/components/brands/brands.component';
@@ -324,6 +325,20 @@ describe('the list', () => {
     expect(mockDialogs.openNewBrand).toHaveBeenCalledTimes(1);
   });
 
+  it('draws New brand as the medium secondary button, 4px in from the list’s sides and 8px over the first row (spec 059, FR-026)', async () => {
+    const host = await render();
+    const newBrand = list(host)!.querySelector('button')!;
+
+    expect(classes(newBrand)).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ variant: 'secondary' }).split(' '),
+        'mx-[4px]',
+        'mb-[8px]',
+      ])
+    );
+    expect(newBrand.querySelector('svg')?.getAttribute('width')).toBe('16');
+  });
+
   it('lists each brand A to Z as the channel list orders brands, then No brand', async () => {
     const host = await render();
 
@@ -471,6 +486,16 @@ describe("a brand's page", () => {
     await click(row(host, 'Rawda Florist'));
     expect(button(host, 'Fill from my website')).toBeUndefined();
     expect(button(host, 'Rename')).toBeDefined();
+  });
+
+  it('gives Fill from my website and Rename 16px icons, as every text button has (spec 059, FR-026)', async () => {
+    const host = await render();
+
+    for (const label of ['Fill from my website', 'Rename']) {
+      expect(
+        button(host, label)!.querySelector('svg')?.getAttribute('width')
+      ).toBe('16');
+    }
   });
 
   it('offers no Fill from my website while the server has no web lookup (FIRECRAWL_API_KEY unset)', async () => {

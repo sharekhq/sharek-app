@@ -99,6 +99,7 @@ import {
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { BrandKit } from '@gitroom/frontend/components/brands/brand.kit';
 import { CHECKERBOARD } from '@gitroom/frontend/components/brands/brand.website';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
@@ -688,9 +689,12 @@ describe('the Fonts card', () => {
         ])
       );
       expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
-      // the canvas's field (.inp.lg), 44px at every pointer
-      expect(classes).toContain('h-[44px]');
-      expect(classes).not.toContain('h-[40px]');
+      // the dashboard's field, 40px and 44px under a coarse pointer (spec
+      // 059, FR-034)
+      expect(classes).toEqual(
+        expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+      );
+      expect(classes).not.toContain('h-[44px]');
     }
   });
 
@@ -771,7 +775,7 @@ describe('the Details for Samy card (spec 056, US3)', () => {
     }
   });
 
-  it('draws each field as the fonts are drawn: the app focus ring, the placeholder guard, 44px for a line, and About as tall as its lines', async () => {
+  it('draws each field as the fonts are drawn: the app focus ring, the placeholder guard, 40px for a line (44px under a coarse pointer), and About as tall as its lines', async () => {
     await mount(brand());
 
     for (const { label } of DETAILS) {
@@ -791,9 +795,11 @@ describe('the Details for Samy card (spec 056, US3)', () => {
       expect(classes.filter((item) => item.startsWith('focus:'))).toEqual([]);
     }
     for (const { label } of DETAILS.slice(1)) {
-      expect(classesOf(detail(label))).toContain('h-[44px]');
+      expect(classesOf(detail(label))).toEqual(
+        expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+      );
     }
-    expect(classesOf(detail('About'))).not.toContain('h-[44px]');
+    expect(classesOf(detail('About'))).not.toContain('h-[40px]');
     expect(classesOf(detail('About'))).toEqual(
       expect.arrayContaining(['py-[10px]', 'leading-[1.5]', 'resize-y'])
     );
@@ -1276,7 +1282,42 @@ describe('touch', () => {
           'focus-visible:ring-brand',
         ])
       );
-      expect(classes.some((name) => name === 'coarse:h-[44px]')).toBe(true);
+      // a text button takes it from the shared button's coarse:min-h
+      expect(
+        classes.some((name) =>
+          ['coarse:h-[44px]', 'coarse:min-h-[44px]'].includes(name)
+        )
+      ).toBe(true);
     }
+  });
+});
+
+// Spec 059 (US2 scenario 2, FR-026): the Logo card's Replace and Remove and
+// the Channels card's Add channels are the dashboard's small secondary
+// button, so side by side they share one text size and weight, and Add
+// channels' plus sits 6px from its words as every text button's icon does.
+describe('the kit’s text buttons (spec 059)', () => {
+  it('draws Replace, Remove and Add channels as the small secondary button, in one text size and weight', async () => {
+    await mount(brand({ logo: image('logo') }));
+
+    const look = buttonClassName({ variant: 'secondary', size: 'small' }).split(
+      ' '
+    );
+    const controls = [
+      button(card('Logo'), 'Replace')!,
+      button(card('Logo'), 'Remove')!,
+      button(card('Channels'), 'Add channels')!,
+    ];
+    const lettering = (control: Element) =>
+      classesOf(control)
+        .filter((name) => /^(text-\[\d+px\]|font-\[\d+\])$/.test(name))
+        .sort();
+    for (const control of controls) {
+      expect(classesOf(control)).toEqual(expect.arrayContaining(look));
+      expect(lettering(control)).toEqual(['font-[600]', 'text-[13px]']);
+    }
+    const add = controls[2];
+    expect(classesOf(add.firstElementChild)).not.toContain('gap-[8px]');
+    expect(add.querySelector('svg')?.getAttribute('width')).toBe('16');
   });
 });
