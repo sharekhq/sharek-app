@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
+import clsx from 'clsx';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 export const GoogleProvider = () => {
@@ -11,9 +13,13 @@ export const GoogleProvider = () => {
     window.location.href = link;
   }, []);
   return (
-    <div
+    <button
+      type="button"
       onClick={gotoLogin}
-      className={`cursor-pointer flex-1 bg-white h-[52px] rounded-[10px] flex justify-center items-center text-[#0E0E0E] gap-[5px]`}
+      className={clsx(
+        'flex-1',
+        buttonClassName({ variant: 'secondary', size: 'large' })
+      )}
     >
       <div>
         <svg
@@ -41,6 +47,6 @@ export const GoogleProvider = () => {
         </svg>
       </div>
       <div className="block xs:hidden">{t('google', 'Google')}</div>
-    </div>
+    </button>
   );
 };
