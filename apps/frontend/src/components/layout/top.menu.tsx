@@ -291,10 +291,10 @@ export const TopMenu: FC = () => {
   const { isGeneral, billingEnabled } = useVariables();
   return (
     <>
-      {/* Each item marks only its icon tile, so both groups take the approved
-          canvas's gaps: 8px here and 4px below, 2px under 800px tall so the
-          rail stays as tall as today. */}
-      <div className="flex flex-1 flex-col minCustom:gap-[8px] custom:gap-[2px] blurMe">
+      {/* Both groups keep their items 8px apart, 4px on a short rail:
+          railShort asks #left-menu's own height (under 800px), not the
+          window's, so an admin's rail, 60px shorter, turns short sooner. */}
+      <div className="flex flex-1 flex-col gap-[8px] railShort:gap-[4px] blurMe">
         {
           // @ts-ignore
           user?.orgId &&
@@ -327,7 +327,7 @@ export const TopMenu: FC = () => {
               ))
         }
       </div>
-      <div className="flex flex-col minCustom:gap-[4px] custom:gap-[2px] blurMe">
+      <div className="flex flex-col gap-[8px] railShort:gap-[4px] blurMe">
         {secondMenu
           .filter((f) => {
             if (f.hide) {

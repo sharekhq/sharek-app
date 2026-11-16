@@ -39,7 +39,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
   }, [label]);
 
   const className = clsx(
-    'group w-full pt-[4px] pb-[6px] px-[4px] gap-[5px] custom:py-[2px] custom:gap-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
+    'group w-full pt-[4px] pb-[6px] px-[4px] gap-[4px] railShort:py-[2px] flex flex-col font-[600] items-center justify-center rounded-[12px] transition-colors focus-visible:ring-2',
     // The mark sits on the icon's tile below, so no item has a background.
     // The current item's ring has its own token: in dark its tile is
     // pomegranate, and a pomegranate ring beside it would vanish.
@@ -53,7 +53,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
     <>
       <div
         className={clsx(
-          'flex items-center justify-center w-[40px] h-[40px] custom:w-[36px] custom:h-[36px] rounded-[12px] transition-colors',
+          'flex items-center justify-center w-[40px] h-[40px] railShort:w-[36px] railShort:h-[36px] rounded-[12px] transition-colors',
           isActive && 'bg-selectedBg text-selectedText'
         )}
       >
