@@ -309,7 +309,7 @@ export const ChatsPanel: FC = () => {
       {/* The header, New chat and the search stay put while the chats scroll
           under them, with the top padding SplitPanel leaves out (C28). Past
           its 8px, each takes the rest of the board's inset itself. */}
-      <div className="sticky top-0 z-10 bg-newBgColorInner flex flex-col gap-[8px] pt-[20px] pb-[4px]">
+      <div className="sticky top-0 z-10 bg-newBgColorInner flex flex-col gap-[8px] pt-[12px] mobile:pt-[20px] pb-[4px]">
         <div className="flex items-center gap-[4px] ps-[8px] pe-[2px]">
           <h2 className="text-[15px] mobile:text-[17px] font-[600] text-ink">
             {t('chats', 'Chats')}
