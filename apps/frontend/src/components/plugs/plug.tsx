@@ -210,7 +210,7 @@ export const PlugItem: FC<{
     <div
       onClick={() => addPlug(data)}
       key={plug.title}
-      className="w-full h-full min-h-[100px] rounded-[14px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card cursor-pointer"
+      className="w-full h-full min-h-[100px] rounded-[12px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card cursor-pointer"
     >
       <div key={plug.title} className="p-[20px] h-full flex flex-col flex-1 gap-[15px]">
         <div className="flex">
@@ -230,7 +230,7 @@ export const PlugItem: FC<{
         <div className="flex-1">
           {t(deriveTranslationKey('plug', plug.description), plug.description)}
         </div>
-        <Button variant="secondary">
+        <Button variant="secondary" size="small">
           {!data ? t('set_plug', 'Set Plug') : t('edit_plug', 'Edit Plug')}
         </Button>
       </div>

@@ -110,7 +110,7 @@ export const Plugs = () => {
   return (
     <div className="flex flex-col gap-[20px]">
       <div className="flex flex-col">
-        <h3 className="text-[20px]">{t('plugs', 'Plugs')}</h3>
+        <h3 className="text-[20px] font-[600]">{t('plugs', 'Plugs')}</h3>
       </div>
       {!sortedIntegrations.length ? (
         <EmptyState

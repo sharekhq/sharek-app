@@ -144,7 +144,7 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
               : addApiKey(p.title, p.identifier)
           }
           key={p.identifier}
-          className="w-full h-full p-[20px] min-h-[100px] text-[14px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card rounded-[14px] text-textColor relative flex flex-col gap-[15px] cursor-pointer"
+          className="w-full h-full p-[20px] min-h-[100px] text-[14px] bg-surface border border-line shadow-soft transition-shadow hover:shadow-card rounded-[12px] text-textColor relative flex flex-col gap-[15px] cursor-pointer"
         >
           <div>
             <img
@@ -155,7 +155,7 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
           <div className="whitespace-pre-wrap text-left text-lg">{p.title}</div>
           <div className="whitespace-pre-wrap text-left">{p.description}</div>
           <div className="w-full flex">
-            <Button variant="secondary" className="w-full">Add</Button>
+            <Button variant="secondary" size="small" className="w-full">Add</Button>
           </div>
         </div>
       ))}
