@@ -261,11 +261,7 @@ export const CreateThumbnail: FC<{
       )}
 
       <div className="flex gap-[12px] !mt-[20px]">
-        <Button
-          variant="secondary"
-          className="flex-1"
-          onClick={onBack}
-        >
+        <Button variant="secondary" className="flex-1" onClick={onBack}>
           <svg
             width="16"
             height="16"
