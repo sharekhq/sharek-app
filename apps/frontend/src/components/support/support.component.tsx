@@ -14,6 +14,7 @@ import { Textarea } from '@gitroom/react/form/textarea';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import {
+  CARD_PADDING,
   PageScroll,
   PAGE_PADDING,
 } from '@gitroom/frontend/components/ui/page.scroll';
@@ -437,7 +438,13 @@ export const SupportComponent = () => {
             is what Plugs renders at and what Billing's feature list asks for by
             name, so the panel reads as page prose rather than as small print.
             Anything below that makes this the only such block in the product. */}
-        <aside className="bg-panel rounded-[12px] p-[20px] flex flex-col gap-[18px] mobile:order-1">
+        <aside
+          className={clsx(
+            'bg-panel rounded-[12px]',
+            CARD_PADDING,
+            'flex flex-col gap-[18px] mobile:order-1'
+          )}
+        >
           {/* The sender cannot change who this comes from, so it is shown: a
               reply landing at an unexpected address is the surprise this avoids. */}
           <div className="flex flex-col gap-[12px]">

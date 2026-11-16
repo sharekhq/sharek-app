@@ -150,6 +150,17 @@ describe('the plug card', () => {
       ])
     );
   });
+
+  // A card of text and controls is inset 16px on phones and 20px above
+  // (SC-006, decisions D31).
+  it('insets its content 20px, 16px on phones', () => {
+    const container = mount(<PlugItem plug={PLUG} addPlug={() => {}} />);
+    const content = container.querySelector('button')!.parentElement!;
+
+    expect(content.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+    );
+  });
 });
 
 describe('the plug modal', () => {

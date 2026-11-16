@@ -110,11 +110,15 @@ export const BrandLogo: FC<{
   const [cors, setCors] = useState(() => !refused.has(src));
   const [tone, setTone] = useState<LogoTone>(() => tones.get(src) ?? null);
 
+  // A mark mounted beside another of the same logo takes the tone the first
+  // to load read, rather than reading the pixels again.
   const read = (event: SyntheticEvent<HTMLImageElement>) => {
-    if (!cors || tones.has(src)) {
+    if (!cors) {
       return;
     }
-    const found = readTone(event.currentTarget);
+    const found = tones.has(src)
+      ? tones.get(src) ?? null
+      : readTone(event.currentTarget);
     tones.set(src, found);
     setTone(found);
   };

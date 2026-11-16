@@ -362,6 +362,33 @@ describe('the full card', () => {
     expect(classes).not.toContain('p-[16px]');
   });
 
+  // Boxes inside a card round at 8px, as the kit's own tiles and swatches do
+  // (spec 060, FR-023, D31).
+  it('rounds each logo choice at 8px', async () => {
+    await mountCard();
+    await lookUp();
+
+    expect(logos()).toHaveLength(2);
+    for (const node of logos()) {
+      expect(classesOf(node)).toContain('rounded-[8px]');
+      expect(classesOf(node)).not.toContain('rounded-[10px]');
+    }
+  });
+
+  it('rounds each colour choice and its swatch at 8px', async () => {
+    await mountCard();
+    await lookUp();
+
+    expect(colours().length).toBeGreaterThan(0);
+    for (const node of colours()) {
+      const swatch = node.querySelector('span')!;
+      for (const box of [node, swatch]) {
+        expect(classesOf(box)).toContain('rounded-[8px]');
+        expect(classesOf(box)).not.toContain('rounded-[10px]');
+      }
+    }
+  });
+
   // The server looks a bare domain up on https:// (BrandWebsiteDto), so the
   // card sends the address as typed, trimmed.
   it('sends the address as typed, trimmed, a bare domain or one with its own scheme; Enter looks up too', async () => {

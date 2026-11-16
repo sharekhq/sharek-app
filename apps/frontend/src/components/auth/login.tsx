@@ -86,7 +86,9 @@ export function Login() {
               <div
                 className={`absolute z-[1] justify-center items-center w-full start-0 -top-[4px] flex`}
               >
-                <div className="px-[16px]">{t('or', 'or')}</div>
+                <div className="px-[16px] bg-newBgColorInner">
+                  {t('or', 'or')}
+                </div>
               </div>
             </div>
             <div className="flex flex-col gap-[12px]">

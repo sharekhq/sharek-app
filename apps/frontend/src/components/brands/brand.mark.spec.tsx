@@ -366,6 +366,32 @@ describe('BrandMark', () => {
     );
   });
 
+  it('draws two marks of a logo mounted together on its tile, reading it once', () => {
+    stubContext(sample(pixels([[300, WHITE]])));
+    const value = withLogo('/logo-together.png');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    act(() => {
+      root.render(
+        <>
+          <BrandMark brand={value} className={MARK} />
+          <BrandMark brand={value} className={MARK} />
+        </>
+      );
+    });
+    const [first, second] = Array.from(host.querySelectorAll('img'));
+
+    fire(first, 'load');
+    fire(second, 'load');
+
+    const tile = painted(LOGO_TILE_DARK).backgroundColor;
+    expect(first.style.backgroundColor).toBe(tile);
+    expect(second.style.backgroundColor).toBe(tile);
+    expect(canvas.getContext).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the brand's initial while it has no live logo", () => {
     const none = mount(brand('b2', 'noor Dental'));
     const missing = mount(

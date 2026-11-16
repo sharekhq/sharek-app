@@ -120,7 +120,7 @@ const Missing: FC<{ className: string; children?: ReactNode }> = ({
   return (
     <div
       className={clsx(
-        'flex flex-col items-center justify-center gap-[8px] p-[10px] rounded-[10px] border-[1.5px] border-dashed border-error bg-[color-mix(in_srgb,var(--error)_6%,var(--surface))] text-center',
+        'flex flex-col items-center justify-center gap-[8px] p-[10px] rounded-[8px] border-[1.5px] border-dashed border-error bg-[color-mix(in_srgb,var(--error)_6%,var(--surface))] text-center',
         className
       )}
     >
@@ -338,7 +338,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
               // panel: the muted "No logo yet" can't be read on that grey.
               <div
                 className={clsx(
-                  'flex items-center justify-center h-[116px] rounded-[10px]',
+                  'flex items-center justify-center h-[116px] rounded-[8px]',
                   !logo?.path && 'bg-panel'
                 )}
                 style={logo?.path ? CHECKERBOARD : undefined}
@@ -404,7 +404,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
                   <span className="relative flex">
                     <span
                       aria-hidden="true"
-                      className="w-[44px] h-[44px] rounded-[10px] ring-1 ring-inset ring-line"
+                      className="w-[44px] h-[44px] rounded-[8px] ring-1 ring-inset ring-line"
                       style={{ backgroundColor: code }}
                     />
                     <button
@@ -464,7 +464,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
               isLive(example) ? (
                 <div
                   key={example.id}
-                  className="relative aspect-square rounded-[10px] overflow-hidden border border-line bg-panel"
+                  className="relative aspect-square rounded-[8px] overflow-hidden border border-line bg-panel"
                 >
                   <SafeImage
                     src={mediaDirectory.set(example.path)}
@@ -491,7 +491,7 @@ export const BrandKit: FC<{ brand: Brand }> = ({ brand }) => {
                 type="button"
                 onClick={addExamples}
                 className={clsx(
-                  'aspect-square flex flex-col items-center justify-center gap-[6px] rounded-[10px] border-[1.5px] border-dashed border-line text-muted hover:text-ink hover:border-inkSoft text-[13px] font-[600] cursor-pointer transition-colors',
+                  'aspect-square flex flex-col items-center justify-center gap-[6px] rounded-[8px] border-[1.5px] border-dashed border-line text-muted hover:text-ink hover:border-inkSoft text-[13px] font-[600] cursor-pointer transition-colors',
                   FOCUS_RING
                 )}
               >
