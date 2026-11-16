@@ -269,6 +269,7 @@ describe("Sharek's style", () => {
     ).toEqual([]);
   });
 
+  // The card's content sits 20px in, 16px at 1025px and below (spec 060 FR-022).
   it("draws the history on the app's card, with its column header a plain row", async () => {
     mockInvoices = [invoice(4500)];
     const host = await render(<BillingHistory />);
@@ -278,10 +279,18 @@ describe("Sharek's style", () => {
     const classes = Array.from(host.querySelectorAll('*')).map(
       (el) => el.getAttribute('class') || ''
     );
+    const card = (host.firstElementChild as HTMLElement).className.split(/\s+/);
 
-    expect(
-      (host.firstElementChild as HTMLElement).className.split(/\s+/)
-    ).toEqual(expect.arrayContaining(['rounded-[12px]', 'shadow-soft']));
+    expect(card).toEqual(
+      expect.arrayContaining([
+        'rounded-[12px]',
+        'shadow-soft',
+        'p-[20px]',
+        'mobile:p-[16px]',
+      ])
+    );
+    expect(card).not.toContain('p-[24px]');
+    expect(card).not.toContain('phone:p-[16px]');
     expect(header.className.split(/\s+/)).toContain('border-b');
     expect(header.className).not.toMatch(/bg-newTableHeader|rounded-/);
     expect(classes.filter((c) => c.includes('previewShadow'))).toEqual([]);
@@ -341,7 +350,8 @@ describe("Sharek's style", () => {
     expect(classes.filter((c) => /brandSoft|brandText/.test(c))).toEqual([]);
   });
 
-  it('uses no purple, stock palette or opacity-on-variable class, and no upstream mobile: class', async () => {
+  // The card's padding is the dashboard's CARD_PADDING, whose 16px step is mobile: (spec 060 FR-022).
+  it('uses no purple, stock palette or opacity-on-variable class, and no upstream mobile: class but the card padding', async () => {
     mockInvoices = [invoice(4500, 'paid'), invoice(4500, 'failed')];
     const host = await render(<BillingHistory />);
     const classes = Array.from(host.querySelectorAll('*')).map(
@@ -350,7 +360,7 @@ describe("Sharek's style", () => {
 
     expect(
       classes.filter((c) =>
-        /#[0-9a-f]{6}|\b(bg|text|border)-(red|green|amber|purple)-\d{3}|(brand|success|warning|error)\/\d+|\bmobile:/i.test(
+        /#[0-9a-f]{6}|\b(bg|text|border)-(red|green|amber|purple)-\d{3}|(brand|success|warning|error)\/\d+|\bmobile:(?!p-\[16px\])/i.test(
           c
         )
       )

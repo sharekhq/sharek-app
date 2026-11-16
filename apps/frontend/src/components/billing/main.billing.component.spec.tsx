@@ -422,13 +422,19 @@ describe('the plan cards', () => {
     );
   });
 
-  // Every card on the dashboard has 12px corners (FR-035).
+  // Every card on the dashboard has 12px corners (FR-035), its content 20px in, 16px at 1025px
+  // and below (spec 060 FR-022).
   it('rounds every plan card to 12px corners', async () => {
     const host = await render(subscription('TEAM'));
 
     for (const name of ['Standard', 'Team', 'Pro', 'Ultimate']) {
       expect(own(card(host, name))).toContain('rounded-[12px]');
       expect(own(card(host, name))).not.toContain('rounded-[14px]');
+      expect(own(card(host, name))).toEqual(
+        expect.arrayContaining(['p-[20px]', 'mobile:p-[16px]'])
+      );
+      expect(own(card(host, name))).not.toContain('p-[24px]');
+      expect(own(card(host, name))).not.toContain('phone:p-[20px]');
     }
   });
 
