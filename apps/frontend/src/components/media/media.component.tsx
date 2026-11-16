@@ -702,9 +702,8 @@ export const MediaBox: FC<{
               onClick={deleteSelection}
               disabled={deleting}
               className="ms-auto"
-              innerClassName="gap-[8px]"
             >
-              <TrashIcon size={18} />
+              <TrashIcon size={16} />
               {t('delete', 'Delete')}
             </Button>
           </div>
@@ -889,11 +888,8 @@ export const MediaBox: FC<{
                         {t('media_show_all', 'Show all files')}
                       </Button>
                     )}
-                    <Button
-                      onClick={() => uploaderRef?.current?.click()}
-                      innerClassName="gap-[8px]"
-                    >
-                      <PlusIcon size={14} />
+                    <Button onClick={() => uploaderRef?.current?.click()}>
+                      <PlusIcon size={16} />
                       {t('upload', 'Upload')}
                     </Button>
                     <ThirdPartyMediaLibrary onImported={() => refresh()} />
