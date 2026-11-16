@@ -107,7 +107,7 @@ export const SettingsPopup: FC<{
       arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
     }
     if (user?.tier?.public_api && isGeneral && showLogout) {
-      arr.push({ tab: 'api', label: t('developers', 'Developers') });
+      arr.push({ tab: 'api', label: t('sharek_api', 'Sharek API') });
     }
     if (showThirdParty) {
       arr.push({ tab: 'integrations', label: t('integrations', 'Integrations') });

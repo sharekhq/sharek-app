@@ -82,7 +82,7 @@ const MenuRow: FC<{
 
 /**
  * Settings' menu: each tab of `list` in three groups, Global settings and
- * Teams with no label, then Posting, then Connections, and under them Log out,
+ * Teams with no label, then Posting, then Developers, and under them Log out,
  * the lifetime plan and the version. Which tabs the list holds (role, plan,
  * flags) stays with the page. A side rail in SplitPanel above 1025px; at
  * 1025px and below one sideways strip with no group labels, at the top of
@@ -105,11 +105,11 @@ export const SettingsMenu: FC<{
     { tabs: ['global_settings', 'teams'] },
     {
       label: t('settings_group_posting', 'Posting'),
-      tabs: ['autopost', 'sets', 'signatures'],
+      tabs: ['autopost', 'plugs', 'sets', 'signatures'],
     },
     {
-      label: t('settings_group_connections', 'Connections'),
-      tabs: ['api', 'webhooks', 'plugs', 'apps', 'integrations'],
+      label: t('developers', 'Developers'),
+      tabs: ['api', 'webhooks', 'apps', 'integrations'],
     },
   ];
 

@@ -920,7 +920,7 @@ export const PublicComponent = () => {
   return (
     <div className="flex flex-col gap-[20px]">
       <h3 className="text-[20px] font-[600]">
-        {t('developers', 'Developers')}
+        {t('sharek_api', 'Sharek API')}
         {currentOrg?.name ? ` - ${currentOrg.name}` : ''}
       </h3>
       <PublicApiContent />

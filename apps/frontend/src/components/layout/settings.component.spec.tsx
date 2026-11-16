@@ -229,7 +229,6 @@ describe('the Settings tabs', () => {
     expect(labels(host)).not.toContain('Agents / Dev');
     expect(labels(host)).not.toContain('Agents');
     expect(mockAsked).toContain('sharek_api');
-    expect(mockAsked).not.toContain('developers');
     expect(mockAsked).not.toContain('agents_dev');
     expect(mockAsked).not.toContain('agents');
   });
