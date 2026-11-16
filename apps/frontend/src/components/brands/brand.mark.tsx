@@ -1,16 +1,21 @@
 'use client';
 
-import { FC, SyntheticEvent, useState } from 'react';
+import { CSSProperties, FC, SyntheticEvent, useState } from 'react';
 import clsx from 'clsx';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import {
   Brand,
   liveLogo,
 } from '@gitroom/frontend/components/brands/use.brands';
-import {
-  LOGO_TILE_DARK,
-  LOGO_TILE_LIGHT,
-} from '@gitroom/frontend/components/brands/brand.website';
+
+// The small tile behind a light or a dark logo, read from the logo's own
+// pixels. Fixed, the same in both themes, as brand.website.tsx's CHECKERBOARD
+// is behind the kit's big tile.
+export const LOGO_TILE_DARK: CSSProperties = { backgroundColor: '#2A2326' };
+export const LOGO_TILE_LIGHT: CSSProperties = {
+  backgroundColor: '#F7F5F4',
+  boxShadow: 'inset 0 0 0 1px rgba(26, 20, 19, 0.08)',
+};
 
 export type LogoTone = 'light' | 'dark' | null;
 

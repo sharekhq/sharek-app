@@ -2,13 +2,11 @@ import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import {
   BrandMark,
+  LOGO_TILE_DARK,
+  LOGO_TILE_LIGHT,
   logoTone,
 } from '@gitroom/frontend/components/brands/brand.mark';
 import { Brand } from '@gitroom/frontend/components/brands/use.brands';
-import {
-  LOGO_TILE_DARK,
-  LOGO_TILE_LIGHT,
-} from '@gitroom/frontend/components/brands/brand.website';
 
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
