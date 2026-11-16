@@ -13,6 +13,7 @@ import React, {
 import clsx from 'clsx';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -400,8 +401,18 @@ export const AttachmentsTray: FC = () => {
 
 // Not copilotKitInputControlButton: `.agent` paints that class's last child as
 // Send, and its row needs these to size to their labels at every width.
-const TOOL_BUTTON =
-  'inline-flex flex-none items-center gap-[6px] h-[32px] coarse:h-[44px] phone:h-[44px] px-[10px] phone:px-[12px] rounded-[8px] border text-[12px] phone:text-[13px] font-[600] whitespace-nowrap cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand [@media(max-width:400px)]:px-[8px] [@media(max-width:400px)]:gap-[4px] [@media(max-width:400px)]:text-[12px]';
+const TOOL_STEPS =
+  'flex-none whitespace-nowrap phone:h-[44px] [@media(max-width:400px)]:px-[8px] [@media(max-width:400px)]:gap-[4px] [@media(max-width:400px)]:text-[12px]';
+const TOOL_BUTTON = clsx(
+  buttonClassName({ variant: 'secondary', size: 'small' }),
+  TOOL_STEPS
+);
+// AI Image keeps its AI tint at the small size. Tailwind emits the secondary
+// look's bg-quiet and text-ink after the tint's classes, so it draws its own.
+const AI_TOOL_BUTTON = clsx(
+  'flex items-center justify-center gap-[6px] h-[32px] coarse:min-h-[44px] px-[12px] rounded-[8px] border border-transparent bg-aiSoft text-aiAccent hover:border-aiAccent text-[13px] font-[600] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand',
+  TOOL_STEPS
+);
 const TOOL_ICON =
   'flex-none w-[16px] h-[16px] phone:w-[20px] phone:h-[20px] [@media(max-width:340px)]:!hidden';
 
@@ -430,14 +441,7 @@ export const AttachmentTools: FC<{ value: string }> = ({ value }) => {
     // Send, and a growing toolbar would split the free space with it. min-w-0
     // lets it give way when the row is narrower still.
     <div className="flex items-center gap-[6px] min-w-0">
-      <button
-        type="button"
-        onClick={pick}
-        className={clsx(
-          TOOL_BUTTON,
-          'bg-surface border-line text-ink hover:border-inkSoft'
-        )}
-      >
+      <button type="button" onClick={pick} className={TOOL_BUTTON}>
         <InsertMediaIcon className={TOOL_ICON} />
         <span>{t('insert_media', 'Insert Media')}</span>
       </button>
@@ -450,10 +454,7 @@ export const AttachmentTools: FC<{ value: string }> = ({ value }) => {
               type="button"
               onClick={open}
               disabled={loading}
-              className={clsx(
-                TOOL_BUTTON,
-                'bg-aiSoft border-transparent text-aiAccent hover:border-aiAccent'
-              )}
+              className={AI_TOOL_BUTTON}
             >
               {loading ? (
                 <Loading
