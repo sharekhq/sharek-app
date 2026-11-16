@@ -307,7 +307,7 @@ export const MediaMonth: FC<{
   };
   return (
     <section className="group/month mb-[10px]">
-      <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] bg-newBgColorInner">
+      <div className="sticky top-0 z-[110] flex items-baseline gap-[10px] py-[10px] mobile:px-[6px] bg-newBgColorInner">
         <h2 className="text-[16px] font-[600]">{label}</h2>
         {data ? (
           <span className="text-[13px] text-muted">

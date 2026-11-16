@@ -2,8 +2,10 @@
 
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import clsx from 'clsx';
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { MediaLibraryQuery } from '@gitroom/frontend/components/media/use.media.library';
+import { PAGE_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 export const MediaLayoutComponent = () => {
   const searchParams = useSearchParams();
@@ -53,7 +55,12 @@ export const MediaLayoutComponent = () => {
   // the search field and all. The three sibling page roots took this in 019;
   // this one was missed.
   return (
-    <div className="bg-newBgColorInner p-[20px] flex flex-1 min-w-0 flex-col gap-[15px] transition-all">
+    <div
+      className={clsx(
+        'bg-newBgColorInner flex flex-1 min-w-0 flex-col gap-[15px] transition-all',
+        PAGE_PADDING
+      )}
+    >
       <MediaBox
         setMedia={() => {}}
         closeModal={() => {}}
