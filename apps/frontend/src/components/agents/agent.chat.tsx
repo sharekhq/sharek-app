@@ -35,6 +35,7 @@ import {
   AttachmentTools,
   PlayBadge,
   useAttachments,
+  useSendWithAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
 import {
   CardMayWaitContext,
@@ -67,7 +68,6 @@ import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
-import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import {
   ChannelSummary,
   ChatHeader,
@@ -391,7 +391,8 @@ const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
   );
 };
 const NewInput: FC<InputProps> = (props) => {
-  const { attached, uploading, addFiles, clear } = useAttachments();
+  const { uploading, addFiles } = useAttachments();
+  const sendWithAttachments = useSendWithAttachments(props.onSend);
   const [value, setValue] = useState('');
   return (
     <>
@@ -417,22 +418,8 @@ const NewInput: FC<InputProps> = (props) => {
         uploading={uploading}
         onPasteFiles={addFiles}
         onSend={(text) => {
-          const send = props.onSend(
-            text +
-              (attached.length > 0
-                ? '\n[--Media--]' +
-                  attached
-                    .map((m) =>
-                      hasExtension(m.path, 'mp4')
-                        ? `Video: ${m.path}`
-                        : `Image: ${m.path}`
-                    )
-                    .join('\n') +
-                  '\n[--Media--]'
-                : '')
-          );
+          const send = sendWithAttachments(text);
           setValue('');
-          clear();
           return send;
         }}
       />

@@ -71,6 +71,33 @@ const AttachmentsContext = createContext<{
 export const useAttachments = () => useContext(AttachmentsContext);
 
 /**
+ * Sends a message with what's attached written after its text, in the format
+ * stored threads and the model read, then empties the box. Typed text and
+ * Samy's ideas both go through it, so an idea carries the same attachments.
+ */
+export const useSendWithAttachments = <T,>(onSend: (text: string) => T) => {
+  const { attached, clear } = useAttachments();
+  return (text: string) => {
+    const send = onSend(
+      text +
+        (attached.length > 0
+          ? '\n[--Media--]' +
+            attached
+              .map((m) =>
+                hasExtension(m.path, 'mp4')
+                  ? `Video: ${m.path}`
+                  : `Image: ${m.path}`
+              )
+              .join('\n') +
+            '\n[--Media--]'
+          : '')
+    );
+    clear();
+    return send;
+  };
+};
+
+/**
  * What's attached to the message being written. It sits above the chat, because
  * the drop zone wraps the whole chat column and the box sits inside it.
  *

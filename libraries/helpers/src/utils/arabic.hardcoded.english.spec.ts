@@ -142,19 +142,19 @@ const EXEMPT: readonly Exemption[] = [
   },
   // --- confirmed during 029's T012, each traced in audit/confirmation-notes.md ---
   {
-    file: 'components/agents/agent.chat.tsx',
+    file: 'components/agents/agent.attachments.tsx',
     text: '[--Media--]',
     reason:
       'A fence in the message text sent to the agent, marking where the attachment list starts and ends. The model parses it; nobody reads it. Translating it would break the parse.',
   },
   {
-    file: 'components/agents/agent.chat.tsx',
+    file: 'components/agents/agent.attachments.tsx',
     text: 'Video: {{path}}',
     reason:
       'Labels one attachment path inside the [--Media--] fence above. Part of the same agent-facing payload, not screen text.',
   },
   {
-    file: 'components/agents/agent.chat.tsx',
+    file: 'components/agents/agent.attachments.tsx',
     text: 'Image: {{path}}',
     reason: 'The image half of the same agent-facing attachment payload.',
   },
