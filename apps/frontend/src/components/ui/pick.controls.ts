@@ -21,7 +21,7 @@ import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel'
  * its look comes from here.
  */
 export const SWITCH_GROUP =
-  'inline-flex shrink-0 gap-[2px] p-[3px] border border-line rounded-[8px]';
+  'inline-flex items-center shrink-0 gap-[2px] p-[3px] border border-line rounded-[8px]';
 export const SWITCH_OPTION = clsx(
   'inline-flex items-center justify-center h-[30px] coarse:min-h-[44px] px-[12px] rounded-[6px] text-[13px] whitespace-nowrap cursor-pointer transition-colors',
   FOCUS_RING
