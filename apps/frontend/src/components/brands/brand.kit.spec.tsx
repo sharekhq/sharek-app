@@ -411,6 +411,57 @@ describe('a brand kit', () => {
   });
 });
 
+// Boxes inside a card round at 8px, the card's own corners staying its own
+// (spec 060, FR-023, D31).
+describe('the kit’s inner boxes', () => {
+  const roundsAt8 = (node: Element) => {
+    const classes = classesOf(node);
+    expect(classes).toContain('rounded-[8px]');
+    expect(classes).not.toContain('rounded-[10px]');
+  };
+
+  it('rounds the logo tile at 8px, with a logo, with none and with one deleted from Media', async () => {
+    await mount(brand({ logo: image('logo') }));
+    roundsAt8(card('Logo').querySelector('img')!.parentElement!);
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    document.body.innerHTML = '';
+
+    await mount(brand());
+    roundsAt8(
+      Array.from(card('Logo').querySelectorAll('span')).find(
+        (node) => node.textContent === 'No logo yet'
+      )!.parentElement!
+    );
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    document.body.innerHTML = '';
+
+    await mount(brand({ logo: image('logo', true) }));
+    roundsAt8(card('Logo').querySelector('.border-error')!);
+  });
+
+  it('rounds each colour swatch at 8px', async () => {
+    await mount(brand({ colours: ['#3B2417'] }));
+
+    roundsAt8(
+      button(card('Colours'), 'Remove colour #3B2417')!.previousElementSibling!
+    );
+  });
+
+  it('rounds each example tile at 8px: an image, one deleted from Media, and the Add tile beside them', async () => {
+    await mount(brand({ examples: [image('e1'), image('e2', true)] }));
+
+    roundsAt8(card('Example posts').querySelector('img')!.parentElement!);
+    roundsAt8(button(card('Example posts'), 'Replace')!.parentElement!);
+    roundsAt8(button(card('Example posts'), 'Add')!);
+  });
+});
+
 describe('the Logo card', () => {
   it('with no logo says so and offers Upload logo, which opens the Media library for one image', async () => {
     await mount(brand());
