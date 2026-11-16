@@ -84,7 +84,7 @@ export const ApiModal: FC<{
             <Input label="API Key" name="api" />
           </div>
           <div>
-            <Button loading={loading} type="submit">
+            <Button loading={loading} type="submit" size="large">
               {t('add_integration', 'Add Integration')}
             </Button>
           </div>

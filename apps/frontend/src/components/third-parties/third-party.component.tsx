@@ -8,6 +8,8 @@ import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import clsx from 'clsx';
+import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 
 export const ThirdPartyMenuComponent: FC<{
   reload: () => void;
@@ -122,7 +124,12 @@ export const ThirdPartyComponent = () => {
         </h3>
       </div>
       {!isLoading && (
-        <div className="bg-sixth border-fifth border rounded-[12px] p-[24px]">
+        <div
+          className={clsx(
+            'bg-sixth border-fifth border rounded-[12px]',
+            CARD_PADDING
+          )}
+        >
           {!data?.length ? (
             <div className="text-muted">No Integrations Yet</div>
           ) : (
