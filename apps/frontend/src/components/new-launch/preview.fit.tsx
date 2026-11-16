@@ -31,8 +31,9 @@ export const fitScale = (room: number, natural: number) =>
  * a scale of 1.
  *
  * At 1025px and below, or before the room is measured, the boxes keep their
- * places with no sizes and no transform and the content box stays in the
- * flow, so the preview is today's, full width. The boxes are never swapped
+ * places with no sizes, no transform and none of them positioned, so the
+ * preview is today's, full width, and one that fills its container fills the
+ * column rather than a box with no height. The boxes are never swapped
  * out: `useMediaQuery` starts false and flips after mounting, and a swap
  * would mount the preview and every provider form inside it again.
  */
@@ -47,11 +48,15 @@ export const PreviewFit: FC<{ children: ReactNode }> = ({ children }) => {
     const contentBox = content.current;
     if (!roomBox || !contentBox) return;
 
-    const measure = () =>
-      setSize({
+    const measure = () => {
+      const next = {
         room: roomBox.clientHeight,
         natural: contentBox.offsetHeight,
-      });
+      };
+      setSize((prev) =>
+        prev.room === next.room && prev.natural === next.natural ? prev : next
+      );
+    };
     measure();
 
     const observer = new ResizeObserver(measure);
@@ -67,7 +72,7 @@ export const PreviewFit: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <div ref={room} className="h-full">
       <div
-        className="relative mx-auto"
+        className={clsx(fits && 'relative', 'mx-auto')}
         style={
           fits
             ? {
