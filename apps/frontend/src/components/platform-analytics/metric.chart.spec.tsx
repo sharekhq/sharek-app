@@ -305,6 +305,38 @@ describe('MetricChart', () => {
     expect(y.ticks.callback(500)).toBe('500');
   });
 
+  // A metric counted in whole things labels its value axis with whole numbers
+  // only, never 0.5 on a short range (FR-019). The series comes straight from
+  // each provider, so a total can arrive as a numeric string, which counts as
+  // the number it spells.
+  it.each<[string, number[]]>([
+    ['whole numbers', [0, 1, 2, 1]],
+    ['all zeros', [0, 0, 0]],
+    [
+      'whole numbers sent as numeric strings',
+      ['12', '3', '0'] as unknown as number[],
+    ],
+  ])(
+    'labels the value axis with whole numbers only, for %s',
+    async (_, totals) => {
+      await mount(days(totals));
+      const { y } = drawn().config.options.scales;
+
+      expect(y.ticks.precision).toBe(0);
+      // the compact formatter is the same
+      expect(y.ticks.callback(12400)).toBe('12.4K');
+      expect(y.ticks.callback(3)).toBe('3');
+    }
+  );
+
+  it("leaves the value axis chart.js's own steps for a series with a fraction", async () => {
+    await mount(days([0.5, 1, 2.25]));
+    const { y } = drawn().config.options.scales;
+
+    expect(y.ticks.precision).toBeUndefined();
+    expect(y.ticks.callback(12400)).toBe('12.4K');
+  });
+
   it.each([
     ['dark', 'rgba(255,255,255,0.14)', '#AEA09D'],
     ['light', '#CFC9C6', '#6F635F'],
