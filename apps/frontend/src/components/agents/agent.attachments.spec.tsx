@@ -1,4 +1,4 @@
-import { act, ReactNode } from 'react';
+import { act, ReactNode, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // What's attached to a Samy message before it's sent: the upload queue, the tiles
@@ -641,8 +641,11 @@ describe('sending a message', () => {
   const RECEIPT = { id: 'message-1' };
   const onSend = jest.fn<typeof RECEIPT, [string]>(() => RECEIPT);
   let send: (text: string) => typeof RECEIPT;
-  const Sender = () => {
-    send = useSendWithAttachments(onSend);
+  const Sender = (): null => {
+    const sendNow = useSendWithAttachments(onSend);
+    useEffect(() => {
+      send = sendNow;
+    });
     return null;
   };
 
