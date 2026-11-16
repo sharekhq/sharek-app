@@ -18,6 +18,7 @@ import {
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
+import { GROUP_LABEL } from '@gitroom/frontend/components/ui/split.panel';
 import {
   CloseIcon,
   PencilIcon,
@@ -371,10 +372,7 @@ export const ChatsPanel: FC = () => {
       </div>
       {GROUPS.filter((group) => grouped[group]).map((group) => (
         <div key={group} role="group" aria-label={names[group]}>
-          <div
-            aria-hidden="true"
-            className="px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted"
-          >
+          <div aria-hidden="true" className={GROUP_LABEL}>
             {names[group]}
           </div>
           {grouped[group].map((chat) => (

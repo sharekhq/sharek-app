@@ -18,7 +18,10 @@ import {
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
-import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import {
+  GROUP_LABEL,
+  SplitPanel,
+} from '@gitroom/frontend/components/ui/split.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import {
   PencilIcon,
@@ -141,10 +144,7 @@ const BrandsList: FC<{
         />
       ))}
       <div role="group" aria-label={notInABrand} className="flex flex-col">
-        <div
-          aria-hidden="true"
-          className="px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted"
-        >
+        <div aria-hidden="true" className={GROUP_LABEL}>
           {notInABrand}
         </div>
         <ListRow
