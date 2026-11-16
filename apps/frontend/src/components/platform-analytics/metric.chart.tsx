@@ -133,6 +133,13 @@ export const MetricChart: FC<{
               color: tooltip.bodyColor,
               font: { family, size: 11 },
               maxTicksLimit: 5,
+              // Counts step in whole numbers, never 0.5 on a short range; a
+              // provider's total can arrive as a numeric string
+              precision: data.every((point) =>
+                Number.isInteger(Number(point.total))
+              )
+                ? 0
+                : undefined,
               callback: (tick) => format.thousands.format(Number(tick)),
             },
           },
