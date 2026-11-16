@@ -161,4 +161,16 @@ describe('the timezone setting', () => {
       'clock_format_24:24 hours',
     ]);
   });
+
+  // A card's corners are 12px with a 1px line, on Settings as on every other
+  // page (FR-035).
+  it('sits in a 12px card', async () => {
+    const card = (await render(<MetricComponent />))
+      .firstElementChild as HTMLElement;
+
+    expect(card.className.split(' ')).toEqual(
+      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+    );
+    expect(card.className).not.toContain('rounded-[4px]');
+  });
 });

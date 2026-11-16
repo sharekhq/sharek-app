@@ -129,6 +129,15 @@ describe('the Plugs tab', () => {
     expect(chips(host)[0].parentElement!.className).toContain('flex flex-wrap');
   });
 
+  // A panel heading is 20px semibold, on Settings as on every other page (FR-035).
+  it('heads the tab at 20px semibold', async () => {
+    const heading = (await plugs()).querySelector('h3')!;
+
+    expect(heading.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
+  });
+
   it('opens on the first channel and hands its plugs to the cards', async () => {
     expect(cardsFor(await plugs())).toBe('b');
   });

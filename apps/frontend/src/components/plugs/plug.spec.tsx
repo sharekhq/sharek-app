@@ -130,6 +130,26 @@ describe('the plug card', () => {
       ).textContent
     ).toContain('edit_plug');
   });
+
+  // A card's corners are 12px on every page (FR-035), and a button inside a
+  // card is the small secondary one (FR-026).
+  it('draws a 12px card around a small secondary button', () => {
+    const container = mount(<PlugItem plug={PLUG} addPlug={() => {}} />);
+    const card = container.firstElementChild as HTMLElement;
+    const button = container.querySelector('button')!;
+
+    expect(card.className.split(/\s+/)).toContain('rounded-[12px]');
+    expect(card.className).not.toContain('rounded-[14px]');
+    expect(button.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        'h-[32px]',
+        'px-[12px]',
+        'text-[13px]',
+        'bg-quiet',
+        'border-line',
+      ])
+    );
+  });
 });
 
 describe('the plug modal', () => {

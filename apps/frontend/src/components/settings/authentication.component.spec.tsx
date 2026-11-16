@@ -92,4 +92,15 @@ describe('the sign-in method in Settings', () => {
     );
     expect(row.firstElementChild!.className.split(' ')).toContain('shrink-0');
   });
+
+  // A card's corners are 12px with a 1px line, on Settings as on every other
+  // page (FR-035).
+  it('sits in a 12px card', () => {
+    const card = render('LOCAL').firstElementChild as HTMLElement;
+
+    expect(card.className.split(' ')).toEqual(
+      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+    );
+    expect(card.className).not.toContain('rounded-[4px]');
+  });
 });
