@@ -640,14 +640,14 @@ exports[`the composer shell from 1026px up a new post 1`] = `
             </div>
           </div>
         </div>
-        <button class="bg-btnSimple cursor-pointer disabled:cursor-not-allowed flex font-[600] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[15px]">
+        <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink">
           <div>
             "Save as Draft"
           </div>
         </button>
         <div class="cursor-pointer group relative">
-          <button class="bg-brand btnSub disabled:cursor-not-allowed disabled:opacity-80 flex gap-[8px] h-[44px] items-center justify-center min-w-[180px] outline-none pe-[16px] ps-[20px] relative rounded-[8px] text-white">
-            <div class="font-[600] text-[15px]">
+          <button class="bg-brand btnSub coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center min-w-[180px] px-[20px] relative rounded-[8px] text-[14px] text-white">
+            <div>
               "Add to calendar"
             </div>
             <div class="arrow-change flex h-[20px] items-center justify-center pt-[4px] w-[20px]">
@@ -863,14 +863,14 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
             </div>
           </div>
         </div>
-        <button class="bg-btnSimple cursor-pointer disabled:cursor-not-allowed flex font-[600] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[15px]">
+        <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink">
           <div>
             "Save as Draft"
           </div>
         </button>
         <div class="cursor-pointer group relative" data-tooltip-class-name="whitespace-pre-line" data-tooltip-content="TikTok: pick who can see it" data-tooltip-id="tooltip">
-          <button class="bg-brand btnSub disabled:cursor-not-allowed disabled:opacity-80 flex gap-[8px] h-[44px] items-center justify-center min-w-[180px] outline-none pe-[16px] ps-[20px] relative rounded-[8px] text-white" disabled="">
-            <div class="font-[600] text-[15px]">
+          <button class="bg-brand btnSub coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center min-w-[180px] px-[20px] relative rounded-[8px] text-[14px] text-white" disabled="">
+            <div>
               "Add to calendar"
             </div>
             <div class="arrow-change flex h-[20px] items-center justify-center pt-[4px] w-[20px]">
@@ -1068,14 +1068,14 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
             </div>
           </div>
         </div>
-        <button class="bg-btnSimple cursor-pointer disabled:cursor-not-allowed flex font-[600] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[15px]" disabled="">
+        <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink" disabled="">
           <div>
             "Save as Draft"
           </div>
         </button>
         <div class="cursor-pointer group relative">
-          <button class="bg-brand btnSub disabled:cursor-not-allowed disabled:opacity-80 flex gap-[8px] h-[44px] items-center justify-center min-w-[180px] outline-none pe-[16px] ps-[20px] relative rounded-[8px] text-white" disabled="">
-            <div class="font-[600] text-[15px]">
+          <button class="bg-brand btnSub coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center min-w-[180px] px-[20px] relative rounded-[8px] text-[14px] text-white" disabled="">
+            <div>
               "Check the circles above"
             </div>
             <div class="arrow-change flex h-[20px] items-center justify-center pt-[4px] w-[20px]">
@@ -1282,7 +1282,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
             </div>
           </div>
         </div>
-        <button class="bg-brand btnSub disabled:cursor-not-allowed disabled:opacity-80 flex font-[600] gap-[8px] h-[44px] items-center justify-center min-w-[180px] outline-none pe-[16px] ps-[20px] rounded-[8px] text-[15px] text-white">
+        <button class="bg-brand btnSub coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center min-w-[180px] px-[20px] relative rounded-[8px] text-[14px] text-white">
           "Save Set"
         </button>
       </div>
@@ -1448,7 +1448,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
         </div>
       </div>
       <div class="flex gap-[8px] items-center justify-end pe-[20px]">
-        <button class="coarse:min-h-[44px] cursor-pointer flex font-[600] gap-[8px] items-center text-[15px] text-error">
+        <button class="bg-transparent coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-boxHover items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-error">
           <div>
             <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M7.5 2.5H12.5M2.5 5H17.5M15.8333 5L15.2489 13.7661C15.1612 15.0813 15.1174 15.7389 14.8333 16.2375C14.5833 16.6765 14.206 17.0294 13.7514 17.2497C13.235 17.5 12.5759 17.5 11.2578 17.5H8.74221C7.42409 17.5 6.76503 17.5 6.24861 17.2497C5.79396 17.0294 5.41674 16.6765 5.16665 16.2375C4.88259 15.7389 4.83875 15.0813 4.75107 13.7661L4.16667 5M8.33333 8.75V12.9167M11.6667 8.75V12.9167" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -1470,14 +1470,14 @@ exports[`the composer shell from 1026px up an existing post with another channel
             </div>
           </div>
         </div>
-        <button class="bg-btnSimple cursor-pointer disabled:cursor-not-allowed flex font-[600] h-[44px] items-center justify-center px-[20px] relative rounded-[8px] text-[15px]">
+        <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] hover:bg-surface2 items-center justify-center px-[20px] relative rounded-[8px] text-[14px] text-ink">
           <div>
             "Save as Draft"
           </div>
         </button>
         <div class="cursor-pointer group relative">
-          <button class="bg-brand btnSub disabled:cursor-not-allowed disabled:opacity-80 flex gap-[8px] h-[44px] items-center justify-center min-w-[180px] outline-none pe-[16px] ps-[20px] relative rounded-[8px] text-white">
-            <div class="font-[600] text-[15px]">
+          <button class="bg-brand btnSub coarse:min-h-[44px] cursor-pointer disabled:cursor-not-allowed disabled:opacity-80 flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[44px] items-center justify-center min-w-[180px] px-[20px] relative rounded-[8px] text-[14px] text-white">
+            <div>
               "Schedule"
             </div>
             <div class="arrow-change flex h-[20px] items-center justify-center pt-[4px] w-[20px]">
@@ -1790,8 +1790,8 @@ exports[`the date picker from 1026px up open 1`] = `
         </div>
       </div>
     </div>
-    <button class="bg-brand coarse:h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand h-[40px] items-center justify-center mt-[12px] px-[24px] relative rounded-[8px] text-white" type="button">
-      <div class="flex flex-1 items-center justify-center">
+    <button class="bg-brand coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[40px] items-center justify-center mt-[12px] px-[16px] relative rounded-[8px] text-[14px] text-white" type="button">
+      <div class="flex flex-1 gap-[6px] items-center justify-center">
         "Close"
       </div>
     </button>
@@ -2249,7 +2249,7 @@ exports[`the tool buttons from 1026px up AI video 1`] = `
 
 exports[`the tool buttons from 1026px up add comment 1`] = `
 "<div class="flex">
-  <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[8px] h-[34px] items-center justify-center mt-[12px] pl-[16px] pr-[20px] rounded-[6px] select-none text-[13px] text-ink" type="button">
+  <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center mt-[12px] px-[12px] relative rounded-[8px] select-none text-[13px] text-ink" type="button">
     <div>
       <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
         <path d="M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
@@ -2265,7 +2265,7 @@ exports[`the tool buttons from 1026px up add comment 1`] = `
 
 exports[`the tool buttons from 1026px up add comment or post 1`] = `
 "<div class="flex">
-  <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[8px] h-[34px] items-center justify-center mt-[12px] pl-[16px] pr-[20px] rounded-[6px] select-none text-[13px] text-ink" type="button">
+  <button class="bg-quiet border border-line coarse:min-h-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center mt-[12px] px-[12px] relative rounded-[8px] select-none text-[13px] text-ink" type="button">
     <div>
       <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
         <path d="M8.00065 3.33301V12.6663M3.33398 7.99967H12.6673" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />

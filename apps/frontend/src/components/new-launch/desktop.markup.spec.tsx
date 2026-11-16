@@ -49,6 +49,12 @@ import dayjs from 'dayjs';
 //   carries Select all, which like the circle takes a press only while it
 //   shows (`pointer-events-none` until the month is hovered or it has the
 //   focus, always under a finger).
+// - the button pass (spec 059, FR-026): the footer's Delete Post, Save as
+//   Draft, Save Set and Add to calendar, Add comment / post and the date
+//   picker's Close draw the shared button set: 14px semibold (13px at small),
+//   8px corners, a 6px gap to the icon and the size's own sides, Delete Post
+//   red text with no fill, Save as Draft and Add comment secondary, Save Set
+//   and Add to calendar primary; Add to calendar's label loses its own 15px.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
