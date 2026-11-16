@@ -126,6 +126,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
 
   if (!user) return null;
 
+  const paywall = user.tier === 'FREE' && isGeneral && billingEnabled;
+
   return (
     <ContextWrapper user={user}>
       <CopilotKit
@@ -148,18 +150,20 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen mobile:min-h-dvh text-newTextColor py-[12px] pe-[12px] ps-[8px] mobile:py-[8px] mobile:pe-[8px]',
+                paywall ? 'min-h-screen' : 'h-dvh mobile:h-auto',
+                'mobile:min-h-dvh',
+                'flex flex-col text-newTextColor py-[12px] pe-[12px] ps-[8px] mobile:py-[8px] mobile:pe-[8px]',
                 fontVariables,
                 'font-sans'
               )}
             >
               <div>{user?.admin ? <Impersonate /> : <div />}</div>
-              {user.tier === 'FREE' && isGeneral && billingEnabled ? (
+              {paywall ? (
                 <FirstBillingComponent />
               ) : (
                 <>
                   <AnnouncementBanner />
-                  <div className="flex-1 flex gap-[8px]">
+                  <div className="flex-1 min-h-0 flex gap-[8px]">
                     <Support />
                     {/* Rail background card — reserves the 80px fixed-rail
                         column on desktop. On small screens the rail becomes
@@ -178,22 +182,22 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                       // items out of the Tab order and the accessibility tree.
                       inert={isSmallScreen && !drawerOpen}
                       className={clsx(
-                        'fixed h-full w-[84px] start-[8px] flex flex-1 top-0',
+                        'fixed h-full w-[84px] start-[8px] flex flex-1 top-0 [container:rail/size]',
                         // Small screens: off-canvas drawer anchored to the inline-start edge.
                         'mobile:start-0 mobile:w-[100px] mobile:px-[8px] mobile:z-[190] mobile:bg-newBgColor',
                         'mobile:transition-transform mobile:duration-300 mobile:ease-out',
                         drawerOpen
                           ? 'mobile:translate-x-0'
                           : 'mobile:-translate-x-full mobile:rtl:translate-x-full',
-                        user?.admin && 'pt-[60px] max-h-[1000px]:w-[500px]'
+                        user?.admin && 'pt-[60px]'
                       )}
                       onClick={() => setDrawerOpen(false)}
                     >
                       {/* min-w-0: without it, nowrap menu labels inflate this
                           flex-1 column past the 84px rail (min-width:auto),
                           so labels never overflow → ellipsis/shrink dead. */}
-                      <div className="flex flex-col h-full gap-[32px] flex-1 py-[12px] min-w-0">
-                        <div className="flex justify-center">
+                      <div className="flex flex-col h-full gap-[16px] flex-1 py-[12px] min-w-0">
+                        <div className="flex justify-center mb-[16px]">
                           <Logo />
                         </div>
                         <TopMenu />

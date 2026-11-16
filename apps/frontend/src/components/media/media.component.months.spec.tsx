@@ -299,6 +299,11 @@ jest.mock('next/dynamic', () => ({
 
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { setUserTimezone } from '@gitroom/frontend/components/layout/set.timezone';
+import {
+  CHIP,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 // Whether the sentinel is in view, as the browser would report it.
 const view = { inView: false };
@@ -998,6 +1003,8 @@ describe('narrowing the list', () => {
       'input[placeholder="search_media_by_name"]'
     ) as HTMLInputElement;
   const toolbarHidden = () => !!searchInput().closest('.hidden');
+  const classesOf = (node: Element | null | undefined) =>
+    (node?.getAttribute('class') || '').split(' ');
   const emptyState = () => document.querySelector('[data-empty-state]');
   const emptyTitle = () => emptyState()?.getAttribute('data-empty-state');
   const within = (node: Element | null, label: string) =>
@@ -1067,6 +1074,61 @@ describe('narrowing the list', () => {
 
       await choose('media_filter_videos');
       expect(pressed()).toEqual(['media_filter_videos']);
+    });
+
+    // One chip look for every list filter (FR-033): an option takes the idle
+    // half or the current one, never both, as Tailwind emits the idle colours
+    // after the current ones.
+    it("draws the type filter in the dashboard's one chip look: a row 8px apart with no box, the pressed option current and the others idle, no count", async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      const words = (value: string) => value.split(' ');
+      // Which half each option carries, whole and alone: 'on', 'idle', or
+      // 'mixed' for anything else.
+      const halves = () =>
+        filterButtons().map((node) => {
+          const own = classesOf(node);
+          expect(own).toEqual(expect.arrayContaining(words(CHIP)));
+          const has = (half: string) =>
+            words(half).filter((name) => own.includes(name)).length;
+          const on = has(CHIP_ON);
+          const idle = has(CHIP_IDLE);
+          if (on === words(CHIP_ON).length && !idle) return 'on';
+          if (idle === words(CHIP_IDLE).length && !on) return 'idle';
+          return 'mixed';
+        });
+
+      expect(classesOf(filterGroup())).toEqual(
+        expect.arrayContaining([
+          'flex',
+          'gap-[8px]',
+          'mobile:order-1',
+          'mobile:flex-1',
+        ])
+      );
+      // the bordered box it sat in is gone
+      ['p-[4px]', 'gap-[4px]', 'border', 'border-newTableBorder'].forEach(
+        (name) => expect(classesOf(filterGroup())).not.toContain(name)
+      );
+      expect(halves()).toEqual(['on', 'idle', 'idle']);
+      filterButtons().forEach((node) => {
+        // at 1025px and below the three share the row, each label centred
+        expect(classesOf(node)).toEqual(
+          expect.arrayContaining([
+            'mobile:flex-1',
+            'mobile:justify-center',
+            'mobile:px-[6px]',
+          ])
+        );
+        // the label alone: no count
+        expect(node.children).toHaveLength(0);
+      });
+
+      await choose('media_filter_videos');
+      expect(halves()).toEqual(['idle', 'idle', 'on']);
     });
 
     it('asks with type=video, sort=oldest and the trimmed search, all three together', async () => {
@@ -1139,6 +1201,22 @@ describe('narrowing the list', () => {
       expect(within(emptyState(), 'upload')).toBeDefined();
       expect(within(emptyState(), 'import')).toBeDefined();
       expect(toolbarHidden()).toBe(true);
+    });
+
+    // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+    // shared Button's own gap with no override on its inner row.
+    it("draws the empty state's Upload plus at 16px, 6px from its word", async () => {
+      serve([]);
+
+      await mount(surface);
+      await answer();
+
+      const glyph = within(emptyState(), 'upload')!.querySelector('svg')!;
+
+      expect(glyph.getAttribute('width')).toBe('16');
+      expect(glyph.getAttribute('height')).toBe('16');
+      expect(classesOf(glyph.parentElement)).toContain('gap-[6px]');
+      expect(classesOf(glyph.parentElement)).not.toContain('gap-[8px]');
     });
 
     it('says media_no_type_match when the filter finds nothing, keeps the toolbar, and Show all clears the filter', async () => {
@@ -1287,6 +1365,20 @@ describe('narrowing the list', () => {
         expect(
           classes.some((name) => /^(coarse:)?(min-)?h-\[44px\]$/.test(name))
         ).toBe(true);
+      });
+    });
+
+    it('makes the search and the sort 40px high, 44px under a finger (FR-034)', async () => {
+      serve(november(3));
+
+      await mount(surface);
+      await answer();
+
+      [searchInput(), sortSelect()!].forEach((node) => {
+        expect(classesOf(node)).toEqual(
+          expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+        );
+        expect(classesOf(node)).not.toContain('h-[44px]');
       });
     });
 

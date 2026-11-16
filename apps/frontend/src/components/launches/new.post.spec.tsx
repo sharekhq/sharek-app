@@ -39,6 +39,7 @@ jest.mock(
 );
 
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 const render = async () => {
   const host = document.createElement('div');
@@ -78,5 +79,46 @@ describe('the Create Post button', () => {
     const host = await render();
 
     expect(label(host).className).toContain('group-[.sidebar]:hidden');
+  });
+
+  // The Calendar's main action is the button set's large primary (FR-026,
+  // FR-027): 44px, 8px corners, 14px semibold, a 16px icon 6px from the
+  // label. It keeps its share of the row and the collapsed rail's padding.
+  it('is the large primary button, keeping its width and the rail padding', async () => {
+    const host = await render();
+    const names = button(host).className.split(/\s+/);
+
+    expect(names).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ size: 'large' }).split(/\s+/),
+        'flex-1',
+        'group-[.sidebar]:p-0',
+      ])
+    );
+    [
+      'bg-btnPrimary',
+      'rounded-md',
+      'min-h-[44px]',
+      'max-h-[44px]',
+      'pt-[12px]',
+      'gap-[5px]',
+      'outline-none',
+    ].forEach((name) => expect(names).not.toContain(name));
+  });
+
+  it('draws a 16px plus', async () => {
+    const host = await render();
+    const names = (
+      host.querySelector('svg')!.getAttribute('class') ?? ''
+    ).split(/\s+/);
+
+    expect(names).toEqual(expect.arrayContaining(['w-[16px]', 'h-[16px]']));
+    expect(names).not.toContain('min-w-[21px]');
+  });
+
+  it("sets the label at the button's own text size", async () => {
+    const host = await render();
+
+    expect(label(host).className).not.toContain('text-[14px]');
   });
 });

@@ -147,3 +147,72 @@ describe.each([
     expect(host.innerHTML).not.toMatch(/\bphone:/);
   });
 });
+
+// The dashboard's one button set: a row's Use Signature and Edit are small
+// secondary buttons and its Delete red text with no fill; the tab's card has
+// 12px corners and its heading is 20px semibold.
+describe('the signatures tab in the dashboard look', () => {
+  it('draws Use Signature and Edit as small secondary buttons, with no phone padding of their own', async () => {
+    const host = await render(jest.fn());
+
+    for (const row of rows(host)) {
+      for (const label of ['Use Signature', 'Edit']) {
+        const button = classes(buttonCell(row, label));
+        expect(button).toEqual(
+          expect.arrayContaining([
+            'bg-quiet',
+            'border-line',
+            'h-[32px]',
+            'px-[12px]',
+            'text-[13px]',
+          ])
+        );
+        expect(button).not.toContain('bg-brand');
+        expect(button).not.toContain('mobile:px-[12px]');
+      }
+    }
+  });
+
+  it("draws a row's Delete as small red text with no fill", async () => {
+    const host = await render();
+
+    for (const row of rows(host)) {
+      const button = classes(buttonCell(row, 'Delete'));
+      expect(button).toEqual(
+        expect.arrayContaining([
+          'bg-transparent',
+          'text-error',
+          'h-[32px]',
+          'px-[12px]',
+          'text-[13px]',
+        ])
+      );
+      expect(button).not.toContain('bg-brand');
+      expect(button).not.toContain('mobile:px-[12px]');
+    }
+  });
+
+  it('keeps Add a signature the medium primary button', async () => {
+    const host = await render();
+    const add = Array.from(host.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Add a signature'
+    )!;
+
+    expect(classes(add)).toEqual(
+      expect.arrayContaining(['bg-brand', 'h-[40px]', 'mobile:w-full'])
+    );
+  });
+
+  it('rounds the card 12px and sets the heading 20px semibold', async () => {
+    const host = await render();
+    const card = rows(host)[0].closest('.border.p-\\[24px\\]')!;
+
+    expect(classes(card)).toEqual(
+      expect.arrayContaining(['bg-sixth', 'border-fifth', 'rounded-[12px]'])
+    );
+    expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(host.querySelector('h3')!)).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
+  });
+});

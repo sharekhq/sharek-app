@@ -759,7 +759,6 @@
   "your_assistant": "Ihr Assistent",
   "agent_welcome_message": "Hallo, ich bin Ihr Sharek-Agent 🙌🏻.\n\nIch kann einen oder mehrere Beiträge für mehrere Kanäle planen und Bilder sowie Videos generieren.\n\nSie können die gewünschten Kanäle im linken Menü auswählen.\n\nIhre bisherigen Unterhaltungen finden Sie im rechten Menü.\n\nSie können mich auch als MCP-Server verwenden, siehe Einstellungen >> Öffentliche API.",
   "samy": "Samy",
-  "samy_welcome_message": "Hallo, ich bin Samy 👋 — Ihr Sharek-Assistent. Ich kann einen oder mehrere Beiträge für alle Ihre verbundenen Kanäle planen und terminieren sowie Bilder und Videos dafür erstellen. Wählen Sie die gewünschten Kanäle in der Kanalliste aus, und unsere bisherigen Unterhaltungen finden Sie im Verlauf. Sie können mich auch als MCP-Server nutzen — siehe Einstellungen → Entwickler.",
   "samy_ai_image": "KI-Bild",
   "samy_drop_title": "Bilder hier ablegen",
   "samy_drop_subtitle": "Sie werden Ihrer Nachricht hinzugefügt",

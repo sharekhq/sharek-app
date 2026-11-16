@@ -947,6 +947,7 @@ export const CalendarColumn: FC<{
                     <div className="flex-1 flex">
                       <Button
                         type="button"
+                        variant="secondary"
                         className="flex-1"
                         onClick={() => {
                           modal.closeAll();

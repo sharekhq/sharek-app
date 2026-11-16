@@ -8,10 +8,21 @@ const capturedProperties: any[] = [];
 const capturedSingleEndpoint: unknown[] = [];
 // T047: the chat's own labels, captured the same way its properties are.
 const capturedLabels: Record<string, string>[] = [];
+// T033 (spec 059): the welcome's ideas and the component that draws them.
+const capturedSuggestions: Record<string, unknown>[] = [];
 
 jest.mock('@copilotkit/react-ui', () => ({
-  CopilotChat: ({ labels }: { labels: Record<string, string> }) => {
+  CopilotChat: ({
+    labels,
+    suggestions,
+    RenderSuggestionsList,
+  }: {
+    labels: Record<string, string>;
+    suggestions: unknown;
+    RenderSuggestionsList: unknown;
+  }) => {
     capturedLabels.push(labels);
+    capturedSuggestions.push({ suggestions, RenderSuggestionsList });
     return null;
   },
 }));
@@ -84,6 +95,10 @@ import i18next from 'i18next';
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
 import { ASSISTANT_LABELS } from '@gitroom/frontend/components/ui/assistant.labels';
+import {
+  SamyWelcome,
+  samyIdeas,
+} from '@gitroom/frontend/components/agents/agent.welcome';
 
 // brand: the brand chip's choice, which the agent page keeps beside the
 // channels: what the chip shows, and what the user picked in it.
@@ -91,6 +106,7 @@ const render = (brand?: { shown?: string; picked?: string }) => {
   capturedProperties.length = 0;
   capturedSingleEndpoint.length = 0;
   capturedLabels.length = 0;
+  capturedSuggestions.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
   act(() => {
@@ -166,14 +182,25 @@ describe('AgentChat properties', () => {
 // asserted here rather than in a file of their own, because this spec already renders
 // the surface and already owns the mock set that makes that possible.
 describe('AgentChat labels', () => {
-  // Samy keeps its own name and welcome; those two are why the shared table holds
-  // eight and not ten.
-  it('keeps Samy’s own title and welcome', () => {
+  // Samy keeps its own name, one reason the shared table holds eight and not ten;
+  // its welcome is no longer a message but the block below (spec 059, FR-041).
+  it('keeps Samy’s own title, and no welcome message', () => {
     render();
     const labels = capturedLabels[capturedLabels.length - 1];
 
     expect(labels.title).toBe('samy');
-    expect(labels.initial).toBe('samy_welcome_message');
+    expect(labels.initial).toBeUndefined();
+  });
+
+  // The welcome is CopilotKit's suggestions list, drawn by Samy's own block, so an
+  // idea goes through the chat's send as typed text does (FR-038, FR-039).
+  it('hands the chat Samy’s four ideas, drawn by its welcome', () => {
+    render();
+    const chat = capturedSuggestions[capturedSuggestions.length - 1];
+
+    expect(chat.suggestions).toEqual(samyIdeas((key) => key));
+    expect(chat.suggestions).toHaveLength(4);
+    expect(chat.RenderSuggestionsList).toBe(SamyWelcome);
   });
 
   it.each(
@@ -186,11 +213,11 @@ describe('AgentChat labels', () => {
 
   // The custom input Samy renders reads labels.placeholder, so a missing label is
   // English in the one control the user types into.
-  it('leaves none of the ten to the vendor', () => {
+  it('leaves none of the nine to the vendor', () => {
     render();
     const labels = capturedLabels[capturedLabels.length - 1];
 
-    for (const label of ['title', 'initial', ...Object.keys(ASSISTANT_LABELS)]) {
+    for (const label of ['title', ...Object.keys(ASSISTANT_LABELS)]) {
       expect(typeof labels[label]).toBe('string');
     }
   });

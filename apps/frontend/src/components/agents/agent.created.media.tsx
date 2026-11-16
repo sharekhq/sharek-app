@@ -29,18 +29,27 @@ import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 /**
  * Whether a run is going. A card can't ask `useCopilotChatInternal`, because each
  * instance detaches the running reply when it unmounts, and cards come and go. So
- * this comes from the instance `LoadMessages` already holds.
+ * this comes from the instance `LoadMessages` already holds. So does whether the
+ * chat is empty, for Samy's welcome, which is false until `LoadMessages` decides.
  */
 export const ChatRunContext = createContext<{
   running: boolean;
   setRunning: (running: boolean) => void;
-}>({ running: false, setRunning: () => {} });
+  empty: boolean;
+  setEmpty: (empty: boolean) => void;
+}>({
+  running: false,
+  setRunning: () => {},
+  empty: false,
+  setEmpty: () => {},
+});
 
 export const ChatRunProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [running, setRunning] = useState(false);
+  const [empty, setEmpty] = useState(false);
 
   return (
-    <ChatRunContext.Provider value={{ running, setRunning }}>
+    <ChatRunContext.Provider value={{ running, setRunning, empty, setEmpty }}>
       {children}
     </ChatRunContext.Provider>
   );

@@ -75,11 +75,7 @@ export const EmptyState: FC<EmptyStateProps> = ({
       ) : (
         actionLabel &&
         onAction && (
-          <Button
-            onClick={onAction}
-            className="mt-[24px]"
-            innerClassName="gap-[8px]"
-          >
+          <Button onClick={onAction} className="mt-[24px]">
             {actionIcon ?? <DefaultActionIcon />}
             {actionLabel}
           </Button>

@@ -541,6 +541,20 @@ describe('one request per kind of save', () => {
 
     expect(saves()).toEqual([]);
   });
+
+  // One primary per window (FR-027): republishing is the warning's action.
+  it('makes "Republish the post" the one primary answer', async () => {
+    const host = await openLinked('QUEUE', [['int-2', 'PUBLISHED']]);
+    await schedule(host);
+    const dialog = await question();
+
+    expect(
+      buttonByText(dialog, 'Just update the post details')!.className.split(' ')
+    ).toEqual(expect.arrayContaining(['bg-quiet', 'border-line']));
+    expect(
+      buttonByText(dialog, 'Republish the post')!.className.split(' ')
+    ).toContain('bg-brand');
+  });
 });
 
 describe('a save that fails part-way', () => {
@@ -735,7 +749,7 @@ describe('deleting a linked post', () => {
       buttonByText(dialog, 'Delete from all channels')!.className
     ).toContain('bg-error');
     expect(buttonByText(dialog, 'Only from Acme Inc.')!.className).toContain(
-      'border-line'
+      'bg-transparent'
     );
   });
 });

@@ -178,7 +178,7 @@ export const Sets: FC = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">
+      <h3 className="text-[20px] font-[600]">
         {t('sets_2', 'Sets ({{value1}})', { value1: data?.length || 0 })}
       </h3>
       <div className="text-muted mt-[4px]">
@@ -187,7 +187,7 @@ export const Sets: FC = () => {
           'Manage your content sets for easy reuse across posts.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[2fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
@@ -199,12 +199,22 @@ export const Sets: FC = () => {
                   <div className="flex flex-col justify-center">{p.name}</div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={addSet(p)}>{t('edit', 'Edit')}</Button>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={addSet(p)}
+                      >
+                        {t('edit', 'Edit')}
+                      </Button>
                     </div>
                   </div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={deleteSet(p)}>
+                      <Button
+                        variant="dangerGhost"
+                        size="small"
+                        onClick={deleteSet(p)}
+                      >
                         {t('delete', 'Delete')}
                       </Button>
                     </div>

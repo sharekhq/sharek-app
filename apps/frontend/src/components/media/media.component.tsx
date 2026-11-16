@@ -11,7 +11,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { SelectChevron } from '@gitroom/react/form/select';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
@@ -67,6 +67,11 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useDebounce } from 'use-debounce';
+import {
+  CHIP,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
@@ -663,14 +668,14 @@ export const MediaBox: FC<{
       <button
         disabled={loading}
         onClick={() => uploaderRef?.current?.click()}
-        className="relative cursor-pointer bg-btnPrimary text-white changeColor flex gap-[8px] h-[44px] px-[18px] justify-center items-center rounded-[8px]"
+        className={buttonClassName({ variant: 'primary', size: 'large' })}
       >
         {loading ? (
           <div className="absolute left-[50%] top-[50%] -translate-y-[50%] -translate-x-[50%]">
             <div className="animate-spin h-[20px] w-[20px] border-4 border-white border-t-transparent rounded-full" />
           </div>
         ) : (
-          <PlusIcon size={14} />
+          <PlusIcon size={16} />
         )}
         <div className={loading ? 'invisible' : undefined}>{t('upload', 'Upload')}</div>
       </button>
@@ -689,7 +694,7 @@ export const MediaBox: FC<{
                 value: selection.size.toLocaleString('en-US'),
               })}
             </div>
-            <Button variant="quiet" onClick={clearSelection}>
+            <Button variant="secondary" onClick={clearSelection}>
               {t('media_clear_selection', 'Clear')}
             </Button>
             <Button
@@ -697,9 +702,8 @@ export const MediaBox: FC<{
               onClick={deleteSelection}
               disabled={deleting}
               className="ms-auto"
-              innerClassName="gap-[8px]"
             >
-              <TrashIcon size={18} />
+              <TrashIcon size={16} />
               {t('delete', 'Delete')}
             </Button>
           </div>
@@ -737,7 +741,7 @@ export const MediaBox: FC<{
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('search_media_by_name', 'Search by file name')}
-              className="w-full h-[44px] ps-[42px] pe-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
+              className="w-full h-[40px] coarse:h-[44px] ps-[42px] pe-[14px] rounded-[8px] bg-newBgColorInner border border-newColColor text-[14px] coarse:text-[16px] outline-none focus:border-brand"
             />
           </div>
           <input
@@ -753,7 +757,7 @@ export const MediaBox: FC<{
             <div
               role="group"
               aria-label={t('media_type_filter', 'File type')}
-              className="flex gap-[4px] p-[4px] border border-newTableBorder rounded-[8px] mobile:order-1 mobile:flex-1"
+              className="flex gap-[8px] mobile:order-1 mobile:flex-1"
             >
               {typeFilters.map((option) => (
                 <button
@@ -762,10 +766,9 @@ export const MediaBox: FC<{
                   aria-pressed={filter === option.value}
                   onClick={() => setFilter(option.value)}
                   className={clsx(
-                    'h-[34px] coarse:min-h-[44px] px-[14px] rounded-[6px] text-[14px] font-[600] whitespace-nowrap cursor-pointer focus-visible:ring-2 focus-visible:ring-brand mobile:flex-1 mobile:px-[6px]',
-                    filter === option.value
-                      ? 'bg-selectedBg text-selectedText'
-                      : 'text-muted hover:text-ink'
+                    CHIP,
+                    'mobile:flex-1 mobile:justify-center mobile:px-[6px]',
+                    filter === option.value ? CHIP_ON : CHIP_IDLE
                   )}
                 >
                   {option.label}
@@ -780,7 +783,7 @@ export const MediaBox: FC<{
                 setSort(e.target.value as MediaLibraryQuery['sort'])
               }
               aria-label={t('media_sort', 'Sort')}
-              className="h-[44px] appearance-none bg-newBgColorInner border border-newTableBorder rounded-[8px] ps-[14px] pe-[36px] text-[14px] coarse:text-[16px] font-[500] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="h-[40px] coarse:h-[44px] appearance-none bg-newBgColorInner border border-newTableBorder rounded-[8px] ps-[14px] pe-[36px] text-[14px] coarse:text-[16px] font-[500] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               <option value="newest">
                 {t('media_sort_newest', 'Newest first')}
@@ -885,11 +888,8 @@ export const MediaBox: FC<{
                         {t('media_show_all', 'Show all files')}
                       </Button>
                     )}
-                    <Button
-                      onClick={() => uploaderRef?.current?.click()}
-                      innerClassName="gap-[8px]"
-                    >
-                      <PlusIcon size={14} />
+                    <Button onClick={() => uploaderRef?.current?.click()}>
+                      <PlusIcon size={16} />
                       {t('upload', 'Upload')}
                     </Button>
                     <ThirdPartyMediaLibrary onImported={() => refresh()} />
@@ -993,7 +993,10 @@ export const MediaBox: FC<{
             {/* the cross closes it at 1025px and below */}
             <button
               onClick={() => modals.closeCurrent()}
-              className="cursor-pointer h-[52px] px-[20px] items-center justify-center border border-newTextColor/10 flex rounded-[10px] mobile:hidden"
+              className={clsx(
+                buttonClassName({ variant: 'secondary', size: 'large' }),
+                'mobile:hidden'
+              )}
             >
               {t('cancel', 'Cancel')}
             </button>
@@ -1001,7 +1004,10 @@ export const MediaBox: FC<{
               <button
                 onClick={standalone ? () => {} : addMedia}
                 disabled={selected.length === 0}
-                className="cursor-pointer text-white disabled:opacity-80 disabled:cursor-not-allowed h-[52px] px-[20px] items-center justify-center bg-brand flex rounded-[10px] mobile:h-[44px] mobile:rounded-[8px] mobile:font-[600] mobile:disabled:opacity-100 mobile:disabled:bg-btnSimple mobile:disabled:text-muted"
+                className={clsx(
+                  buttonClassName({ variant: 'primary', size: 'large' }),
+                  'disabled:opacity-80 disabled:cursor-not-allowed mobile:disabled:opacity-100 mobile:disabled:bg-btnSimple mobile:disabled:text-muted'
+                )}
               >
                 {t('add_selected_media', 'Add selected media')}
               </button>
@@ -1313,13 +1319,16 @@ export const MultiMediaComponent: FC<{
                 data-tooltip-id="tooltip"
                 data-tooltip-content={t('insert_media', 'Insert Media')}
                 aria-label={t('insert_media', 'Insert Media')}
-                className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-surface border border-line px-[8px]"
+                className={clsx(
+                  buttonClassName({ variant: 'secondary', size: 'small' }),
+                  'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] mobile:px-0'
+                )}
               >
-                <div className="flex gap-[8px] items-center">
+                <div className="flex gap-[6px] items-center">
                   <div>
                     <InsertMediaIcon className="mobile:w-[20px] mobile:h-[20px]" />
                   </div>
-                  <div className="text-[12px] font-[600] mobile:hidden block">
+                  <div className="mobile:hidden block">
                     {t('insert_media', 'Insert Media')}
                   </div>
                 </div>
@@ -1330,13 +1339,16 @@ export const MultiMediaComponent: FC<{
                   data-tooltip-id="tooltip"
                   data-tooltip-content={t('design_media', 'Design Media')}
                   aria-label={t('design_media', 'Design Media')}
-                  className="cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] rounded-[6px] justify-center items-center flex bg-surface border border-line px-[8px] mobile:hidden"
+                  className={clsx(
+                    buttonClassName({ variant: 'secondary', size: 'small' }),
+                    'coarse:h-[44px] coarse:min-w-[44px] mobile:hidden'
+                  )}
                 >
-                  <div className="flex gap-[5px] items-center">
+                  <div className="flex gap-[6px] items-center">
                     <div>
                       <DesignMediaIcon />
                     </div>
-                    <div className="text-[12px] font-[600] mobile:hidden block">
+                    <div className="mobile:hidden block">
                       {t('design_media', 'Design Media')}
                     </div>
                   </div>
@@ -1504,7 +1516,7 @@ export const MediaComponent: FC<{
       <div className="flex gap-[5px]">
         <Button onClick={showModal}>{t('select', 'Select')}</Button>
         {showImageEditor && (
-          <Button onClick={showDesignModal} className="!bg-brand">
+          <Button variant="secondary" onClick={showDesignModal}>
             {t('editor', 'Editor')}
           </Button>
         )}

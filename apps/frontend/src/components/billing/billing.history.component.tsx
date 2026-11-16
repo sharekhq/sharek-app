@@ -8,6 +8,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Select } from '@gitroom/react/form/select';
 import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 interface Invoice {
   id: string;
@@ -203,7 +204,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       className={clsx(
         'flex flex-col gap-[20px]',
         !modal &&
-          'rounded-[14px] border border-newTableBorder bg-newBgColorInner shadow-soft p-[24px] phone:p-[16px]'
+          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft p-[24px] phone:p-[16px]'
       )}
     >
       <div className="flex items-center gap-[12px] phone:flex-col phone:items-stretch">
@@ -236,7 +237,7 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
               }}
               placeholder={t('billing_search', 'Search...')}
               aria-label={t('billing_search', 'Search...')}
-              className="w-full h-[42px] coarse:h-[44px] ps-[38px] pe-[12px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] coarse:text-[16px] outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
+              className="w-full h-[40px] coarse:h-[44px] ps-[38px] pe-[12px] rounded-[8px] bg-newBgColorInner border border-newTableBorder text-[14px] coarse:text-[16px] outline-none focus:border-brand focus-visible:ring-2 focus-visible:ring-brand"
             />
           </div>
           <div className="phone:flex-1">
@@ -266,12 +267,15 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
             type="button"
             onClick={exportCsv}
             disabled={!filtered.length}
-            className="h-[42px] coarse:h-[44px] px-[16px] rounded-[8px] border border-newTableBorder bg-newBgColorInner flex items-center gap-[8px] text-[14px] font-[500] hover:bg-boxHover transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-brand"
+            className={clsx(
+              buttonClassName({ variant: 'secondary', size: 'medium' }),
+              'disabled:opacity-50 disabled:pointer-events-none'
+            )}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -428,7 +432,10 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
         <button
           type="button"
           onClick={() => setVisible((current) => current + PAGE_SIZE)}
-          className="self-center h-[36px] coarse:h-[44px] px-[16px] rounded-[8px] text-[14px] font-[500] text-textItemBlur hover:text-newTextColor hover:bg-boxHover transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+          className={clsx(
+            buttonClassName({ variant: 'ghost', size: 'small' }),
+            'self-center'
+          )}
         >
           {t('show_more', '+ Show more')}
         </button>

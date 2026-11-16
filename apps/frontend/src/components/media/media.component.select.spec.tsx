@@ -391,12 +391,12 @@ describe('selecting on the Media page', () => {
     const clear = barButton('media_clear_selection')!;
     const remove = barButton('delete')!;
 
-    // Button's quiet and danger variants, which are 44px high under a finger.
+    // Button's secondary and danger variants, which are 44px high under a finger.
     [clear, remove].forEach((button) => {
       expect(button.getAttribute('type')).toBe('button');
       expect(classes(button)).toEqual(
         expect.arrayContaining([
-          'coarse:h-[44px]',
+          'coarse:min-h-[44px]',
           'focus-visible:ring-2',
           'focus-visible:ring-brand',
         ])
@@ -407,6 +407,21 @@ describe('selecting on the Media page', () => {
       expect.arrayContaining(['ms-auto', 'bg-error', 'text-white'])
     );
     expect(remove.querySelector('svg')).toBeTruthy();
+  });
+
+  // Spec 059 FR-026: a text button's glyph is 16px, 6px from its word, the
+  // shared Button's own gap with no override on its inner row.
+  it("draws Delete's trash glyph at 16px, 6px from its word", async () => {
+    mockServer.rows = november(3);
+    await mount();
+    await press(circleOf('n1.png'));
+
+    const glyph = barButton('delete')!.querySelector('svg')!;
+
+    expect(glyph.getAttribute('width')).toBe('16');
+    expect(glyph.getAttribute('height')).toBe('16');
+    expect(classes(glyph.parentElement!)).toContain('gap-[6px]');
+    expect(classes(glyph.parentElement!)).not.toContain('gap-[8px]');
   });
 
   it("shows every tile's circle while anything is selected", async () => {

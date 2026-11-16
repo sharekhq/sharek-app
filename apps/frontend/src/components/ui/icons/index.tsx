@@ -1083,3 +1083,255 @@ export const NoMediaIcon: FC = () => {
     </>
   );
 };
+
+// Samy Icon (a robot, the side menu's Samy entry)
+export const SamyIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={(size * 21) / 20}
+    viewBox="0 0 20 21"
+    fill="none"
+    className={className}
+    {...props}
+  >
+    <rect
+      x="2.67"
+      y="6.83"
+      width="14.67"
+      height="11"
+      rx="3.21"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M10 6.83V3.72M0.83 11.23V13.98M19.17 11.23V13.98M8.35 14.99H11.65"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="10" cy="2.62" r="1.19" fill="currentColor" />
+    <circle cx="7.43" cy="11.78" r="1.24" fill="currentColor" />
+    <circle cx="12.57" cy="11.78" r="1.24" fill="currentColor" />
+  </svg>
+);
+
+// Logout Icon (an arrow leaving through a bar, LogoutComponent's icon variant).
+// It points at the edge the reader exits towards, and under dir="rtl" the
+// control itself moves to the other end of the header, so the glyph has to
+// follow. A mirror rather than a rotation, as at limit.reached.modal.tsx.
+export const LogoutIcon: FC<IconProps> = ({
+  size = 24,
+  className,
+  ...props
+}) => (
+  <svg
+    className={clsx('rtl:-scale-x-100', className)}
+    width={size}
+    height={size}
+    viewBox="0 0 25 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M20.28 11.22C20.4205 11.3606 20.4993 11.5512 20.4993 11.75C20.4993 11.9488 20.4205 12.1394 20.28 12.28L11.28 21.28C11.1378 21.4125 10.9498 21.4846 10.7555 21.4812C10.5612 21.4777 10.3758 21.399 10.2384 21.2616C10.101 21.1242 10.0223 20.9388 10.0188 20.7445C10.0154 20.5502 10.0875 20.3622 10.22 20.22L17.9387 12.5H0.75C0.551088 12.5 0.360322 12.421 0.21967 12.2803C0.0790175 12.1397 0 11.9489 0 11.75C0 11.5511 0.0790175 11.3603 0.21967 11.2197C0.360322 11.079 0.551088 11 0.75 11H17.9387L10.22 3.28C10.0875 3.13783 10.0154 2.94978 10.0188 2.75548C10.0223 2.56118 10.101 2.37579 10.2384 2.23838C10.3758 2.10097 10.5612 2.02225 10.7555 2.01883C10.9498 2.0154 11.1378 2.08752 11.28 2.22L20.28 11.22ZM23.75 0C23.5511 0 23.3603 0.0790175 23.2197 0.21967C23.079 0.360322 23 0.551088 23 0.75V22.75C23 22.9489 23.079 23.1397 23.2197 23.2803C23.3603 23.421 23.5511 23.5 23.75 23.5C23.9489 23.5 24.1397 23.421 24.2803 23.2803C24.421 23.1397 24.5 22.9489 24.5 22.75V0.75C24.5 0.551088 24.421 0.360322 24.2803 0.21967C24.1397 0.0790175 23.9489 0 23.75 0Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+// Sliders Icon (Settings' Global settings row)
+export const SlidersIcon: FC<IconProps> = ({
+  size = 20,
+  className,
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </svg>
+);
+
+// RSS Icon (Settings' Auto post row)
+export const RssIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" />
+    <circle cx="6" cy="18" r="1.2" fill="currentColor" />
+  </svg>
+);
+
+// Layers Icon (Settings' Sets row)
+export const LayersIcon: FC<IconProps> = ({
+  size = 20,
+  className,
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8z" />
+    <path d="M3.5 12.5l8.5 4.5 8.5-4.5" />
+  </svg>
+);
+
+// Code Icon (Settings' Developers row)
+export const CodeIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" />
+  </svg>
+);
+
+// Link Icon (Settings' Webhooks row)
+export const LinkIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </svg>
+);
+
+// Plug Icon (Settings' Plugs row)
+export const PlugIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M9 3.5V8M15 3.5V8M6.5 8h11v3a5.5 5.5 0 0 1-11 0z" />
+    <path d="M12 16.5v4" />
+  </svg>
+);
+
+// Grid Icon (Settings' Apps row and the Brands overview)
+export const GridIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+    <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+  </svg>
+);
+
+// Puzzle Icon (Settings' Integrations row)
+export const PuzzleIcon: FC<IconProps> = ({
+  size = 20,
+  className,
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M6 6.5h2.25a2.5 2.5 0 0 1 5 0h2.25a2 2 0 0 1 2 2v2.25a2.5 2.5 0 0 1 0 5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2z" />
+  </svg>
+);
+
+// Bulb Icon (an idea in Samy's welcome)
+export const BulbIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.2 1.1 2.2h5c0-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3.5z" />
+  </svg>
+);

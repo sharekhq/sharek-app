@@ -141,6 +141,17 @@ jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
 jest.mock('@gitroom/react/form/textarea', () => ({ Textarea: () => null }));
 
 import { MainBillingComponent } from '@gitroom/frontend/components/billing/main.billing.component';
+import {
+  buttonClassName,
+  ButtonSize,
+  ButtonVariant,
+} from '@gitroom/react/form/button';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 type Sub = NonNullable<ComponentProps<typeof MainBillingComponent>['sub']>;
 
@@ -187,16 +198,38 @@ const click = async (host: HTMLElement, label: string) =>
       (b) => b.textContent?.trim() === label
     )!
   );
-// The plan card whose heading is `name` ("Team"). Walked up by class, since happy-dom's selector
-// engine does not match a bracketed class such as rounded-[14px].
+// The plan card whose heading is `name` ("Team"): the plans grid's cell that holds the heading,
+// walked up from it, so the walk does not depend on the card's own classes.
 const card = (host: HTMLElement, name: string) => {
   let el: HTMLElement | null = Array.from(host.querySelectorAll('div')).find(
     (div) => div.textContent === name && div.children.length === 0
   )!;
-  while (el && !el.classList.contains('rounded-[14px]')) {
+  while (el && !el.parentElement?.classList.contains('grid')) {
     el = el.parentElement;
   }
   return el!;
+};
+// The page's button whose text is `label`.
+const button = (host: HTMLElement, label: string) =>
+  Array.from(host.querySelectorAll('button')).find(
+    (b) => b.textContent === label
+  )!;
+const words = (value: string) => value.split(' ');
+const own = (element: Element) => element.className.split(/\s+/);
+// The shared button set's look for a kind and a size (FR-026).
+const look = (variant: ButtonVariant, size: ButtonSize) =>
+  words(buttonClassName({ variant, size }));
+// Which half of the switch an option carries, whole and alone: 'on', 'idle', or 'mixed' for
+// anything else.
+const half = (option: Element) => {
+  expect(own(option)).toEqual(expect.arrayContaining(words(SWITCH_OPTION)));
+  const has = (value: string) =>
+    words(value).filter((name) => own(option).includes(name)).length;
+  const on = has(SWITCH_OPTION_ON);
+  const idle = has(SWITCH_OPTION_IDLE);
+  if (on === words(SWITCH_OPTION_ON).length && !idle) return 'on';
+  if (idle === words(SWITCH_OPTION_IDLE).length && !on) return 'idle';
+  return 'mixed';
 };
 // A billing period by the label its control starts with ("Yearly" carries its discount after it).
 const period = (host: HTMLElement, label: string) =>
@@ -388,6 +421,51 @@ describe('the plan cards', () => {
     );
   });
 
+  // Every card on the dashboard has 12px corners (FR-035).
+  it('rounds every plan card to 12px corners', async () => {
+    const host = await render(subscription('TEAM'));
+
+    for (const name of ['Standard', 'Team', 'Pro', 'Ultimate']) {
+      expect(own(card(host, name))).toContain('rounded-[12px]');
+      expect(own(card(host, name))).not.toContain('rounded-[14px]');
+    }
+  });
+
+  // The plan buttons are the page's main actions, so large (FR-026, FR-027): Upgrade primary,
+  // Downgrade secondary, and the current plan secondary in muted text, disabled and not faded, as
+  // today (FR-031). A disabled one takes no pointer, as the shared Button's does: the shared
+  // look's cursor-pointer is emitted after cursor-default, and its hover would tint a button that
+  // does nothing.
+  it('draws each plan button in the large shared look: Upgrade primary, Downgrade secondary, Current Plan secondary in muted text', async () => {
+    const host = await render(subscription('TEAM'));
+    const planButton = (name: string) =>
+      card(host, name).querySelector('button')!;
+
+    expect(own(planButton('Pro'))).toEqual(
+      expect.arrayContaining(look('primary', 'large'))
+    );
+    expect(own(planButton('Standard'))).toEqual(
+      expect.arrayContaining(look('secondary', 'large'))
+    );
+    expect(own(planButton('Team'))).toEqual(
+      expect.arrayContaining([
+        ...look('secondary', 'large'),
+        'text-textItemBlur',
+        'pointer-events-none',
+      ])
+    );
+    expect(planButton('Team').disabled).toBe(true);
+    expect(own(planButton('Team'))).not.toContain('opacity-50');
+    for (const name of ['Pro', 'Standard']) {
+      expect(own(planButton(name))).not.toContain('pointer-events-none');
+    }
+    for (const name of ['Standard', 'Team', 'Pro']) {
+      expect(own(planButton(name))).not.toContain('text-[15px]');
+      expect(own(planButton(name))).not.toContain('px-[16px]');
+      expect(own(planButton(name))).not.toContain('cursor-default');
+    }
+  });
+
   it("lists Sharek's features on every card", async () => {
     const host = await render(subscription('TEAM'));
 
@@ -452,10 +530,12 @@ describe('the billing period', () => {
     expect(monthly.getAttribute('aria-pressed')).toBe('false');
   });
 
-  // The menu's selection colours: a soft tint in light, the solid brand with white in dark. The
-  // discount tints itself from the label's colour while Yearly is not chosen; once it is, the tint
-  // would sit on the selection tint (3.9:1 in light), so the discount is the label's text alone.
-  it("marks the chosen period with the selection colours, and the discount in its label's colour", async () => {
+  // One switch look for every view switch (FR-032): the shown period takes the current half and
+  // the other the idle half, never both, as Tailwind emits the idle colours after the current
+  // ones; each half still fills the row on a phone. The discount tints itself from the label's
+  // colour while Yearly is not chosen; once it is, the tint would sit on the current half's tint,
+  // so the discount is the label's text alone.
+  it("draws the period in the dashboard's one switch look, and the discount in its label's colour", async () => {
     const TINT = 'bg-[color-mix(in_srgb,currentColor_14%,transparent)]';
     const host = await render(SUB);
     const [monthly, yearly] = Array.from(
@@ -465,17 +545,19 @@ describe('the billing period', () => {
       (el) => el.textContent === '20% Off'
     )!;
 
-    expect(monthly.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
+    expect(own(monthly.parentElement!)).toEqual(
+      expect.arrayContaining(words(SWITCH_GROUP))
     );
+    expect([half(monthly), half(yearly)]).toEqual(['on', 'idle']);
     expect(discount.className.split(/\s+/)).toContain(TINT);
     expect(discount.className).not.toMatch(/\bbg-brand\b/);
     await press(yearly);
-    expect(yearly.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['bg-selectedBg', 'text-selectedText'])
-    );
-    expect(monthly.className).not.toContain('bg-selectedBg');
+    expect([half(monthly), half(yearly)]).toEqual(['idle', 'on']);
     expect(discount.className.split(/\s+/)).not.toContain(TINT);
+    for (const option of [monthly, yearly]) {
+      expect(own(option)).toContain('phone:flex-1');
+      expect(option.className).not.toContain('bg-selectedBg');
+    }
   });
 
   it('groups the thousands of a yearly price', async () => {
@@ -813,7 +895,7 @@ describe("Sharek's style", () => {
     expect(panel(text('Billing cycle'))).not.toBeNull();
     expect(panel(text('Payment method'))).toBe(panel(text('Billing cycle')));
     expect(panel(text('Billing cycle'))!.className.split(/\s+/)).toContain(
-      'rounded-[14px]'
+      'rounded-[12px]'
     );
     expect(classes(host).filter((c) => c.includes('w-[48px]'))).toEqual([]);
     expect(text('AI images').parentElement!.className).not.toMatch(
@@ -821,19 +903,35 @@ describe("Sharek's style", () => {
     );
   });
 
-  it('uses the quiet button for Downgrade, Update payment method and End trial', async () => {
+  it('draws Downgrade, Update payment method and End trial in the large secondary look', async () => {
     mockUser = { ...mockUser, isTrailing: true };
     const host = await render(subscription('TEAM'));
-    const button = (label: string) =>
-      Array.from(host.querySelectorAll('button')).find(
-        (b) => b.textContent === label
-      )!;
 
     for (const label of ['Downgrade', 'Update payment method', 'End trial']) {
-      expect(button(label).className.split(/\s+/)).toEqual(
-        expect.arrayContaining(['bg-quiet', 'text-ink', 'border-line'])
+      expect(own(button(host, label))).toEqual(
+        expect.arrayContaining(look('secondary', 'large'))
       );
+      expect(own(button(host, label))).not.toContain('font-[500]');
+      expect(own(button(host, label))).not.toContain('hover:opacity-80');
     }
     expect(classes(host).filter((c) => c.includes('bg-btnSimple'))).toEqual([]);
+  });
+
+  // Cancel subscription opens a confirmation, so it is red text with no fill and no line, not the
+  // filled danger the confirmation itself takes (FR-028); it still fades while a change runs
+  // (FR-031).
+  it('draws Cancel subscription as large red text with no fill', async () => {
+    const host = await render(subscription('TEAM'));
+    const cancel = button(host, 'Cancel subscription');
+
+    expect(own(cancel)).toEqual(
+      expect.arrayContaining([
+        ...look('dangerGhost', 'large'),
+        'disabled:opacity-50',
+      ])
+    );
+    for (const name of ['border', 'border-line', 'bg-error', 'font-[500]']) {
+      expect(own(cancel)).not.toContain(name);
+    }
   });
 });

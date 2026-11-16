@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -30,22 +30,38 @@ jest.mock('@copilotkit/react-textarea', () => ({
   ),
 }));
 
-import { Autopost } from '@gitroom/frontend/components/autopost/autopost';
+import {
+  AddOrEditWebhook,
+  Autopost,
+} from '@gitroom/frontend/components/autopost/autopost';
+import {
+  buttonClassName,
+  ButtonSize,
+  ButtonVariant,
+} from '@gitroom/react/form/button';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
-const render = async () => {
+const render = async (element: ReactElement = <Autopost />) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
 
   await act(async () => {
-    root.render(<Autopost />);
+    root.render(element);
   });
 
   return host;
 };
+
+const classes = (element: Element) => element.className.split(' ');
+const look = (variant: ButtonVariant, size: ButtonSize) =>
+  buttonClassName({ variant, size }).split(' ');
+const button = (host: HTMLElement, text: string) =>
+  Array.from(host.querySelectorAll('button')).find(
+    (element) => element.textContent === text
+  )!;
 
 afterEach(() => {
   act(() => {
@@ -67,5 +83,68 @@ describe("an Auto Post feed's URL", () => {
     expect(block.textContent).toBe(url);
     expect(block.getAttribute('dir')).toBe('ltr');
     expect(block.className.split(' ')).toContain('truncate');
+  });
+});
+
+describe("an Auto Post row's buttons", () => {
+  it('draw Edit as a small secondary button and Delete as a small red-text one, neither filled red', async () => {
+    swrData = [
+      {
+        id: 'feed-1',
+        title: 'News',
+        url: 'https://feeds.example.org/',
+        active: true,
+      },
+    ];
+    const host = await render();
+
+    // An action on every row is never primary, and a row's Delete is red
+    // text with no fill (FR-027, FR-028, FR-029).
+    const edit = button(host, 'Edit');
+    const remove = button(host, 'Delete');
+    expect(classes(edit)).toEqual(
+      expect.arrayContaining(look('secondary', 'small'))
+    );
+    expect(classes(remove)).toEqual(
+      expect.arrayContaining(look('dangerGhost', 'small'))
+    );
+    expect(classes(edit)).not.toContain('bg-error');
+    expect(classes(remove)).not.toContain('bg-error');
+  });
+});
+
+describe("Auto Post's form", () => {
+  it('draws Send Test as a medium secondary button, as Webhooks does', async () => {
+    swrData = undefined;
+    const host = await render(<AddOrEditWebhook reload={jest.fn()} />);
+
+    expect(classes(button(host, 'Send Test'))).toEqual(
+      expect.arrayContaining(look('secondary', 'medium'))
+    );
+  });
+});
+
+describe("Auto Post's panel", () => {
+  it('holds its rows in a card with 12px corners and a 1px line, under a 20px semibold heading', async () => {
+    swrData = [
+      {
+        id: 'feed-1',
+        title: 'News',
+        url: 'https://feeds.example.org/',
+        active: true,
+      },
+    ];
+    const host = await render();
+
+    // FR-035: a Settings card has the dashboard's 12px corners, a panel's
+    // heading is 20px semibold.
+    const card = host.querySelector('.bg-sixth')!;
+    expect(classes(card)).toEqual(
+      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+    );
+    expect(classes(card)).not.toContain('rounded-[4px]');
+    expect(classes(host.querySelector('h3')!)).toEqual(
+      expect.arrayContaining(['text-[20px]', 'font-[600]'])
+    );
   });
 });

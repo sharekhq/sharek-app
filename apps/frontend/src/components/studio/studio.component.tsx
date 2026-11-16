@@ -21,11 +21,18 @@ import {
   useAiVideoTypes,
 } from '@gitroom/frontend/components/launches/ai.video';
 import {
-  FOCUS_RING,
   onRadioGroupKeyDown,
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
+import {
+  CHIP,
+  CHIP_COUNT,
+  CHIP_COUNT_IDLE,
+  CHIP_COUNT_ON,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 import {
   CheckmarkIcon,
   CloseIcon,
@@ -123,7 +130,7 @@ const StudioCard: FC<{
       onClick={open}
       aria-busy={loading || undefined}
       className={clsx(
-        'flex flex-col phone:flex-row text-start bg-surface border border-line rounded-[14px] overflow-hidden transition-all focus-visible:ring-2 focus-visible:ring-brand',
+        'flex flex-col phone:flex-row text-start bg-surface border border-line rounded-[12px] overflow-hidden transition-all focus-visible:ring-2 focus-visible:ring-brand',
         !locked && 'hover:shadow-card motion-safe:hover:-translate-y-[2px]'
       )}
     >
@@ -408,11 +415,7 @@ export const StudioComponent: FC = () => {
           {/* The editor renders nothing without a channel, and it opens with
               no close button — so the offer waits for one. */}
           {!!integrations?.length && (
-            <Button
-              variant="quiet"
-              onClick={createPost}
-              innerClassName="gap-[8px]"
-            >
+            <Button variant="secondary" onClick={createPost}>
               <PlusIcon />
               {t('studio_create_post', 'Create a post')}
             </Button>
@@ -443,6 +446,7 @@ export const StudioComponent: FC = () => {
             label={t('studio_search', 'Search tools and models')}
             value={query}
             onChange={setQuery}
+            size="page"
           />
         </div>
       </div>
@@ -469,19 +473,13 @@ export const StudioComponent: FC = () => {
               aria-checked={checked}
               tabIndex={checked ? 0 : -1}
               onClick={() => setChip(item.id)}
-              className={clsx(
-                'inline-flex items-center gap-[8px] h-[36px] coarse:h-[44px] ps-[14px] pe-[8px] rounded-full border text-[14px] font-[600] whitespace-nowrap cursor-pointer transition-colors',
-                FOCUS_RING,
-                checked
-                  ? 'bg-selectedBg text-selectedText border-transparent'
-                  : 'bg-surface text-inkSoft border-line hover:bg-panel'
-              )}
+              className={clsx(CHIP, checked ? CHIP_ON : CHIP_IDLE)}
             >
               <span>{item.label(t)}</span>
               <span
                 className={clsx(
-                  'min-w-[22px] h-[22px] px-[6px] rounded-full inline-flex items-center justify-center text-[12px] tabular-nums',
-                  checked ? 'bg-surface' : 'bg-panel text-muted'
+                  CHIP_COUNT,
+                  checked ? CHIP_COUNT_ON : CHIP_COUNT_IDLE
                 )}
               >
                 {item.count}
@@ -517,7 +515,7 @@ export const StudioComponent: FC = () => {
       )}
       {!sections.tools.length && !sections.models.length && (
         <EmptyState
-          className="border border-dashed border-line rounded-[14px]"
+          className="border border-dashed border-line rounded-[12px]"
           illustration={<NoMatchIllustration />}
           title={t('studio_no_match_title', 'Nothing matches “{{query}}”', {
             query: isolate(query.trim()),
@@ -529,7 +527,7 @@ export const StudioComponent: FC = () => {
             'Try another word, or clear the search to see every tool.'
           )}
           actions={
-            <Button variant="quiet" onClick={clearSearch}>
+            <Button variant="secondary" onClick={clearSearch}>
               {t('studio_clear_search', 'Clear search')}
             </Button>
           }

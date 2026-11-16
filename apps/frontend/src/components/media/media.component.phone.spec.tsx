@@ -139,6 +139,7 @@ import {
   MediaBox,
   mediaLibrarySize,
 } from '@gitroom/frontend/components/media/media.component';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 const mounted: Array<{ unmount: () => void }> = [];
 
@@ -269,33 +270,50 @@ describe('the picker at 1025px and below', () => {
     );
   });
 
-  it('keeps Add disabled and grey until something is picked, then brand', async () => {
+  it("keeps Add disabled and grey until something is picked, then brand, the window's main action in primary large at every width", async () => {
     const host = await picker();
     const add = buttonByText(host, 'Add selected media')!;
 
     expect(add.disabled).toBe(true);
     expect(classes(add)).toEqual(
       expect.arrayContaining([
-        'bg-brand',
-        'mobile:h-[44px]',
-        'mobile:rounded-[8px]',
+        ...buttonClassName({ variant: 'primary', size: 'large' }).split(' '),
+        'disabled:opacity-80',
+        'disabled:cursor-not-allowed',
         'mobile:disabled:bg-btnSimple',
         'mobile:disabled:text-muted',
         'mobile:disabled:opacity-100',
       ])
     );
+    // the 52px, 10px-corner look it had from 1026px up is gone
+    [
+      'h-[52px]',
+      'rounded-[10px]',
+      'mobile:h-[44px]',
+      'mobile:rounded-[8px]',
+    ].forEach((name) => expect(classes(add)).not.toContain(name));
     await click(tile(host, 1));
 
     expect(add.disabled).toBe(false);
   });
 
-  it('has no Cancel there (the cross closes it), and Upload at the bottom', async () => {
+  it('has no Cancel there (the cross closes it), Cancel secondary large beside Add from 1026px up, and Upload at the bottom', async () => {
     const host = await picker();
+    const cancel = buttonByText(host, 'Cancel');
     const [top, bottom] = Array.from(host.querySelectorAll('button')).filter(
       (button) => (button.textContent || '').trim() === 'Upload'
     );
 
-    expect(classes(buttonByText(host, 'Cancel'))).toContain('mobile:hidden');
+    expect(classes(cancel)).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ variant: 'secondary', size: 'large' }).split(' '),
+        'mobile:hidden',
+      ])
+    );
+    // the 52px, 10px-corner look it had beside Add is gone
+    ['h-[52px]', 'rounded-[10px]', 'border-newTextColor/10'].forEach((name) =>
+      expect(classes(cancel)).not.toContain(name)
+    );
     expect(classes(top.parentElement)).toContain('mobile:hidden');
     expect(classes(bottom.parentElement)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:flex'])
@@ -447,25 +465,32 @@ describe('the tiles under the toolbar at 1025px and below', () => {
 });
 
 // 044 T071 F-5: Upload is the brand button at every width, as it is from
-// 1026px up; it read grey at 1025px and below.
+// 1026px up; it read grey at 1025px and below. Spec 059 (FR-027): it is the
+// page's main action, so primary large, with a 16px plus.
 describe('Upload at 1025px and below', () => {
   it.each([
     ['the picker', picker],
     ['the Media page', page],
-  ])('is the brand button in %s, as from 1026px up', async (_name, open) => {
-    const host = await open();
-    const uploads = Array.from(host.querySelectorAll('button')).filter(
-      (button) => (button.textContent || '').trim() === 'Upload'
-    );
-
-    expect(uploads.length).toBeGreaterThan(0);
-    for (const upload of uploads) {
-      expect(classes(upload)).toEqual(
-        expect.arrayContaining(['bg-btnPrimary', 'text-white'])
+  ])(
+    'is the primary large button in %s, as from 1026px up',
+    async (_name, open) => {
+      const host = await open();
+      const uploads = Array.from(host.querySelectorAll('button')).filter(
+        (button) => (button.textContent || '').trim() === 'Upload'
       );
-      expect(
-        classes(upload).filter((name) => /^mobile:(bg|text)-/.test(name))
-      ).toEqual([]);
+
+      expect(uploads.length).toBeGreaterThan(0);
+      for (const upload of uploads) {
+        expect(classes(upload)).toEqual(
+          expect.arrayContaining(
+            buttonClassName({ variant: 'primary', size: 'large' }).split(' ')
+          )
+        );
+        expect(upload.querySelector('svg')!.getAttribute('width')).toBe('16');
+        expect(
+          classes(upload).filter((name) => /^mobile:(bg|text)-/.test(name))
+        ).toEqual([]);
+      }
     }
-  });
+  );
 });

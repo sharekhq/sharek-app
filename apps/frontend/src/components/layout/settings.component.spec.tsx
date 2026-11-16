@@ -1,21 +1,20 @@
-import { act, ReactNode } from 'react';
+import { act, ComponentProps, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // What decides the list: the plan and role on the user, the two server flags
-// and the address. Billing and a lifetime plan decide the line above the build
-// number. Each case sets them; beforeEach resets them.
+// and the address. Each case sets them; beforeEach resets them.
 const mockVariables = {
   isGeneral: true,
   showThirdParty: false,
-  billingEnabled: false,
 };
 let mockUser: {
   role: string;
   tier: Record<string, string | boolean>;
-  isLifetime?: boolean;
 };
 let mockParams = new URLSearchParams();
 const mockAsked: string[] = [];
+// What the page last handed the menu.
+let mockMenu: ComponentProps<typeof SettingsMenu> | undefined;
 
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => mockVariables,
@@ -77,9 +76,32 @@ jest.mock('@gitroom/frontend/components/settings/apps.component', () => ({
   ),
 }));
 
-// A marker: the build number is placed against the logout control.
+// The menu is SettingsMenu itself, recording what the page hands it; how it
+// draws the tabs, the strip and its foot is settings.menu.spec's. Its rail is
+// a marker, its ring is the channel list's, whose module loads the
+// calendar's, and its Log out row's confirmation is logout.component.spec's.
+jest.mock('@gitroom/frontend/components/settings/settings.menu', () => {
+  const actual = jest.requireActual<
+    typeof import('@gitroom/frontend/components/settings/settings.menu')
+  >('@gitroom/frontend/components/settings/settings.menu');
+  return {
+    SettingsMenu: (props: ComponentProps<typeof actual.SettingsMenu>) => {
+      mockMenu = props;
+      return <actual.SettingsMenu {...props} />;
+    },
+  };
+});
+jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/ui/split.panel'),
+  SplitPanel: ({ children }: { children: ReactNode }) => (
+    <aside data-split-panel="">{children}</aside>
+  ),
+}));
+jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
+  FOCUS_RING: 'focus-visible:ring-2 focus-visible:ring-brand',
+}));
 jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
-  LogoutComponent: () => <div data-logout />,
+  useLogout: () => () => undefined,
 }));
 
 // Scenery: the profile form and the modal stack the component wires up. None
@@ -108,6 +130,7 @@ jest.mock('next/link', () => ({
 }));
 
 import { SettingsPopup } from '@gitroom/frontend/components/layout/settings.component';
+import type { SettingsMenu } from '@gitroom/frontend/components/settings/settings.menu';
 
 // An admin on a paid plan that offers every tab.
 const admin = () => ({
@@ -134,30 +157,34 @@ const settings = async () => {
   return host;
 };
 
-// The tab column holds the labels and nothing else (the logout control and the
-// build number sit below it). Read through the first tab's siblings, so the helper does not
-// depend on the element a tab is drawn as.
-const tabs = (host: HTMLElement) => {
-  const first = Array.from(host.querySelectorAll('*')).find(
-    (el) => el.children.length === 0 && el.textContent === 'Global Settings'
-  );
-  return Array.from(first!.parentElement!.children) as HTMLElement[];
-};
+// The tabs as drawn: each a button that says whether it is open (Log out says
+// nothing), in the order the menu draws them.
+const tabs = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('button[aria-pressed]'));
 const labels = (host: HTMLElement) => tabs(host).map((tab) => tab.textContent);
 const selected = (host: HTMLElement) =>
   tabs(host)
-    .filter((tab) => tab.className.includes('bg-brandSoft'))
+    .filter((tab) => tab.getAttribute('aria-pressed') === 'true')
     .map((tab) => tab.textContent);
 const panel = (host: HTMLElement) =>
   host.querySelector('[data-panel]')?.getAttribute('data-panel');
+
+// The window is wider than 1025px, where the menu is a rail.
+const realMatchMedia = window.matchMedia;
 
 beforeEach(() => {
   mockUser = admin();
   mockVariables.isGeneral = true;
   mockVariables.showThirdParty = false;
-  mockVariables.billingEnabled = false;
   mockParams = new URLSearchParams();
   mockAsked.length = 0;
+  mockMenu = undefined;
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: (): void => undefined,
+    removeEventListener: (): void => undefined,
+  })) as unknown as typeof window.matchMedia;
 });
 
 afterEach(() => {
@@ -165,33 +192,33 @@ afterEach(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  window.matchMedia = realMatchMedia;
 });
 
+// Which tabs the page offers; the order they show in is the menu's
+// (settings.menu.spec).
 describe('the Settings tabs', () => {
-  it('runs in Sharek order, with Plugs and Apps last, for an admin on a paid plan', async () => {
-    expect(labels(await settings())).toEqual([
-      'Global Settings',
-      'Teams',
-      'Webhooks',
-      'Auto Post',
-      'Sets',
-      'Signatures',
-      'Developers',
-      'Plugs',
-      'Apps',
-    ]);
+  it('offers an admin on a paid plan every tab but Integrations', async () => {
+    expect(labels(await settings()).sort()).toEqual(
+      [
+        'Global Settings',
+        'Teams',
+        'Webhooks',
+        'Auto Post',
+        'Sets',
+        'Signatures',
+        'Developers',
+        'Plugs',
+        'Apps',
+      ].sort()
+    );
   });
 
-  it('shows Integrations, before Plugs, only when third-party integrations are switched on', async () => {
+  it('shows Integrations only when third-party integrations are switched on', async () => {
     expect(labels(await settings())).not.toContain('Integrations');
 
     mockVariables.showThirdParty = true;
-    expect(labels(await settings()).slice(-4)).toEqual([
-      'Developers',
-      'Integrations',
-      'Plugs',
-      'Apps',
-    ]);
+    expect(labels(await settings())).toContain('Integrations');
   });
 
   it('keeps the Developers name, and never asks for an Agents / Dev label', async () => {
@@ -306,188 +333,154 @@ describe('the Integrations address with third-party integrations switched off', 
   });
 });
 
-describe('the tab list on a phone', () => {
-  const overridden: Array<[string, PropertyDescriptor | undefined]> = [];
-  const override = (name: string, descriptor: PropertyDescriptor) => {
-    const proto = HTMLElement.prototype;
-    overridden.push([name, Object.getOwnPropertyDescriptor(proto, name)]);
-    Object.defineProperty(proto, name, { configurable: true, ...descriptor });
-  };
-  // happy-dom lays nothing out, so the strip's two widths are set by hand.
-  const strip = (scrollWidth: number, clientWidth: number) => {
-    override('scrollWidth', { get: () => scrollWidth });
-    override('clientWidth', { get: () => clientWidth });
-  };
-  let scrollIntoView: jest.Mock;
-
-  beforeEach(() => {
-    scrollIntoView = jest.fn();
-    override('scrollIntoView', { writable: true, value: scrollIntoView });
-  });
-
-  afterEach(() => {
-    const proto = HTMLElement.prototype;
-    for (const [name, original] of overridden.splice(0).reverse()) {
-      if (original) Object.defineProperty(proto, name, original);
-      else Reflect.deleteProperty(proto, name);
-    }
-  });
-
-  it('draws every tab as a button a keyboard reaches, with a focus ring, and says which is open', async () => {
+// The menu is SettingsMenu (spec 059, US5, research R5): the page hands it the
+// tabs it offers, the open one, what to do on a change and whether Log out
+// shows. Above 1025px it is a SplitPanel rail beside the open tab's scroll box
+// and outside it, so the menu holds still while a long tab scrolls.
+describe("the page's menu", () => {
+  it('is SettingsMenu, handed the tabs, the open one, a change handler and Log out', async () => {
     mockParams = new URLSearchParams('tab=plugs');
-    const all = tabs(await settings());
-
-    for (const tab of all) {
-      expect(tab.tagName).toBe('BUTTON');
-      expect(tab.getAttribute('type')).toBe('button');
-      expect(tab.className).toContain('focus-visible:ring-2');
-      expect(tab.className).toContain('focus-visible:ring-brand');
-    }
-    expect(
-      all
-        .filter((tab) => tab.getAttribute('aria-pressed') === 'true')
-        .map((tab) => tab.textContent)
-    ).toEqual(['Plugs']);
-  });
-
-  it('turns the column into one sideways row up to 1025px', async () => {
-    const host = await settings();
-    const list = tabs(host)[0].parentElement!;
-
-    expect(list.className).toContain('flex-col');
-    expect(list.className).toContain('mobile:flex-row');
-    expect(list.className).toContain('mobile:overflow-x-auto');
-    for (const tab of tabs(host)) {
-      expect(tab.className).toContain('mobile:shrink-0');
-      expect(tab.className).toContain('mobile:whitespace-nowrap');
-    }
-    // An iPad held upright gets the row too: nothing in the tab panel stops at
-    // the 768px phone screen any more.
-    expect(list.parentElement!.outerHTML).not.toMatch(/\bphone:/);
-  });
-
-  it('opens with the tab the address names scrolled into view when the strip overflows', async () => {
-    strip(900, 366);
-    mockParams = new URLSearchParams('tab=apps');
-    const host = await settings();
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      inline: 'center',
-      block: 'nearest',
-    });
-    expect(scrollIntoView.mock.contexts[0]).toBe(
-      tabs(host).find((tab) => tab.textContent === 'Apps')
-    );
-  });
-
-  it('leaves the page alone where the tabs fit, as in the desktop column', async () => {
-    strip(260, 260);
-    mockParams = new URLSearchParams('tab=apps');
     await settings();
 
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(mockMenu?.list).toHaveLength(9);
+    expect(mockMenu?.list).toContainEqual({ tab: 'api', label: 'Developers' });
+    expect(mockMenu?.tab).toBe('plugs');
+    expect(mockMenu?.onChange).toBeInstanceOf(Function);
+    expect(mockMenu?.showLogout).toBe(true);
+  });
+
+  it('hides Log out during onboarding on a paid plan', async () => {
+    mockParams = new URLSearchParams('onboarding=true');
+    await settings();
+
+    expect(mockMenu?.showLogout).toBe(false);
+  });
+
+  it('sits in a SplitPanel above 1025px, beside the scroll box and not in it', async () => {
+    mockParams = new URLSearchParams('tab=plugs');
+    const host = await settings();
+    const rail = host.querySelector('[data-split-panel]');
+    const box = host.querySelector('[data-panel="plugs"]')!.closest('form')!
+      .parentElement!;
+
+    expect(rail?.contains(tabs(host)[0])).toBe(true);
+    expect(box.contains(rail)).toBe(false);
+    expect(rail?.parentElement).toBe(box.parentElement!.parentElement);
   });
 });
 
-// The build number, and above it the lifetime-tier line, moved here from the
-// calendar's channel list, where a long one ran past the list's edge (R11).
-describe('the build number under Log out', () => {
-  const version = process.env.NEXT_PUBLIC_VERSION;
-  // A full commit SHA, as the build stamps it: one word with nowhere to break.
-  const build = '4e6e5627b1edbe5a6cf8e1d2a3b4c5d6e7f80912';
+// The open tab is in the address (spec 059, FR-023, research R5), so a
+// refresh reopens it. The page replaces the address, as Media does, and never
+// pushes one, so Back leaves Settings. Global settings, the default, is left
+// out, and every other parameter stays where it was: onboarding, which hides
+// Log out, and loggedAuth, which customFetch reads from the address on every
+// request.
+describe('switching tabs', () => {
+  let replace: jest.SpyInstance;
+  let push: jest.SpyInstance;
 
-  beforeEach(() => {
-    process.env.NEXT_PUBLIC_VERSION = build;
-  });
+  // Opens Settings at an address; every address write after it is recorded.
+  const open = async (address: string) => {
+    window.history.replaceState(null, '', address);
+    mockParams = new URLSearchParams(window.location.search);
+    replace = jest.spyOn(window.history, 'replaceState');
+    push = jest.spyOn(window.history, 'pushState');
+    return settings();
+  };
+  const pick = async (host: HTMLElement, label: string) => {
+    const tab = tabs(host).find((node) => node.textContent === label);
+    expect(tab).toBeDefined();
+    await act(async () => {
+      tab!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  };
 
   afterEach(() => {
-    if (version === undefined) delete process.env.NEXT_PUBLIC_VERSION;
-    else process.env.NEXT_PUBLIC_VERSION = version;
+    jest.restoreAllMocks();
+    window.history.replaceState(null, '', '/');
   });
 
-  const line = (host: HTMLElement, text: string) =>
-    Array.from(host.querySelectorAll('*')).find(
-      (el) => el.children.length === 0 && el.textContent === text
-    ) as HTMLElement | undefined;
-  // Every class from the line up to the page's root, so a style set on the
-  // line or on the block around it both count.
-  const classesUp = (el: HTMLElement, host: HTMLElement) => {
-    const found: string[] = [];
-    for (let at: HTMLElement | null = el; at && at !== host; ) {
-      found.push(at.className);
-      at = at.parentElement;
-    }
-    return found.join(' ');
-  };
-  const follows = (first: Node, second: Node) =>
-    !!(
-      first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+  it('writes the tab picked into the address as ?tab=<key> and opens its panel', async () => {
+    const host = await open('/settings');
+    await pick(host, 'Developers');
+
+    expect(replace).toHaveBeenLastCalledWith(null, '', '/settings?tab=api');
+    expect(panel(host)).toBe('api');
+  });
+
+  it('keeps every other parameter of the address in its place', async () => {
+    const host = await open(
+      '/settings?tab=plugs&loggedAuth=abc&onboarding=true'
     );
+    await pick(host, 'Apps');
 
-  it('shows under Log out in 12px muted text that wraps', async () => {
-    const host = await settings();
-    const number = line(host, build)!;
-
-    expect(number).toBeDefined();
-    expect(follows(host.querySelector('[data-logout]')!, number)).toBe(true);
-    const classes = classesUp(number, host);
-    expect(classes).toContain('text-[12px]');
-    expect(classes).toContain('text-muted');
-    expect(classes).toContain('break-all');
-    expect(classes).not.toMatch(
-      /\b(truncate|text-ellipsis|whitespace-nowrap|text-nowrap)\b/
+    expect(replace).toHaveBeenLastCalledWith(
+      null,
+      '',
+      '/settings?tab=apps&loggedAuth=abc&onboarding=true'
     );
   });
 
-  it('stays on a phone, under the tab strip', async () => {
-    const host = await settings();
-    const number = line(host, build)!;
-    const strip = tabs(host)[0].parentElement!;
+  it('leaves the tab out of the address for Global settings, the default', async () => {
+    const host = await open('/settings?loggedAuth=abc&tab=plugs');
+    await pick(host, 'Global Settings');
 
-    expect(number).toBeDefined();
-    expect(classesUp(number, host)).not.toMatch(/(^|\s)([a-z]+:)*hidden\b/);
-    expect(strip.contains(number)).toBe(false);
-    expect(follows(strip, number)).toBe(true);
-    // The column that holds both stacks them at every width, while the strip
-    // inside it turns sideways.
-    let column = number.parentElement!;
-    while (!column.contains(strip)) column = column.parentElement!;
-    expect(column.className).toContain('flex-col');
-    expect(column.className).not.toContain('mobile:flex-row');
+    expect(replace).toHaveBeenLastCalledWith(
+      null,
+      '',
+      '/settings?loggedAuth=abc'
+    );
+    expect(panel(host)).toBe('global_settings');
+
+    const bare = await open('/settings?tab=plugs');
+    await pick(bare, 'Global Settings');
+
+    expect(replace).toHaveBeenLastCalledWith(null, '', '/settings');
   });
 
-  it('has the lifetime-tier line above it for a lifetime plan while billing is on', async () => {
-    mockUser = { ...admin(), isLifetime: true };
-    mockVariables.billingEnabled = true;
-    const host = await settings();
-    // lifetime_tier's "{{tier}} tier", with the plan's name filled in.
-    const tier = line(host, 'Pro tier')!;
-    const number = line(host, build)!;
+  it('never pushes an address, so Back leaves Settings', async () => {
+    const host = await open('/settings');
+    await pick(host, 'Plugs');
+    await pick(host, 'Apps');
+    await pick(host, 'Global Settings');
 
-    expect(mockAsked).toContain('lifetime_tier');
-    expect(tier).toBeDefined();
-    expect(number).toBeDefined();
-    expect(follows(host.querySelector('[data-logout]')!, tier)).toBe(true);
-    expect(follows(tier, number)).toBe(true);
-    const classes = classesUp(tier, host);
-    expect(classes).toContain('text-[12px]');
-    expect(classes).toContain('text-muted');
-    expect(classes).toContain('break-all');
+    expect(replace).toHaveBeenCalledTimes(3);
+    expect(push).not.toHaveBeenCalled();
   });
+});
 
-  it('has no lifetime-tier line while billing is off, or for a plan that is not lifetime', async () => {
-    mockUser = { ...admin(), isLifetime: true };
-    const unbilled = await settings();
+// Settings scrolls in its card (spec 059, FR-002, contracts/routes.md). The
+// window used to scroll, menu and panel together (1293px at 900 tall); the
+// open tab's panel now scrolls inside PageScroll's box, the dashboard page's
+// one scroller, with the pane's own 20px inset and 12px gap on the box, and the
+// menu stays outside it. happy-dom applies no media queries or Tailwind, so the
+// widths are pinned by the classes that carry them (page.scroll.spec pins
+// PageScroll's own).
+describe("the open tab's panel", () => {
+  const HOST = ['bg-newBgColorInner', 'flex-1', 'min-w-0', 'relative'];
+  const BOX = [
+    'absolute',
+    'inset-0',
+    'overflow-y-auto',
+    'flex',
+    'flex-col',
+    'mobile:static',
+    'scrollbar',
+    'scrollbar-thumb-fifth',
+    'scrollbar-track-newBgColor',
+  ];
+  const classesOf = (el: Element) =>
+    (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 
-    expect(line(unbilled, build)).toBeDefined();
-    expect(line(unbilled, 'Pro tier')).toBeUndefined();
+  it("scrolls inside PageScroll's box, with the pane's inset and gap on the box, and the menu outside it", async () => {
+    mockParams = new URLSearchParams('tab=plugs');
+    const host = await settings();
+    const form = host.querySelector('[data-panel="plugs"]')!.closest('form')!;
+    const box = form.parentElement!;
 
-    mockUser = admin();
-    mockVariables.billingEnabled = true;
-    const notLifetime = await settings();
-
-    expect(line(notLifetime, build)).toBeDefined();
-    expect(line(notLifetime, 'Pro tier')).toBeUndefined();
+    expect(classesOf(box.parentElement!)).toEqual(HOST);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[12px]']);
+    expect(box.children).toHaveLength(1);
+    expect(box.contains(tabs(host)[0])).toBe(false);
   });
 });

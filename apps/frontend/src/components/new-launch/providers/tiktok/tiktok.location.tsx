@@ -4,6 +4,7 @@ import { FC, useCallback, useEffect, useState } from 'react';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { useCustomProviderFunction } from '@gitroom/frontend/components/launches/helpers/use.custom.provider.function';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 interface LocationResult {
   id: string;
@@ -122,9 +123,9 @@ export const TikTokLocationSelector: FC<{
           </div>
         </div>
       ) : !open ? (
-        <div>
+        <div className="flex">
           <div
-            className="h-[42px] px-[16px] inline-flex items-center cursor-pointer bg-newBgColorInner border-newTableBorder border rounded-[8px] text-[14px]"
+            className={buttonClassName({ variant: 'secondary' })}
             onClick={() => setOpen(true)}
           >
             {t('tiktok_add_location', 'Add location')}
@@ -133,7 +134,7 @@ export const TikTokLocationSelector: FC<{
       ) : (
         <div className="flex flex-col gap-[6px]">
           <div className="flex gap-[6px]">
-            <div className="flex-1 h-[42px] bg-newBgColorInner border-newTableBorder border rounded-[8px] flex items-center">
+            <div className="flex-1 h-[40px] coarse:h-[44px] bg-newBgColorInner border-newTableBorder border rounded-[8px] flex items-center">
               <input
                 className="h-full w-full bg-transparent outline-none px-[16px] text-[14px] coarse:text-[16px] text-textColor placeholder-textColor"
                 placeholder={t('tiktok_search_location', 'Search location')}
@@ -142,7 +143,7 @@ export const TikTokLocationSelector: FC<{
               />
             </div>
             <div
-              className="h-[42px] px-[16px] flex items-center cursor-pointer bg-newBgColorInner border-newTableBorder border rounded-[8px] text-[14px]"
+              className={buttonClassName({ variant: 'ghost' })}
               onClick={() => setOpen(false)}
             >
               {t('cancel', 'Cancel')}

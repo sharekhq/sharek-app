@@ -85,4 +85,26 @@ describe('the TikTok searches under a finger', () => {
       );
     }
   );
+
+  // FR-034: a field is 40px, 44px under a finger, the height of the Cancel
+  // beside it.
+  it('sizes the location search to its Cancel', async () => {
+    const element = (
+      <TikTokLocationSelector
+        name="location"
+        label="Location"
+        onChange={jest.fn()}
+      />
+    );
+    const search = await openSearch(await render(element), 'Add location');
+    const box = search!.parentElement!;
+    const field = box.className.split(' ');
+    const cancel = box.nextElementSibling!.className.split(' ');
+
+    expect(field).toEqual(
+      expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+    );
+    expect(field).not.toContain('h-[42px]');
+    expect(cancel).toContain('h-[40px]');
+  });
 });

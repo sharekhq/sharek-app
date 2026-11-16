@@ -1,4 +1,4 @@
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import React, {
   FC,
   Fragment,
@@ -899,7 +899,7 @@ export const Modal: FC<{
             <ModalActionBar>
               {phase === 'result' ? (
                   <>
-                    <Button variant="quiet" onClick={backFromResult}>
+                    <Button variant="secondary" onClick={backFromResult}>
                       {handshake?.backLabel}
                     </Button>
                     <div className="flex-1" />
@@ -1087,7 +1087,8 @@ export const AiVideo: FC<{
         data-tooltip-content={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
         aria-label={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
         className={clsx(
-          'cursor-pointer h-[30px] coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] rounded-[6px] mobile:rounded-[8px] justify-center items-center flex bg-ai text-aiAccent px-[8px]'
+          buttonClassName({ variant: 'ai', size: 'small' }),
+          'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] mobile:px-0'
         )}
       >
         {loading && (
@@ -1096,7 +1097,7 @@ export const AiVideo: FC<{
           </div>
         )}
         <div
-          className={clsx('flex gap-[5px] items-center', loading && 'invisible')}
+          className={clsx('flex gap-[6px] items-center', loading && 'invisible')}
         >
           <div>
             <svg
@@ -1123,7 +1124,7 @@ export const AiVideo: FC<{
               </defs>
             </svg>
           </div>
-          <div className="text-[10px] font-[600] mobile:hidden block">
+          <div className="mobile:hidden block">
             {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
           </div>
         </div>

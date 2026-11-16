@@ -20,7 +20,12 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 }));
 
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
-import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import {
+  GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
+  SplitPanel,
+} from '@gitroom/frontend/components/ui/split.panel';
 
 // The window, as the media query reports it: 1025px or narrower unless a case
 // widens it, and what listens for it to change.
@@ -557,5 +562,25 @@ describe('the start-side drawer at 1025px and below', () => {
 
     await resize(false);
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+});
+
+// A group's label in a panel's list (the Brands page's "Not in a brand",
+// Samy's chat dates, Settings' groups): one look, kept once here.
+describe('the group label', () => {
+  it('exports the look of a group label', () => {
+    expect(GROUP_LABEL).toBe(
+      'px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted'
+    );
+  });
+});
+
+// A row of a panel's list (the Brands page's brands, Samy's chats, Settings'
+// tabs): the open row's selected tint and the hover the others show, kept
+// once here.
+describe('a list row', () => {
+  it("exports the open row's tint and the others' hover", () => {
+    expect(LIST_ROW_ON).toBe('bg-brandSoft2');
+    expect(LIST_ROW_IDLE).toBe('hover:bg-boxHover');
   });
 });

@@ -1,6 +1,6 @@
-import { act, ComponentProps } from 'react';
+import { act, ComponentProps, FC, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { SWRConfig } from 'swr';
+import { SWRConfig, useSWRConfig } from 'swr';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -12,8 +12,9 @@ import * as path from 'path';
 // empty state that explains them; a brand's page with its name, Rename, its ⋯
 // and the line on what the kit is for, then its kit, with Fill from my website
 // beside Rename once the kit has something in it (US6); No brand's page with
-// its channels and no kit. At 1025px and below the list comes first and a
-// brand's page has a link back to it.
+// its channels and no kit. Above 1025px with brands, All brands' overview
+// until a brand is picked (spec 059, US6). At 1025px and below the list comes
+// first and a brand's page has a link back to it.
 //
 // SWR runs for real on a cache of its own, so the brands come from GET /brands
 // and the channels from GET /integrations/list; only the requests are stubbed.
@@ -84,11 +85,27 @@ jest.mock('@gitroom/frontend/components/layout/loading', () => ({
   LoadingComponent: () => <div data-testid="loading" />,
 }));
 jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/ui/split.panel'),
   SplitPanel: (props: ComponentProps<typeof SplitPanel>) => {
     mockSplit = props;
     return <aside data-testid="split-panel">{props.children}</aside>;
   },
 }));
+// The overview's grid mark and a done item's tick are markers that keep the
+// props the page gives them; every other icon is the real one.
+jest.mock('@gitroom/frontend/components/ui/icons', () => {
+  const marker = (name: string) => {
+    const Icon = (props: ComponentProps<'svg'> & { size?: number }) => (
+      <svg data-icon={name} {...props} />
+    );
+    return Icon;
+  };
+  return {
+    ...jest.requireActual('@gitroom/frontend/components/ui/icons'),
+    GridIcon: marker('GridIcon'),
+    CheckmarkIcon: marker('CheckmarkIcon'),
+  };
+});
 // Scenery: the channel list's module loads for its order and its ring.
 jest.mock(
   '@gitroom/frontend/components/launches/add.provider.component',
@@ -100,8 +117,12 @@ jest.mock(
 
 import i18next from 'i18next';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+import { buttonClassName } from '@gitroom/react/form/button';
 import type { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
-import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
+import type {
+  Brand,
+  BrandImage,
+} from '@gitroom/frontend/components/brands/use.brands';
 import { BrandsComponent } from '@gitroom/frontend/components/brands/brands.component';
 
 const mockTranslate = (
@@ -131,7 +152,13 @@ beforeAll(async () => {
   });
 });
 
-const brand = (id: string, name: string, logo: Brand['kit']['logo'] = null) =>
+const brand = (
+  id: string,
+  name: string,
+  logo: Brand['kit']['logo'] = null,
+  kit: Partial<Brand['kit']> = {},
+  about: string | null = null
+) =>
   ({
     id,
     name,
@@ -141,6 +168,14 @@ const brand = (id: string, name: string, logo: Brand['kit']['logo'] = null) =>
       colours: [],
       headingFont: null,
       bodyFont: null,
+      ...kit,
+    },
+    details: {
+      about,
+      toneOfVoice: null,
+      postLanguage: null,
+      callToAction: null,
+      hashtags: null,
     },
   } as Brand);
 
@@ -245,6 +280,17 @@ const settle = async () => {
   }
 };
 
+// The page's SWR cache asking again, as a dialog has it do once it changed
+// the brands.
+let revalidate: ReturnType<typeof useSWRConfig>['mutate'];
+const Revalidate: FC = () => {
+  const { mutate } = useSWRConfig();
+  useEffect(() => {
+    revalidate = mutate;
+  }, [mutate]);
+  return null;
+};
+
 const render = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -253,6 +299,7 @@ const render = async () => {
   await act(async () => {
     root.render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <Revalidate />
         <BrandsComponent />
       </SWRConfig>
     );
@@ -297,6 +344,42 @@ const physical = (name: string) =>
 
 const USED_BY =
   "Samy and Sharek's AI use this kit to keep your images on-brand.";
+const USED_BY_EACH =
+  "Samy and Sharek's AI use each brand's kit to keep images on-brand.";
+
+// The overview's cards: every button beside the list.
+const cards = (host: HTMLElement) =>
+  Array.from(host.querySelectorAll<HTMLElement>('button')).filter(
+    (node) => !list(host)!.contains(node)
+  );
+const card = (host: HTMLElement, text: string) =>
+  cards(host).find((node) => node.textContent?.includes(text));
+// A card's line under its name, its kit items and its note.
+const cardLine = (node: Element) =>
+  Array.from(node.querySelectorAll('span')).find((item) =>
+    classes(item).includes('text-[13px]')
+  )?.textContent;
+const chips = (node: Element) =>
+  Array.from(node.querySelectorAll('span')).filter((item) =>
+    classes(item).includes('h-[24px]')
+  );
+// A kit item as a reader takes it: ✓ and its label when it is done, its
+// label and the screen reader's word when it is missing.
+const chip = (node: Element) => {
+  const word = node.querySelector('.sr-only');
+  const label = Array.from(node.childNodes)
+    .filter((child) => child !== word && child.nodeName !== 'svg')
+    .map((child) => child.textContent)
+    .join('');
+  return word ? `${label} (${word.textContent})` : `✓ ${label}`;
+};
+const note = (node: Element) =>
+  Array.from(node.children).find((child) =>
+    classes(child).includes('text-[12.5px]')
+  )?.textContent ?? null;
+// The line under the page's heading.
+const topLine = (host: HTMLElement) =>
+  heading(host)?.nextElementSibling?.textContent;
 
 describe('the list', () => {
   it('sits on the start side in SplitPanel, named Brands', async () => {
@@ -324,7 +407,21 @@ describe('the list', () => {
     expect(mockDialogs.openNewBrand).toHaveBeenCalledTimes(1);
   });
 
-  it('lists each brand A to Z as the channel list orders brands, then No brand', async () => {
+  it('draws New brand as the medium secondary button, 4px in from the list’s sides and 8px over the first row (spec 059, FR-026)', async () => {
+    const host = await render();
+    const newBrand = list(host)!.querySelector('button')!;
+
+    expect(classes(newBrand)).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ variant: 'secondary' }).split(' '),
+        'mx-[4px]',
+        'mb-[8px]',
+      ])
+    );
+    expect(newBrand.querySelector('svg')?.getAttribute('width')).toBe('16');
+  });
+
+  it('lists All brands, then each brand A to Z as the channel list orders brands, then No brand', async () => {
     const host = await render();
 
     expect(
@@ -338,11 +435,12 @@ describe('the list', () => {
       'noor Dental',
       'Rawda Florist',
     ]);
-    expect(rows(host)).toHaveLength(6);
-    expect(rows(host)[5].textContent).toContain('No brand');
+    expect(rows(host)).toHaveLength(7);
+    expect(rows(host)[0].textContent).toContain('All brands');
+    expect(rows(host)[6].textContent).toContain('No brand');
   });
 
-  it('gives each brand its channel count, disabled channels included, and No brand the channels in no brand', async () => {
+  it('gives All brands the brand count, each brand its channel count, disabled channels included, and No brand the channels in no brand', async () => {
     const host = await render();
 
     // the row's last line
@@ -351,6 +449,7 @@ describe('the list', () => {
         (node) => Array.from(node.querySelectorAll('span')).pop()?.textContent
       )
     ).toEqual([
+      '5 brands',
       '3 channels',
       '0 channels',
       '0 channels',
@@ -396,17 +495,320 @@ describe('the list', () => {
   });
 });
 
-describe("a brand's page", () => {
-  it('shows the first brand A to Z until one is picked, marked in the list', async () => {
+// Above 1025px with brands, the page opens on All brands (spec 059, US6,
+// contracts/ui.md §7): a card per brand with what its kit has, New brand,
+// and No brand while a channel is in none. The cards read the brands and
+// the channel list the page has already loaded.
+describe('the overview', () => {
+  const live = (id: string): BrandImage => ({
+    id,
+    path: `https://media/${id}.png`,
+    missing: false,
+  });
+  const deleted = (id: string): BrandImage => ({
+    id,
+    path: null,
+    missing: true,
+  });
+  // Bayt Al Qahwa's kit is full; Client 2's too, with no channels; Client
+  // 10's is empty; noor Dental has only a font, its logo, an example and
+  // its About (spaces) gone or empty; Rawda Florist a colour and one
+  // example still in Media of two.
+  const KITS = [
+    brand(RF.id, RF.name, null, {
+      colours: ['#2E7D32'],
+      examples: [live('e4'), deleted('e5')],
+    }),
+    brand('c10', 'Client 10'),
+    brand(
+      ND.id,
+      ND.name,
+      deleted('m2'),
+      { bodyFont: 'Inter', examples: [deleted('e3')] },
+      '   '
+    ),
+    brand(
+      BQ.id,
+      BQ.name,
+      live('bq'),
+      {
+        colours: ['#6B3E26', '#F2E6D8'],
+        headingFont: 'Cairo',
+        examples: [live('e1'), live('e2')],
+      },
+      'Coffee roasted in Riyadh.'
+    ),
+    brand(
+      'c2',
+      'Client 2',
+      live('c2'),
+      { colours: ['#111111'], bodyFont: 'Inter', examples: [live('e6')] },
+      'A client.'
+    ),
+  ];
+
+  it('opens on the overview, All brands the first row after New brand with its grid mark and the brand count, marked current (FR-012)', async () => {
     const host = await render();
 
-    expect(heading(host)?.textContent).toBe('Bayt Al Qahwa');
-    expect(kit(host)?.getAttribute('data-brand')).toBe('bq');
+    expect(heading(host)?.textContent).toBe('All brands');
+    expect(kit(host)).toBeNull();
+    expect(topLine(host)).toBe(
+      `5 brands · 3 channels not in a brand · ${USED_BY_EACH}`
+    );
+
+    const all = rows(host)[0];
+    expect(all.textContent).toBe('All brands5 brands');
+    const mark = all.querySelector('svg[data-icon="GridIcon"]')!.parentElement!;
+    expect(classes(mark)).toEqual(
+      expect.arrayContaining([
+        'w-[32px]',
+        'h-[32px]',
+        'rounded-[8px]',
+        'bg-surface',
+        'border',
+        'border-line',
+        'text-brand',
+      ])
+    );
     expect(rows(host).map((node) => node.getAttribute('aria-current'))).toEqual(
-      ['page', null, null, null, null, null]
+      ['page', null, null, null, null, null, null]
     );
   });
 
+  it('draws a card per brand A to Z with its mark, its name, its channels and kit count, five kit items and its note (FR-013)', async () => {
+    mockBrands = KITS;
+    const host = await render();
+    const brandCards = cards(host).slice(0, 5);
+
+    // in the grid, then New brand, then No brand
+    expect(cards(host)).toHaveLength(7);
+    expect(classes(cards(host)[0].parentElement!)).toEqual(
+      expect.arrayContaining([
+        'grid',
+        'grid-cols-[repeat(auto-fill,minmax(240px,1fr))]',
+        'gap-[16px]',
+      ])
+    );
+    const names = brandCards.map((node) => node.querySelector('[title]')!);
+    expect(names.map((node) => node.textContent)).toEqual([
+      'Bayt Al Qahwa',
+      'Client 2',
+      'Client 10',
+      'noor Dental',
+      'Rawda Florist',
+    ]);
+    names.forEach((node) => {
+      expect(node.getAttribute('title')).toBe(node.textContent);
+      expect(node.getAttribute('dir')).toBe('auto');
+      expect(classes(node)).toEqual(
+        expect.arrayContaining(['truncate', 'text-[15px]', 'font-[600]'])
+      );
+    });
+
+    // the logo while it is in Media, else the initial, at 44px
+    const logo = brandCards[0].querySelector('img')!;
+    expect(logo.getAttribute('src')).toBe('https://media/bq.png');
+    expect(classes(logo)).toEqual(
+      expect.arrayContaining(['w-[44px]', 'h-[44px]', 'rounded-[11px]'])
+    );
+    expect(brandCards[3].querySelector('img')).toBeNull();
+    expect(brandCards[3].textContent?.startsWith('Nnoor Dental')).toBe(true);
+
+    expect(brandCards.map(cardLine)).toEqual([
+      '3 channels · kit 5 of 5',
+      '0 channels · kit 5 of 5',
+      '0 channels · kit 0 of 5',
+      '2 channels · kit 1 of 5',
+      '1 channel · kit 2 of 5',
+    ]);
+    expect(brandCards.map((node) => chips(node).map(chip))).toEqual([
+      ['✓ Logo', '✓ Colours', '✓ Fonts', '✓ 2 of 3 examples', '✓ About'],
+      ['✓ Logo', '✓ Colours', '✓ Fonts', '✓ 1 of 3 examples', '✓ About'],
+      [
+        'Logo (missing)',
+        'Colours (missing)',
+        'Fonts (missing)',
+        'Examples (missing)',
+        'About (missing)',
+      ],
+      [
+        'Logo (missing)',
+        'Colours (missing)',
+        '✓ Fonts',
+        'Examples (missing)',
+        'About (missing)',
+      ],
+      [
+        'Logo (missing)',
+        '✓ Colours',
+        'Fonts (missing)',
+        '✓ 1 of 3 examples',
+        'About (missing)',
+      ],
+    ]);
+    expect(brandCards.map(note)).toEqual([
+      'Ready: Samy and Studio use this kit',
+      'No channels yet',
+      'No channels yet',
+      'Empty kit: Samy uses no look',
+      null,
+    ]);
+  });
+
+  it('draws a done item with a 12px tick and a missing one dashed, with a word for screen readers (FR-013)', async () => {
+    mockBrands = KITS;
+    const host = await render();
+    const [logo, colours] = chips(card(host, 'noor Dental')!);
+    const fonts = chips(card(host, 'noor Dental')!)[2];
+    const look = [
+      'inline-flex',
+      'items-center',
+      'gap-[4px]',
+      'h-[24px]',
+      'px-[8px]',
+      'rounded-[6px]',
+      'text-[12px]',
+      'font-[500]',
+    ];
+
+    expect(classes(fonts)).toEqual(
+      expect.arrayContaining([...look, 'bg-surface2', 'text-ink'])
+    );
+    // the tick ignores a size: its width and height set it
+    const tick = fonts.querySelector('svg[data-icon="CheckmarkIcon"]')!;
+    expect(tick.getAttribute('width')).toBe('12');
+    expect(tick.getAttribute('height')).toBe('9');
+    expect(tick.hasAttribute('size')).toBe(false);
+    expect(classes(tick)).toContain('text-success');
+    expect(fonts.querySelector('.sr-only')).toBeNull();
+
+    for (const item of [logo, colours]) {
+      expect(classes(item)).toEqual(
+        expect.arrayContaining([
+          ...look,
+          'border',
+          'border-dashed',
+          'border-line',
+          'text-muted',
+        ])
+      );
+      expect(classes(item)).not.toContain('bg-surface2');
+      expect(item.querySelector('svg')).toBeNull();
+      expect(item.querySelector('.sr-only')?.textContent).toBe('missing');
+    }
+  });
+
+  it("opens a brand's page from its card, marked in the list, and All brands comes back (FR-014)", async () => {
+    const host = await render();
+
+    await click(card(host, 'noor Dental'));
+    expect(heading(host)?.textContent).toBe('noor Dental');
+    expect(kit(host)?.getAttribute('data-brand')).toBe('nd');
+    expect(rows(host).map((node) => node.getAttribute('aria-current'))).toEqual(
+      [null, null, null, null, 'page', null, null]
+    );
+
+    await click(rows(host)[0]);
+    expect(heading(host)?.textContent).toBe('All brands');
+    expect(kit(host)).toBeNull();
+    expect(rows(host)[0].getAttribute('aria-current')).toBe('page');
+  });
+
+  it('opens New brand from its dashed card, then the new brand (FR-015)', async () => {
+    const host = await render();
+    const add = cards(host).find((node) => node.textContent === 'New brand')!;
+
+    expect(classes(add)).toEqual(
+      expect.arrayContaining([
+        'border-[1.5px]',
+        'border-dashed',
+        'border-line',
+        'rounded-[12px]',
+        'min-h-[150px]',
+      ])
+    );
+    expect(add.querySelector('svg')).not.toBeNull();
+
+    await click(add);
+    expect(mockDialogs.openNewBrand).toHaveBeenCalledTimes(1);
+    const onCreated = mockDialogs.openNewBrand.mock.calls[0][0];
+    await act(async () => {
+      onCreated('rf');
+    });
+    expect(heading(host)?.textContent).toBe('Rawda Florist');
+  });
+
+  it("shows the No brand card while a channel is in no brand, with its count, opening No brand's page (FR-015)", async () => {
+    const host = await render();
+    const none = card(host, 'No brand')!;
+
+    expect(cards(host).indexOf(none)).toBe(6);
+    expect(none.textContent).toBe(
+      "No brand3 channelsThese channels post without a brand's look. Move one with its ⋯ in the Calendar."
+    );
+    expect(note(none)).toBe(
+      "These channels post without a brand's look. Move one with its ⋯ in the Calendar."
+    );
+    expect(classes(none.querySelector('.border-dashed')!)).toEqual(
+      expect.arrayContaining(['w-[44px]', 'h-[44px]', 'rounded-[11px]'])
+    );
+
+    await click(none);
+    expect(heading(host)?.textContent).toBe('No brand');
+    expect(row(host, 'No brand')!.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('draws no No brand card while every channel is in a brand', async () => {
+    mockChannels = CHANNELS.filter((item) => item.customer);
+    const host = await render();
+
+    expect(card(host, 'No brand')).toBeUndefined();
+    expect(cards(host)).toHaveLength(6);
+    expect(topLine(host)).toBe(`5 brands · ${USED_BY_EACH}`);
+  });
+
+  it('comes back once the open brand is deleted', async () => {
+    const host = await render();
+
+    await click(row(host, 'noor Dental'));
+    expect(heading(host)?.textContent).toBe('noor Dental');
+
+    mockBrands = BRANDS.filter((item) => item.id !== ND.id);
+    await act(async () => {
+      await revalidate('/brands');
+    });
+    await settle();
+
+    expect(heading(host)?.textContent).toBe('All brands');
+    expect(rows(host)[0].getAttribute('aria-current')).toBe('page');
+    expect(card(host, 'noor Dental')).toBeUndefined();
+  });
+
+  it('gives every card 12px corners and the focus ring (FR-035, FR-046)', async () => {
+    const host = await render();
+
+    expect(cards(host)).toHaveLength(7);
+    cards(host).forEach((node) => {
+      expect(classes(node)).toEqual(
+        expect.arrayContaining([
+          'rounded-[12px]',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+    });
+  });
+
+  it('asks for nothing beyond the brands and the channel list (FR-017)', async () => {
+    await render();
+
+    expect(new Set(mockFetch.mock.calls.map(([url]) => url))).toEqual(
+      new Set(['/brands', '/integrations/list'])
+    );
+  });
+});
+
+describe("a brand's page", () => {
   it('shows a picked brand: its name, the sub-line, Rename and its ⋯, then its kit', async () => {
     const host = await render();
 
@@ -433,6 +835,7 @@ describe("a brand's page", () => {
   it('offers Rename and Delete brand in its ⋯', async () => {
     const host = await render();
 
+    await click(row(host, 'Bayt Al Qahwa'));
     await click(button(host, 'Brand options'));
     const items = Array.from(host.querySelectorAll('[role="menuitem"]'));
     expect(items.map((item) => item.textContent)).toEqual([
@@ -456,6 +859,7 @@ describe("a brand's page", () => {
     const host = await render();
 
     // Bayt Al Qahwa has a logo
+    await click(row(host, 'Bayt Al Qahwa'));
     const website = button(host, 'Fill from my website')!;
     expect(website.nextElementSibling).toBe(button(host, 'Rename'));
     await click(website);
@@ -473,11 +877,23 @@ describe("a brand's page", () => {
     expect(button(host, 'Rename')).toBeDefined();
   });
 
+  it('gives Fill from my website and Rename 16px icons, as every text button has (spec 059, FR-026)', async () => {
+    const host = await render();
+
+    await click(row(host, 'Bayt Al Qahwa'));
+    for (const label of ['Fill from my website', 'Rename']) {
+      expect(
+        button(host, label)!.querySelector('svg')?.getAttribute('width')
+      ).toBe('16');
+    }
+  });
+
   it('offers no Fill from my website while the server has no web lookup (FIRECRAWL_API_KEY unset)', async () => {
     mockVariables.websiteLookup = false;
     const host = await render();
 
     // Bayt Al Qahwa has a logo
+    await click(row(host, 'Bayt Al Qahwa'));
     expect(heading(host)?.textContent).toBe('Bayt Al Qahwa');
     expect(button(host, 'Fill from my website')).toBeUndefined();
     expect(button(host, 'Rename')).toBeDefined();
@@ -598,6 +1014,19 @@ describe('at 1025px and below', () => {
     smallWindow = true;
   });
 
+  it('has no All brands row and no overview, as before (spec 059, FR-016)', async () => {
+    const host = await render();
+
+    expect(rows(host)).toHaveLength(6);
+    expect(host.textContent).not.toContain('All brands');
+    expect(cards(host)).toEqual([]);
+
+    await click(row(host, 'Bayt Al Qahwa'));
+    await click(button(host, 'Brands'));
+    expect(host.textContent).not.toContain('All brands');
+    expect(heading(host)).toBeNull();
+  });
+
   it('shows the list first, in the page, with no brand picked', async () => {
     const host = await render();
 
@@ -701,8 +1130,17 @@ describe('in Arabic', () => {
     expect(
       list(host)!.querySelector('[role="group"]')?.getAttribute('aria-label')
     ).toBe('خارج العلامات التجارية');
-    // each row: the initial when there is no logo, the name, the count
-    expect(rows(host).map((node) => node.textContent)).toEqual([
+    // All brands counts the brands
+    expect(
+      Array.from(rows(host)[0].querySelectorAll('span')).pop()?.textContent
+    ).toBe('5 علامات');
+    // each row after it: the initial when there is no logo, the name, the
+    // count
+    expect(
+      rows(host)
+        .slice(1)
+        .map((node) => node.textContent)
+    ).toEqual([
       'Bayt Al Qahwa3 قنوات',
       'CClient 2لا قنوات',
       'CClient 10لا قنوات',
@@ -721,6 +1159,7 @@ describe('in Arabic', () => {
       );
       expect(node?.getAttribute('dir')).toBe('auto');
     }
+    await click(row(host, 'Bayt Al Qahwa'));
     expect(heading(host)?.getAttribute('dir')).toBe('auto');
     expect(host.textContent).toContain(
       '3 قنوات · يستخدم سامي والذكاء الاصطناعي في شارك هذه الهوية لتبقى صورك متسقة مع علامتك.'

@@ -164,4 +164,20 @@ describe('the media strip', () => {
     expect(button).toBeTruthy();
     expect(button!.getAttribute('aria-label')).toBe('Insert Media');
   });
+
+  // At 1025px and below the tile is its 20px icon alone: the small size's
+  // 12px sides and its border made it 46 wide, so it drops its sides and
+  // takes its 44px from the floor, square like AI Image beside it.
+  it('is a 44px square at 1025px and below', async () => {
+    const host = await render();
+    const button = host.querySelector('[data-tooltip-content="Insert Media"]');
+
+    expect(button!.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'mobile:h-[44px]',
+        'mobile:min-w-[44px]',
+        'mobile:px-0',
+      ])
+    );
+  });
 });

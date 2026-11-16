@@ -117,10 +117,12 @@ export const ThirdPartyComponent = () => {
   return (
     <div className="flex flex-col gap-[20px]">
       <div className="flex flex-col">
-        <h3 className="text-[20px]">{t('integrations', 'Integrations')}</h3>
+        <h3 className="text-[20px] font-[600]">
+          {t('integrations', 'Integrations')}
+        </h3>
       </div>
       {!isLoading && (
-        <div className="bg-sixth border-fifth border rounded-[4px] p-[24px]">
+        <div className="bg-sixth border-fifth border rounded-[12px] p-[24px]">
           {!data?.length ? (
             <div className="text-muted">No Integrations Yet</div>
           ) : (
@@ -128,7 +130,7 @@ export const ThirdPartyComponent = () => {
               {data?.map((p: any) => (
                 <div
                   key={p.id}
-                  className="flex items-center justify-between gap-[12px] p-[12px] border border-fifth rounded-[4px]"
+                  className="flex items-center justify-between gap-[12px] p-[12px] border border-fifth rounded-[12px]"
                 >
                   <div className="flex items-center gap-[12px] min-w-0">
                     <ImageWithFallback

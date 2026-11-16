@@ -23,6 +23,11 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 }));
 
 import { BillingHistory } from '@gitroom/frontend/components/billing/billing.history.component';
+import {
+  buttonClassName,
+  ButtonSize,
+  ButtonVariant,
+} from '@gitroom/react/form/button';
 
 // noon UTC, so a date reads the same in every machine timezone
 const at = (y: number, m: number, d: number) =>
@@ -276,10 +281,48 @@ describe("Sharek's style", () => {
 
     expect(
       (host.firstElementChild as HTMLElement).className.split(/\s+/)
-    ).toEqual(expect.arrayContaining(['rounded-[14px]', 'shadow-soft']));
+    ).toEqual(expect.arrayContaining(['rounded-[12px]', 'shadow-soft']));
     expect(header.className.split(/\s+/)).toContain('border-b');
     expect(header.className).not.toMatch(/bg-newTableHeader|rounded-/);
     expect(classes.filter((c) => c.includes('previewShadow'))).toEqual([]);
+  });
+
+  // The dashboard's one button set (FR-026, FR-027) and field height (FR-034): Export sits in the
+  // card's toolbar beside the search and the status select, all 40px, its icon 16px; Show more is
+  // a quiet small button under the list. Export still fades and takes no pointer with nothing to
+  // export (FR-031).
+  it("draws the toolbar's search and Export and the list's Show more in the dashboard's shared looks", async () => {
+    mockInvoices = Array.from({ length: 11 }, () => invoice(4500));
+    const host = await render(<BillingHistory />);
+    const button = (label: string) =>
+      Array.from(host.querySelectorAll('button')).find(
+        (b) => b.textContent === label
+      )!;
+    const own = (element: Element) => element.className.split(/\s+/);
+    const look = (variant: ButtonVariant, size: ButtonSize) =>
+      buttonClassName({ variant, size }).split(' ');
+    const icon = button('Export').querySelector('svg')!;
+
+    expect(own(button('Export'))).toEqual(
+      expect.arrayContaining([
+        ...look('secondary', 'medium'),
+        'disabled:opacity-50',
+        'disabled:pointer-events-none',
+      ])
+    );
+    expect(own(button('Export'))).not.toContain('h-[42px]');
+    expect([icon.getAttribute('width'), icon.getAttribute('height')]).toEqual([
+      '16',
+      '16',
+    ]);
+    expect(own(button('+ Show more'))).toEqual(
+      expect.arrayContaining([...look('ghost', 'small'), 'self-center'])
+    );
+    expect(own(button('+ Show more'))).not.toContain('h-[36px]');
+    expect(own(host.querySelector('input')!)).toEqual(
+      expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+    );
+    expect(own(host.querySelector('input')!)).not.toContain('h-[42px]');
   });
 
   // brandSoft and brandText are rose in dark: an empty search shows a muted icon instead.

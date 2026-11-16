@@ -5,7 +5,7 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { MenuItem } from '@gitroom/frontend/components/new-layout/menu-item';
-import { BrandsIcon } from '@gitroom/frontend/components/ui/icons';
+import { BrandsIcon, SamyIcon } from '@gitroom/frontend/components/ui/icons';
 
 interface MenuItemInterface {
   name: string;
@@ -73,37 +73,7 @@ export const useMenuItem = () => {
     },
     {
       name: t('samy', 'Samy'),
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="21"
-          viewBox="0 0 20 21"
-          fill="none"
-        >
-          <rect
-            x="2.67"
-            y="6.83"
-            width="14.67"
-            height="11"
-            rx="3.21"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M10 6.83V3.72M0.83 11.23V13.98M19.17 11.23V13.98M8.35 14.99H11.65"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="10" cy="2.62" r="1.19" fill="currentColor" />
-          <circle cx="7.43" cy="11.78" r="1.24" fill="currentColor" />
-          <circle cx="12.57" cy="11.78" r="1.24" fill="currentColor" />
-        </svg>
-      ),
+      icon: <SamyIcon />,
       path: '/agents',
     },
     {
@@ -321,10 +291,10 @@ export const TopMenu: FC = () => {
   const { isGeneral, billingEnabled } = useVariables();
   return (
     <>
-      {/* Each item marks only its icon tile, so both groups take the approved
-          canvas's gaps: 8px here and 4px below, 2px under 800px tall so the
-          rail stays as tall as today. */}
-      <div className="flex flex-1 flex-col minCustom:gap-[8px] custom:gap-[2px] blurMe">
+      {/* Both groups keep their items 8px apart, 4px on a short rail:
+          railShort asks #left-menu's own height (under 800px), not the
+          window's, so an admin's rail, 60px shorter, turns short sooner. */}
+      <div className="flex flex-1 flex-col gap-[8px] railShort:gap-[4px] blurMe">
         {
           // @ts-ignore
           user?.orgId &&
@@ -357,7 +327,7 @@ export const TopMenu: FC = () => {
               ))
         }
       </div>
-      <div className="flex flex-col minCustom:gap-[4px] custom:gap-[2px] blurMe">
+      <div className="flex flex-col gap-[8px] railShort:gap-[4px] blurMe">
         {secondMenu
           .filter((f) => {
             if (f.hide) {

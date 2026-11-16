@@ -41,7 +41,7 @@ export const SeparatePost: FC<{
   }, [len, posts, t]);
 
   return (
-    <Button variant="danger" className="!h-[30px] !text-sm" onClick={notReversible}>
+    <Button variant="danger" size="small" onClick={notReversible}>
       {t('separate_post', 'Separate post to multiple posts')}
     </Button>
   );

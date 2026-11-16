@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -35,6 +36,7 @@ import {
   AttachmentTools,
   PlayBadge,
   useAttachments,
+  useSendWithAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
 import {
   CardMayWaitContext,
@@ -67,7 +69,6 @@ import { fromUtc } from '@gitroom/frontend/components/layout/set.timezone';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
-import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import {
   ChannelSummary,
   ChatHeader,
@@ -76,6 +77,10 @@ import {
   BrandChip,
   BrandNote,
 } from '@gitroom/frontend/components/agents/agent.brand.chip';
+import {
+  SamyWelcome,
+  samyIdeas,
+} from '@gitroom/frontend/components/agents/agent.welcome';
 
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
@@ -133,16 +138,14 @@ export const AgentChat: FC = () => {
                   <CopilotChat
                     className="w-full h-full"
                     labels={{
-                      // The eight shared controls. First, so Samy's own two below always
-                      // win. Its custom input reads labels.placeholder, so a missing one is
+                      // The eight shared controls. First, so Samy's own title below always
+                      // wins. Its custom input reads labels.placeholder, so a missing one is
                       // English in the field the user types into.
                       ...assistantLabels(t),
                       title: t('samy', 'Samy'),
-                      initial: t(
-                        'samy_welcome_message',
-                        "Hi, I'm Samy 👋 — your Sharek assistant. I can plan and schedule one post or many across all your connected channels, and generate images and videos for them. Pick the channels you want from the channels panel, and find our previous conversations in the history panel. You can also use me as an MCP server — see Settings → Developers."
-                      ),
                     }}
+                    suggestions={samyIdeas(t)}
+                    RenderSuggestionsList={SamyWelcome}
                     UserMessage={Message}
                     AssistantMessage={Reply}
                     Input={NewInput}
@@ -190,7 +193,7 @@ const withoutCards = <T extends object>(message: T) =>
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
   const { messages, setMessages, isAvailable, isLoading } =
     useCopilotChatInternal();
-  const { setRunning } = useChatRun();
+  const { setRunning, setEmpty } = useChatRun();
   const fetch = useFetch();
   // The thread's stored messages, once they arrive; a new thread has none.
   const [stored, setStored] = useState<ChatMessage[] | null>(
@@ -221,6 +224,21 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
   useEffect(() => {
     setRunning(isLoading);
   }, [isLoading, setRunning]);
+
+  // Samy's welcome shows while this holds. Before the paint, and outside the
+  // effect below, which waits for the list: the page keeps the chat when the
+  // thread changes, so an older chat opened from a new one clears it here.
+  // Not before the connect either: until then the chat sends into a stand-in
+  // agent this hook does not see.
+  useLayoutEffect(() => {
+    setEmpty(
+      isAvailable &&
+        stored !== null &&
+        stored.length === 0 &&
+        messages.length === 0 &&
+        restore.current.length === 0
+    );
+  }, [isAvailable, stored, messages, setEmpty]);
 
   // A list written before the agent connects is emptied by the connect, and the
   // connect can also empty the chat after the list is shown.
@@ -391,7 +409,8 @@ const Reply: FC<AssistantMessageProps> = ({ subComponent, ...props }) => {
   );
 };
 const NewInput: FC<InputProps> = (props) => {
-  const { attached, uploading, addFiles, clear } = useAttachments();
+  const { uploading, addFiles } = useAttachments();
+  const sendWithAttachments = useSendWithAttachments(props.onSend);
   const [value, setValue] = useState('');
   return (
     <>
@@ -417,22 +436,8 @@ const NewInput: FC<InputProps> = (props) => {
         uploading={uploading}
         onPasteFiles={addFiles}
         onSend={(text) => {
-          const send = props.onSend(
-            text +
-              (attached.length > 0
-                ? '\n[--Media--]' +
-                  attached
-                    .map((m) =>
-                      hasExtension(m.path, 'mp4')
-                        ? `Video: ${m.path}`
-                        : `Image: ${m.path}`
-                    )
-                    .join('\n') +
-                  '\n[--Media--]'
-                : '')
-          );
+          const send = sendWithAttachments(text);
           setValue('');
-          clear();
           return send;
         }}
       />

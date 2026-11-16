@@ -1,4 +1,4 @@
-import { act, ReactNode } from 'react';
+import { act, ReactNode, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // What's attached to a Samy message before it's sent: the upload queue, the tiles
@@ -95,8 +95,10 @@ import {
   AttachmentsTray,
   AttachmentTools,
   useAttachments,
+  useSendWithAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 let attachments: ReturnType<typeof useAttachments>;
 const Probe = () => {
@@ -106,9 +108,10 @@ const Probe = () => {
 
 const mounted: Root[] = [];
 
-const tree = () => (
+const tree = (extra?: ReactNode) => (
   <AttachmentsProvider>
     <Probe />
+    {extra}
     <div data-tray="">
       <AttachmentsTray />
     </div>
@@ -118,13 +121,13 @@ const tree = () => (
   </AttachmentsProvider>
 );
 
-const render = async () => {
+const render = async (extra?: ReactNode) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(tree());
+    root.render(tree(extra));
   });
   return { host, root };
 };
@@ -632,6 +635,51 @@ describe('the upload queue', () => {
   });
 });
 
+// Typing and Samy's ideas send through this one path, so an idea carries what's
+// attached exactly as typed text does.
+describe('sending a message', () => {
+  const RECEIPT = { id: 'message-1' };
+  const onSend = jest.fn<typeof RECEIPT, [string]>(() => RECEIPT);
+  let send: (text: string) => typeof RECEIPT;
+  const Sender = (): null => {
+    const sendNow = useSendWithAttachments(onSend);
+    useEffect(() => {
+      send = sendNow;
+    });
+    return null;
+  };
+
+  it('writes what is attached after the text, empties the box and hands back what was sent', async () => {
+    const { host } = await render(<Sender />);
+    await act(async () => attachments.addMedia([row('a'), row('b', 'mp4')]));
+    let result: typeof RECEIPT | undefined;
+
+    await act(async () => {
+      result = send('hello');
+    });
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith(
+      'hello\n[--Media--]Image: https://media/a.png\nVideo: https://media/b.mp4\n[--Media--]'
+    );
+    expect(result).toBe(RECEIPT);
+    expect(attachments.attached).toEqual([]);
+    expect(tiles(host)).toHaveLength(0);
+  });
+
+  it('sends the text as it is with nothing attached', async () => {
+    await render(<Sender />);
+    let result: typeof RECEIPT | undefined;
+
+    await act(async () => {
+      result = send('hello');
+    });
+
+    expect(onSend).toHaveBeenCalledWith('hello');
+    expect(result).toBe(RECEIPT);
+  });
+});
+
 describe('a tile', () => {
   it('measures 96px with 12px corners, 76px on a phone, in a row that scrolls', async () => {
     const { host } = await render();
@@ -770,15 +818,52 @@ describe('the two buttons', () => {
       expect(button.innerHTML).not.toContain('phone:hidden');
       // `.agent` paints this class's last child as Send.
       expect(classes(button)).not.toContain('copilotKitInputControlButton');
+      // FR-026's small size, with the phone's 44px and the narrowest
+      // screens' steps on top
       expect(classes(button)).toEqual(
         expect.arrayContaining([
           'h-[32px]',
-          'coarse:h-[44px]',
+          'px-[12px]',
+          'gap-[6px]',
+          'rounded-[8px]',
+          'text-[13px]',
+          'font-[600]',
+          'coarse:min-h-[44px]',
           'phone:h-[44px]',
+          '[@media(max-width:400px)]:px-[8px]',
+          '[@media(max-width:400px)]:gap-[4px]',
+          '[@media(max-width:400px)]:text-[12px]',
           'focus-visible:ring-2',
           'focus-visible:ring-brand',
         ])
       );
+    }
+  });
+
+  // FR-026, Question 4: AI Image keeps its AI tint at the small size, the one
+  // button set's AI look, so none of the secondary colours, which Tailwind
+  // emits after the tint's, is on it.
+  it('are the small secondary button, AI Image in its AI tint', async () => {
+    const { host } = await render();
+    const [insert, image] = Array.from(tools(host).querySelectorAll('button'));
+
+    expect(classes(insert)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'secondary', size: 'small' }).split(/\s+/)
+      )
+    );
+    expect(classes(image)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'ai', size: 'small' }).split(/\s+/)
+      )
+    );
+    for (const name of [
+      'bg-quiet',
+      'text-ink',
+      'border-line',
+      'hover:bg-surface2',
+    ]) {
+      expect(classes(image)).not.toContain(name);
     }
   });
 

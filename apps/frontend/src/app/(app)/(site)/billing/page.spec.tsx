@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { act } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 import i18next from '@gitroom/react/translation/i18next';
 
 // Feature 029-arabic-audit-followup (T022, contracts/checks.md T5).
@@ -30,13 +32,13 @@ jest.mock('next/headers', () => ({
   cookies: async () => ({ get: () => undefined }),
 }));
 
-// The page is imported for its metadata, not its markup; the billing tree pulls in
-// SWR, the editor and the payment provider, none of which this asks anything of.
+// The billing tree pulls in SWR, the editor and the payment provider, none of which
+// this asks anything of; a stand-in marks where the page puts it.
 jest.mock('@gitroom/frontend/components/billing/billing.component', () => ({
-  BillingComponent: () => null,
+  BillingComponent: () => <p data-testid="billing">Billing</p>,
 }));
 
-import { generateMetadata } from './page';
+import Page, { generateMetadata } from './page';
 
 const locale = (lng: string) =>
   JSON.parse(
@@ -80,5 +82,56 @@ describe('billing page title', () => {
     expect(typeof en['page_title_billing']).toBe('string');
     expect(typeof ar['page_title_billing']).toBe('string');
     expect(ar['page_title_billing']).not.toBe(en['page_title_billing']);
+  });
+});
+
+// Billing scrolls in its card (spec 059, FR-001, FR-002, contracts/routes.md). Its
+// root sat in flow, so a long Billing grew the shell and the window scrolled (1047px
+// at 900 tall). It now renders inside PageScroll's box, the dashboard page's one
+// scroller, with Billing's own 20px inset and 12px gap on the box. happy-dom applies
+// no media queries or Tailwind, so the widths are pinned by the classes that carry
+// them (page.scroll.spec pins PageScroll's own).
+const HOST = ['bg-newBgColorInner', 'flex-1', 'min-w-0', 'relative'];
+const BOX = [
+  'absolute',
+  'inset-0',
+  'overflow-y-auto',
+  'flex',
+  'flex-col',
+  'mobile:static',
+  'scrollbar',
+  'scrollbar-thumb-fifth',
+  'scrollbar-track-newBgColor',
+];
+
+const mounted: Root[] = [];
+
+const classesOf = (el: Element) =>
+  (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+
+describe('the billing page', () => {
+  afterEach(() => {
+    mounted.splice(0).forEach((root) => act(() => root.unmount()));
+    document.body.innerHTML = '';
+  });
+
+  it("renders Billing inside PageScroll's box, with Billing's inset and gap on the box", async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    const page = await Page();
+    await act(async () => {
+      root.render(page);
+    });
+    const outer = host.firstElementChild as HTMLElement;
+    const box = outer.firstElementChild as HTMLElement;
+
+    expect(classesOf(outer)).toEqual(HOST);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]', 'gap-[12px]']);
+    expect(box.children).toHaveLength(1);
+    expect(box.querySelector('[data-testid="billing"]')?.textContent).toBe(
+      'Billing'
+    );
   });
 });

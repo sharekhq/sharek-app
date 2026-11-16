@@ -420,7 +420,7 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
             <Button
               key={count}
               type="button"
-              variant="ghost"
+              variant="secondary"
               className={clsx(
                 // at 1025px and below the six share the row, as the voice
                 // sets do: at the Button's 24px sides they ran past a phone
@@ -681,7 +681,7 @@ const ReviewScreen: FC<{
           <>
             <Button
               type="button"
-              variant="quiet"
+              variant="secondary"
               onClick={add}
               disabled={slides.length >= MAX_SLIDES}
             >

@@ -50,18 +50,17 @@ const mockVariables = {
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
   useVariables: () => mockVariables,
 }));
+// The signed-in user: a case can make them an admin or put them on the free plan.
+const mockUser = {
+  id: 'user-1',
+  email: 'user@example.com',
+  orgId: 'org-1',
+  tier: 'STANDARD',
+  admin: false,
+};
 jest.mock('swr', () => ({
   __esModule: true,
-  default: () => ({
-    data: {
-      id: 'user-1',
-      email: 'user@example.com',
-      orgId: 'org-1',
-      tier: 'STANDARD',
-      admin: false,
-    },
-    mutate: jest.fn(),
-  }),
+  default: () => ({ data: mockUser, mutate: jest.fn() }),
 }));
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback?: string) => fallback ?? _key,
@@ -196,7 +195,7 @@ const resizeTo = async (next: number) => {
 
 const mounted: Array<{ unmount: () => void }> = [];
 
-const mount = async () => {
+const renderShell = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -210,6 +209,11 @@ const mount = async () => {
       </LayoutComponent>
     );
   });
+  return host;
+};
+
+const mount = async () => {
+  const host = await renderShell();
 
   const byTestId = (id: string) =>
     host.querySelector(`[data-testid="${id}"]`) as HTMLElement;
@@ -228,6 +232,7 @@ const mount = async () => {
     host,
     byTestId,
     drawer,
+    row,
     button,
     header: button.parentElement as HTMLElement,
     // the page card: header and page, everything but the rail/drawer and scrim
@@ -269,6 +274,8 @@ beforeEach(() => {
   width = 820;
   mockHasCurrentItem = true;
   mockHidden.clear();
+  mockUser.tier = 'STANDARD';
+  mockUser.admin = false;
   mockVariables.showUpstreamExtras = false;
   mockVariables.sentryDsn = '';
   document.body.style.overflow = '';
@@ -590,6 +597,102 @@ describe('the drawer on a small screen (820px, iPad portrait)', () => {
       expect(document.activeElement).toBe(shell.button);
     }
   );
+});
+
+// Above 1025px the shell is the screen's height and the row may shrink below
+// its content, so the page card's overflow-hidden clips and a long page scrolls
+// in its own box, never the window: opening a window then hides no scrollbar
+// and moves nothing. At 1025px and below the shell grows again. The free
+// plan's paywall is a tall page outside the card and keeps the growing shell
+// (spec 059, US1).
+describe('the shell held to the screen', () => {
+  const heights = (el: Element) =>
+    classesOf(el).filter((c) => /(^|:)(min-)?h-/.test(c));
+
+  it('is the visible screen tall above 1025px and grows again at 1025px and below (FR-001, FR-006)', async () => {
+    const shell = await mount();
+    expect(heights(shell.pageWrapper)).toEqual([
+      'h-dvh',
+      'mobile:h-auto',
+      'mobile:min-h-dvh',
+    ]);
+  });
+
+  it('lets the row shrink below its content, so the page card clips (FR-001)', async () => {
+    const shell = await mount();
+    expect(classesOf(shell.row)).toEqual([
+      'flex-1',
+      'min-h-0',
+      'flex',
+      'gap-[8px]',
+    ]);
+  });
+
+  it("keeps the growing shell on the free plan's paywall", async () => {
+    mockUser.tier = 'FREE';
+    const host = await renderShell();
+
+    expect(host.querySelector('#left-menu')).toBeNull();
+    expect(
+      heights(host.querySelector('.font-variables-stub') as HTMLElement)
+    ).toEqual(['min-h-screen', 'mobile:min-h-dvh']);
+  });
+
+  it("keeps the admin bar's 60px above the rail (FR-005)", async () => {
+    mockUser.admin = true;
+    const shell = await mount();
+    expect(classesOf(shell.drawer)).toContain('pt-[60px]');
+  });
+
+  it('carries no max-h-[1000px]: width on an admin rail, a class that emits nothing (Rule 12)', async () => {
+    mockUser.admin = true;
+    const shell = await mount();
+    expect(
+      classesOf(shell.drawer).filter((c) => c.startsWith('max-h-'))
+    ).toEqual([]);
+  });
+
+  it("leaves the drawer's small-screen classes as they are (FR-006)", async () => {
+    const shell = await mount();
+    expect(
+      classesOf(shell.drawer).filter((c) => c.startsWith('mobile:'))
+    ).toEqual([
+      'mobile:start-0',
+      'mobile:w-[100px]',
+      'mobile:px-[8px]',
+      'mobile:z-[190]',
+      'mobile:bg-newBgColor',
+      'mobile:transition-transform',
+      'mobile:duration-300',
+      'mobile:ease-out',
+      'mobile:-translate-x-full',
+      'mobile:rtl:translate-x-full',
+    ]);
+  });
+});
+
+// The rail is a size container named rail, so the sidebar's short size follows
+// the rail's own height (an admin's is 60px shorter), not the screen's. The
+// tall sidebar needs about 815px: the column's gap is 16px and the logo row
+// adds 16px under itself, so the logo stays 32px above Calendar and the two
+// groups may come within 16px of each other on a tight screen (spec 059, US4).
+describe("the rail's container and its tight-screen gap", () => {
+  it("names the rail a size container, so the sidebar's short size follows its height (FR-010)", async () => {
+    const shell = await mount();
+    expect(classesOf(shell.drawer)).toContain('[container:rail/size]');
+  });
+
+  it("keeps the logo 32px above Calendar, from a 16px gap and the logo row's 16px margin (FR-010)", async () => {
+    const shell = await mount();
+    const column = shell.drawer.firstElementChild as HTMLElement;
+    const logoRow = column.firstElementChild as HTMLElement;
+
+    expect(classesOf(column).filter((c) => c.startsWith('gap-'))).toEqual([
+      'gap-[16px]',
+    ]);
+    expect(classesOf(logoRow)).toEqual(['flex', 'justify-center', 'mb-[16px]']);
+    expect(logoRow.nextElementSibling?.textContent).toBe('Calendar');
+  });
 });
 
 describe('the rail on desktop (1440px)', () => {

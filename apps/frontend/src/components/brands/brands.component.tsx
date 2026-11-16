@@ -9,6 +9,7 @@ import {
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import {
@@ -18,9 +19,16 @@ import {
   FOCUS_RING,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
-import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
-import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import {
+  GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
+  SplitPanel,
+} from '@gitroom/frontend/components/ui/split.panel';
+import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import {
+  GridIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -41,6 +49,10 @@ import {
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
 import {
+  BrandsOverview,
+  PageTop,
+} from '@gitroom/frontend/components/brands/brands.overview';
+import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
@@ -50,18 +62,17 @@ const LIST_MARK = 'w-[32px] h-[32px] rounded-[8px] text-[13px]';
 const PAGE_MARK =
   'w-[56px] h-[56px] rounded-[13px] text-[20px] mobile:w-[44px] mobile:h-[44px] mobile:text-[17px]';
 
-// A row of the list: the mark, the name and the channel count. The open page's
-// row has the selected tint; the others show a hover. A brand's name keeps its
-// own direction and lines up with the list's start.
+// A row of the list: the mark, the name and the line under it, a count. The
+// open page's row has the selected tint; the others show a hover. A brand's
+// name keeps its own direction and lines up with the list's start.
 const ListRow: FC<{
   mark: ReactNode;
   name: string;
   dir?: 'auto';
-  count: number;
+  detail: string;
   current: boolean;
   onClick: () => void;
-}> = ({ mark, name, dir, count, current, onClick }) => {
-  const t = useT();
+}> = ({ mark, name, dir, detail, current, onClick }) => {
   return (
     <button
       type="button"
@@ -69,7 +80,7 @@ const ListRow: FC<{
       onClick={onClick}
       className={clsx(
         'flex items-center gap-[12px] w-full min-h-[52px] px-[10px] py-[8px] rounded-[10px] text-start cursor-pointer transition-colors',
-        current ? 'bg-brandSoft2' : 'hover:bg-boxHover',
+        current ? LIST_ROW_ON : LIST_ROW_IDLE,
         FOCUS_RING
       )}
     >
@@ -85,25 +96,29 @@ const ListRow: FC<{
           {name}
         </span>
         <span className="text-[12px] text-muted whitespace-nowrap">
-          {t('channels_count', '{{count}} channels', { count })}
+          {detail}
         </span>
       </span>
     </button>
   );
 };
 
-// The list (board BrandsList): New brand, with no heading above it, then each
-// brand A to Z, and No brand under Not in a brand. With no brands it says
-// what they are for.
+// The list (board BrandsList): New brand, with no heading above it, then All
+// brands when there is an overview, each brand A to Z, and No brand under Not
+// in a brand. With no brands it says what they are for.
 const BrandsList: FC<{
   brands: Brand[];
   count: (id: string) => number;
   current: string | null;
   onPick: (id: string) => void;
   onNewBrand: () => void;
-}> = ({ brands, count, current, onPick, onNewBrand }) => {
+  // the overview's row, on a wide screen with brands only
+  onOverview?: () => void;
+}> = ({ brands, count, current, onPick, onNewBrand, onOverview }) => {
   const t = useT();
   const notInABrand = t('brands_not_in_a_brand', 'Not in a brand');
+  const channels = (id: string) =>
+    t('channels_count', '{{count}} channels', { count: count(id) });
 
   return (
     <nav
@@ -114,13 +129,34 @@ const BrandsList: FC<{
         type="button"
         onClick={onNewBrand}
         className={clsx(
-          'mx-[4px] mb-[8px] flex items-center gap-[8px] h-[40px] coarse:h-[44px] px-[12px] rounded-[8px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink text-[14px] font-[600] cursor-pointer',
-          FOCUS_RING
+          buttonClassName({ variant: 'secondary' }),
+          'mx-[4px] mb-[8px]'
         )}
       >
         <PlusIcon size={16} aria-hidden="true" />
         {t('brands_new_brand', 'New brand')}
       </button>
+      {onOverview && (
+        <ListRow
+          mark={
+            <span
+              aria-hidden="true"
+              className={clsx(
+                'flex-none flex items-center justify-center bg-surface border border-line text-brand',
+                LIST_MARK
+              )}
+            >
+              <GridIcon />
+            </span>
+          }
+          name={t('brands_overview_title', 'All brands')}
+          detail={t('brands_count', '{{count}} brands', {
+            count: brands.length,
+          })}
+          current={current === null}
+          onClick={onOverview}
+        />
+      )}
       {!brands.length && (
         <p className="px-[12px] py-[8px] text-[13px] leading-[1.5] text-muted">
           {t(
@@ -135,22 +171,19 @@ const BrandsList: FC<{
           mark={<BrandMark brand={brand} className={LIST_MARK} />}
           name={brand.name}
           dir="auto"
-          count={count(brand.id)}
+          detail={channels(brand.id)}
           current={brand.id === current}
           onClick={() => onPick(brand.id)}
         />
       ))}
       <div role="group" aria-label={notInABrand} className="flex flex-col">
-        <div
-          aria-hidden="true"
-          className="px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted"
-        >
+        <div aria-hidden="true" className={GROUP_LABEL}>
           {notInABrand}
         </div>
         <ListRow
           mark={<NoBrandMark className={LIST_MARK} size={14} />}
           name={t('brands_no_brand', 'No brand')}
-          count={count(NO_BRAND)}
+          detail={channels(NO_BRAND)}
           current={current === NO_BRAND}
           onClick={() => onPick(NO_BRAND)}
         />
@@ -159,36 +192,13 @@ const BrandsList: FC<{
   );
 };
 
-// A page's top (board Main, part 4): the mark, the name and the line under
-// it, then what the page offers.
-const PageTop: FC<{
-  mark: ReactNode;
-  name: string;
-  dir?: 'auto';
-  line: string;
-  children?: ReactNode;
-}> = ({ mark, name, dir, line, children }) => (
-  <div className="flex items-center gap-[16px] mobile:gap-[12px]">
-    {mark}
-    <div className="flex-1 min-w-0 flex flex-col items-start gap-[2px]">
-      <h2
-        dir={dir}
-        className="max-w-full truncate text-[22px] font-[600] text-ink"
-      >
-        {name}
-      </h2>
-      <p className="text-[13px] leading-[1.45] text-muted">{line}</p>
-    </div>
-    {children}
-  </div>
-);
-
 /**
  * The Brands page (contracts/pages-ui.md): the brands listed on the start side
  * in SplitPanel, as Samy's chats are, and the picked brand's page, its name,
- * Rename and its ⋯ over its kit, or No brand's channels. A wide screen shows
- * the first brand until one is picked. At 1025px and below the list is the
- * page until a brand is picked, and the brand's page links back to it.
+ * Rename and its ⋯ over its kit, or No brand's channels. A wide screen with
+ * brands shows All brands' overview until one is picked (spec 059, US6). At
+ * 1025px and below the list is the page until a brand is picked, and the
+ * brand's page links back to it.
  *
  * Which channels are in a brand comes from the channel list (C4), so a count
  * includes disabled channels.
@@ -220,24 +230,27 @@ export const BrandsComponent: FC = () => {
   const channels: Channel[] = integrations;
   const channelsOf = (id: string) =>
     channels.filter((channel) => (channel.customer?.id || NO_BRAND) === id);
+  const channelCount = (id: string) => channelsOf(id).length;
   // The open page: No brand, or the brand picked while it is still there.
   // Before a pick, or after the picked brand is deleted, a wide screen shows
-  // the first brand and 1025px and below the list.
+  // the overview, or the empty state while there are no brands, and 1025px
+  // and below the list.
   const current =
     chosen === NO_BRAND
       ? NO_BRAND
-      : brands.find((brand) => brand.id === chosen)?.id ??
-        (isMobile ? null : brands[0]?.id ?? null);
+      : brands.find((brand) => brand.id === chosen)?.id ?? null;
   const brand = brands.find((item) => item.id === current);
+  const overview = !isMobile && brands.length > 0;
   const newBrand = () => openNewBrand(setChosen);
 
   const list = (
     <BrandsList
       brands={brands}
-      count={(id) => channelsOf(id).length}
+      count={channelCount}
       current={current}
       onPick={setChosen}
       onNewBrand={newBrand}
+      onOverview={overview ? () => setChosen(null) : undefined}
     />
   );
 
@@ -285,9 +298,9 @@ export const BrandsComponent: FC = () => {
               <button
                 type="button"
                 onClick={() => openWebsite(brand)}
-                className={clsx(SMALL_BUTTON, 'gap-[6px] mobile:hidden')}
+                className={clsx(SMALL_BUTTON, 'mobile:hidden')}
               >
-                <WebsiteIcon size={15} />
+                <WebsiteIcon size={16} />
                 {fillFromWebsite}
               </button>
             )}
@@ -295,9 +308,9 @@ export const BrandsComponent: FC = () => {
             <button
               type="button"
               onClick={() => openRenameBrand(brand)}
-              className={clsx(SMALL_BUTTON, 'gap-[6px] mobile:hidden')}
+              className={clsx(SMALL_BUTTON, 'mobile:hidden')}
             >
-              <PencilIcon size={15} aria-hidden="true" />
+              <PencilIcon size={16} aria-hidden="true" />
               {rename}
             </button>
             <PostActionsMenu
@@ -369,65 +382,72 @@ export const BrandsComponent: FC = () => {
       {/* Held to the window, as Analytics' numbers are: the page scrolls in
           its own box, so the list stays put. On a phone the box is static,
           and the page scrolls. */}
-      <div className="bg-newBgColorInner flex-1 min-w-0 relative">
-        <div className="absolute inset-0 overflow-y-auto flex flex-col mobile:static scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-          {!current ? (
-            isMobile ? (
-              <div className="px-[8px] pb-[20px]">{list}</div>
-            ) : (
-              <EmptyState
-                illustration={
-                  <span className="flex gap-[8px]">
-                    {[0, 1, 2].map((tile) => (
-                      <span
-                        key={tile}
-                        className="w-[44px] h-[44px] rounded-[11px] border-[1.5px] border-dashed border-line"
-                      />
-                    ))}
-                  </span>
-                }
-                title={t('brands_empty_title', 'Give each brand its own look')}
-                description={t(
-                  'brands_empty_body',
-                  "Add a logo, a few example posts, colours and fonts. When you pick a brand's channels, Samy and Sharek's AI keep your images in its look."
-                )}
-                actionLabel={t('brands_new_brand', 'New brand')}
-                onAction={newBrand}
-              />
-            )
+      <PageScroll>
+        {!current && !overview ? (
+          isMobile ? (
+            <div className="px-[8px] pb-[20px]">{list}</div>
           ) : (
-            <div className="w-full max-w-[960px] mx-auto flex flex-col gap-[20px] px-[32px] py-[24px] mobile:px-[14px] mobile:py-[16px]">
-              {isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setChosen(null)}
-                  className={clsx(
-                    'self-start flex items-center gap-[4px] h-[44px] -my-[8px] -ms-[6px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
-                    FOCUS_RING
-                  )}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="rtl:-scale-x-100"
-                  >
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                  {t('brands_all_brands', 'Brands')}
-                </button>
+            <EmptyState
+              illustration={
+                <span className="flex gap-[8px]">
+                  {[0, 1, 2].map((tile) => (
+                    <span
+                      key={tile}
+                      className="w-[44px] h-[44px] rounded-[11px] border-[1.5px] border-dashed border-line"
+                    />
+                  ))}
+                </span>
+              }
+              title={t('brands_empty_title', 'Give each brand its own look')}
+              description={t(
+                'brands_empty_body',
+                "Add a logo, a few example posts, colours and fonts. When you pick a brand's channels, Samy and Sharek's AI keep your images in its look."
               )}
-              {page}
-            </div>
-          )}
-        </div>
-      </div>
+              actionLabel={t('brands_new_brand', 'New brand')}
+              onAction={newBrand}
+            />
+          )
+        ) : (
+          <div className="w-full max-w-[960px] mx-auto flex flex-col gap-[20px] px-[32px] py-[24px] mobile:px-[14px] mobile:py-[16px]">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setChosen(null)}
+                className={clsx(
+                  'self-start flex items-center gap-[4px] h-[44px] -my-[8px] -ms-[6px] px-[6px] rounded-[8px] text-ink text-[14px] font-[600] cursor-pointer',
+                  FOCUS_RING
+                )}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="rtl:-scale-x-100"
+                >
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+                {t('brands_all_brands', 'Brands')}
+              </button>
+            )}
+            {current ? (
+              page
+            ) : (
+              <BrandsOverview
+                brands={brands}
+                count={channelCount}
+                onPick={setChosen}
+                onNewBrand={newBrand}
+              />
+            )}
+          </div>
+        )}
+      </PageScroll>
     </div>
   );
 };

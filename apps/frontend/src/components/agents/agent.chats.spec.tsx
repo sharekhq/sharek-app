@@ -56,6 +56,7 @@ jest.mock('next/link', () => ({
 jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({}));
 
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
+import { buttonClassName } from '@gitroom/react/form/button';
 import {
   browserTimezone,
   setUserTimezone,
@@ -722,6 +723,21 @@ describe('the header', () => {
 
     await tap(link);
     expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  // FR-026: the medium secondary button, kept 4px in from the panel's sides.
+  it('draws New chat as the medium secondary button, with a 16px +', async () => {
+    const host = await render();
+    const link = host.querySelector('a[href="/agents"]')!;
+
+    expect(classes(link)).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ variant: 'secondary' }).split(/\s+/),
+        'mx-[4px]',
+      ])
+    );
+    expect(classes(link)).not.toContain('px-[12px]');
+    expect(link.querySelector('svg')!.getAttribute('width')).toBe('16');
   });
 
   it('lands at /agents/new, where /agents sends it', async () => {

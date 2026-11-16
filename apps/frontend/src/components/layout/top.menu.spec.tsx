@@ -175,4 +175,42 @@ describe('the side menu', () => {
     variables.showUpstreamExtras = true;
     expect(await menu()).toContain('Affiliate');
   });
+
+  // Samy's robot is drawn on its own 20 by 21 grid, not the 24px one most
+  // icons use: a square box would shrink or skew it (spec 059).
+  it("draws Samy's icon 20 by 21 on its own grid", async () => {
+    const SamyEntryIcon = () => (
+      <>{useMenuItem().all.find((item) => item.path === '/agents')?.icon}</>
+    );
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(<SamyEntryIcon />);
+    });
+
+    const svg = host.querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 20 21');
+    expect(svg?.getAttribute('width')).toBe('20');
+    expect(svg?.getAttribute('height')).toBe('21');
+  });
+
+  // Both groups keep their items 8px apart, 4px on a short rail (under 800px
+  // tall): the rail's own height decides, not the window's (FR-008, FR-010).
+  it('spaces the items of both groups 8px apart, 4px on a short rail', async () => {
+    await menu();
+    const groups = ['/launches', '/settings'].map(
+      (path) => document.querySelector(`[data-path="${path}"]`)?.parentElement
+    );
+
+    expect(groups[0]).toBeTruthy();
+    expect(groups[0]).not.toBe(groups[1]);
+    groups.forEach((group) => {
+      const classes = (group?.getAttribute('class') ?? '').split(/\s+/);
+      expect(classes.filter((c) => /(^|:)gap-/.test(c)).sort()).toEqual([
+        'gap-[8px]',
+        'railShort:gap-[4px]',
+      ]);
+    });
+  });
 });

@@ -261,12 +261,7 @@ export const CreateThumbnail: FC<{
       )}
 
       <div className="flex gap-[12px] !mt-[20px]">
-        <Button
-          variant="quiet"
-          className="flex-1"
-          innerClassName="gap-[8px]"
-          onClick={onBack}
-        >
+        <Button variant="secondary" className="flex-1" onClick={onBack}>
           <svg
             width="16"
             height="16"
@@ -433,9 +428,8 @@ export const MediaComponentInner: FC<{
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-[12px] mt-[6px]">
                 <Button
-                  variant="quiet"
+                  variant="secondary"
                   disabled={loading}
-                  innerClassName="gap-[8px]"
                   onClick={() => setIsEditingThumbnail(true)}
                 >
                   {thumbnail || newThumbnail ? (
@@ -451,9 +445,8 @@ export const MediaComponentInner: FC<{
                   )}
                 </Button>
                 <Button
-                  variant="quiet"
+                  variant="secondary"
                   disabled={loading}
-                  innerClassName="gap-[8px]"
                   onClick={() =>
                     modals.openModal({
                       title: t('media_library', 'Media Library'),
@@ -485,8 +478,7 @@ export const MediaComponentInner: FC<{
                 </Button>
                 {(thumbnail || newThumbnail) && (
                   <Button
-                    variant="ghost"
-                    className="!text-error"
+                    variant="dangerGhost"
                     disabled={loading}
                     onClick={() => {
                       setNewThumbnail(null);
@@ -516,7 +508,7 @@ export const MediaComponentInner: FC<{
       {!isEditingThumbnail && (
         <div className="flex gap-[12px] !mt-[20px]">
           <Button
-            variant="quiet"
+            variant="secondary"
             className="flex-1"
             disabled={loading}
             onClick={onClose}

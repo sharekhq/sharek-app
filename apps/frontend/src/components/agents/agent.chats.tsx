@@ -7,6 +7,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { PropertiesContext } from '@gitroom/frontend/components/agents/agent';
@@ -18,6 +19,11 @@ import {
   SearchField,
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { PostActionsMenu } from '@gitroom/frontend/components/launches/post.actions.menu';
+import {
+  GROUP_LABEL,
+  LIST_ROW_IDLE,
+  LIST_ROW_ON,
+} from '@gitroom/frontend/components/ui/split.panel';
 import {
   CloseIcon,
   PencilIcon,
@@ -214,9 +220,8 @@ const ChatRow: FC<{ chat: Chat; current: boolean; onPin: () => void }> = ({
     <div
       className={clsx(
         'group flex items-center gap-[4px] pe-[4px] rounded-[8px] transition-colors',
-        current
-          ? 'bg-brandSoft2 text-ink font-[600]'
-          : 'text-inkSoft hover:bg-boxHover hover:text-ink'
+        current ? LIST_ROW_ON : LIST_ROW_IDLE,
+        current ? 'text-ink font-[600]' : 'text-inkSoft hover:text-ink'
       )}
     >
       {/* Picking a chat closes the drawer it may be in. */}
@@ -356,11 +361,11 @@ export const ChatsPanel: FC = () => {
           href="/agents"
           onClick={closeChats}
           className={clsx(
-            'mx-[4px] flex items-center gap-[8px] h-[40px] coarse:h-[44px] px-[12px] rounded-[8px] bg-quiet border border-line hover:bg-surface2 transition-colors text-ink text-[14px] font-[600]',
-            FOCUS_RING
+            buttonClassName({ variant: 'secondary' }),
+            'mx-[4px]'
           )}
         >
-          <PlusIcon size={18} aria-hidden="true" />
+          <PlusIcon size={16} aria-hidden="true" />
           {t('new_chat', 'New chat')}
         </Link>
         <SearchField
@@ -371,10 +376,7 @@ export const ChatsPanel: FC = () => {
       </div>
       {GROUPS.filter((group) => grouped[group]).map((group) => (
         <div key={group} role="group" aria-label={names[group]}>
-          <div
-            aria-hidden="true"
-            className="px-[10px] pt-[14px] pb-[6px] text-[12px] font-[600] text-muted"
-          >
+          <div aria-hidden="true" className={GROUP_LABEL}>
             {names[group]}
           </div>
           {grouped[group].map((chat) => (

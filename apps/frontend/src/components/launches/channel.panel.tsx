@@ -725,16 +725,18 @@ const CustomerGroup: FC<{
 // from, and dir="auto" would turn an Arabic placeholder left to right, so it
 // follows the page until something is typed. The padding is the icon's on
 // both sides, because typed text may run either way. Its ref is the input's,
-// so Studio can put the focus back in it after Clear search.
+// so Studio can put the focus back in it after Clear search. A side panel's
+// search is 36px; Studio's, on the page itself, is a page field's 40px.
 export const SearchField = forwardRef<
   HTMLInputElement,
   {
     label: string;
     value: string;
     onChange: (value: string) => void;
+    size?: 'panel' | 'page';
   }
 >(function SearchField(props, ref) {
-  const { label, value, onChange } = props;
+  const { label, value, onChange, size = 'panel' } = props;
   return (
     // a margin, since the icon is placed from this box's edge
     <div className="relative mx-[4px]">
@@ -761,7 +763,8 @@ export const SearchField = forwardRef<
         placeholder={label}
         aria-label={label}
         className={clsx(
-          'w-full h-[36px] coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+          'w-full coarse:h-[44px] px-[34px] rounded-[8px] bg-newBgColorInner border border-line text-[14px] coarse:text-[16px] text-ink text-ellipsis placeholder:text-muted outline-none placeholder-shown:[direction:inherit]',
+          size === 'page' ? 'h-[40px]' : 'h-[36px]',
           FOCUS_RING
         )}
       />
@@ -1165,7 +1168,7 @@ export const ChannelPanel: FC<
                     <path d="M12 5v14M5 12h14" />
                   </svg>
                 ),
-                label: t('add_channel', 'Add Channel'),
+                label: t('add_channel', 'Add channel'),
                 hint: t(
                   'add_channel_hint',
                   'Connect an account you can log in to'

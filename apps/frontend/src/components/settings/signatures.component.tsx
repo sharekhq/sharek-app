@@ -65,14 +65,16 @@ export const SignaturesComponent: FC<{
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">{t('signatures', 'Signatures')}</h3>
+      <h3 className="text-[20px] font-[600]">
+        {t('signatures', 'Signatures')}
+      </h3>
       <div className="text-muted mt-[4px]">
         {t(
           'you_can_add_signatures_to_your_account_to_be_used_in_your_posts',
           'You can add signatures to your account to be used in your posts.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] mobile:p-[12px] flex gap-[24px]">
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] mobile:p-[12px] flex gap-[24px]">
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div
@@ -107,7 +109,9 @@ export const SignaturesComponent: FC<{
                   {!!appendSignature && (
                     <div className="flex justify-center mobile:basis-full">
                       <Button
-                        className="mobile:w-full mobile:px-[12px]"
+                        variant="secondary"
+                        size="small"
+                        className="mobile:w-full"
                         onClick={() => appendSignature(p.content)}
                       >
                         {t('use_signature', 'Use Signature')}
@@ -117,7 +121,9 @@ export const SignaturesComponent: FC<{
                   <div className="flex justify-center mobile:flex-1">
                     <div className="mobile:w-full">
                       <Button
-                        className="mobile:w-full mobile:px-[12px]"
+                        variant="secondary"
+                        size="small"
+                        className="mobile:w-full"
                         onClick={addSignature(p)}
                       >
                         {t('edit', 'Edit')}
@@ -127,7 +133,9 @@ export const SignaturesComponent: FC<{
                   <div className="flex justify-center mobile:flex-1">
                     <div className="mobile:w-full">
                       <Button
-                        className="mobile:w-full mobile:px-[12px]"
+                        variant="dangerGhost"
+                        size="small"
+                        className="mobile:w-full"
                         onClick={deleteSignature(p)}
                       >
                         {t('delete', 'Delete')}

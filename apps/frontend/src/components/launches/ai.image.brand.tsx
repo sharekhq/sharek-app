@@ -247,7 +247,7 @@ export const BrandField: FC<{
                 />
               </>
             }
-            triggerClassName="flex-1 min-w-0 h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+            triggerClassName="flex-1 min-w-0 h-[40px] coarse:h-[44px] flex items-center gap-[10px] px-[12px] bg-surface border border-line rounded-[8px] text-[14px] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
           />
         </div>
         {(logoPath || example) && (

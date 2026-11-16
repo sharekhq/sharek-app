@@ -13,6 +13,7 @@ import { Input } from '@gitroom/react/form/input';
 import { Textarea } from '@gitroom/react/form/textarea';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
 import { SUPPORT_APP_VERSION_MAX } from '@gitroom/nestjs-libraries/dtos/support/create.support.ticket.dto';
 
 const CATEGORIES = ['channels', 'billing', 'technical', 'other'] as const;
@@ -24,12 +25,12 @@ const FOCUS_RING =
 
 // The shell hands each page a flex row laid over the line colour, so covering
 // that row is the page's own job: without this the page is sized by its own
-// content and the grey shows beside it. That surface is already white, so the
-// form sits straight on it — a white card here would be a card on a card.
+// content and the grey shows beside it. PageScroll covers it and is the page's
+// one scroller, so an error or the sent state that outgrows the card scrolls
+// inside it, never the window. That surface is already white, so the form sits
+// straight on it — a white card here would be a card on a card.
 const Page = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-newBgColorInner flex-1 flex flex-col p-[20px]">
-    {children}
-  </div>
+  <PageScroll className="p-[20px]">{children}</PageScroll>
 );
 
 // Started at the same edge as the page title, the way every sibling page lays
@@ -248,7 +249,7 @@ export const SupportComponent = () => {
             <div>
               <Button
                 type="button"
-                variant="quiet"
+                variant="secondary"
                 className={FOCUS_RING}
                 onClick={() => {
                   form.reset();

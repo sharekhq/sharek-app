@@ -267,6 +267,7 @@ module.exports = {
       addVariant('child', '& > *');
       addVariant('child-hover', '& > *:hover');
       addVariant('coarse', '@media (pointer: coarse)');
+      addVariant('railShort', '@container rail (max-height: 799.98px)');
     },
   ],
 };

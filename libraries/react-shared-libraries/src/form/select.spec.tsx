@@ -34,14 +34,12 @@ const classLists = (): string[][] =>
     m[1].split(/\s+/)
   );
 
-/** The <select> paints h-[42px]; nothing else in the component does. */
+/** The <select>'s own classes. */
 const selectClasses = (): string[] => {
-  const classes = classLists().find((c) => c.includes('h-[42px]'));
-  if (!classes)
-    throw new Error(
-      `no h-[42px] select found in markup: ${renderToStaticMarkup(<Harness />)}`
-    );
-  return classes;
+  const markup = renderToStaticMarkup(<Harness />);
+  const select = markup.match(/<select [^>]*?class="([^"]*)"/);
+  if (!select) throw new Error(`no <select> found in markup: ${markup}`);
+  return select[1].split(/\s+/);
 };
 
 /** The chevron is the only pointer-events-none piece. */
@@ -69,6 +67,22 @@ describe('Select', () => {
 
   it('still fills its row from inside the positioning wrapper', () => {
     expect(selectClasses()).toContain('w-full');
+  });
+
+  // FR-034: the same 40px as a text field, and 44px under a finger.
+  it('is 40px tall, 44px under a coarse pointer', () => {
+    const classes = selectClasses();
+    expect(classes).toEqual(
+      expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+    );
+    expect(classes).not.toContain('h-[42px]');
+  });
+
+  // Below 16px iOS Safari zooms the page on focus.
+  it('keeps its 16px text under a coarse pointer', () => {
+    expect(selectClasses()).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
   });
 
   it('uses no physical-direction utilities anywhere (RTL mirrors for free)', () => {

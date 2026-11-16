@@ -49,6 +49,12 @@ import dayjs from 'dayjs';
 //   carries Select all, which like the circle takes a press only while it
 //   shows (`pointer-events-none` until the month is hovered or it has the
 //   focus, always under a finger).
+// - the button pass (spec 059, FR-026): the footer's Delete Post, Save as
+//   Draft, Save Set and Add to calendar, Add comment / post and the date
+//   picker's Close draw the shared button set: 14px semibold (13px at small),
+//   8px corners, a 6px gap to the icon and the size's own sides, Delete Post
+//   red text with no fill, Save as Draft and Add comment secondary, Save Set
+//   and Add to calendar primary; Add to calendar's label loses its own 15px.
 
 const shownMedia = [1, 2, 3].map((n) => ({
   id: `m${n}`,
@@ -295,6 +301,7 @@ import { PostComment } from '@gitroom/frontend/components/new-launch/providers/p
 import { SignatureBox } from '@gitroom/frontend/components/signature';
 import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
+import { buttonClassName } from '@gitroom/react/form/button';
 import { InformationComponent } from '@gitroom/frontend/components/launches/information.component';
 import {
   MediaBox,
@@ -496,6 +503,30 @@ describe('the composer shell from 1026px up', () => {
     expect(pin(host)).toMatchSnapshot();
   });
 
+  // FR-026: a text button's icon is 16px, 6px from its label (the button's
+  // own gap-[6px], with no other gap over it).
+  it("sets Delete Post's trash 16px, 6px from its label", async () => {
+    existing = { integration: 'int-1', posts: [] };
+    const host = await render(shell(), {
+      integrations: channels,
+      selectedIntegrations: selected(instagram),
+      current: 'int-1',
+      date: at,
+    });
+    const remove = Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Post'
+    )!;
+    const icon = remove.querySelector('svg')!;
+
+    expect([icon.getAttribute('width'), icon.getAttribute('height')]).toEqual([
+      '16',
+      '16',
+    ]);
+    expect(
+      remove.className.split(' ').filter((token) => token.startsWith('gap-'))
+    ).toEqual(['gap-[6px]']);
+  });
+
   it('a set being added', async () => {
     const host = await render(shell({ addEditSets: () => undefined }), {
       integrations: channels,
@@ -663,6 +694,24 @@ describe('the tool buttons from 1026px up', () => {
     ['AI video', <AiVideo key="v" value="" onChange={jest.fn()} />],
   ])('%s', async (_name, element) => {
     expect(pin(await render(element))).toMatchSnapshot();
+  });
+
+  // FR-026: AI Video sits beside AI Image in the AI look at the small size, the
+  // one button set's, its label 6px from its icon.
+  it("sets AI Video at AI Image's small AI look", async () => {
+    const tile = async (element: ReactElement) =>
+      (await render(element)).querySelector('[aria-label]')!;
+    const image = await tile(<AiImage value="" onChange={jest.fn()} />);
+    const video = await tile(<AiVideo value="" onChange={jest.fn()} />);
+    const own = (element: Element) => element.className.split(' ').sort();
+
+    expect(own(video)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'ai', size: 'small' }).split(' ')
+      )
+    );
+    expect(own(video)).toEqual(own(image));
+    expect(own(video.lastElementChild!)).toEqual(own(image.lastElementChild!));
   });
 
   it('the media strip', async () => {

@@ -7,7 +7,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -18,10 +17,8 @@ import { UserDetailDto } from '@gitroom/nestjs-libraries/dtos/users/user.details
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
-import { capitalize } from 'lodash';
 import { TeamsComponent } from '@gitroom/frontend/components/settings/teams.component';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
-import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { PublicComponent } from '@gitroom/frontend/components/public-api/public.component';
@@ -35,10 +32,12 @@ import { GlobalSettings } from '@gitroom/frontend/components/settings/global.set
 import { AppsComponent } from '@gitroom/frontend/components/settings/apps.component';
 import { ThirdPartyComponent } from '@gitroom/frontend/components/third-parties/third-party.component';
 import { Plugs } from '@gitroom/frontend/components/plugs/plugs';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
+import { SettingsMenu } from '@gitroom/frontend/components/settings/settings.menu';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
-  const { isGeneral, showThirdParty, billingEnabled } = useVariables();
+  const { isGeneral, showThirdParty } = useVariables();
   const { getRef } = props;
   const fetch = useFetch();
   const toast = useToaster();
@@ -123,16 +122,24 @@ export const SettingsPopup: FC<{
       : 'global_settings';
   });
 
-  // Screens up to 1025px (phones and iPads held upright) draw the tab list as
-  // one sideways strip, where a tab named in the address can open past the
-  // screen's edge, so the strip starts scrolled to it. Only when the strip
-  // overflows: the desktop column has nothing to scroll.
-  const activeTab = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const strip = activeTab.current?.parentElement;
-    if (strip && strip.scrollWidth > strip.clientWidth) {
-      activeTab.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  // The open tab goes into the address, so a refresh reopens it: replaced, as
+  // Media's filters are, never pushed, so Back leaves Settings. Every other
+  // parameter stays, loggedAuth among them, which customFetch reads from the
+  // address on each request; Global settings, the default, is left out.
+  const changeTab = useCallback((key: string) => {
+    setTab(key);
+    const params = new URLSearchParams(window.location.search);
+    if (key === 'global_settings') {
+      params.delete('tab');
+    } else {
+      params.set('tab', key);
     }
+    const address = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      address ? `/settings?${address}` : '/settings'
+    );
   }, []);
 
   useEffect(() => {
@@ -145,52 +152,16 @@ export const SettingsPopup: FC<{
        against a 355px overflow-hidden clipper — 28px of the panel off the
        right edge at 390. Measured on the live app. */
     <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
-      <div className="bg-newBgColorInner p-[20px] flex flex-col transition-all w-[260px] mobile:w-full mobile:p-[12px]">
-        <div className="flex flex-1 flex-col gap-[15px] mobile:flex-row mobile:gap-[8px] mobile:overflow-x-auto mobile:pb-[6px] scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
-          {list.map(({ tab: tabKey, label }) => (
-            <button
-              type="button"
-              key={tabKey}
-              ref={tabKey === tab ? activeTab : undefined}
-              aria-pressed={tabKey === tab}
-              className={clsx(
-                'cursor-pointer flex items-center gap-[12px] rounded-[10px] px-[16px] py-[11px] text-start transition-colors focus-visible:ring-2 focus-visible:ring-brand coarse:min-h-[44px] mobile:shrink-0 mobile:whitespace-nowrap mobile:px-[14px] mobile:py-[10px]',
-                tabKey === tab
-                  ? 'bg-brandSoft text-brandText font-[600]'
-                  : 'hover:bg-boxHover'
-              )}
-              onClick={() => setTab(tabKey)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div>
-          {showLogout && (
-            <div className="mt-4 mobile:mt-[8px]">
-              <LogoutComponent />
-            </div>
-          )}
-          <div className="mt-[5px] flex flex-col text-[12px] text-muted break-all">
-            {billingEnabled && user?.isLifetime && (
-              <div>
-                {t('lifetime_tier', '{{tier}} tier', {
-                  tier: capitalize(user?.tier?.current || ''),
-                })}
-              </div>
-            )}
-            <div>
-              {process.env.NEXT_PUBLIC_VERSION
-                ? process.env.NEXT_PUBLIC_VERSION
-                : ''}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SettingsMenu
+        list={list}
+        tab={tab}
+        onChange={changeTab}
+        showLogout={showLogout}
+      />
       {/* min-w-0: the same min-width:auto floor one level in — this pane is the
           flex item that holds the panels, and a panel wider than the frame
           floors it here too, bleeding past the right edge at 820. */}
-      <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] gap-[12px]">
+      <PageScroll className="p-[20px] gap-[12px]">
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(submit)}>
             {!!getRef && (
@@ -276,7 +247,7 @@ export const SettingsPopup: FC<{
             </div>
           </form>
         </FormProvider>
-      </div>
+      </PageScroll>
     </div>
   );
 };

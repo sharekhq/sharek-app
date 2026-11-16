@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { BillingComponent } from '@gitroom/frontend/components/billing/billing.component';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
 import { Metadata } from 'next';
 import { getT } from '@gitroom/react/translation/get.translation.service.backend';
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 export default async function Page() {
   return (
-    <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
+    <PageScroll className="p-[20px] gap-[12px]">
       <BillingComponent />
-    </div>
+    </PageScroll>
   );
 }

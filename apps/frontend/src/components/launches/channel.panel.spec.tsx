@@ -689,6 +689,24 @@ describe('the search', () => {
     expect(search().getAttribute('dir')).toBe('auto');
   });
 
+  // Spec 059 (FR-034): a search inside a side panel is 36px, the field's
+  // default; only Studio's page asks for the 40px one.
+  it.each([
+    ['Calendar', {}],
+    ['Samy', { mode: 'samy', selected: [] }],
+    [
+      'Analytics',
+      { mode: 'analytics', selected: null, hasStatistics: () => true },
+    ],
+  ])("is the side panel's 36px field on %s", async (_, values) => {
+    await render(SEARCH, values);
+
+    expect(classes(search())).toEqual(
+      expect.arrayContaining(['h-[36px]', 'coarse:h-[44px]'])
+    );
+    expect(classes(search())).not.toContain('h-[40px]');
+  });
+
   // The field the chats panel shares (agent.chats.tsx), where French's
   // "Rechercher des conversations" was cut with no ellipsis at 272px (walk 3)
   it('ends a placeholder or a name too long for it with an ellipsis', async () => {

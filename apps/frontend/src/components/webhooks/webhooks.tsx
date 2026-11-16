@@ -60,7 +60,7 @@ export const Webhooks: FC = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">
+      <h3 className="text-[20px] font-[600]">
         {t('webhooks', 'Webhooks')} ({data?.length || 0}/{user?.tier?.webhooks})
       </h3>
       <div className="text-muted mt-[4px]">
@@ -69,7 +69,7 @@ export const Webhooks: FC = () => {
           'Webhooks are a way to get notified when something happens in Sharek via\n        an HTTP request.'
         )}
       </div>
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[12px] p-[24px] flex gap-[24px]">
         <div className="flex flex-col w-full">
           {!!data?.length && (
             <div className="grid grid-cols-[1fr,1fr,1fr,1fr] phone:grid-cols-1 w-full gap-y-[10px] phone:gap-y-[12px]">
@@ -87,14 +87,22 @@ export const Webhooks: FC = () => {
                   </div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={addWebhook(p)}>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={addWebhook(p)}
+                      >
                         {t('edit', 'Edit')}
                       </Button>
                     </div>
                   </div>
                   <div className="flex flex-col justify-center">
                     <div>
-                      <Button onClick={deleteHook(p)}>
+                      <Button
+                        variant="dangerGhost"
+                        size="small"
+                        onClick={deleteHook(p)}
+                      >
                         {t('delete', 'Delete')}
                       </Button>
                     </div>

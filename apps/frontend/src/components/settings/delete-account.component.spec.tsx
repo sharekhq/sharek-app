@@ -156,6 +156,19 @@ describe('deleting the account', () => {
   });
 });
 
+// A card's corners are 12px with a 1px line, on Settings as on every other page (FR-035).
+describe('the card', () => {
+  it('has 12px corners and a 1px line', async () => {
+    const card = (await render(<DeleteAccountComponent />))
+      .firstElementChild as HTMLElement;
+
+    expect(card.className.split(' ')).toEqual(
+      expect.arrayContaining(['rounded-[12px]', 'border', 'border-fifth'])
+    );
+    expect(card.className).not.toContain('rounded-[4px]');
+  });
+});
+
 describe('the confirmation says what else goes', () => {
   it.each([
     [
