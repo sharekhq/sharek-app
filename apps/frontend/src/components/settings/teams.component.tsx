@@ -202,12 +202,12 @@ export const TeamsComponent = () => {
                     size="small"
                     onClick={remove(p)}
                   >
-                    <div className="flex justify-center items-center gap-[4px]">
+                    <div className="flex justify-center items-center gap-[6px]">
                       <div>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="15"
+                          width="16"
+                          height="16"
                           viewBox="0 0 14 15"
                           fill="none"
                         >
