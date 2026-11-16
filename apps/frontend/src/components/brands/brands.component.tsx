@@ -26,6 +26,7 @@ import {
 import { EmptyState } from '@gitroom/frontend/components/ui/empty.state';
 import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
 import {
+  GridIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -46,6 +47,10 @@ import {
   NoBrandMark,
 } from '@gitroom/frontend/components/brands/brand.mark';
 import {
+  BrandsOverview,
+  PageTop,
+} from '@gitroom/frontend/components/brands/brands.overview';
+import {
   Brand,
   useBrands,
 } from '@gitroom/frontend/components/brands/use.brands';
@@ -55,18 +60,17 @@ const LIST_MARK = 'w-[32px] h-[32px] rounded-[8px] text-[13px]';
 const PAGE_MARK =
   'w-[56px] h-[56px] rounded-[13px] text-[20px] mobile:w-[44px] mobile:h-[44px] mobile:text-[17px]';
 
-// A row of the list: the mark, the name and the channel count. The open page's
-// row has the selected tint; the others show a hover. A brand's name keeps its
-// own direction and lines up with the list's start.
+// A row of the list: the mark, the name and the line under it, a count. The
+// open page's row has the selected tint; the others show a hover. A brand's
+// name keeps its own direction and lines up with the list's start.
 const ListRow: FC<{
   mark: ReactNode;
   name: string;
   dir?: 'auto';
-  count: number;
+  detail: string;
   current: boolean;
   onClick: () => void;
-}> = ({ mark, name, dir, count, current, onClick }) => {
-  const t = useT();
+}> = ({ mark, name, dir, detail, current, onClick }) => {
   return (
     <button
       type="button"
@@ -90,25 +94,29 @@ const ListRow: FC<{
           {name}
         </span>
         <span className="text-[12px] text-muted whitespace-nowrap">
-          {t('channels_count', '{{count}} channels', { count })}
+          {detail}
         </span>
       </span>
     </button>
   );
 };
 
-// The list (board BrandsList): New brand, with no heading above it, then each
-// brand A to Z, and No brand under Not in a brand. With no brands it says
-// what they are for.
+// The list (board BrandsList): New brand, with no heading above it, then All
+// brands when there is an overview, each brand A to Z, and No brand under Not
+// in a brand. With no brands it says what they are for.
 const BrandsList: FC<{
   brands: Brand[];
   count: (id: string) => number;
   current: string | null;
   onPick: (id: string) => void;
   onNewBrand: () => void;
-}> = ({ brands, count, current, onPick, onNewBrand }) => {
+  // the overview's row, on a wide screen with brands only
+  onOverview?: () => void;
+}> = ({ brands, count, current, onPick, onNewBrand, onOverview }) => {
   const t = useT();
   const notInABrand = t('brands_not_in_a_brand', 'Not in a brand');
+  const channels = (id: string) =>
+    t('channels_count', '{{count}} channels', { count: count(id) });
 
   return (
     <nav
@@ -126,6 +134,27 @@ const BrandsList: FC<{
         <PlusIcon size={16} aria-hidden="true" />
         {t('brands_new_brand', 'New brand')}
       </button>
+      {onOverview && (
+        <ListRow
+          mark={
+            <span
+              aria-hidden="true"
+              className={clsx(
+                'flex-none flex items-center justify-center bg-surface border border-line text-brand',
+                LIST_MARK
+              )}
+            >
+              <GridIcon />
+            </span>
+          }
+          name={t('brands_overview_title', 'All brands')}
+          detail={t('brands_count', '{{count}} brands', {
+            count: brands.length,
+          })}
+          current={current === null}
+          onClick={onOverview}
+        />
+      )}
       {!brands.length && (
         <p className="px-[12px] py-[8px] text-[13px] leading-[1.5] text-muted">
           {t(
@@ -140,7 +169,7 @@ const BrandsList: FC<{
           mark={<BrandMark brand={brand} className={LIST_MARK} />}
           name={brand.name}
           dir="auto"
-          count={count(brand.id)}
+          detail={channels(brand.id)}
           current={brand.id === current}
           onClick={() => onPick(brand.id)}
         />
@@ -152,7 +181,7 @@ const BrandsList: FC<{
         <ListRow
           mark={<NoBrandMark className={LIST_MARK} size={14} />}
           name={t('brands_no_brand', 'No brand')}
-          count={count(NO_BRAND)}
+          detail={channels(NO_BRAND)}
           current={current === NO_BRAND}
           onClick={() => onPick(NO_BRAND)}
         />
@@ -161,36 +190,13 @@ const BrandsList: FC<{
   );
 };
 
-// A page's top (board Main, part 4): the mark, the name and the line under
-// it, then what the page offers.
-const PageTop: FC<{
-  mark: ReactNode;
-  name: string;
-  dir?: 'auto';
-  line: string;
-  children?: ReactNode;
-}> = ({ mark, name, dir, line, children }) => (
-  <div className="flex items-center gap-[16px] mobile:gap-[12px]">
-    {mark}
-    <div className="flex-1 min-w-0 flex flex-col items-start gap-[2px]">
-      <h2
-        dir={dir}
-        className="max-w-full truncate text-[22px] font-[600] text-ink"
-      >
-        {name}
-      </h2>
-      <p className="text-[13px] leading-[1.45] text-muted">{line}</p>
-    </div>
-    {children}
-  </div>
-);
-
 /**
  * The Brands page (contracts/pages-ui.md): the brands listed on the start side
  * in SplitPanel, as Samy's chats are, and the picked brand's page, its name,
- * Rename and its ⋯ over its kit, or No brand's channels. A wide screen shows
- * the first brand until one is picked. At 1025px and below the list is the
- * page until a brand is picked, and the brand's page links back to it.
+ * Rename and its ⋯ over its kit, or No brand's channels. A wide screen with
+ * brands shows All brands' overview until one is picked (spec 059, US6). At
+ * 1025px and below the list is the page until a brand is picked, and the
+ * brand's page links back to it.
  *
  * Which channels are in a brand comes from the channel list (C4), so a count
  * includes disabled channels.
@@ -222,24 +228,27 @@ export const BrandsComponent: FC = () => {
   const channels: Channel[] = integrations;
   const channelsOf = (id: string) =>
     channels.filter((channel) => (channel.customer?.id || NO_BRAND) === id);
+  const channelCount = (id: string) => channelsOf(id).length;
   // The open page: No brand, or the brand picked while it is still there.
   // Before a pick, or after the picked brand is deleted, a wide screen shows
-  // the first brand and 1025px and below the list.
+  // the overview, or the empty state while there are no brands, and 1025px
+  // and below the list.
   const current =
     chosen === NO_BRAND
       ? NO_BRAND
-      : brands.find((brand) => brand.id === chosen)?.id ??
-        (isMobile ? null : brands[0]?.id ?? null);
+      : brands.find((brand) => brand.id === chosen)?.id ?? null;
   const brand = brands.find((item) => item.id === current);
+  const overview = !isMobile && brands.length > 0;
   const newBrand = () => openNewBrand(setChosen);
 
   const list = (
     <BrandsList
       brands={brands}
-      count={(id) => channelsOf(id).length}
+      count={channelCount}
       current={current}
       onPick={setChosen}
       onNewBrand={newBrand}
+      onOverview={overview ? () => setChosen(null) : undefined}
     />
   );
 
@@ -372,7 +381,7 @@ export const BrandsComponent: FC = () => {
           its own box, so the list stays put. On a phone the box is static,
           and the page scrolls. */}
       <PageScroll>
-        {!current ? (
+        {!current && !overview ? (
           isMobile ? (
             <div className="px-[8px] pb-[20px]">{list}</div>
           ) : (
@@ -424,7 +433,16 @@ export const BrandsComponent: FC = () => {
                 {t('brands_all_brands', 'Brands')}
               </button>
             )}
-            {page}
+            {current ? (
+              page
+            ) : (
+              <BrandsOverview
+                brands={brands}
+                count={channelCount}
+                onPick={setChosen}
+                onNewBrand={newBrand}
+              />
+            )}
           </div>
         )}
       </PageScroll>
