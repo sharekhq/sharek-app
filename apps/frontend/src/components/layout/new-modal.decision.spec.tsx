@@ -114,6 +114,25 @@ describe('a destructive confirmation', () => {
   });
 });
 
+describe('a confirmation’s buttons', () => {
+  it('draw both the confirm and the cancel at the large 44px size', async () => {
+    await mount();
+
+    await decide(() => areYouSure());
+
+    const decision = buttons();
+    expect(decision.map((button) => button.textContent)).toEqual([
+      en.yes,
+      en.no,
+    ]);
+    // Class tokens, not substrings: every button's coarse:min-h-[44px] holds h-[44px].
+    decision.forEach((button) => {
+      expect(button.classList.contains('h-[44px]')).toBe(true);
+      expect(button.classList.contains('px-[20px]')).toBe(true);
+    });
+  });
+});
+
 describe('a confirmation with no text of its own', () => {
   it('asks in Arabic once the language is Arabic', async () => {
     await mount();
