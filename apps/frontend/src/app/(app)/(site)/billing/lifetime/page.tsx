@@ -1,4 +1,5 @@
 import { LifetimeDeal } from '@gitroom/frontend/components/billing/lifetime.deal';
+import { PageScroll } from '@gitroom/frontend/components/ui/page.scroll';
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { getT } from '@gitroom/react/translation/get.translation.service.backend';
@@ -10,5 +11,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 export default async function Page() {
-  return <LifetimeDeal />;
+  return (
+    <PageScroll className="p-[20px]">
+      <LifetimeDeal />
+    </PageScroll>
+  );
 }
