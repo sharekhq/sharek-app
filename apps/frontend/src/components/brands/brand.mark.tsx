@@ -74,6 +74,9 @@ export const logoTone = (pixels: ArrayLike<number>): LogoTone => {
 // from the first render.
 const tones = new Map<string, LogoTone>();
 
+// Each logo whose CORS request failed, by src, so a later mark skips it.
+const refused = new Set<string>();
+
 // A loaded logo's tone, read on a SAMPLE × SAMPLE canvas; null where the
 // browser gives no 2D context or refuses the pixels.
 const readTone = (img: HTMLImageElement): LogoTone => {
@@ -94,17 +97,18 @@ const readTone = (img: HTMLImageElement): LogoTone => {
 
 // A brand's logo, on a tile that follows its tone: a light logo on the dark
 // one, a dark logo on the light one, any other on the initial's. Asked for
-// with CORS so its pixels can be read; where that request fails it loads
-// again without, and keeps the initial's tile.
-const LogoMark: FC<{ src: string; className: string }> = ({
+// with CORS so its pixels can be read, once per src; where that request fails
+// it loads again without and keeps the initial's tile, and later marks of it
+// ask without CORS from the start.
+const BrandLogo: FC<{ src: string; className: string }> = ({
   src,
   className,
 }) => {
-  const [cors, setCors] = useState(true);
+  const [cors, setCors] = useState(() => !refused.has(src));
   const [tone, setTone] = useState<LogoTone>(() => tones.get(src) ?? null);
 
   const read = (event: SyntheticEvent<HTMLImageElement>) => {
-    if (!cors) {
+    if (!cors || tones.has(src)) {
       return;
     }
     const found = readTone(event.currentTarget);
@@ -112,7 +116,10 @@ const LogoMark: FC<{ src: string; className: string }> = ({
     setTone(found);
   };
 
-  const fallBack = () => setCors(false);
+  const fallBack = () => {
+    refused.add(src);
+    setCors(false);
+  };
 
   return (
     <img
@@ -150,7 +157,7 @@ export const BrandMark: FC<{ brand: Brand; className: string }> = ({
 
   if (logo) {
     return (
-      <LogoMark
+      <BrandLogo
         key={logo.path}
         src={mediaDirectory.set(logo.path)}
         className={className}
