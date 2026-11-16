@@ -205,8 +205,10 @@ export const BillingHistory: FC<{ modal?: boolean }> = ({ modal }) => {
       className={clsx(
         'flex flex-col gap-[20px]',
         !modal &&
-          'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft',
-        !modal && CARD_PADDING
+          clsx(
+            'rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft',
+            CARD_PADDING
+          )
       )}
     >
       <div className="flex items-center gap-[12px] phone:flex-col phone:items-stretch">

@@ -204,6 +204,7 @@ export const BrandsOverview: FC<{
           ),
         ].join(' · ')}
       />
+      {/* At most three across, at least 240px each: 32px is the two 16px gaps. */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(max(240px,calc((100%_-_32px)/3)),1fr))] gap-[16px]">
         {brands.map((brand) => (
           <BrandCard
