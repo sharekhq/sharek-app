@@ -380,6 +380,19 @@ const note = (node: Element) =>
 // The line under the page's heading.
 const topLine = (host: HTMLElement) =>
   heading(host)?.nextElementSibling?.textContent;
+// What the page's scroll box holds: the overview or a brand's page beside
+// the list, the list itself on a phone.
+const box = (host: HTMLElement) =>
+  host.querySelector('[class~="mobile:static"]')!.firstElementChild!;
+// The box's padding before spec 060: a 960px column with its own sides.
+const OLD_BOX = [
+  'max-w-[960px]',
+  'mx-auto',
+  'px-[32px]',
+  'py-[24px]',
+  'mobile:px-[14px]',
+  'mobile:py-[16px]',
+];
 
 describe('the list', () => {
   it('sits on the start side in SplitPanel, named Brands', async () => {
@@ -585,7 +598,7 @@ describe('the overview', () => {
     expect(classes(cards(host)[0].parentElement!)).toEqual(
       expect.arrayContaining([
         'grid',
-        'grid-cols-[repeat(auto-fill,minmax(240px,1fr))]',
+        'grid-cols-[repeat(auto-fill,minmax(max(240px,calc((100%_-_32px)/3)),1fr))]',
         'gap-[16px]',
       ])
     );
@@ -797,6 +810,22 @@ describe('the overview', () => {
         ])
       );
     });
+  });
+
+  it("sits full width, 20px in from the page's card, 12px at 1025px and below, a brand's page too (spec 060, FR-001)", async () => {
+    const host = await render();
+
+    expect(classes(box(host))).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[12px]'])
+    );
+    OLD_BOX.forEach((name) => expect(classes(box(host))).not.toContain(name));
+
+    await click(row(host, 'Bayt Al Qahwa'));
+    expect(heading(host)?.textContent).toBe('Bayt Al Qahwa');
+    expect(classes(box(host))).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[12px]'])
+    );
+    OLD_BOX.forEach((name) => expect(classes(box(host))).not.toContain(name));
   });
 
   it('asks for nothing beyond the brands and the channel list (FR-017)', async () => {
@@ -1101,6 +1130,27 @@ describe('at 1025px and below', () => {
         (item) => item.textContent
       )
     ).toEqual(['Rename', 'Delete brand']);
+  });
+
+  it("insets the list 12px at each side, on the page's gutter (spec 060, FR-001)", async () => {
+    const host = await render();
+
+    expect(box(host).contains(list(host))).toBe(true);
+    expect(classes(box(host))).toEqual(['px-[12px]', 'pb-[20px]']);
+  });
+
+  it("starts a brand's page with its link back on the page's gutter, no negative margins (spec 060, FR-004)", async () => {
+    const host = await render();
+
+    await click(row(host, 'Bayt Al Qahwa'));
+
+    expect(classes(box(host))).toEqual(
+      expect.arrayContaining(['p-[20px]', 'mobile:p-[12px]'])
+    );
+    const back = classes(button(host, 'Brands')!);
+    expect(back).toEqual(expect.arrayContaining(['h-[44px]', 'px-[6px]']));
+    expect(back).not.toContain('-my-[8px]');
+    expect(back).not.toContain('-ms-[6px]');
   });
 
   it("opens No brand's page with the same link back", async () => {
