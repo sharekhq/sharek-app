@@ -928,6 +928,17 @@ html[dir='rtl'] .lbox {
   .copilotKitChat {
     font-family: inherit;
   }
+
+  /* Samy's welcome (agent.welcome.tsx) is CopilotChat's suggestions list, so
+     it renders straight inside the footer, the scrolling message column's
+     second child. Auto block margins centre it in the room the empty messages
+     leave, and unlike `justify-content: center` never push its top out of
+     reach on a short screen. CopilotKit's `margin: 8px auto 0 auto` on the
+     footer loads after this file; `.agent`, the footer's class and the
+     attribute outrank its one class without `!important`. */
+  .copilotKitMessagesFooter:has(> [data-samy-welcome]) {
+    margin-block: auto;
+  }
 }
 
 /* Chat input matches the 16px conversation text (CopilotKit ships 0.875rem).
