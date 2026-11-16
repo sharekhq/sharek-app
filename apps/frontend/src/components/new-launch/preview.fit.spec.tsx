@@ -138,6 +138,22 @@ const render = async () => {
 const scaleOf = (box: HTMLElement) =>
   Number(/^scale\((.+)\)$/.exec(box.style.transform)?.[1]);
 
+// Boxes left as today's preview: no size, no transform and none of them
+// positioned, so a preview that fills its container fills the column, not a
+// box with no height.
+const expectInFlow = (boxes: HTMLElement[]) =>
+  boxes.forEach((box) => {
+    expect(box.style.width).toBe('');
+    expect(box.style.minHeight).toBe('');
+    expect(box.style.height).toBe('');
+    expect(box.style.transform).toBe('');
+    expect(
+      ['relative', 'absolute', 'top-0', 'start-0'].filter((name) =>
+        box.classList.contains(name)
+      )
+    ).toEqual([]);
+  });
+
 describe('fitScale', () => {
   it('draws at a phone width of 360px and scales no lower than 0.7', () => {
     expect(PREVIEW_PHONE_WIDTH).toBe(360);
@@ -198,15 +214,15 @@ describe('PreviewFit', () => {
     const { content, sizer, room } = await render();
     await resizeTo(451, 620);
 
-    [room, sizer, content].forEach((box) => {
-      expect(box.style.width).toBe('');
-      expect(box.style.minHeight).toBe('');
-      expect(box.style.height).toBe('');
-      expect(box.style.transform).toBe('');
-    });
-    ['absolute', 'top-0', 'start-0'].forEach((name) =>
-      expect(content.classList.contains(name)).toBe(false)
-    );
+    expectInFlow([room, sizer, content]);
+  });
+
+  it('with a room of 0, before it is measured, leaves the post in the flow', async () => {
+    const { content, sizer, room } = await render();
+    await resizeTo(0, 620);
+
+    expectInFlow([room, sizer, content]);
+    expect(sizer.classList.contains('mx-auto')).toBe(true);
   });
 
   it('never mounts the post again, as it resizes or the window narrows', async () => {
