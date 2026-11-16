@@ -671,7 +671,7 @@ const AiImageModal: FC<{
               'describe_the_image_you_want_to_generate',
               'Describe the image you want to generate'
             )}
-            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
+            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[14px] coarse:text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
           />
           <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
             <span className="text-muted">
@@ -1041,7 +1041,7 @@ const AiImageModal: FC<{
                 'image_edit_placeholder',
                 'Describe the change — for example, make the background plain white'
               )}
-              className="bg-newBgColorInner min-h-[96px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
+              className="bg-newBgColorInner min-h-[96px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[14px] coarse:text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
             />
             <ReferenceImages
               lead={version.media}
@@ -1073,17 +1073,19 @@ const AiImageModal: FC<{
         <ModalActionBar>
           {phase === 'result' ? (
             <>
-              <Button variant="secondary" onClick={backToPrompt}>
+              <Button variant="secondary" size="large" onClick={backToPrompt}>
                 {t('back_to_prompt', 'Back to prompt')}
               </Button>
               <div className="flex-1" />
-              <Button variant="ghost" onClick={generate}>
+              <Button variant="ghost" size="large" onClick={generate}>
                 {t('regenerate', 'Regenerate')}
                 <span className="ms-[6px] font-[500] opacity-75">
                   · {t('one_credit', '1 credit')}
                 </span>
               </Button>
-              <Button onClick={useImage}>{acceptLabel}</Button>
+              <Button size="large" onClick={useImage}>
+                {acceptLabel}
+              </Button>
             </>
           ) : (
             <>
@@ -1091,7 +1093,12 @@ const AiImageModal: FC<{
                 {t('image_uses_one_credit', 'Uses 1 image credit')}
               </CostNote>
               <div className="flex-1" />
-              <Button type="button" onClick={generate} disabled={overflow}>
+              <Button
+                type="button"
+                size="large"
+                onClick={generate}
+                disabled={overflow}
+              >
                 {t('generate', 'Generate')}
               </Button>
             </>
