@@ -162,13 +162,14 @@ describe("the checkout's look", () => {
       expect(heading).not.toContain('text-[18px]');
     });
 
-    it('makes the field 40px high', async () => {
+    it('makes the field 40px high, 44px under a finger as Apply is', async () => {
       const host = await openForm();
 
       const field = classesOf(
         host.querySelector('input[placeholder="Enter coupon code"]')
       );
       expect(field).toContain('h-[40px]');
+      expect(field).toContain('coarse:h-[44px]');
       expect(field).not.toContain('h-[44px]');
     });
 
