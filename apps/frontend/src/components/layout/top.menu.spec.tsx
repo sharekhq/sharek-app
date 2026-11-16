@@ -175,4 +175,23 @@ describe('the side menu', () => {
     variables.showUpstreamExtras = true;
     expect(await menu()).toContain('Affiliate');
   });
+
+  // Samy's robot is drawn on its own 20 by 21 grid, not the 24px one most
+  // icons use: a square box would shrink or skew it (spec 059).
+  it("draws Samy's icon 20 by 21 on its own grid", async () => {
+    const SamyEntryIcon = () => (
+      <>{useMenuItem().all.find((item) => item.path === '/agents')?.icon}</>
+    );
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(<SamyEntryIcon />);
+    });
+
+    const svg = host.querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 20 21');
+    expect(svg?.getAttribute('width')).toBe('20');
+    expect(svg?.getAttribute('height')).toBe('21');
+  });
 });

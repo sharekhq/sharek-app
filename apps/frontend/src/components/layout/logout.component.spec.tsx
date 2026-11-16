@@ -120,6 +120,22 @@ describe('LogoutComponent direction', () => {
   });
 });
 
+// The arrow is drawn on its own 25 by 24 grid at 24px, and it carries the
+// tooltip that names it on a pointer screen (spec 059).
+describe('LogoutComponent glyph', () => {
+  it('draws the icon variant 24px on its 25 by 24 grid, with its tooltip', () => {
+    const svg = render(true).querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 25 24');
+    expect(svg?.getAttribute('width')).toBe('24');
+    expect(svg?.getAttribute('height')).toBe('24');
+    expect(svg?.getAttribute('class')).toContain('rtl:-scale-x-100');
+    expect(svg?.getAttribute('data-tooltip-id')).toBe('tooltip');
+    expect(svg?.getAttribute('data-tooltip-content')).toBe(
+      'Logout from Sharek'
+    );
+  });
+});
+
 // Signing out drives the stubs above: the dialog's answer, the logout request
 // and the navigation it ends with, which is observed rather than performed.
 describe('LogoutComponent sign-out', () => {
