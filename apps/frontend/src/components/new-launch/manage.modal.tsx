@@ -1249,7 +1249,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 })}
               >
                 <div>
-                  <TrashIcon />
+                  <TrashIcon size={16} />
                 </div>
                 <div>{t('delete_post', 'Delete Post')}</div>
               </button>
