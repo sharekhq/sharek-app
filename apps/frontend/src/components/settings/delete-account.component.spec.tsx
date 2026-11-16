@@ -167,6 +167,18 @@ describe('the card', () => {
     );
     expect(card.className).not.toContain('rounded-[4px]');
   });
+
+  // A card's title is semibold at the panel's 16px, as the review page draws
+  // it (spec 059, walk fix).
+  it('has a semibold title', async () => {
+    const card = (await render(<DeleteAccountComponent />))
+      .firstElementChild as HTMLElement;
+    const title = Array.from(card.children).find(
+      (child) => child.textContent === 'Delete Account'
+    )!;
+
+    expect(title.className.split(' ')).toContain('font-[600]');
+  });
 });
 
 describe('the confirmation says what else goes', () => {

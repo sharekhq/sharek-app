@@ -135,7 +135,9 @@ const DeleteAccountComponent: FC<{ isLink?: boolean }> = ({ isLink }) => {
   return (
     <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[12px] p-[24px] flex flex-col gap-[24px]">
       {loadingOverlay}
-      <div className="mt-[4px]">{t('delete_account', 'Delete Account')}</div>
+      <div className="mt-[4px] font-[600]">
+        {t('delete_account', 'Delete Account')}
+      </div>
       <div className="flex items-center justify-between phone:flex-col phone:items-start phone:gap-[12px]">
         <div className="flex flex-col min-w-0">
           <div className="text-[14px]">

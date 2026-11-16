@@ -6,6 +6,8 @@ import { Button, buttonClassName } from './button';
 // One button set for the whole dashboard (spec 059, FR-026 to FR-031): four kinds (plus a
 // red-text row action and the AI tint) in three sizes, 8px corners, 14px semibold text
 // (13px small), 6px between an icon and its label, and at least 44px under a finger.
+// The focus ring stands 2px off the button on a gap of the surface, so a brand or
+// red fill can't hide it (FR-046).
 const EVERY_LOOK = [
   'flex',
   'items-center',
@@ -18,6 +20,8 @@ const EVERY_LOOK = [
   'coarse:min-h-[44px]',
   'focus-visible:ring-2',
   'focus-visible:ring-brand',
+  'focus-visible:ring-offset-2',
+  'focus-visible:ring-offset-surface',
 ];
 const KIND = {
   primary: ['bg-brand', 'text-white'],

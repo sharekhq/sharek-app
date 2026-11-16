@@ -1335,3 +1335,68 @@ export const BulbIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
     <path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.2 1.1 2.2h5c0-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3.5z" />
   </svg>
 );
+
+// Users Icon (Settings' Teams row: two people; UserIcon is the older set's)
+export const UsersIcon: FC<IconProps> = ({
+  size = 20,
+  className,
+  ...props
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <circle cx="9" cy="8.5" r="3.3" />
+    <path d="M3 19.5c.4-3.2 2.9-5.4 6-5.4s5.6 2.2 6 5.4M15.5 5.3a3.3 3.3 0 0 1 0 6.4M21 19.5c-.3-2.4-1.8-4.3-3.8-5" />
+  </svg>
+);
+
+// Pen Icon (Settings' Signatures row; PencilIcon is the older set's)
+export const PenIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M4 20h4L18.5 9.5l-4-4L4 16z" />
+    <path d="M13 7l4 4" />
+  </svg>
+);
+
+// Exit Icon (Settings' Log out row; the sidebar's Log out keeps LogoutIcon).
+// Its arrow leaves towards the row's start, so under dir="rtl" it is mirrored,
+// as LogoutIcon is.
+export const ExitIcon: FC<IconProps> = ({ size = 20, className, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={clsx('rtl:-scale-x-100', className)}
+    {...props}
+  >
+    <path d="M14.5 4.5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h9" />
+  </svg>
+);
