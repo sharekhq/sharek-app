@@ -58,6 +58,7 @@ jest.mock('swr', () => ({
 import { videosList } from '@gitroom/frontend/components/videos/video.wrapper';
 import '@gitroom/frontend/components/videos/providers/image-text-slides.provider';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 const Slides = videosList.find(
   (p) => p.identifier === 'image-text-slides'
@@ -265,7 +266,8 @@ describe("a slide's text field", () => {
 // At 1025px and below they share the row as the voice sets do: flex, no
 // min-content floor, 8px sides. From 1026px up they are what they were.
 describe('the Slides row', () => {
-  it('shares the row equally at 1025px and below and keeps the desktop buttons', async () => {
+  // The six count buttons, on the setup screen.
+  const renderCounts = async () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -281,9 +283,14 @@ describe('the Slides row', () => {
     await act(async () => {
       root.render(<Harness />);
     });
-    const counts = Array.from(host.querySelectorAll('button')).filter(
-      (button) => /^[1-6]$/.test(button.textContent?.trim() || '')
-    );
+    return () =>
+      Array.from(host.querySelectorAll('button')).filter((button) =>
+        /^[1-6]$/.test(button.textContent?.trim() || '')
+      );
+  };
+
+  it('shares the row equally at 1025px and below and keeps the desktop buttons', async () => {
+    const counts = (await renderCounts())();
 
     expect(counts).toHaveLength(6);
     for (const count of counts) {
@@ -296,6 +303,34 @@ describe('the Slides row', () => {
         ])
       );
     }
+  });
+
+  // Spec 059 (contracts/inventory.md A): an outlined choice is secondary, as
+  // ghost has no border since T003, so the chosen count's brand border shows
+  // again; the chosen one, 4 on arrival, keeps its soft brand fill.
+  it('draws the counts as secondary buttons, the chosen one in the brand tint with its border', async () => {
+    const counts = await renderCounts();
+    const chosen = () =>
+      counts()
+        .filter((count) =>
+          ['!bg-brandSoft', '!text-brandText', '!border-brand'].every((name) =>
+            count.className.split(' ').includes(name)
+          )
+        )
+        .map((count) => count.textContent);
+
+    for (const count of counts()) {
+      expect(count.className.split(' ')).toEqual(
+        expect.arrayContaining(
+          buttonClassName({ variant: 'secondary' }).split(' ')
+        )
+      );
+    }
+    expect(chosen()).toEqual(['4']);
+
+    await click(counts()[1]);
+
+    expect(chosen()).toEqual(['2']);
   });
 });
 

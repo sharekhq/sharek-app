@@ -130,6 +130,15 @@ import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { AlreadyAnsweredError } from '@gitroom/helpers/utils/custom.fetch.func';
+import {
+  CHIP,
+  CHIP_IDLE,
+  CHIP_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
+import {
+  IMAGE_POPULAR_STYLES,
+  IMAGE_STYLES,
+} from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 
 // happy-dom has a localStorage; jest.setup.js does not lift it onto globalThis,
 // and the Brand field keeps the brand picked last in it.
@@ -1718,6 +1727,96 @@ describe('the style search under a finger', () => {
   });
 });
 
+// Spec 059 (FR-033, contracts/inventory.md D): the styles filter the window's
+// list in the dashboard's one chip look, Studio's, and All styles is one of
+// them. A chip is CHIP plus CHIP_ON or CHIP_IDLE, whole and alone, never
+// both, as Tailwind emits the idle colours after the current ones.
+describe("the styles in the dashboard's one chip look", () => {
+  const words = (value: string) => value.split(' ');
+  // Which half a chip carries: 'on', 'idle', or 'mixed' for anything else.
+  const half = (node: Element | undefined) => {
+    const own = node?.className.split(' ') ?? [];
+    expect(own).toEqual(expect.arrayContaining(words(CHIP)));
+    const has = (part: string) =>
+      words(part).filter((name) => own.includes(name)).length;
+    const on = has(CHIP_ON);
+    const idle = has(CHIP_IDLE);
+    if (on === words(CHIP_ON).length && !idle) return 'on';
+    if (idle === words(CHIP_IDLE).length && !on) return 'idle';
+    return 'mixed';
+  };
+
+  it('draws Auto current on arrival, the popular styles and All styles idle, and moves the current one with a click', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+
+    expect(half(button('✦Auto'))).toBe('on');
+    IMAGE_POPULAR_STYLES.forEach((entry) =>
+      expect(half(button(entry.label))).toBe('idle')
+    );
+    expect(half(button('All styles'))).toBe('idle');
+
+    await click(button('Watercolor'));
+
+    expect(half(button('Watercolor'))).toBe('on');
+    expect(half(button('✦Auto'))).toBe('idle');
+  });
+
+  it("draws the catalog's styles as the same chips, the chosen one current", async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-ai'));
+    await click(button('Watercolor'));
+    await click(button('All styles'));
+    const chips = Array.from(document.querySelectorAll('button')).filter(
+      (node) =>
+        IMAGE_STYLES.some((entry) => entry.label === node.textContent?.trim())
+    );
+
+    expect(chips.length).toBeGreaterThan(IMAGE_POPULAR_STYLES.length);
+    chips.forEach((chip) =>
+      expect(half(chip)).toBe(
+        chip.textContent?.trim() === 'Watercolor' ? 'on' : 'idle'
+      )
+    );
+  });
+
+  // Question 4: the editor's AI image tile keeps its AI tint and takes the
+  // small size beside Insert Media: 32px with 8px corners and 12px sides, its
+  // label 13px semibold 6px from its 16px icon, still 44px under a finger
+  // and at 1025px and below.
+  it("draws the editor's AI image tile at the small size in its AI tint", async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    const tile = document.querySelector('.bg-ai')!;
+    const own = tile.className.split(' ');
+    const label = Array.from(tile.querySelectorAll('div')).find(
+      (node) => node.textContent === 'AI Image' && !node.children.length
+    )!;
+
+    expect(own).toEqual(
+      expect.arrayContaining([
+        'h-[32px]',
+        'rounded-[8px]',
+        'px-[12px]',
+        'bg-ai',
+        'text-aiAccent',
+        'coarse:h-[44px]',
+        'coarse:min-w-[44px]',
+        'mobile:h-[44px]',
+        'mobile:min-w-[44px]',
+      ])
+    );
+    ['h-[30px]', 'rounded-[6px]', 'px-[8px]'].forEach((name) =>
+      expect(own).not.toContain(name)
+    );
+    expect(label.className.split(' ')).toEqual(
+      expect.arrayContaining(['text-[13px]', 'font-[600]'])
+    );
+    expect(label.className).not.toContain('text-[10px]');
+    expect(label.parentElement!.className.split(' ')).toContain('gap-[6px]');
+    expect(tile.querySelector('svg')?.getAttribute('width')).toBe('16');
+  });
+});
+
 // Spec 053, US5 (FR-016, FR-020, FR-025; contracts/pages-ui.md part 2; boards
 // StudioBrand, StudioBrandOpen and StudioBrandOwn): a Brand field under the
 // prompt with the brand list titled for an image, what goes along with the
@@ -1822,6 +1921,17 @@ describe('the Brand field', () => {
       'Brand for this image: ⁨No brand⁩. Change brand'
     );
     expect(goesAlong()).toBeUndefined();
+  });
+
+  // Spec 059 (FR-034): the dashboard's fields are 40px, 44px under a finger.
+  it('is 40px tall, 44px under a finger', async () => {
+    await compose();
+    const own = brandButton()!.className.split(' ');
+
+    expect(own).toEqual(
+      expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
+    );
+    expect(own).not.toContain('h-[44px]');
   });
 
   // FR-020: No brand sends nothing from any kit.

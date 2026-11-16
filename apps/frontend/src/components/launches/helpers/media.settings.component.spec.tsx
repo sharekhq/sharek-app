@@ -56,6 +56,7 @@ jest.mock(
 );
 
 import { MediaComponentInner } from '@gitroom/frontend/components/launches/helpers/media.settings.component';
+import { buttonClassName } from '@gitroom/react/form/button';
 
 const video = {
   id: 'm1',
@@ -212,6 +213,39 @@ describe('the cover of a video', () => {
 
     expect(icons('Create thumbnail')).toBe('design');
     expect(icons('From gallery')).toBe('insert');
+  });
+
+  // Spec 059 (FR-026): a text button's icon sits 6px from its label, the
+  // shared Button's own gap, with none of its own beside it.
+  it('keeps the frame and library icons 6px from their labels', () => {
+    const { container } = render();
+
+    ['Create thumbnail', 'From gallery'].forEach((text) => {
+      const box = button(container, text)!
+        .querySelector('[data-icon]')!
+        .parentElement!.className.split(' ');
+      expect(box).toContain('gap-[6px]');
+      expect(box).not.toContain('gap-[8px]');
+    });
+  });
+
+  // Spec 059 (FR-028): Remove sits on the row and asks nothing first, so it
+  // is red text with no fill, the shared dangerGhost, and carries no red of
+  // its own over another kind's ink.
+  it('draws Remove as red text with no fill', () => {
+    const { container } = render({
+      ...video,
+      thumbnail: 'https://media/old.png',
+    });
+    const own = button(container, 'Remove')!.className.split(' ');
+
+    expect(own).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'dangerGhost' }).split(' ')
+      )
+    );
+    expect(own).not.toContain('!text-error');
+    expect(own).not.toContain('text-ink');
   });
 
   it('offers no cover for a picture', () => {
