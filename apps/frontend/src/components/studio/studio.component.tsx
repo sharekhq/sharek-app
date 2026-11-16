@@ -102,9 +102,10 @@ const useGoToBilling = () => {
 };
 
 /**
- * A listing's sample picture in a 16:10 frame, then its text: a tool's
- * category, name and description; a model's name, maker, description and
- * facts. On a phone, a row with the picture on the start side.
+ * A listing's sample picture in a 16:9 frame, then its text: a tool's name
+ * and description, with no category line, as the chip above names it; a
+ * model's name, maker, description and facts. On a phone, a row with the
+ * picture on the start side.
  */
 const StudioCard: FC<{
   tool: StudioTool;
@@ -134,7 +135,7 @@ const StudioCard: FC<{
         !locked && 'hover:shadow-card motion-safe:hover:-translate-y-[2px]'
       )}
     >
-      <span className="relative block shrink-0 aspect-[16/10] overflow-hidden bg-surface2 phone:w-[128px] phone:aspect-auto phone:min-h-[100px]">
+      <span className="relative block shrink-0 aspect-video overflow-hidden bg-surface2 phone:w-[128px] phone:aspect-auto phone:min-h-[100px]">
         {entry.cover && !coverFailed ? (
           <img
             src={entry.cover}
@@ -192,12 +193,6 @@ const StudioCard: FC<{
         )}
       </span>
       <span className="flex-1 flex flex-col gap-[4px] min-w-0 pt-[12px] px-[14px] pb-[14px] phone:py-[10px] phone:px-[12px] phone:justify-center">
-        {/* A model with a maker names the category in its maker line. */}
-        {!maker && (
-          <span className="text-[12px] font-[600] text-muted phone:hidden">
-            {category?.label(t)}
-          </span>
-        )}
         <span className="text-[15px] leading-[20px] font-[600] text-ink line-clamp-2">
           {entry.name(t)}
         </span>
@@ -249,12 +244,12 @@ const StudioSection: FC<{
 }> = ({ title, subtitle, tools, chips, onSaved }) => (
   <section className="flex flex-col gap-[14px]">
     <div className="flex items-baseline flex-wrap gap-x-[12px] gap-y-[4px]">
-      <h2 className="text-[18px] font-[600] text-ink">{title}</h2>
+      <h2 className="text-[20px] font-[600] text-ink">{title}</h2>
       <p className="text-[13px] text-muted">{subtitle}</p>
     </div>
-    {/* Four across at 1440px, auto-fill so a short row keeps its widths; one
+    {/* Five across at 1440px, auto-fill so a short row keeps its widths; one
         column of rows on a phone (FR-015, research R7). */}
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[16px] phone:grid-cols-1 phone:gap-[10px]">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-[16px] phone:grid-cols-1 phone:gap-[10px]">
       {tools.map((tool) => (
         <StudioCard
           key={tool.entry.id}
@@ -431,15 +426,12 @@ export const StudioComponent: FC = () => {
         </div>
       )}
 
-      {/* The intro and the search share a row; on a phone they stack and
-          the search spans the width (FR-001, FR-016). */}
-      <div className="flex items-center gap-[16px] phone:flex-col phone:items-stretch phone:gap-[12px]">
-        <p className="flex-1 min-w-0 text-[14px] text-muted">
-          {t(
-            'studio_intro',
-            'Create designs, images and videos for your posts. Everything you make is saved to your Media library.'
-          )}
-        </p>
+      {/* The search and the chips share a row. The search comes first, so
+          first in tab order, and the row is reversed so the chips start at
+          the start edge in either direction; on a phone they stack, the
+          search on top spanning the width (FR-001, FR-016; spec 060 FR-006,
+          FR-007). */}
+      <div className="flex flex-row-reverse items-center gap-[16px] phone:flex-col phone:items-stretch phone:gap-[12px]">
         <div className="w-[340px] shrink-0 phone:w-full">
           <SearchField
             ref={searchRef}
@@ -449,44 +441,44 @@ export const StudioComponent: FC = () => {
             size="page"
           />
         </div>
-      </div>
 
-      {/* Exactly one chip is chosen, so the chips are radios: one Tab stop,
-          with arrow keys, as Analytics' Period. On a phone they keep one row
-          that scrolls sideways with no scrollbar, as Samy's attachment row,
-          padded so the scroll does not clip a focus ring. */}
-      <div
-        role="radiogroup"
-        aria-label={t('studio_chips_label', 'Filter by category')}
-        onKeyDown={onRadioGroupKeyDown}
-        className="flex flex-wrap gap-[8px] phone:flex-nowrap phone:overflow-x-auto phone:p-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {catalog.chips.map((item) => {
-          // the chip in force, which is All once the chosen one's category is
-          // gone
-          const checked = item.id === sections.chip;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              tabIndex={checked ? 0 : -1}
-              onClick={() => setChip(item.id)}
-              className={clsx(CHIP, checked ? CHIP_ON : CHIP_IDLE)}
-            >
-              <span>{item.label(t)}</span>
-              <span
-                className={clsx(
-                  CHIP_COUNT,
-                  checked ? CHIP_COUNT_ON : CHIP_COUNT_IDLE
-                )}
+        {/* Exactly one chip is chosen, so the chips are radios: one Tab stop,
+            with arrow keys, as Analytics' Period. On a phone they keep one
+            row that scrolls sideways with no scrollbar, as Samy's attachment
+            row, padded so the scroll does not clip a focus ring. */}
+        <div
+          role="radiogroup"
+          aria-label={t('studio_chips_label', 'Filter by category')}
+          onKeyDown={onRadioGroupKeyDown}
+          className="flex-1 min-w-0 flex flex-wrap gap-[8px] phone:flex-nowrap phone:overflow-x-auto phone:p-[2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {catalog.chips.map((item) => {
+            // the chip in force, which is All once the chosen one's category
+            // is gone
+            const checked = item.id === sections.chip;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={checked}
+                tabIndex={checked ? 0 : -1}
+                onClick={() => setChip(item.id)}
+                className={clsx(CHIP, checked ? CHIP_ON : CHIP_IDLE)}
               >
-                {item.count}
-              </span>
-            </button>
-          );
-        })}
+                <span>{item.label(t)}</span>
+                <span
+                  className={clsx(
+                    CHIP_COUNT,
+                    checked ? CHIP_COUNT_ON : CHIP_COUNT_IDLE
+                  )}
+                >
+                  {item.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {!!sections.tools.length && (
