@@ -997,7 +997,10 @@ export const MediaBox: FC<{
             {/* the cross closes it at 1025px and below */}
             <button
               onClick={() => modals.closeCurrent()}
-              className="cursor-pointer h-[52px] px-[20px] items-center justify-center border border-newTextColor/10 flex rounded-[10px] mobile:hidden"
+              className={clsx(
+                buttonClassName({ variant: 'secondary', size: 'large' }),
+                'mobile:hidden'
+              )}
             >
               {t('cancel', 'Cancel')}
             </button>
