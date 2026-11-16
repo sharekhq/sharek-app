@@ -1,4 +1,4 @@
-import { act, ComponentProps } from 'react';
+import { act, ComponentProps, FC } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // Settings' menu (spec 059, US5, FR-020 to FR-022, FR-024, FR-025, FR-046;
@@ -44,7 +44,8 @@ jest.mock('@gitroom/frontend/components/layout/logout.component', () => ({
 jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
   FOCUS_RING: 'focus-visible:ring-2 focus-visible:ring-brand',
 }));
-// Each icon is a marker that says which it is, its size and its colour.
+// Each icon is a marker that says which it is, its size and its colour. The
+// drawings themselves are read through jest.requireActual.
 jest.mock('@gitroom/frontend/components/ui/icons', () => {
   const marker = (name: string) => {
     const Icon = ({
@@ -57,19 +58,9 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => {
     return Icon;
   };
   return Object.fromEntries(
-    [
-      'SlidersIcon',
-      'UserIcon',
-      'RssIcon',
-      'LayersIcon',
-      'PencilIcon',
-      'CodeIcon',
-      'LinkIcon',
-      'PlugIcon',
-      'GridIcon',
-      'PuzzleIcon',
-      'LogoutIcon',
-    ].map((name) => [name, marker(name)])
+    Object.keys(
+      jest.requireActual('@gitroom/frontend/components/ui/icons')
+    ).map((name) => [name, marker(name)])
   );
 });
 jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
@@ -83,6 +74,7 @@ jest.mock('@gitroom/frontend/components/ui/split.panel', () => ({
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 import { GROUP_LABEL } from '@gitroom/frontend/components/ui/split.panel';
 import type { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import type { IconProps } from '@gitroom/frontend/components/ui/icons';
 import { SettingsMenu } from '@gitroom/frontend/components/settings/settings.menu';
 
 // settings.component's list for an admin on a paid plan with third-party
@@ -223,6 +215,22 @@ const line = (host: HTMLElement, text: string) =>
   ) as HTMLElement | undefined;
 const follows = (first: Node, second: Node) =>
   !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+// The svg the real icon a marker names draws.
+const drawing = async (name: string) => {
+  const Icon = (
+    jest.requireActual('@gitroom/frontend/components/ui/icons') as Record<
+      string,
+      FC<IconProps>
+    >
+  )[name];
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  mounted.push(root);
+  await act(async () => {
+    root.render(<Icon size={18} />);
+  });
+  return host.querySelector('svg')!;
+};
 
 describe('the Settings menu', () => {
   it('groups the tabs: Global settings and Teams with no label, then Posting, then Connections', async () => {
@@ -295,10 +303,10 @@ describe('the Settings menu', () => {
 
     expect(drawn('data-icon')).toEqual({
       global_settings: 'SlidersIcon',
-      teams: 'UserIcon',
+      teams: 'UsersIcon',
       autopost: 'RssIcon',
       sets: 'LayersIcon',
-      signatures: 'PencilIcon',
+      signatures: 'PenIcon',
       api: 'CodeIcon',
       webhooks: 'LinkIcon',
       plugs: 'PlugIcon',
@@ -306,6 +314,27 @@ describe('the Settings menu', () => {
       integrations: 'PuzzleIcon',
     });
     expect(new Set(Object.values(drawn('data-size')))).toEqual(new Set(['18']));
+  });
+
+  // The review page draws the menu in one line set: Teams' two people,
+  // Signatures' pen and Log out's arrow at the stroke of Global settings'
+  // sliders, not the older glyphs at 1.5 or filled (spec 059, walk fix).
+  it("draws every row's icon, Log out's too, in one line set: a 24 grid stroked at 1.7", async () => {
+    const host = await menu();
+    const names = [...rows(host), button(host, 'Log out')!].map(
+      (node) => icon(node).getAttribute('data-icon')!
+    );
+
+    for (const name of names) {
+      const svg = await drawing(name);
+      expect([
+        name,
+        svg.getAttribute('viewBox'),
+        svg.getAttribute('fill'),
+        svg.getAttribute('stroke'),
+        svg.getAttribute('stroke-width'),
+      ]).toEqual([name, '0 0 24 24', 'none', 'currentColor', '1.7']);
+    }
   });
 
   it("marks the open tab as Brands' list marks its brand, and says it is pressed", async () => {
@@ -514,7 +543,7 @@ describe("the menu's foot", () => {
 
   const logOut = (host: HTMLElement) => button(host, 'Log out');
 
-  it("starts with Log out under the tabs, a quiet row in the menu's look with the logout icon", async () => {
+  it("starts with Log out under the tabs, a quiet row in the menu's look with the exit icon", async () => {
     const host = await menu();
     const node = logOut(host)!;
 
@@ -529,8 +558,12 @@ describe("the menu's foot", () => {
     expect(node.outerHTML).not.toMatch(
       /\b(text-error|text-red|bg-error|bg-red|text-danger|bg-danger)/
     );
-    expect(icon(node).getAttribute('data-icon')).toBe('LogoutIcon');
+    expect(icon(node).getAttribute('data-icon')).toBe('ExitIcon');
     expect(icon(node).getAttribute('data-size')).toBe('18');
+    // Its arrow leaves towards the row's start, so Arabic mirrors it.
+    expect((await drawing('ExitIcon')).getAttribute('class')).toContain(
+      'rtl:-scale-x-100'
+    );
     expect(classes(icon(node))).toContain('text-muted');
     expect(classes(node.parentElement!)).toEqual([
       'flex',
