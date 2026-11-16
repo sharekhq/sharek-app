@@ -13,6 +13,10 @@ import { SWRConfig } from 'swr';
 // page's changes to a brand (spec 058): a move on PUT /integrations/:id/group
 // and a rename on PUT /integrations/customers/:id, each refusal a toast in the
 // server's words. The channel list is a spy that records its reloads.
+//
+// kitStatus and kitNote are what a brand's card on the Brands overview shows
+// (spec 059, FR-013): which of the kit's five items are done, and the one
+// note the card ends with.
 
 const mockFetch = jest.fn();
 const reloadChannels = jest.fn();
@@ -35,6 +39,9 @@ jest.mock(
 );
 
 import {
+  Brand,
+  kitNote,
+  kitStatus,
   useBrands,
   useMoveChannels,
   useRenameBrand,
@@ -327,5 +334,148 @@ describe('useRenameBrand', () => {
     );
     expect(brandLoads()).toBe(1);
     expect(reloadChannels).not.toHaveBeenCalled();
+  });
+});
+
+// A brand with the kit and details a case gives, the rest empty.
+const brand = (
+  kit: Partial<Brand['kit']> = {},
+  details: Partial<Brand['details']> = {}
+): Brand => ({
+  id: 'b1',
+  name: 'Bayt Al Qahwa',
+  kit: {
+    logo: null,
+    examples: [],
+    colours: [],
+    headingFont: null,
+    bodyFont: null,
+    ...kit,
+  },
+  details: {
+    about: null,
+    toneOfVoice: null,
+    postLanguage: null,
+    callToAction: null,
+    hashtags: null,
+    ...details,
+  },
+});
+
+// A kit image still in Media, and one deleted from it.
+const live = (id: string) => ({
+  id,
+  path: `https://media/${id}.png`,
+  missing: false,
+});
+const deleted = (id: string) => ({ id, path: null, missing: true });
+
+// Every item of the kit done.
+const FULL = brand(
+  {
+    logo: live('m1'),
+    examples: [live('e1'), live('e2'), live('e3')],
+    colours: ['#0E7C86', '#F2B84B'],
+    headingFont: 'Tajawal',
+    bodyFont: 'Cairo',
+  },
+  { about: 'Specialty coffee roasted in Riyadh.' }
+);
+
+describe('kitStatus', () => {
+  it('finds nothing in an empty kit', () => {
+    expect(kitStatus(brand())).toEqual({
+      logo: false,
+      colours: false,
+      fonts: false,
+      examples: 0,
+      about: false,
+    });
+  });
+
+  it('finds every item in a full kit', () => {
+    expect(kitStatus(FULL)).toEqual({
+      logo: true,
+      colours: true,
+      fonts: true,
+      examples: 3,
+      about: true,
+    });
+  });
+
+  it('counts a logo deleted from Media as missing', () => {
+    expect(kitStatus(brand({ logo: deleted('m1') })).logo).toBe(false);
+  });
+
+  it('counts a heading font alone as fonts', () => {
+    expect(kitStatus(brand({ headingFont: 'Tajawal' })).fonts).toBe(true);
+  });
+
+  it('counts a body font alone as fonts', () => {
+    expect(kitStatus(brand({ bodyFont: 'Cairo' })).fonts).toBe(true);
+  });
+
+  it('counts an About of spaces as missing', () => {
+    expect(kitStatus(brand({}, { about: '   ' })).about).toBe(false);
+  });
+
+  it('counts only the examples still in Media', () => {
+    expect(
+      kitStatus(brand({ examples: [live('e1'), deleted('e2')] })).examples
+    ).toBe(1);
+  });
+});
+
+describe('kitNote', () => {
+  it('is no_channels for a brand with no channels, even with a full kit', () => {
+    expect(kitNote(kitStatus(FULL), 0)).toBe('no_channels');
+    expect(kitNote(kitStatus(brand()), 0)).toBe('no_channels');
+  });
+
+  it('is empty with channels and no logo, colour or example; fonts and About alone leave it empty', () => {
+    expect(kitNote(kitStatus(brand()), 2)).toBe('empty');
+    expect(
+      kitNote(
+        kitStatus(
+          brand(
+            { headingFont: 'Tajawal', bodyFont: 'Cairo' },
+            { about: 'Specialty coffee roasted in Riyadh.' }
+          )
+        ),
+        2
+      )
+    ).toBe('empty');
+  });
+
+  it('counts a logo or an example deleted from Media as missing', () => {
+    expect(
+      kitNote(
+        kitStatus(brand({ logo: deleted('m1'), examples: [deleted('e1')] })),
+        2
+      )
+    ).toBe('empty');
+  });
+
+  it('is ready with channels and all five done, one example enough', () => {
+    expect(kitNote(kitStatus(FULL), 1)).toBe('ready');
+    expect(
+      kitNote(
+        kitStatus(brand({ ...FULL.kit, examples: [live('e1')] }, FULL.details)),
+        1
+      )
+    ).toBe('ready');
+  });
+
+  it('is null for anything between', () => {
+    expect(kitNote(kitStatus(brand({ colours: ['#0E7C86'] })), 1)).toBeNull();
+    expect(
+      kitNote(kitStatus(brand(FULL.kit, { ...FULL.details, about: null })), 1)
+    ).toBeNull();
+    expect(
+      kitNote(
+        kitStatus(brand({ ...FULL.kit, logo: deleted('m1') }, FULL.details)),
+        1
+      )
+    ).toBeNull();
   });
 });
