@@ -126,6 +126,8 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
 
   if (!user) return null;
 
+  const paywall = user.tier === 'FREE' && isGeneral && billingEnabled;
+
   return (
     <ContextWrapper user={user}>
       <CopilotKit
@@ -148,18 +150,20 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen mobile:min-h-dvh text-newTextColor py-[12px] pe-[12px] ps-[8px] mobile:py-[8px] mobile:pe-[8px]',
+                paywall ? 'min-h-screen' : 'h-dvh mobile:h-auto',
+                'mobile:min-h-dvh',
+                'flex flex-col text-newTextColor py-[12px] pe-[12px] ps-[8px] mobile:py-[8px] mobile:pe-[8px]',
                 fontVariables,
                 'font-sans'
               )}
             >
               <div>{user?.admin ? <Impersonate /> : <div />}</div>
-              {user.tier === 'FREE' && isGeneral && billingEnabled ? (
+              {paywall ? (
                 <FirstBillingComponent />
               ) : (
                 <>
                   <AnnouncementBanner />
-                  <div className="flex-1 flex gap-[8px]">
+                  <div className="flex-1 min-h-0 flex gap-[8px]">
                     <Support />
                     {/* Rail background card — reserves the 80px fixed-rail
                         column on desktop. On small screens the rail becomes
@@ -185,7 +189,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         drawerOpen
                           ? 'mobile:translate-x-0'
                           : 'mobile:-translate-x-full mobile:rtl:translate-x-full',
-                        user?.admin && 'pt-[60px] max-h-[1000px]:w-[500px]'
+                        user?.admin && 'pt-[60px]'
                       )}
                       onClick={() => setDrawerOpen(false)}
                     >
