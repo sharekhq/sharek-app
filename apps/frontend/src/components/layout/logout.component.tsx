@@ -9,12 +9,12 @@ import { setCookie } from '@gitroom/frontend/components/layout/layout.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { resetAnalyticsIdentity } from '@gitroom/react/helpers/posthog';
 import { LogoutIcon } from '@gitroom/frontend/components/ui/icons';
-export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
+export const useLogout = () => {
   const fetch = useFetch();
   const { isSecured } = useVariables();
   const t = useT();
 
-  const logout = useCallback(async () => {
+  return useCallback(async () => {
     if (
       await deleteDialog(
         t(
@@ -35,6 +35,11 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
       window.location.href = '/';
     }
   }, []);
+};
+
+export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
+  const t = useT();
+  const logout = useLogout();
   return (
     <>
       {/* The text variant is already wider than a touch target and shares its
