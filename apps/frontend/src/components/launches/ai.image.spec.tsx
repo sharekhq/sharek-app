@@ -1728,6 +1728,58 @@ describe('the style search under a finger', () => {
   });
 });
 
+// Spec 060 (FR-026, FR-027, contracts/ui.md §9): the window's action row is
+// one height, the shared button's large size, and its boxes type at 14px with
+// a mouse, 16px under a finger, as the style search does.
+describe("the window's action row and boxes", () => {
+  const own = (node: Element | null | undefined) =>
+    node?.className.split(' ') ?? [];
+
+  it('draws Generate at the large size', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-aiSoft'));
+
+    expect(own(button('Generate'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
+
+  it('draws Back to prompt, Regenerate and Use image at the large size', async () => {
+    renders(done);
+    await generate();
+
+    [
+      button('Back to prompt'),
+      buttonStarting('Regenerate'),
+      button('Use image'),
+    ].forEach((action) =>
+      expect(own(action)).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      )
+    );
+  });
+
+  it('types the prompt at 14px with a mouse, 16px under a finger', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-aiSoft'));
+
+    expect(own(field())).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+    expect(own(field())).not.toContain('text-[16px]');
+  });
+
+  it('types the edit at 14px with a mouse, 16px under a finger', async () => {
+    renders(done);
+    await generate();
+
+    expect(own(field())).toEqual(
+      expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
+    );
+    expect(own(field())).not.toContain('text-[16px]');
+  });
+});
+
 // Spec 059 (FR-033, contracts/inventory.md D): the styles filter the window's
 // list in the dashboard's one chip look, Studio's, and All styles is one of
 // them. A chip is CHIP plus CHIP_ON or CHIP_IDLE, whole and alone, never
@@ -1928,6 +1980,16 @@ describe('the Brand field', () => {
       expect.arrayContaining(['h-[40px]', 'coarse:h-[44px]'])
     );
     expect(own).not.toContain('h-[44px]');
+  });
+
+  // Spec 060 (decisions D10): No brand or a name, the one control's text is
+  // semibold, as the shared button's is.
+  it("names its brand in the shared button's weight", async () => {
+    await compose();
+
+    expect(brandButton()!.className.split(' ')).toEqual(
+      expect.arrayContaining(['text-[14px]', 'font-[600]'])
+    );
   });
 
   // FR-020: No brand sends nothing from any kit.
