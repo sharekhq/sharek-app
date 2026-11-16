@@ -297,13 +297,23 @@ describe('the picker at 1025px and below', () => {
     expect(add.disabled).toBe(false);
   });
 
-  it('has no Cancel there (the cross closes it), and Upload at the bottom', async () => {
+  it('has no Cancel there (the cross closes it), Cancel secondary large beside Add from 1026px up, and Upload at the bottom', async () => {
     const host = await picker();
+    const cancel = buttonByText(host, 'Cancel');
     const [top, bottom] = Array.from(host.querySelectorAll('button')).filter(
       (button) => (button.textContent || '').trim() === 'Upload'
     );
 
-    expect(classes(buttonByText(host, 'Cancel'))).toContain('mobile:hidden');
+    expect(classes(cancel)).toEqual(
+      expect.arrayContaining([
+        ...buttonClassName({ variant: 'secondary', size: 'large' }).split(' '),
+        'mobile:hidden',
+      ])
+    );
+    // the 52px, 10px-corner look it had beside Add is gone
+    ['h-[52px]', 'rounded-[10px]', 'border-newTextColor/10'].forEach((name) =>
+      expect(classes(cancel)).not.toContain(name)
+    );
     expect(classes(top.parentElement)).toContain('mobile:hidden');
     expect(classes(bottom.parentElement)).toEqual(
       expect.arrayContaining(['hidden', 'mobile:flex'])
