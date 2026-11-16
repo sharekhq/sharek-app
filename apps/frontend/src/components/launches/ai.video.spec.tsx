@@ -630,3 +630,34 @@ describe('a second click while the credits are checked', () => {
     await answerChecks();
   });
 });
+
+// Spec 060 (FR-026, contracts/ui.md §9): the window's action row is one
+// height, the shared button's large size.
+describe("the window's action row", () => {
+  const own = (node: Element | null | undefined) =>
+    node?.className.split(' ') ?? [];
+
+  it('draws Generate at the large size', async () => {
+    await open();
+
+    expect(own(buttonStarting('Generate'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
+
+  it('draws the back action, Regenerate and Use video at the large size', async () => {
+    renders();
+    await generate();
+    await settle();
+
+    [
+      buttonStarting('Edit prompt'),
+      buttonStarting('Regenerate'),
+      buttonStarting('Use video'),
+    ].forEach((action) =>
+      expect(own(action)).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      )
+    );
+  });
+});
