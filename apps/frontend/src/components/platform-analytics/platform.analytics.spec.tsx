@@ -141,6 +141,12 @@ import {
 } from '@gitroom/frontend/components/launches/channel.panel';
 import { platformLabel } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { SplitPanel } from '@gitroom/frontend/components/ui/split.panel';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 function channel(
   id: string,
@@ -635,6 +641,40 @@ describe('the top bar (FR-031, R22)', () => {
       expect.arrayContaining(['bg-brandSoft', 'text-brandText', 'font-[600]'])
     );
     expect(classes(radios()[0])).not.toContain('bg-brandSoft');
+  });
+
+  // One switch look for every view switch (FR-032): an option takes the idle
+  // half or the current one, never both, as Tailwind emits the idle colours
+  // after the current ones.
+  it("draws Period in the dashboard's one switch look, the checked period in its current half and the others idle", async () => {
+    await mount();
+    await run(() => mockPanel!.onChange('af'));
+    const words = (value: string) => value.split(' ');
+    // Which half each option carries, whole and alone: 'on', 'idle', or
+    // 'mixed' for anything else.
+    const halves = () =>
+      radios().map((radio) => {
+        const own = classes(radio);
+        expect(own).toEqual(expect.arrayContaining(words(SWITCH_OPTION)));
+        const has = (half: string) =>
+          words(half).filter((name) => own.includes(name)).length;
+        const on = has(SWITCH_OPTION_ON);
+        const idle = has(SWITCH_OPTION_IDLE);
+        if (on === words(SWITCH_OPTION_ON).length && !idle) return 'on';
+        if (idle === words(SWITCH_OPTION_IDLE).length && !on) return 'idle';
+        return 'mixed';
+      });
+
+    expect(classes(periods())).toEqual(
+      expect.arrayContaining([...words(SWITCH_GROUP), 'ms-auto'])
+    );
+    // the hand-drawn look it had is gone
+    expect(classes(periods())).not.toContain('p-[4px]');
+    expect(classes(periods())).not.toContain('border-newTableBorder');
+    expect(halves()).toEqual(['on', 'idle', 'idle']);
+
+    await click(radios()[2]);
+    expect(halves()).toEqual(['idle', 'idle', 'on']);
   });
 
   // The ARIA radio pattern: Period is one Tab stop, the checked period, and
