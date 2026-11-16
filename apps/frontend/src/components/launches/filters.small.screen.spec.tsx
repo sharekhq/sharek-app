@@ -92,6 +92,13 @@ jest.mock('@gitroom/frontend/components/launches/channel.panel', () => ({
 
 import { CalendarContext } from '@gitroom/frontend/components/launches/calendar.context';
 import { Filters } from '@gitroom/frontend/components/launches/filters';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
+import { buttonClassName } from '@gitroom/react/form/button';
 // dayjs takes i18next's language from the layout's listener, with the
 // locales it loads; the Arabic one runs without preParsePostFormat, so its
 // digits stay Latin.
@@ -306,6 +313,20 @@ const lastFilters = () =>
 const follows = (a: Element, b: Element) =>
   !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 const FOCUS_RING = ['focus-visible:ring-2', 'focus-visible:ring-brand'];
+const words = (look: string) => look.split(/\s+/);
+// An option of the dashboard's one switch (FR-032): the current one on, the
+// others idle, never both looks on one option.
+const expectSwitchOption = (node: Element, on: boolean) => {
+  expect(classes(node)).toEqual(
+    expect.arrayContaining([
+      ...words(SWITCH_OPTION),
+      ...words(on ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE),
+    ])
+  );
+  words(on ? SWITCH_OPTION_IDLE : SWITCH_OPTION_ON).forEach((name) =>
+    expect(classes(node)).not.toContain(name)
+  );
+};
 
 beforeEach(async () => {
   mockSetFilters.mockClear();
@@ -398,6 +419,23 @@ describe('the top bar above 1025px', () => {
     expect(today(host)).toBeDefined();
     expect(today(host)!.getAttribute('type')).toBe('button');
     expect(classes(today(host))).toEqual(expect.arrayContaining(FOCUS_RING));
+  });
+
+  // The button set's secondary medium (FR-026), keeping the bar's 54px on
+  // touch and 44px at 1025px and below.
+  it('makes Today a secondary medium button', async () => {
+    const host = await mount();
+
+    expect(classes(today(host))).toEqual(
+      expect.arrayContaining([
+        ...words(buttonClassName({ variant: 'secondary' })),
+        'coarse:h-[54px]',
+        'mobile:h-[44px]',
+      ])
+    );
+    ['h-[42px]', 'px-[9px]', 'font-[500]'].forEach((name) =>
+      expect(classes(today(host))).not.toContain(name)
+    );
   });
 
   it.each([
@@ -525,16 +563,31 @@ describe('the top bar above 1025px', () => {
     });
 
     // A word that short leaves its pill under the 44px touch target: Arabic's
-    // يوم (Day) was 42 by 44 on a touch screen (walk 2, step 15). The pills
-    // stretch to the control's 54px less its 4px padding and 1px border, so
-    // they are 44px tall, and each holds a 44px width on touch.
+    // يوم (Day) was 42 by 44 on a touch screen (walk 2, step 15). Each view
+    // holds 44px tall and 44px wide on touch, inside the control's 54px.
     it('holds each view at 44 by 44px at least on a touch screen', async () => {
       const host = await mount();
       const views = viewButtons(host);
 
-      views.forEach((b) => expect(classes(b)).toContain('coarse:min-w-[44px]'));
+      views.forEach((b) =>
+        expect(classes(b)).toEqual(
+          expect.arrayContaining(['coarse:min-h-[44px]', 'coarse:min-w-[44px]'])
+        )
+      );
       expect(classes(views[0].parentElement)).toEqual(
-        expect.arrayContaining(['coarse:min-h-[54px]', 'p-[4px]', 'border'])
+        expect.arrayContaining(['coarse:min-h-[54px]', 'border'])
+      );
+    });
+
+    it("draws the dashboard's one switch, the current view on and the others idle", async () => {
+      const host = await mount();
+      const views = viewButtons(host);
+
+      expect(classes(views[0].parentElement)).toEqual(
+        expect.arrayContaining(words(SWITCH_GROUP))
+      );
+      views.forEach((b) =>
+        expectSwitchOption(b, b.getAttribute('aria-pressed') === 'true')
       );
     });
 
@@ -969,5 +1022,27 @@ describe('the List view', () => {
 
     await click(arrows(host)[1]);
     expect(mockSetListPage).toHaveBeenCalledWith(1);
+  });
+
+  // At 1025px and below the state's 44px row takes the tap, so its pill
+  // gives up the switch's own height and fills the row's slot, as before.
+  it("draws the states in the dashboard's one switch, All on, each pill filling its row on a phone", async () => {
+    const host = await mount({ display: 'list' });
+
+    expect(classes(segment(host, 'All').target!.parentElement)).toEqual(
+      expect.arrayContaining(words(SWITCH_GROUP))
+    );
+    ['All', 'Scheduled', 'Draft', 'Published'].forEach((label) => {
+      const { pill } = segment(host, label);
+
+      expectSwitchOption(pill!, label === 'All');
+      expect(classes(pill)).toEqual(
+        expect.arrayContaining([
+          'min-w-[80px]',
+          'mobile:h-auto',
+          'mobile:min-h-0',
+        ])
+      );
+    });
   });
 });
