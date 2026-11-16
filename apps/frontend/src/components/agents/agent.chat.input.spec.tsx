@@ -193,6 +193,25 @@ describe('what a sent message carries', () => {
 
     expect(sent).toHaveBeenLastCalledWith('again');
   });
+
+  it('appends the attachments to what was typed, clears it and hands back what was sent', async () => {
+    await mount();
+    const receipt = { id: 'message-1' };
+    sent.mockReturnValueOnce(receipt);
+    await act(async () => input().onChange('a poster'));
+    await attach('a', 'png');
+    let result: unknown;
+
+    await act(async () => {
+      result = input().onSend('a poster');
+    });
+
+    expect(sent).toHaveBeenCalledWith(
+      'a poster\n[--Media--]Image: https://media/a.png\n[--Media--]'
+    );
+    expect(result).toBe(receipt);
+    expect(aiImageProps[aiImageProps.length - 1].value).toBe('');
+  });
 });
 
 describe('the box', () => {

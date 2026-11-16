@@ -95,6 +95,7 @@ import {
   AttachmentsTray,
   AttachmentTools,
   useAttachments,
+  useSendWithAttachments,
 } from '@gitroom/frontend/components/agents/agent.attachments';
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import { buttonClassName } from '@gitroom/react/form/button';
@@ -107,9 +108,10 @@ const Probe = () => {
 
 const mounted: Root[] = [];
 
-const tree = () => (
+const tree = (extra?: ReactNode) => (
   <AttachmentsProvider>
     <Probe />
+    {extra}
     <div data-tray="">
       <AttachmentsTray />
     </div>
@@ -119,13 +121,13 @@ const tree = () => (
   </AttachmentsProvider>
 );
 
-const render = async () => {
+const render = async (extra?: ReactNode) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
   await act(async () => {
-    root.render(tree());
+    root.render(tree(extra));
   });
   return { host, root };
 };
@@ -630,6 +632,48 @@ describe('the upload queue', () => {
 
     act(() => root.unmount());
     expect(uppy.destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Typing and Samy's ideas send through this one path, so an idea carries what's
+// attached exactly as typed text does.
+describe('sending a message', () => {
+  const RECEIPT = { id: 'message-1' };
+  const onSend = jest.fn<typeof RECEIPT, [string]>(() => RECEIPT);
+  let send: (text: string) => typeof RECEIPT;
+  const Sender = () => {
+    send = useSendWithAttachments(onSend);
+    return null;
+  };
+
+  it('writes what is attached after the text, empties the box and hands back what was sent', async () => {
+    const { host } = await render(<Sender />);
+    await act(async () => attachments.addMedia([row('a'), row('b', 'mp4')]));
+    let result: typeof RECEIPT | undefined;
+
+    await act(async () => {
+      result = send('hello');
+    });
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith(
+      'hello\n[--Media--]Image: https://media/a.png\nVideo: https://media/b.mp4\n[--Media--]'
+    );
+    expect(result).toBe(RECEIPT);
+    expect(attachments.attached).toEqual([]);
+    expect(tiles(host)).toHaveLength(0);
+  });
+
+  it('sends the text as it is with nothing attached', async () => {
+    await render(<Sender />);
+    let result: typeof RECEIPT | undefined;
+
+    await act(async () => {
+      result = send('hello');
+    });
+
+    expect(onSend).toHaveBeenCalledWith('hello');
+    expect(result).toBe(RECEIPT);
   });
 });
 
