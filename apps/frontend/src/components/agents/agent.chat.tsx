@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -190,7 +191,7 @@ const withoutCards = <T extends object>(message: T) =>
 const LoadMessages: FC<{ id: string }> = ({ id }) => {
   const { messages, setMessages, isAvailable, isLoading } =
     useCopilotChatInternal();
-  const { setRunning } = useChatRun();
+  const { setRunning, setEmpty } = useChatRun();
   const fetch = useFetch();
   // The thread's stored messages, once they arrive; a new thread has none.
   const [stored, setStored] = useState<ChatMessage[] | null>(
@@ -221,6 +222,18 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
   useEffect(() => {
     setRunning(isLoading);
   }, [isLoading, setRunning]);
+
+  // Samy's welcome shows while this holds. Before the paint, and outside the
+  // effect below, which waits for the list: the page keeps the chat when the
+  // thread changes, so an older chat opened from a new one clears it here.
+  useLayoutEffect(() => {
+    setEmpty(
+      stored !== null &&
+        stored.length === 0 &&
+        messages.length === 0 &&
+        restore.current.length === 0
+    );
+  }, [stored, messages, setEmpty]);
 
   // A list written before the agent connects is emptied by the connect, and the
   // connect can also empty the chat after the list is shown.
