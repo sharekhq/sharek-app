@@ -343,6 +343,29 @@ describe('BrandMark', () => {
     );
   });
 
+  it('asks for a logo whose CORS request failed before without CORS from the first render', () => {
+    fire(mount(withLogo('/logo-refused.png')).querySelector('img')!, 'error');
+
+    const again = mount(withLogo('/logo-refused.png')).querySelector('img')!;
+
+    expect(again.hasAttribute('crossorigin')).toBe(false);
+  });
+
+  it('reads a logo once, so a later mark of it draws no canvas on load', () => {
+    stubContext(sample(pixels([[300, WHITE]])));
+    const first = mount(withLogo('/logo-read-once.png')).querySelector('img')!;
+    fire(first, 'load');
+    expect(first.getAttribute('style')).not.toBeNull();
+
+    const again = mount(withLogo('/logo-read-once.png')).querySelector('img')!;
+    fire(again, 'load');
+
+    expect(canvas.getContext).toHaveBeenCalledTimes(1);
+    expect(again.style.backgroundColor).toBe(
+      painted(LOGO_TILE_DARK).backgroundColor
+    );
+  });
+
   it("shows the brand's initial while it has no live logo", () => {
     const none = mount(brand('b2', 'noor Dental'));
     const missing = mount(
