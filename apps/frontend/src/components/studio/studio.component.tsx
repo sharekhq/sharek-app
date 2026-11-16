@@ -140,7 +140,7 @@ const StudioCard: FC<{
           <img
             src={entry.cover}
             width="640"
-            height="400"
+            height="360"
             loading="lazy"
             decoding="async"
             alt=""
