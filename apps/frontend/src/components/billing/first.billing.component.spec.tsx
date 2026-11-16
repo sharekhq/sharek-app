@@ -395,6 +395,10 @@ describe("the checkout's look", () => {
     mockEmbedded = {};
     const host = await render();
 
-    expect(host.querySelector('[class~="text-[white]"]')).toBeNull();
+    const classes = Array.from(host.querySelectorAll('[class]'), (element) =>
+      Array.from(element.classList)
+    ).flat();
+    expect(classes).toContain('bg-brand');
+    expect(classes).not.toContain('text-[white]');
   });
 });
