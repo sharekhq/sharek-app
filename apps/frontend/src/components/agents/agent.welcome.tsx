@@ -1,6 +1,6 @@
 'use client';
 
-import React, { FC } from 'react';
+import React, { FC, useLayoutEffect, useRef } from 'react';
 import clsx from 'clsx';
 import i18next from 'i18next';
 import { RenderSuggestionsListProps } from '@copilotkit/react-ui';
@@ -73,6 +73,21 @@ export const SamyWelcome: FC<RenderSuggestionsListProps> = ({
   const { empty } = useChatRun();
   const { uploading } = useAttachments();
   const send = useSendWithAttachments(onSuggestionClick);
+  const block = useRef<HTMLDivElement>(null);
+
+  // CopilotKit scrolls its list to the bottom on every change inside it, this
+  // block's arrival too, so on a chat too short for the block it would open at
+  // its ideas. The next frame, after that scroll, puts the list back at its top.
+  useLayoutEffect(() => {
+    const list = block.current?.closest('.copilotKitMessages');
+    if (!list) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      list.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [empty]);
 
   if (!empty) {
     return null;
@@ -80,6 +95,7 @@ export const SamyWelcome: FC<RenderSuggestionsListProps> = ({
 
   return (
     <div
+      ref={block}
       data-samy-welcome=""
       dir={i18next.dir()}
       className="flex flex-col items-center gap-[14px] px-[24px] py-[24px] text-center"
