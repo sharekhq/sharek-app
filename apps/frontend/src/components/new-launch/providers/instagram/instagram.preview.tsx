@@ -4,10 +4,13 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
-import { FC } from 'react';
+import { CSSProperties, FC, useState } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { SliderComponent } from '@gitroom/frontend/components/third-parties/slider.component';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+
+// Instagram keeps a feed post between 4:5 portrait and 1.91:1 landscape.
+export const clampInstagram = (r: number) => Math.min(1.91, Math.max(4 / 5, r));
 
 export const InstagramPreview: FC<{
   maximumCharacters?: number;
@@ -16,6 +19,7 @@ export const InstagramPreview: FC<{
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
+  const [ratio, setRatio] = useState(1);
 
   const renderContent = topValue.map((p) => {
     const newContent = stripHtmlValidation(
@@ -52,7 +56,10 @@ export const InstagramPreview: FC<{
     return { text: finalValue, images: p.image };
   });
   return (
-    <div className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]">
+    <div
+      className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]"
+      style={{ '--ig-ratio': clampInstagram(ratio) } as CSSProperties}
+    >
       <div className="flex gap-[10px] items-center">
         <div className="w-[36px] h-[36px]">
           <img
@@ -67,7 +74,7 @@ export const InstagramPreview: FC<{
       </div>
       {!!renderContent?.[0]?.images?.length ? (
         <SliderComponent
-          className="h-[585px] rounded-[8px] overflow-hidden"
+          className="aspect-[var(--ig-ratio)] rounded-[8px] overflow-hidden"
           list={renderContent?.[0]?.images.map((image, index) => (
             <a
               key={`image_${index}`}
@@ -75,7 +82,11 @@ export const InstagramPreview: FC<{
               href={mediaDir.set(image.path)}
               target="_blank"
             >
-              <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
+              <VideoOrImage
+                autoplay={true}
+                src={mediaDir.set(image.path)}
+                onShape={index === 0 ? setRatio : undefined}
+              />
             </a>
           ))}
         />

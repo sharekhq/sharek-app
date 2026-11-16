@@ -204,6 +204,14 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
 type LaunchState = ReturnType<typeof useLaunchStore.getState>;
 
+// The preview column's fit watches the column's height. Nothing is measured
+// here, and the DOM this suite installs has no observers.
+class NoObserver {
+  observe(): void {}
+  disconnect(): void {}
+}
+Object.assign(global, { ResizeObserver: NoObserver });
+
 const instagram = { id: 'int-1', identifier: 'instagram', name: 'Acme Inc.' };
 const tiktok = { id: 'int-2', identifier: 'tiktok', name: 'Tom & Jerry' };
 const linkedin = { id: 'int-3', identifier: 'linkedin', name: 'مطعم الريف' };

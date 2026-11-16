@@ -29,17 +29,24 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => <div data-current />,
 }));
+// The preview, recording the ref the composer hands it on every render and
+// counting its mounts.
+const shown = { refs: [] as unknown[], mounts: 0 };
 jest.mock(
   '@gitroom/frontend/components/new-launch/providers/show.all.providers',
   () => {
-    const { forwardRef, useImperativeHandle } = require('react');
+    const { forwardRef, useEffect, useImperativeHandle } = require('react');
     return {
       Providers: [],
-      ShowAllProviders: forwardRef((_props: any, ref: any): null => {
+      ShowAllProviders: forwardRef((_props: any, ref: any) => {
+        shown.refs.push(ref);
+        useEffect(() => {
+          shown.mounts += 1;
+        }, []);
         useImperativeHandle(ref, () => ({
           getAllValues: async (): Promise<unknown[]> => [],
         }));
-        return null;
+        return <div data-show-all />;
       }),
     };
   }
@@ -122,22 +129,52 @@ jest.mock(
 import { ManageModal } from '@gitroom/frontend/components/new-launch/manage.modal';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
+// The preview column's fit measures the column; a case reports its height as
+// the browser would.
+const observers: Array<() => void> = [];
+Object.assign(global, {
+  ResizeObserver: class {
+    constructor(callback: () => void) {
+      observers.push(callback);
+    }
+    observe() {}
+    disconnect() {}
+  },
+});
+const measure = async () => {
+  await act(async () => {
+    observers.forEach((callback) => callback());
+  });
+};
+
 const integration = {
   id: 'int-1',
   identifier: 'youtube',
   name: 'A channel',
 } as any;
 
+const mounted: Array<{ unmount: () => void }> = [];
+
+afterEach(() => {
+  act(() => {
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+  document.body.innerHTML = '';
+  observers.length = 0;
+});
+
 const render = async () => {
   const host = document.createElement('div');
   document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
   await act(async () => {
     useLaunchStore.getState().reset();
     useLaunchStore.setState({
       integrations: [integration],
       selectedIntegrations: [{ integration, settings: {} }] as any,
     });
-    createRoot(host).render(<ManageModal {...({} as any)} />);
+    root.render(<ManageModal {...({} as any)} />);
   });
   return host;
 };
@@ -190,5 +227,62 @@ describe('the compose card', () => {
       expect.arrayContaining(['rounded-[24px]', 'mobile:rounded-none'])
     );
     expect(classes).not.toContain('rounded-[20px]');
+  });
+});
+
+// On a wide screen the preview column draws each post at a phone's 360px,
+// scaled to the column inside its scroll box (FR-028), and the composer's
+// ref still reaches the preview itself, which mounts once (FR-032).
+describe('the preview column', () => {
+  const realMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    existing = {};
+    shown.refs.length = 0;
+    shown.mounts = 0;
+    // wider than 1025px
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+  });
+
+  it('draws the preview at 360px inside the scroll box', async () => {
+    const host = await render();
+    const content = host.querySelector('[data-show-all]')!
+      .parentElement as HTMLElement;
+    const room = content.parentElement!.parentElement as HTMLElement;
+    Object.defineProperty(room, 'clientHeight', {
+      configurable: true,
+      get: () => 631,
+    });
+    await measure();
+
+    expect(content.style.width).toBe('360px');
+    expect(room.parentElement!.classList.contains('overflow-y-auto')).toBe(
+      true
+    );
+  });
+
+  it('hands the composer’s ref to the preview, which mounts once', async () => {
+    await render();
+    const [ref] = shown.refs;
+    expect(ref).toHaveProperty('current.getAllValues');
+
+    await measure();
+    // a new tags list renders the composer again
+    await act(async () => {
+      useLaunchStore.setState({ tags: [] });
+    });
+
+    expect(shown.refs.length).toBeGreaterThan(1);
+    shown.refs.forEach((each) => expect(each).toBe(ref));
+    expect(shown.mounts).toBe(1);
   });
 });
