@@ -90,4 +90,15 @@ describe('the Sign In page', () => {
     );
     expect(classes(submit)).not.toContain('!h-[52px]');
   });
+
+  it("stops the divider's line at its or label, on the panel's own fill", async () => {
+    const host = await render(<Login />);
+
+    const label = Array.from(host.querySelectorAll('div')).find(
+      (element) => !element.children.length && element.textContent === 'or'
+    )!;
+    expect(classes(label)).toEqual(
+      expect.arrayContaining(['px-[16px]', 'bg-newBgColorInner'])
+    );
+  });
 });
