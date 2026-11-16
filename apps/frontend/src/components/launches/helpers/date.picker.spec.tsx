@@ -548,4 +548,20 @@ describe('the date picker opening somewhere else', () => {
       expect.arrayContaining(['mobile:border-line', 'border-newTextColor/10'])
     );
   });
+
+  it('keeps its 7px gap on the start side, so Arabic mirrors English', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    mounted.push(root);
+    await act(async () => {
+      root.render(
+        <DatePicker date={at} onChange={jest.fn()} onOpen={jest.fn()} />
+      );
+    });
+
+    const classes = host.firstElementChild!.className.split(' ');
+    expect(classes).toContain('ms-[7px]');
+    expect(classes).not.toContain('ml-[7px]');
+  });
 });
