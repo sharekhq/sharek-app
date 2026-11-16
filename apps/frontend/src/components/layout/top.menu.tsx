@@ -5,7 +5,7 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { MenuItem } from '@gitroom/frontend/components/new-layout/menu-item';
-import { BrandsIcon } from '@gitroom/frontend/components/ui/icons';
+import { BrandsIcon, SamyIcon } from '@gitroom/frontend/components/ui/icons';
 
 interface MenuItemInterface {
   name: string;
@@ -73,37 +73,7 @@ export const useMenuItem = () => {
     },
     {
       name: t('samy', 'Samy'),
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="21"
-          viewBox="0 0 20 21"
-          fill="none"
-        >
-          <rect
-            x="2.67"
-            y="6.83"
-            width="14.67"
-            height="11"
-            rx="3.21"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M10 6.83V3.72M0.83 11.23V13.98M19.17 11.23V13.98M8.35 14.99H11.65"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="10" cy="2.62" r="1.19" fill="currentColor" />
-          <circle cx="7.43" cy="11.78" r="1.24" fill="currentColor" />
-          <circle cx="12.57" cy="11.78" r="1.24" fill="currentColor" />
-        </svg>
-      ),
+      icon: <SamyIcon />,
       path: '/agents',
     },
     {
