@@ -1,7 +1,7 @@
 'use client';
 
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Subscription } from '@prisma/client';
 import { useDebouncedCallback } from 'use-debounce';
@@ -31,6 +31,12 @@ import { useDubClickId } from '@gitroom/frontend/components/layout/dubAnalytics'
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import useCookie from 'react-use-cookie';
 import { usePaymentAction } from '@gitroom/frontend/components/billing/use.payment.action';
+import {
+  SWITCH_GROUP,
+  SWITCH_OPTION,
+  SWITCH_OPTION_IDLE,
+  SWITCH_OPTION_ON,
+} from '@gitroom/frontend/components/ui/pick.controls';
 
 type SubscriptionWithPlatform = Subscription & {
   platform?: 'web' | 'mobile';
@@ -205,10 +211,13 @@ type PlanAction = {
 };
 
 const planButton = {
-  primary: 'bg-brand text-white hover:opacity-90',
-  simple: 'bg-quiet text-ink border border-line hover:opacity-80',
-  current: 'border border-line text-textItemBlur',
-  danger: 'bg-error text-white hover:opacity-90',
+  primary: buttonClassName({ variant: 'primary', size: 'large' }),
+  simple: buttonClassName({ variant: 'secondary', size: 'large' }),
+  current: clsx(
+    buttonClassName({ variant: 'secondary', size: 'large' }),
+    'text-textItemBlur'
+  ),
+  danger: buttonClassName({ variant: 'danger', size: 'large' }),
 };
 
 const PlanCard: FC<{
@@ -229,7 +238,7 @@ const PlanCard: FC<{
   return (
     <div
       className={clsx(
-        'flex flex-col gap-[20px] rounded-[14px] bg-newBgColorInner shadow-soft p-[24px] phone:p-[20px]',
+        'flex flex-col gap-[20px] rounded-[12px] bg-newBgColorInner shadow-soft p-[24px] phone:p-[20px]',
         // the current plan is outlined, not filled: red stays for the buttons that change the plan
         current ? 'border-[1.5px] border-brand' : 'border border-newTableBorder'
       )}
@@ -259,9 +268,8 @@ const PlanCard: FC<{
           onClick={action.onClick}
           disabled={disabled}
           className={clsx(
-            'h-[44px] px-[16px] rounded-[8px] text-[15px] font-[600] flex items-center justify-center transition-all focus-visible:ring-2 focus-visible:ring-brand',
             planButton[action.variant],
-            disabled ? 'cursor-default' : 'cursor-pointer',
+            disabled && 'pointer-events-none',
             disabled && action.variant !== 'current' && 'opacity-50'
           )}
         >
@@ -867,18 +875,15 @@ export const MainBillingComponent: FC<{
             )}
           </div>
         </div>
-        <div className="flex p-[4px] border border-newTableBorder rounded-[8px] text-[14px] font-[500] select-none">
+        <div className={clsx(SWITCH_GROUP, 'select-none')}>
           <button
             type="button"
             aria-pressed={!yearly}
             onClick={() => setMonthlyOrYearly('off')}
             className={clsx(
-              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2',
-              // the menu's selection colours: in dark the chosen half is pomegranate, so its focus
-              // ring is the selection ring (a pomegranate one would vanish against it)
-              !yearly
-                ? 'bg-selectedBg text-selectedText font-[600] focus-visible:ring-selectedRing'
-                : 'cursor-pointer focus-visible:ring-brand'
+              SWITCH_OPTION,
+              'gap-[8px] phone:flex-1',
+              !yearly ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
             )}
           >
             {t('billing_monthly', 'Monthly')}
@@ -888,15 +893,14 @@ export const MainBillingComponent: FC<{
             aria-pressed={yearly}
             onClick={() => setMonthlyOrYearly('on')}
             className={clsx(
-              'h-[34px] coarse:h-[44px] px-[16px] rounded-[6px] flex items-center justify-center gap-[8px] phone:flex-1 focus-visible:ring-2',
-              yearly
-                ? 'bg-selectedBg text-selectedText font-[600] focus-visible:ring-selectedRing'
-                : 'cursor-pointer focus-visible:ring-brand'
+              SWITCH_OPTION,
+              'gap-[8px] phone:flex-1',
+              yearly ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
             )}
           >
             {t('billing_yearly', 'Yearly')}
             {/* tinted from the label's own colour while Yearly is not chosen; on the chosen
-                half the tint would sit on the selection tint (3.9:1 in light), so it is text */}
+                half the tint would sit on the switch's own tint, so it is text */}
             <span
               className={clsx(
                 'text-[12px] font-[600] px-[6px] rounded-[4px]',
@@ -969,7 +973,7 @@ export const MainBillingComponent: FC<{
         })}
       </div>
       {!!subscription?.id && (
-        <div className="flex flex-col rounded-[14px] border border-newTableBorder bg-newBgColorInner shadow-soft">
+        <div className="flex flex-col rounded-[12px] border border-newTableBorder bg-newBgColorInner shadow-soft">
           <BillingCycle
             tier={sub?.subscriptionTier || subscription.subscriptionTier}
             canceled={!!subscription.cancelAt}
@@ -997,7 +1001,10 @@ export const MainBillingComponent: FC<{
                     setClicked('CANCEL');
                     moveToCheckout('FREE')();
                   }}
-                  className="h-[44px] px-[16px] rounded-[8px] border border-line text-error text-[14px] font-[500] flex items-center justify-center hover:bg-boxHover transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand"
+                  className={clsx(
+                    buttonClassName({ variant: 'dangerGhost', size: 'large' }),
+                    'disabled:opacity-50'
+                  )}
                 >
                   {loading && clicked === 'CANCEL' ? (
                     <ReactLoading
@@ -1014,7 +1021,10 @@ export const MainBillingComponent: FC<{
               <button
                 type="button"
                 onClick={updatePayment}
-                className="h-[44px] px-[16px] rounded-[8px] bg-quiet text-ink border border-line text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                className={buttonClassName({
+                  variant: 'secondary',
+                  size: 'large',
+                })}
               >
                 {t('billing_update_payment_method', 'Update payment method')}
               </button>
@@ -1022,7 +1032,10 @@ export const MainBillingComponent: FC<{
                 <button
                   type="button"
                   onClick={finishTrialNow}
-                  className="h-[44px] px-[16px] rounded-[8px] bg-quiet text-ink border border-line text-[14px] font-[500] hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-brand"
+                  className={buttonClassName({
+                    variant: 'secondary',
+                    size: 'large',
+                  })}
                 >
                   {t('finish_trial', 'End trial')}
                 </button>

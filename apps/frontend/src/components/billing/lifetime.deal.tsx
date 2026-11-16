@@ -80,7 +80,7 @@ export const LifetimeDeal = () => {
   }
   return (
     <div className="flex gap-[30px]">
-      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[4px]">
+      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[12px]">
         <div className="text-[30px]">
           {t('current_package', 'Current Package:')}
           {user?.totalChannels > 8 ? 'EXTRA' : user?.tier?.current}
@@ -109,7 +109,7 @@ export const LifetimeDeal = () => {
         </div>
       </div>
 
-      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[4px]">
+      <div className="border border-line bg-sixth p-[24px] flex flex-col gap-[20px] flex-1 rounded-[12px]">
         <div className="text-[30px]">
           {t('next_package', 'Next Package:')}
           {user?.tier?.current === 'PRO'
