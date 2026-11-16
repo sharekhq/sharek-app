@@ -173,4 +173,19 @@ describe('the timezone setting', () => {
     );
     expect(card.className).not.toContain('rounded-[4px]');
   });
+
+  // A card's titles are semibold at the panel's 16px, as the review page
+  // draws them (spec 059, walk fix).
+  it('titles Date metrics and Timezone in semibold', async () => {
+    const card = (await render(<MetricComponent />))
+      .firstElementChild as HTMLElement;
+    const titles = ['date_metrics:Date Metrics', 'timezone:Timezone'].map(
+      (text) =>
+        Array.from(card.children).find((child) => child.textContent === text)!
+    );
+
+    for (const title of titles) {
+      expect(title.className.split(' ')).toContain('font-[600]');
+    }
+  });
 });

@@ -103,4 +103,15 @@ describe('the sign-in method in Settings', () => {
     );
     expect(card.className).not.toContain('rounded-[4px]');
   });
+
+  // A card's title is semibold at the panel's 16px, as the review page draws
+  // it (spec 059, walk fix).
+  it('titles its card in semibold', () => {
+    const card = render('LOCAL').firstElementChild as HTMLElement;
+    const title = Array.from(card.children).find(
+      (child) => child.textContent === 'authentication'
+    )!;
+
+    expect(title.className.split(' ')).toContain('font-[600]');
+  });
 });
