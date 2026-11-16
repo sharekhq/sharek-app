@@ -487,8 +487,57 @@ describe('when the send fails', () => {
 // colour (new-layout/layout.component.tsx), so a page that does not claim that
 // row is sized by its own content and leaves the grey showing beside it. Every
 // sibling page — billing, settings, plugs — supplies this surface itself.
+//
+// Support scrolls in its card (spec 059, FR-001, contracts/routes.md). It used
+// to sit in flow, so once an error or the sent state outgrew the card the
+// window scrolled. It now renders inside PageScroll's box, the dashboard page's
+// one scroller, with the page's 20px inset on the box. happy-dom applies no
+// media queries or Tailwind, so the widths are pinned by the classes that carry
+// them (page.scroll.spec pins PageScroll's own).
 describe('the page surface', () => {
   const surface = (host: HTMLElement) => host.firstElementChild!.className;
+  const HOST = ['bg-newBgColorInner', 'flex-1', 'min-w-0', 'relative'];
+  const BOX = [
+    'absolute',
+    'inset-0',
+    'overflow-y-auto',
+    'flex',
+    'flex-col',
+    'mobile:static',
+    'scrollbar',
+    'scrollbar-thumb-fifth',
+    'scrollbar-track-newBgColor',
+  ];
+  const classesOf = (el: Element) =>
+    (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  const scroller = (host: HTMLElement) => {
+    const outer = host.firstElementChild!;
+    return { outer, box: outer.firstElementChild! };
+  };
+
+  it("renders the form inside PageScroll's box, with the page's 20px inset on the box", async () => {
+    const host = await render();
+    const { outer, box } = scroller(host);
+
+    expect(classesOf(outer)).toEqual(HOST);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]']);
+    expect(box.children).toHaveLength(1);
+    expect(box.querySelector('form')).not.toBeNull();
+  });
+
+  it("keeps the sent state inside PageScroll's box too", async () => {
+    request.mockResolvedValue(answer(201, { ticketNumber: '1042' }));
+    const host = await render();
+
+    await fillCompletely(host);
+    await submit(host);
+
+    const { outer, box } = scroller(host);
+    expect(classesOf(outer)).toEqual(HOST);
+    expect(classesOf(box)).toEqual([...BOX, 'p-[20px]']);
+    expect(box.children).toHaveLength(1);
+    expect(box.textContent).toContain('#1042');
+  });
 
   it('claims the row the shell gives it', async () => {
     const host = await render();
