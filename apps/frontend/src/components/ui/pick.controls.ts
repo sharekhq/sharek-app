@@ -1,5 +1,4 @@
 import clsx from 'clsx';
-import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 
 /**
  * The two ways the dashboard lets someone pick: a switch for picking a view
@@ -20,6 +19,7 @@ import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel'
  * (aria-pressed buttons, radiogroups with arrow keys, `mobile:` steps); only
  * its look comes from here.
  */
+const FOCUS_RING = 'focus-visible:ring-2 focus-visible:ring-brand';
 export const SWITCH_GROUP =
   'inline-flex items-center shrink-0 gap-[2px] p-[3px] border border-line rounded-[8px]';
 export const SWITCH_OPTION = clsx(
@@ -35,7 +35,11 @@ export const CHIP = clsx(
   FOCUS_RING
 );
 export const CHIP_IDLE = 'bg-surface text-inkSoft border-line hover:bg-panel';
-export const CHIP_ON = 'bg-selectedBg text-selectedText border-transparent';
+// The selected fill is solid brand in dark, so the current chip's focus ring
+// is the selected ring (colors.scss --selected-ring), as the menu's current
+// item has.
+export const CHIP_ON =
+  'bg-selectedBg text-selectedText border-transparent focus-visible:ring-selectedRing';
 export const CHIP_COUNT =
   'min-w-[20px] h-[20px] px-[6px] rounded-full inline-flex items-center justify-center text-[11px] font-[600] tabular-nums';
 export const CHIP_COUNT_IDLE = 'bg-panel text-muted';

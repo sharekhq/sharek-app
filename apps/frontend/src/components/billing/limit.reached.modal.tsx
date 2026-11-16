@@ -237,11 +237,7 @@ export const LimitReachedModal: FC<LimitModalInput> = ({
       <div className="mt-[24px] flex items-center justify-center gap-[10px]">
         {canBuy && nextTier ? (
           <>
-            <Button
-              onClick={upgrade}
-              className={RING}
-              innerClassName="gap-[8px]"
-            >
+            <Button onClick={upgrade} className={RING}>
               {t('limit_upgrade', 'Upgrade plan')}
               <span className="rtl:rotate-180">
                 <UpgradeIcon />
