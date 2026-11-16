@@ -539,7 +539,7 @@ describe('the month at 1025px and below', () => {
     expect(classes(body(card))).toEqual(
       expect.arrayContaining([
         'mobile:p-[4px]',
-        'mobile:rounded-[10px]',
+        'mobile:rounded-[8px]',
         'mobile:justify-center',
       ])
     );
