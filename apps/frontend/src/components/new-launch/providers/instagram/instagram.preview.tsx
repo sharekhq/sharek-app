@@ -4,10 +4,13 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { sanitizeDisplayHtml } from '@gitroom/helpers/utils/sanitize.post.content';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { SliderComponent } from '@gitroom/frontend/components/third-parties/slider.component';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+
+// Instagram keeps a feed post between 4:5 portrait and 1.91:1 landscape.
+export const clampInstagram = (r: number) => Math.min(1.91, Math.max(4 / 5, r));
 
 export const InstagramPreview: FC<{
   maximumCharacters?: number;
@@ -16,6 +19,7 @@ export const InstagramPreview: FC<{
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
+  const [ratio, setRatio] = useState(1);
 
   const renderContent = topValue.map((p) => {
     const newContent = stripHtmlValidation(
@@ -66,19 +70,28 @@ export const InstagramPreview: FC<{
         </div>
       </div>
       {!!renderContent?.[0]?.images?.length ? (
-        <SliderComponent
-          className="h-[585px] rounded-[8px] overflow-hidden"
-          list={renderContent?.[0]?.images.map((image, index) => (
-            <a
-              key={`image_${index}`}
-              className="flex-1"
-              href={mediaDir.set(image.path)}
-              target="_blank"
-            >
-              <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
-            </a>
-          ))}
-        />
+        <div
+          className="w-full rounded-[8px] overflow-hidden"
+          style={{ aspectRatio: String(clampInstagram(ratio)) }}
+        >
+          <SliderComponent
+            className="h-full"
+            list={renderContent?.[0]?.images.map((image, index) => (
+              <a
+                key={`image_${index}`}
+                className="flex-1"
+                href={mediaDir.set(image.path)}
+                target="_blank"
+              >
+                <VideoOrImage
+                  autoplay={true}
+                  src={mediaDir.set(image.path)}
+                  onShape={index === 0 ? setRatio : undefined}
+                />
+              </a>
+            ))}
+          />
+        </div>
       ) : (
         <div
           style={{ background: 'url(/no-video-youtube.png)' }}
