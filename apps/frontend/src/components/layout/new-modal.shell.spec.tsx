@@ -145,6 +145,22 @@ describe('the modal shell on small screens', () => {
     expect(classesOf(card)).not.toContain('mobile:w-full');
   });
 
+  // A card with a size and a height (the AI tools' stacked frame) lets its
+  // body shrink to the card, so the body's content scrolls inside the card
+  // instead of pushing past its height.
+  it('lets the body of a sized card with a height shrink to the card', async () => {
+    const { host } = await open({
+      size: 640,
+      height: 'min(860px, calc(100dvh - 48px))',
+    });
+    const body = host.querySelector('[data-testid="body"]')
+      ?.parentElement as HTMLElement;
+
+    expect(classesOf(body)).toEqual(
+      expect.arrayContaining(['flex', 'flex-1', 'flex-col', 'min-h-0'])
+    );
+  });
+
   it('sets the title at 20px, 28px short of the close control', async () => {
     const { title } = await open({});
 
