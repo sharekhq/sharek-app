@@ -53,8 +53,9 @@ export interface WorkspaceFrameProps {
   settingsSummary?: string;
   stage: ReactNode;
   /**
-   * The stage shows a result: on the page a phone lets the stage grow with
-   * it, where the sample and the wait keep its fixed height (FR-015).
+   * The stage shows a result: a window or a tab lets the stage grow with it,
+   * as the page does on a phone, where the sample and the wait keep its fixed
+   * height (FR-015, FR-016a).
    */
   result?: boolean;
   /** The action bar's contents when not locked: cost note + main button, or a provider's slot. */
@@ -214,7 +215,16 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   // scroller's padding and never leaves its place in the flow.
   return (
     <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL, 'pb-0')}>
-      <div className="flex-none h-[clamp(240px,45dvh,440px)] [container-type:size] flex flex-col items-center justify-center">
+      <div
+        className={clsx(
+          'flex-none flex flex-col items-center justify-center',
+          // As on a phone's page: a size container is as tall as it is
+          // told, so a stage that grows with its result stops being one.
+          result
+            ? '[container-type:normal]'
+            : 'h-[clamp(240px,45dvh,440px)] [container-type:size]'
+        )}
+      >
         {stage}
       </div>
       {head}
@@ -283,9 +293,10 @@ export const GenerateButton: FC<{
 const STAGE_PART =
   'flex-1 min-h-0 self-stretch flex flex-col items-center gap-[16px] text-center';
 // The room the picture fills: a size container of its own, so the words
-// around it keep their height and the picture sizes to the rest.
-const STAGE_ROOM =
-  'flex-1 min-h-0 w-full [container-type:size] flex items-center justify-center';
+// around it keep their height and the picture sizes to the rest. A result's
+// room stops being one where its stage grows (StageResult).
+const STAGE_ROOM_BOX = 'flex-1 min-h-0 w-full flex items-center justify-center';
+const STAGE_ROOM = clsx(STAGE_ROOM_BOX, '[container-type:size]');
 
 /**
  * The placeholder's box and the result's, so the result lands where the wait
@@ -483,10 +494,10 @@ export const StageProgress: FC<{
  * new tab, through a link so ⌘-click, middle-click and the keyboard all reach
  * it. The corner badge names where it goes, so the cursor is the plain
  * pointer: a magnifier would promise a lightbox a new tab does not deliver.
- * On the page a phone's stage grows with the result (the frame's `result`),
- * so there the picture leaves its room's size container, which would fold to
- * nothing, and takes the full width in its own shape (`!`, over the width its
- * box sets inline).
+ * Where the stage grows with the result (the frame's `result`: a window's or
+ * a tab's at every width, the page's on a phone), the picture leaves its
+ * room's size container, which would fold to nothing, and takes the full
+ * width in its own shape (`!`, over the width its box sets inline).
  */
 export const StageResult: FC<{
   layout: WorkspaceLayout;
@@ -510,11 +521,16 @@ export const StageResult: FC<{
   below,
 }) => {
   const t = useT();
-  const grows = layout === 'page';
+  const page = layout === 'page';
   return (
     <div className={STAGE_PART}>
       <div
-        className={clsx(STAGE_ROOM, grows && 'phone:[container-type:normal]')}
+        className={clsx(
+          STAGE_ROOM_BOX,
+          page
+            ? '[container-type:size] phone:[container-type:normal]'
+            : '[container-type:normal]'
+        )}
       >
         {kind === 'image' ? (
           <a
@@ -525,7 +541,7 @@ export const StageResult: FC<{
             style={stageBox(ratio)}
             className={clsx(
               'group relative block max-w-full cursor-pointer rounded-[12px] focus-visible:ring-2 focus-visible:ring-brand',
-              grows && 'phone:!w-full'
+              page ? 'phone:!w-full' : '!w-full'
             )}
           >
             {/* `block` rather than the inline default: an inline image leaves
@@ -569,7 +585,7 @@ export const StageResult: FC<{
             // into a neutral both themes carry.
             className={clsx(
               'max-w-full rounded-[12px] shadow-card bg-surface2',
-              grows && 'phone:!w-full'
+              page ? 'phone:!w-full' : '!w-full'
             )}
           />
         )}
