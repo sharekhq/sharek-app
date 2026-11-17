@@ -567,6 +567,15 @@ describe('its picture ships with the app', () => {
 // provider's fields in its settings and hands it the stage, which shows the
 // Script screen's sample and then the Review screen's cards.
 describe('the Script screen', () => {
+  // The tool hands the stage's slot, in place of its own sample, only to a
+  // provider that registers it owns the stage, as it does its action bar.
+  it('registers that it owns the stage and its action bar', () => {
+    const slides = videosList.find((p) => p.identifier === 'image-text-slides');
+
+    expect(slides?.ownsStage).toBe(true);
+    expect(slides?.ownsActions).toBe(true);
+  });
+
   // The setup screen, with the bar and the stage it is portalled into.
   const script = async () => {
     request.mockImplementation(() => Promise.resolve(answer(200, true)));

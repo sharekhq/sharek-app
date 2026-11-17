@@ -76,10 +76,12 @@ let mockVideo: ReturnType<typeof useVideo> | undefined;
 let mockCards: Record<string, VideoTypeCard> = {};
 // The provider registry drags in every video provider; this spec only needs a
 // type that leaves the action bar — and therefore the Generate button — to the
-// tool.
+// tool, and Image Text Slides owning the stage, as its file registers it
+// (`ownsStage`).
 jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
   VideoWrapper: () => <ProviderStandIn />,
   videoOwnsActions: () => false,
+  videoOwnsStage: (identifier: string) => identifier === 'image-text-slides',
   videoTypeCard: (identifier: string) => mockCards[identifier],
 }));
 
@@ -1053,7 +1055,7 @@ describe('the stage', () => {
 
   it('hands the provider its slot only while nothing is being made or shown', async () => {
     const land = holdRender();
-    await open({ layout: 'page', destination: 'media' });
+    await open({ layout: 'page', destination: 'media', provider: slides });
 
     expect(mockVideo!.phase).toBe('setup');
     expect(mockVideo!.stageSlot).toBeInstanceOf(HTMLElement);
@@ -1069,6 +1071,16 @@ describe('the stage', () => {
 
     expect(mockVideo!.phase).toBe('result');
     expect(mockVideo!.stageSlot).toBeNull();
+  });
+
+  // The slot is a stage owner's (`ownsStage`), as the action bar's is an
+  // action owner's: a one-shot provider has nothing to put there.
+  it('hands a provider that does not own the stage no slot, and shows the sample', async () => {
+    await open({ layout: 'page', destination: 'media' });
+
+    expect(mockVideo!.phase).toBe('setup');
+    expect(mockVideo!.stageSlot).toBeNull();
+    expect(stage()!.textContent).toContain('Your video appears here');
   });
 
   // A workflow's middle step, a storyboard, belongs in the stage.

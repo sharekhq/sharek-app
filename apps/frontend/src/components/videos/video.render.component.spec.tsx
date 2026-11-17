@@ -16,11 +16,16 @@ jest.mock(
 );
 
 import { videoWrapper } from '@gitroom/frontend/components/videos/video.wrapper';
-import { VideoWrapper } from '@gitroom/frontend/components/videos/video.render.component';
+import {
+  VideoWrapper,
+  videoOwnsActions,
+  videoOwnsStage,
+} from '@gitroom/frontend/components/videos/video.render.component';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
 const StubTool = () => <div>stub tool</div>;
 videoWrapper('stub', StubTool);
+videoWrapper('stub-workflow', StubTool, { ownsActions: true, ownsStage: true });
 
 const mount = () => {
   const container = document.createElement('div');
@@ -52,5 +57,21 @@ describe('VideoWrapper and the composer close button', () => {
     });
 
     expect(useLaunchStore.getState().activateExitButton).toBe(true);
+  });
+});
+
+// The tool asks the registry, never the identifier, whether a provider fills
+// its action bar or its stage (spec 061, review R7).
+describe("the registry's options", () => {
+  it('says a provider owns the stage only when it registered so', () => {
+    expect(videoOwnsStage('stub-workflow')).toBe(true);
+    expect(videoOwnsStage('stub')).toBe(false);
+    expect(videoOwnsStage('unknown')).toBe(false);
+  });
+
+  // Guard: the action bar's option reads the same way.
+  it('says a provider owns its actions only when it registered so', () => {
+    expect(videoOwnsActions('stub-workflow')).toBe(true);
+    expect(videoOwnsActions('stub')).toBe(false);
   });
 });
