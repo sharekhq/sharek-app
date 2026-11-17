@@ -22,6 +22,8 @@ import { InternalChannels } from '@gitroom/frontend/components/launches/internal
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import SafeImage from '@gitroom/react/helpers/safe.image';
+import { pendingPreviewMedia } from '@gitroom/react/helpers/video.or.image';
+import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 class Empty {
   @IsOptional()
@@ -30,6 +32,13 @@ class Empty {
 
 export { PostComment } from '@gitroom/frontend/components/new-launch/providers/post-comment.enum';
 import { PostComment } from '@gitroom/frontend/components/new-launch/providers/post-comment.enum';
+
+// A channel's id, and the results still being made for the composer's posts,
+// handed down by show.all.providers, the one reader of the composer's tabs.
+interface ChannelProps {
+  id: string;
+  pending?: PendingMedia[];
+}
 
 interface CharacterCondition {
   format: 'no-pictures' | 'with-pictures';
@@ -59,7 +68,7 @@ export const withProvider = function <T extends object>(params: {
     maximumCharacters,
   } = params;
 
-  const Wrapped = forwardRef((props: { id: string }, ref) => {
+  const Wrapped = forwardRef((props: ChannelProps, ref) => {
     const t = useT();
     const fetch = useFetch();
     const {
@@ -172,6 +181,25 @@ export const withProvider = function <T extends object>(params: {
       return global;
     }, [internal, global, isGlobal]);
 
+    // Its preview alone shows them, at their post: its own, and the global
+    // post's while it previews that one (tasks D10).
+    const preview = value.map((p, index) => ({
+      id: p.id,
+      content: p.content,
+      image: [
+        ...(p.media || []),
+        ...(props.pending || [])
+          .filter(
+            ({ place }) =>
+              place.index === index &&
+              (place.channel === props.id ||
+                (place.channel === 'global' &&
+                  !internal?.integrationValue?.length))
+          )
+          .map(pendingPreviewMedia),
+      ],
+    }));
+
     const form = useForm({
       resolver: classValidatorResolver(dto || Empty),
       ...(Object.keys(selectedIntegration.settings).length > 0
@@ -280,34 +308,44 @@ export const withProvider = function <T extends object>(params: {
             {current &&
               (tab === 0 ||
                 (!SettingsComponent && !data?.internalPlugs?.length)) &&
-              !!value?.[0]?.content?.length &&
-              (CustomPreviewComponent ? (
-                <CustomPreviewComponent
-                  maximumCharacters={
-                    typeof maximumCharacters === 'number'
-                      ? maximumCharacters
-                      : maximumCharacters(
-                          JSON.parse(
-                            selectedIntegration.integration
-                              .additionalSettings || '[]'
-                          )
-                        )
-                  }
-                />
-              ) : (
-                <GeneralPreviewComponent
-                  maximumCharacters={
-                    typeof maximumCharacters === 'number'
-                      ? maximumCharacters
-                      : maximumCharacters(
-                          JSON.parse(
-                            selectedIntegration.integration
-                              .additionalSettings || '[]'
-                          )
-                        )
-                  }
-                />
-              ))}
+              !!value?.[0]?.content?.length && (
+                <IntegrationContext.Provider
+                  value={{
+                    date,
+                    integration: selectedIntegration.integration,
+                    allIntegrations,
+                    value: preview,
+                  }}
+                >
+                  {CustomPreviewComponent ? (
+                    <CustomPreviewComponent
+                      maximumCharacters={
+                        typeof maximumCharacters === 'number'
+                          ? maximumCharacters
+                          : maximumCharacters(
+                              JSON.parse(
+                                selectedIntegration.integration
+                                  .additionalSettings || '[]'
+                              )
+                            )
+                      }
+                    />
+                  ) : (
+                    <GeneralPreviewComponent
+                      maximumCharacters={
+                        typeof maximumCharacters === 'number'
+                          ? maximumCharacters
+                          : maximumCharacters(
+                              JSON.parse(
+                                selectedIntegration.integration
+                                  .additionalSettings || '[]'
+                              )
+                            )
+                      }
+                    />
+                  )}
+                </IntegrationContext.Provider>
+              )}
             {(SettingsComponent || !!data?.internalPlugs?.length) &&
               createPortal(
                 <div data-id={props.id} className={isGlobal ? 'bg-newSettings pb-[12px] px-[12px] mobile:bg-transparent mobile:px-[16px]' : 'hidden bg-newSettings px-[12px] pb-[12px] mobile:bg-transparent mobile:px-[16px]'}>

@@ -933,14 +933,14 @@ describe('the two buttons', () => {
     expect(attachments.attached).toEqual([row('made')]);
   });
 
-  // FR-021a (spec 061, tasks D13): Samy composes no post, so its AI Image
-  // never takes the composer's lock; were it to, a composer opened while the
-  // image renders would wait for it.
-  it('ask AI Image to leave the composer unlocked', async () => {
+  // FR-021a (spec 061, tasks D14): no tool takes the composer's lock any more,
+  // so Samy's AI Image has nothing to ask; a composer opened while its image
+  // renders never waits for it.
+  it('hand AI Image no lock setting, as no tool takes the composer lock', async () => {
     await render();
     const props = aiImageProps[aiImageProps.length - 1];
 
-    expect(props.locksComposer).toBe(false);
+    expect(props).not.toHaveProperty('locksComposer');
   });
 
   // Its window can be closed while it renders, and the image still arrives here.

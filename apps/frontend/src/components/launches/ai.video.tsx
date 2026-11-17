@@ -14,7 +14,6 @@ import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import useSWR from 'swr';
 import {
   VideoWrapper,
@@ -58,6 +57,10 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
+import {
+  useComposerTabs,
+  useOpenTool,
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 export type Media = { id: string; path: string };
 
@@ -175,12 +178,11 @@ export const AiVideoTool: FC<
     onCreatePost,
     setLoading,
     onChangeType,
+    active = true,
     locked,
-    locksComposer = destination === 'post',
   } = props;
   const t = useT();
   const fetch = useFetch();
-  const setLocked = useLaunchStore((state) => state.setLocked);
   const form = useForm();
   const [position, setPosition] = useState<VideoOrientationId>('vertical');
   // The shape of the render under way, which its waiting box draws: the shape
@@ -188,6 +190,9 @@ export const AiVideoTool: FC<
   const [makingShape, setMakingShape] =
     useState<VideoOrientationId>('vertical');
   const toaster = useToaster();
+  // Inside the composer the tool is one of its tabs: its windows open outside
+  // it (contracts/composer-and-preview.md §4).
+  const inTab = !!useComposerTabs();
 
   const [phase, setPhase] = useState<VideoPhase>('setup');
   const [handshake, setHandshake] = useState<RenderHandshake | null>(null);
@@ -218,10 +223,13 @@ export const AiVideoTool: FC<
 
   // A render outlives the modal: the closure keeps running after an early close
   // and attaches the video itself, so it has to know whether anyone is still
-  // watching.
+  // watching: the tool is mounted, and on screen, which a composer tab behind
+  // another is not (contracts/workspace-parts.md §5).
   const mounted = useRef(true);
-  const inFlight = useRef(false);
-  const holdsLock = useRef(false);
+  const onScreen = useRef(active);
+  useEffect(() => {
+    onScreen.current = active;
+  }, [active]);
   // Set from the click until the render is over, by whichever path starts it:
   // `generate` below, or a provider that runs its own render (`claimRender`).
   // The window's actions stay on screen until the render's request is
@@ -251,47 +259,24 @@ export const AiVideoTool: FC<
   };
 
   // `loading` follows the request, whose end also ends the render
-  // (`rendering`); the composer lock follows the whole flow, which is not over
-  // until the video is attached or the user gives it up, and is taken only for
-  // the composer's post.
-  // Memoized like `releaseLock` below: the context functions built on them have
-  // to keep one identity for the life of the modal.
+  // (`rendering`). It is all the tool reports: in the composer the stage holds
+  // the lock while any tab's request is open (tasks D14).
+  // Memoized: the context functions built on them have to keep one identity
+  // for the life of the modal.
   const startRequest = useCallback(() => {
-    inFlight.current = true;
     setLoading?.(true);
-    if (locksComposer && !holdsLock.current) {
-      holdsLock.current = true;
-      setLocked(true);
-    }
-  }, [setLoading, setLocked, locksComposer]);
+  }, [setLoading]);
 
   const endRequest = useCallback(() => {
-    inFlight.current = false;
     rendering.current = false;
     setLoading?.(false);
   }, [setLoading]);
 
-  // Memoized so the unmount cleanup below keeps a stable dependency: a fresh
-  // identity every render would re-run that cleanup and drop the lock early.
-  const releaseLock = useCallback(() => {
-    if (!holdsLock.current) {
-      return;
-    }
-    holdsLock.current = false;
-    setLocked(false);
-  }, [setLocked]);
-
   useEffect(
     () => () => {
       mounted.current = false;
-      // A render still in flight keeps the composer locked until it lands
-      // (FR-014). Anything else — an unused result, an untouched modal — is
-      // given up here, or the composer would stay locked forever.
-      if (!inFlight.current) {
-        releaseLock();
-      }
     },
-    [releaseLock]
+    []
   );
 
   // The five context functions below are deliberately stable: the provider
@@ -329,11 +314,11 @@ export const AiVideoTool: FC<
       endRequest();
       mutateCredits();
 
-      // Closed mid-render: nobody is left to review it, so it goes straight
-      // into the post exactly as it did before this screen existed (FR-014).
-      if (!mounted.current) {
+      // Closed mid-render, or its tab behind another: nobody is left to
+      // review it, so it goes straight into the post exactly as it did before
+      // this screen existed (FR-014).
+      if (!mounted.current || !onScreen.current) {
         onChange(media);
-        releaseLock();
         return;
       }
 
@@ -342,7 +327,7 @@ export const AiVideoTool: FC<
       holdResult(version);
       setPhase('result');
     },
-    [onChange, mutateCredits, releaseLock, endRequest]
+    [onChange, mutateCredits, endRequest]
   );
 
   const failRender = useCallback(() => {
@@ -350,30 +335,28 @@ export const AiVideoTool: FC<
     // An earlier result was already paid for, so a render that fails must
     // not throw it away.
     if (held.current) {
-      // Still watching: put it back on screen and keep the lock, because that
-      // video can still be used.
-      if (mounted.current) {
+      // Still watching: put it back on screen, because that video can still
+      // be used.
+      if (mounted.current && onScreen.current) {
         setPhase('result');
         return;
       }
-      // Closed mid-render. The waiting screen promised the post or the
-      // reference row a video, and this one is paid for — attaching it is
-      // closer to that promise than leaving it empty. The Media library
-      // already holds it, so handing it on there would only announce an
-      // older video as new.
+      // Closed mid-render, or its tab behind another. The waiting screen
+      // promised the post or the reference row a video, and this one is paid
+      // for — attaching it is closer to that promise than leaving it empty.
+      // The Media library already holds it, so handing it on there would only
+      // announce an older video as new.
       if (destination !== 'media') {
         onChange(held.current.media);
       }
-      releaseLock();
       return;
     }
-    // Nothing to show for it: the flow is over, so the lock goes back. The
-    // inputs are kept for another attempt — nothing was charged.
-    releaseLock();
+    // Nothing to show for it: the inputs are kept for another attempt —
+    // nothing was charged.
     if (mounted.current) {
       setPhase('setup');
     }
-  }, [releaseLock, endRequest, onChange, destination]);
+  }, [endRequest, onChange, destination]);
 
   const hasSteps = !!handshake?.steps?.length;
 
@@ -505,7 +488,6 @@ export const AiVideoTool: FC<
     if (rendering.current) {
       return;
     }
-    releaseLock();
     onChange(shown!.media);
     onAccept?.();
   };
@@ -519,7 +501,6 @@ export const AiVideoTool: FC<
     // Giving up the result ends the flow; the provider's own inputs stay as
     // they were, on the screen it returns to, and the versions stay for the
     // video after it.
-    releaseLock();
     holdResult(null);
     setPhase('setup');
     handshake?.onBack?.();
@@ -537,13 +518,18 @@ export const AiVideoTool: FC<
   // The video is already in the Media library by the time any of this renders
   // — the route saves it as it finishes — so the note names what happens next
   // rather than whether the video is kept. On its page the member can leave
-  // it; a reference row has no video button to reach this at all, so it reads
-  // as the composer does.
+  // it; a composer tab sits beside the post; a window says where the video
+  // goes.
   const note =
     layout === 'page'
       ? t(
           'workspace_leave_note_video',
           "You can leave this page. The video is saved to your Media library when it's ready."
+        )
+      : inTab
+      ? t(
+          'composer_leave_note_video',
+          "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready."
         )
       : destination === 'media'
       ? t(
@@ -945,9 +931,15 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
+  /**
+   * The index of the post whose media row holds the button: in the composer,
+   * where the video lands once the button is gone (tasks D10). A row under no
+   * post has none, and its button opens the window.
+   */
+  place?: number;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, only, destination = 'post' } = props;
+  const { onChange, renderTrigger, only, destination = 'post', place } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -984,6 +976,17 @@ export const AiVideo: FC<{
     });
   }, [loading, list, onChange, only, destination]);
 
+  // In the composer the post's video is made in a tab beside it (FR-021). A
+  // trigger of its own (a Studio card) is never in the composer: it keeps
+  // the window.
+  const open = useOpenTool(
+    'video',
+    onChange,
+    place,
+    destination,
+    openVideoModal
+  );
+
   if (isLoading || list?.length === 0) {
     return null;
   }
@@ -995,7 +998,7 @@ export const AiVideo: FC<{
   return (
     <div className="relative">
       <div
-        onClick={openVideoModal}
+        onClick={open}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
         aria-label={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}

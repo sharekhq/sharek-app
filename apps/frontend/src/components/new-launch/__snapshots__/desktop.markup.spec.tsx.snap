@@ -447,11 +447,11 @@ exports[`the character counter from 1026px up one channel, within its limit 1`] 
 `;
 
 exports[`the composer shell from 1026px up a new post 1`] = `
-"<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
+"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
+        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
@@ -566,18 +566,20 @@ exports[`the composer shell from 1026px up a new post 1`] = `
         </div>
       </div>
       <div class="flex flex-col w-[580px]">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] h-[65px] items-center px-[20px] rounded-e-[20px] text-[20px]">
-          <div class="flex-1">
-            "Post Preview"
+        <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
+          <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
+            <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
+              "Post preview"
+            </button>
           </div>
-          <div class="coarse:flex coarse:h-[44px] coarse:items-center coarse:justify-center coarse:w-[44px] cursor-pointer">
-            <svg class="text-muted" fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+          <button aria-label="Close" class="coarse:h-[44px] coarse:w-[44px] flex flex-none focus-visible:ring-2 focus-visible:ring-brand hover:text-ink items-center justify-center rounded-[8px] text-muted" type="button">
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 4L4 16M4 4L16 16" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
             </svg>
-          </div>
+          </button>
         </div>
-        <div class="bg-panel flex-1 relative">
-          <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
+        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+          <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
                 <div class="origin-top-left rtl:origin-top-right">
@@ -676,11 +678,11 @@ exports[`the composer shell from 1026px up a new post 1`] = `
 `;
 
 exports[`the composer shell from 1026px up a new post that a channel blocks from publishing 1`] = `
-"<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
+"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
+        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
@@ -795,18 +797,20 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
         </div>
       </div>
       <div class="flex flex-col w-[580px]">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] h-[65px] items-center px-[20px] rounded-e-[20px] text-[20px]">
-          <div class="flex-1">
-            "Post Preview"
+        <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
+          <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
+            <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
+              "Post preview"
+            </button>
           </div>
-          <div class="coarse:flex coarse:h-[44px] coarse:items-center coarse:justify-center coarse:w-[44px] cursor-pointer">
-            <svg class="text-muted" fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+          <button aria-label="Close" class="coarse:h-[44px] coarse:w-[44px] flex flex-none focus-visible:ring-2 focus-visible:ring-brand hover:text-ink items-center justify-center rounded-[8px] text-muted" type="button">
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 4L4 16M4 4L16 16" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
             </svg>
-          </div>
+          </button>
         </div>
-        <div class="bg-panel flex-1 relative">
-          <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
+        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+          <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
                 <div class="origin-top-left rtl:origin-top-right">
@@ -905,11 +909,11 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
 `;
 
 exports[`the composer shell from 1026px up a new post with no channel picked 1`] = `
-"<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
+"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
+        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
@@ -1006,18 +1010,20 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
         </div>
       </div>
       <div class="flex flex-col w-[580px]">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] h-[65px] items-center px-[20px] rounded-e-[20px] text-[20px]">
-          <div class="flex-1">
-            "Post Preview"
+        <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
+          <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
+            <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
+              "Post preview"
+            </button>
           </div>
-          <div class="coarse:flex coarse:h-[44px] coarse:items-center coarse:justify-center coarse:w-[44px] cursor-pointer">
-            <svg class="text-muted" fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+          <button aria-label="Close" class="coarse:h-[44px] coarse:w-[44px] flex flex-none focus-visible:ring-2 focus-visible:ring-brand hover:text-ink items-center justify-center rounded-[8px] text-muted" type="button">
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 4L4 16M4 4L16 16" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
             </svg>
-          </div>
+          </button>
         </div>
-        <div class="bg-panel flex-1 relative">
-          <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
+        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+          <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
                 <div class="origin-top-left rtl:origin-top-right">
@@ -1116,11 +1122,11 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
 `;
 
 exports[`the composer shell from 1026px up a set being added 1`] = `
-"<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
+"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
+        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
@@ -1226,18 +1232,20 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
         </div>
       </div>
       <div class="flex flex-col w-[580px]">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] h-[65px] items-center px-[20px] rounded-e-[20px] text-[20px]">
-          <div class="flex-1">
-            "Post Preview"
+        <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
+          <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
+            <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
+              "Post preview"
+            </button>
           </div>
-          <div class="coarse:flex coarse:h-[44px] coarse:items-center coarse:justify-center coarse:w-[44px] cursor-pointer">
-            <svg class="text-muted" fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+          <button aria-label="Close" class="coarse:h-[44px] coarse:w-[44px] flex flex-none focus-visible:ring-2 focus-visible:ring-brand hover:text-ink items-center justify-center rounded-[8px] text-muted" type="button">
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 4L4 16M4 4L16 16" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
             </svg>
-          </div>
+          </button>
         </div>
-        <div class="bg-panel flex-1 relative">
-          <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
+        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+          <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
                 <div class="origin-top-left rtl:origin-top-right">
@@ -1317,11 +1325,11 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
 `;
 
 exports[`the composer shell from 1026px up an existing post with another channel, on its own channel 1`] = `
-"<div class="flex flex-1 h-full p-[40px] relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[24px]">
+"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[20px] text-[20px]">
+        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
@@ -1410,18 +1418,20 @@ exports[`the composer shell from 1026px up an existing post with another channel
         </div>
       </div>
       <div class="flex flex-col w-[580px]">
-        <div class="!rounded-b-[0] bg-newBgColor flex font-[600] h-[65px] items-center px-[20px] rounded-e-[20px] text-[20px]">
-          <div class="flex-1">
-            "Post Preview"
+        <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
+          <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
+            <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
+              "Post preview"
+            </button>
           </div>
-          <div class="coarse:flex coarse:h-[44px] coarse:items-center coarse:justify-center coarse:w-[44px] cursor-pointer">
-            <svg class="text-muted" fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+          <button aria-label="Close" class="coarse:h-[44px] coarse:w-[44px] flex flex-none focus-visible:ring-2 focus-visible:ring-brand hover:text-ink items-center justify-center rounded-[8px] text-muted" type="button">
+            <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M16 4L4 16M4 4L16 16" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
             </svg>
-          </div>
+          </button>
         </div>
-        <div class="bg-panel flex-1 relative">
-          <div class="absolute h-full left-0 overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel top-0 w-full">
+        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+          <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
                 <div class="origin-top-left rtl:origin-top-right">

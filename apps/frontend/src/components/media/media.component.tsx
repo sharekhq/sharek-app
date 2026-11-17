@@ -1032,6 +1032,8 @@ export const MultiMediaComponent: FC<{
    * else — a provider's reference images — says so.
    */
   destination?: MediaDestination;
+  /** The index of the post this row belongs to, for its AI buttons. */
+  place?: number;
   /**
    * Drops the chrome this component wears inside the composer — the divider
    * above it and the 12px inset that lines its row up with the editor's own
@@ -1095,6 +1097,7 @@ export const MultiMediaComponent: FC<{
     designNotAvailable,
     aiVideoNotAvailable,
     destination,
+    place,
     flush,
     insertInContent,
   } = props;
@@ -1367,12 +1370,14 @@ export const MultiMediaComponent: FC<{
                     value={text}
                     onChange={changeMedia}
                     destination={destination}
+                    place={place}
                   />
                   {!aiVideoNotAvailable && !insertInContent && (
                     <AiVideo
                       value={text}
                       onChange={changeMedia}
                       destination={destination}
+                      place={place}
                     />
                   )}
                 </>

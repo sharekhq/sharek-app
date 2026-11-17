@@ -23,8 +23,16 @@ jest.mock(
   '@gitroom/frontend/components/new-launch/picks.socials.component',
   () => ({ PicksSocialsComponent: () => <div data-picks /> })
 );
+// The editor, reading the composer's tabs as its AI buttons do.
+const mockEditor = { tabs: undefined as unknown };
 jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
-  EditorWrapper: () => null,
+  EditorWrapper: () => {
+    const {
+      useComposerTabs,
+    } = require('@gitroom/frontend/components/new-launch/composer.tabs');
+    mockEditor.tabs = useComposerTabs();
+    return null;
+  },
 }));
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => <div data-current />,
@@ -51,6 +59,15 @@ jest.mock(
     };
   }
 );
+// The AI tools the composer's tabs host, as in composer.stage.spec.tsx: the
+// real ones bring the media library and its ESM-only uploader.
+jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
+  AiImageTool: () => <div data-tool="image" />,
+}));
+jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
+  AiVideoChooser: () => <div data-tool="video" />,
+  useAiVideoTypes: () => ({ data: [], isLoading: false }),
+}));
 jest.mock('@gitroom/frontend/components/launches/helpers/date.picker', () => ({
   DatePicker: () => <div data-date />,
 }));
@@ -163,7 +180,7 @@ afterEach(() => {
   observers.length = 0;
 });
 
-const render = async () => {
+const render = async (props: Record<string, unknown> = {}) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
@@ -174,7 +191,7 @@ const render = async () => {
       integrations: [integration],
       selectedIntegrations: [{ integration, settings: {} }] as any,
     });
-    root.render(<ManageModal {...({} as any)} />);
+    root.render(<ManageModal {...(props as any)} />);
   });
   return host;
 };
@@ -215,18 +232,91 @@ describe('an existing post', () => {
   });
 });
 
-// The compose window shares the window shell's 24px corners on a wide screen,
-// and still fills a phone's screen edge to edge with none.
+// The compose window takes the Studio page card's 12px corners on a wide
+// screen (spec 061), and still fills a phone's screen edge to edge with none.
 describe('the compose card', () => {
-  it('rounds its corners at 24px, and drops them on a phone', async () => {
+  it('rounds its corners at 12px, and drops them on a phone', async () => {
     existing = {};
     const card = (await render()).querySelector('.bg-newBgColorInner')!;
     const classes = (card.getAttribute('class') ?? '').split(/\s+/);
 
     expect(classes).toEqual(
-      expect.arrayContaining(['rounded-[24px]', 'mobile:rounded-none'])
+      expect.arrayContaining(['rounded-[12px]', 'mobile:rounded-none'])
     );
-    expect(classes).not.toContain('rounded-[20px]');
+    expect(classes).not.toContain('rounded-[24px]');
+  });
+});
+
+// The composer sits in the shell's insets as a Studio page's card does, and
+// the extension's composer, with no shell around it, keeps its 40px margins
+// (spec 061, FR-019); its right column is the tab strip with Post preview
+// and the AI tabs (FR-021).
+describe('the composer frame', () => {
+  const classesOf = (element: Element) =>
+    (element.getAttribute('class') ?? '').split(/\s+/);
+
+  beforeEach(() => {
+    existing = {};
+  });
+
+  it('sits inside the shell’s insets, edge to edge on a phone', async () => {
+    const classes = classesOf((await render()).firstElementChild!);
+
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'py-[12px]',
+        'pe-[12px]',
+        'ps-[100px]',
+        'mobile:p-0',
+      ])
+    );
+    expect(classes).not.toContain('p-[40px]');
+  });
+
+  it('keeps the extension composer’s 40px margins in place of the insets', async () => {
+    const classes = classesOf(
+      (await render({ padding: 'p-[40px]' })).firstElementChild!
+    );
+
+    expect(classes).toEqual(expect.arrayContaining(['p-[40px]', 'mobile:p-0']));
+    ['py-[12px]', 'pe-[12px]', 'ps-[100px]'].forEach((inset) =>
+      expect(classes).not.toContain(inset)
+    );
+  });
+
+  it('rounds the left header’s start corners at 12px', async () => {
+    const host = await render();
+    const header = Array.from(host.querySelectorAll('.bg-newBgColor')).find(
+      (each) => each.textContent?.includes('Create Post')
+    )!;
+
+    expect(classesOf(header)).toContain('rounded-s-[12px]');
+    expect(host.innerHTML).not.toContain('rounded-s-[20px]');
+  });
+
+  it('holds the composer’s tabs, Post preview first, and its close in the right column', async () => {
+    const host = await render();
+    const column = Array.from(host.querySelectorAll('div')).find((each) =>
+      classesOf(each).includes('w-[580px]')
+    )!;
+    const tablist = column.querySelector('[role="tablist"]');
+
+    expect(tablist).toBeTruthy();
+    expect(
+      Array.from(tablist!.querySelectorAll('[role="tab"]')).map(
+        (tab) => tab.textContent
+      )
+    ).toEqual(['Post preview']);
+    expect(column.querySelector('button[aria-label="Close"]')).toBeTruthy();
+  });
+
+  it('gives the editor the composer’s tabs', async () => {
+    mockEditor.tabs = undefined;
+    await render();
+
+    expect(mockEditor.tabs).toEqual(
+      expect.objectContaining({ active: 'preview', open: expect.any(Function) })
+    );
   });
 });
 

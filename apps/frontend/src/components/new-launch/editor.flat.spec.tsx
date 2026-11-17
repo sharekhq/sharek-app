@@ -37,12 +37,14 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
     toolsStyle?: { bottom?: number; paddingBottom?: number };
     toolBar?: ReactElement;
     toolBarEnd?: ReactElement;
+    place?: number;
   }) => (
     <div
       data-tools=""
       className={props.toolsClassName}
       data-bottom={props.toolsStyle?.bottom}
       data-pad={props.toolsStyle?.paddingBottom}
+      data-place={props.place}
     >
       {props.toolBar}
       {props.toolBarEnd}
@@ -56,8 +58,20 @@ jest.mock(
   '@gitroom/frontend/components/launches/information.component',
   () => ({ InformationComponent: () => null })
 );
+// The writer's answer to Delete Post's confirmation: no, unless a case says.
+const mockDialog = { confirmed: false };
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
-  deleteDialog: async () => false,
+  deleteDialog: async () => mockDialog.confirmed,
+}));
+// The composer's tabs, which the editor tells when it adds, deletes or moves
+// a post.
+const mockTabs = {
+  postAdded: jest.fn(),
+  postRemoved: jest.fn(),
+  postMoved: jest.fn(),
+};
+jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
+  useComposerTabs: () => mockTabs,
 }));
 jest.mock('react-dropzone', () => ({
   useDropzone: () => ({ getRootProps: () => ({}), isDragActive: false }),
@@ -110,6 +124,10 @@ beforeAll(() => {
 
 beforeEach(() => {
   mobile = true;
+  mockDialog.confirmed = false;
+  mockTabs.postAdded.mockClear();
+  mockTabs.postRemoved.mockClear();
+  mockTabs.postMoved.mockClear();
   viewport = new VisualViewport();
   Object.defineProperty(window, 'visualViewport', {
     configurable: true,
@@ -349,6 +367,102 @@ describe('a post with comments', () => {
 
     expect(first.textContent).toBe('');
     expect(last.textContent).toContain('Add comment or post');
+  });
+
+  // Its AI buttons work for the post they are under (spec 061, FR-024).
+  it('hands each post’s media row the post’s index', async () => {
+    const { host } = await thread();
+
+    expect(tools(host).map((each) => each.dataset.place)).toEqual(['0', '1']);
+  });
+
+  // They remember a post by its index, so they follow it when the writer
+  // adds or deletes a post or moves one a step (spec 061, review C7).
+  const deletes = (host: HTMLElement) =>
+    Array.from(
+      host.querySelectorAll<HTMLElement>('button[aria-label="Delete Post"]')
+    );
+  const press = async (button: HTMLElement) => {
+    await act(async () => {
+      button.click();
+    });
+  };
+
+  it('tells the composer’s tabs which post it deletes, once the writer confirms', async () => {
+    const { host } = await thread(['First', 'Second', 'Third']);
+
+    await press(deletes(host)[1]);
+    expect(mockTabs.postRemoved).not.toHaveBeenCalled();
+
+    mockDialog.confirmed = true;
+    await press(deletes(host)[1]);
+    expect(mockTabs.postRemoved).toHaveBeenCalledWith('global', 1);
+  });
+
+  it('tells them the channel whose own posts it deletes from', async () => {
+    const integration = { id: 'int-1', identifier: 'instagram', name: 'Acme' };
+    await act(async () => {
+      useLaunchStore.getState().reset();
+      useLaunchStore.setState({
+        current: 'int-1',
+        comments: true,
+        integrations: [integration] as unknown as Store['integrations'],
+        internal: [
+          {
+            integration,
+            integrationValue: ['First', 'Second'].map((text, n) => ({
+              id: `p-${n + 1}`,
+              content: `<p>${text}</p>`,
+              delay: 0,
+              media: [],
+            })),
+          },
+        ] as unknown as Store['internal'],
+      });
+    });
+    const { host } = await render(<EditorWrapper totalPosts={2} value="" />);
+    mockDialog.confirmed = true;
+    await press(deletes(host)[1]);
+
+    expect(mockTabs.postRemoved).toHaveBeenCalledWith('int-1', 1);
+  });
+
+  it('tells them which post it moves a step', async () => {
+    const { host } = await thread();
+    // the first post's column: up, down, then Delete Post
+    const [, down] = Array.from(
+      deletes(host)[0].parentElement!.querySelectorAll<HTMLElement>('button')
+    );
+    await press(down);
+
+    expect(mockTabs.postMoved).toHaveBeenCalledWith('global', 0, 'down');
+  });
+
+  it('tells them after which post it adds one, mid-thread on a phone', async () => {
+    const { host } = await thread();
+    // where Add comment scrolls to, 20ms after the click
+    const content = document.createElement('div');
+    content.id = 'social-content';
+    document.body.appendChild(content);
+    // the writer goes to the first post, whose pinned bar then holds it
+    const firstText = host.querySelectorAll('.ProseMirror')[0].parentElement!;
+    await act(async () => {
+      firstText.dispatchEvent(
+        new (window as unknown as { FocusEvent: typeof FocusEvent }).FocusEvent(
+          'focusin',
+          { bubbles: true }
+        )
+      );
+    });
+    const add = Array.from(
+      tools(host)[0].querySelectorAll<HTMLElement>('button')
+    ).find((button) => button.textContent?.includes('Add comment or post'))!;
+    await press(add);
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 30));
+    });
+
+    expect(mockTabs.postAdded).toHaveBeenCalledWith('global', 0);
   });
 
   it('moves the bar to the post the writer goes to', async () => {

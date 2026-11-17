@@ -40,6 +40,9 @@ const SeedanceSettings: FC = () => {
       <MultiMediaComponent
         allData={[]}
         dummy={true}
+        designNotAvailable={true}
+        aiVideoNotAvailable={true}
+        destination="reference"
         text={t('images', 'Images')}
         description={t('images', 'Images')}
         name="images"

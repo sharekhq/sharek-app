@@ -2,7 +2,6 @@
 
 import React, {
   FC,
-  ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -18,10 +17,7 @@ import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.label
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
-import {
-  Providers,
-  ShowAllProviders,
-} from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
+import { Providers } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
 import { getProviderSettingsMeta } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
 import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
@@ -48,7 +44,6 @@ import { CreationMethodBadge } from '@gitroom/frontend/components/launches/creat
 import {
   SettingsIcon,
   ChevronDownIcon,
-  CloseIcon,
   TrashIcon,
   DropdownArrowSmallIcon,
   EyeIcon,
@@ -72,11 +67,14 @@ import {
   MobileTopBar,
   MobileTopBarAction,
 } from '@gitroom/frontend/components/new-launch/mobile.top.bar';
-import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
 import { Button, buttonClassName } from '@gitroom/react/form/button';
-import { PreviewFit } from '@gitroom/frontend/components/new-launch/preview.fit';
+import { ComposerStage } from '@gitroom/frontend/components/new-launch/composer.stage';
+import {
+  ComposerTabKind,
+  ComposerTabsProvider,
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.
@@ -95,6 +93,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   const [showSettings, setShowSettings] = useState(false);
   // at 1025px and below the preview takes the editor's place
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
+  // an AI tab's layer sits in the preview's column, shown while it is active
+  const [stageTab, setStageTab] = useState<'preview' | ComposerTabKind>(
+    'preview'
+  );
   // the sheets that hold the rest of the composer at 1025px and below
   const [mobileSheet, setMobileSheet] = useState<
     'channels' | 'settings' | 'tags' | 'repeat' | 'date' | null
@@ -965,9 +967,16 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     </button>
   );
 
-  return (
-    <div className="w-full h-full flex-1 p-[40px] mobile:p-0 mobile:h-auto mobile:min-h-full flex relative">
-      <div className="flex flex-1 bg-newBgColorInner rounded-[24px] mobile:rounded-none flex-col">
+  const composer = (
+    <div
+      className={clsx(
+        'w-full h-full flex-1',
+        // the shell's insets; the extension's composer keeps its margins
+        props.padding || 'py-[12px] pe-[12px] ps-[100px]',
+        'mobile:p-0 mobile:h-auto mobile:min-h-full flex relative'
+      )}
+    >
+      <div className="flex flex-1 bg-newBgColorInner rounded-[12px] mobile:rounded-none flex-col">
         <MobileTopBar
           onBack={askClose}
           actions={mobileActions}
@@ -996,7 +1005,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           >
             {/* The top bar carries the post at 1025px and below, so this
                 65px header would be a second one. */}
-            <div className="mobile:hidden bg-newBgColor h-[65px] rounded-s-[20px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] text-[20px] font-[600]">
+            <div className="mobile:hidden bg-newBgColor h-[65px] rounded-s-[12px] !rounded-b-[0] flex items-center gap-[12px] px-[20px] text-[20px] font-[600]">
               {t('create_post_title', 'Create Post')}
               <CreationMethodBadge
                 creationMethod={existingData?.posts?.[0]?.creationMethod}
@@ -1195,32 +1204,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               // 1025px and below the preview replaces the editor instead.
               'w-[580px] flex flex-col',
               'mobile:!w-full mobile:flex-1',
-              mobileTab === 'edit' && 'mobile:hidden'
+              mobileTab === 'edit' && stageTab === 'preview' && 'mobile:hidden'
             )}
           >
-            <div className="mobile:hidden bg-newBgColor h-[65px] rounded-e-[20px] !rounded-b-[0] flex items-center px-[20px] text-[20px] font-[600]">
-              <div className="flex-1">{t('post_preview', 'Post Preview')}</div>
-              {/* The handler was on the icon while cursor-pointer was on this
-                  wrapper, so the measured box and the tap target were two
-                  different elements. Both belong on the wrapper — the icon
-                  click still reaches askClose by bubbling. */}
-              <div
-                onClick={askClose}
-                className="cursor-pointer coarse:w-[44px] coarse:h-[44px] coarse:flex coarse:items-center coarse:justify-center"
-              >
-                <CloseIcon className="text-muted" />
-              </div>
-            </div>
-            <div className="flex-1 relative bg-panel mobile:bg-transparent">
-              <Scrollable
-                scrollClasses="!pe-[20px]"
-                className="absolute mobile:static top-0 p-[20px] pe-[8px] mobile:p-[16px] left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-panel"
-              >
-                <PreviewFit>
-                  <ShowAllProviders ref={ref} />
-                </PreviewFit>
-              </Scrollable>
-            </div>
+            <ComposerStage previewRef={ref} onClose={askClose} />
           </div>
         </div>
         {/* the top bar and the sheets take its place at 1025px and below */}
@@ -1527,18 +1514,10 @@ After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} f
       />
     </div>
   );
-};
 
-const Scrollable: FC<{
-  className: string;
-  scrollClasses: string;
-  children: ReactNode;
-}> = ({ className, scrollClasses, children }) => {
-  const ref = useRef(undefined);
-  const hasScroll = useHasScroll(ref);
   return (
-    <div className={clsx(className, hasScroll && scrollClasses)} ref={ref}>
-      {children}
-    </div>
+    <ComposerTabsProvider onActiveChange={setStageTab}>
+      {composer}
+    </ComposerTabsProvider>
   );
 };

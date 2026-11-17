@@ -1,6 +1,39 @@
 import { FC } from 'react';
 import { clsx } from 'clsx';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+/** The kinds of result a preview can hold a place for while it is made. */
+export const PENDING_KINDS = ['image', 'video'] as const;
+export type PendingKind = (typeof PENDING_KINDS)[number];
+/** The path a preview holds for a result still being made for the post. */
+export const pendingMediaPath = (kind: PendingKind) => `pending:${kind}`;
+export const isPendingMediaPath = (path: string) =>
+  PENDING_KINDS.find((kind) => path === pendingMediaPath(kind));
+/** The media a preview holds for a result still being made for the post. */
+export const pendingPreviewMedia = (entry: {
+  id: string;
+  kind: PendingKind;
+}) => ({
+  id: entry.id,
+  path: pendingMediaPath(entry.kind),
+});
+// A component of its own, so only a pending path calls the hook: the public
+// preview page renders VideoOrImage as a server component.
+const PendingPlaceholder: FC<{ kind: PendingKind }> = ({ kind }) => {
+  const t = useT();
+  return (
+    <div
+      aria-busy="true"
+      onClick={(e) => e.preventDefault()}
+      className="w-full h-full bg-surface2 motion-safe:animate-pulse flex flex-col items-center justify-center gap-[8px] p-[8px] text-center text-[14px] font-[600] leading-[1.4] text-ink"
+    >
+      <div className="flex-none w-[20px] h-[20px] rounded-full border-2 border-brand border-t-transparent motion-safe:animate-spin" />
+      {kind === 'image'
+        ? t('creating_your_image', 'Creating your image…')
+        : t('creating_your_video', 'Creating your video…')}
+    </div>
+  );
+};
 export const VideoOrImage: FC<{
   src: string;
   autoplay: boolean;
@@ -13,6 +46,10 @@ export const VideoOrImage: FC<{
   const report = (width: number, height: number) => {
     if (height > 0) props.onShape?.(width / height);
   };
+  const pending = isPendingMediaPath(src);
+  if (pending) {
+    return <PendingPlaceholder kind={pending} />;
+  }
   if (hasExtension(src, 'mp4')) {
     return (
       <video

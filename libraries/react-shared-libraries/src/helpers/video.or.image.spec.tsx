@@ -10,7 +10,18 @@ jest.mock(
   { virtual: true }
 );
 
-import { VideoOrImage } from './video.or.image';
+// The placeholder's words, by key and English default.
+const mockT = jest.fn((_key: string, fallback: string) => fallback);
+jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
+  useT: () => mockT,
+}));
+
+import {
+  VideoOrImage,
+  isPendingMediaPath,
+  pendingMediaPath,
+  pendingPreviewMedia,
+} from './video.or.image';
 
 // Instagram's preview sizes its box to the first slide's shape, which the
 // image reports on load and the video once its metadata is in. Without
@@ -45,11 +56,56 @@ const load = async (
   });
 };
 
+/** Mounts the media inside a link, as a preview may wrap it. */
+const mountInLink = async (src: string) => {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted.push(root);
+  await act(async () => {
+    root.render(
+      <a href="/p/1">
+        <VideoOrImage src={src} autoplay={false} />
+      </a>
+    );
+  });
+  return host;
+};
+
 afterEach(() => {
   act(() => {
     mounted.splice(0).forEach((root) => root.unmount());
   });
   document.body.innerHTML = '';
+  mockT.mockClear();
+});
+
+// A result still being made for the post stands in its preview under a path
+// that names its kind (spec 061, FR-024).
+describe('pending media paths', () => {
+  it('marks a pending image or video with its kind', () => {
+    expect(pendingMediaPath('image')).toBe('pending:image');
+    expect(pendingMediaPath('video')).toBe('pending:video');
+  });
+
+  it('reads the kind back from a pending path', () => {
+    expect(isPendingMediaPath('pending:image')).toBe('image');
+    expect(isPendingMediaPath('pending:video')).toBe('video');
+  });
+
+  it.each(['/a.png', '/a.mp4', 'pending:', 'pending:audio'])(
+    'reads no kind from %s',
+    (path) => {
+      expect(isPendingMediaPath(path)).toBeUndefined();
+    }
+  );
+
+  it('makes a pending entry the media its preview holds: its id, and its kind as the path', () => {
+    expect(pendingPreviewMedia({ id: 'r-1', kind: 'video' })).toEqual({
+      id: 'r-1',
+      path: 'pending:video',
+    });
+  });
 });
 
 describe('VideoOrImage', () => {
@@ -104,5 +160,43 @@ describe('VideoOrImage', () => {
     expect(
       renderToStaticMarkup(<VideoOrImage src={src} autoplay={false} />)
     ).toBe(markup);
+  });
+
+  // While a result is being made, the preview shows a placeholder where it
+  // will go, and loads nothing from the pending path.
+  it.each([
+    ['image', 'pending:image', 'creating_your_image', 'Creating your image…'],
+    ['video', 'pending:video', 'creating_your_video', 'Creating your video…'],
+  ])(
+    'draws a pending %s as a busy box filling its container, with a spinner and its words',
+    async (_kind, src, key, words) => {
+      const host = await mountInLink(src);
+      const box = host.querySelector('[aria-busy="true"]');
+
+      expect(box).not.toBeNull();
+      expect(box?.classList).toContain('w-full');
+      expect(box?.classList).toContain('h-full');
+      expect(box?.classList).toContain('bg-surface2');
+      expect(box?.classList).toContain('motion-safe:animate-pulse');
+      expect(
+        box?.querySelector('[class~="motion-safe:animate-spin"]')
+      ).not.toBeNull();
+      expect(box?.textContent).toBe(words);
+      expect(mockT).toHaveBeenCalledWith(key, words);
+      expect(host.querySelectorAll('img, video')).toHaveLength(0);
+    }
+  );
+
+  it('keeps a click on a pending placeholder from following the link around it', async () => {
+    const host = await mountInLink('pending:image');
+    const box = host.querySelector('[aria-busy="true"]');
+    expect(box).not.toBeNull();
+
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    await act(async () => {
+      box?.dispatchEvent(click);
+    });
+
+    expect(click.defaultPrevented).toBe(true);
   });
 });

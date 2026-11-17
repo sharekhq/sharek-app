@@ -71,6 +71,7 @@ import {
 } from '@gitroom/frontend/components/ui/icons';
 import { DelayComponent } from '@gitroom/frontend/components/new-launch/delay.component';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
+import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GB
 
@@ -220,6 +221,8 @@ export const EditorWrapper: FC<{
   );
 
   const existingData = useExistingData();
+  // the composer's AI tabs know a post by its index (spec 061)
+  const tabs = useComposerTabs();
   const [loaded, setLoaded] = useState(true);
 
   useEffect(() => {
@@ -327,6 +330,7 @@ export const EditorWrapper: FC<{
   const changeOrder = useCallback(
     (index: number) => (direction: 'up' | 'down') => {
       setFocusIndex(null);
+      tabs?.postMoved(internal ? current : 'global', index, direction);
       if (internal) {
         changeOrderInternal(current, index, direction);
         return setLoaded(false);
@@ -335,7 +339,7 @@ export const EditorWrapper: FC<{
       changeOrderGlobal(index, direction);
       setLoaded(false);
     },
-    [changeOrderInternal, changeOrderGlobal, current, global, internal]
+    [changeOrderInternal, changeOrderGlobal, current, global, internal, tabs]
   );
 
   const goBackToGlobal = useCallback(async () => {
@@ -365,6 +369,7 @@ export const EditorWrapper: FC<{
       if (window.matchMedia(MOBILE_QUERY).matches) {
         setFocusIndex(index + 1);
       }
+      tabs?.postAdded(internal ? current : 'global', index);
       if (internal) {
         return addInternalValue(index, current, [
           {
@@ -385,7 +390,7 @@ export const EditorWrapper: FC<{
         },
       ]);
     },
-    [current, global, internal]
+    [current, global, internal, tabs]
   );
 
   const deletePost = useCallback(
@@ -404,6 +409,7 @@ export const EditorWrapper: FC<{
 
       setActiveIndex((p) => (p !== null && p > index ? p - 1 : p));
       setFocusIndex(null);
+      tabs?.postRemoved(internal ? current : 'global', index);
       if (internal) {
         deleteInternalValue(current, index);
         return setLoaded(false);
@@ -412,7 +418,7 @@ export const EditorWrapper: FC<{
       deleteGlobalValue(index);
       setLoaded(false);
     },
-    [current, global, internal, t]
+    [current, global, internal, t, tabs]
   );
 
   // under the last post, and at 1025px and below at the end of the pinned tool
@@ -1081,6 +1087,7 @@ export const Editor: FC<{
                 {setImages && (
                   <MultiMediaComponent
                     mediaNotAvailable={num > 0 && comments === 'no-media'}
+                    place={num}
                     allData={allValues}
                     text={valueWithoutHtml}
                     label={t('attachments', 'Attachments')}

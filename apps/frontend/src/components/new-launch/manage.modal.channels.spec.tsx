@@ -123,6 +123,15 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
   EditorWrapper: () => null,
 }));
+// The AI tools the composer's tabs host, as in composer.stage.spec.tsx: the
+// real ones bring the media library and its ESM-only uploader.
+jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
+  AiImageTool: () => <div data-tool="image" />,
+}));
+jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
+  AiVideoChooser: () => <div data-tool="video" />,
+  useAiVideoTypes: () => ({ data: [], isLoading: false }),
+}));
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => null,
 }));

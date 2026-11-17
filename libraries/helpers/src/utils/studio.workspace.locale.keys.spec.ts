@@ -1,8 +1,9 @@
-// Guards the Studio workspace's strings (spec 061, part 2): each tool's page, its sample, its
-// stage and the top bar's tool switcher, the way studio.locale.keys.spec.ts guards the Studio
-// page. Like Studio's, these keys live in en and ar only, so only those two are read. The new
-// words are plan.md § i18n's "Part 2 (new)" table, word for word; the four keys the windows'
-// result steps read are gone from both, and the window notes that still have a window stay.
+// Guards the Studio workspace's strings (spec 061, parts 2 and 3): each tool's page, its sample,
+// its stage and the top bar's tool switcher, the way studio.locale.keys.spec.ts guards the Studio
+// page, and the composer's tab strip with its AI tabs. Like Studio's, these keys live in en and ar
+// only, so only those two are read. The new words are plan.md § i18n's "Part 2 (new)" and
+// "Part 3 (new)" tables, word for word; the keys the windows' result steps read are gone from
+// both, and the window notes that still have a window stay.
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -58,7 +59,19 @@ const WORKSPACE_READS = keysRead([
 ]).filter((key) => /^(workspace|slides_empty)_/.test(key));
 const APP_READS = keysRead(sourcesIn(FRONTEND_DIR));
 
-// [key, en, ar]: plan.md § i18n, "Part 2 (new)".
+// The composer's tab strip, the two tools in its tabs and the placeholder its previews show
+// (part 3): every key, not a prefix, as the placeholder reads the creating_your_ words.
+const COMPOSER_READS = keysRead([
+  path.join(COMPONENTS_DIR, 'new-launch/composer.stage.tsx'),
+  path.join(COMPONENTS_DIR, 'launches/ai.image.tsx'),
+  path.join(COMPONENTS_DIR, 'launches/ai.video.tsx'),
+  path.join(
+    __dirname,
+    '../../../react-shared-libraries/src/helpers/video.or.image.tsx'
+  ),
+]);
+
+// [key, en, ar]: plan.md § i18n, "Part 2 (new)", then "Part 3 (new)".
 const STRINGS = [
   ['workspace_sample', 'Sample', 'مثال'],
   ['workspace_image_empty_title', 'Your image appears here', 'ستظهر صورتك هنا'],
@@ -126,6 +139,23 @@ const STRINGS = [
   ['workspace_ready_image', 'Your image is ready', 'صورتك جاهزة'],
   ['workspace_ready_video', 'Your video is ready', 'الفيديو جاهز'],
   ['workspace_open', 'Open', 'فتح'],
+  [
+    'composer_tabs_label',
+    'Post preview and AI tools',
+    'معاينة المنشور وأدوات الذكاء الاصطناعي',
+  ],
+  [
+    'composer_leave_note_image',
+    "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready.",
+    'تابع الكتابة، أو انتقل إلى معاينة المنشور، أو أغلق هذا التبويب. ستضاف الصورة إلى منشورك عند جاهزيتها.',
+  ],
+  [
+    'composer_leave_note_video',
+    "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready.",
+    'تابع الكتابة، أو انتقل إلى معاينة المنشور، أو أغلق هذا التبويب. سيضاف الفيديو إلى منشورك عند جاهزيته.',
+  ],
+  ['workspace_close_tab', 'Close {{name}}', 'إغلاق {{name}}'],
+  ['workspace_back_to_post', 'Back to the post', 'العودة إلى المنشور'],
 ] as const;
 
 // The way back to the prompt is gone (the prompt is always on screen), so the refusal for an
@@ -150,8 +180,9 @@ const REMOVED = [
 ];
 
 // Image Text Slides' Edit script after a video (tasks.md D7), and the video window notes: a
-// provider with no page still opens a window for Studio, and the composer's video window
-// stays until part 3 (D8).
+// provider with no page still opens a window for Studio (D8), and a row that is not a post's (a
+// channel's settings) still opens the video window for the post outside a composer tab (part 3,
+// review C4).
 const KEPT = [
   'edit_script',
   'close_window_video_note_media',
@@ -179,13 +210,13 @@ describe('Studio workspace locale keys', () => {
     }
   );
 
-  it.each([['workspace_switch_tool', ['name']]])(
-    'keeps the placeholders of %s in both languages',
-    (key, names) => {
-      expect(placeholders(en[key] ?? '')).toEqual(names);
-      expect(placeholders(ar[key] ?? '')).toEqual(names);
-    }
-  );
+  it.each([
+    ['workspace_switch_tool', ['name']],
+    ['workspace_close_tab', ['name']],
+  ])('keeps the placeholders of %s in both languages', (key, names) => {
+    expect(placeholders(en[key] ?? '')).toEqual(names);
+    expect(placeholders(ar[key] ?? '')).toEqual(names);
+  });
 });
 
 describe('the refusal part 2 rewords', () => {
@@ -221,6 +252,29 @@ describe('every workspace string the tools render', () => {
   });
 });
 
+// A counted key is said through its CLDR forms (styles_count_one, …) and i18next picks one by
+// the count, so its other form stands for it.
+const said = (locale: Record<string, string>, key: string) =>
+  locale[key] ?? locale[`${key}_other`];
+
+describe("every string the composer's tabs render", () => {
+  it('finds the keys at all — a regex matching nothing would pass everything', () => {
+    expect(COMPOSER_READS.length).toBeGreaterThan(50);
+    expect(COMPOSER_READS).toContain('composer_tabs_label');
+    expect(COMPOSER_READS).toContain('composer_leave_note_image');
+    expect(COMPOSER_READS).toContain('composer_leave_note_video');
+    expect(COMPOSER_READS).toContain('creating_your_image');
+  });
+
+  it.each(COMPOSER_READS)('says %s in both languages', (key) => {
+    expect(typeof said(en, key)).toBe('string');
+    expect(said(en, key).length).toBeGreaterThan(0);
+    expect(typeof said(ar, key)).toBe('string');
+    expect(said(ar, key).length).toBeGreaterThan(0);
+    expect(placeholders(said(ar, key))).toEqual(placeholders(said(en, key)));
+  });
+});
+
 describe("the words the windows' result steps read", () => {
   it.each(REMOVED)('%s is gone from en and ar', (key) => {
     expect({ key, en: key in en, ar: key in ar }).toEqual({
@@ -242,5 +296,9 @@ describe('the words that stay', () => {
     expect(typeof ar[key]).toBe('string');
     expect(ar[key].length).toBeGreaterThan(0);
     expect(ar[key]).not.toBe(en[key]);
+  });
+
+  it.each(KEPT)('%s is read by a t() call in the app', (key) => {
+    expect(APP_READS).toContain(key);
   });
 });

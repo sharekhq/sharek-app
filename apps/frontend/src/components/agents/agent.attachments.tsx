@@ -475,9 +475,6 @@ export const AttachmentTools: FC<{ value: string }> = ({ value }) => {
         <AiImage
           value={value}
           onChange={addMedia}
-          // Samy's post is no composer's: a render here must not lock one
-          // Samy opens meanwhile.
-          locksComposer={false}
           renderTrigger={(open, loading) => (
             <button
               type="button"
