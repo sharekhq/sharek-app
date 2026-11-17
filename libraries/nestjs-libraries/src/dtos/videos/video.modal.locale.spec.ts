@@ -25,7 +25,7 @@ const KEYS = [
   'creating_your_video',
   'video_render_minutes',
   'video_elapsed',
-  'close_window_video_note',
+  // close_window_video_note went with the composer's video window; its tab says its own (spec 061).
   'use_video',
   'edit_script',
   // edit_prompt and regenerate went with the result step; the settings stay beside it (spec 061).
