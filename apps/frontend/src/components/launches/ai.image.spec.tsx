@@ -21,8 +21,24 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
 }));
+// The composer's store: the lock, which no tool writes any more (tasks D14),
+// and, read at a click, the channel on screen and the channels holding values
+// of their own, which say which post an AI button works for (tasks D10).
+let mockComposer: {
+  current: string;
+  internal: Array<{ integration: { id: string } }>;
+} = { current: 'global', internal: [] };
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) => select({ setLocked }),
+  useLaunchStore: Object.assign(
+    (select: (state: any) => any) => select({ setLocked }),
+    { getState: () => mockComposer }
+  ),
+}));
+// The composer's tabs: none outside the composer, as Samy and a reference row
+// see it; inside it, a case hands its own and reads what the button opens.
+let mockTabs: { open: jest.Mock } | null = null;
+jest.mock('@gitroom/frontend/components/new-launch/composer.stage', () => ({
+  useComposerTabs: () => mockTabs,
 }));
 // The modal manager as it is, each window's options recorded on the way in:
 // the AI image window's size, height and top are what keep its bar on the
@@ -347,6 +363,63 @@ const generateOnPage = async (
   await click(button('Generate'));
 };
 
+/**
+ * The tool in a composer tab (contracts/composer-and-preview.md §4): stacked,
+ * for the post, with what the stage hands it. `show` draws it again, on
+ * screen or behind another tab.
+ */
+const openTab = async () => {
+  mockTabs = { open: jest.fn() };
+  const host = {
+    onChange: jest.fn(),
+    onAccept: jest.fn(),
+    setLoading: jest.fn(),
+  };
+  const root = createRoot(
+    document.body.appendChild(document.createElement('div'))
+  );
+  mounted.push(root);
+  const show = (active: boolean) =>
+    act(async () => {
+      root.render(
+        <AiImageTool
+          layout="stacked"
+          destination="post"
+          active={active}
+          {...host}
+        />
+      );
+    });
+  await show(true);
+  return { ...host, show };
+};
+
+/** The same, with a prompt typed and Generate pressed. */
+const generateInTab = async () => {
+  const tab = await openTab();
+  await type(promptField(), 'a pomegranate on a table');
+  await click(button('Generate'));
+  return tab;
+};
+
+/** Lets the credit check through and holds the render until it lands. */
+const holdRender = () => {
+  let deliver: (response: unknown) => void = () => undefined;
+  request.mockImplementation((url: string) =>
+    url.endsWith('/allowed')
+      ? Promise.resolve(answer(200, true))
+      : new Promise((resolve) => {
+          deliver = resolve;
+        })
+  );
+  return async () => {
+    await act(async () => {
+      deliver(streamed(done));
+    });
+    await settle();
+  };
+};
+
 afterEach(() => {
   act(() => {
     closeEveryModal?.();
@@ -355,6 +428,8 @@ afterEach(() => {
   document.body.innerHTML = '';
   picker.length = 0;
   opened.length = 0;
+  mockTabs = null;
+  mockComposer = { current: 'global', internal: [] };
   brandList = BRANDS;
   localStorage.clear();
   jest.clearAllMocks();
@@ -474,7 +549,7 @@ describe('when the generation is refused after the pre-flight passed', () => {
     await generate();
 
     expect(toast).not.toHaveBeenCalled();
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 });
 
@@ -595,7 +670,7 @@ describe('the streamed render', () => {
   );
 
   // Closing the window gives up watching, not the image: it lands in the post
-  // by itself when the stream finishes, and only then is the composer free.
+  // by itself when the stream finishes.
   it('attaches the image when the window was closed mid-render', async () => {
     let deliver: (response: unknown) => void = () => undefined;
     request.mockImplementation((url: string) =>
@@ -612,16 +687,13 @@ describe('the streamed render', () => {
     act(() => {
       closeEveryModal?.();
     });
-
-    expect(setLocked).toHaveBeenLastCalledWith(true);
-
     await act(async () => {
       deliver(streamed(done));
     });
     await settle();
 
     expect(onChange).toHaveBeenCalledWith(done.media);
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
   // The page's render outlives the page as the window's outlives the window
@@ -1437,7 +1509,7 @@ describe('editing the result', () => {
     await settle();
 
     expect(onChange).toHaveBeenCalledWith(edited.media);
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
   // The image on screen was paid for, so an edit that fails after the window
@@ -1471,7 +1543,7 @@ describe('editing the result', () => {
     await settle();
 
     expect(onChange).toHaveBeenCalledWith(done.media);
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
   it('uses the edit on screen', async () => {
@@ -3275,30 +3347,225 @@ describe('the stage', () => {
   });
 });
 
-// Spec 061 (FR-021a; tasks D13): the composer's guard is the post's. A window
-// working for the composer's post takes it from the request until the image
-// is used or given up, as today; the Studio page, a reference row and Samy's
-// AI Image work for no post being composed and never take it, so the
-// composer Create a post opens is free to use.
-describe("the composer's lock", () => {
-  /** Lets the credit check through and holds the render until it lands. */
-  const holdRender = () => {
-    let deliver: (response: unknown) => void = () => undefined;
-    request.mockImplementation((url: string) =>
-      url.endsWith('/allowed')
-        ? Promise.resolve(answer(200, true))
-        : new Promise((resolve) => {
-            deliver = resolve;
-          })
+// Spec 061 part 3 (FR-021, FR-027; tasks D10): in the composer, AI Image opens
+// its tab beside the post, never a window, for the post its button is under;
+// what it makes lands through that row's latest handler while the button is
+// there. Samy and a reference row keep the window.
+describe('in the composer', () => {
+  const aiButton = () => document.querySelector('.bg-aiSoft');
+
+  /**
+   * The composer's ✦ button under one post's media row, in a root of its own:
+   * the returned function draws it again with the row's next handler.
+   */
+  const row = async (
+    onChange: jest.Mock,
+    props: { place?: number; destination?: MediaDestination } = {}
+  ) => {
+    mockTabs = { open: jest.fn() };
+    const root = createRoot(
+      document.body.appendChild(document.createElement('div'))
     );
-    return async () => {
-      await act(async () => {
-        deliver(streamed(done));
+    mounted.push(root);
+    const draw = (handler: jest.Mock) =>
+      act(async () => {
+        root.render(<AiImage value="" onChange={handler} {...props} />);
       });
-      await settle();
-    };
+    await draw(onChange);
+    return draw;
   };
 
+  /** The handler the tab lands its image through, as the button handed it. */
+  const target = () => mockTabs!.open.mock.calls[0][1]();
+
+  it('opens the AI image tab for the post, never a window', async () => {
+    await row(jest.fn());
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
+    expect(mockTabs!.open).toHaveBeenCalledWith('image', expect.any(Function), {
+      channel: 'global',
+      index: 0,
+    });
+    expect(opened).toHaveLength(0);
+  });
+
+  it('opens the window as before outside the composer, as Samy does', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await click(aiButton());
+
+    expect(opened).toHaveLength(1);
+    expect(promptField()).toBeTruthy();
+  });
+
+  it('opens the window as before for a reference row, in the composer too', async () => {
+    await row(jest.fn(), { destination: 'reference' });
+    await click(aiButton());
+
+    expect(mockTabs!.open).not.toHaveBeenCalled();
+    expect(opened).toHaveLength(1);
+  });
+
+  // The editor's appendImages makes the same choice (tasks D10).
+  it('works for the post its button is under, in the channel on screen when that channel holds its own values', async () => {
+    await row(jest.fn(), { place: 2 });
+    // Read at the click, not when the button was drawn.
+    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c1' } }] };
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledWith('image', expect.any(Function), {
+      channel: 'c1',
+      index: 2,
+    });
+  });
+
+  it('works for the global post when the channel on screen holds no values of its own', async () => {
+    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c2' } }] };
+    await row(jest.fn(), { place: 1 });
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledWith('image', expect.any(Function), {
+      channel: 'global',
+      index: 1,
+    });
+  });
+
+  // research R4: the row's handler changes with the post, so the click's copy
+  // would land the image in the post as it was then.
+  it("lands what it makes through the row's latest handler, not the click's", async () => {
+    const first = jest.fn();
+    const latest = jest.fn();
+    const draw = await row(first);
+    await click(aiButton());
+    await draw(latest);
+
+    target()(done.media);
+
+    expect(latest).toHaveBeenCalledWith(done.media);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('hands the tab no handler once its button is gone, so the stage lands it through the store', async () => {
+    await row(jest.fn());
+    await click(aiButton());
+
+    expect(target()).toBeDefined();
+
+    leave();
+
+    expect(target()).toBeUndefined();
+  });
+});
+
+// The tool in a composer tab reports its request to the stage, which shows
+// the tab's spinner and the previews' placeholder and holds the composer's
+// lock while any tab's request is open (tasks D14); it is watching only while
+// its tab is on screen (contracts/workspace-parts.md §5).
+describe('as a composer tab', () => {
+  it('says the member can keep writing while it works (`composer_leave_note_image`)', async () => {
+    holdRender();
+    await generateInTab();
+    await settle();
+
+    expect(stage()?.textContent).toContain(
+      "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready."
+    );
+    expect(document.body.textContent).not.toContain('close this window');
+  });
+
+  it('reports its request through setLoading alone: true once the credit check passes, false with the result on screen, unused', async () => {
+    const land = holdRender();
+    const { setLoading, onChange } = await generateInTab();
+    await settle();
+
+    expect(setLoading.mock.calls).toEqual([[true]]);
+
+    await land();
+
+    expect(preview()).toBe(done.media.path);
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports nothing for a render the credit check refuses', async () => {
+    request.mockImplementation(refused);
+    const { setLoading } = await generateInTab();
+    await settle();
+
+    expect(setLoading).not.toHaveBeenCalled();
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports false after a failed render', async () => {
+    request.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith('/allowed')
+          ? answer(200, true)
+          : answer(500, { message: 'the renderer fell over' })
+      )
+    );
+    const { setLoading } = await generateInTab();
+    await settle();
+
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports false when the render settles after its tab closed, and hands the image on', async () => {
+    const land = holdRender();
+    const { setLoading, onChange } = await generateInTab();
+    await settle();
+    leave();
+    await land();
+
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('hands the image on, with no result shown, when it lands while another tab is on screen', async () => {
+    const land = holdRender();
+    const { onChange, show } = await generateInTab();
+    await settle();
+    await show(false);
+    await land();
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(preview()).toBeUndefined();
+  });
+
+  it('shows the result, handing nothing on, when it lands on screen', async () => {
+    const land = holdRender();
+    const { onChange, show } = await generateInTab();
+    await settle();
+    await show(false);
+    await show(true);
+    await land();
+
+    expect(preview()).toBe(done.media.path);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // Outside the composer no host passes `active`: the page and the windows
+  // watch while they are mounted, as before.
+  it('shows the result outside the composer, with no `active`, as before', async () => {
+    const land = holdRender();
+    const onChange = jest.fn();
+    await generateOnPage({ onChange });
+    await settle();
+    await land();
+
+    expect(preview()).toBe(done.media.path);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+// Spec 061 (FR-021a; tasks D14): no tool writes the composer's lock any more.
+// In the composer the stage holds it while any tab's request is open (one
+// image and one video can render at once); the Studio page, the windows Samy
+// and a reference row open, and a tab never take it.
+describe("the composer's lock", () => {
   it('is never taken on the Studio page, before, during or after a result', async () => {
     const land = holdRender();
     await openPage();
@@ -3332,45 +3599,40 @@ describe("the composer's lock", () => {
     expect(setLocked).not.toHaveBeenCalled();
   });
 
-  it('is taken from the request by a window for the post, and given back when the image is used', async () => {
+  it('is never taken by a window for the post outside the composer, as Samy opens it, through Use image', async () => {
     const land = holdRender();
     await generate();
     await settle();
 
-    expect(setLocked).toHaveBeenCalledTimes(1);
-    expect(setLocked).toHaveBeenCalledWith(true);
+    expect(setLocked).not.toHaveBeenCalled();
 
     await land();
     await click(button('Use image'));
 
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
-  it('is given back when a window for the post closes with nothing in flight', async () => {
+  it('is never taken by a window for the post closed with its result unused', async () => {
     renders(done);
     await generate();
 
-    expect(setLocked).toHaveBeenLastCalledWith(true);
+    expect(preview()).toBe(done.media.path);
 
     act(() => {
       closeEveryModal?.();
     });
 
-    expect(setLocked).toHaveBeenLastCalledWith(false);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
-  // Samy's AI Image is for a post no composer holds (tasks D13).
-  it('is never taken by an AI Image told not to lock the composer, as Samy opens it', async () => {
-    renders(done);
-    await mount(
-      <AiImage value="" onChange={jest.fn()} locksComposer={false} />
-    );
-    await click(document.querySelector('.bg-aiSoft'));
-    await type(promptField(), 'a pomegranate on a table');
-    await click(button('Generate'));
+  it('is never taken by a composer tab, before, during or after a result', async () => {
+    const land = holdRender();
+    await generateInTab();
+    await settle();
 
-    expect(preview()).toBe('https://media/first.png');
+    expect(setLocked).not.toHaveBeenCalled();
 
+    await land();
     await click(button('Use image'));
 
     expect(setLocked).not.toHaveBeenCalled();

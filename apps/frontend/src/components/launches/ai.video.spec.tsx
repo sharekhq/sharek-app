@@ -24,9 +24,25 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
 }));
+// The composer's store: the lock, which no tool writes any more (tasks D14),
+// and, read at a click, the channel on screen and the channels holding values
+// of their own, which say which post an AI button works for (tasks D10).
+let mockComposer: {
+  current: string;
+  internal: Array<{ integration: { id: string } }>;
+} = { current: 'global', internal: [] };
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) =>
-    select({ setLocked, setActivateExitButton: jest.fn() }),
+  useLaunchStore: Object.assign(
+    (select: (state: any) => any) =>
+      select({ setLocked, setActivateExitButton: jest.fn() }),
+    { getState: () => mockComposer }
+  ),
+}));
+// The composer's tabs: none outside the composer, as Studio and a reference
+// row see it; inside it, a case hands its own and reads what the button opens.
+let mockTabs: { open: jest.Mock } | null = null;
+jest.mock('@gitroom/frontend/components/new-launch/composer.stage', () => ({
+  useComposerTabs: () => mockTabs,
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { current: 'STANDARD' }, role: 'ADMIN' }),
@@ -416,6 +432,38 @@ const openWindow = async (
   await click(document.querySelector('[data-testid="card"]'));
 };
 
+/**
+ * The tool in a composer tab (contracts/composer-and-preview.md §4): the
+ * chooser, stacked, for the post, with what the stage hands it; one type
+ * opens straight away. `show` draws it again, on screen or behind another tab.
+ */
+const openTab = async (list = providers.slice(0, 1)) => {
+  mockTabs = { open: jest.fn() };
+  const host = {
+    onChange: jest.fn(),
+    onAccept: jest.fn(),
+    setLoading: jest.fn(),
+  };
+  const root = createRoot(
+    document.body.appendChild(document.createElement('div'))
+  );
+  mounted.push(root);
+  const show = (active: boolean) =>
+    act(async () => {
+      root.render(
+        <AiVideoChooser
+          list={list}
+          layout="stacked"
+          destination="post"
+          active={active}
+          {...host}
+        />
+      );
+    });
+  await show(true);
+  return { ...host, show, leave: () => act(() => root.unmount()) };
+};
+
 // The frame's regions (contracts/workspace-parts.md §1): the stage is the
 // frame's size container, the page's settings panel is 360px wide, and the
 // action bar is the box with the line above it.
@@ -483,6 +531,8 @@ afterEach(() => {
   mockStageContent = null;
   mockVideo = undefined;
   mockOpened.splice(0);
+  mockTabs = null;
+  mockComposer = { current: 'global', internal: [] };
   jest.clearAllMocks();
 });
 
@@ -638,11 +688,12 @@ describe('the note under the waiting screen', () => {
     rendersForever();
   });
 
+  // A video for the post is made in a composer tab only (spec 061 part 3).
   it('promises the post by default', async () => {
     await generate();
 
     expect(document.body.textContent).toContain(
-      "the video will be added to your post when it's ready"
+      "The video is added to your post when it's ready."
     );
   });
 
@@ -1596,9 +1647,244 @@ describe('a render that lands after the tool is gone', () => {
   });
 });
 
-// The composer's lock follows the post, not the tool (tasks D13, FR-021a): a
-// Studio page or a reference image never locks the composer Create a post
-// opens; the composer's own window keeps today's lock.
+// Spec 061 part 3 (FR-021, FR-023; tasks D10): in the composer, AI Video opens
+// its tab beside the post, never a window, for the post its button is under;
+// what it makes lands through that row's latest handler while the button is
+// there. Studio keeps its window.
+describe('in the composer', () => {
+  const aiButton = () => document.querySelector('.bg-aiSoft');
+
+  /**
+   * The composer's ✦ button under one post's media row, in a root of its own:
+   * the returned function draws it again with the row's next handler.
+   */
+  const row = async (
+    onChange: jest.Mock,
+    props: { place?: number; destination?: MediaDestination } = {}
+  ) => {
+    mockTabs = { open: jest.fn() };
+    const root = createRoot(
+      document.body.appendChild(document.createElement('div'))
+    );
+    mounted.push(root);
+    const draw = (handler: jest.Mock) =>
+      act(async () => {
+        root.render(<AiVideo value="" onChange={handler} {...props} />);
+      });
+    await draw(onChange);
+    return { draw, leave: () => act(() => root.unmount()) };
+  };
+
+  /** The handler the tab lands its video through, as the button handed it. */
+  const target = () => mockTabs!.open.mock.calls[0][1]();
+
+  it('opens the AI video tab for the post, never a window', async () => {
+    await row(jest.fn());
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
+    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
+      channel: 'global',
+      index: 0,
+    });
+    expect(mockOpened).toHaveLength(0);
+  });
+
+  it('opens the window as before outside the composer', async () => {
+    await mount(<AiVideo value="" onChange={jest.fn()} />);
+    await click(aiButton());
+
+    expect(mockOpened).toHaveLength(1);
+    expect(document.body.textContent).toContain('Choose a video type');
+  });
+
+  it('opens the window as before for a reference row, in the composer too', async () => {
+    await row(jest.fn(), { destination: 'reference' });
+    await click(aiButton());
+
+    expect(mockTabs!.open).not.toHaveBeenCalled();
+    expect(mockOpened).toHaveLength(1);
+  });
+
+  // The editor's appendImages makes the same choice (tasks D10).
+  it('works for the post its button is under, in the channel on screen when that channel holds its own values', async () => {
+    await row(jest.fn(), { place: 2 });
+    // Read at the click, not when the button was drawn.
+    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c1' } }] };
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
+      channel: 'c1',
+      index: 2,
+    });
+  });
+
+  it('works for the global post when the channel on screen holds no values of its own', async () => {
+    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c2' } }] };
+    await row(jest.fn(), { place: 1 });
+    await click(aiButton());
+
+    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
+      channel: 'global',
+      index: 1,
+    });
+  });
+
+  // research R4: the row's handler changes with the post, so the click's copy
+  // would land the video in the post as it was then.
+  it("lands what it makes through the row's latest handler, not the click's", async () => {
+    const first = jest.fn();
+    const latest = jest.fn();
+    const { draw } = await row(first);
+    await click(aiButton());
+    await draw(latest);
+
+    target()(finished);
+
+    expect(latest).toHaveBeenCalledWith(finished);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('hands the tab no handler once its button is gone, so the stage lands it through the store', async () => {
+    const { leave } = await row(jest.fn());
+    await click(aiButton());
+
+    expect(target()).toBeDefined();
+
+    leave();
+
+    expect(target()).toBeUndefined();
+  });
+});
+
+// The tool in a composer tab reports its request to the stage, which shows
+// the tab's spinner and the previews' placeholder and holds the composer's
+// lock while any tab's request is open (tasks D14); it is watching only while
+// its tab is on screen (contracts/workspace-parts.md §5).
+describe('as a composer tab', () => {
+  const keepWriting =
+    "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready.";
+
+  it('says the member can keep writing while it works (`composer_leave_note_video`)', async () => {
+    rendersForever();
+    await openTab();
+    await pressGenerate();
+
+    expect(stage()!.textContent).toContain(keepWriting);
+    expect(document.body.textContent).not.toContain('close this window');
+  });
+
+  // FR-023: the tab is the window's body beside the post.
+  it("starts with the chooser, then the choice's fields, its progress and Use video", async () => {
+    const land = holdRender();
+    const { onChange, onAccept } = await openTab(providers);
+
+    expect(document.body.textContent).toContain('Choose a video type');
+    expect(buttonStarting('Image Text Slides')).toBeTruthy();
+
+    await click(buttonStarting('Veo 3'));
+
+    expect(byTestId('provider-fields')).toBeTruthy();
+
+    await pressGenerate();
+
+    expect(stage()!.textContent).toContain(keepWriting);
+
+    await land();
+    await click(buttonStarting('Use video'));
+
+    expect(onChange).toHaveBeenCalledWith(finished);
+    expect(onAccept).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports its request through setLoading alone: true once the credit check passes, false with the result on screen, unused', async () => {
+    const land = holdRender();
+    const { setLoading, onChange } = await openTab();
+    await pressGenerate();
+
+    expect(setLoading.mock.calls).toEqual([[true]]);
+
+    await land();
+
+    expect(stageVideo()).toBeTruthy();
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports nothing for a render the credit check refuses', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed') ? refused() : Promise.resolve(answer(200, {}))
+    );
+    const { setLoading } = await openTab();
+    await pressGenerate();
+
+    expect(setLoading).not.toHaveBeenCalled();
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports false after a failed render', async () => {
+    rendersFail();
+    const { setLoading } = await openTab();
+    await pressGenerate();
+    await settle();
+
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('reports false when the render settles after its tab closed, and hands the video on', async () => {
+    const land = holdRender();
+    const { setLoading, onChange, leave } = await openTab();
+    await pressGenerate();
+    leave();
+    await land();
+
+    expect(setLoading.mock.calls).toEqual([[true], [false]]);
+    expect(onChange).toHaveBeenCalledWith(finished);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('hands the video on, with no result shown, when it lands while another tab is on screen', async () => {
+    const land = holdRender();
+    const { onChange, show } = await openTab();
+    await pressGenerate();
+    await show(false);
+    await land();
+
+    expect(onChange).toHaveBeenCalledWith(finished);
+    expect(stageVideo()).toBeFalsy();
+  });
+
+  it('shows the result, handing nothing on, when it lands on screen', async () => {
+    const land = holdRender();
+    const { onChange, show } = await openTab();
+    await pressGenerate();
+    await show(false);
+    await show(true);
+    await land();
+
+    expect(stageVideo()).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // Outside the composer no host passes `active`: the page and the windows
+  // watch while they are mounted, as before.
+  it('shows the result outside the composer, with no `active`, as before', async () => {
+    const land = holdRender();
+    const onChange = jest.fn();
+    await generate({ layout: 'page', destination: 'media', onChange });
+    await land();
+
+    expect(stageVideo()).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+// Spec 061 (FR-021a; tasks D14): no tool writes the composer's lock any more.
+// In the composer the stage holds it while any tab's request is open (one
+// image and one video can render at once); the Studio page, a window and a
+// tab never take it.
 describe("the composer's lock", () => {
   it('is never taken on its page, before, during or after a result', async () => {
     const land = holdRender();
@@ -1632,32 +1918,44 @@ describe("the composer's lock", () => {
     expect(setLocked).not.toHaveBeenCalled();
   });
 
-  it('is taken by a post window from the request until the video is used, as today', async () => {
+  it('is never taken by a post window, from the request to Use video', async () => {
     const onChange = jest.fn();
     renders();
     await openWindow('post', onChange);
-
-    expect(setLocked).not.toHaveBeenCalled();
-
     await pressGenerate();
     await settle();
 
-    expect(setLocked.mock.calls).toEqual([[true]]);
+    expect(setLocked).not.toHaveBeenCalled();
 
     await click(buttonStarting('Use video'));
 
     expect(onChange).toHaveBeenCalledWith(finished);
-    expect(setLocked.mock.calls).toEqual([[true], [false]]);
+    expect(setLocked).not.toHaveBeenCalled();
   });
 
-  it('is given back when a post window closes with nothing in flight, as today', async () => {
+  it('is never taken by a post window closed with its result unused', async () => {
     renders();
     await openWindow('post');
     await pressGenerate();
     await settle();
 
+    expect(stageVideo()).toBeTruthy();
+
     act(() => closeEveryModal?.());
 
-    expect(setLocked.mock.calls).toEqual([[true], [false]]);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('is never taken by a composer tab, before, during or after a result', async () => {
+    const land = holdRender();
+    await openTab();
+    await pressGenerate();
+
+    expect(setLocked).not.toHaveBeenCalled();
+
+    await land();
+    await click(buttonStarting('Use video'));
+
+    expect(setLocked).not.toHaveBeenCalled();
   });
 });
