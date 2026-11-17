@@ -437,6 +437,19 @@ describe('StageSample', () => {
     expect(host.textContent).toContain('Sample');
   });
 
+  // As the Studio card and the switcher do: a broken picture is no sample.
+  it('gives way to the icon when the cover does not load', async () => {
+    const host = await mount(sample());
+
+    await act(async () => {
+      host.querySelector('img')?.dispatchEvent(new Event('error'));
+    });
+
+    expect(host.querySelector('img')).toBeNull();
+    expect(byTestId(host, 'glyph')).not.toBeNull();
+    expect(host.textContent).toContain('Sample');
+  });
+
   it('offers no examples when the tool has none', async () => {
     const host = await mount(sample());
 
