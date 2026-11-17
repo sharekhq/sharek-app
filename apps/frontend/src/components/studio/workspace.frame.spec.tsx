@@ -167,9 +167,12 @@ describe('the page layout', () => {
     expect(tokens(panel)).toEqual(
       expect.arrayContaining(['phone:w-full', 'phone:border-e-0'])
     );
+    // The window scrolls from 1025px down, the side-by-side page included,
+    // so the bar sticks from there, a phone with it (FR-003).
     expect(tokens(bar(host))).toEqual(
-      expect.arrayContaining(['phone:sticky', 'phone:bottom-0'])
+      expect.arrayContaining(['mobile:sticky', 'mobile:bottom-0'])
     );
+    expect(tokens(bar(host))).not.toContain('phone:sticky');
   });
 
   // The page keeps its settings open beside the result; only the phone's
