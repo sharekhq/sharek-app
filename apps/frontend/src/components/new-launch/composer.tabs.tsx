@@ -67,9 +67,7 @@ interface ComposerStageState extends ComposerTabs {
   composerOpen: RefObject<boolean>;
 }
 
-export const ComposerTabsContext = createContext<ComposerStageState | null>(
-  null
-);
+const ComposerTabsContext = createContext<ComposerStageState | null>(null);
 
 /**
  * The composer's tabs: Post preview, and up to one AI image and one AI video
@@ -183,6 +181,13 @@ export const ComposerTabsProvider: FC<{
 /** The composer's tabs, or null outside the composer (Samy, the reference row, Studio). */
 export const useComposerTabs = (): ComposerTabs | null =>
   useContext(ComposerTabsContext);
+
+/**
+ * The stage's view of the tabs, for the strip and the panels the composer
+ * draws inside its provider.
+ */
+export const useComposerStage = (): ComposerStageState =>
+  useContext(ComposerTabsContext)!;
 
 /**
  * What the composer's ✦ AI Image and AI Video buttons do: in the composer, a

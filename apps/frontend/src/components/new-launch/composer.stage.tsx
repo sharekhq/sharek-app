@@ -5,7 +5,6 @@ import {
   ReactNode,
   Ref,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useRef,
@@ -18,7 +17,7 @@ import {
   ComposerTab,
   ComposerTabKind,
   ComposerTabs,
-  ComposerTabsContext,
+  useComposerStage,
 } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
 import { PreviewFit } from '@gitroom/frontend/components/new-launch/preview.fit';
@@ -56,7 +55,7 @@ export const ComposerStage: FC<{
 }> = ({ previewRef, onClose }) => {
   const t = useT();
   const id = useId();
-  const stage = useContext(ComposerTabsContext)!;
+  const stage = useComposerStage();
   const { data: videoTypes } = useAiVideoTypes();
   const names: Record<ComposerTabKind, string> = {
     image: t('studio_tool_ai_image', 'AI image generator'),
@@ -200,7 +199,7 @@ const AiTabPanel: FC<{
 }> = ({ kind, tab, name, shown, tabId, panelId, videoTypes }) => {
   const t = useT();
   const { select, close, addPending, removePending, setBusy, composerOpen } =
-    useContext(ComposerTabsContext)!;
+    useComposerStage();
   // The tab's latest target and place, kept after it closes: its tool's
   // render still settles then, and lands through them, never through a newer
   // tab of its kind (D10).
