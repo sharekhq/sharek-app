@@ -153,6 +153,7 @@ jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
 
 import { StudioToolLayoutComponent } from '@gitroom/frontend/components/new-layout/layout.studio.tool.component';
 import { videoWrapper } from '@gitroom/frontend/components/videos/video.wrapper';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 
 // A video provider that registers itself with a Studio card, as a new one
 // would (SC-004): a model with a maker and a fact.
@@ -327,7 +328,7 @@ describe('the Studio tool page', () => {
     const panel = host.querySelector('form > div > div');
     const head = panel?.firstElementChild;
     expect(head?.textContent).toContain('Stub model');
-    expect(head?.textContent).toContain('by Acme · Video');
+    expect(head?.textContent).toContain(`by ${isolate('Acme')} · Video`);
     expect(head?.textContent).toContain('4K');
     expect(head?.textContent).not.toContain('Orientation');
     const text = panel?.textContent ?? '';
