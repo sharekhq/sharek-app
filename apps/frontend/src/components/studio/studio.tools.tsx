@@ -416,7 +416,8 @@ export const studioToolHref = (entry: StudioToolEntry): string | undefined =>
 
 /**
  * The catalog the Studio page and a tool page are built from, so both list,
- * lock and address the same tools. Loading until the provider list arrives.
+ * lock and address the same tools. Loading while the provider list loads; a
+ * list that failed counts as empty, so the fixed tools still open.
  */
 export const useStudioCatalog = (): {
   catalog: StudioCatalog;
@@ -424,7 +425,7 @@ export const useStudioCatalog = (): {
 } => {
   const user = useUser();
   const { billingEnabled, showImageEditor } = useVariables();
-  const { data: videoOptions } = useAiVideoTypes();
+  const { data: videoOptions, isLoading } = useAiVideoTypes();
   const catalog = useMemo(
     () =>
       buildStudioCatalog({
@@ -436,5 +437,5 @@ export const useStudioCatalog = (): {
       }),
     [videoOptions, user, billingEnabled, showImageEditor]
   );
-  return { catalog, loading: !videoOptions };
+  return { catalog, loading: isLoading };
 };
