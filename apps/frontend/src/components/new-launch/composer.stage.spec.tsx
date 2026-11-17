@@ -685,6 +685,22 @@ describe('the composer’s lock', () => {
     expect(tab(IMAGE)).toBeTruthy();
     expect(useLaunchStore.getState().locked).toBe(false);
   });
+
+  // A start while the tool's request is open replaces its entry, so none is
+  // left behind holding the lock and the placeholder (review C5).
+  it('is given back when a render started twice settles, its first entry replaced', async () => {
+    await render();
+    await open('image');
+    await loading(mockTools.props.image, true);
+    await loading(mockTools.props.image, true);
+
+    expect(tabs!.pending).toHaveLength(1);
+
+    await loading(mockTools.props.image, false);
+    expect(tabs!.pending).toEqual([]);
+    expect(useLaunchStore.getState().locked).toBe(false);
+    expect(tab(IMAGE)!.getAttribute('aria-busy')).not.toBe('true');
+  });
 });
 
 describe('the context', () => {
