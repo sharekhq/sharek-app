@@ -1200,6 +1200,42 @@ describe('the stage', () => {
     expect(video.hasAttribute('playsinline')).toBe(true);
     expect(stage()!.textContent).toContain('Saved to your Media library');
   });
+
+  // FR-015: on its page a phone lets the stage grow with the video, at the
+  // full width in its own shape, the page scrolling on to its actions and
+  // versions; the sample and the wait keep the stage's fixed height.
+  const FIXED = 'phone:h-[clamp(240px,45dvh,440px)]';
+
+  it('on its page lets the stage grow with the video on a phone, from the sample', async () => {
+    renders();
+    await open({ layout: 'page', destination: 'media' });
+
+    expect(tokens(stage())).toContain(FIXED);
+
+    await pressGenerate();
+    await settle();
+
+    expect(tokens(stage())).not.toContain(FIXED);
+    expect(tokens(stage())).toContain('phone:[container-type:normal]');
+    expect(tokens(stageVideo())).toContain('phone:!w-full');
+  });
+
+  it('on its page keeps the stage at its fixed height on a phone while the video is made', async () => {
+    rendersForever();
+    await generate({ layout: 'page', destination: 'media' });
+
+    expect(stage()!.textContent).toContain('Creating your video…');
+    expect(tokens(stage())).toContain(FIXED);
+  });
+
+  it("keeps a window's video to the stage's fixed height", async () => {
+    renders();
+    await generate();
+    await settle();
+
+    expect(tokens(stage())).toContain('h-[clamp(240px,45dvh,440px)]');
+    expect(tokens(stageVideo())).not.toContain('phone:!w-full');
+  });
 });
 
 // This visit's results, one version per render (FR-008, data-model §3).

@@ -205,6 +205,34 @@ describe('the page layout', () => {
     );
   });
 
+  // FR-015: on a phone the page scrolls, so a result takes the room it needs
+  // and the page follows it down to its actions, versions and edit bar; the
+  // sample and the wait keep the stage's fixed height. A size container is
+  // as tall as it is told, so the stage stops being one where it grows.
+  it('lets the stage grow with a result on a phone, where the sample and the wait keep its fixed height', async () => {
+    const waiting = await mount(frame());
+    const showing = await mount(frame({ result: true }));
+    const stageOf = (host: HTMLElement) => host.firstElementChild!.children[1];
+
+    expect(tokens(stageOf(waiting))).toContain(
+      'phone:h-[clamp(240px,45dvh,440px)]'
+    );
+    expect(tokens(stageOf(waiting))).not.toContain(
+      'phone:[container-type:normal]'
+    );
+    expect(tokens(stageOf(showing))).not.toContain(
+      'phone:h-[clamp(240px,45dvh,440px)]'
+    );
+    expect(tokens(stageOf(showing))).toEqual(
+      expect.arrayContaining([
+        '[container-type:size]',
+        'phone:[container-type:normal]',
+        'phone:order-first',
+        'phone:flex-none',
+      ])
+    );
+  });
+
   // The page keeps its settings open beside the result; only the phone's
   // stacked page folds them.
   it('folds the settings only on a phone', async () => {
@@ -249,6 +277,15 @@ describe('the stacked layout', () => {
         'bg-surface',
       ])
     );
+  });
+
+  // A window's result and its bar share the window (FR-016a).
+  it('keeps the stage at its fixed height with a result', async () => {
+    const host = await mount(frame({ layout: 'stacked', result: true }));
+    const stage = byTestId(host, 'stage')!.parentElement;
+
+    expect(tokens(stage)).toContain('h-[clamp(240px,45dvh,440px)]');
+    expect(tokens(stage)).not.toContain('phone:[container-type:normal]');
   });
 
   it('shows the settings and no Settings row before a result', async () => {
@@ -602,6 +639,7 @@ describe('StageProgress', () => {
 describe('StageResult', () => {
   const result = (props: Partial<Parameters<typeof StageResult>[0]> = {}) => (
     <StageResult
+      layout="stacked"
       media={{ path: 'https://cdn.example/lemonade.png' }}
       kind="image"
       ratio={1}
@@ -652,6 +690,39 @@ describe('StageResult', () => {
     expect(video.hasAttribute('controls')).toBe(true);
     expect(video.hasAttribute('playsinline')).toBe(true);
     expect(parseFloat(video.style.aspectRatio)).toBeCloseTo(16 / 9, 5);
+  });
+
+  // FR-015: on a phone the page's stage grows with the result, so the
+  // picture leaves its room's size container, which would fold to nothing at
+  // its natural height, and takes the full width in its own shape; the page
+  // scrolls on to the actions, the versions and the edit bar.
+  it('on the page draws an image and a video at the full width in their own shape on a phone', async () => {
+    const image = await mount(result({ layout: 'page' }));
+    const video = await mount(result({ layout: 'page', kind: 'video' }));
+
+    [
+      image.querySelector('a[target="_blank"]'),
+      video.querySelector('video'),
+    ].forEach((picture) => {
+      expect(tokens(picture)).toContain('phone:!w-full');
+      expect(tokens(picture!.parentElement)).toEqual(
+        expect.arrayContaining([
+          '[container-type:size]',
+          'phone:[container-type:normal]',
+        ])
+      );
+    });
+  });
+
+  // A window's stage keeps its fixed height, so the picture keeps to its room.
+  it('in a window keeps the picture to its room on a phone', async () => {
+    const host = await mount(result());
+    const link = host.querySelector('a[target="_blank"]');
+
+    expect(tokens(link)).not.toContain('phone:!w-full');
+    expect(tokens(link!.parentElement)).not.toContain(
+      'phone:[container-type:normal]'
+    );
   });
 
   it('says it is saved and holds the caption, the actions, the versions and what goes below', async () => {

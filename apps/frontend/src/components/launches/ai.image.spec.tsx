@@ -3226,6 +3226,53 @@ describe('the stage', () => {
     expect(!!apply() && inStage(apply()!)).toBe(true);
     expect(apply()?.textContent).toContain('1 credit');
   });
+
+  // FR-015: on its page a phone lets the stage grow with the result, the
+  // picture at the full width in its own shape and the page scrolling on to
+  // its actions, versions and edit bar; the sample and the wait keep the
+  // stage's fixed height.
+  const FIXED = 'phone:h-[clamp(240px,45dvh,440px)]';
+  const resultLink = () =>
+    document.querySelector('a[aria-label="Open the image full size"]');
+
+  it('on its page lets the stage grow with the result on a phone, from the sample', async () => {
+    renders(done);
+    await openPage();
+
+    expect(stage()?.classList.contains(FIXED)).toBe(true);
+
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+
+    expect(stage()?.classList.contains(FIXED)).toBe(false);
+    expect(stage()?.classList.contains('phone:[container-type:normal]')).toBe(
+      true
+    );
+    expect(resultLink()?.classList.contains('phone:!w-full')).toBe(true);
+  });
+
+  it('on its page keeps the stage at its fixed height on a phone while the image is made', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+    await generateOnPage();
+    await settle();
+
+    expect(stage()?.textContent).toContain('Creating your image…');
+    expect(stage()?.classList.contains(FIXED)).toBe(true);
+  });
+
+  it("keeps a window's result to the stage's fixed height", async () => {
+    renders(done);
+    await generate();
+
+    expect(stage()?.classList.contains('h-[clamp(240px,45dvh,440px)]')).toBe(
+      true
+    );
+    expect(resultLink()?.classList.contains('phone:!w-full')).toBe(false);
+  });
 });
 
 // Spec 061 (FR-021a; tasks D13): the composer's guard is the post's. A window
