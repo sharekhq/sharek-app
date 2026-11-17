@@ -444,21 +444,18 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
         </div>
       )}
 
-      {/* Until there is a script, the stage shows where it will appear. The
-          slot is a plain box, so the sample is given its height. */}
+      {/* Until there is a script, the stage shows where it will appear. */}
       {!!stageSlot &&
         createPortal(
-          <div className="h-full flex flex-col">
-            <StageSample
-              cover={SLIDES_COVER}
-              icon={SlidesDiagram}
-              title={t('slides_empty_title', 'Your script appears here')}
-              body={t(
-                'slides_empty_body',
-                'Press Continue and Sharek writes a script, slide by slide. You edit it here before anything is charged.'
-              )}
-            />
-          </div>,
+          <StageSample
+            cover={SLIDES_COVER}
+            icon={SlidesDiagram}
+            title={t('slides_empty_title', 'Your script appears here')}
+            body={t(
+              'slides_empty_body',
+              'Press Continue and Sharek writes a script, slide by slide. You edit it here before anything is charged.'
+            )}
+          />,
           stageSlot
         )}
 

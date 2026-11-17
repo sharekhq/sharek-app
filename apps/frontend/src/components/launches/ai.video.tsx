@@ -800,7 +800,7 @@ export const AiVideoTool: FC<
           ref={watchStageSlot}
           className={clsx(
             'w-full',
-            stageFilled && 'flex-1 min-h-0 overflow-y-auto'
+            stageFilled && 'flex-1 min-h-0 overflow-y-auto flex flex-col'
           )}
         />
         {!stageFilled && (
