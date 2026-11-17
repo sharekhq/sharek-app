@@ -20,8 +20,28 @@ import {
 } from '@gitroom/frontend/components/ui/icons';
 import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { CHIP, CHIP_IDLE } from '@gitroom/frontend/components/ui/pick.controls';
+import { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 
 export type WorkspaceLayout = 'page' | 'stacked';
+
+/** The props every host passes a tool body on the frame (contracts/workspace-parts.md §5). */
+export interface WorkspaceToolProps {
+  layout: WorkspaceLayout;
+  destination: MediaDestination;
+  /** Called with the media in every place today's onChange is called: accept, and the unwatched path. */
+  onChange: (media: { id: string; path: string }) => void;
+  /** The host's accept: window → close, tab → close the tab. Absent on the Studio page. */
+  onAccept?: () => void;
+  /** true while a render's request is open (today's setLoading). */
+  setLoading?: (loading: boolean) => void;
+  /** Composer tab only: false while another tab is on screen. Default true. */
+  active?: boolean;
+  locked?: boolean;
+  /** The Studio tool page's Create a post, only when the workspace has a channel. */
+  onCreatePost?: (media: { id: string; path: string }) => void;
+  /** Whether a render takes the composer's lock (FR-021a). Default `destination === 'post'`; Samy's AI Image passes false. */
+  locksComposer?: boolean;
+}
 
 export interface WorkspaceFrameProps {
   layout: WorkspaceLayout;
