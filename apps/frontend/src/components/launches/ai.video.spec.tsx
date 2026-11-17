@@ -1435,6 +1435,50 @@ describe('a render that lands after the tool is gone', () => {
 
     expect(onChange).toHaveBeenCalledWith(finished);
   });
+
+  /** Makes a video, then a second render that fails once the host is gone. */
+  const failAfterLeaving = async (host: Host) => {
+    renders();
+    const root = await generate(host);
+    await settle();
+    let fail: () => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            fail = () =>
+              resolve(answer(500, { message: 'the renderer fell over' }));
+          })
+    );
+
+    await click(mainButton());
+    await settle();
+    act(() => root.unmount());
+    await act(async () => fail());
+    await settle();
+  };
+
+  // On the page onChange raises the ready notice, and the Media library
+  // already holds the earlier video: handing it back would announce it as new.
+  it('announces nothing when the page was left and the next render failed', async () => {
+    const onChange = jest.fn();
+    await failAfterLeaving({ layout: 'page', destination: 'media', onChange });
+
+    expect(posted('/media/generate-video')).toHaveLength(2);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // The post or the reference row was promised a video, and the one on
+  // screen is paid for.
+  it('attaches the video on screen when its window was closed and the next render failed', async () => {
+    for (const destination of ['post', 'reference'] as const) {
+      const onChange = jest.fn();
+      await failAfterLeaving({ destination, onChange });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(finished);
+    }
+  });
 });
 
 // The composer's lock follows the post, not the tool (tasks D13, FR-021a): a
