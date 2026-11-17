@@ -52,11 +52,11 @@ const Provider = withProvider({
 
 // What a channel's preview and its settings are given as its posts.
 const seen: { preview?: unknown; settings?: unknown } = {};
-const PreviewProbe = () => {
+const PreviewProbe = (): null => {
   seen.preview = useIntegration().value;
   return null;
 };
-const SettingsProbe = () => {
+const SettingsProbe = (): null => {
   seen.settings = useIntegration().value;
   return null;
 };

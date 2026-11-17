@@ -95,7 +95,7 @@ const second: PreviewPlace = { channel: 'int-1', index: 1 };
 
 // What a trigger reads through the context, from a child of the provider.
 let tabs: ComposerTabs | null;
-const Probe = () => {
+const Probe = (): null => {
   tabs = useComposerTabs();
   return null;
 };
