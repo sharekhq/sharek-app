@@ -118,4 +118,20 @@ describe('Title', () => {
 
     expect(render()()).toBe('الإطلاقات');
   });
+
+  // A Studio tool page portals its tool switcher into this slot (spec 061); on
+  // every other page it stays empty, and display: contents gives it no box.
+  it.each(['/launches', '/brands', '/studio/ai-image'])(
+    'keeps an empty top bar slot right after the heading on %s',
+    (path) => {
+      route.path = path;
+      render();
+
+      const slot = document.querySelector('h1')?.nextElementSibling;
+      expect(slot?.tagName).toBe('SPAN');
+      expect(slot?.id).toBe('top-bar-slot');
+      expect(slot?.className).toBe('contents');
+      expect(slot?.childNodes).toHaveLength(0);
+    }
+  );
 });
