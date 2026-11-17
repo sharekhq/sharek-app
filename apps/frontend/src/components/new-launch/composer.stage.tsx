@@ -208,11 +208,19 @@ const AiTabPanel: FC<{
   videoTypes: VideoType[];
 }> = ({ kind, tab, name, shown, tabId, panelId, videoTypes }) => {
   const t = useT();
-  const { select, close, addPending, removePending, setBusy, composerOpen } =
-    useComposerStage();
+  const {
+    select,
+    close,
+    addPending,
+    removePending,
+    setBusy,
+    composerOpen,
+    rendering,
+  } = useComposerStage();
   // The tab's latest target and place, kept after it closes: its tool's
   // render still settles then, and lands through them, never through a newer
-  // tab of its kind (D10).
+  // tab of its kind (D10). While it renders, the provider moves them with
+  // the post when the editor deletes or moves one (review C7).
   const latest = useRef(tab);
   useEffect(() => {
     latest.current = tab;
@@ -239,38 +247,43 @@ const AiTabPanel: FC<{
 
   // The tool's request: a pending entry where the render was started, for
   // the previews' placeholder and the composer's lock, until it settles,
-  // whether the tab is still open or not (D10, D14). A start while one is
-  // open replaces its entry (review C5).
+  // whether the tab is still open or not (D10, D14); none once the editor
+  // deleted the tab's post (review C7). A start while one is open replaces
+  // its entry (review C5).
   const setLoading = useCallback(
     (loading: boolean) => {
       if (render.current) {
         removePending(render.current);
+        rendering.current.delete(latest);
         render.current = undefined;
       }
-      if (loading) {
+      const { place } = latest.current;
+      if (loading && place) {
         render.current = makeId(10);
-        addPending({ id: render.current, kind, place: latest.current.place });
+        addPending({ id: render.current, kind, place });
+        rendering.current.add(latest);
       }
       if (mounted.current) {
         setBusy(kind, loading);
       }
     },
-    [addPending, removePending, setBusy, kind]
+    [addPending, removePending, setBusy, rendering, kind]
   );
 
   // The media row's latest handler while its button is there, which also
   // puts an image in the text of a row in inline-images mode; once the button
   // is gone, appended at the post's place through the store, which reads the
   // latest state (D10); once the composer has closed, in no post: the store
-  // then holds the next composer's (research R1, review C3). The tab closes,
-  // and the selection moves to Post preview only if it was on screen.
+  // then holds the next composer's (research R1, review C3), nor once the
+  // editor deleted the post (review C7). The tab closes, and the selection
+  // moves to Post preview only if it was on screen.
   const land = useCallback(
     (media: { id: string; path: string }) => {
       const { target, place } = latest.current;
       const handler = target();
       if (handler) {
         handler(media);
-      } else if (composerOpen.current) {
+      } else if (composerOpen.current && place) {
         const store = useLaunchStore.getState();
         if (place.channel === 'global') {
           store.appendGlobalValueMedia(place.index, [media]);
