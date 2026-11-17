@@ -14,7 +14,7 @@ export const Title = () => {
   return (
     <>
       <h1 className="truncate">{currentTitle}</h1>
-      <span id="top-bar-slot" className="contents" />
+      <div id="top-bar-slot" className="contents" />
     </>
   );
 };
