@@ -179,6 +179,10 @@ export const AiVideoTool: FC<
   const setLocked = useLaunchStore((state) => state.setLocked);
   const form = useForm();
   const [position, setPosition] = useState<VideoOrientationId>('vertical');
+  // The shape of the render under way, which its waiting box draws: the shape
+  // picked stays editable beside it, for the next render.
+  const [makingShape, setMakingShape] =
+    useState<VideoOrientationId>('vertical');
   const toaster = useToaster();
 
   const [phase, setPhase] = useState<VideoPhase>('setup');
@@ -322,6 +326,7 @@ export const AiVideoTool: FC<
   const startRender = useCallback(
     (next: RenderHandshake) => {
       making.current = chosen.current;
+      setMakingShape(chosen.current);
       setHandshake(next);
       setProgress(null);
       setPhase('rendering');
@@ -716,7 +721,7 @@ export const AiVideoTool: FC<
   const stage =
     phase === 'rendering' ? (
       <StageProgress
-        ratio={orientationRatio(position)}
+        ratio={orientationRatio(makingShape)}
         title={t('creating_your_video', 'Creating your video…')}
         detail={t('video_render_minutes', 'Usually takes a few minutes')}
         elapsed={
