@@ -1,8 +1,9 @@
 // 061 — the Studio workspace, the composer frame and the Post preview fit, in
 // three parts. Part 1 fits Post preview's phone-width preview into its column
-// (new-launch/preview.fit.tsx) and gives Instagram's slider a box of its
-// first slide's shape (new-launch/providers/instagram/instagram.preview.tsx);
-// part 2 puts Studio's tools on the workspace frame; part 3 puts AI Image and
+// (new-launch/preview.fit.tsx), gives Instagram's slider a box of its
+// first slide's shape (new-launch/providers/instagram/instagram.preview.tsx)
+// and fits TikTok's phone frame beside its icons
+// (new-launch/providers/tiktok/tiktok.preview.tsx); part 2 puts Studio's tools on the workspace frame; part 3 puts AI Image and
 // AI Video beside the post in the composer's frame. A variant or arbitrary
 // value that Tailwind can't use emits nothing and the page just doesn't
 // change, so this file asserts what Tailwind emitted for each of them, with the
@@ -129,6 +130,22 @@ describe('Part 1: the preview fit', () => {
     assert.ok(
       ltr.index < rtl[0].index,
       'rtl:origin-top-right is emitted before origin-top-left'
+    );
+  });
+
+  test("TikTok's phone frame and icon column take the largest 9:16 height that leaves the icons their room, outside any query", async () => {
+    // The preview's root is a size container, so 100cqw and 100cqh are its
+    // content box for the frame and the icon column inside it. 47px is the
+    // column's ml-[18px] and its 29px icons. calc() needs the spaces around
+    // the -, and Tailwind writes them.
+    await assertEmits(
+      {
+        '[container-type:size]': [['container-type', 'size']],
+        'h-[min(100cqh,(100cqw-47px)*16/9)]': [
+          ['height', 'min(100cqh,(100cqw - 47px) * 16 / 9)'],
+        ],
+      },
+      null
     );
   });
 });
