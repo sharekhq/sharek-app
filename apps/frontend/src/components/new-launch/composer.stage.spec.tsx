@@ -548,6 +548,30 @@ describe('a result', () => {
     expect(own.integrationValue[0].media).toEqual([]);
     expect(other.integrationValue).toEqual(value());
   });
+
+  // research R1: once the composer has closed, the result is only in the
+  // Media library; the store then holds the next composer's post (review C3).
+  it('lands in no post once the composer has closed, not in the next composer’s', async () => {
+    await render();
+    await open('image', () => undefined, 1);
+    const tool = mockTools.props.image;
+    await loading(tool, true);
+    // the composer closes, its store is reset and another post is opened
+    await act(async () => {
+      root.render(null);
+    });
+    const next = () => [
+      { id: 'n0', content: '', delay: 0, media: [] },
+      { id: 'n1', content: '', delay: 0, media: [] },
+    ];
+    act(() => {
+      useLaunchStore.getState().reset();
+      useLaunchStore.setState({ global: next() });
+    });
+    await lands(tool);
+
+    expect(useLaunchStore.getState().global).toEqual(next());
+  });
 });
 
 // Each AI panel hosts its tool in the stacked layout, for the post; Post
