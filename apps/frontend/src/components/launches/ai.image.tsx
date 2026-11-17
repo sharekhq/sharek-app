@@ -13,7 +13,6 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { Textarea } from '@gitroom/react/form/textarea';
@@ -1026,22 +1025,15 @@ export const AiImage: FC<{
   }, [loading, onChange, destination]);
 
   // In the composer the post's image is made in a tab beside it, for the post
-  // this button is under: the channel on screen when it holds its own values,
-  // as the editor's appendImages chooses (FR-021, tasks D10). A trigger of its
-  // own (a Studio card, Samy's button) is never in the composer: it keeps the
-  // window.
+  // this button is under, whose channel the stage reads at the click (FR-021,
+  // tasks D10). A trigger of its own (a Studio card, Samy's button) is never
+  // in the composer: it keeps the window.
   const open = () => {
     if (!tabs || destination !== 'post') {
       openImageModal();
       return;
     }
-    const { current, internal } = useLaunchStore.getState();
-    tabs.open('image', () => latestOnChange.current, {
-      channel: internal.some((entry) => entry.integration.id === current)
-        ? current
-        : 'global',
-      index: place,
-    });
+    tabs.open('image', () => latestOnChange.current, place);
   };
 
   if (renderTrigger) {

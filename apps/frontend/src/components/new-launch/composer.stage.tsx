@@ -67,11 +67,11 @@ export interface ComposerTabs {
   tabs: Partial<Record<ComposerTabKind, ComposerTab>>;
   active: 'preview' | ComposerTabKind;
   pending: PendingMedia[];
-  /** One of each (FR-021): selects an open tab of that kind, which takes this target and place when idle; a busy one keeps its own. */
+  /** One of each (FR-021): selects an open tab of that kind, which takes this target and the post at `index` when idle; a busy one keeps its own. */
   open(
     kind: ComposerTabKind,
     target: ComposerTab['target'],
-    place: PreviewPlace
+    index: number
   ): void;
   /** Selects Post preview only when that tab was on screen; a running render keeps its pending entry until it settles (FR-025). */
   close(kind: ComposerTabKind): void;
@@ -104,7 +104,18 @@ export const ComposerTabsProvider: FC<{
   const [pending, setPending] = useState<PendingMedia[]>([]);
   const setLocked = useLaunchStore((state) => state.setLocked);
 
-  const open = useCallback<ComposerTabs['open']>((kind, target, place) => {
+  // The post a button works for, read at the click: the channel on screen
+  // when it holds its own values, as the editor's appendImages chooses (D10).
+  const open = useCallback<ComposerTabs['open']>((kind, target, index) => {
+    const state = useLaunchStore.getState();
+    const place = {
+      channel: state.internal.some(
+        (entry) => entry.integration.id === state.current
+      )
+        ? state.current
+        : 'global',
+      index,
+    };
     setTabs((current) => ({
       ...current,
       [kind]: current[kind]?.busy

@@ -166,10 +166,21 @@ const buttonNamed = (name: string, scope: ParentNode = host) =>
 const open = async (
   kind: 'image' | 'video',
   target: () => ((m: typeof media) => void) | undefined = () => undefined,
-  place: PreviewPlace = first
+  index = 0
 ) => {
   await act(async () => {
-    tabs!.open(kind, target, place);
+    tabs!.open(kind, target, index);
+  });
+};
+// The composer's store as a button press finds it: the channel on screen, and
+// the channels holding values of their own (tasks D10).
+const composing = (current: string, own: string[] = [current]) => {
+  useLaunchStore.setState({
+    current,
+    internal: own.map((id) => ({
+      integration: { id } as any,
+      integrationValue: [],
+    })),
   });
 };
 const click = async (element: HTMLElement) => {
@@ -284,7 +295,8 @@ describe('the tab strip', () => {
 
   it('shows a spinner on a working tab, busy with its name unchanged, while its tool holds a pending entry at its place', async () => {
     await render();
-    await open('image', undefined, second);
+    composing('int-1');
+    await open('image', undefined, 1);
     await loading(mockTools.props.image, true);
 
     const working = tab(IMAGE)!;
@@ -324,14 +336,36 @@ describe('the tab strip', () => {
 // it. An idle tab takes the button's target and place, so pressing AI Image
 // under another post sends Use image there; a busy one keeps where its render
 // started (tasks D10).
+// The post a button works for, read at the click (FR-024; tasks D10): the
+// editor's appendImages makes the same choice.
+describe('the post a tab works for', () => {
+  it('works for the post its button is under, in the channel on screen when that channel holds its own values', async () => {
+    await render();
+    // Read at the click, not when the composer was drawn.
+    composing('c1');
+    await open('image', undefined, 2);
+
+    expect(tabs!.tabs.image!.place).toEqual({ channel: 'c1', index: 2 });
+  });
+
+  it('works for the global post when the channel on screen holds no values of its own', async () => {
+    composing('c1', ['c2']);
+    await render();
+    await open('video', undefined, 1);
+
+    expect(tabs!.tabs.video!.place).toEqual({ channel: 'global', index: 1 });
+  });
+});
+
 describe('one tab of each kind', () => {
   it('selects the open tab, which, idle, takes the new target and place', async () => {
     const before = jest.fn();
     const after = jest.fn();
     await render();
-    await open('image', () => before, first);
+    await open('image', () => before);
     await click(tab('Post preview')!);
-    await open('image', () => after, second);
+    composing('int-1');
+    await open('image', () => after, 1);
 
     expect(tabsShown().map(label)).toEqual(['Post preview', IMAGE]);
     expect(selected()).toEqual([IMAGE]);
@@ -349,10 +383,11 @@ describe('one tab of each kind', () => {
     const before = jest.fn();
     const after = jest.fn();
     await render();
-    await open('image', () => before, first);
+    await open('image', () => before);
     await loading(mockTools.props.image, true);
     await click(tab('Post preview')!);
-    await open('image', () => after, second);
+    composing('int-1');
+    await open('image', () => after, 1);
 
     expect(selected()).toEqual([IMAGE]);
     expect(tabs!.pending.map((entry) => entry.place)).toEqual([first]);
@@ -430,11 +465,12 @@ describe('a result', () => {
     const before = jest.fn();
     const after = jest.fn();
     await render();
-    await open('image', () => before, first);
+    await open('image', () => before);
     const closed = mockTools.props.image;
     await loading(closed, true);
     await click(buttonNamed(`Close ${IMAGE}`, strip())!);
-    await open('image', () => after, second);
+    composing('int-1');
+    await open('image', () => after, 1);
     const newer = mockTools.props.image;
     await loading(newer, true);
 
@@ -458,7 +494,7 @@ describe('a result', () => {
       ],
     });
     await render();
-    await open('image', () => handler, { channel: 'global', index: 1 });
+    await open('image', () => handler, 1);
     await loading(mockTools.props.image, true);
     // the button unmounts, and the post's media change while it works
     const gone = handler;
@@ -483,13 +519,14 @@ describe('a result', () => {
       { id: 'v1', content: '', delay: 0, media: [{ id: 'a', path: 'a' }] },
     ];
     useLaunchStore.setState({
+      current: 'int-1',
       internal: [
         { integration: { id: 'int-1' } as any, integrationValue: value() },
         { integration: { id: 'int-2' } as any, integrationValue: value() },
       ],
     });
     await render();
-    await open('image', () => undefined, second);
+    await open('image', () => undefined, 1);
     await loading(mockTools.props.image, true);
     act(() => {
       useLaunchStore

@@ -14,7 +14,6 @@ import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import useSWR from 'swr';
 import {
   VideoWrapper,
@@ -983,21 +982,15 @@ export const AiVideo: FC<{
   }, [loading, list, onChange, only, destination]);
 
   // In the composer the post's video is made in a tab beside it, for the post
-  // this button is under: the channel on screen when it holds its own values,
-  // as the editor's appendImages chooses (FR-021, tasks D10). A trigger of its
-  // own (a Studio card) is never in the composer: it keeps the window.
+  // this button is under, whose channel the stage reads at the click (FR-021,
+  // tasks D10). A trigger of its own (a Studio card) is never in the
+  // composer: it keeps the window.
   const open = () => {
     if (!tabs || destination !== 'post') {
       openVideoModal();
       return;
     }
-    const { current, internal } = useLaunchStore.getState();
-    tabs.open('video', () => latestOnChange.current, {
-      channel: internal.some((entry) => entry.integration.id === current)
-        ? current
-        : 'global',
-      index: place,
-    });
+    tabs.open('video', () => latestOnChange.current, place);
   };
 
   if (isLoading || list?.length === 0) {

@@ -24,19 +24,10 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
 jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
   useFetch: () => request,
 }));
-// The composer's store: the lock, which no tool writes any more (tasks D14),
-// and, read at a click, the channel on screen and the channels holding values
-// of their own, which say which post an AI button works for (tasks D10).
-let mockComposer: {
-  current: string;
-  internal: Array<{ integration: { id: string } }>;
-} = { current: 'global', internal: [] };
+// The composer's store: the lock, which no tool writes any more (tasks D14).
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: Object.assign(
-    (select: (state: any) => any) =>
-      select({ setLocked, setActivateExitButton: jest.fn() }),
-    { getState: () => mockComposer }
-  ),
+  useLaunchStore: (select: (state: any) => any) =>
+    select({ setLocked, setActivateExitButton: jest.fn() }),
 }));
 // The composer's tabs: none outside the composer, as Studio and a reference
 // row see it; inside it, a case hands its own and reads what the button opens.
@@ -532,7 +523,6 @@ afterEach(() => {
   mockVideo = undefined;
   mockOpened.splice(0);
   mockTabs = null;
-  mockComposer = { current: 'global', internal: [] };
   jest.clearAllMocks();
 });
 
@@ -1683,10 +1673,11 @@ describe('in the composer', () => {
     await click(aiButton());
 
     expect(mockTabs!.open).toHaveBeenCalledTimes(1);
-    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
-      channel: 'global',
-      index: 0,
-    });
+    expect(mockTabs!.open).toHaveBeenCalledWith(
+      'video',
+      expect.any(Function),
+      0
+    );
     expect(mockOpened).toHaveLength(0);
   });
 
@@ -1706,28 +1697,16 @@ describe('in the composer', () => {
     expect(mockOpened).toHaveLength(1);
   });
 
-  // The editor's appendImages makes the same choice (tasks D10).
-  it('works for the post its button is under, in the channel on screen when that channel holds its own values', async () => {
+  // The stage reads the post's channel at the click (tasks D10).
+  it('hands the tab the index of the post its button is under', async () => {
     await row(jest.fn(), { place: 2 });
-    // Read at the click, not when the button was drawn.
-    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c1' } }] };
     await click(aiButton());
 
-    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
-      channel: 'c1',
-      index: 2,
-    });
-  });
-
-  it('works for the global post when the channel on screen holds no values of its own', async () => {
-    mockComposer = { current: 'c1', internal: [{ integration: { id: 'c2' } }] };
-    await row(jest.fn(), { place: 1 });
-    await click(aiButton());
-
-    expect(mockTabs!.open).toHaveBeenCalledWith('video', expect.any(Function), {
-      channel: 'global',
-      index: 1,
-    });
+    expect(mockTabs!.open).toHaveBeenCalledWith(
+      'video',
+      expect.any(Function),
+      2
+    );
   });
 
   // research R4: the row's handler changes with the post, so the click's copy
