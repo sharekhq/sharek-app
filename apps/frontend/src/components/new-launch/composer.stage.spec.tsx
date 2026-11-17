@@ -69,6 +69,11 @@ jest.mock('@gitroom/frontend/components/new-launch/preview.fit', () => ({
     <div data-fit>{children}</div>
   ),
 }));
+// The scroll box's overflow check needs a MutationObserver, which this DOM
+// lacks; scenery, as in manage.modal.layout.spec.tsx.
+jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
+  useHasScroll: () => false,
+}));
 
 import {
   ComposerStage,
