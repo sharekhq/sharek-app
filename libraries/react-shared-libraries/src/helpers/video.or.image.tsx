@@ -19,7 +19,7 @@ export const pendingPreviewMedia = (entry: {
 });
 // A component of its own, so only a pending path calls the hook: the public
 // preview page renders VideoOrImage as a server component.
-const PendingMedia: FC<{ kind: PendingKind }> = ({ kind }) => {
+const PendingPlaceholder: FC<{ kind: PendingKind }> = ({ kind }) => {
   const t = useT();
   return (
     <div
@@ -48,7 +48,7 @@ export const VideoOrImage: FC<{
   };
   const pending = isPendingMediaPath(src);
   if (pending) {
-    return <PendingMedia kind={pending} />;
+    return <PendingPlaceholder kind={pending} />;
   }
   if (hasExtension(src, 'mp4')) {
     return (
