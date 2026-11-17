@@ -25,6 +25,7 @@ import {
 import {
   filterStudio,
   StudioCatalog,
+  studioMakerLine,
   StudioTool,
   StudioToolEntry,
   studioToolHref,
@@ -148,12 +149,7 @@ const ToolList: FC<{
       .find((chip) => chip.id === entry.category)
       ?.label(t);
     const line = entry.maker
-      ? t('studio_model_by', 'by {{maker}} · {{category}}', {
-          maker: isolate(entry.maker.name),
-          category,
-          // React escapes the line, so i18next mustn't first
-          interpolation: { escapeValue: false },
-        })
+      ? studioMakerLine(t, entry.maker, category)
       : category ?? '';
     const selected = entry.id === current.entry.id;
     const href = studioToolHref(entry);

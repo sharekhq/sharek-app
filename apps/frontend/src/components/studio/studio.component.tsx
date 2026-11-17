@@ -38,6 +38,7 @@ import {
 import {
   filterStudio,
   StudioChip,
+  studioMakerLine,
   StudioTool,
   studioToolHref,
   useStudioCatalog,
@@ -230,12 +231,7 @@ const StudioCard: FC<{
         </span>
         {maker && (
           <span className="text-[12px] text-muted">
-            {t('studio_model_by', 'by {{maker}} · {{category}}', {
-              maker: isolate(maker.name),
-              category: category?.label(t),
-              // React escapes the line, so i18next mustn't first
-              interpolation: { escapeValue: false },
-            })}
+            {studioMakerLine(t, maker, category?.label(t))}
           </span>
         )}
         <span className="text-[13px] leading-[1.5] text-muted line-clamp-2 min-h-[3em] phone:min-h-0">
