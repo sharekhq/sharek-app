@@ -289,6 +289,24 @@ describe('Part 2: the workspace', () => {
     assert.deepEqual(important, [true], 'phone:!w-full must be !important');
   });
 
+  test("in a window or a tab the stage and its result's room stop being size containers at every width, and the result takes the full width over its box's inline width, outside any query", async () => {
+    const css = await assertEmits(
+      {
+        '[container-type:normal]': [['container-type', 'normal']],
+        '!w-full': [['width', '100%']],
+      },
+      null
+    );
+    // The box sets its width inline; only !important outranks it.
+    const important = [];
+    postcss.parse(css).walkDecls('width', (decl) => {
+      if (names(unescape(decl.parent.selector), '!w-full')) {
+        important.push(decl.important);
+      }
+    });
+    assert.deepEqual(important, [true], '!w-full must be !important');
+  });
+
   test("the page's action bar reaches past the panel's 20px padding to both edges and its foot, and each mobile: tier is emitted after it", async () => {
     // Symmetric, so the physical pair -mx- emits is the same at either end.
     await assertEmits(
