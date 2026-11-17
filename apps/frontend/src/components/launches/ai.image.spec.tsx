@@ -860,6 +860,36 @@ describe('the action that accepts the result', () => {
     expect(button('Use image')).toBeTruthy();
     expect(button('Create a post')).toBeUndefined();
   });
+
+  // The actions follow the host, not the destination: a window with nothing
+  // to attach the image to, as Studio opens one for a tool with no page,
+  // still accepts it, and Done is what raises Studio's saved notice.
+  it('in a window for the Media library offers Done, which hands the image over and then closes the window', async () => {
+    const onChange = jest.fn();
+    const onAccept = jest.fn();
+    await mount(
+      <AiImageTool
+        layout="stacked"
+        destination="media"
+        onChange={onChange}
+        onAccept={onAccept}
+      />
+    );
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+
+    expect(document.querySelector('a[download]')).toBeTruthy();
+    expect(button('Use image')).toBeUndefined();
+    expect(button('Create a post')).toBeUndefined();
+
+    await click(button('Done'));
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onAccept.mock.invocationCallOrder[0]
+    );
+  });
 });
 
 // The Cairo Cafe banner: "a banner for a 30% weekend" came back with

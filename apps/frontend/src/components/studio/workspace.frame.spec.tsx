@@ -28,6 +28,8 @@ jest.mock('next/link', () => ({
 
 import {
   CreditsPill,
+  GenerateButton,
+  StageActions,
   StageProgress,
   StageResult,
   StageSample,
@@ -352,6 +354,51 @@ describe('CreditsPill', () => {
   });
 });
 
+// The bar's main button, worded the one way every tool words it (tasks D6).
+describe('GenerateButton', () => {
+  it('reads Generate, Generate again once a window has a result, and Creating… while a render runs', async () => {
+    const first = await mount(<GenerateButton working={false} again={false} />);
+    const again = await mount(<GenerateButton working={false} again />);
+    const working = await mount(<GenerateButton working again />);
+
+    expect(first.querySelector('button')?.textContent).toBe('Generate');
+    expect(again.querySelector('button')?.textContent).toBe('Generate again');
+    expect(working.querySelector('button')?.textContent).toBe('Creating…');
+    expect(working.querySelector('button')?.getAttribute('aria-busy')).toBe(
+      'true'
+    );
+    expect(first.querySelector('button')?.getAttribute('aria-busy')).not.toBe(
+      'true'
+    );
+  });
+
+  it('draws at the large size and passes on its press, its type and whether it is held', async () => {
+    const onClick = jest.fn();
+    const host = await mount(
+      <GenerateButton
+        working={false}
+        again={false}
+        type="submit"
+        onClick={onClick}
+      />
+    );
+    const held = await mount(
+      <GenerateButton working={false} again={false} disabled />
+    );
+    const button = host.querySelector('button')!;
+
+    expect(tokens(button)).toEqual(
+      expect.arrayContaining(buttonClassName({ size: 'large' }).split(' '))
+    );
+    expect(button.getAttribute('type')).toBe('submit');
+    expect(held.querySelector('button')?.disabled).toBe(true);
+
+    await click(button);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
 // The stage parts (contracts/workspace-parts.md §3, FR-006 to FR-008): what
 // the stage shows in turn, the sample before anything is made, the wait, then
 // the result with every version made since the page opened. They take words,
@@ -586,6 +633,123 @@ describe('StageResult', () => {
     expect(
       follows(byTestId(host, 'edit-bar'), byTestId(host, 'versions'))
     ).toBe(true);
+  });
+});
+
+// The result's actions, chosen on the host rather than the destination
+// (contracts/workspace-parts.md §3, FR-007): a window, which accepts, hands
+// the result over; the Studio page, which does not, makes a post from it
+// when there is a channel to post it to; Download in every host.
+describe('StageActions', () => {
+  const media = { id: 'media-1', path: 'https://cdn.example/lemonade.png' };
+  const actions = (props: Partial<Parameters<typeof StageActions>[0]> = {}) => (
+    <StageActions media={media} kind="image" destination="post" {...props} />
+  );
+  const named = (host: HTMLElement, label: string) =>
+    Array.from(host.querySelectorAll('button')).find(
+      (button) => button.textContent === label
+    );
+  const large = buttonClassName({ size: 'large' }).split(' ');
+
+  // A tab, not the page, when the browser ignores `download` for a file on
+  // another origin: leaving the page would lose its versions.
+  it('offers Download in every host, a large secondary link to the file in a new tab', async () => {
+    const onPage = await mount(actions({ destination: 'media' }));
+    const inWindow = await mount(
+      actions({
+        kind: 'video',
+        media: { id: 'media-2', path: 'https://cdn.example/clip.mp4' },
+        onAccept: jest.fn(),
+      })
+    );
+
+    (
+      [
+        [onPage, 'https://cdn.example/lemonade.png'],
+        [inWindow, 'https://cdn.example/clip.mp4'],
+      ] as const
+    ).forEach(([host, path]) => {
+      const download = host.querySelector('a[download]');
+      expect(download?.textContent).toBe('Download');
+      expect(download?.getAttribute('href')).toBe(path);
+      expect(download?.getAttribute('target')).toBe('_blank');
+      expect(tokens(download)).toEqual(
+        expect.arrayContaining(
+          buttonClassName({ variant: 'secondary', size: 'large' }).split(' ')
+        )
+      );
+    });
+  });
+
+  it('in a window offers Use image or Use video, at the large size, and no Create a post', async () => {
+    const onAccept = jest.fn();
+    const image = await mount(actions({ onAccept, onCreatePost: jest.fn() }));
+    const video = await mount(
+      actions({ kind: 'video', destination: 'reference', onAccept })
+    );
+
+    expect(tokens(named(image, 'Use image'))).toEqual(
+      expect.arrayContaining(large)
+    );
+    expect(named(image, 'Create a post')).toBeUndefined();
+    expect(named(video, 'Use video')).toBeTruthy();
+
+    await click(named(image, 'Use image'));
+
+    expect(onAccept).toHaveBeenCalledTimes(1);
+  });
+
+  // A window with nothing to attach the result to, as Studio opens one for a
+  // video model with no page: Done, which raises Studio's saved notice.
+  it('in a window for the Media library words the accept Done', async () => {
+    const onAccept = jest.fn();
+    const host = await mount(actions({ destination: 'media', onAccept }));
+
+    expect(named(host, 'Use image')).toBeUndefined();
+
+    await click(named(host, 'Done'));
+
+    expect(onAccept).toHaveBeenCalledTimes(1);
+  });
+
+  it('on the page offers Create a post only with a channel, and nothing to accept', async () => {
+    const onCreatePost = jest.fn();
+    const channel = await mount(
+      actions({ destination: 'media', onCreatePost })
+    );
+    const none = await mount(actions({ destination: 'media' }));
+    const create = Array.from(channel.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Create a post')
+    );
+
+    expect(tokens(create)).toEqual(expect.arrayContaining(large));
+    expect(named(channel, 'Done')).toBeUndefined();
+    expect(none.querySelectorAll('button')).toHaveLength(0);
+    expect(none.querySelector('a[download]')).not.toBeNull();
+
+    await click(create);
+
+    expect(onCreatePost).toHaveBeenCalledWith(media);
+  });
+
+  // Image Text Slides' Edit script (tasks D7): back to an earlier screen.
+  it("leads with a workflow's way back, a large secondary action", async () => {
+    const onClick = jest.fn();
+    const host = await mount(
+      actions({ kind: 'video', back: { label: 'Edit script', onClick } })
+    );
+    const back = named(host, 'Edit script');
+
+    expect(tokens(back)).toEqual(
+      expect.arrayContaining(
+        buttonClassName({ variant: 'secondary', size: 'large' }).split(' ')
+      )
+    );
+    expect(follows(host.querySelector('a[download]'), back)).toBe(true);
+
+    await click(back);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
 
