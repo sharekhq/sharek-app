@@ -12,19 +12,16 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import {
-  FOCUS_RING,
-  SearchField,
-} from '@gitroom/frontend/components/launches/channel.panel';
+import { SearchField } from '@gitroom/frontend/components/launches/channel.panel';
 import { useHangingPanel } from '@gitroom/frontend/components/launches/post.actions.menu';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import { ChevronDownIcon } from '@gitroom/frontend/components/ui/icons';
 import {
-  CheckmarkIcon,
-  ChevronDownIcon,
-} from '@gitroom/frontend/components/ui/icons';
+  onListKeyDown,
+  Option,
+} from '@gitroom/frontend/components/brands/brand.menu';
 import {
   filterStudio,
   StudioCatalog,
@@ -51,28 +48,6 @@ export const TopBarSlot: FC<{ children: ReactNode }> = ({ children }) => {
   return slot ? createPortal(children, slot) : null;
 };
 
-// Down and Up move through the options, wrapping, as the brand list's do
-// (brands/brand.menu.tsx); from the search field Down goes to the first and
-// Up to the last.
-const onListKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-  const step = { ArrowDown: 1, ArrowUp: -1 }[event.key] || 0;
-  const options = Array.from(
-    event.currentTarget.querySelectorAll<HTMLElement>('[role="option"]')
-  );
-  if (!step || !options.length) {
-    return;
-  }
-  event.preventDefault();
-  const from = options.indexOf(event.target as HTMLElement);
-  const to =
-    from < 0
-      ? step > 0
-        ? 0
-        : options.length - 1
-      : (from + step + options.length) % options.length;
-  options[to].focus();
-};
-
 // A listing's picture, small: its cover, or its glyph while it has none or
 // the cover does not load, as its Studio card gives way (FR-017).
 const ToolPicture: FC<{ entry: StudioToolEntry }> = ({ entry }) => {
@@ -96,59 +71,6 @@ const ToolPicture: FC<{ entry: StudioToolEntry }> = ({ entry }) => {
         entry.icon
       )}
     </span>
-  );
-};
-
-// A choice: its picture, its name and the line under it, and a ✓ when it is
-// the current one. Enter and Space choose it, as a click does.
-const ToolOption: FC<{
-  entry: StudioToolEntry;
-  line: string;
-  selected: boolean;
-  onPick: () => void;
-}> = ({ entry, line, selected, onPick }) => {
-  const t = useT();
-
-  return (
-    <div
-      role="option"
-      aria-selected={selected}
-      tabIndex={0}
-      onClick={onPick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onPick();
-        }
-      }}
-      className={clsx(
-        'flex items-center gap-[10px] min-h-[48px] px-[10px] py-[6px] rounded-[8px] text-start cursor-pointer hover:bg-surface2 transition-colors',
-        FOCUS_RING
-      )}
-    >
-      <ToolPicture entry={entry} />
-      <span className="flex-1 min-w-0 flex flex-col items-start gap-[1px]">
-        <span
-          className={clsx(
-            'max-w-full truncate text-[14px] text-ink',
-            selected && 'font-[600]'
-          )}
-        >
-          {entry.name(t)}
-        </span>
-        <span className="max-w-full truncate text-[12px] leading-[1.4] text-muted">
-          {line}
-        </span>
-      </span>
-      {selected && (
-        <CheckmarkIcon
-          aria-hidden="true"
-          width={15}
-          height={11}
-          className="flex-none text-brandText"
-        />
-      )}
-    </div>
   );
 };
 
@@ -186,6 +108,7 @@ const ToolList: FC<{
   const toaster = useToaster();
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const sections = filterStudio(catalog, 'all', query, t);
 
   // Ready to type. It scrolls nothing: a scroll outside the list closes it
@@ -193,6 +116,20 @@ const ToolList: FC<{
   useEffect(() => {
     searchRef.current?.focus({ preventScroll: true });
   }, []);
+
+  // From the search, Down goes to the first option and Up to the last; the
+  // list's own keys (onListKeyDown) take it on from there.
+  const intoList = (e: KeyboardEvent<HTMLDivElement>) => {
+    const options =
+      listRef.current?.querySelectorAll<HTMLElement>('[role="option"]');
+    const to =
+      options &&
+      { ArrowDown: options[0], ArrowUp: options[options.length - 1] }[e.key];
+    if (to) {
+      e.preventDefault();
+      to.focus();
+    }
+  };
 
   // The window has put its output in the Media library; here it is only
   // confirmed, as on the Studio page.
@@ -223,11 +160,13 @@ const ToolList: FC<{
 
     if (href || selected || tool.state === 'locked' || !entry.trigger) {
       return (
-        <ToolOption
+        <Option
           key={entry.id}
-          entry={entry}
-          line={line}
+          mark={<ToolPicture entry={entry} />}
+          name={entry.name(t)}
+          sub={line}
           selected={selected}
+          sheet={false}
           onPick={() => onGo(selected ? undefined : href ?? '/billing')}
         />
       );
@@ -237,10 +176,12 @@ const ToolList: FC<{
         {entry.trigger({
           onSaved: saved,
           renderTrigger: (openWindow) => (
-            <ToolOption
-              entry={entry}
-              line={line}
+            <Option
+              mark={<ToolPicture entry={entry} />}
+              name={entry.name(t)}
+              sub={line}
               selected={false}
+              sheet={false}
               onPick={() => {
                 onGo();
                 openWindow();
@@ -258,10 +199,9 @@ const ToolList: FC<{
       <div
         ref={panelRef}
         style={{ left: show.x, top: show.y }}
-        onKeyDown={onListKeyDown}
         className="fixed z-[100] w-[340px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
       >
-        <div className="pt-[4px] pb-[6px]">
+        <div onKeyDown={intoList} className="pt-[4px] pb-[6px]">
           <SearchField
             ref={searchRef}
             label={t('studio_search', 'Search tools and models')}
@@ -271,8 +211,10 @@ const ToolList: FC<{
         </div>
         {sections.tools.length || sections.models.length ? (
           <div
+            ref={listRef}
             role="listbox"
             aria-label={t('studio', 'Studio')}
+            onKeyDown={onListKeyDown}
             className="flex flex-col"
           >
             {!!sections.tools.length && (

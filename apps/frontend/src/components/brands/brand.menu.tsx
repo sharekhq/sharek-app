@@ -67,7 +67,7 @@ const FOOTER_LINK = clsx(
 // language, so there is no horizontal pair to mirror. By then the list is in
 // its place, so the focus scrolls only a long list itself, to show the
 // option, and that keeps it open.
-const onListKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+export const onListKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   const step = { ArrowDown: 1, ArrowUp: -1 }[event.key] || 0;
   const options = Array.from(
     event.currentTarget.querySelectorAll<HTMLElement>('[role="option"]')
@@ -110,7 +110,7 @@ const onMenuKeyDown = (
 // A choice: its mark, its name and the line under it, and a ✓ when it is the
 // current one. Enter and Space pick it, as a click does. A brand's name keeps
 // its own direction.
-const Option: FC<{
+export const Option: FC<{
   mark: ReactNode;
   name: string;
   dir?: 'auto';
