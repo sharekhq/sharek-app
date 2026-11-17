@@ -484,4 +484,30 @@ describe('Part 3: the composer', () => {
       '(max-width: 1025px)'
     );
   });
+
+  test("from 1026px up the composer's Assistant sits above the bottom bar, over CopilotKit's own bottom", async () => {
+    const css = await assertEmits(
+      {
+        '[@media(min-width:1026px)]:!bottom-[112px]': [['bottom', '112px']],
+      },
+      '(min-width:1026px)'
+    );
+    // CopilotKit's sheet loads after ours; only !important outranks it.
+    const important = [];
+    postcss.parse(css).walkDecls('bottom', (decl) => {
+      if (
+        names(
+          unescape(decl.parent.selector),
+          '[@media(min-width:1026px)]:!bottom-[112px]'
+        )
+      ) {
+        important.push(decl.important);
+      }
+    });
+    assert.deepEqual(
+      important,
+      [true],
+      '[@media(min-width:1026px)]:!bottom-[112px] must be !important'
+    );
+  });
 });
