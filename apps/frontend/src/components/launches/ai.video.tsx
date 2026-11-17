@@ -57,7 +57,10 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
-import { useOpenTool } from '@gitroom/frontend/components/new-launch/composer.tabs';
+import {
+  useComposerTabs,
+  useOpenTool,
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 export type Media = { id: string; path: string };
 
@@ -187,6 +190,9 @@ export const AiVideoTool: FC<
   const [makingShape, setMakingShape] =
     useState<VideoOrientationId>('vertical');
   const toaster = useToaster();
+  // Inside the composer the tool is one of its tabs: its windows open outside
+  // it (contracts/composer-and-preview.md §4).
+  const inTab = !!useComposerTabs();
 
   const [phase, setPhase] = useState<VideoPhase>('setup');
   const [handshake, setHandshake] = useState<RenderHandshake | null>(null);
@@ -512,14 +518,18 @@ export const AiVideoTool: FC<
   // The video is already in the Media library by the time any of this renders
   // — the route saves it as it finishes — so the note names what happens next
   // rather than whether the video is kept. On its page the member can leave
-  // it; a video for the post is made in a composer tab, beside the post; a
-  // reference row has no video button to reach this at all, so it reads as
-  // the composer does.
+  // it; a composer tab sits beside the post; a window says where the video
+  // goes.
   const note =
     layout === 'page'
       ? t(
           'workspace_leave_note_video',
           "You can leave this page. The video is saved to your Media library when it's ready."
+        )
+      : inTab
+      ? t(
+          'composer_leave_note_video',
+          "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready."
         )
       : destination === 'media'
       ? t(
@@ -527,8 +537,8 @@ export const AiVideoTool: FC<
           "You can close this window — the video will be saved to your Media library when it's ready."
         )
       : t(
-          'composer_leave_note_video',
-          "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready."
+          'close_window_video_note',
+          "You can close this window — the video will be added to your post when it's ready."
         );
 
   const orientationSummary = (output: VideoOrientationId) => (

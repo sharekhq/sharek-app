@@ -1658,6 +1658,7 @@
   "creating_your_video": "Creating your video…",
   "video_render_minutes": "Usually takes a few minutes",
   "video_elapsed": "{{time}} elapsed",
+  "close_window_video_note": "You can close this window — the video will be added to your post when it's ready.",
   "close_window_video_note_media": "You can close this window — the video will be saved to your Media library when it's ready.",
   "step_images": "Creating images",
   "use_video": "Use video",

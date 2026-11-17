@@ -1742,6 +1742,7 @@
   "creating_your_video": "جاري إنشاء الفيديو…",
   "video_render_minutes": "تستغرق عادةً بضع دقائق",
   "video_elapsed": "مضى {{time}}",
+  "close_window_video_note": "يمكنك إغلاق هذه النافذة — سيضاف الفيديو إلى منشورك عند جاهزيته.",
   "close_window_video_note_media": "يمكنك إغلاق هذه النافذة — سيحفظ الفيديو في مكتبة الوسائط عند جاهزيته.",
   "step_images": "جاري إنشاء الصور",
   "use_video": "استخدام الفيديو",
