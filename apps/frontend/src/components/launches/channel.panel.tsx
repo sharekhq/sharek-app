@@ -837,15 +837,19 @@ export const matchesSearch = (text: string, query: string) =>
 // one before, wrapping, and pick it with its own click. The radios run right
 // to left in Arabic, so the horizontal pair mirrors, as the support form's
 // category chips have it. A radio that can't be picked is passed over, and so
-// is one that can't take the focus, as in a closed customer group.
-export const onRadioGroupKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+// is one that can't take the focus, as in a closed customer group. A tablist
+// moves between its tabs the same way (`role` 'tab', the composer's strip).
+export const onRadioGroupKeyDown = (
+  event: KeyboardEvent<HTMLElement>,
+  role: 'radio' | 'tab' = 'radio'
+) => {
   const forward = document.dir === 'rtl' ? -1 : 1;
   const step =
     { ArrowRight: forward, ArrowDown: 1, ArrowLeft: -forward, ArrowUp: -1 }[
       event.key
     ] || 0;
   const radios = Array.from(
-    event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')
+    event.currentTarget.querySelectorAll<HTMLElement>(`[role="${role}"]`)
   );
   const from = radios.indexOf(event.target as HTMLElement);
   if (!step || from < 0) {

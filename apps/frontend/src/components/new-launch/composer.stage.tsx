@@ -3,7 +3,6 @@
 import {
   createContext,
   FC,
-  KeyboardEvent,
   ReactNode,
   Ref,
   useCallback,
@@ -31,6 +30,7 @@ import {
   SWITCH_OPTION_ON,
 } from '@gitroom/frontend/components/ui/pick.controls';
 import { AiImageTool } from '@gitroom/frontend/components/launches/ai.image';
+import { onRadioGroupKeyDown } from '@gitroom/frontend/components/launches/channel.panel';
 import {
   AiVideoChooser,
   useAiVideoTypes,
@@ -182,25 +182,6 @@ export const ComposerTabsProvider: FC<{
 export const useComposerTabs = (): ComposerTabs | null =>
   useContext(ComposerTabsContext);
 
-// The strip's arrow keys, as a radiogroup's (onRadioGroupKeyDown, which
-// reads radios): Right and Left go to the next tab and the one before,
-// wrapping, mirrored in Arabic, and select it with its own click.
-const onTabsKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-  const forward = document.dir === 'rtl' ? -1 : 1;
-  const step = { ArrowRight: forward, ArrowLeft: -forward }[event.key] || 0;
-  const tabs = Array.from(
-    event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')
-  );
-  const from = tabs.indexOf(event.target as HTMLElement);
-  if (!step || from < 0) {
-    return;
-  }
-  event.preventDefault();
-  const tab = tabs[(from + step + tabs.length) % tabs.length];
-  tab.focus();
-  tab.click();
-};
-
 /**
  * The composer's right column: the tab strip where the 65px header was, then
  * Post preview and each open AI tab's panel. Every open panel stays mounted,
@@ -229,7 +210,7 @@ export const ComposerStage: FC<{
         <div
           role="tablist"
           aria-label={t('composer_tabs_label', 'Post preview and AI tools')}
-          onKeyDown={onTabsKeyDown}
+          onKeyDown={(e) => onRadioGroupKeyDown(e, 'tab')}
           className="flex-1 min-w-0 flex items-center gap-[4px]"
         >
           <button
