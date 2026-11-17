@@ -46,6 +46,7 @@ import {
   StageResult,
   StageSample,
   VersionsStrip,
+  WORKSPACE_WINDOW,
   WorkspaceFrame,
   type WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
@@ -548,11 +549,11 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
     editing && version ? version.aspectRatio : aspectRatio;
 
   // The image is already in the Media library by the time any of this renders
-  // — the route saves it before it answers — so the destination names what
-  // happens next rather than whether the image is kept. The Studio page is no
-  // window to close: the member can leave it.
+  // — the route saves it before it answers — so the note names what happens
+  // next rather than whether the image is kept. The Studio page is no window
+  // to close: the member can leave it; a window says where the image goes.
   const progressNote =
-    destination === 'media'
+    layout === 'page'
       ? t(
           'workspace_leave_note_image',
           "You can leave this page. The image is saved to your Media library when it's ready."
@@ -1015,11 +1016,7 @@ export const AiImage: FC<{
           {t('generate_ai_image', 'Generate AI Image')}
         </div>
       ),
-      // No taller than the screen, so the bar under the settings never sits
-      // below it.
-      size: 'min(640px, 100%)',
-      height: 'min(860px, calc(100dvh - 48px))',
-      top: 24,
+      ...WORKSPACE_WINDOW,
       children: (close) => (
         <AiImageTool
           layout="stacked"

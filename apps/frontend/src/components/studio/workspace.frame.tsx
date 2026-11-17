@@ -206,6 +206,17 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   );
 };
 
+/**
+ * The window a tool opens in away from its page (contracts/workspace-parts.md
+ * §6), as `openModal` takes it: no taller than the screen, so the bar under
+ * the settings never sits below it.
+ */
+export const WORKSPACE_WINDOW = {
+  size: 'min(640px, 100%)',
+  height: 'min(860px, calc(100dvh - 48px))',
+  top: 24,
+};
+
 /** The credits left, in the action bar. */
 export const CreditsPill: FC<{ count: number }> = ({ count }) => {
   const t = useT();
