@@ -4,6 +4,7 @@ import {
   FC,
   ReactNode,
   Ref,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -217,30 +218,35 @@ const AiTabPanel: FC<{
   }, []);
 
   // Only while the panel is mounted: once its tab closed, an open tab of its
-  // kind is a newer one's.
-  const closeTab = () => {
+  // kind is a newer one's. It and the two below keep one identity for the
+  // panel's life: the video tool builds its render's handlers on them
+  // (review C9).
+  const closeTab = useCallback(() => {
     if (mounted.current) {
       close(kind);
     }
-  };
+  }, [close, kind]);
 
   // The tool's request: a pending entry where the render was started, for
   // the previews' placeholder and the composer's lock, until it settles,
   // whether the tab is still open or not (D10, D14). A start while one is
   // open replaces its entry (review C5).
-  const setLoading = (loading: boolean) => {
-    if (render.current) {
-      removePending(render.current);
-      render.current = undefined;
-    }
-    if (loading) {
-      render.current = makeId(10);
-      addPending({ id: render.current, kind, place: latest.current.place });
-    }
-    if (mounted.current) {
-      setBusy(kind, loading);
-    }
-  };
+  const setLoading = useCallback(
+    (loading: boolean) => {
+      if (render.current) {
+        removePending(render.current);
+        render.current = undefined;
+      }
+      if (loading) {
+        render.current = makeId(10);
+        addPending({ id: render.current, kind, place: latest.current.place });
+      }
+      if (mounted.current) {
+        setBusy(kind, loading);
+      }
+    },
+    [addPending, removePending, setBusy, kind]
+  );
 
   // The media row's latest handler while its button is there, which also
   // puts an image in the text of a row in inline-images mode; once the button
@@ -248,21 +254,24 @@ const AiTabPanel: FC<{
   // latest state (D10); once the composer has closed, in no post: the store
   // then holds the next composer's (research R1, review C3). The tab closes,
   // and the selection moves to Post preview only if it was on screen.
-  const land = (media: { id: string; path: string }) => {
-    const { target, place } = latest.current;
-    const handler = target();
-    if (handler) {
-      handler(media);
-    } else if (composerOpen.current) {
-      const store = useLaunchStore.getState();
-      if (place.channel === 'global') {
-        store.appendGlobalValueMedia(place.index, [media]);
-      } else {
-        store.appendInternalValueMedia(place.channel, place.index, [media]);
+  const land = useCallback(
+    (media: { id: string; path: string }) => {
+      const { target, place } = latest.current;
+      const handler = target();
+      if (handler) {
+        handler(media);
+      } else if (composerOpen.current) {
+        const store = useLaunchStore.getState();
+        if (place.channel === 'global') {
+          store.appendGlobalValueMedia(place.index, [media]);
+        } else {
+          store.appendInternalValueMedia(place.channel, place.index, [media]);
+        }
       }
-    }
-    closeTab();
-  };
+      closeTab();
+    },
+    [composerOpen, closeTab]
+  );
 
   const tool = {
     layout: 'stacked' as const,
