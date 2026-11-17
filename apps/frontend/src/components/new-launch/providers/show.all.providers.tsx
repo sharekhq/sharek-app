@@ -26,7 +26,7 @@ import NostrProvider from '@gitroom/frontend/components/new-launch/providers/nos
 import VkProvider from '@gitroom/frontend/components/new-launch/providers/vk/vk.provider';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
-import { pendingMediaPath } from '@gitroom/react/helpers/video.or.image';
+import { pendingPreviewMedia } from '@gitroom/react/helpers/video.or.image';
 import { useShallow } from 'zustand/react/shallow';
 import React, { FC, forwardRef, useEffect, useImperativeHandle } from 'react';
 import { GeneralPreviewComponent } from '@gitroom/frontend/components/launches/general.preview.component';
@@ -240,10 +240,7 @@ export const ShowAllProviders = forwardRef((props, ref) => {
                     ({ place }) =>
                       place.channel === 'global' && place.index === index
                   )
-                  .map(({ id, kind }) => ({
-                    id,
-                    path: pendingMediaPath(kind),
-                  })),
+                  .map(pendingPreviewMedia),
               ],
             })),
           }}

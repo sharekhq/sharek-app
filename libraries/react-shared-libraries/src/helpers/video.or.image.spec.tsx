@@ -20,6 +20,7 @@ import {
   VideoOrImage,
   isPendingMediaPath,
   pendingMediaPath,
+  pendingPreviewMedia,
 } from './video.or.image';
 
 // Instagram's preview sizes its box to the first slide's shape, which the
@@ -98,6 +99,13 @@ describe('pending media paths', () => {
       expect(isPendingMediaPath(path)).toBeUndefined();
     }
   );
+
+  it('makes a pending entry the media its preview holds: its id, and its kind as the path', () => {
+    expect(pendingPreviewMedia({ id: 'r-1', kind: 'video' })).toEqual({
+      id: 'r-1',
+      path: 'pending:video',
+    });
+  });
 });
 
 describe('VideoOrImage', () => {

@@ -7,6 +7,14 @@ type PendingKind = 'image' | 'video';
 export const pendingMediaPath = (kind: PendingKind) => `pending:${kind}`;
 export const isPendingMediaPath = (path: string) =>
   (['image', 'video'] as const).find((kind) => path === pendingMediaPath(kind));
+/** The media a preview holds for a result still being made for the post. */
+export const pendingPreviewMedia = (entry: {
+  id: string;
+  kind: PendingKind;
+}) => ({
+  id: entry.id,
+  path: pendingMediaPath(entry.kind),
+});
 // A component of its own, so only a pending path calls the hook: the public
 // preview page renders VideoOrImage as a server component.
 const PendingMedia: FC<{ kind: PendingKind }> = ({ kind }) => {

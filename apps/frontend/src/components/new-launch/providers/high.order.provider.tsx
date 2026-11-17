@@ -22,7 +22,7 @@ import { InternalChannels } from '@gitroom/frontend/components/launches/internal
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import SafeImage from '@gitroom/react/helpers/safe.image';
-import { pendingMediaPath } from '@gitroom/react/helpers/video.or.image';
+import { pendingPreviewMedia } from '@gitroom/react/helpers/video.or.image';
 import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.stage';
 
 class Empty {
@@ -196,7 +196,7 @@ export const withProvider = function <T extends object>(params: {
                 (place.channel === 'global' &&
                   !internal?.integrationValue?.length))
           )
-          .map(({ id, kind }) => ({ id, path: pendingMediaPath(kind) })),
+          .map(pendingPreviewMedia),
       ],
     }));
 
