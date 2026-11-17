@@ -92,10 +92,11 @@ jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImageTool: () => null,
   AI_IMAGE_COVER: '/studio/covers/ai-image.webp',
 }));
-// useStudioCatalog's three inputs; the provider list's request stays out.
+// useStudioCatalog's three inputs; the provider list's request stays out, its
+// SWR answer steered by the cases.
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
   ...jest.requireActual('@gitroom/frontend/components/launches/ai.video'),
-  useAiVideoTypes: () => ({ data: mockProviders }),
+  useAiVideoTypes: () => mockProviders,
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   ...jest.requireActual('@gitroom/frontend/components/layout/user.context'),
@@ -141,7 +142,11 @@ type CatalogInput = Parameters<typeof buildStudioCatalog>[0];
 type Translate = Parameters<StudioChip['label']>[0];
 
 // What useStudioCatalog's hooks answer.
-let mockProviders: VideoType[] | undefined;
+let mockProviders: {
+  data: VideoType[] | undefined;
+  isLoading: boolean;
+  error?: Error;
+};
 let mockUser: CatalogInput['user'];
 let mockVariables: Pick<CatalogInput, 'billingEnabled' | 'showImageEditor'>;
 
@@ -695,7 +700,7 @@ describe('useStudioCatalog', () => {
   });
 
   it('builds the catalog from the user, the deployment and the provider list', async () => {
-    mockProviders = [veo3, slides];
+    mockProviders = { data: [veo3, slides], isLoading: false };
 
     const { catalog: built, loading } = await latest();
 
@@ -713,8 +718,8 @@ describe('useStudioCatalog', () => {
     );
   });
 
-  it('is loading while the provider list is undefined', async () => {
-    mockProviders = undefined;
+  it('is loading while the provider list loads', async () => {
+    mockProviders = { data: undefined, isLoading: true };
 
     const { catalog: built, loading } = await latest();
 
@@ -730,6 +735,22 @@ describe('useStudioCatalog', () => {
         })
       )
     );
+  });
+
+  it('counts a provider list that failed as empty, so the AI image page still opens', async () => {
+    mockProviders = {
+      data: undefined,
+      isLoading: false,
+      error: new Error('Request failed with status 500'),
+    };
+
+    const { catalog: built, loading } = await latest();
+
+    expect(loading).toBe(false);
+    expect(studioToolHref(findStudioTool(built, 'ai-image')!.entry)).toBe(
+      '/studio/ai-image'
+    );
+    expect(videoIds(built)).toEqual([]);
   });
 });
 
