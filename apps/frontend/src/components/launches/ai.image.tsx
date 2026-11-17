@@ -142,7 +142,7 @@ const referenceRefusal = (
       if (edit && payload.index === 1) {
         return t(
           'image_edit_missing',
-          "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one."
+          "The image you're editing is no longer in your Media library. Use the prompt to make a new one."
         );
       }
       return t(

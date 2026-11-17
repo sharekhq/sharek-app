@@ -1235,7 +1235,7 @@ describe('editing the result', () => {
   it.each([
     [
       1,
-      "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one.",
+      "The image you're editing is no longer in your Media library. Use the prompt to make a new one.",
     ],
     [
       2,
