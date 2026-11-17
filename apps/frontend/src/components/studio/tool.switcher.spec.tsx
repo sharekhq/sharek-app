@@ -555,21 +555,29 @@ describe('the keyboard', () => {
     expect(listbox()).toBeNull();
   });
 
+  // A dialog behind closes on an Escape that reaches the document
+  // (new-modal.tsx): the open list keeps it, as the brand list does.
   it.each([
     ['the search field', 0],
     ['an option', 1],
   ])(
-    'closes on Escape from %s and gives the focus back to the button',
+    'closes on Escape from %s, gives the focus back to the button, and keeps the key to itself',
     async (_name, downs) => {
+      const documentEscape = jest.fn();
+      document.addEventListener('keydown', documentEscape);
       await open();
       for (let i = 0; i < downs; i++) {
         await press(document.activeElement, 'ArrowDown');
       }
+      documentEscape.mockClear();
 
       await press(document.activeElement, 'Escape');
+      document.removeEventListener('keydown', documentEscape);
+
       expect(listbox()).toBeNull();
       expect(document.activeElement).toBe(trigger());
       expect(mockPush).not.toHaveBeenCalled();
+      expect(documentEscape).not.toHaveBeenCalled();
     }
   );
 
