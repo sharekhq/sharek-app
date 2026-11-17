@@ -516,6 +516,37 @@ describe('choosing', () => {
     expect(mockOpenModal).not.toHaveBeenCalled();
     expect(listbox()).toBeNull();
   });
+
+  // The page it leaves takes its button with it, and the focus would fall to
+  // the body: the switcher on the page it opened takes it (spec 061, T062a
+  // W5).
+  const leave = () =>
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+  it('gives the focus to the switcher on the page it opens', async () => {
+    await open('ai-image');
+    await click(option('Veo 3'));
+    expect(mockPush).toHaveBeenCalledWith('/studio/veo3');
+
+    leave();
+    expect(document.activeElement).toBe(document.body);
+    await render('veo3');
+
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('gives no focus to a switcher it did not open, as on a tool page reached after Billing', async () => {
+    await open('ai-image', locked());
+    await click(option('Image editor'));
+    expect(mockPush).toHaveBeenCalledWith('/billing');
+
+    leave();
+    await render('veo3', locked());
+
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 
 describe('the keyboard', () => {
