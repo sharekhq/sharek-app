@@ -684,14 +684,13 @@ describe('the action that accepts the result', () => {
     expect(labels).toContain('Use video');
   });
 
-  it('with destination `media` offers Download and, only with `onCreatePost` (the page), Create a post; no Use video, no Done', async () => {
+  it('on its page with destination `media` offers Download and, only with `onCreatePost`, Create a post; no Use video, no Done', async () => {
     const hosts: Array<[Host, string[]]> = [
       [
         { layout: 'page', destination: 'media', onCreatePost: jest.fn() },
         ['Download', 'Create a post'],
       ],
       [{ layout: 'page', destination: 'media' }, ['Download']],
-      [{ layout: 'stacked', destination: 'media' }, ['Download']],
     ];
 
     for (const [host, actions] of hosts) {
@@ -701,6 +700,26 @@ describe('the action that accepts the result', () => {
       expect(resultActions()).toEqual(actions);
       act(() => root.unmount());
     }
+  });
+
+  // A window accepts, so it offers the accept button even with nothing to
+  // attach the video to: Done, main's word, whose onChange brings Studio's
+  // saved banner.
+  it('in a window for the Media library offers Done, which hands the video over and then closes the window', async () => {
+    const onChange = jest.fn();
+    const onAccept = jest.fn();
+    await generate({ destination: 'media', onChange, onAccept });
+    await settle();
+
+    expect(resultActions()).toEqual(['Download', 'Done']);
+
+    await click(buttonStarting('Done'));
+
+    expect(onChange).toHaveBeenCalledWith(finished);
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onAccept.mock.invocationCallOrder[0]
+    );
   });
 
   it('offers Download and Use video in a reference window', async () => {
