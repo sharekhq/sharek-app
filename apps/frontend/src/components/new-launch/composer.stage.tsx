@@ -15,6 +15,7 @@ import {
 } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import type { PendingKind } from '@gitroom/react/helpers/video.or.image';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
@@ -38,7 +39,7 @@ import {
   VideoType,
 } from '@gitroom/frontend/components/launches/ai.video';
 
-export type ComposerTabKind = 'image' | 'video';
+export type ComposerTabKind = PendingKind;
 
 /** A post in the composer: `'global'` or a channel's id, and the post's index. */
 export interface PreviewPlace {

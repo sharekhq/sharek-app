@@ -2,7 +2,7 @@ import { FC } from 'react';
 import { clsx } from 'clsx';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-type PendingKind = 'image' | 'video';
+export type PendingKind = 'image' | 'video';
 /** The path a preview holds for a result still being made for the post. */
 export const pendingMediaPath = (kind: PendingKind) => `pending:${kind}`;
 export const isPendingMediaPath = (path: string) =>
