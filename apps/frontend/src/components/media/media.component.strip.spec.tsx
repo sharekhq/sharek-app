@@ -5,15 +5,20 @@ import { createRoot } from 'react-dom/client';
 // and a row that wraps paints over the control below it (see the first case).
 // Each button keeps its name, on the control as well as in its label. The mock
 // list is media.component.uploader.spec.tsx's, which mounts the same component;
-// only the image editor's switch differs.
+// only the image editor's switch and the AI buttons differ.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback?: string) => fallback ?? _key,
 }));
+// The AI buttons show the post they work for (spec 061, FR-024).
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: () => null,
+  AiImage: (props: { place?: number }) => (
+    <div data-ai="image" data-place={props.place} />
+  ),
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideo: () => null,
+  AiVideo: (props: { place?: number }) => (
+    <div data-ai="video" data-place={props.place} />
+  ),
 }));
 // Scenery, none of it asserted on: the component has to mount for its strip to
 // render.
@@ -179,5 +184,15 @@ describe('the media strip', () => {
         'mobile:px-0',
       ])
     );
+  });
+
+  it('hands its AI buttons the post it was given', async () => {
+    const host = await render({ place: 2 });
+    const ai = Array.from(host.querySelectorAll<HTMLElement>('[data-ai]'));
+
+    expect(ai.map((each) => [each.dataset.ai, each.dataset.place])).toEqual([
+      ['image', '2'],
+      ['video', '2'],
+    ]);
   });
 });

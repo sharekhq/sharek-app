@@ -37,12 +37,14 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
     toolsStyle?: { bottom?: number; paddingBottom?: number };
     toolBar?: ReactElement;
     toolBarEnd?: ReactElement;
+    place?: number;
   }) => (
     <div
       data-tools=""
       className={props.toolsClassName}
       data-bottom={props.toolsStyle?.bottom}
       data-pad={props.toolsStyle?.paddingBottom}
+      data-place={props.place}
     >
       {props.toolBar}
       {props.toolBarEnd}
@@ -349,6 +351,13 @@ describe('a post with comments', () => {
 
     expect(first.textContent).toBe('');
     expect(last.textContent).toContain('Add comment or post');
+  });
+
+  // Its AI buttons work for the post they are under (spec 061, FR-024).
+  it('hands each post’s media row the post’s index', async () => {
+    const { host } = await thread();
+
+    expect(tools(host).map((each) => each.dataset.place)).toEqual(['0', '1']);
   });
 
   it('moves the bar to the post the writer goes to', async () => {
