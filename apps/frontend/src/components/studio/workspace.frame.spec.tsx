@@ -174,11 +174,35 @@ describe('the page layout', () => {
       expect.arrayContaining(['phone:w-full', 'phone:border-e-0'])
     );
     // The window scrolls from 1025px down, the side-by-side page included,
-    // so the bar sticks from there, a phone with it (FR-003).
+    // and the page card clips, so a sticky bar never pins there: the bar is
+    // fixed to the foot of the screen across its width, above the page and
+    // under the menu drawer's scrim (z-[180]), clear of the home indicator,
+    // as the composer's tool bar is (FR-003).
     expect(tokens(bar(host))).toEqual(
-      expect.arrayContaining(['mobile:sticky', 'mobile:bottom-0'])
+      expect.arrayContaining([
+        'mobile:fixed',
+        'mobile:inset-x-0',
+        'mobile:bottom-0',
+        'mobile:z-[90]',
+        'mobile:m-0',
+        'mobile:pb-[calc(16px+env(safe-area-inset-bottom))]',
+      ])
     );
-    expect(tokens(bar(host))).not.toContain('phone:sticky');
+    expect(tokens(bar(host))).not.toContain('mobile:sticky');
+  });
+
+  // The fixed bar leaves the flow, so the page keeps room under its content
+  // as tall as the bar: one row from 769px, where the bar spans the screen;
+  // on a phone the credits may take a row of their own.
+  it("keeps room under the page's content as tall as the bar, so the last setting clears it", async () => {
+    const host = await mount(frame());
+
+    expect(tokens(host.firstElementChild)).toEqual(
+      expect.arrayContaining([
+        'mobile:pb-[calc(77px+env(safe-area-inset-bottom))]',
+        'phone:pb-[calc(113px+env(safe-area-inset-bottom))]',
+      ])
+    );
   });
 
   // The page keeps its settings open beside the result; only the phone's
