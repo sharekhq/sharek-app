@@ -607,6 +607,23 @@ describe('the panels', () => {
     });
   });
 
+  // The video tool builds its render's handlers on setLoading and keeps them
+  // for the window's life (`startRequest`, `endRequest`): a new function each
+  // render would change them under a render the provider holds (review C9).
+  it('hands its tool the same setLoading, onChange and onAccept on every render', async () => {
+    await render();
+    await open('video');
+    const before = mockTools.props.video;
+    await loading(before, true);
+    await click(tab('Post preview')!);
+    const after = mockTools.props.video;
+
+    expect(after).not.toBe(before);
+    expect(after.setLoading).toBe(before.setLoading);
+    expect(after.onChange).toBe(before.onChange);
+    expect(after.onAccept).toBe(before.onAccept);
+  });
+
   // The layer is the same element at every width, its phone look in
   // `mobile:` classes, so the tool never remounts across a breakpoint (D11).
   it('at 1025px and below makes an active AI tab a full-screen layer with Back to the post, its name and its close (FR-026)', async () => {
