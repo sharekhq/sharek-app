@@ -1,14 +1,20 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { FC, ReactNode, useCallback } from 'react';
+import { FC, ReactNode, useCallback, useMemo } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
+import {
+  AI_IMAGE_COVER,
+  AiImageTool,
+} from '@gitroom/frontend/components/launches/ai.image';
 import {
   AiVideo,
+  AiVideoTool,
   Media,
+  useAiVideoTypes,
   VideoType,
   videoTypeLabel,
 } from '@gitroom/frontend/components/launches/ai.video';
@@ -29,6 +35,15 @@ export interface StudioTriggerProps {
   onSaved: (media: Media) => void;
   /** The card, rendered as the tool's own trigger. */
   renderTrigger: (open: () => void, loading: boolean) => ReactNode;
+}
+
+/** What the tool page hands a page tool. */
+export interface StudioWorkspaceProps {
+  locked: boolean;
+  /** A result saved to the Media library, for the ready notice. */
+  onReady: (media: Media, kind: 'image' | 'video') => void;
+  /** Only when the workspace has a channel to post to. */
+  onCreatePost?: (media: Media) => void;
 }
 
 /**
@@ -67,6 +82,8 @@ const ImageEditorTrigger: FC<StudioTriggerProps> = ({
  */
 export interface StudioToolEntry {
   id: string;
+  /** The page's address, `/studio/<slug>`: the fixed tool's id, a provider's identifier. */
+  slug: string;
   /** A tool is made for one job; a model is an AI model the member drives. */
   kind: 'tool' | 'model';
   category: StudioCategoryId;
@@ -82,8 +99,17 @@ export interface StudioToolEntry {
   /** Video models only, e.g. `0:08`; not translated. */
   sampleLength?: string;
   entitled: (user: StudioUser) => boolean;
-  /** Renders the tool's trigger around the card; opening is the tool's own. */
-  trigger: (props: StudioTriggerProps) => ReactNode;
+  /**
+   * A page tool: renders the tool on its page. A render function, called as
+   * `entry.workspace(props)`, so the tool keeps its identity, and the page its
+   * state, however often the catalog is rebuilt.
+   */
+  workspace?: (props: StudioWorkspaceProps) => ReactNode;
+  /**
+   * A window tool, the one way in for a tool with no page: renders the tool's
+   * trigger around the card; opening is the tool's own.
+   */
+  trigger?: (props: StudioTriggerProps) => ReactNode;
 }
 
 export interface StudioTool {
@@ -191,6 +217,7 @@ const AiVideoGlyph = () => (
 export const STUDIO_TOOLS: StudioToolEntry[] = [
   {
     id: 'image-editor',
+    slug: 'image-editor',
     kind: 'tool',
     category: 'edit',
     name: (t) => t('studio_tool_image_editor', 'Image editor'),
@@ -206,6 +233,7 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
   },
   {
     id: 'ai-image',
+    slug: 'ai-image',
     kind: 'tool',
     category: 'images',
     name: (t) => t('studio_tool_ai_image', 'AI image generator'),
@@ -214,15 +242,16 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
         'studio_tool_ai_image_desc',
         'Turn a written prompt into a post-ready image.'
       ),
-    cover: '/studio/covers/ai-image.webp',
+    cover: AI_IMAGE_COVER,
     icon: <AiImageGlyph />,
     entitled: needsAi,
-    trigger: ({ onSaved, renderTrigger }) => (
-      <AiImage
-        value=""
-        onChange={onSaved}
-        renderTrigger={renderTrigger}
+    workspace: ({ locked, onReady, onCreatePost }) => (
+      <AiImageTool
+        layout="page"
         destination="media"
+        locked={locked}
+        onCreatePost={onCreatePost}
+        onChange={(media) => onReady(media, 'image')}
       />
     ),
   },
@@ -235,14 +264,16 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
  * the endpoint title and described by the generic copy; the endpoint's own
  * description is written for the agent and never shown. The card's `studio`
  * part says whether it is a tool or a model and what its card shows; one that
- * declares nothing is a model with no cover.
+ * declares nothing is a model with no cover. One with no page opens in a
+ * window, as every provider did before the tool pages.
  */
-export const videoTool = (type: VideoType): StudioToolEntry => {
+export const videoTool = (type: VideoType, paged: boolean): StudioToolEntry => {
   const card = videoTypeCard(type.identifier);
   const studio = card?.studio;
   const facts = studio?.facts;
   return {
     id: `video:${type.identifier}`,
+    slug: type.identifier,
     kind: studio?.kind ?? 'model',
     category: 'video',
     name: (t) => videoTypeLabel(t, type),
@@ -256,15 +287,29 @@ export const videoTool = (type: VideoType): StudioToolEntry => {
     facts: facts && ((t) => facts.map((fact) => t(fact.key, fact.fallback))),
     sampleLength: studio?.sampleLength,
     entitled: needsAi,
-    trigger: ({ onSaved, renderTrigger }) => (
-      <AiVideo
-        value=""
-        only={type.identifier}
-        onChange={onSaved}
-        renderTrigger={renderTrigger}
-        destination="media"
-      />
-    ),
+    workspace: paged
+      ? ({ locked, onReady, onCreatePost }) => (
+          <AiVideoTool
+            type={type}
+            layout="page"
+            destination="media"
+            locked={locked}
+            onCreatePost={onCreatePost}
+            onChange={(media) => onReady(media, 'video')}
+          />
+        )
+      : undefined,
+    trigger: paged
+      ? undefined
+      : ({ onSaved, renderTrigger }) => (
+          <AiVideo
+            value=""
+            only={type.identifier}
+            onChange={onSaved}
+            renderTrigger={renderTrigger}
+            destination="media"
+          />
+        ),
   };
 };
 
@@ -272,7 +317,8 @@ export const videoTool = (type: VideoType): StudioToolEntry => {
  * Availability first, entitlement second: a tool the platform does not offer
  * is absent, and only what remains can be locked. With billing disabled nothing
  * is locked, since there is no plan to upgrade to. The image editor is offered
- * only where SHOW_IMAGE_EDITOR is set.
+ * only where SHOW_IMAGE_EDITOR is set. A provider gets a page only when its
+ * identifier can be an address: one [a-z0-9-]+ segment that no fixed tool has.
  */
 export const buildStudioCatalog = (params: {
   tools: StudioToolEntry[];
@@ -282,9 +328,16 @@ export const buildStudioCatalog = (params: {
   showImageEditor: boolean;
 }): StudioCatalog => {
   const { tools, videoOptions, user, billingEnabled, showImageEditor } = params;
+  const fixedSlugs = tools.map((entry) => entry.slug);
   const listings = [
     ...tools.filter((entry) => showImageEditor || entry.id !== 'image-editor'),
-    ...(videoOptions ?? []).map(videoTool),
+    ...(videoOptions ?? []).map((type) =>
+      videoTool(
+        type,
+        /^[a-z0-9-]+$/.test(type.identifier) &&
+          !fixedSlugs.includes(type.identifier)
+      )
+    ),
   ].map(
     (entry): StudioTool => ({
       entry,
@@ -348,4 +401,41 @@ export const filterStudio = (
     tools: shown.filter((tool) => tool.entry.kind === 'tool'),
     models: shown.filter((tool) => tool.entry.kind === 'model'),
   };
+};
+
+/** The listing at `/studio/<slug>`; undefined for a slug no listing has. */
+export const findStudioTool = (
+  catalog: StudioCatalog,
+  slug: string
+): StudioTool | undefined =>
+  catalog.listings.find((tool) => tool.entry.slug === slug);
+
+/** Where every link to a tool leads; undefined for a tool that opens in a window. */
+export const studioToolHref = (entry: StudioToolEntry): string | undefined =>
+  entry.workspace ? `/studio/${entry.slug}` : undefined;
+
+/**
+ * The catalog the Studio page and a tool page are built from, so both list,
+ * lock and address the same tools. Loading while the provider list loads; a
+ * list that failed counts as empty, so the fixed tools still open.
+ */
+export const useStudioCatalog = (): {
+  catalog: StudioCatalog;
+  loading: boolean;
+} => {
+  const user = useUser();
+  const { billingEnabled, showImageEditor } = useVariables();
+  const { data: videoOptions, isLoading } = useAiVideoTypes();
+  const catalog = useMemo(
+    () =>
+      buildStudioCatalog({
+        tools: STUDIO_TOOLS,
+        videoOptions,
+        user,
+        billingEnabled,
+        showImageEditor,
+      }),
+    [videoOptions, user, billingEnabled, showImageEditor]
+  );
+  return { catalog, loading: isLoading };
 };

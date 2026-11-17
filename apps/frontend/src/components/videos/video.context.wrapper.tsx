@@ -11,12 +11,16 @@ export interface RenderHandshake {
    * lie the user catches when it sits still for a minute.
    */
   steps?: string[];
-  /** Run the same render again. Costs one credit. Wired to the result screen's Regenerate. */
+  /** Run the same render again. Costs one credit. Wired to the main button on a result. */
   regenerate: () => void;
-  /** Already-translated label for the result screen's return action, e.g. "Edit script". */
-  backLabel: string;
+  /**
+   * Already-translated label for the result screen's return action, e.g. "Edit
+   * script". A workflow's: a one-shot render, whose settings sit beside its
+   * result, passes none and the result offers no return.
+   */
+  backLabel?: string;
   /** Leave the result and return to the provider's own earlier screen. */
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 /** One progress update. `index` is the zero-based position in `steps`. */
@@ -59,6 +63,15 @@ export const VideoContextWrapper = createContext<{
    */
   actionsSlot: HTMLElement | null;
   /**
+   * The stage's slot, for a provider whose middle step belongs in the stage
+   * (a workflow's storyboard) to portal into. The tool hands over the node,
+   * as it does `actionsSlot`, because it does not exist on the provider's
+   * first render. Only a provider registered with `ownsStage` gets one.
+   * `null`: there is no stage to fill (the provider doesn't own it, or the
+   * stage is showing progress or a result), and it renders nothing there.
+   */
+  stageSlot: HTMLElement | null;
+  /**
    * Asks for the modal's one render at a time, at the click, before anything is
    * requested. False while another render is starting or running: the click
    * must then do nothing. The modal lets the claim go when the render is handed
@@ -76,6 +89,7 @@ export const VideoContextWrapper = createContext<{
   close: () => undefined,
   phase: 'setup',
   actionsSlot: null,
+  stageSlot: null,
   claimRender: () => true,
   startRender: () => undefined,
   reportProgress: () => undefined,

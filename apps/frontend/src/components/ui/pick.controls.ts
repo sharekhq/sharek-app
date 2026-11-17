@@ -1,15 +1,18 @@
 import clsx from 'clsx';
 
 /**
- * The two ways the dashboard lets someone pick: a switch for picking a view
- * (FR-032) and a chip for filtering a list (FR-033). One look each, shared
- * here so no page draws its own.
+ * The ways the dashboard lets someone pick: a switch for picking a view
+ * (FR-032), a chip for filtering a list (FR-033) and a choice for a tool's
+ * setting. One look each, shared here so no page draws its own.
  *
  * The switch: Calendar's Day/Week/Month/List and its List view's post states,
  * Analytics' Last 7/30/90 days, Billing's Monthly/Yearly, Developers' clients,
  * sign-in and where-it-runs tabs, and Apps' Apps/Approved apps.
  * The chip: Studio's categories (with their counts), Media's All/Images/Videos
  * and the AI image window's styles.
+ * The choice: the video tools' settings rows (ChoiceField), each option the
+ * shared secondary Button, which draws the idle look itself; `CHOICE_ON` is
+ * the picked one's, its `!` outranking the Button's own colours.
  *
  * An option is `SWITCH_OPTION` plus `SWITCH_OPTION_IDLE` or `SWITCH_OPTION_ON`,
  * never both, as a chip is `CHIP` plus `CHIP_IDLE` or `CHIP_ON`: Tailwind emits
@@ -44,3 +47,5 @@ export const CHIP_COUNT =
   'min-w-[20px] h-[20px] px-[6px] rounded-full inline-flex items-center justify-center text-[11px] font-[600] tabular-nums';
 export const CHIP_COUNT_IDLE = 'bg-panel text-muted';
 export const CHIP_COUNT_ON = 'bg-surface';
+
+export const CHOICE_ON = '!bg-brandSoft !text-brandText !border-brand';

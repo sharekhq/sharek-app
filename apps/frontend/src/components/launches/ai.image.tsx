@@ -14,12 +14,9 @@ import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
-import {
-  ModalHeaderSlot,
-  ModalHeaderSlotTarget,
-  useModals,
-} from '@gitroom/frontend/components/layout/new-modal';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { Textarea } from '@gitroom/react/form/textarea';
 import useSWR from 'swr';
 import {
   IMAGE_ASPECT_IDS,
@@ -33,23 +30,30 @@ import {
   ImageAspectId,
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
-import {
-  AspectTile,
-  MEDIA_PREVIEW_MAX_HEIGHT,
-  MEDIA_PREVIEW_MAX_WIDTH,
-} from '@gitroom/frontend/components/ui/aspect.tile';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
-import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   CHIP,
   CHIP_IDLE,
   CHIP_ON,
 } from '@gitroom/frontend/components/ui/pick.controls';
+import { AiImageIcon } from '@gitroom/frontend/components/ui/icons';
 import {
-  AiImageIcon,
-  CheckmarkIcon,
-} from '@gitroom/frontend/components/ui/icons';
+  CreditsPill,
+  GenerateButton,
+  StageActions,
+  StageProgress,
+  StageResult,
+  StageSample,
+  VersionsStrip,
+  WORKSPACE_WINDOW,
+  WorkspaceFrame,
+  type WorkspaceToolProps,
+} from '@gitroom/frontend/components/studio/workspace.frame';
+import {
+  FieldLabel,
+  OrientationField,
+} from '@gitroom/frontend/components/studio/workspace.fields';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
 import {
   BrandField,
@@ -102,22 +106,18 @@ const ASPECT_TILES: Record<
   },
 };
 
-/**
- * The placeholder and the finished image share one box so the layout does not
- * jump between them: the preset's own proportions scaled into the preview box
- * both AI modals use, so a 9:16 image and a 9:16 video come out the same size.
- */
-const previewBox = (size: string) => {
-  const [width, height] = size.split('x').map(Number);
-  const scale = Math.min(
-    MEDIA_PREVIEW_MAX_WIDTH / width,
-    MEDIA_PREVIEW_MAX_HEIGHT / height
-  );
-  return { width: Math.round(width * scale), height: Math.round(height * scale) };
-};
+/** The AI image generator's sample picture, on its Studio card and its stage. */
+export const AI_IMAGE_COVER = '/studio/covers/ai-image.webp';
 
-const pillClasses =
-  'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
+/**
+ * The placeholder and the finished image share one box so the stage does not
+ * jump between them: the preset's own proportions, from the size it renders
+ * at.
+ */
+const presetRatio = (id: ImageAspectId) => {
+  const [width, height] = IMAGE_ASPECT_PRESETS[id].size.split('x').map(Number);
+  return width / height;
+};
 
 const chipClasses = (selected: boolean) =>
   clsx(CHIP, selected ? CHIP_ON : CHIP_IDLE);
@@ -145,7 +145,7 @@ const referenceRefusal = (
       if (edit && payload.index === 1) {
         return t(
           'image_edit_missing',
-          "The image you're editing is no longer in your Media library. Go back to the prompt to make a new one."
+          "The image you're editing is no longer in your Media library. Use the prompt to make a new one."
         );
       }
       return t(
@@ -179,13 +179,24 @@ type Version = {
   style?: string;
 };
 
-const AiImageModal: FC<{
-  close: () => void;
-  setLoading: (loading: boolean) => void;
-  onChange: (params: { id: string; path: string }) => void;
-  destination: MediaDestination;
-}> = (props) => {
-  const { close, setLoading, onChange, destination } = props;
+/**
+ * The AI image generator on the shared workspace frame, whatever hosts it: its
+ * Studio page or a window. The settings stay on screen throughout, and the
+ * stage shows the sample, the style catalogue, the progress or the result.
+ */
+export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
+  const {
+    layout,
+    destination,
+    onChange,
+    onAccept,
+    setLoading,
+    locked,
+    onCreatePost,
+    // Only a render for the post being composed holds the composer: the
+    // Studio page and a reference row work for no post (FR-021a).
+    locksComposer = destination === 'post',
+  } = props;
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
@@ -235,8 +246,8 @@ const AiImageModal: FC<{
   // until the image is attached or the user gives it up.
   const startRequest = () => {
     inFlight.current = true;
-    setLoading(true);
-    if (!holdsLock.current) {
+    setLoading?.(true);
+    if (locksComposer && !holdsLock.current) {
       holdsLock.current = true;
       setLocked(true);
     }
@@ -245,7 +256,7 @@ const AiImageModal: FC<{
   const endRequest = () => {
     inFlight.current = false;
     rendering.current = false;
-    setLoading(false);
+    setLoading?.(false);
   };
 
   // Memoized so the unmount cleanup below keeps a stable dependency: a fresh
@@ -271,20 +282,12 @@ const AiImageModal: FC<{
     [releaseLock]
   );
 
-  // The version on screen is brought into view when it is picked, when it
-  // arrives and when a failed render comes back to it: in a strip wider than
-  // the window, it may be past an edge (US3 scenario 4). Nearest, so a version
-  // already in view moves nothing. One below the fold of a short window brings
-  // the window down to it, which on a laptop shows the whole image with the
-  // strip under it. Whether it glides is the stylesheet's call, where the app's
-  // reduced-motion layer can stop it.
-  const shownThumbnail = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    shownThumbnail.current?.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest',
-    });
-  }, [shown, phase]);
+  // The catalogue is a view of the stage: it closes on a pick, on Show less
+  // and when a render takes the stage.
+  const closeCatalog = () => {
+    setCatalogOpen(false);
+    setSearch('');
+  };
 
   /**
    * One render, a generation or an edit, from the credit check to a new version
@@ -327,6 +330,7 @@ const AiImageModal: FC<{
     const held = versions[shown];
     setEditing(edit);
     setPhase('generating');
+    closeCatalog();
     startRequest();
     // Once the request is out, a lost connection leaves a render that cannot be
     // cancelled: the server finishes it on the credit it already committed and
@@ -412,9 +416,13 @@ const AiImageModal: FC<{
         if (mounted.current) {
           setPhase('result');
         } else {
-          // Closed mid-render. It is paid for, and the composer was promised
-          // an image — attaching it is closer to that than nothing.
-          onChange(held.media);
+          // Closed mid-render. It is paid for, and the post or the reference
+          // row was promised an image — attaching it is closer to that than
+          // nothing. The Media library already holds it, so handing it on
+          // there would only announce an older image as new.
+          if (destination !== 'media') {
+            onChange(held.media);
+          }
           releaseLock();
         }
       } else {
@@ -511,18 +519,7 @@ const AiImageModal: FC<{
     }
     releaseLock();
     onChange(versions[shown].media);
-    close();
-  };
-
-  const backToPrompt = () => {
-    // A render under way would bring the waiting screen up over the prompt.
-    if (rendering.current) {
-      return;
-    }
-    // Giving up the result ends the flow; the inputs stay as they were, and so
-    // do the versions, for the result step to come back to (FR-023).
-    releaseLock();
-    setPhase('compose');
+    onAccept?.();
   };
 
   const select = (index: number) => {
@@ -551,18 +548,19 @@ const AiImageModal: FC<{
 
   const version = versions[shown] as Version | undefined;
   // An edit keeps the frame of the version it changes; a generation takes the
-  // compose step's.
+  // settings'.
   const renderingAspect =
     editing && version ? version.aspectRatio : aspectRatio;
 
   // The image is already in the Media library by the time any of this renders
-  // — the route saves it before it answers — so the destination names what
-  // happens next rather than whether the image is kept.
-  const closeNote =
-    destination === 'media'
+  // — the route saves it before it answers — so the note names what happens
+  // next rather than whether the image is kept. The Studio page is no window
+  // to close: the member can leave it; a window says where the image goes.
+  const progressNote =
+    layout === 'page'
       ? t(
-          'close_window_note_media',
-          "You can close this window — the image will be saved to your Media library when it's ready."
+          'workspace_leave_note_image',
+          "You can leave this page. The image is saved to your Media library when it's ready."
         )
       : destination === 'reference'
       ? t(
@@ -574,16 +572,16 @@ const AiImageModal: FC<{
           "You can close this window — the image will be added to your post when it's ready."
         );
 
-  // Nothing to attach it to, so there is nothing to "use": the action only
-  // confirms the image and closes.
-  const acceptLabel =
-    destination === 'media' ? t('done', 'Done') : t('use_image', 'Use image');
+  const cost = t('image_uses_one_credit', 'Uses 1 image credit');
+  const typical = t(
+    'usually_takes_half_minute',
+    'Usually takes about half a minute'
+  );
 
   const styleLabel = (entry: ImageStyle) =>
     t(`image_style_${entry.id}`, entry.label);
 
-  // A style as a pill or a caption names it: Auto, the absence of one, by its
-  // mark.
+  // A style as a caption names it: Auto, the absence of one, by its mark.
   const styleSummary = (id: string | undefined) => {
     const entry = IMAGE_STYLES.find((candidate) => candidate.id === id);
     return entry ? (
@@ -646,373 +644,216 @@ const AiImageModal: FC<{
 
   const pickStyle = (id: string) => {
     setStyle(id);
-    setCatalogOpen(false);
-    setSearch('');
+    closeCatalog();
   };
 
-  return (
-    <div className="flex flex-col gap-[16px]">
-      <ModalHeaderSlot>
-        <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
-          {t('credits_left_count', '{{count}} credits left', {
-            count: credits?.credits || 0,
-          })}
-        </div>
-      </ModalHeaderSlot>
-      {phase === 'compose' && !catalogOpen && (
-        <>
-        <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px] font-[600]">{t('prompt', 'Prompt')}</div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            maxLength={IMAGE_PROMPT_MAX_CHARS}
-            placeholder={t(
-              'describe_the_image_you_want_to_generate',
-              'Describe the image you want to generate'
-            )}
-            className="bg-newBgColorInner min-h-[150px] p-[16px] outline-none border-newColColor border rounded-[8px] text-[14px] coarse:text-[16px] text-textItemFocused focus-visible:ring-2 focus-visible:ring-brand"
-          />
-          <div className="text-[12px] flex items-baseline justify-between gap-[10px]">
-            <span className="text-muted">
-              {t(
-                'image_prompt_hint',
-                'Describe the subject, the setting and the light. Put the words you want on the image in quotes.'
-              )}
-            </span>
-            {promptCounter(prompt.length)}
-          </div>
-        </div>
-        <BrandField
-          brands={brands}
-          brand={brand}
-          own={references.length > 0}
-          onPick={pickBrand}
-        />
-        <ReferenceImages
-          value={references}
-          onChange={setReferences}
-          max={places}
-          branded={!!brand}
-          logo={!!liveLogo(brand)}
-        />
-        <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px] font-[600]">
-            {t('image_orientation', 'Orientation')}
-          </div>
-          <div className="flex gap-[8px]">
-            {IMAGE_ASPECT_IDS.map((id) => {
-              const tile = ASPECT_TILES[id];
-              return (
-                <AspectTile
-                  key={id}
-                  label={t(`image_aspect_${id}`, tile.label)}
-                  ratio={IMAGE_ASPECT_PRESETS[id].ratio}
-                  glyph={tile.glyph}
-                  selected={aspectRatio === id}
-                  tooltipHtml={t(`image_aspect_${id}_tooltip`, tile.tooltip, {
-                    size: IMAGE_ASPECT_PRESETS[id].size.replace('x', '×'),
-                  })}
-                  onSelect={() => setAspectRatio(id)}
-                />
-              );
-            })}
-          </div>
-        </div>
-        <div className="flex flex-col gap-[6px]">
-          <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
-          <div className="flex flex-wrap gap-[8px]">
+  const settings = (
+    <>
+      <Textarea
+        label="Prompt"
+        translationKey="prompt"
+        // Matches the section labels around it.
+        labelClassName="font-[600]"
+        name="prompt"
+        disableForm
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        maxLength={IMAGE_PROMPT_MAX_CHARS}
+        placeholder={t(
+          'describe_the_image_you_want_to_generate',
+          'Describe the image you want to generate'
+        )}
+        hint={t(
+          'image_prompt_hint',
+          'Describe the subject, the setting and the light. Put the words you want on the image in quotes.'
+        )}
+        counter={promptCounter(prompt.length)}
+        className="text-[14px]"
+      />
+      <BrandField
+        brands={brands}
+        brand={brand}
+        own={references.length > 0}
+        onPick={pickBrand}
+      />
+      <ReferenceImages
+        value={references}
+        onChange={setReferences}
+        max={places}
+        branded={!!brand}
+        logo={!!liveLogo(brand)}
+      />
+      <OrientationField
+        label={t('image_orientation', 'Orientation')}
+        options={IMAGE_ASPECT_IDS.map((id) => ({
+          id,
+          label: t(`image_aspect_${id}`, ASPECT_TILES[id].label),
+          ratio: IMAGE_ASPECT_PRESETS[id].ratio,
+          glyph: ASPECT_TILES[id].glyph,
+          tooltipHtml: t(
+            `image_aspect_${id}_tooltip`,
+            ASPECT_TILES[id].tooltip,
+            {
+              size: IMAGE_ASPECT_PRESETS[id].size.replace('x', '×'),
+            }
+          ),
+        }))}
+        value={aspectRatio}
+        onChange={(id) => setAspectRatio(id as ImageAspectId)}
+      />
+      <FieldLabel label={t('style', 'Style')}>
+        <div className="flex flex-wrap gap-[8px]">
+          <button
+            type="button"
+            onClick={() => setStyle(undefined)}
+            className={chipClasses(!style)}
+          >
+            <span className="text-aiAccent">✦</span>
+            {t('auto_style', 'Auto')}
+          </button>
+          {rowStyles.map((entry) => (
             <button
+              key={entry.id}
               type="button"
-              onClick={() => setStyle(undefined)}
-              className={chipClasses(!style)}
+              onClick={() => setStyle(entry.id)}
+              className={chipClasses(style === entry.id)}
             >
-              <span className="text-aiAccent">✦</span>
-              {t('auto_style', 'Auto')}
+              {styleLabel(entry)}
             </button>
-            {rowStyles.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => setStyle(entry.id)}
-                className={chipClasses(style === entry.id)}
-              >
-                {styleLabel(entry)}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setCatalogOpen(true)}
-              className={chipClasses(false)}
-            >
-              {t('all_styles', 'All styles')}
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 16 16"
-                fill="none"
-                className="rtl:rotate-180"
-              >
-                <path
-                  d="M6 3l5 5-5 5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-        </>
-      )}
-
-      {phase === 'compose' && catalogOpen && (
-        <>
-          <div className="flex flex-col gap-[6px]">
-            <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
-            <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px] focus-within:ring-2 focus-within:ring-brand">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle
-                  cx="7"
-                  cy="7"
-                  r="4.5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M10.5 10.5L14 14"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('search_styles', 'Search styles')}
-                className="flex-1 bg-transparent border-0 outline-none text-[14px] coarse:text-[16px] text-ink"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-[16px]">
-            {groups.map((group) => (
-              <div key={group.category} className="flex flex-col gap-[8px]">
-                <div className="text-[12px] font-[600] text-muted">
-                  {t(
-                    `image_style_cat_${group.category}`,
-                    IMAGE_STYLE_CATEGORY_LABELS[group.category]
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-[8px]">
-                  {group.styles.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() => pickStyle(entry.id)}
-                      className={chipClasses(style === entry.id)}
-                    >
-                      {styleLabel(entry)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {!listedStyles && (
-              <div className="text-[12px] text-muted">
-                {t('no_styles_found', 'No styles match your search')}
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center text-[12px] text-muted">
-            <button
-              type="button"
-              onClick={() => {
-                setCatalogOpen(false);
-                setSearch('');
-              }}
-              className="text-[12px] font-[600] text-brandText cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              {t('show_less', '- Show less')}
-            </button>
-            {/* Auto is a sentinel, not an entry, so it is not counted. */}
-            <span>
-              {t('styles_count', '{{count}} styles', { count: listedStyles })}
-            </span>
-          </div>
-        </>
-      )}
-
-      {phase === 'generating' && (
-        <>
-          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
-            <div className="flex gap-[8px]">
-              <span className={pillClasses}>
-                {t(
-                  `image_aspect_${renderingAspect}`,
-                  ASPECT_TILES[renderingAspect].label
-                )}
-                {' · '}
-                {IMAGE_ASPECT_PRESETS[renderingAspect].ratio}
-              </span>
-              <span className={pillClasses}>
-                {editing
-                  ? t('image_edit_pill', 'Edit of version {{n}}', {
-                      n: shown + 1,
-                    })
-                  : styleSummary(style)}
-              </span>
-            </div>
-            {/* The placeholder carries the chosen shape so the wait shows what
-                is coming. The app's reduced-motion layer stops the pulse. */}
-            <div
-              className="bg-surface2 rounded-[14px] animate-pulse"
-              style={previewBox(IMAGE_ASPECT_PRESETS[renderingAspect].size)}
-            />
-            <div className="text-center">
-              <div className="text-[14px] font-[600]">
-                {editing
-                  ? t('editing_your_image', 'Editing your image…')
-                  : t('creating_your_image', 'Creating your image…')}
-              </div>
-              <div className="text-[12px] text-muted mt-[2px]">
-                {t(
-                  'usually_takes_half_minute',
-                  'Usually takes about half a minute'
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-[8px] items-start text-[12px] text-muted">
+          ))}
+          <button
+            type="button"
+            onClick={() => setCatalogOpen(true)}
+            className={chipClasses(false)}
+          >
+            {t('all_styles', 'All styles')}
             <svg
-              width="14"
-              height="14"
+              width="12"
+              height="12"
               viewBox="0 0 16 16"
               fill="none"
-              className="flex-none mt-[3px]"
+              className="rtl:rotate-180"
             >
-              <circle
-                cx="8"
-                cy="8"
-                r="6.5"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
               <path
-                d="M8 7.5V11M8 5v.5"
+                d="M6 3l5 5-5 5"
                 stroke="currentColor"
-                strokeWidth="1.4"
+                strokeWidth="1.6"
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
-            {closeNote}
-          </div>
-        </>
-      )}
+          </button>
+        </div>
+      </FieldLabel>
+    </>
+  );
 
-      {phase === 'result' && version && (
-        <>
-          <div className="bg-panel rounded-[18px] p-[24px] flex flex-col items-center gap-[16px]">
-            {/* A rendered video plays where it sits; an image had no way to be
-                seen at its real size. A link rather than an onClick so
-                ⌘-click, middle-click and the keyboard all reach it. The corner
-                badge below names where it goes, so the cursor is the plain
-                pointer: a magnifier would promise a lightbox that opening a
-                tab does not deliver. */}
-            <a
-              href={version.media.path}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={t('open_image_full_size', 'Open the image full size')}
-              className="group relative cursor-pointer rounded-[14px] focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <img
-                src={version.media.path}
-                alt={version.prompt}
-                style={previewBox(
-                  IMAGE_ASPECT_PRESETS[version.aspectRatio].size
-                )}
-                // `block` rather than the inline default: an inline image
-                // leaves descender space inside the link, which would put the
-                // focus ring and the corner badge a few pixels below the
-                // picture's own edge.
-                className="block rounded-[14px] border border-line object-cover"
-              />
-              <span
-                aria-hidden="true"
-                className="absolute bottom-[8px] end-[8px] w-[28px] h-[28px] rounded-[8px] bg-black/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 coarse:opacity-100 group-focus-visible:opacity-100 transition-opacity"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M9.5 2.5H13.5V6.5M13.5 2.5L8 8"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M12 10v2.5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1H6"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-            </a>
-            {/* Every image made in this window, in the order it was made, once
-                there is a second to go back to (FR-020). The one on screen
-                has a border and a check, so colour is not its only mark; the
-                border is brandText, as brand is only 3:1 on the dark panel.
-                The ring is left to keyboard focus, as on the orientation
-                tiles. The padding is room for the ring and the check, and the
-                scroll padding keeps it when a version is scrolled to an edge. */}
-            {versions.length > 1 && (
-              <div
-                role="group"
-                aria-label={t('image_versions', 'Versions')}
-                className="flex gap-[10px] max-w-full overflow-x-auto p-[8px] scroll-px-[8px] motion-safe:scroll-smooth"
-              >
-                {versions.map((entry, index) => (
-                  <button
-                    // Versions are only ever added, so a place in the strip
-                    // never changes hands.
-                    key={index}
-                    ref={index === shown ? shownThumbnail : undefined}
-                    type="button"
-                    onClick={() => select(index)}
-                    aria-pressed={index === shown}
-                    aria-label={t('image_version_n', 'Version {{n}}', {
-                      n: index + 1,
-                    })}
-                    className="group relative flex-none w-[52px] h-[52px] rounded-[8px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
-                  >
-                    {/* The button's name already says which version it is. */}
-                    <img
-                      src={entry.media.path}
-                      alt=""
-                      className={clsx(
-                        'w-full h-full rounded-[8px] object-cover transition-colors',
-                        index === shown
-                          ? 'border-2 border-brandText'
-                          : 'border border-line group-hover:border-inkSoft'
-                      )}
-                    />
-                    {index === shown && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute -top-[5px] -end-[5px] w-[18px] h-[18px] rounded-full bg-brand text-white flex items-center justify-center ring-2 ring-panel"
-                      >
-                        <CheckmarkIcon width={10} height={7} />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+  // The whole catalogue, on the stage beside the settings; it scrolls on its
+  // own, with room for the focus ring on every side.
+  const catalogue = (
+    <div className="flex-1 min-h-0 w-full max-w-[640px] overflow-y-auto flex flex-col gap-[16px] p-[4px] -m-[4px] text-start">
+      <div className="flex flex-col gap-[6px]">
+        <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
+        <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px] focus-within:ring-2 focus-within:ring-brand">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle
+              cx="7"
+              cy="7"
+              r="4.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+            <path
+              d="M10.5 10.5L14 14"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('search_styles', 'Search styles')}
+            className="flex-1 bg-transparent border-0 outline-none text-[14px] coarse:text-[16px] text-ink"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-[16px]">
+        {groups.map((group) => (
+          <div key={group.category} className="flex flex-col gap-[8px]">
+            <div className="text-[12px] font-[600] text-muted">
+              {t(
+                `image_style_cat_${group.category}`,
+                IMAGE_STYLE_CATEGORY_LABELS[group.category]
+              )}
+            </div>
+            <div className="flex flex-wrap gap-[8px]">
+              {group.styles.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => pickStyle(entry.id)}
+                  className={chipClasses(style === entry.id)}
+                >
+                  {styleLabel(entry)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="text-[12px] text-muted text-center line-clamp-2">
+        ))}
+        {!listedStyles && (
+          <div className="text-[12px] text-muted">
+            {t('no_styles_found', 'No styles match your search')}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-between items-center text-[12px] text-muted">
+        <button
+          type="button"
+          onClick={closeCatalog}
+          className="text-[12px] font-[600] text-brandText cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          {t('show_less', '- Show less')}
+        </button>
+        {/* Auto is a sentinel, not an entry, so it is not counted. */}
+        <span>
+          {t('styles_count', '{{count}} styles', { count: listedStyles })}
+        </span>
+      </div>
+    </div>
+  );
+
+  const stage =
+    phase === 'generating' ? (
+      <StageProgress
+        ratio={presetRatio(renderingAspect)}
+        title={
+          editing
+            ? t('editing_your_image', 'Editing your image…')
+            : t('creating_your_image', 'Creating your image…')
+        }
+        // An edit says which version it changes, as its caption will.
+        detail={
+          editing
+            ? `${t('image_edit_pill', 'Edit of version {{n}}', {
+                n: shown + 1,
+              })} · ${typical}`
+            : typical
+        }
+        note={progressNote}
+      />
+    ) : catalogOpen ? (
+      catalogue
+    ) : phase === 'result' && version ? (
+      <StageResult
+        media={version.media}
+        kind="image"
+        ratio={presetRatio(version.aspectRatio)}
+        alt={version.prompt}
+        caption={
+          <>
             {version.prompt}
             {' · '}
             {t(
@@ -1021,11 +862,32 @@ const AiImageModal: FC<{
             )}
             {' · '}
             {styleSummary(version.style)}
-          </div>
-          {/* The change applies to the image above, as a new version. Its
-              field has the prompt's ceiling and counter (FR-015); its row of
-              images starts with the one being edited. */}
-          <div className="flex flex-col gap-[6px]">
+          </>
+        }
+        actions={
+          <StageActions
+            media={version.media}
+            kind="image"
+            destination={destination}
+            onAccept={onAccept && useImage}
+            onCreatePost={onCreatePost}
+          />
+        }
+        versions={
+          <VersionsStrip
+            versions={versions.map((entry) => ({
+              path: entry.media.path,
+              kind: 'image',
+            }))}
+            shown={shown}
+            onSelect={select}
+          />
+        }
+        below={
+          // The change applies to the image above, as a new version. Its
+          // field has the prompt's ceiling and counter (FR-015); its row of
+          // images starts with the one being edited.
+          <div className="w-full max-w-[640px] flex flex-col gap-[6px] text-start">
             <div className="flex items-baseline justify-between gap-[10px]">
               <div className="text-[14px] font-[600]">
                 {t('image_edit_label', 'Edit this image')}
@@ -1063,49 +925,57 @@ const AiImageModal: FC<{
               }
             />
           </div>
-        </>
-      )}
+        }
+      />
+    ) : (
+      <StageSample
+        cover={AI_IMAGE_COVER}
+        icon={<AiImageIcon />}
+        title={t('workspace_image_empty_title', 'Your image appears here')}
+        body={t(
+          'workspace_image_empty_body',
+          'Describe it, pick a shape and a style, then press Generate.'
+        )}
+        examples={[
+          t('workspace_example_1', 'Iced lemonade on a sunny terrace'),
+          t('workspace_example_2', 'Coffee on a marble table, morning light'),
+          t('workspace_example_3', 'Ramadan sweets from above'),
+        ]}
+        // An example fills the prompt; it never renders by itself.
+        onExample={setPrompt}
+      />
+    );
 
-      {/* No bar while a generation runs — there is nothing to act on until it
-          lands — and none over the style catalog, which is a sub-screen of
-          compose with no action of its own. */}
-      {(phase === 'result' || (phase === 'compose' && !catalogOpen)) && (
-        <ModalActionBar>
-          {phase === 'result' ? (
-            <>
-              <Button variant="secondary" size="large" onClick={backToPrompt}>
-                {t('back_to_prompt', 'Back to prompt')}
-              </Button>
-              <div className="flex-1" />
-              <Button variant="ghost" size="large" onClick={generate}>
-                {t('regenerate', 'Regenerate')}
-                <span className="ms-[6px] font-[500] opacity-75">
-                  · {t('one_credit', '1 credit')}
-                </span>
-              </Button>
-              <Button size="large" onClick={useImage}>
-                {acceptLabel}
-              </Button>
-            </>
-          ) : (
-            <>
-              <CostNote>
-                {t('image_uses_one_credit', 'Uses 1 image credit')}
-              </CostNote>
-              <div className="flex-1" />
-              <Button
-                type="button"
-                size="large"
-                onClick={generate}
-                disabled={overflow}
-              >
-                {t('generate', 'Generate')}
-              </Button>
-            </>
-          )}
-        </ModalActionBar>
+  // Once there is a result a window folds its settings, so the result and
+  // the bar share it.
+  const folded = versions.length > 0;
+
+  return (
+    <WorkspaceFrame
+      layout={layout}
+      settings={settings}
+      folded={folded}
+      settingsSummary={t(
+        'workspace_settings_summary_image',
+        'Prompt, brand, shape and style'
       )}
-    </div>
+      stage={stage}
+      actions={
+        <>
+          <CostNote>{cost}</CostNote>
+          <div className="flex-1" />
+          <GenerateButton
+            working={phase === 'generating'}
+            again={layout === 'stacked' && folded}
+            onClick={generate}
+            disabled={overflow}
+          />
+        </>
+      }
+      credits={<CreditsPill count={credits?.credits || 0} />}
+      locked={locked}
+      cost={cost}
+    />
   );
 };
 
@@ -1118,13 +988,24 @@ export const AiImage: FC<{
    */
   renderTrigger?: (open: () => void, loading: boolean) => ReactNode;
   /**
-   * Where the finished image goes — what the waiting note promises and what
-   * the action that accepts it is called. The composer's post by default.
+   * Where the finished image goes — what the progress note promises and what
+   * the result offers. The composer's post by default.
    */
   destination?: MediaDestination;
+  /**
+   * Whether a render holds the composer until its image is used or given up.
+   * By default only for the post; Samy's AI Image, whose post no composer
+   * holds, passes false (FR-021a).
+   */
+  locksComposer?: boolean;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, destination = 'post' } = props;
+  const {
+    onChange,
+    renderTrigger,
+    destination = 'post',
+    locksComposer,
+  } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -1137,19 +1018,21 @@ export const AiImage: FC<{
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
           {t('generate_ai_image', 'Generate AI Image')}
-          <ModalHeaderSlotTarget className="flex-1 flex justify-end" />
         </div>
       ),
+      ...WORKSPACE_WINDOW,
       children: (close) => (
-        <AiImageModal
-          close={close}
-          setLoading={setLoading}
-          onChange={onChange}
+        <AiImageTool
+          layout="stacked"
           destination={destination}
+          onChange={onChange}
+          onAccept={close}
+          setLoading={setLoading}
+          locksComposer={locksComposer}
         />
       ),
     });
-  }, [loading, onChange, destination]);
+  }, [loading, onChange, destination, locksComposer]);
 
   if (renderTrigger) {
     return <>{renderTrigger(openImageModal, loading)}</>;

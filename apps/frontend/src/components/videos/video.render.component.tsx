@@ -1,9 +1,8 @@
-import { createContext, FC, useCallback, useContext, useEffect } from 'react';
+import { createContext, FC, useCallback, useContext } from 'react';
 import './providers/image-text-slides.provider';
 import './providers/veo3.provider';
 import { videosList } from '@gitroom/frontend/components/videos/video.wrapper';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
 const VideoFunctionWrapper = createContext({
   identifier: '',
@@ -38,6 +37,14 @@ export const videoOwnsActions = (identifier: string) =>
   !!videosList.find((v) => v.identifier === identifier)?.ownsActions;
 
 /**
+ * Whether the provider fills the stage itself during setup, in place of the
+ * tool's sample (a workflow's storyboard). Asked of the registry for the same
+ * reason.
+ */
+export const videoOwnsStage = (identifier: string) =>
+  !!videosList.find((v) => v.identifier === identifier)?.ownsStage;
+
+/**
  * How the chooser should present this provider, or undefined when it declared
  * nothing. Same reason as above: the modal asks the registry, never the
  * identifier.
@@ -46,14 +53,6 @@ export const videoTypeCard = (identifier: string) =>
   videosList.find((v) => v.identifier === identifier)?.card;
 
 export const VideoWrapper: FC<{ identifier: string }> = (props) => {
-  const setActivateExitButton = useLaunchStore((e) => e.setActivateExitButton);
-  useEffect(() => {
-    setActivateExitButton(false);
-    return () => {
-      setActivateExitButton(true);
-    };
-  }, []);
-
   const { identifier } = props;
   const Component = videosList.find(
     (v) => v.identifier === identifier

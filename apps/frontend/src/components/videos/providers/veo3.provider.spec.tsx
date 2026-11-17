@@ -6,6 +6,7 @@ import * as path from 'path';
 
 /** The slice of the media picker's props this spec drives. */
 interface MediaRowProps {
+  destination?: string;
   value?: Array<{ id: string; path: string }>;
   onChange: (event: {
     target: { value: Array<{ id: string; path: string }> };
@@ -38,10 +39,10 @@ const SELECTION = [
 jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
-    MultiMediaComponent: ({ value, onChange }: MediaRowProps) =>
+    MultiMediaComponent: ({ destination, value, onChange }: MediaRowProps) =>
       React.createElement(
         'div',
-        null,
+        { 'data-testid': 'media-row', 'data-destination': destination },
         React.createElement(
           'span',
           { 'data-testid': 'shown' },
@@ -110,7 +111,96 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+const click = async (element: Element | null | undefined) => {
+  await act(async () => {
+    element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+};
+const byText = (text: string) =>
+  Array.from(document.querySelectorAll('div')).find(
+    (node) => node.textContent === text && node.children.length === 0
+  );
+/** The Audio row's buttons: every button but the media picker stand-in's. */
+const audioButtons = () =>
+  Array.from(document.querySelectorAll('button:not([data-testid])'));
+const follows = (later: Node | undefined, earlier: Node | undefined) =>
+  !!later &&
+  !!earlier &&
+  !!(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+const HINTS = {
+  ambient: 'Natural sound and music that suit the scene, with no speech.',
+  narration:
+    'A voiceover describing the scene, spoken in the language of your prompt.',
+  none: 'No speech and no music — only quiet ambience.',
+};
+
+describe('the Audio row', () => {
+  it('offers Ambient, Narration and Silent under its label, Ambient pressed by default with its hint', async () => {
+    const run = await render();
+    const label = byText('Audio');
+    const choices = audioButtons();
+    const hint = byText(HINTS.ambient);
+
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      'Ambient',
+      'Narration',
+      'Silent',
+    ]);
+    expect(
+      choices.map((choice) => choice.getAttribute('aria-pressed'))
+    ).toEqual(['true', 'false', 'false']);
+    expect(run.values().audio).toBe('ambient');
+    // The hint says what the chosen option does, under the row, as today.
+    choices.forEach((choice) => {
+      expect(follows(choice, label)).toBe(true);
+      expect(follows(hint, choice)).toBe(true);
+    });
+  });
+
+  it.each([
+    ['Narration', 'narration', HINTS.narration],
+    ['Silent', 'none', HINTS.none],
+  ])(
+    'presses %s when picked, stores %s and shows its hint',
+    async (name, audio, hint) => {
+      const run = await render();
+
+      await click(audioButtons().find((choice) => choice.textContent === name));
+
+      expect(
+        audioButtons().map((choice) => [
+          choice.textContent,
+          choice.getAttribute('aria-pressed'),
+        ])
+      ).toEqual(
+        ['Ambient', 'Narration', 'Silent'].map((option) => [
+          option,
+          String(option === name),
+        ])
+      );
+      expect(run.values().audio).toBe(audio);
+      expect(byText(hint)).toBeDefined();
+      expect(byText(HINTS.ambient)).toBeUndefined();
+    }
+  );
+});
+
 describe('veo3 reference images', () => {
+  it('keeps its row: the media picker for a reference, under its label and hint', async () => {
+    await render();
+    const label = byText('Reference images');
+    const hint = byText(
+      'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
+    );
+    const row =
+      document.querySelector('[data-testid="media-row"]') ?? undefined;
+
+    expect(row?.getAttribute('data-destination')).toBe('reference');
+    expect(follows(hint, label)).toBe(true);
+    expect(follows(row, hint)).toBe(true);
+  });
+
   it('shows back what the request will carry, not what was picked', async () => {
     const run = await render();
     await run.press();

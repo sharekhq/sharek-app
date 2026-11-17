@@ -11,5 +11,10 @@ export const Title = () => {
   const currentItem = menuItems.find((item) => path.indexOf(item.path) > -1);
   const currentTitle = currentItem?.title ?? currentItem?.name;
 
-  return <h1 className="truncate">{currentTitle}</h1>;
+  return (
+    <>
+      <h1 className="truncate">{currentTitle}</h1>
+      <div id="top-bar-slot" className="contents" />
+    </>
+  );
 };

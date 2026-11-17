@@ -2,12 +2,14 @@ import { videoWrapper } from '@gitroom/frontend/components/videos/video.wrapper'
 import { FC, useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
-import { Button } from '@gitroom/react/form/button';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import clsx from 'clsx';
 import { VideoPromptField } from '@gitroom/frontend/components/videos/video.modal.parts';
+import {
+  ChoiceField,
+  FieldLabel,
+} from '@gitroom/frontend/components/studio/workspace.fields';
 
 export interface Voice {
   id: string;
@@ -60,41 +62,23 @@ const VEO3Settings: FC = () => {
           'Describe the scene: who or what is in it, where, and what happens'
         )}
       />
-      <div className="flex flex-col gap-[6px]">
-        <div className="text-[14px] font-[600]">{t('veo3_audio', 'Audio')}</div>
-        <div className="flex gap-[8px]">
-          {AUDIO_OPTIONS.map((option) => (
-            <Button
-              key={option}
-              type="button"
-              variant="secondary"
-              className={clsx(
-                '!flex-1',
-                selected === option &&
-                  '!bg-brandSoft !text-brandText !border-brand'
-              )}
-              onClick={() => setValue('audio', option)}
-            >
-              {t(`veo3_audio_${option}`, AUDIO_LABELS[option])}
-            </Button>
-          ))}
-        </div>
-        <div className="text-[12px] text-muted">
-          {t(`veo3_audio_${selected}_hint`, AUDIO_HINTS[selected])}
-        </div>
-      </div>
-      <div className="flex flex-col gap-[6px]">
-        <div className="flex flex-col gap-[2px]">
-          <div className="text-[14px] font-[600]">
-            {t('reference_images', 'Reference images')}
-          </div>
-          <div className="text-[12px] text-muted">
-            {t(
-              'reference_images_hint',
-              'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
-            )}
-          </div>
-        </div>
+      <ChoiceField
+        label={t('veo3_audio', 'Audio')}
+        options={AUDIO_OPTIONS.map((option) => ({
+          id: option,
+          label: t(`veo3_audio_${option}`, AUDIO_LABELS[option]),
+        }))}
+        value={selected}
+        onChange={(option) => setValue('audio', option)}
+        hint={t(`veo3_audio_${selected}_hint`, AUDIO_HINTS[selected])}
+      />
+      <FieldLabel
+        label={t('reference_images', 'Reference images')}
+        hint={t(
+          'reference_images_hint',
+          'Optional: add up to 3 images for the video to draw on — a product, a character, or a scene.'
+        )}
+      >
         <MultiMediaComponent
           allData={[]}
           dummy={true}
@@ -116,7 +100,7 @@ const VEO3Settings: FC = () => {
             )
           }
         />
-      </div>
+      </FieldLabel>
     </div>
   );
 };

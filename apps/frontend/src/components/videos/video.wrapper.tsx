@@ -1,4 +1,6 @@
 import { FC, ReactNode } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 
 /**
  * A translated string declared where `t()` cannot run — the registry is module
@@ -44,18 +46,41 @@ export interface VideoTypeCard {
   };
 }
 
+/**
+ * A model's line under its name, in place of the category line: who made it,
+ * then its category's name, the maker's name isolated. Here, beside the card
+ * it formats, so Studio and the video tool read the one helper.
+ */
+export const studioMakerLine = (
+  t: ReturnType<typeof useT>,
+  maker: StudioMaker,
+  category: string | undefined
+): string =>
+  t('studio_model_by', 'by {{maker}} · {{category}}', {
+    maker: isolate(maker.name),
+    category,
+    // React escapes the line, so i18next mustn't first
+    interpolation: { escapeValue: false },
+  });
+
 export const videosList: {
   identifier: string;
   Component: FC;
   /** The provider fills the modal's action bar instead of the modal's own submit button. */
   ownsActions: boolean;
+  /** The provider fills the stage during setup instead of the tool's own sample. */
+  ownsStage: boolean;
   card?: VideoTypeCard;
 }[] = [];
 
 export const videoWrapper = (
   identifier: string,
   Component: any,
-  options: { ownsActions?: boolean; card?: VideoTypeCard } = {}
+  options: {
+    ownsActions?: boolean;
+    ownsStage?: boolean;
+    card?: VideoTypeCard;
+  } = {}
 ): null => {
   if (videosList.map((p) => p.identifier).includes(identifier)) {
     return null;
@@ -65,6 +90,7 @@ export const videoWrapper = (
     identifier,
     Component,
     ownsActions: !!options.ownsActions,
+    ownsStage: !!options.ownsStage,
     card: options.card,
   });
 
