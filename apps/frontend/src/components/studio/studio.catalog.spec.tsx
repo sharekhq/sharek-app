@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { act, FC, ReactElement } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => fallback,
@@ -9,8 +11,13 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 // two providers listed today, one whose card says nothing for Studio, and one
 // more tool for the search's longer list, is enough. The two declarations of
 // today mirror veo3.provider.tsx and image-text-slides.provider.tsx, whose own
-// specs pin them.
+// specs pin them. They are registered through videoWrapper, as a provider file
+// registers itself, and read back from the registry, so a provider a case
+// registers is listed the same way (SC-004).
 jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
+  const { videoWrapper, videosList } = jest.requireActual(
+    '@gitroom/frontend/components/videos/video.wrapper'
+  );
   const cards: Record<string, unknown> = {
     veo3: {
       name: { key: 'video_type_veo3', fallback: 'Veo 3' },
@@ -65,16 +72,38 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
       studio: { kind: 'tool' },
     },
   };
+  Object.entries(cards).forEach(([identifier, card]) =>
+    videoWrapper(identifier, () => null, { card })
+  );
   return {
     VideoWrapper: () => null,
     videoOwnsActions: () => false,
-    videoTypeCard: (identifier: string) => cards[identifier],
+    videoTypeCard: (identifier: string) =>
+      videosList.find(
+        (provider: { identifier: string }) => provider.identifier === identifier
+      )?.card,
   };
 });
 // The AI image window's reference row opens the Media library, which drags in
-// its uploader; the catalog's rules never open the window.
+// its uploader; the catalog's rules never open the window. The cover mirrors
+// ai.image.tsx's export.
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImage: () => null,
+  AiImageTool: () => null,
+  AI_IMAGE_COVER: '/studio/covers/ai-image.webp',
+}));
+// useStudioCatalog's three inputs; the provider list's request stays out.
+jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/launches/ai.video'),
+  useAiVideoTypes: () => ({ data: mockProviders }),
+}));
+jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
+  ...jest.requireActual('@gitroom/frontend/components/layout/user.context'),
+  useUser: () => mockUser,
+}));
+jest.mock('@gitroom/react/helpers/variable.context', () => ({
+  ...jest.requireActual('@gitroom/react/helpers/variable.context'),
+  useVariables: () => mockVariables,
 }));
 // Scenery: the channel panel's module loads for matchesSearch.
 jest.mock(
@@ -88,15 +117,33 @@ jest.mock(
 import {
   buildStudioCatalog,
   filterStudio,
+  findStudioTool,
   STUDIO_TOOLS,
   StudioCatalog,
   StudioChip,
   StudioSections,
   StudioToolEntry,
+  studioToolHref,
+  useStudioCatalog,
 } from '@gitroom/frontend/components/studio/studio.tools';
+import {
+  AI_IMAGE_COVER,
+  AiImageTool,
+} from '@gitroom/frontend/components/launches/ai.image';
+import {
+  AiVideo,
+  AiVideoTool,
+  VideoType,
+} from '@gitroom/frontend/components/launches/ai.video';
+import { videoWrapper } from '@gitroom/frontend/components/videos/video.wrapper';
 
 type CatalogInput = Parameters<typeof buildStudioCatalog>[0];
 type Translate = Parameters<StudioChip['label']>[0];
+
+// What useStudioCatalog's hooks answer.
+let mockProviders: VideoType[] | undefined;
+let mockUser: CatalogInput['user'];
+let mockVariables: Pick<CatalogInput, 'billingEnabled' | 'showImageEditor'>;
 
 // What /media/video-options answers: the agent-facing description rides along
 // and must never reach a card.
@@ -157,6 +204,37 @@ const videoIds = (built: StudioCatalog) =>
 const chips = (built: StudioCatalog) =>
   built.chips.map((chip) => [chip.id, chip.count]);
 
+// A catalog as data, its text resolved in English and its ways in as flags, so
+// two builds compare: every build makes the providers' functions anew.
+const summary = (built: StudioCatalog) => ({
+  listings: built.listings.map(({ entry, state }) => ({
+    id: entry.id,
+    slug: entry.slug,
+    state,
+    name: entry.name(translate({})),
+    description: entry.description(translate({})),
+    ...declared(entry),
+    page: !!entry.workspace,
+    window: !!entry.trigger,
+  })),
+  chips: built.chips.map((chip) => [
+    chip.id,
+    chip.label(translate({})),
+    chip.count,
+  ]),
+  hasLockedTools: built.hasLockedTools,
+  empty: built.empty,
+});
+
+// What a page tool's workspace renders for the tool page.
+const page = (
+  entry: StudioToolEntry | undefined,
+  props: Parameters<NonNullable<StudioToolEntry['workspace']>>[0] = {
+    locked: false,
+    onReady: jest.fn(),
+  }
+) => entry?.workspace?.(props) as ReactElement<Record<string, any>>;
+
 // A listing in Branding, which nothing fills today, so the chips' fixed order
 // can be seen whole.
 const brandKit: StudioToolEntry = {
@@ -172,6 +250,11 @@ describe('the listings today', () => {
       category: 'images',
       cover: '/studio/covers/ai-image.webp',
     });
+  });
+
+  // The tool owns its sample's picture, which its windows show too (D3).
+  it("reads the AI image generator's cover from the tool itself", () => {
+    expect(listing(catalog(), 'ai-image')?.cover).toBe(AI_IMAGE_COVER);
   });
 
   it('lists the image editor as a tool in Edit & enhance, with its cover', () => {
@@ -403,6 +486,250 @@ describe('an empty catalogue', () => {
     expect(catalog().empty).toBe(false);
     expect(catalog({ tools: [], videoOptions: [veo3] }).empty).toBe(false);
     expect(catalog({ tools: [], videoOptions: [] }).empty).toBe(true);
+  });
+});
+
+describe('addresses', () => {
+  it('gives the fixed tools their id as slug and each provider its identifier', () => {
+    expect(catalog().listings.map((tool) => tool.entry.slug)).toEqual([
+      'image-editor',
+      'ai-image',
+      'veo3',
+      'image-text-slides',
+    ]);
+  });
+
+  it('finds a listing by its slug, and nothing for a slug no listing has', () => {
+    const built = catalog();
+
+    expect(findStudioTool(built, 'veo3')).toBe(
+      built.listings.find((tool) => tool.entry.id === 'video:veo3')
+    );
+    expect(findStudioTool(built, 'sora')).toBeUndefined();
+  });
+
+  it('links a page tool to /studio/<slug>, and the image editor to no page', () => {
+    const built = catalog();
+
+    expect(studioToolHref(listing(built, 'ai-image')!)).toBe(
+      '/studio/ai-image'
+    );
+    expect(studioToolHref(listing(built, 'video:veo3')!)).toBe('/studio/veo3');
+    expect(studioToolHref(listing(built, 'image-editor')!)).toBeUndefined();
+  });
+});
+
+describe('pages and windows', () => {
+  it('opens the image editor in its window and every other listing on its page', () => {
+    const built = catalog({ videoOptions: [veo3, slides, kling, unknown] });
+
+    expect(
+      built.listings.map(({ entry }) => [
+        entry.id,
+        { window: !!entry.trigger, page: !!entry.workspace },
+      ])
+    ).toEqual([
+      ['image-editor', { window: true, page: false }],
+      ['ai-image', { window: false, page: true }],
+      ['video:veo3', { window: false, page: true }],
+      ['video:image-text-slides', { window: false, page: true }],
+      ['video:kling', { window: false, page: true }],
+      ['video:sora', { window: false, page: true }],
+    ]);
+  });
+
+  // A component made inside the catalog would be a new one on every build, and
+  // the tool page would remount with each, losing its versions (D4).
+  it("renders a page tool through its module's own tool body, the same one on every build", () => {
+    const first = catalog();
+    const second = catalog();
+
+    expect(page(listing(first, 'ai-image')).type).toBe(AiImageTool);
+    expect(page(listing(second, 'ai-image')).type).toBe(AiImageTool);
+    expect(page(listing(first, 'video:veo3')).type).toBe(AiVideoTool);
+    expect(page(listing(second, 'video:veo3')).type).toBe(AiVideoTool);
+    expect(page(listing(first, 'video:image-text-slides')).type).toBe(
+      AiVideoTool
+    );
+  });
+
+  it('every page tool\'s `workspace` renders its tool with `destination="media"`, and a provider with no page keeps a window `trigger` with destination `media`', () => {
+    const built = catalog({
+      videoOptions: [veo3, { identifier: 'Bad:Id', title: 'Bad' }],
+    });
+    const onReady = jest.fn();
+    const onCreatePost = jest.fn();
+    const media = { id: 'm-1', path: 'https://media/m-1' };
+
+    const image = page(listing(built, 'ai-image'), {
+      locked: true,
+      onReady,
+      onCreatePost,
+    });
+    expect(image.props).toMatchObject({
+      layout: 'page',
+      destination: 'media',
+      locked: true,
+      onCreatePost,
+    });
+    image.props.onChange(media);
+    expect(onReady).toHaveBeenLastCalledWith(media, 'image');
+
+    const video = page(listing(built, 'video:veo3'), {
+      locked: false,
+      onReady,
+      onCreatePost,
+    });
+    expect(video.props).toMatchObject({
+      layout: 'page',
+      destination: 'media',
+      locked: false,
+      onCreatePost,
+      type: veo3,
+    });
+    video.props.onChange(media);
+    expect(onReady).toHaveBeenLastCalledWith(media, 'video');
+
+    const onSaved = jest.fn();
+    const renderTrigger = jest.fn();
+    const windowed = listing(built, 'video:Bad:Id')?.trigger?.({
+      onSaved,
+      renderTrigger,
+    }) as ReactElement<Record<string, any>>;
+    expect(windowed.type).toBe(AiVideo);
+    expect(windowed.props).toMatchObject({
+      destination: 'media',
+      only: 'Bad:Id',
+      onChange: onSaved,
+      renderTrigger,
+    });
+  });
+
+  // An address is one [a-z0-9-]+ segment, unique in the catalog.
+  it.each([
+    ['is not a valid address', 'Bad:Id'],
+    ["repeats a fixed tool's slug", 'ai-image'],
+  ])(
+    'keeps the card of a provider whose identifier %s, opening it in a window',
+    (_, identifier) => {
+      const built = catalog({
+        videoOptions: [veo3, { identifier, title: 'Provider' }],
+      });
+      const entry = listing(built, `video:${identifier}`);
+
+      expect(entry).toBeDefined();
+      expect(entry?.trigger).toBeDefined();
+      expect(entry?.workspace).toBeUndefined();
+      expect(studioToolHref(entry!)).toBeUndefined();
+      expect(findStudioTool(built, 'ai-image')?.entry.id).toBe('ai-image');
+    }
+  );
+});
+
+describe('a new provider (SC-004)', () => {
+  const Stub = () => null;
+
+  it('lists a provider that registers itself with its slug, its page, its maker and facts, and changes no other listing', () => {
+    const before = summary(catalog()).listings;
+    videoWrapper('stub-model', Stub, {
+      card: {
+        name: { key: 'video_type_stub_model', fallback: 'Stub model' },
+        description: {
+          key: 'video_type_stub_model_desc',
+          fallback: 'A stand-in model.',
+        },
+        pills: [],
+        diagram: null,
+        studio: {
+          kind: 'model',
+          maker: { name: 'Acme', logo: '/studio/makers/acme.svg' },
+          facts: [{ key: 'video_type_stub_model_fact', fallback: '4K' }],
+        },
+      },
+    });
+    const stubModel = { identifier: 'stub-model', title: 'Stub (Video)' };
+    const built = catalog({ videoOptions: [veo3, slides, stubModel] });
+    const entry = listing(built, 'video:stub-model');
+
+    expect(entry?.slug).toBe('stub-model');
+    expect(entry?.name(translate({}))).toBe('Stub model');
+    expect(declared(entry)).toEqual({
+      kind: 'model',
+      category: 'video',
+      maker: { name: 'Acme', logo: '/studio/makers/acme.svg' },
+      facts: ['4K'],
+    });
+    expect(page(entry).type).toBe(AiVideoTool);
+    expect(page(entry).props.type).toBe(stubModel);
+    expect(studioToolHref(entry!)).toBe('/studio/stub-model');
+    expect(findStudioTool(built, 'stub-model')?.entry).toBe(entry);
+    expect(
+      summary(built).listings.filter((tool) => tool.id !== 'video:stub-model')
+    ).toEqual(before);
+  });
+});
+
+describe('useStudioCatalog', () => {
+  const results: Array<ReturnType<typeof useStudioCatalog>> = [];
+  const Probe: FC = () => {
+    results.push(useStudioCatalog());
+    return null;
+  };
+  const mounted: Root[] = [];
+  const latest = async () => {
+    const root = createRoot(document.createElement('div'));
+    mounted.push(root);
+    await act(async () => {
+      root.render(<Probe />);
+    });
+    return results[results.length - 1];
+  };
+
+  beforeEach(() => {
+    results.length = 0;
+    mockUser = withoutAi;
+    mockVariables = { billingEnabled: true, showImageEditor: false };
+  });
+  afterEach(() => {
+    mounted.splice(0).forEach((root) => act(() => root.unmount()));
+  });
+
+  it('builds the catalog from the user, the deployment and the provider list', async () => {
+    mockProviders = [veo3, slides];
+
+    const { catalog: built, loading } = await latest();
+
+    expect(loading).toBe(false);
+    expect(summary(built)).toEqual(
+      summary(
+        buildStudioCatalog({
+          tools: STUDIO_TOOLS,
+          videoOptions: [veo3, slides],
+          user: withoutAi,
+          billingEnabled: true,
+          showImageEditor: false,
+        })
+      )
+    );
+  });
+
+  it('is loading while the provider list is undefined', async () => {
+    mockProviders = undefined;
+
+    const { catalog: built, loading } = await latest();
+
+    expect(loading).toBe(true);
+    expect(summary(built)).toEqual(
+      summary(
+        buildStudioCatalog({
+          tools: STUDIO_TOOLS,
+          videoOptions: undefined,
+          user: withoutAi,
+          billingEnabled: true,
+          showImageEditor: false,
+        })
+      )
+    );
   });
 });
 
