@@ -119,8 +119,9 @@ describe('Title', () => {
     expect(render()()).toBe('الإطلاقات');
   });
 
-  // A Studio tool page portals its tool switcher into this slot (spec 061); on
-  // every other page it stays empty, and display: contents gives it no box.
+  // A Studio tool page portals its tool switcher, a div, into this slot (spec
+  // 061), so the slot is a div too, as a span may not hold one; on every other
+  // page it stays empty, and display: contents gives it no box.
   it.each(['/launches', '/brands', '/studio/ai-image'])(
     'keeps an empty top bar slot right after the heading on %s',
     (path) => {
@@ -128,7 +129,7 @@ describe('Title', () => {
       render();
 
       const slot = document.querySelector('h1')?.nextElementSibling;
-      expect(slot?.tagName).toBe('SPAN');
+      expect(slot?.tagName).toBe('DIV');
       expect(slot?.id).toBe('top-bar-slot');
       expect(slot?.className).toBe('contents');
       expect(slot?.childNodes).toHaveLength(0);
