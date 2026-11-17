@@ -13,7 +13,7 @@ import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
-import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
+import { CostNote, InfoIcon } from '@gitroom/frontend/components/ui/cost.note';
 import {
   CheckmarkIcon,
   ChevronDownIcon,
@@ -342,27 +342,31 @@ export const StageSample: FC<{
   );
 };
 
-/** The note under the wait and the info mark it leads with. */
+/** The note under the wait and the info mark it leads with, the cost line's. */
 const StageNote: FC<{ children: ReactNode }> = ({ children }) => (
   <div className="flex gap-[8px] items-start max-w-[420px] text-start text-[12px] text-muted">
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden="true"
-      className="flex-none mt-[3px]"
-    >
-      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M8 7.5V11M8 5v.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
+    <InfoIcon className="mt-[3px]" />
     {children}
   </div>
+);
+
+/** A done step's tick: the progress's step list and a workflow's steps. */
+export const TickIcon: FC<{ size: number }> = ({ size }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 12 12"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M2.5 6.2l2.3 2.3 4.7-5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 );
 
 /**
@@ -429,23 +433,7 @@ export const StageProgress: FC<{
                     : 'border-line bg-surface'
                 )}
               >
-                {state === 'done' && (
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M2.5 6.2l2.3 2.3 4.7-5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+                {state === 'done' && <TickIcon size={10} />}
               </span>
               <span>
                 {label}
