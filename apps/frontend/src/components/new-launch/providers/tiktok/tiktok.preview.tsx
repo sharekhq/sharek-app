@@ -58,7 +58,7 @@ export const TiktokPreview: FC<{
     return { text: finalValue, images: p.image };
   });
   return (
-    <div className="p-[15px] absolute left-0 top-0 w-full h-full flex justify-center bg-newBgColorInner">
+    <div className="p-[15px] absolute left-0 top-0 w-full h-full [container-type:size] flex justify-center items-center bg-newBgColorInner">
       <div className="relative">
         <SliderComponent
           list={renderContent?.[0]?.images.map((image, index) => (
@@ -71,7 +71,7 @@ export const TiktokPreview: FC<{
               <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
             </a>
           ))}
-          className="h-full bg-black aspect-[calc(9/16)] rounded-[3px] overflow-hidden"
+          className="h-[min(100cqh,(100cqw-47px)*16/9)] bg-black aspect-[calc(9/16)] rounded-[3px] overflow-hidden"
         />
         <div className="absolute pointer-events-none w-full h-full start-0 top-0 px-[12px] py-[25px] justify-end items-start text-white flex flex-col">
           <div className="text-[14px] font-[500]">@{integration?.name}</div>
@@ -82,7 +82,7 @@ export const TiktokPreview: FC<{
           />
         </div>
       </div>
-      <div className="flex flex-col justify-end gap-[10px] ml-[18px]">
+      <div className="h-[min(100cqh,(100cqw-47px)*16/9)] flex flex-col justify-end gap-[10px] ml-[18px]">
         <div className="relative">
           <img
             src={integration?.picture || '/no-picture.jpg'}
