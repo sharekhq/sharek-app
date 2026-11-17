@@ -173,14 +173,16 @@ export const useComposerTabs = (): ComposerTabs | null =>
 
 /**
  * What the composer's ✦ AI Image and AI Video buttons do: in the composer, a
- * result for the post is made in its kind's tab beside it, for the post at
- * `place`, whose channel the provider reads at the click (FR-021, tasks D10);
- * outside it (Samy, Studio), or for a reference row, the tool's window.
+ * result for a post's row (the editor gives it the post's index, `place`) is
+ * made in its kind's tab beside it, for that post, whose channel the provider
+ * reads at the click (FR-021, tasks D10); outside it (Samy, Studio), for a
+ * reference row, or for a row that is not a post's (a channel's settings, a
+ * model's reference), the tool's window (review C1).
  */
 export const useOpenTool = (
   kind: ComposerTabKind,
   onChange: (media: { id: string; path: string }) => void,
-  place: number,
+  place: number | undefined,
   destination: MediaDestination,
   openWindow: () => void
 ): (() => void) => {
@@ -196,7 +198,7 @@ export const useOpenTool = (
   }, [onChange]);
 
   return () => {
-    if (!tabs || destination !== 'post') {
+    if (!tabs || destination !== 'post' || place === undefined) {
       openWindow();
       return;
     }
