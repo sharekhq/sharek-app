@@ -26,10 +26,25 @@ jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) => select({ setLocked }),
 }));
 // The composer's tabs: none outside the composer, as Samy and a reference row
-// see it; inside it, a case hands its own and reads what the button opens.
+// see it; inside it, a case hands its own. The ✦ button's opener (its cases
+// in composer.stage.spec.tsx) is recorded with what the button hands it, and
+// opens the tabs' tab when a case handed them, the tool's window otherwise.
 let mockTabs: { open: jest.Mock } | null = null;
+const mockOpenTool = jest.fn(
+  (
+    _kind: string,
+    _onChange: unknown,
+    _place: number,
+    _destination: MediaDestination,
+    openWindow: () => void
+  ) => {
+    return () => (mockTabs ? mockTabs.open() : openWindow());
+  }
+);
 jest.mock('@gitroom/frontend/components/new-launch/composer.stage', () => ({
   useComposerTabs: () => mockTabs,
+  useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
+    mockOpenTool(...args),
 }));
 // The modal manager as it is, each window's options recorded on the way in:
 // the AI image window's size, height and top are what keep its bar on the
@@ -3338,101 +3353,63 @@ describe('the stage', () => {
 });
 
 // Spec 061 part 3 (FR-021, FR-027; tasks D10): in the composer, AI Image opens
-// its tab beside the post, never a window, for the post its button is under;
-// what it makes lands through that row's latest handler while the button is
-// there. Samy and a reference row keep the window.
+// its tab beside the post, never a window, for the post its button is under.
+// The button hands the composer's opener its kind, its row's handler, the
+// post's index and where the image goes; Samy and a reference row keep the
+// window (composer.stage.spec.tsx).
 describe('in the composer', () => {
   const aiButton = () => document.querySelector('.bg-aiSoft');
 
-  /**
-   * The composer's ✦ button under one post's media row, in a root of its own:
-   * the returned function draws it again with the row's next handler.
-   */
+  /** The composer's ✦ button under one post's media row. */
   const row = async (
     onChange: jest.Mock,
     props: { place?: number; destination?: MediaDestination } = {}
   ) => {
     mockTabs = { open: jest.fn() };
-    const root = createRoot(
-      document.body.appendChild(document.createElement('div'))
-    );
-    mounted.push(root);
-    const draw = (handler: jest.Mock) =>
-      act(async () => {
-        root.render(<AiImage value="" onChange={handler} {...props} />);
-      });
-    await draw(onChange);
-    return draw;
+    await mount(<AiImage value="" onChange={onChange} {...props} />);
   };
 
-  /** The handler the tab lands its image through, as the button handed it. */
-  const target = () => mockTabs!.open.mock.calls[0][1]();
-
   it('opens the AI image tab for the post, never a window', async () => {
-    await row(jest.fn());
+    const onChange = jest.fn();
+    await row(onChange);
     await click(aiButton());
 
-    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
-    expect(mockTabs!.open).toHaveBeenCalledWith(
+    expect(mockOpenTool).toHaveBeenLastCalledWith(
       'image',
-      expect.any(Function),
-      0
+      onChange,
+      0,
+      'post',
+      expect.any(Function)
     );
+    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
     expect(opened).toHaveLength(0);
-  });
-
-  it('opens the window as before outside the composer, as Samy does', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
-    await click(aiButton());
-
-    expect(opened).toHaveLength(1);
-    expect(promptField()).toBeTruthy();
-  });
-
-  it('opens the window as before for a reference row, in the composer too', async () => {
-    await row(jest.fn(), { destination: 'reference' });
-    await click(aiButton());
-
-    expect(mockTabs!.open).not.toHaveBeenCalled();
-    expect(opened).toHaveLength(1);
   });
 
   // The stage reads the post's channel at the click (tasks D10).
   it('hands the tab the index of the post its button is under', async () => {
-    await row(jest.fn(), { place: 2 });
-    await click(aiButton());
+    const onChange = jest.fn();
+    await row(onChange, { place: 2 });
 
-    expect(mockTabs!.open).toHaveBeenCalledWith(
+    expect(mockOpenTool).toHaveBeenLastCalledWith(
       'image',
-      expect.any(Function),
-      2
+      onChange,
+      2,
+      'post',
+      expect.any(Function)
     );
   });
 
-  // research R4: the row's handler changes with the post, so the click's copy
-  // would land the image in the post as it was then.
-  it("lands what it makes through the row's latest handler, not the click's", async () => {
-    const first = jest.fn();
-    const latest = jest.fn();
-    const draw = await row(first);
-    await click(aiButton());
-    await draw(latest);
+  it("hands the opener a reference row's destination", async () => {
+    const onChange = jest.fn();
+    await row(onChange, { destination: 'reference' });
 
-    target()(done.media);
-
-    expect(latest).toHaveBeenCalledWith(done.media);
-    expect(first).not.toHaveBeenCalled();
-  });
-
-  it('hands the tab no handler once its button is gone, so the stage lands it through the store', async () => {
-    await row(jest.fn());
-    await click(aiButton());
-
-    expect(target()).toBeDefined();
-
-    leave();
-
-    expect(target()).toBeUndefined();
+    expect(mockOpenTool).toHaveBeenLastCalledWith(
+      'image',
+      onChange,
+      0,
+      'reference',
+      expect.any(Function)
+    );
   });
 });
 

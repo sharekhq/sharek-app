@@ -54,7 +54,10 @@ import {
   OrientationField,
 } from '@gitroom/frontend/components/studio/workspace.fields';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
-import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
+import {
+  useComposerTabs,
+  useOpenTool,
+} from '@gitroom/frontend/components/new-launch/composer.stage';
 import {
   BrandField,
   brandRefusal,
@@ -989,16 +992,6 @@ export const AiImage: FC<{
   const { onChange, renderTrigger, destination = 'post', place = 0 } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
-  const tabs = useComposerTabs();
-  // The row's latest handler, read when the image lands, which can be long
-  // after the click; none once the button is gone (tasks D10).
-  const latestOnChange = useRef<typeof onChange | undefined>(undefined);
-  useEffect(() => {
-    latestOnChange.current = onChange;
-    return () => {
-      latestOnChange.current = undefined;
-    };
-  }, [onChange]);
 
   const openImageModal = useCallback(() => {
     if (loading) {
@@ -1024,17 +1017,16 @@ export const AiImage: FC<{
     });
   }, [loading, onChange, destination]);
 
-  // In the composer the post's image is made in a tab beside it, for the post
-  // this button is under, whose channel the stage reads at the click (FR-021,
-  // tasks D10). A trigger of its own (a Studio card, Samy's button) is never
-  // in the composer: it keeps the window.
-  const open = () => {
-    if (!tabs || destination !== 'post') {
-      openImageModal();
-      return;
-    }
-    tabs.open('image', () => latestOnChange.current, place);
-  };
+  // In the composer the post's image is made in a tab beside it (FR-021). A
+  // trigger of its own (a Studio card, Samy's button) is never in the
+  // composer: it keeps the window.
+  const open = useOpenTool(
+    'image',
+    onChange,
+    place,
+    destination,
+    openImageModal
+  );
 
   if (renderTrigger) {
     return <>{renderTrigger(openImageModal, loading)}</>;

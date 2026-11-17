@@ -77,12 +77,15 @@ jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
 
 import {
   ComposerStage,
+  ComposerTabKind,
   ComposerTabs,
   ComposerTabsProvider,
   PreviewPlace,
   useComposerTabs,
+  useOpenTool,
 } from '@gitroom/frontend/components/new-launch/composer.stage';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 
 const IMAGE = 'AI image generator';
 const VIDEO = 'AI Video';
@@ -678,5 +681,114 @@ describe('the context', () => {
     });
 
     expect(tabs).toBeNull();
+  });
+});
+
+// The composer's ✦ AI Image and AI Video buttons (FR-021, FR-027; tasks D10):
+// in the composer a button for the post opens its kind's tab beside it, never
+// a window, and what the tab makes lands through that row's latest handler
+// while the button is there. Samy, Studio and a reference row keep the window.
+describe("the AI buttons' opener", () => {
+  const openWindow = jest.fn();
+  beforeEach(() => {
+    openWindow.mockClear();
+  });
+
+  // A button as the tools draw theirs: the opener on its click.
+  const Button = ({
+    kind,
+    onChange,
+    place = 0,
+    destination = 'post',
+  }: {
+    kind: ComposerTabKind;
+    onChange: (m: typeof media) => void;
+    place?: number;
+    destination?: MediaDestination;
+  }) => {
+    const openTool = useOpenTool(
+      kind,
+      onChange,
+      place,
+      destination,
+      openWindow
+    );
+    return <button onClick={openTool} />;
+  };
+  const aiButton = () => host.querySelector('button')!;
+
+  /** Draws the composer around the button (none once it is gone), or the button alone outside it. */
+  const draw = async (button: ReactNode, inComposer = true) => {
+    await act(async () => {
+      root.render(
+        inComposer ? (
+          <ComposerTabsProvider>
+            <Probe />
+            {button}
+          </ComposerTabsProvider>
+        ) : (
+          button
+        )
+      );
+    });
+  };
+
+  it("opens its kind's tab for the post at its index, never the window", async () => {
+    await draw(<Button kind="video" onChange={jest.fn()} place={2} />);
+    await click(aiButton());
+
+    expect(tabs!.active).toBe('video');
+    expect(tabs!.tabs.video!.place).toEqual({ channel: 'global', index: 2 });
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  it('opens the window as before outside the composer, as Samy does', async () => {
+    await draw(<Button kind="image" onChange={jest.fn()} />, false);
+    await click(aiButton());
+
+    expect(openWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the window as before outside the composer', async () => {
+    await draw(<Button kind="video" onChange={jest.fn()} />, false);
+    await click(aiButton());
+
+    expect(openWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the window as before for a reference row, in the composer too', async () => {
+    await draw(
+      <Button kind="image" onChange={jest.fn()} destination="reference" />
+    );
+    await click(aiButton());
+
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(tabs!.tabs).toEqual({});
+  });
+
+  // research R4: the row's handler changes with the post, so the click's copy
+  // would land the result in the post as it was then.
+  it("lands what it makes through the row's latest handler, not the click's", async () => {
+    const first = jest.fn();
+    const latest = jest.fn();
+    await draw(<Button kind="image" onChange={first} />);
+    await click(aiButton());
+    await draw(<Button kind="image" onChange={latest} />);
+
+    tabs!.tabs.image!.target()!(media);
+
+    expect(latest).toHaveBeenCalledWith(media);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('hands the tab no handler once its button is gone, so the stage lands it through the store', async () => {
+    await draw(<Button kind="video" onChange={jest.fn()} />);
+    await click(aiButton());
+
+    expect(tabs!.tabs.video!.target()).toBeDefined();
+
+    await draw(null);
+
+    expect(tabs!.tabs.video!.target()).toBeUndefined();
   });
 });

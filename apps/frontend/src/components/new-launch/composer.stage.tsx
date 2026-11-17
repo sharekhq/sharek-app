@@ -20,6 +20,7 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
 import { PreviewFit } from '@gitroom/frontend/components/new-launch/preview.fit';
 import { useHasScroll } from '@gitroom/frontend/components/ui/is.scroll.hook';
+import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   ChevronLeftIcon,
   CloseIcon,
@@ -192,6 +193,39 @@ export const ComposerTabsProvider: FC<{
 /** The composer's tabs, or null outside the composer (Samy, the reference row, Studio). */
 export const useComposerTabs = (): ComposerTabs | null =>
   useContext(ComposerTabsContext);
+
+/**
+ * What the composer's ✦ AI Image and AI Video buttons do: in the composer, a
+ * result for the post is made in its kind's tab beside it, for the post at
+ * `place`, whose channel the provider reads at the click (FR-021, tasks D10);
+ * outside it (Samy, Studio), or for a reference row, the tool's window.
+ */
+export const useOpenTool = (
+  kind: ComposerTabKind,
+  onChange: (media: { id: string; path: string }) => void,
+  place: number,
+  destination: MediaDestination,
+  openWindow: () => void
+): (() => void) => {
+  const tabs = useComposerTabs();
+  // The row's latest handler, read when the result lands, which can be long
+  // after the click; none once the button is gone (tasks D10).
+  const latestOnChange = useRef<typeof onChange | undefined>(undefined);
+  useEffect(() => {
+    latestOnChange.current = onChange;
+    return () => {
+      latestOnChange.current = undefined;
+    };
+  }, [onChange]);
+
+  return () => {
+    if (!tabs || destination !== 'post') {
+      openWindow();
+      return;
+    }
+    tabs.open(kind, () => latestOnChange.current, place);
+  };
+};
 
 /**
  * The composer's right column: the tab strip where the 65px header was, then
