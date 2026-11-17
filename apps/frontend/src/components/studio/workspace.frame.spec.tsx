@@ -271,7 +271,7 @@ describe('the stacked layout', () => {
     expect(tokens(bar(host))).toEqual(
       expect.arrayContaining([
         'sticky',
-        'bottom-0',
+        '-bottom-[4px]',
         'border-t',
         'border-line',
         'bg-surface',
@@ -392,6 +392,22 @@ describe('the settings scroller', () => {
       expect(classes).toContain('p-[4px]');
       expect(classes).toContain('-m-[4px]');
     });
+  });
+
+  // The live walk: a window's bar stuck 4px above the window's foot and
+  // scrolled content showed under it. A sticky box keeps inside its
+  // scroller's padding, so the bar sticks as far past it as the ring room
+  // reaches and covers it; the room stays for the fields' rings.
+  it("lets a window's bar cover the ring room at its foot", async () => {
+    const host = await mount(frame({ layout: 'stacked' }));
+    const scroller = byTestId(host, 'field')!.closest('.overflow-y-auto');
+
+    expect(scroller?.contains(bar(host)!)).toBe(true);
+    expect(tokens(scroller)).toContain('p-[4px]');
+    expect(tokens(bar(host))).toEqual(
+      expect.arrayContaining(['sticky', '-bottom-[4px]'])
+    );
+    expect(tokens(bar(host))).not.toContain('bottom-0');
   });
 });
 
