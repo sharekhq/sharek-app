@@ -1033,6 +1033,30 @@ describe('the settings', () => {
     expect(follows(byText(settings, 'Orientation'), render)).toBe(true);
   });
 
+  // The live walk: in the page's 360px panel the steps kept their width and
+  // cut "Image Text Slides" to 69 of its 104px. The name stays whole; when
+  // the row is short the steps take the next line, from its start.
+  it("keep a workflow's whole name, its steps going under it when the row is short", async () => {
+    await open({ layout: 'page', destination: 'media', provider: slides });
+
+    act(() =>
+      mockVideo!.setTrail({ steps: ['Script', 'Review', 'Render'], current: 0 })
+    );
+
+    const name = holding(panel()!, 'Image Text Slides')!;
+    const row = name.parentElement!;
+    expect(tokens(name)).not.toContain('truncate');
+    expect(tokens(row)).toEqual(
+      expect.arrayContaining(['flex-wrap', 'justify-between'])
+    );
+    expect(row.contains(holding(panel()!, 'Script')!)).toBe(true);
+    expect(
+      Array.from(row.querySelectorAll('*')).filter((node) =>
+        tokens(node).includes('ms-auto')
+      )
+    ).toHaveLength(0);
+  });
+
   // The window's own scroller goes: the frame's settings scroll for it.
   it("leave out the window's capped scroller", async () => {
     await open({ layout: 'page', destination: 'media' });
@@ -1428,6 +1452,29 @@ describe('AiVideoChooser', () => {
     await click(backTo('Veo 3'));
 
     expect(document.body.textContent).toContain('Choose a video type');
+  });
+
+  // The way back names the type in full, as the page's head does.
+  it("keeps the chosen type's whole name on its way back", async () => {
+    await mount(
+      <AiVideoChooser
+        list={providers}
+        layout="stacked"
+        destination="post"
+        onChange={jest.fn()}
+        onAccept={jest.fn()}
+        setLoading={jest.fn()}
+      />
+    );
+
+    await click(buttonStarting('Image Text Slides'));
+
+    const back = backTo('Image Text Slides')!;
+    expect(
+      Array.from(back.querySelectorAll('*')).filter((node) =>
+        tokens(node).includes('truncate')
+      )
+    ).toHaveLength(0);
   });
 
   it('opens the one type there is, with no way back', async () => {
