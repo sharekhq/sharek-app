@@ -47,6 +47,7 @@ export const StandaloneModal: FC = () => {
   return (
     <AddEditModal
       dummy={params.platform === 'all'}
+      padding="p-[40px]"
       customClose={() => {
         window.parent.postMessage(
           {
