@@ -685,9 +685,11 @@ describe('the context', () => {
 });
 
 // The composer's ✦ AI Image and AI Video buttons (FR-021, FR-027; tasks D10):
-// in the composer a button for the post opens its kind's tab beside it, never
-// a window, and what the tab makes lands through that row's latest handler
-// while the button is there. Samy, Studio and a reference row keep the window.
+// in the composer a button under a post (the editor gives it the post's
+// index) opens its kind's tab beside it, never a window, and what the tab
+// makes lands through that row's latest handler while the button is there.
+// Samy, Studio, a reference row and a row that is not a post's keep the
+// window (review C1).
 describe("the AI buttons' opener", () => {
   const openWindow = jest.fn();
   beforeEach(() => {
@@ -698,7 +700,7 @@ describe("the AI buttons' opener", () => {
   const Button = ({
     kind,
     onChange,
-    place = 0,
+    place,
     destination = 'post',
   }: {
     kind: ComposerTabKind;
@@ -758,8 +760,23 @@ describe("the AI buttons' opener", () => {
 
   it('opens the window as before for a reference row, in the composer too', async () => {
     await draw(
-      <Button kind="image" onChange={jest.fn()} destination="reference" />
+      <Button
+        kind="image"
+        onChange={jest.fn()}
+        place={0}
+        destination="reference"
+      />
     );
+    await click(aiButton());
+
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(tabs!.tabs).toEqual({});
+  });
+
+  // A row for the post that no editor drew, a channel's settings (Reddit's)
+  // or a model's reference (Seedance's): no post to land in.
+  it("opens the window for a row that is not a post's, in the composer too", async () => {
+    await draw(<Button kind="video" onChange={jest.fn()} />);
     await click(aiButton());
 
     expect(openWindow).toHaveBeenCalledTimes(1);
@@ -771,9 +788,9 @@ describe("the AI buttons' opener", () => {
   it("lands what it makes through the row's latest handler, not the click's", async () => {
     const first = jest.fn();
     const latest = jest.fn();
-    await draw(<Button kind="image" onChange={first} />);
+    await draw(<Button kind="image" onChange={first} place={0} />);
     await click(aiButton());
-    await draw(<Button kind="image" onChange={latest} />);
+    await draw(<Button kind="image" onChange={latest} place={0} />);
 
     tabs!.tabs.image!.target()!(media);
 
@@ -782,7 +799,7 @@ describe("the AI buttons' opener", () => {
   });
 
   it('hands the tab no handler once its button is gone, so the stage lands it through the store', async () => {
-    await draw(<Button kind="video" onChange={jest.fn()} />);
+    await draw(<Button kind="video" onChange={jest.fn()} place={0} />);
     await click(aiButton());
 
     expect(tabs!.tabs.video!.target()).toBeDefined();
