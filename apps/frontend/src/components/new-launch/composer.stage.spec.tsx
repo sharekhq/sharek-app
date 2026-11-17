@@ -574,8 +574,8 @@ describe('a result', () => {
       root.render(null);
     });
     const next = () => [
-      { id: 'n0', content: '', delay: 0, media: [] },
-      { id: 'n1', content: '', delay: 0, media: [] },
+      { id: 'n0', content: '', delay: 0, media: [] as (typeof media)[] },
+      { id: 'n1', content: '', delay: 0, media: [] as (typeof media)[] },
     ];
     act(() => {
       useLaunchStore.getState().reset();
