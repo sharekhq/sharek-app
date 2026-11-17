@@ -1486,8 +1486,10 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         </BottomSheet>
       )}
       <CopilotPopup
-        // clear of the pinned tool bar and of the Post menu at 1025px and below
-        className="mobile:!z-[460] mobile:!bottom-[112px]"
+        // clear of the pinned tool bar and of the Post menu at 1025px and below;
+        // wider, above the bottom bar (its 84px and the 12px inset under it)
+        // with CopilotKit's own 16px gap
+        className="mobile:!z-[460] mobile:!bottom-[112px] [@media(min-width:1026px)]:!bottom-[112px]"
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`
