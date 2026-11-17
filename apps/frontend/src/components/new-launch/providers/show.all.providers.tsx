@@ -25,6 +25,8 @@ import TelegramProvider from '@gitroom/frontend/components/new-launch/providers/
 import NostrProvider from '@gitroom/frontend/components/new-launch/providers/nostr/nostr.provider';
 import VkProvider from '@gitroom/frontend/components/new-launch/providers/vk/vk.provider';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
+import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
+import { pendingMediaPath } from '@gitroom/react/helpers/video.or.image';
 import { useShallow } from 'zustand/react/shallow';
 import React, { FC, forwardRef, useEffect, useImperativeHandle } from 'react';
 import { GeneralPreviewComponent } from '@gitroom/frontend/components/launches/general.preview.component';
@@ -196,6 +198,10 @@ export const ShowAllProviders = forwardRef((props, ref) => {
     );
 
   const t = useT();
+  // The results still being made for the composer's posts, none outside it:
+  // the global post's show in the general preview, and each channel is handed
+  // them all for its own preview (tasks D10).
+  const pending = useComposerTabs()?.pending;
 
   useImperativeHandle(ref, () => ({
     checkAllValid: async () => {
@@ -224,10 +230,21 @@ export const ShowAllProviders = forwardRef((props, ref) => {
             integration:
               selectedIntegrations?.[0]?.integration || allIntegrations?.[0],
             allIntegrations: selectedIntegrations.map((p) => p.integration),
-            value: global.map((p) => ({
+            value: global.map((p, index) => ({
               id: p.id,
               content: p.content,
-              image: p.media,
+              image: [
+                ...(p.media || []),
+                ...(pending || [])
+                  .filter(
+                    ({ place }) =>
+                      place.channel === 'global' && place.index === index
+                  )
+                  .map(({ id, kind }) => ({
+                    id,
+                    path: pendingMediaPath(kind),
+                  })),
+              ],
             })),
           }}
         >
@@ -258,6 +275,7 @@ export const ShowAllProviders = forwardRef((props, ref) => {
             ref={integration.ref}
             key={integration.integration.id}
             id={integration.integration.id}
+            pending={pending}
           />
         );
       })}

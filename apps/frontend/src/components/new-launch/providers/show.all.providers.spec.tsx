@@ -67,7 +67,6 @@ import {
   ComposerStage,
   ComposerTabs,
   ComposerTabsProvider,
-  PreviewPlace,
   useComposerTabs,
 } from '@gitroom/frontend/components/new-launch/composer.stage';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
@@ -151,10 +150,12 @@ const inComposer = (preview: ReturnType<typeof createRef<Preview>>) => (
   </ComposerTabsProvider>
 );
 
-// An AI image render started for a post, as the tab's tool starts it.
-const makingFor = async (place: PreviewPlace) => {
+// An AI image render started for the second post, as the tab's tool starts
+// it: the tab takes the post on screen at the click, the channel's own when
+// it has posts of its own, else the global one.
+const makingForTheSecondPost = async () => {
   await act(async () => {
-    tabs!.open('image', () => undefined, place);
+    tabs!.open('image', () => undefined, 1);
   });
   await act(async () => {
     mockTools.props.image.setLoading(true);
@@ -165,7 +166,7 @@ const makingFor = async (place: PreviewPlace) => {
 describe('the general preview', () => {
   it("shows a result still being made for the global post at that post's place", async () => {
     await render('global', false, inComposer);
-    const placeholder = await makingFor({ channel: 'global', index: 1 });
+    const placeholder = await makingForTheSecondPost();
 
     expect(mockSeen.preview).toEqual([
       shown(posts)[0],
@@ -174,8 +175,11 @@ describe('the general preview', () => {
   });
 
   it("leaves out a channel's own", async () => {
-    await render('global', true, inComposer);
-    await makingFor({ channel: 'int-1', index: 1 });
+    await render('int-1', true, inComposer);
+    await makingForTheSecondPost();
+    await act(async () => {
+      useLaunchStore.setState({ current: 'global' });
+    });
 
     expect(mockSeen.preview).toEqual(shown(posts));
   });
@@ -192,7 +196,7 @@ describe('the general preview', () => {
 describe("a channel's preview", () => {
   it('shows a result still being made for one of its own posts', async () => {
     await render('int-1', true, inComposer);
-    const placeholder = await makingFor({ channel: 'int-1', index: 1 });
+    const placeholder = await makingForTheSecondPost();
 
     expect(mockSeen.preview).toEqual([
       shown(own)[0],
@@ -204,7 +208,7 @@ describe("a channel's preview", () => {
 describe('what the composer saves', () => {
   it('never holds a result still being made', async () => {
     const preview = await render('global', false, inComposer);
-    await makingFor({ channel: 'global', index: 1 });
+    await makingForTheSecondPost();
 
     const saved = await preview.current!.getAllValues();
     expect(saved.map((channel) => channel.values)).toEqual([posts]);
