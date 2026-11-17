@@ -296,6 +296,14 @@ const AiTabPanel: FC<{
     [composerOpen, closeTab]
   );
 
+  // The layer covers the post on a phone: leaving it gives the focus back to
+  // the ✦ button the tab was opened from, while that button is still there.
+  const backToOpener = () => {
+    if (tab.opener?.isConnected) {
+      tab.opener.focus();
+    }
+  };
+
   const tool: WorkspaceToolProps = {
     layout: 'stacked',
     destination: 'post',
@@ -317,7 +325,10 @@ const AiTabPanel: FC<{
         <div className="hidden mobile:flex flex-none items-center gap-[8px] h-[60px] ps-[16px] pe-[4px]">
           <button
             type="button"
-            onClick={() => select('preview')}
+            onClick={() => {
+              select('preview');
+              backToOpener();
+            }}
             aria-label={t('workspace_back_to_post', 'Back to the post')}
             className="flex-none w-[44px] h-[44px] -ms-[10px] flex justify-center items-center rounded-[8px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
           >
@@ -328,7 +339,10 @@ const AiTabPanel: FC<{
           </div>
           <button
             type="button"
-            onClick={() => close(kind)}
+            onClick={() => {
+              close(kind);
+              backToOpener();
+            }}
             aria-label={t('workspace_close_tab', 'Close {{name}}', { name })}
             className="flex-none w-[44px] h-[44px] flex justify-center items-center rounded-[8px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
           >

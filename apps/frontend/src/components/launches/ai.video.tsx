@@ -997,7 +997,8 @@ export const AiVideo: FC<{
 
   return (
     <div className="relative">
-      <div
+      <button
+        type="button"
         onClick={open}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
@@ -1044,7 +1045,7 @@ export const AiVideo: FC<{
             {t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
           </div>
         </div>
-      </div>
+      </button>
     </div>
   );
 };

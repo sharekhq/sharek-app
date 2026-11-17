@@ -279,13 +279,31 @@ describe('the stacked layout', () => {
     );
   });
 
-  // A window's result and its bar share the window (FR-016a).
-  it('keeps the stage at its fixed height with a result', async () => {
-    const host = await mount(frame({ layout: 'stacked', result: true }));
-    const stage = byTestId(host, 'stage')!.parentElement;
+  // A window or a tab scrolls, so a result takes the room it needs and the
+  // scroller follows it down to its actions, versions and edit bar, the bar
+  // pinned at its foot (FR-016a); the sample and the wait keep the stage's
+  // fixed height. A size container is as tall as it is told, so the stage
+  // stops being one where it grows.
+  it('lets the stage grow with a result, where the sample and the wait keep its fixed height', async () => {
+    const waiting = await mount(frame({ layout: 'stacked' }));
+    const showing = await mount(frame({ layout: 'stacked', result: true }));
+    const stageOf = (host: HTMLElement) =>
+      byTestId(host, 'stage')!.parentElement;
 
-    expect(tokens(stage)).toContain('h-[clamp(240px,45dvh,440px)]');
-    expect(tokens(stage)).not.toContain('phone:[container-type:normal]');
+    expect(tokens(stageOf(waiting))).toEqual(
+      expect.arrayContaining([
+        'h-[clamp(240px,45dvh,440px)]',
+        '[container-type:size]',
+      ])
+    );
+    expect(tokens(stageOf(waiting))).not.toContain('[container-type:normal]');
+    expect(tokens(stageOf(showing))).not.toContain(
+      'h-[clamp(240px,45dvh,440px)]'
+    );
+    expect(tokens(stageOf(showing))).not.toContain('[container-type:size]');
+    expect(tokens(stageOf(showing))).toEqual(
+      expect.arrayContaining(['[container-type:normal]', 'flex-none'])
+    );
   });
 
   it('shows the settings and no Settings row before a result', async () => {
@@ -741,15 +759,27 @@ describe('StageResult', () => {
     });
   });
 
-  // A window's stage keeps its fixed height, so the picture keeps to its room.
-  it('in a window keeps the picture to its room on a phone', async () => {
-    const host = await mount(result());
-    const link = host.querySelector('a[target="_blank"]');
+  // A window's or a tab's stage grows with the result at every width, so
+  // there the picture leaves its room's size container and takes the full
+  // width in its own shape.
+  it('in a window or a tab draws an image and a video at the full width in their own shape', async () => {
+    const image = await mount(result());
+    const video = await mount(result({ kind: 'video', ratio: 9 / 16 }));
 
-    expect(tokens(link)).not.toContain('phone:!w-full');
-    expect(tokens(link!.parentElement)).not.toContain(
-      'phone:[container-type:normal]'
-    );
+    [
+      image.querySelector<HTMLElement>('a[target="_blank"]'),
+      video.querySelector<HTMLElement>('video'),
+    ].forEach((picture) => {
+      expect(tokens(picture)).toContain('!w-full');
+      expect(tokens(picture)).not.toContain('phone:!w-full');
+      expect(picture!.style.aspectRatio).not.toBe('');
+      expect(tokens(picture!.parentElement)).toContain(
+        '[container-type:normal]'
+      );
+      expect(tokens(picture!.parentElement)).not.toContain(
+        '[container-type:size]'
+      );
+    });
   });
 
   it('says it is saved and holds the caption, the actions, the versions and what goes below', async () => {

@@ -472,10 +472,13 @@ const openTab = async (list = providers.slice(0, 1)) => {
 };
 
 // The frame's regions (contracts/workspace-parts.md §1): the stage is the
-// frame's size container, the page's settings panel is 360px wide, and the
-// action bar is the box with the line above it.
+// frame's size container, or, once a window's stage grows with its result,
+// the box that stopped being one; the page's settings panel is 360px wide,
+// and the action bar is the box with the line above it.
 const stage = () =>
-  document.querySelector<HTMLElement>('.\\[container-type\\:size\\]');
+  document.querySelector<HTMLElement>(
+    '.\\[container-type\\:size\\], .\\[container-type\\:normal\\]'
+  );
 const panel = () => document.querySelector<HTMLElement>('.w-\\[360px\\]');
 const bar = () => document.querySelector<HTMLElement>('.border-t');
 const mainButton = () => bar()?.querySelector('button');
@@ -623,6 +626,26 @@ describe('as the composer button', () => {
     await click(trigger);
 
     expect(document.body.textContent).toContain('Choose a video type');
+  });
+
+  // A keyboard reaches it, a screen reader reads its tooltip's words, and it
+  // rings as the button set does.
+  it('is a button a keyboard reaches, named as its tooltip, with the focus ring', async () => {
+    await mount(<AiVideo value="" onChange={jest.fn()} />);
+
+    const trigger = document.querySelector<HTMLElement>('.bg-aiSoft')!;
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(trigger.getAttribute('type')).toBe('button');
+    expect(trigger.dataset.tooltipContent).toBe('AI Video');
+    expect(trigger.getAttribute('aria-label')).toBe('AI Video');
+    expect(trigger.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
   });
 });
 
@@ -1311,13 +1334,20 @@ describe('the stage', () => {
     expect(tokens(stage())).toContain(FIXED);
   });
 
-  it("keeps a window's video to the stage's fixed height", async () => {
+  // A window or a tab scrolls at every width, so there the stage grows with
+  // the video whatever the screen.
+  it("lets a window's stage grow with the video, from the sample", async () => {
     renders();
-    await generate();
-    await settle();
+    await open();
 
     expect(tokens(stage())).toContain('h-[clamp(240px,45dvh,440px)]');
-    expect(tokens(stageVideo())).not.toContain('phone:!w-full');
+
+    await pressGenerate();
+    await settle();
+
+    expect(tokens(stage())).not.toContain('h-[clamp(240px,45dvh,440px)]');
+    expect(tokens(stage())).toContain('[container-type:normal]');
+    expect(tokens(stageVideo())).toContain('!w-full');
   });
 });
 

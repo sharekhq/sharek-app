@@ -1036,7 +1036,8 @@ export const AiImage: FC<{
 
   return (
     <div className="relative">
-      <div
+      <button
+        type="button"
         onClick={open}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
@@ -1064,7 +1065,7 @@ export const AiImage: FC<{
             {t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
           </div>
         </div>
-      </div>
+      </button>
     </div>
   );
 };

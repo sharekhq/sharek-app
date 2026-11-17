@@ -169,10 +169,11 @@ const buttonNamed = (name: string, scope: ParentNode = host) =>
 const open = async (
   kind: 'image' | 'video',
   target: () => ((m: typeof media) => void) | undefined = () => undefined,
-  index = 0
+  index = 0,
+  opener?: HTMLElement
 ) => {
   await act(async () => {
-    tabs!.open(kind, target, index);
+    tabs!.open(kind, target, index, opener);
   });
 };
 // The composer's store as a button press finds it: the channel on screen, and
@@ -855,6 +856,89 @@ describe('the panels', () => {
   });
 });
 
+// At 1025px and below an AI tab is a layer over the post (FR-026): its Back
+// and its close give the focus back to the ✦ button the tab was opened from
+// while that button is still in the document; the strip's close and Delete
+// keep their own.
+describe('the focus after the layer', () => {
+  /** A ✦ button in the post. */
+  const aiButton = () => {
+    const element = document.createElement('button');
+    document.body.appendChild(element);
+    return element;
+  };
+  const back = () => buttonNamed('Back to the post', panel(IMAGE))!;
+  const layerClose = () =>
+    buttonNamed(`Close ${IMAGE}`, back().parentElement!)!;
+
+  it('goes back to the button the tab was opened from on Back to the post', async () => {
+    const opener = aiButton();
+    await render();
+    await open('image', undefined, 0, opener);
+    back().focus();
+    await click(back());
+
+    expect(selected()).toEqual(['Post preview']);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('goes back to the button the tab was opened from on the layer’s close', async () => {
+    const opener = aiButton();
+    await render();
+    await open('image', undefined, 0, opener);
+    const close = layerClose();
+    close.focus();
+    await click(close);
+
+    expect(tab(IMAGE)).toBeUndefined();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  // The member came from the button pressed last, even when the tab, busy,
+  // keeps the post its render started for.
+  it('goes back to the button pressed last, a busy tab’s too', async () => {
+    const before = aiButton();
+    const after = aiButton();
+    await render();
+    await open('image', undefined, 0, before);
+    await loading(mockTools.props.image, true);
+    await open('image', undefined, 1, after);
+    await click(back());
+
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([first]);
+    expect(document.activeElement).toBe(after);
+  });
+
+  it('is left where it falls when that button is no longer in the document', async () => {
+    const opener = aiButton();
+    const focus = jest.spyOn(opener, 'focus');
+    await render();
+    await open('image', undefined, 0, opener);
+    opener.remove();
+    await click(back());
+    await open('image', undefined, 0, opener);
+    await click(layerClose());
+
+    expect(tab(IMAGE)).toBeUndefined();
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it('is left to the strip’s close and Delete, Delete’s on Post preview', async () => {
+    const opener = aiButton();
+    await render();
+    await open('image', undefined, 0, opener);
+    await click(buttonNamed(`Close ${IMAGE}`, strip())!);
+
+    expect(document.activeElement).not.toBe(opener);
+
+    await open('image', undefined, 0, opener);
+    tab(IMAGE)!.focus();
+    await press(tab(IMAGE)!, 'Delete');
+
+    expect(document.activeElement).toBe(tab('Post preview'));
+  });
+});
+
 // The composer's lock for AI work follows whether any render is pending:
 // two tabs can render at once and `locked` is one boolean (D14, FR-021a).
 describe('the composer’s lock', () => {
@@ -998,6 +1082,14 @@ describe("the AI buttons' opener", () => {
     expect(tabs!.active).toBe('video');
     expect(tabs!.tabs.video!.place).toEqual({ channel: 'global', index: 2 });
     expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  // The phone layer's Back and close give the focus back to it (FR-026).
+  it('keeps the button pressed with the tab', async () => {
+    await draw(<Button kind="image" onChange={jest.fn()} place={0} />);
+    await click(aiButton());
+
+    expect(tabs!.tabs.image!.opener).toBe(aiButton());
   });
 
   it('opens the window as before outside the composer, as Samy does', async () => {

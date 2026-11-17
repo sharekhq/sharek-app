@@ -445,11 +445,14 @@ const asked = (url: string) =>
 
 // The frame's regions (contracts/workspace-parts.md §1). The stage is the
 // first size container on the screen, as the stage parts nest their own in
-// it; the bar holds the credits and the main button; the settings are the
-// rest, on screen beside or above the stage whatever it shows.
+// it, or, once a window's stage grows with its result, the first that stopped
+// being one; the bar holds the credits and the main button; the settings are
+// the rest, on screen beside or above the stage whatever it shows.
 const stage = () =>
-  Array.from(document.querySelectorAll('div')).find((node) =>
-    node.classList.contains('[container-type:size]')
+  Array.from(document.querySelectorAll('div')).find(
+    (node) =>
+      node.classList.contains('[container-type:size]') ||
+      node.classList.contains('[container-type:normal]')
   );
 const bar = () =>
   Array.from(document.querySelectorAll('div')).find(
@@ -838,6 +841,26 @@ describe('as the composer button', () => {
     await click(trigger);
 
     expect(document.querySelector('textarea')).toBeTruthy();
+  });
+
+  // A keyboard reaches it, a screen reader reads its tooltip's words, and it
+  // rings as the button set does.
+  it('is a button a keyboard reaches, named as its tooltip, with the focus ring', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+
+    const trigger = document.querySelector<HTMLElement>('.bg-aiSoft')!;
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(trigger.getAttribute('type')).toBe('button');
+    expect(trigger.dataset.tooltipContent).toBe('AI Image');
+    expect(trigger.getAttribute('aria-label')).toBe('AI Image');
+    expect(trigger.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
   });
 });
 
@@ -3341,14 +3364,24 @@ describe('the stage', () => {
     expect(stage()?.classList.contains(FIXED)).toBe(true);
   });
 
-  it("keeps a window's result to the stage's fixed height", async () => {
+  // A window or a tab scrolls at every width, so there the stage grows with
+  // the result whatever the screen.
+  it("lets a window's stage grow with the result, from the sample", async () => {
     renders(done);
-    await generate();
+    await openWindow();
 
     expect(stage()?.classList.contains('h-[clamp(240px,45dvh,440px)]')).toBe(
       true
     );
-    expect(resultLink()?.classList.contains('phone:!w-full')).toBe(false);
+
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+
+    expect(stage()?.classList.contains('h-[clamp(240px,45dvh,440px)]')).toBe(
+      false
+    );
+    expect(stage()?.classList.contains('[container-type:normal]')).toBe(true);
+    expect(resultLink()?.classList.contains('!w-full')).toBe(true);
   });
 });
 
