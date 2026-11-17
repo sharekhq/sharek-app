@@ -35,6 +35,10 @@ import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapp
 
 type HangingPanel = ReturnType<typeof useHangingPanel>;
 
+// The page the switcher last opened. Its button goes with the page it
+// leaves, so the switcher on that page takes the focus, once.
+let openedPage: string | undefined;
+
 /**
  * Puts its children in the top bar, after the page's title
  * (layout/title.tsx's `#top-bar-slot`), once the slot is there, as the
@@ -261,6 +265,17 @@ export const ToolSwitcher: FC<{
   const button = useRef<HTMLButtonElement>(null);
   const open = !!show;
   const name = current.entry.name(t);
+  const page = studioToolHref(current.entry);
+
+  // Read once by whichever switcher mounts next, so a pick that led
+  // elsewhere (Billing) leaves nothing for a later tool page to take.
+  useEffect(() => {
+    const opened = openedPage;
+    openedPage = undefined;
+    if (opened && opened === page) {
+      button.current?.focus();
+    }
+  }, [page]);
 
   const close = () => {
     setShow(false);
@@ -270,6 +285,7 @@ export const ToolSwitcher: FC<{
   const go = (href?: string) => {
     close();
     if (href) {
+      openedPage = href;
       router.push(href);
     }
   };
