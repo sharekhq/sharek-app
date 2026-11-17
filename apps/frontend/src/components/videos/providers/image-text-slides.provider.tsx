@@ -752,6 +752,14 @@ const ImageSlidesComponent = () => {
   } = useVideo();
   const [storyboard, setStoryboard] = useState<Storyboard | null>(null);
   const [planned, setPlanned] = useState<Storyboard | null>(null);
+  // Read through a ref rather than closed over: the handshake's `regenerate`
+  // re-runs the `create` its render started with, and the tool stamps that
+  // version with the shape picked beside the result (FR-008), so the render
+  // has to be made in that shape, not the first render's.
+  const shape = useRef(output);
+  useEffect(() => {
+    shape.current = output;
+  }, [output]);
 
   // Three screens deep, so the header says which one this is. Declared from
   // here rather than at registration because the labels need `t()`.
@@ -784,7 +792,7 @@ const ImageSlidesComponent = () => {
         method: 'POST',
         body: JSON.stringify({
           type: 'image-text-slides',
-          output,
+          output: shape.current,
           customParams: getValues(),
           storyboard,
         }),
@@ -868,7 +876,6 @@ const ImageSlidesComponent = () => {
   }, [
     storyboard,
     getValues,
-    output,
     onMedia,
     claimRender,
     startRender,
