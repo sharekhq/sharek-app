@@ -842,6 +842,26 @@ describe('as the composer button', () => {
 
     expect(document.querySelector('textarea')).toBeTruthy();
   });
+
+  // A keyboard reaches it, a screen reader reads its tooltip's words, and it
+  // rings as the button set does.
+  it('is a button a keyboard reaches, named as its tooltip, with the focus ring', async () => {
+    await mount(<AiImage value="" onChange={jest.fn()} />);
+
+    const trigger = document.querySelector<HTMLElement>('.bg-aiSoft')!;
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(trigger.getAttribute('type')).toBe('button');
+    expect(trigger.dataset.tooltipContent).toBe('AI Image');
+    expect(trigger.getAttribute('aria-label')).toBe('AI Image');
+    expect(trigger.className.split(' ')).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+  });
 });
 
 // Studio renders a card of its own as the trigger; the wiring behind it stays
