@@ -1116,6 +1116,24 @@ describe('the stage', () => {
     );
   });
 
+  // The shape stays editable during a render, for the next one (FR-008); the
+  // box waits in the shape being made.
+  it("keeps the wait in the render's shape when another is picked meanwhile", async () => {
+    rendersForever();
+    await generate({ layout: 'page', destination: 'media' });
+
+    const horizontal = Array.from(
+      panel()!.querySelectorAll('button[aria-pressed]')
+    ).find((node) => node.textContent?.startsWith('Horizontal'));
+    await click(horizontal);
+
+    expect(horizontal?.getAttribute('aria-pressed')).toBe('true');
+    const placeholder = stage()!.querySelector<HTMLElement>(
+      '.motion-safe\\:animate-pulse'
+    )!;
+    expect(parseFloat(placeholder.style.aspectRatio)).toBeCloseTo(9 / 16, 5);
+  });
+
   it("lists a workflow's render steps in place of the time", async () => {
     await open({ layout: 'page', destination: 'media', provider: slides });
 
