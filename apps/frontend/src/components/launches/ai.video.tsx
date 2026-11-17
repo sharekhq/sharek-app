@@ -568,7 +568,9 @@ export const AiVideoTool: FC<
   // and facts, from the card it declares for the Studio page (FR-009, FR-010).
   const head = (
     <div className="flex flex-col gap-[8px]">
-      <div className="flex items-center gap-[10px] text-[13px] text-muted">
+      {/* The name stays whole: when the row is short a workflow's steps take
+          the next line, from its start. */}
+      <div className="flex flex-wrap items-center justify-between gap-[10px] text-[13px] text-muted">
         {/* Only while nothing is running: a type cannot be swapped out from
             under a render, and the result belongs to the type that made it. */}
         {onChangeType && phase === 'setup' ? (
@@ -593,17 +595,15 @@ export const AiVideoTool: FC<
                 strokeLinejoin="round"
               />
             </svg>
-            {/* The trail keeps its full width; a long type name gives way,
-                which matters most in Arabic. */}
-            <span className="truncate">{videoTypeLabel(t, type)}</span>
+            <span>{videoTypeLabel(t, type)}</span>
           </button>
         ) : (
-          <span className="min-w-0 truncate">{videoTypeLabel(t, type)}</span>
+          <span className="min-w-0">{videoTypeLabel(t, type)}</span>
         )}
         {/* Only for a provider that declared one — a one-shot provider has no
             flow to place the user inside, so it renders none (FR-004). */}
         {!!trail && (
-          <div className="flex items-center gap-[8px] ms-auto flex-none">
+          <div className="flex items-center gap-[8px] flex-none">
             {trail.steps.map((label, index) => {
               // Every step is behind you once the video exists.
               const done = phase === 'result' || index < trail.current;
@@ -715,6 +715,7 @@ export const AiVideoTool: FC<
       />
     ) : phase === 'result' && shown ? (
       <StageResult
+        layout={layout}
         media={shown.media}
         kind="video"
         ratio={orientationRatio(shown.output)}
@@ -844,6 +845,7 @@ export const AiVideoTool: FC<
               'Prompt and settings'
             )}
             stage={stage}
+            result={phase === 'result' && !!shown}
             actions={actions}
             credits={<CreditsPill count={data?.credits || 0} />}
             locked={locked}

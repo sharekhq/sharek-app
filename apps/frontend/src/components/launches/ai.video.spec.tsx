@@ -1033,6 +1033,30 @@ describe('the settings', () => {
     expect(follows(byText(settings, 'Orientation'), render)).toBe(true);
   });
 
+  // The live walk: in the page's 360px panel the steps kept their width and
+  // cut "Image Text Slides" to 69 of its 104px. The name stays whole; when
+  // the row is short the steps take the next line, from its start.
+  it("keep a workflow's whole name, its steps going under it when the row is short", async () => {
+    await open({ layout: 'page', destination: 'media', provider: slides });
+
+    act(() =>
+      mockVideo!.setTrail({ steps: ['Script', 'Review', 'Render'], current: 0 })
+    );
+
+    const name = holding(panel()!, 'Image Text Slides')!;
+    const row = name.parentElement!;
+    expect(tokens(name)).not.toContain('truncate');
+    expect(tokens(row)).toEqual(
+      expect.arrayContaining(['flex-wrap', 'justify-between'])
+    );
+    expect(row.contains(holding(panel()!, 'Script')!)).toBe(true);
+    expect(
+      Array.from(row.querySelectorAll('*')).filter((node) =>
+        tokens(node).includes('ms-auto')
+      )
+    ).toHaveLength(0);
+  });
+
   // The window's own scroller goes: the frame's settings scroll for it.
   it("leave out the window's capped scroller", async () => {
     await open({ layout: 'page', destination: 'media' });
@@ -1199,6 +1223,42 @@ describe('the stage', () => {
     expect(video.getAttribute('src')).toBe(finished.path);
     expect(video.hasAttribute('playsinline')).toBe(true);
     expect(stage()!.textContent).toContain('Saved to your Media library');
+  });
+
+  // FR-015: on its page a phone lets the stage grow with the video, at the
+  // full width in its own shape, the page scrolling on to its actions and
+  // versions; the sample and the wait keep the stage's fixed height.
+  const FIXED = 'phone:h-[clamp(240px,45dvh,440px)]';
+
+  it('on its page lets the stage grow with the video on a phone, from the sample', async () => {
+    renders();
+    await open({ layout: 'page', destination: 'media' });
+
+    expect(tokens(stage())).toContain(FIXED);
+
+    await pressGenerate();
+    await settle();
+
+    expect(tokens(stage())).not.toContain(FIXED);
+    expect(tokens(stage())).toContain('phone:[container-type:normal]');
+    expect(tokens(stageVideo())).toContain('phone:!w-full');
+  });
+
+  it('on its page keeps the stage at its fixed height on a phone while the video is made', async () => {
+    rendersForever();
+    await generate({ layout: 'page', destination: 'media' });
+
+    expect(stage()!.textContent).toContain('Creating your video…');
+    expect(tokens(stage())).toContain(FIXED);
+  });
+
+  it("keeps a window's video to the stage's fixed height", async () => {
+    renders();
+    await generate();
+    await settle();
+
+    expect(tokens(stage())).toContain('h-[clamp(240px,45dvh,440px)]');
+    expect(tokens(stageVideo())).not.toContain('phone:!w-full');
   });
 });
 
@@ -1392,6 +1452,29 @@ describe('AiVideoChooser', () => {
     await click(backTo('Veo 3'));
 
     expect(document.body.textContent).toContain('Choose a video type');
+  });
+
+  // The way back names the type in full, as the page's head does.
+  it("keeps the chosen type's whole name on its way back", async () => {
+    await mount(
+      <AiVideoChooser
+        list={providers}
+        layout="stacked"
+        destination="post"
+        onChange={jest.fn()}
+        onAccept={jest.fn()}
+        setLoading={jest.fn()}
+      />
+    );
+
+    await click(buttonStarting('Image Text Slides'));
+
+    const back = backTo('Image Text Slides')!;
+    expect(
+      Array.from(back.querySelectorAll('*')).filter((node) =>
+        tokens(node).includes('truncate')
+      )
+    ).toHaveLength(0);
   });
 
   it('opens the one type there is, with no way back', async () => {

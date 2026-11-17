@@ -516,6 +516,37 @@ describe('choosing', () => {
     expect(mockOpenModal).not.toHaveBeenCalled();
     expect(listbox()).toBeNull();
   });
+
+  // The page it leaves takes its button with it, and the focus would fall to
+  // the body: the switcher on the page it opened takes it (spec 061, T062a
+  // W5).
+  const leave = () =>
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+
+  it('gives the focus to the switcher on the page it opens', async () => {
+    await open('ai-image');
+    await click(option('Veo 3'));
+    expect(mockPush).toHaveBeenCalledWith('/studio/veo3');
+
+    leave();
+    expect(document.activeElement).toBe(document.body);
+    await render('veo3');
+
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it('gives no focus to a switcher it did not open, as on a tool page reached after Billing', async () => {
+    await open('ai-image', locked());
+    await click(option('Image editor'));
+    expect(mockPush).toHaveBeenCalledWith('/billing');
+
+    leave();
+    await render('veo3', locked());
+
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 
 describe('the keyboard', () => {
@@ -616,6 +647,27 @@ describe('the look', () => {
     options().forEach((node) => {
       expect(minHeight(node)).toBeGreaterThanOrEqual(44);
     });
+  });
+
+  // On a phone the heading gives the slot its place (layout/title.tsx), so
+  // the switcher starts the bar's row, whose gap spaces it from the menu
+  // button, and its name takes what the bar has left, cut short there, while
+  // its picture keeps its size (spec 061, T062a W4).
+  it("takes the heading's place at phone width and gives its name the room left", async () => {
+    const host = await render();
+    const name = trigger().querySelector('span:not([aria-hidden])')!;
+
+    expect(classes(host.firstElementChild!)).toEqual(
+      expect.arrayContaining(['min-w-0', 'ms-[12px]', 'phone:ms-0'])
+    );
+    expect(classes(trigger())).toContain('min-w-0');
+    expect(name.textContent).toBe('AI image generator');
+    expect(classes(name)).toEqual(
+      expect.arrayContaining(['flex-1', 'min-w-0', 'truncate'])
+    );
+    expect(classes(trigger().querySelector('span[aria-hidden]')!)).toContain(
+      'flex-none'
+    );
   });
 
   it('uses no physical-side classes, so it mirrors in Arabic', async () => {

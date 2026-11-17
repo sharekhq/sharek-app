@@ -210,14 +210,74 @@ describe('Part 2: the workspace', () => {
     );
   });
 
-  test("the page's action bar is pinned to the bottom at 1025px and below, where the page scrolls at its natural height", async () => {
+  test("the page's action bar is fixed to the foot of the screen at 1025px and below, where the page scrolls and the page card clips, with room kept under the page as tall as the bar", async () => {
     await assertEmits(
       {
-        'mobile:sticky': [['position', 'sticky']],
+        'mobile:fixed': [['position', 'fixed']],
+        'mobile:inset-x-0': [
+          ['left', '0px'],
+          ['right', '0px'],
+        ],
         'mobile:bottom-0': [['bottom', '0px']],
+        // above the page, under every popup (100 and up) and the menu
+        // drawer's scrim (180)
+        'mobile:z-[90]': [['z-index', '90']],
+        // the bar no longer reaches past the panel's padding: it spans the
+        // screen
+        'mobile:m-0': [['margin', '0px']],
+        // clear of the home indicator, as the composer's tool bar is
+        'mobile:pb-[calc(16px+env(safe-area-inset-bottom))]': [
+          ['padding-bottom', 'calc(16px + env(safe-area-inset-bottom))'],
+        ],
+        // the room under the page: the bar's one row from 769px
+        'mobile:pb-[calc(77px+env(safe-area-inset-bottom))]': [
+          ['padding-bottom', 'calc(77px + env(safe-area-inset-bottom))'],
+        ],
       },
       '(max-width: 1025px)'
     );
+  });
+
+  test("on a phone the room under the page is the bar's two rows, and is emitted after the one-row room so it wins there", async () => {
+    await assertEmits(
+      {
+        'phone:pb-[calc(113px+env(safe-area-inset-bottom))]': [
+          ['padding-bottom', 'calc(113px + env(safe-area-inset-bottom))'],
+        ],
+      },
+      '(max-width: 768px)'
+    );
+    const one = 'mobile:pb-[calc(77px+env(safe-area-inset-bottom))]';
+    const two = 'phone:pb-[calc(113px+env(safe-area-inset-bottom))]';
+    const css = await emit([one, two]);
+    const [wide] = rules(css, one);
+    const [narrow] = rules(css, two);
+    assert.ok(
+      wide && narrow && wide.index < narrow.index,
+      `${two} must be emitted after ${one}`
+    );
+  });
+
+  test("a window's bar sticks 4px past its scroller's ring room, outside any query", async () => {
+    await assertEmits({ '-bottom-[4px]': [['bottom', '-4px']] }, null);
+  });
+
+  test("on a phone the page's stage and its result's room stop being size containers, and the result takes the full width over its box's inline width", async () => {
+    const css = await assertEmits(
+      {
+        'phone:[container-type:normal]': [['container-type', 'normal']],
+        'phone:!w-full': [['width', '100%']],
+      },
+      '(max-width: 768px)'
+    );
+    // The box sets its width inline; only !important outranks it.
+    const important = [];
+    postcss.parse(css).walkDecls('width', (decl) => {
+      if (names(unescape(decl.parent.selector), 'phone:!w-full')) {
+        important.push(decl.important);
+      }
+    });
+    assert.deepEqual(important, [true], 'phone:!w-full must be !important');
   });
 
   test("the page's action bar reaches past the panel's 20px padding to both edges and its foot, and each mobile: tier is emitted after it", async () => {
@@ -233,12 +293,14 @@ describe('Part 2: the workspace', () => {
       null
     );
     // Equal specificity on one element: the later rule wins inside the
-    // query, so a 16px tier emitted first would leave the bar 4px past the
-    // panel's edges at 1025px and below.
+    // query, so a mobile: tier emitted first would leave the fixed bar 20px
+    // past the screen's edges, or without its home-indicator room, at 1025px
+    // and below.
     const pairs = [
-      ['-mx-[20px]', 'mobile:-mx-[16px]'],
-      ['-mb-[20px]', 'mobile:-mb-[16px]'],
+      ['-mx-[20px]', 'mobile:m-0'],
+      ['-mb-[20px]', 'mobile:m-0'],
       ['px-[20px]', 'mobile:px-[16px]'],
+      ['py-[16px]', 'mobile:pb-[calc(16px+env(safe-area-inset-bottom))]'],
     ];
     const css = await emit(pairs.flat());
     for (const [desktop, small] of pairs) {
@@ -277,6 +339,23 @@ describe('Part 2: the workspace', () => {
         'max-w-[calc(100vw-20px)]': [['max-width', 'calc(100vw - 20px)']],
       },
       null
+    );
+  });
+
+  test("on a phone the page title gives way to a top-bar slot that holds something, and the tool switcher sits at the slot's start", async () => {
+    const css = await assertEmits(
+      {
+        // the title's h1, hidden while the slot after it holds the switcher
+        'phone:has-[+#top-bar-slot:not(:empty)]:hidden': [['display', 'none']],
+        // the switcher, no longer set off from a title that is not there
+        'phone:ms-0': [['margin-inline-start', '0px']],
+      },
+      '(max-width: 768px)'
+    );
+    const [title] = rules(css, 'phone:has-[+#top-bar-slot:not(:empty)]:hidden');
+    assert.ok(
+      title.selector.endsWith(':has(+#top-bar-slot:not(:empty))'),
+      `the title's rule must apply only beside a slot that holds something: "${title.selector}"`
     );
   });
 

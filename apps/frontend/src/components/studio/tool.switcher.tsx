@@ -35,6 +35,10 @@ import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapp
 
 type HangingPanel = ReturnType<typeof useHangingPanel>;
 
+// The page the switcher last opened. Its button goes with the page it
+// leaves, so the switcher on that page takes the focus, once.
+let openedPage: string | undefined;
+
 /**
  * Puts its children in the top bar, after the page's title
  * (layout/title.tsx's `#top-bar-slot`), once the slot is there, as the
@@ -242,11 +246,13 @@ const ToolList: FC<{
  * The tool switcher, in the top bar after "Studio" on a tool's page
  * (contracts/studio-addresses.md § Top bar): a button with the current
  * listing's picture and name that opens every listing of the Studio page
- * (FR-011). It hangs from the button against the viewport and renders into
- * the body, as the brand list does, so the top bar's box cannot clip it.
- * Escape closes it, and so does Tab, since the list in the body comes after
- * the rest of the page; either way, and after a choice, the focus goes back
- * to the button.
+ * (FR-011). On a phone it takes the title's place (layout/title.tsx), so it
+ * drops the margin that sets it off from the title there, and its name is
+ * what gives way. It hangs from the button against the viewport and renders
+ * into the body, as the brand list does, so the top bar's box cannot clip
+ * it. Escape closes it, and so does Tab, since the list in the body comes
+ * after the rest of the page; either way, and after a choice, the focus goes
+ * back to the button.
  */
 export const ToolSwitcher: FC<{
   current: StudioTool;
@@ -259,6 +265,17 @@ export const ToolSwitcher: FC<{
   const button = useRef<HTMLButtonElement>(null);
   const open = !!show;
   const name = current.entry.name(t);
+  const page = studioToolHref(current.entry);
+
+  // Read once by whichever switcher mounts next, so a pick that led
+  // elsewhere (Billing) leaves nothing for a later tool page to take.
+  useEffect(() => {
+    const opened = openedPage;
+    openedPage = undefined;
+    if (opened && opened === page) {
+      button.current?.focus();
+    }
+  }, [page]);
 
   const close = () => {
     setShow(false);
@@ -268,6 +285,7 @@ export const ToolSwitcher: FC<{
   const go = (href?: string) => {
     close();
     if (href) {
+      openedPage = href;
       router.push(href);
     }
   };
@@ -276,7 +294,7 @@ export const ToolSwitcher: FC<{
     <div
       ref={ref}
       onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
-      className="flex min-w-0 ms-[12px]"
+      className="flex min-w-0 ms-[12px] phone:ms-0"
     >
       <button
         ref={button}
