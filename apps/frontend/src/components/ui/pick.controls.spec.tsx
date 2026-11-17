@@ -7,6 +7,7 @@ import {
   CHIP_COUNT_ON,
   CHIP_IDLE,
   CHIP_ON,
+  CHOICE_ON,
   SWITCH_GROUP,
   SWITCH_OPTION,
   SWITCH_OPTION_IDLE,
@@ -102,6 +103,15 @@ describe('the chip', () => {
     );
     expect(CHIP_COUNT_IDLE).toBe('bg-panel text-muted');
     expect(CHIP_COUNT_ON).toBe('bg-surface');
+  });
+});
+
+describe('the choice', () => {
+  // A tool's setting (ChoiceField): each option is the shared secondary
+  // Button, which draws the idle look itself, so only the picked look is here,
+  // its ! outranking the Button's own colours.
+  it("draws the picked option in the soft brand tint with a brand border, over the Button's colours", () => {
+    expect(CHOICE_ON).toBe('!bg-brandSoft !text-brandText !border-brand');
   });
 });
 
