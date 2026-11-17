@@ -15,6 +15,7 @@ import { I18nextProvider } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import type { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
+import type { ComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 
 type Existing = ReturnType<typeof useExistingData>;
@@ -110,8 +111,25 @@ jest.mock('@gitroom/react/helpers/image.with.fallback', () => ({
   __esModule: true,
   default: () => null,
 }));
+// The editor, reading the composer's tabs as its AI buttons do.
+const mockEditor = { tabs: null as ComposerTabs | null };
 jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
-  EditorWrapper: () => <div data-editor="" />,
+  EditorWrapper: () => {
+    const {
+      useComposerTabs,
+    } = require('@gitroom/frontend/components/new-launch/composer.stage');
+    mockEditor.tabs = useComposerTabs();
+    return <div data-editor="" />;
+  },
+}));
+// The AI tools the composer's tabs host, as in composer.stage.spec.tsx: the
+// real ones bring the media library and its ESM-only uploader.
+jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
+  AiImageTool: () => <div data-tool="image" />,
+}));
+jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
+  AiVideoChooser: () => <div data-tool="video" />,
+  useAiVideoTypes: () => ({ data: [], isLoading: false }),
 }));
 jest.mock('@gitroom/frontend/components/new-launch/select.current', () => ({
   SelectCurrent: () => null,
@@ -409,6 +427,38 @@ describe('the preview', () => {
     await press(eye);
 
     expect(eye.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  // An AI tab's layer sits in the preview's column, so the column stays shown
+  // over the editor while the tab is active (spec 061, FR-026).
+  it('stays shown over the editor while an AI tab is open, until Back to the post', async () => {
+    const host = await open();
+    const column = Array.from(host.querySelectorAll('div')).find((each) =>
+      each.className.split(' ').includes('w-[580px]')
+    )!;
+    const editorColumn = () =>
+      host.querySelector('[data-editor]')!.parentElement!;
+
+    expect(column.className.split(' ')).toContain('mobile:hidden');
+
+    await act(async () => {
+      mockEditor.tabs!.open('image', () => undefined, {
+        channel: 'global',
+        index: 0,
+      });
+    });
+
+    expect(column.className.split(' ')).not.toContain('mobile:hidden');
+    expect(column.querySelector('[data-tool="image"]')).toBeTruthy();
+    expect(editorColumn().className).not.toContain('mobile:hidden');
+
+    await press(host.querySelector('button[aria-label="Back to the post"]'));
+
+    expect(byText(column, 'Post preview')!.getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(column.className.split(' ')).toContain('mobile:hidden');
+    expect(editorColumn().className).not.toContain('mobile:hidden');
   });
 
   it('is a named 44px button with a focus ring', async () => {
