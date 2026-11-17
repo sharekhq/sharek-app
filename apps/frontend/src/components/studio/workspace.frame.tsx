@@ -35,11 +35,11 @@ export interface WorkspaceToolProps {
   onAccept?: () => void;
   /** true while a render's request is open (today's setLoading). */
   setLoading?: (loading: boolean) => void;
+  /** Composer tab only: false while another tab is on screen, so a render that lands then takes the unwatched path. Default true. */
+  active?: boolean;
   locked?: boolean;
   /** The Studio tool page's Create a post, only when the workspace has a channel. */
   onCreatePost?: (media: { id: string; path: string }) => void;
-  /** Whether a render takes the composer's lock (FR-021a). Default `destination === 'post'`; Samy's AI Image passes false. */
-  locksComposer?: boolean;
 }
 
 export interface WorkspaceFrameProps {

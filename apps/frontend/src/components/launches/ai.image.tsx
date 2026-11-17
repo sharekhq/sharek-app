@@ -55,6 +55,7 @@ import {
   OrientationField,
 } from '@gitroom/frontend/components/studio/workspace.fields';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
+import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
 import {
   BrandField,
   brandRefusal,
@@ -191,16 +192,16 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
     onChange,
     onAccept,
     setLoading,
+    active = true,
     locked,
     onCreatePost,
-    // Only a render for the post being composed holds the composer: the
-    // Studio page and a reference row work for no post (FR-021a).
-    locksComposer = destination === 'post',
   } = props;
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
-  const setLocked = useLaunchStore((p) => p.setLocked);
+  // Inside the composer the tool is one of its tabs: its windows open outside
+  // it (contracts/composer-and-preview.md §4).
+  const inTab = !!useComposerTabs();
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<ImageAspectId>('square');
   // Auto imposes nothing, so it is the absence of a style rather than a value.
@@ -231,10 +232,13 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
 
   // A generation outlives the modal: the closure keeps running after an early
   // close and attaches the image itself, so it has to know whether anyone is
-  // still watching.
+  // still watching: the tool is mounted, and on screen, which a composer tab
+  // behind another is not (contracts/workspace-parts.md §5).
   const mounted = useRef(true);
-  const inFlight = useRef(false);
-  const holdsLock = useRef(false);
+  const onScreen = useRef(active);
+  useEffect(() => {
+    onScreen.current = active;
+  }, [active]);
   // Set from the click until the render is over. The window's actions stay on
   // screen through the credit check: a second click there must not start a
   // second paid render, and the result must not be used or left while one is
@@ -242,44 +246,22 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   const rendering = useRef(false);
 
   // `loading` follows the request, whose end also ends the render
-  // (`rendering`); the composer lock follows the whole flow, which is not over
-  // until the image is attached or the user gives it up.
+  // (`rendering`). It is all the tool reports: in the composer the stage holds
+  // the lock while any tab's request is open (tasks D14).
   const startRequest = () => {
-    inFlight.current = true;
     setLoading?.(true);
-    if (locksComposer && !holdsLock.current) {
-      holdsLock.current = true;
-      setLocked(true);
-    }
   };
 
   const endRequest = () => {
-    inFlight.current = false;
     rendering.current = false;
     setLoading?.(false);
   };
 
-  // Memoized so the unmount cleanup below keeps a stable dependency: a fresh
-  // identity every render would re-run that cleanup and drop the lock early.
-  const releaseLock = useCallback(() => {
-    if (!holdsLock.current) {
-      return;
-    }
-    holdsLock.current = false;
-    setLocked(false);
-  }, [setLocked]);
-
   useEffect(
     () => () => {
       mounted.current = false;
-      // A render still in flight keeps the composer locked until it lands
-      // (FR-009). Anything else — an unused result, an untouched modal —
-      // is given up here, or the composer would stay locked forever.
-      if (!inFlight.current) {
-        releaseLock();
-      }
     },
-    [releaseLock]
+    []
   );
 
   // The catalogue is a view of the stage: it closes on a pick, on Show less
@@ -384,11 +366,11 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       endRequest();
       mutateCredits();
 
-      // Closed mid-generation: nobody is left to review it, so it goes
-      // straight into the post exactly as it did before this step existed.
-      if (!mounted.current) {
+      // Closed mid-generation, or its tab behind another: nobody is left to
+      // review it, so it goes straight into the post exactly as it did before
+      // this step existed.
+      if (!mounted.current || !onScreen.current) {
         onChange(generated);
-        releaseLock();
         return false;
       }
 
@@ -411,22 +393,20 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       endRequest();
       // An earlier result was already paid for, so a failed render puts it
       // back rather than losing it — the same thing `ai.video`'s failRender
-      // does, and the reason the lock stays: that image can still be used.
+      // does: that image can still be used.
       if (held) {
-        if (mounted.current) {
+        if (mounted.current && onScreen.current) {
           setPhase('result');
         } else {
-          // Closed mid-render. It is paid for, and the post or the reference
-          // row was promised an image — attaching it is closer to that than
-          // nothing. The Media library already holds it, so handing it on
+          // Closed mid-render, or its tab behind another. It is paid for, and
+          // the post or the reference row was promised an image — attaching
+          // it is closer to that than nothing. The Media library already holds it, so handing it on
           // there would only announce an older image as new.
           if (destination !== 'media') {
             onChange(held.media);
           }
-          releaseLock();
         }
       } else {
-        releaseLock();
         // The inputs are kept for another attempt. Whether this one was
         // charged is known only from the server's own answer: a dropped
         // connection may still finish and be charged, which its message says.
@@ -517,7 +497,6 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
     if (rendering.current) {
       return;
     }
-    releaseLock();
     onChange(versions[shown].media);
     onAccept?.();
   };
@@ -555,12 +534,18 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   // The image is already in the Media library by the time any of this renders
   // — the route saves it before it answers — so the note names what happens
   // next rather than whether the image is kept. The Studio page is no window
-  // to close: the member can leave it; a window says where the image goes.
+  // to close: the member can leave it; a composer tab sits beside the post; a
+  // window says where the image goes.
   const progressNote =
     layout === 'page'
       ? t(
           'workspace_leave_note_image',
           "You can leave this page. The image is saved to your Media library when it's ready."
+        )
+      : inTab
+      ? t(
+          'composer_leave_note_image',
+          "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready."
         )
       : destination === 'reference'
       ? t(
@@ -996,21 +981,25 @@ export const AiImage: FC<{
    */
   destination?: MediaDestination;
   /**
-   * Whether a render holds the composer until its image is used or given up.
-   * By default only for the post; Samy's AI Image, whose post no composer
-   * holds, passes false (FR-021a).
+   * The index of the post whose media row holds the button: in the composer,
+   * where the image lands once the button is gone (tasks D10).
    */
-  locksComposer?: boolean;
+  place?: number;
 }> = (props) => {
   const t = useT();
-  const {
-    onChange,
-    renderTrigger,
-    destination = 'post',
-    locksComposer,
-  } = props;
+  const { onChange, renderTrigger, destination = 'post', place = 0 } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
+  const tabs = useComposerTabs();
+  // The row's latest handler, read when the image lands, which can be long
+  // after the click; none once the button is gone (tasks D10).
+  const latestOnChange = useRef<typeof onChange | undefined>(undefined);
+  useEffect(() => {
+    latestOnChange.current = onChange;
+    return () => {
+      latestOnChange.current = undefined;
+    };
+  }, [onChange]);
 
   const openImageModal = useCallback(() => {
     if (loading) {
@@ -1031,11 +1020,29 @@ export const AiImage: FC<{
           onChange={onChange}
           onAccept={close}
           setLoading={setLoading}
-          locksComposer={locksComposer}
         />
       ),
     });
-  }, [loading, onChange, destination, locksComposer]);
+  }, [loading, onChange, destination]);
+
+  // In the composer the post's image is made in a tab beside it, for the post
+  // this button is under: the channel on screen when it holds its own values,
+  // as the editor's appendImages chooses (FR-021, tasks D10). A trigger of its
+  // own (a Studio card, Samy's button) is never in the composer: it keeps the
+  // window.
+  const open = () => {
+    if (!tabs || destination !== 'post') {
+      openImageModal();
+      return;
+    }
+    const { current, internal } = useLaunchStore.getState();
+    tabs.open('image', () => latestOnChange.current, {
+      channel: internal.some((entry) => entry.integration.id === current)
+        ? current
+        : 'global',
+      index: place,
+    });
+  };
 
   if (renderTrigger) {
     return <>{renderTrigger(openImageModal, loading)}</>;
@@ -1044,7 +1051,7 @@ export const AiImage: FC<{
   return (
     <div className="relative">
       <div
-        onClick={openImageModal}
+        onClick={open}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
         aria-label={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
