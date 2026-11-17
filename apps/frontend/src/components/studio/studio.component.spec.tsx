@@ -148,14 +148,12 @@ jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
     return card ? t(card.name.key, card.name.fallback) : type.title;
   },
 }));
-jest.mock(
-  '@gitroom/frontend/components/videos/video.render.component',
-  () => ({
-    VideoWrapper: () => null,
-    videoOwnsActions: () => false,
-    videoTypeCard: (identifier: string) => registryCard(identifier),
-  })
-);
+jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
+  VideoWrapper: () => null,
+  videoOwnsActions: () => false,
+  videoOwnsStage: () => false,
+  videoTypeCard: (identifier: string) => registryCard(identifier),
+}));
 // Samy's play mark, as a mark the cases can find; its centring is its own.
 jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({
   PlayBadge: () => <span data-play-badge="" />,

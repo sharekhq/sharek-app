@@ -995,6 +995,7 @@ const SlidesDiagram = (
 
 videoWrapper('image-text-slides', ImageSlidesComponent, {
   ownsActions: true,
+  ownsStage: true,
   card: {
     name: {
       key: 'video_type_image_text_slides',

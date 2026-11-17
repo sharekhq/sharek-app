@@ -37,6 +37,14 @@ export const videoOwnsActions = (identifier: string) =>
   !!videosList.find((v) => v.identifier === identifier)?.ownsActions;
 
 /**
+ * Whether the provider fills the stage itself during setup, in place of the
+ * tool's sample (a workflow's storyboard). Asked of the registry for the same
+ * reason.
+ */
+export const videoOwnsStage = (identifier: string) =>
+  !!videosList.find((v) => v.identifier === identifier)?.ownsStage;
+
+/**
  * How the chooser should present this provider, or undefined when it declared
  * nothing. Same reason as above: the modal asks the registry, never the
  * identifier.

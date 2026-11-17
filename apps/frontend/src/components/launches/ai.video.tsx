@@ -19,6 +19,7 @@ import useSWR from 'swr';
 import {
   VideoWrapper,
   videoOwnsActions,
+  videoOwnsStage,
   videoTypeCard,
 } from '@gitroom/frontend/components/videos/video.render.component';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -196,10 +197,9 @@ export const AiVideoTool: FC<
   // A ref callback rather than a lookup: the bar does not exist during a
   // provider's first render, and the modal replaces it on every phase change.
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
-  // The stage's slot, the same way, and whether the provider has put anything
-  // in it: what it puts there takes the sample's place.
+  // The stage's slot, the same way, for a provider that fills the stage in
+  // place of the sample.
   const [stageSlot, setStageSlot] = useState<HTMLElement | null>(null);
-  const [stageFilled, setStageFilled] = useState(false);
   const [trail, setTrail] = useState<VideoTrail | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
@@ -246,25 +246,6 @@ export const AiVideoTool: FC<
     chosen.current = id;
     setPosition(id);
   };
-
-  // Watched from the moment the node exists: the provider fills it on the
-  // render after, once the context has handed it over. The observer is read
-  // off `window`, where a test DOM also puts it.
-  const watchStageSlot = useCallback((node: HTMLDivElement | null) => {
-    setStageSlot(node);
-    if (!node) {
-      return;
-    }
-    const observer = new window.MutationObserver(() =>
-      setStageFilled(node.childNodes.length > 0)
-    );
-    observer.observe(node, { childList: true });
-    return () => {
-      observer.disconnect();
-      setStageSlot(null);
-      setStageFilled(false);
-    };
-  }, []);
 
   // `loading` follows the request, whose end also ends the render
   // (`rendering`); the composer lock follows the whole flow, which is not over
@@ -803,37 +784,33 @@ export const AiVideoTool: FC<
           />
         }
       />
+    ) : videoOwnsStage(type.identifier) ? (
+      // A provider that owns the stage puts its own sample and its middle
+      // step (a workflow's storyboard) there, as the column its part fills.
+      <div
+        ref={setStageSlot}
+        className="w-full flex-1 min-h-0 overflow-y-auto flex flex-col"
+      />
     ) : (
-      <>
-        <div
-          ref={watchStageSlot}
-          className={clsx(
-            'w-full',
-            stageFilled && 'flex-1 min-h-0 overflow-y-auto flex flex-col'
-          )}
-        />
-        {!stageFilled && (
-          <StageSample
-            cover={studio?.cover}
-            icon={
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M8 5.5l10 6.5-10 6.5V5.5z" />
-              </svg>
-            }
-            title={t('workspace_video_empty_title', 'Your video appears here')}
-            body={t(
-              'workspace_video_empty_body',
-              'Fill in the settings, then press Generate.'
-            )}
-          />
+      <StageSample
+        cover={studio?.cover}
+        icon={
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M8 5.5l10 6.5-10 6.5V5.5z" />
+          </svg>
+        }
+        title={t('workspace_video_empty_title', 'Your video appears here')}
+        body={t(
+          'workspace_video_empty_body',
+          'Fill in the settings, then press Generate.'
         )}
-      </>
+      />
     );
 
   const folded = versions.length > 0 && phase !== 'setup';

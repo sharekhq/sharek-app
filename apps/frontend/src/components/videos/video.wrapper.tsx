@@ -49,13 +49,19 @@ export const videosList: {
   Component: FC;
   /** The provider fills the modal's action bar instead of the modal's own submit button. */
   ownsActions: boolean;
+  /** The provider fills the stage during setup instead of the tool's own sample. */
+  ownsStage: boolean;
   card?: VideoTypeCard;
 }[] = [];
 
 export const videoWrapper = (
   identifier: string,
   Component: any,
-  options: { ownsActions?: boolean; card?: VideoTypeCard } = {}
+  options: {
+    ownsActions?: boolean;
+    ownsStage?: boolean;
+    card?: VideoTypeCard;
+  } = {}
 ): null => {
   if (videosList.map((p) => p.identifier).includes(identifier)) {
     return null;
@@ -65,6 +71,7 @@ export const videoWrapper = (
     identifier,
     Component,
     ownsActions: !!options.ownsActions,
+    ownsStage: !!options.ownsStage,
     card: options.card,
   });
 

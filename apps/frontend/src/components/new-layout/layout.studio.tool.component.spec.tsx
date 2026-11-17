@@ -105,6 +105,7 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
   return {
     VideoWrapper: () => null,
     videoOwnsActions: () => false,
+    videoOwnsStage: () => false,
     videoTypeCard: (identifier: string) =>
       videosList.find(
         (provider: { identifier: string }) => provider.identifier === identifier

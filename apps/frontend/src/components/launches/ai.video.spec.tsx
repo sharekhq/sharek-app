@@ -1318,7 +1318,8 @@ describe("a workflow's back action", () => {
 
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(mockVideo!.phase).toBe('setup');
-    expect(stage()!.textContent).toContain('Your video appears here');
+    // The stage is the workflow's again, for its Review screen.
+    expect(stage()!.contains(mockVideo!.stageSlot)).toBe(true);
 
     await providerRender({ backLabel: 'Edit script', onBack }, second);
 
