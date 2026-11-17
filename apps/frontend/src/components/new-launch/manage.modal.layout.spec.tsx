@@ -95,7 +95,14 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/launches/select.customer', () => ({
   SelectCustomer: () => <div data-customer />,
 }));
-jest.mock('@copilotkit/react-ui', () => ({ CopilotPopup: () => null }));
+// The Assistant, recording the props the composer gives it.
+let assistant: { className?: string } = {};
+jest.mock('@copilotkit/react-ui', () => ({
+  CopilotPopup: (props: { className?: string }) => {
+    assistant = props;
+    return null;
+  },
+}));
 jest.mock(
   '@gitroom/frontend/components/new-launch/dummy.code.component',
   () => ({ DummyCodeComponent: () => null })
@@ -317,6 +324,27 @@ describe('the composer frame', () => {
     expect(mockEditor.tabs).toEqual(
       expect.objectContaining({ active: 'preview', open: expect.any(Function) })
     );
+  });
+});
+
+// Inside the composer the Assistant sits above the bottom bar on a wide
+// screen, as far above it as CopilotKit's own 16px from the screen's foot: the
+// bar is 84px tall and 12px from the foot in the shell's insets (spec 061,
+// FR-020). At 1025px and below it keeps its lift clear of the pinned tool bar.
+describe('the assistant', () => {
+  it('sits above the bottom bar on a wide screen only', async () => {
+    existing = {};
+    assistant = {};
+    await render();
+
+    expect(
+      (assistant.className ?? '')
+        .split(/\s+/)
+        .filter((each) => each.includes('bottom-'))
+    ).toEqual([
+      'mobile:!bottom-[112px]',
+      '[@media(min-width:1026px)]:!bottom-[112px]',
+    ]);
   });
 });
 

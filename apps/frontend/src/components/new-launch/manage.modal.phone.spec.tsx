@@ -478,7 +478,9 @@ describe('the assistant', () => {
   it('sits clear of the pinned tool bar and of the Post menu', async () => {
     await open();
 
-    expect(assistant.className).toBe('mobile:!z-[460] mobile:!bottom-[112px]');
+    expect(assistant.className!.split(' ')).toEqual(
+      expect.arrayContaining(['mobile:!z-[460]', 'mobile:!bottom-[112px]'])
+    );
   });
 });
 
