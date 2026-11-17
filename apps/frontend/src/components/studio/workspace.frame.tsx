@@ -140,15 +140,15 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   // and the page card clips, so a sticky bar would never pin: the bar is
   // fixed to the foot of the screen, under the menu drawer's scrim and every
   // popup, clear of the home indicator, as the composer's tool bar is. In a
-  // window it sticks inside the scroller's padding, so it sticks 4px lower
-  // and covers the ring room there, where scrolled content would show.
+  // window it sticks to the scroller's foot, which keeps no ring room under
+  // it, so it meets the window's foot while scrolling and at the end.
   const bar = (
     <div
       className={clsx(
         'py-[16px] border-t border-line bg-surface flex flex-wrap items-center gap-[10px]',
         page
           ? '-mx-[20px] -mb-[20px] px-[20px] mobile:m-0 mobile:px-[16px] mobile:pb-[calc(16px+env(safe-area-inset-bottom))] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[90]'
-          : 'sticky -bottom-[4px]'
+          : 'sticky bottom-0'
       )}
     >
       {credits}
@@ -209,8 +209,11 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
     );
   }
 
+  // The bar is the last child and its button's ring falls inside its own
+  // padding, so no ring room under it: a sticky box keeps inside its
+  // scroller's padding and never leaves its place in the flow.
   return (
-    <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL)}>
+    <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL, 'pb-0')}>
       <div className="flex-none h-[clamp(240px,45dvh,440px)] [container-type:size] flex flex-col items-center justify-center">
         {stage}
       </div>
