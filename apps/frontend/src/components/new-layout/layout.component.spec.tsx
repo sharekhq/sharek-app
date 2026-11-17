@@ -628,6 +628,20 @@ describe('the shell held to the screen', () => {
     ]);
   });
 
+  // Spec 061 (SC-001): the page's row in the card may shrink too, so a page
+  // taller than the room under the top bar scrolls inside its own box: the
+  // top bar keeps its 64px and a page that fills the row (a Studio tool's
+  // frame) gets the room under it, its bar in view.
+  it("lets the page's row shrink below its content, under the top bar", async () => {
+    const shell = await mount();
+    expect(classesOf(shell.contentWrapper)).toEqual([
+      'flex',
+      'flex-1',
+      'min-h-0',
+      'gap-[1px]',
+    ]);
+  });
+
   it("keeps the growing shell on the free plan's paywall", async () => {
     mockUser.tier = 'FREE';
     const host = await renderShell();
