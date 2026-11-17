@@ -152,18 +152,22 @@ describe('Part 1: the preview fit', () => {
 
 // The workspace frame (studio/workspace.frame.tsx), its action bar, stage and
 // field parts (studio/workspace.fields.tsx), and the top bar's slot for the
-// tool switcher. The `page` layout sets its settings panel at the start side
-// and stacks under phone: (stage first at the stacked stage's height, the bar
-// pinned to the bottom); the `stacked` layout is the stacked stage everywhere.
-// The rest is asserted elsewhere: [container-type:size] on the stage in Part
-// 1; motion-safe:animate-pulse on StageProgress's box in samy-images;
-// phone:hidden, phone:flex-col and phone:w-full in shell-studio;
-// mobile:h-auto in channel-panels; ChoiceField's mobile:min-w-0 and
-// mobile:px-[8px], p-[4px], px-[12px], gap-[10px], text-[12px], text-[14px],
-// font-[600] and the focus ring in channel-panels and others; the
-// coarse:min-h-[44px], coarse:h-[44px], coarse:w-[44px] and coarse:min-w-[44px]
-// sizes in emit and others; the slot's contents in emit. A size that follows
-// the picked shape is an inline style, not a class.
+// tool switcher (studio/tool.switcher.tsx). The `page` layout sets its
+// settings panel at the start side and stacks under phone: (stage first at the
+// stacked stage's height); at 1025px and below it takes its natural height, so
+// its bar is pinned to the bottom there; the `stacked` layout is the stacked
+// stage everywhere. The rest is asserted elsewhere: [container-type:size] on
+// the stage in Part 1; motion-safe:animate-pulse on StageProgress's box in
+// samy-images; phone:hidden, phone:flex-col and phone:w-full in shell-studio;
+// mobile:h-auto in channel-panels; the bar's px-[20px] in dashboard-polish and
+// its mobile:-mx-[16px], mobile:-mb-[16px] and mobile:px-[16px] in emit;
+// ChoiceField's mobile:min-w-0 and mobile:px-[8px], p-[4px], px-[12px],
+// gap-[10px], text-[12px], text-[14px], font-[600] and the focus ring in
+// channel-panels and others; the coarse:min-h-[44px], coarse:h-[44px],
+// coarse:w-[44px] and coarse:min-w-[44px] sizes in emit and others; the
+// switcher's w-[340px] in shell-studio and its picture's [&_svg]:size-4 in
+// brands-from-channels; the slot's contents in emit. A size that follows the
+// picked shape is an inline style, not a class.
 describe('Part 2: the workspace', () => {
   test("the page panel's width and end border, the stacked stage's height, the credits pill and the settings scroller's ring room emit their one rule, outside any query", async () => {
     await assertEmits(
@@ -201,11 +205,87 @@ describe('Part 2: the workspace', () => {
         ],
         // the settings panel loses its end border once it spans the width
         'phone:border-e-0': [['border-inline-end-width', '0px']],
-        // the action bar, pinned to the bottom as the window scrolls
-        'phone:sticky': [['position', 'sticky']],
-        'phone:bottom-0': [['bottom', '0px']],
       },
       '(max-width: 768px)'
+    );
+  });
+
+  test("the page's action bar is pinned to the bottom at 1025px and below, where the page scrolls at its natural height", async () => {
+    await assertEmits(
+      {
+        'mobile:sticky': [['position', 'sticky']],
+        'mobile:bottom-0': [['bottom', '0px']],
+      },
+      '(max-width: 1025px)'
+    );
+  });
+
+  test("the page's action bar reaches past the panel's 20px padding to both edges and its foot, and each mobile: tier is emitted after it", async () => {
+    // Symmetric, so the physical pair -mx- emits is the same at either end.
+    await assertEmits(
+      {
+        '-mx-[20px]': [
+          ['margin-left', '-20px'],
+          ['margin-right', '-20px'],
+        ],
+        '-mb-[20px]': [['margin-bottom', '-20px']],
+      },
+      null
+    );
+    // Equal specificity on one element: the later rule wins inside the
+    // query, so a 16px tier emitted first would leave the bar 4px past the
+    // panel's edges at 1025px and below.
+    const pairs = [
+      ['-mx-[20px]', 'mobile:-mx-[16px]'],
+      ['-mb-[20px]', 'mobile:-mb-[16px]'],
+      ['px-[20px]', 'mobile:px-[16px]'],
+    ];
+    const css = await emit(pairs.flat());
+    for (const [desktop, small] of pairs) {
+      const [wide] = rules(css, desktop);
+      const [narrow] = rules(css, small);
+      assert.ok(
+        wide && narrow && wide.index < narrow.index,
+        `${small} must be emitted after ${desktop}`
+      );
+    }
+  });
+
+  test("the sample's 16:9 picture takes the largest box its room allows up to 640px, and the style catalogue and the edit bar keep to 640px, outside any query", async () => {
+    // StageSample's room is a size container, so 100cqw and 100cqh are its
+    // content box. Tailwind spaces calc()'s operators; min()'s commas stay.
+    await assertEmits(
+      {
+        'w-[min(100cqw,calc(100cqh*16/9),640px)]': [
+          ['width', 'min(100cqw,calc(100cqh * 16 / 9),640px)'],
+        ],
+        'max-w-[640px]': [['max-width', '640px']],
+      },
+      null
+    );
+  });
+
+  test("the tool switcher's trigger, its picture and its list keep their sizes, outside any query", async () => {
+    await assertEmits(
+      {
+        // the trigger, set off from the page title before it
+        'ms-[12px]': [['margin-inline-start', '12px']],
+        'max-w-[320px]': [['max-width', '320px']],
+        // a listing's picture, a 16:9 strip of its cover
+        'h-[27px]': [['height', '27px']],
+        // the list, never wider than the screen less its margins
+        'max-w-[calc(100vw-20px)]': [['max-width', 'calc(100vw - 20px)']],
+      },
+      null
+    );
+  });
+
+  test("the running step's ring turns only when motion is welcome", async () => {
+    await assertEmits(
+      {
+        'motion-safe:animate-spin': [['animation', 'spin 1s linear infinite']],
+      },
+      '(prefers-reduced-motion: no-preference)'
     );
   });
 });
