@@ -51,7 +51,9 @@ import {
   StageProgress,
   StageResult,
   StageSample,
+  TickIcon,
   VersionsStrip,
+  WORKSPACE_WINDOW,
   WorkspaceFrame,
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
@@ -632,25 +634,7 @@ export const AiVideoTool: FC<
                           : 'bg-surface border-line text-muted'
                       )}
                     >
-                      {done ? (
-                        <svg
-                          width="9"
-                          height="9"
-                          viewBox="0 0 12 12"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M2.5 6.2l2.3 2.3 4.7-5"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      ) : (
-                        index + 1
-                      )}
+                      {done ? <TickIcon size={9} /> : index + 1}
                     </span>
                     {label}
                   </span>
@@ -984,11 +968,7 @@ export const AiVideo: FC<{
             : t('generate_ai_video', 'Generate AI Video')}
         </div>
       ),
-      // One size, clear of the top of the screen, so the stacked frame's bar
-      // is never below it.
-      size: 'min(640px, 100%)',
-      height: 'min(860px, calc(100dvh - 48px))',
-      top: 24,
+      ...WORKSPACE_WINDOW,
       children: (close) => (
         <AiVideoChooser
           list={list}
