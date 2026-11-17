@@ -197,7 +197,7 @@ const AiTabPanel: FC<{
   videoTypes: VideoType[];
 }> = ({ kind, tab, name, shown, tabId, panelId, videoTypes }) => {
   const t = useT();
-  const { select, close, addPending, removePending, setBusy } =
+  const { select, close, addPending, removePending, setBusy, composerOpen } =
     useContext(ComposerTabsContext)!;
   // The tab's latest target and place, kept after it closes: its tool's
   // render still settles then, and lands through them, never through a newer
@@ -243,19 +243,21 @@ const AiTabPanel: FC<{
   // The media row's latest handler while its button is there, which also
   // puts an image in the text of a row in inline-images mode; once the button
   // is gone, appended at the post's place through the store, which reads the
-  // latest state (D10). The tab closes, and the selection moves to Post
-  // preview only if it was on screen.
+  // latest state (D10); once the composer has closed, in no post: the store
+  // then holds the next composer's (research R1, review C3). The tab closes,
+  // and the selection moves to Post preview only if it was on screen.
   const land = (media: { id: string; path: string }) => {
     const { target, place } = latest.current;
     const handler = target();
     if (handler) {
       handler(media);
-    } else if (place.channel === 'global') {
-      useLaunchStore.getState().appendGlobalValueMedia(place.index, [media]);
-    } else {
-      useLaunchStore
-        .getState()
-        .appendInternalValueMedia(place.channel, place.index, [media]);
+    } else if (composerOpen.current) {
+      const store = useLaunchStore.getState();
+      if (place.channel === 'global') {
+        store.appendGlobalValueMedia(place.index, [media]);
+      } else {
+        store.appendInternalValueMedia(place.channel, place.index, [media]);
+      }
     }
     closeTab();
   };

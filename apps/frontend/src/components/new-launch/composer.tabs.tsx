@@ -4,6 +4,7 @@ import {
   createContext,
   FC,
   ReactNode,
+  RefObject,
   useCallback,
   useContext,
   useEffect,
@@ -56,12 +57,14 @@ export interface ComposerTabs {
   select(tab: 'preview' | ComposerTabKind): void;
 }
 
-// What the stage's panels add to it: each render's pending entry, and the
-// spinner of the tab it runs in while that tab is open.
+// What the stage's panels add to it: each render's pending entry, the
+// spinner of the tab it runs in while that tab is open, and whether the
+// composer is still open when the render lands.
 interface ComposerStageState extends ComposerTabs {
   addPending: (entry: PendingMedia) => void;
   removePending: (id: string) => void;
   setBusy: (kind: ComposerTabKind, busy: boolean) => void;
+  composerOpen: RefObject<boolean>;
 }
 
 export const ComposerTabsContext = createContext<ComposerStageState | null>(
@@ -81,6 +84,15 @@ export const ComposerTabsProvider: FC<{
   const [active, setActive] = useState<ComposerTabs['active']>('preview');
   const [pending, setPending] = useState<PendingMedia[]>([]);
   const setLocked = useLaunchStore((state) => state.setLocked);
+  // The composer is open while this provider is mounted: a render that
+  // outlives it is only in the Media library (research R1, review C3).
+  const composerOpen = useRef(true);
+  useEffect(() => {
+    composerOpen.current = true;
+    return () => {
+      composerOpen.current = false;
+    };
+  }, []);
 
   // The post a button works for, read at the click: the channel on screen
   // when it holds its own values, as the editor's appendImages chooses (D10).
@@ -156,6 +168,7 @@ export const ComposerTabsProvider: FC<{
       addPending,
       removePending,
       setBusy,
+      composerOpen,
     }),
     [tabs, active, pending, open, close, addPending, removePending, setBusy]
   );
