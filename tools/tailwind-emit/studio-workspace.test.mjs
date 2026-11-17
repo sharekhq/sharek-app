@@ -149,3 +149,63 @@ describe('Part 1: the preview fit', () => {
     );
   });
 });
+
+// The workspace frame (studio/workspace.frame.tsx), its action bar, stage and
+// field parts (studio/workspace.fields.tsx), and the top bar's slot for the
+// tool switcher. The `page` layout sets its settings panel at the start side
+// and stacks under phone: (stage first at the stacked stage's height, the bar
+// pinned to the bottom); the `stacked` layout is the stacked stage everywhere.
+// The rest is asserted elsewhere: [container-type:size] on the stage in Part
+// 1; motion-safe:animate-pulse on StageProgress's box in samy-images;
+// phone:hidden, phone:flex-col and phone:w-full in shell-studio;
+// mobile:h-auto in channel-panels; ChoiceField's mobile:min-w-0 and
+// mobile:px-[8px], p-[4px], px-[12px], gap-[10px], text-[12px], text-[14px],
+// font-[600] and the focus ring in channel-panels and others; the
+// coarse:min-h-[44px], coarse:h-[44px], coarse:w-[44px] and coarse:min-w-[44px]
+// sizes in emit and others; the slot's contents in emit. A size that follows
+// the picked shape is an inline style, not a class.
+describe('Part 2: the workspace', () => {
+  test("the page panel's width and end border, the stacked stage's height, the credits pill and the settings scroller's ring room emit their one rule, outside any query", async () => {
+    await assertEmits(
+      {
+        // the settings panel, on the start side of the page layout
+        'w-[360px]': [['width', '360px']],
+        'border-e': [['border-inline-end-width', '1px']],
+        // the stage, first in the stacked layout
+        'h-[clamp(240px,45dvh,440px)]': [
+          ['height', 'clamp(240px,45dvh,440px)'],
+        ],
+        // CreditsPill, moved from the window header into the bar
+        'py-[4px]': [
+          ['padding-top', '4px'],
+          ['padding-bottom', '4px'],
+        ],
+        // the settings scroller hands back the p-[4px] it keeps for a
+        // field's 2px focus ring, as the video tool's scroller does
+        '-m-[4px]': [['margin', '-4px']],
+      },
+      null
+    );
+  });
+
+  test('every phone: class that stacks the page layout emits, and only inside the phone screen', async () => {
+    await assertEmits(
+      {
+        // the folded Settings row, hidden beside the stage
+        'phone:flex': [['display', 'flex']],
+        // the stage: first, at the stacked stage's height, not stretched
+        'phone:order-first': [['order', '-9999']],
+        'phone:flex-none': [['flex', 'none']],
+        'phone:h-[clamp(240px,45dvh,440px)]': [
+          ['height', 'clamp(240px,45dvh,440px)'],
+        ],
+        // the settings panel loses its end border once it spans the width
+        'phone:border-e-0': [['border-inline-end-width', '0px']],
+        // the action bar, pinned to the bottom as the window scrolls
+        'phone:sticky': [['position', 'sticky']],
+        'phone:bottom-0': [['bottom', '0px']],
+      },
+      '(max-width: 768px)'
+    );
+  });
+});
