@@ -19,7 +19,6 @@ import {
   videoTypeLabel,
 } from '@gitroom/frontend/components/launches/ai.video';
 import { matchesSearch } from '@gitroom/frontend/components/launches/channel.panel';
-import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
 import type { StudioMaker } from '@gitroom/frontend/components/videos/video.wrapper';
 
@@ -414,22 +413,6 @@ export const findStudioTool = (
 /** Where every link to a tool leads; undefined for a tool that opens in a window. */
 export const studioToolHref = (entry: StudioToolEntry): string | undefined =>
   entry.workspace ? `/studio/${entry.slug}` : undefined;
-
-/**
- * A model's line under its name, in place of the category line: who made it,
- * then its category's name, the maker's name isolated.
- */
-export const studioMakerLine = (
-  t: Translate,
-  maker: StudioMaker,
-  category: string | undefined
-): string =>
-  t('studio_model_by', 'by {{maker}} · {{category}}', {
-    maker: isolate(maker.name),
-    category,
-    // React escapes the line, so i18next mustn't first
-    interpolation: { escapeValue: false },
-  });
 
 /**
  * The catalog the Studio page and a tool page are built from, so both list,

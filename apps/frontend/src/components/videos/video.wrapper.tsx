@@ -1,4 +1,6 @@
 import { FC, ReactNode } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 
 /**
  * A translated string declared where `t()` cannot run — the registry is module
@@ -43,6 +45,23 @@ export interface VideoTypeCard {
     sampleLength?: string;
   };
 }
+
+/**
+ * A model's line under its name, in place of the category line: who made it,
+ * then its category's name, the maker's name isolated. Here, beside the card
+ * it formats, so Studio and the video tool read the one helper.
+ */
+export const studioMakerLine = (
+  t: ReturnType<typeof useT>,
+  maker: StudioMaker,
+  category: string | undefined
+): string =>
+  t('studio_model_by', 'by {{maker}} · {{category}}', {
+    maker: isolate(maker.name),
+    category,
+    // React escapes the line, so i18next mustn't first
+    interpolation: { escapeValue: false },
+  });
 
 export const videosList: {
   identifier: string;

@@ -22,6 +22,7 @@ import {
   videoOwnsStage,
   videoTypeCard,
 } from '@gitroom/frontend/components/videos/video.render.component';
+import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapper';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import {
@@ -53,7 +54,6 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
-import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
 
 export type Media = { id: string; path: string };
@@ -661,12 +661,11 @@ export const AiVideoTool: FC<
       </div>
       {!!studio?.maker && (
         <div className="text-[12px] text-muted">
-          {t('studio_model_by', 'by {{maker}} · {{category}}', {
-            maker: isolate(studio.maker.name),
-            category: t('studio_category_video', 'Video'),
-            // React escapes the line, so i18next mustn't first
-            interpolation: { escapeValue: false },
-          })}
+          {studioMakerLine(
+            t,
+            studio.maker,
+            t('studio_category_video', 'Video')
+          )}
         </div>
       )}
       {!!studio?.facts?.length && (

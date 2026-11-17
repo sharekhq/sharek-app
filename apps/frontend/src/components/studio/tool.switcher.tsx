@@ -27,11 +27,11 @@ import { GROUP_LABEL } from '@gitroom/frontend/components/ui/split.panel';
 import {
   filterStudio,
   StudioCatalog,
-  studioMakerLine,
   StudioTool,
   StudioToolEntry,
   studioToolHref,
 } from '@gitroom/frontend/components/studio/studio.tools';
+import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapper';
 
 type HangingPanel = ReturnType<typeof useHangingPanel>;
 

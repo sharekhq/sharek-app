@@ -22,12 +22,19 @@ const COMPONENTS_DIR = path.join(
   '../../../../apps/frontend/src/components'
 );
 
-// Studio's components, their specs aside.
+// Studio's components, their specs aside, and the video card types' file,
+// whose studioMakerLine writes Studio's maker line.
 const STUDIO_DIR = path.join(COMPONENTS_DIR, 'studio');
 const STUDIO_SOURCE = fs
   .readdirSync(STUDIO_DIR)
   .filter((file) => /\.tsx?$/.test(file) && !/\.spec\./.test(file))
   .map((file) => fs.readFileSync(path.join(STUDIO_DIR, file), 'utf8'))
+  .concat(
+    fs.readFileSync(
+      path.join(COMPONENTS_DIR, 'videos/video.wrapper.tsx'),
+      'utf8'
+    )
+  )
   .join('\n');
 
 // Veo 3 presents itself to Studio, so its facts are keys on its card, not t() calls.

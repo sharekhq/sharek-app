@@ -38,11 +38,11 @@ import {
 import {
   filterStudio,
   StudioChip,
-  studioMakerLine,
   StudioTool,
   studioToolHref,
   useStudioCatalog,
 } from '@gitroom/frontend/components/studio/studio.tools';
+import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapper';
 
 const StudioEmptyIllustration = () => (
   <svg
