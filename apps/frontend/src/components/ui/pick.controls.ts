@@ -7,7 +7,9 @@ import clsx from 'clsx';
  *
  * The switch: Calendar's Day/Week/Month/List and its List view's post states,
  * Analytics' Last 7/30/90 days, Billing's Monthly/Yearly, Developers' clients,
- * sign-in and where-it-runs tabs, and Apps' Apps/Approved apps.
+ * sign-in and where-it-runs tabs, and Apps' Apps/Approved apps, each in a
+ * `SWITCH_GROUP`; and the composer's tab strip (Post preview and its AI tabs),
+ * the one without a group, its options on the old header's background.
  * The chip: Studio's categories (with their counts), Media's All/Images/Videos
  * and the AI image window's styles.
  * The choice: the video tools' settings rows (ChoiceField), each option the
