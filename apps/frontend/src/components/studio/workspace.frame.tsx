@@ -41,8 +41,9 @@ const SETTINGS_SCROLL =
 /**
  * The one frame every AI tool draws, whatever hosts it. On its Studio page
  * (`page`) the settings sit in a 360px panel on the start side, scrolling on
- * their own above the action bar, and the stage fills the rest; on a phone the
- * page stacks, the stage first and the bar pinned to the bottom of the screen.
+ * their own above the action bar, and the stage fills the rest. From 1025px
+ * down the window scrolls and the bar sticks to the bottom of the screen; on a
+ * phone the page stacks, the stage first.
  * A window or a tab (`stacked`) draws the stage, the settings and the bar in
  * one column that scrolls in the host's height, the bar stuck to its bottom.
  * After a result the stacked settings fold into one Settings row that opens
@@ -104,7 +105,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
       className={clsx(
         'py-[16px] border-t border-line bg-surface flex flex-wrap items-center gap-[10px]',
         page
-          ? '-mx-[20px] -mb-[20px] px-[20px] mobile:-mx-[16px] mobile:-mb-[16px] mobile:px-[16px] phone:sticky phone:bottom-0'
+          ? '-mx-[20px] -mb-[20px] px-[20px] mobile:-mx-[16px] mobile:-mb-[16px] mobile:px-[16px] mobile:sticky mobile:bottom-0'
           : 'sticky bottom-0'
       )}
     >
