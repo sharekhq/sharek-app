@@ -442,10 +442,7 @@ describe('the preview', () => {
     expect(column.className.split(' ')).toContain('mobile:hidden');
 
     await act(async () => {
-      mockEditor.tabs!.open('image', () => undefined, {
-        channel: 'global',
-        index: 0,
-      });
+      mockEditor.tabs!.open('image', () => undefined, 0);
     });
 
     expect(column.className.split(' ')).not.toContain('mobile:hidden');
