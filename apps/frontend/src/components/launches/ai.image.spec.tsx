@@ -649,6 +649,40 @@ describe('the streamed render', () => {
     expect(onChange).toHaveBeenCalledWith(done.media);
     expect(setLocked).not.toHaveBeenCalled();
   });
+
+  // A failed render hands back the version it held only where that version
+  // goes somewhere, a post or a reference row. On the Studio page onChange
+  // raises the ready notice, which would announce the earlier image as new.
+  it('announces nothing when the page was left and the next render failed', async () => {
+    renders(done);
+    const onChange = jest.fn();
+    await generateOnPage({ onChange });
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+
+    await click(mainButton());
+    await settle();
+    leave();
+    await act(async () => {
+      deliver(
+        streamed({
+          name: 'error',
+          error: true,
+          message: 'Your request was rejected by the AI safety system.',
+        })
+      );
+    });
+    await settle();
+
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(2);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 // The credit for the first image was already spent, so a refused second
