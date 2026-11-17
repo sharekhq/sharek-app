@@ -35,8 +35,6 @@ export interface WorkspaceToolProps {
   onAccept?: () => void;
   /** true while a render's request is open (today's setLoading). */
   setLoading?: (loading: boolean) => void;
-  /** Composer tab only: false while another tab is on screen. Default true. */
-  active?: boolean;
   locked?: boolean;
   /** The Studio tool page's Create a post, only when the workspace has a channel. */
   onCreatePost?: (media: { id: string; path: string }) => void;
