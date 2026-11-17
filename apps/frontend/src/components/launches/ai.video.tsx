@@ -715,6 +715,7 @@ export const AiVideoTool: FC<
       />
     ) : phase === 'result' && shown ? (
       <StageResult
+        layout={layout}
         media={shown.media}
         kind="video"
         ratio={orientationRatio(shown.output)}
@@ -844,6 +845,7 @@ export const AiVideoTool: FC<
               'Prompt and settings'
             )}
             stage={stage}
+            result={phase === 'result' && !!shown}
             actions={actions}
             credits={<CreditsPill count={data?.credits || 0} />}
             locked={locked}

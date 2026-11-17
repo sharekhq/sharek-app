@@ -848,6 +848,7 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       catalogue
     ) : phase === 'result' && version ? (
       <StageResult
+        layout={layout}
         media={version.media}
         kind="image"
         ratio={presetRatio(version.aspectRatio)}
@@ -960,6 +961,8 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
         'Prompt, brand, shape and style'
       )}
       stage={stage}
+      // The result is on the stage; All styles takes its place while open.
+      result={!catalogOpen && phase === 'result' && !!version}
       actions={
         <>
           <CostNote>{cost}</CostNote>

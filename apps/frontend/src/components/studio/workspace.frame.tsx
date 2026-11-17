@@ -52,6 +52,11 @@ export interface WorkspaceFrameProps {
   /** The folded row's second line, e.g. "Prompt, brand, shape and style". */
   settingsSummary?: string;
   stage: ReactNode;
+  /**
+   * The stage shows a result: on the page a phone lets the stage grow with
+   * it, where the sample and the wait keep its fixed height (FR-015).
+   */
+  result?: boolean;
   /** The action bar's contents when not locked: cost note + main button, or a provider's slot. */
   actions: ReactNode;
   /** Credits left, shown in the bar. */
@@ -90,6 +95,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   folded,
   settingsSummary,
   stage,
+  result,
   actions,
   credits,
   locked,
@@ -187,7 +193,12 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         <div
           className={clsx(
             CARD_PADDING,
-            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center phone:order-first phone:flex-none phone:h-[clamp(240px,45dvh,440px)]'
+            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center phone:order-first phone:flex-none',
+            // A size container is as tall as it is told, so a stage that
+            // grows with its result stops being one.
+            result
+              ? 'phone:[container-type:normal]'
+              : 'phone:h-[clamp(240px,45dvh,440px)]'
           )}
         >
           {stage}
@@ -467,8 +478,13 @@ export const StageProgress: FC<{
  * new tab, through a link so ⌘-click, middle-click and the keyboard all reach
  * it. The corner badge names where it goes, so the cursor is the plain
  * pointer: a magnifier would promise a lightbox a new tab does not deliver.
+ * On the page a phone's stage grows with the result (the frame's `result`),
+ * so there the picture leaves its room's size container, which would fold to
+ * nothing, and takes the full width in its own shape (`!`, over the width its
+ * box sets inline).
  */
 export const StageResult: FC<{
+  layout: WorkspaceLayout;
   media: { path: string };
   kind: 'image' | 'video';
   ratio: number;
@@ -477,11 +493,24 @@ export const StageResult: FC<{
   actions: ReactNode;
   versions?: ReactNode;
   below?: ReactNode;
-}> = ({ media, kind, ratio, alt, caption, actions, versions, below }) => {
+}> = ({
+  layout,
+  media,
+  kind,
+  ratio,
+  alt,
+  caption,
+  actions,
+  versions,
+  below,
+}) => {
   const t = useT();
+  const grows = layout === 'page';
   return (
     <div className={STAGE_PART}>
-      <div className={STAGE_ROOM}>
+      <div
+        className={clsx(STAGE_ROOM, grows && 'phone:[container-type:normal]')}
+      >
         {kind === 'image' ? (
           <a
             href={media.path}
@@ -489,7 +518,10 @@ export const StageResult: FC<{
             rel="noreferrer"
             aria-label={t('open_image_full_size', 'Open the image full size')}
             style={stageBox(ratio)}
-            className="group relative block max-w-full cursor-pointer rounded-[12px] focus-visible:ring-2 focus-visible:ring-brand"
+            className={clsx(
+              'group relative block max-w-full cursor-pointer rounded-[12px] focus-visible:ring-2 focus-visible:ring-brand',
+              grows && 'phone:!w-full'
+            )}
           >
             {/* `block` rather than the inline default: an inline image leaves
                 descender space inside the link, which would put the focus
@@ -530,7 +562,10 @@ export const StageResult: FC<{
             // The placeholder's recessed fill, so the result reads as that
             // box filled in, and a video whose own shape differs letterboxes
             // into a neutral both themes carry.
-            className="max-w-full rounded-[12px] shadow-card bg-surface2"
+            className={clsx(
+              'max-w-full rounded-[12px] shadow-card bg-surface2',
+              grows && 'phone:!w-full'
+            )}
           />
         )}
       </div>
