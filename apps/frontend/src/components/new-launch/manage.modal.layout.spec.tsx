@@ -29,7 +29,7 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
   EditorWrapper: () => {
     const {
       useComposerTabs,
-    } = require('@gitroom/frontend/components/new-launch/composer.stage');
+    } = require('@gitroom/frontend/components/new-launch/composer.tabs');
     mockEditor.tabs = useComposerTabs();
     return null;
   },

@@ -46,7 +46,7 @@ const mockOpenTool = jest.fn(
     return () => (mockTabs ? mockTabs.open() : openWindow());
   }
 );
-jest.mock('@gitroom/frontend/components/new-launch/composer.stage', () => ({
+jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
   useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
     mockOpenTool(...args),
 }));

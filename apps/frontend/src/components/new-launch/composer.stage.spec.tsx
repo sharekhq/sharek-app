@@ -75,15 +75,15 @@ jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,
 }));
 
+import { ComposerStage } from '@gitroom/frontend/components/new-launch/composer.stage';
 import {
-  ComposerStage,
   ComposerTabKind,
   ComposerTabs,
   ComposerTabsProvider,
   PreviewPlace,
   useComposerTabs,
   useOpenTool,
-} from '@gitroom/frontend/components/new-launch/composer.stage';
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 

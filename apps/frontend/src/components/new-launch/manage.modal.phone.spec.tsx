@@ -15,7 +15,7 @@ import { I18nextProvider } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import type { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
-import type { ComposerTabs } from '@gitroom/frontend/components/new-launch/composer.stage';
+import type { ComposerTabs } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { MOBILE_QUERY } from '@gitroom/react/helpers/use.media.query';
 
 type Existing = ReturnType<typeof useExistingData>;
@@ -117,7 +117,7 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
   EditorWrapper: () => {
     const {
       useComposerTabs,
-    } = require('@gitroom/frontend/components/new-launch/composer.stage');
+    } = require('@gitroom/frontend/components/new-launch/composer.tabs');
     mockEditor.tabs = useComposerTabs();
     return <div data-editor="" />;
   },

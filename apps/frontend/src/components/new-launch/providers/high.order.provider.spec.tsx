@@ -27,7 +27,7 @@ import {
 } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
-import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.stage';
+import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 type Store = ReturnType<typeof useLaunchStore.getState>;
 type Handle = {

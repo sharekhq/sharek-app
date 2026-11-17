@@ -23,7 +23,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { pendingPreviewMedia } from '@gitroom/react/helpers/video.or.image';
-import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.stage';
+import type { PendingMedia } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 class Empty {
   @IsOptional()

@@ -57,7 +57,7 @@ import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.
 import {
   useComposerTabs,
   useOpenTool,
-} from '@gitroom/frontend/components/new-launch/composer.stage';
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 import {
   BrandField,
   brandRefusal,

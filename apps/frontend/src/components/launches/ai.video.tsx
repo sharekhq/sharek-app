@@ -57,7 +57,7 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
-import { useOpenTool } from '@gitroom/frontend/components/new-launch/composer.stage';
+import { useOpenTool } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 export type Media = { id: string; path: string };
 

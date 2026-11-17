@@ -70,11 +70,11 @@ import {
 import { useShortlinkPreference } from '@gitroom/frontend/components/settings/shortlink-preference.component';
 import dayjs from 'dayjs';
 import { Button, buttonClassName } from '@gitroom/react/form/button';
+import { ComposerStage } from '@gitroom/frontend/components/new-launch/composer.stage';
 import {
-  ComposerStage,
   ComposerTabKind,
   ComposerTabsProvider,
-} from '@gitroom/frontend/components/new-launch/composer.stage';
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.
