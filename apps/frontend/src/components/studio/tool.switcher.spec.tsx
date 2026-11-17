@@ -670,6 +670,31 @@ describe('the look', () => {
     );
   });
 
+  // The live re-walk at 390: beside the menu button and the bar's end group
+  // the name had 47px (about 62 on a phone with no scrollbar) and read
+  // "AI i…". On a phone the picture goes and the name may take two lines.
+  it('on a phone drops its picture and lets its name take two lines', async () => {
+    await open();
+    const name = trigger().querySelector('span:not([aria-hidden])')!;
+    const listPicture = listbox()!.querySelector(
+      '[role="option"] span[aria-hidden]'
+    )!;
+
+    expect(classes(trigger().querySelector('span[aria-hidden]')!)).toContain(
+      'phone:hidden'
+    );
+    expect(classes(trigger())).toContain('phone:ps-[10px]');
+    expect(classes(name)).toEqual(
+      expect.arrayContaining([
+        'phone:whitespace-normal',
+        'phone:line-clamp-2',
+        'phone:text-[13px]',
+        'phone:leading-[16px]',
+      ])
+    );
+    expect(classes(listPicture)).not.toContain('phone:hidden');
+  });
+
   it('uses no physical-side classes, so it mirrors in Arabic', async () => {
     await open();
     const nodes = [

@@ -258,8 +258,17 @@ describe('Part 2: the workspace', () => {
     );
   });
 
-  test("a window's bar sticks 4px past its scroller's ring room, outside any query", async () => {
-    await assertEmits({ '-bottom-[4px]': [['bottom', '-4px']] }, null);
+  test("a window's scroller keeps no ring room under its bar: pb-0 is emitted after p-[4px], outside any query", async () => {
+    const css = await assertEmits(
+      {
+        'p-[4px]': [['padding', '4px']],
+        'pb-0': [['padding-bottom', '0px']],
+      },
+      null
+    );
+    const [all] = rules(css, 'p-[4px]');
+    const [foot] = rules(css, 'pb-0');
+    assert.ok(all.index < foot.index, 'pb-0 must be emitted after p-[4px]');
   });
 
   test("on a phone the page's stage and its result's room stop being size containers, and the result takes the full width over its box's inline width", async () => {
@@ -342,13 +351,25 @@ describe('Part 2: the workspace', () => {
     );
   });
 
-  test("on a phone the page title gives way to a top-bar slot that holds something, and the tool switcher sits at the slot's start", async () => {
+  test("on a phone the page title gives way to a top-bar slot that holds something, and the tool switcher sits at the slot's start, its name on up to two lines in place of its picture", async () => {
     const css = await assertEmits(
       {
         // the title's h1, hidden while the slot after it holds the switcher
         'phone:has-[+#top-bar-slot:not(:empty)]:hidden': [['display', 'none']],
         // the switcher, no longer set off from a title that is not there
         'phone:ms-0': [['margin-inline-start', '0px']],
+        // and without its picture, its name on up to two lines
+        'phone:hidden': [['display', 'none']],
+        'phone:ps-[10px]': [['padding-inline-start', '10px']],
+        'phone:whitespace-normal': [['white-space', 'normal']],
+        'phone:line-clamp-2': [
+          ['overflow', 'hidden'],
+          ['display', '-webkit-box'],
+          ['-webkit-box-orient', 'vertical'],
+          ['-webkit-line-clamp', '2'],
+        ],
+        'phone:text-[13px]': [['font-size', '13px']],
+        'phone:leading-[16px]': [['line-height', '16px']],
       },
       '(max-width: 768px)'
     );
