@@ -18,11 +18,12 @@ const dialog = jest.fn<Promise<boolean>, unknown[]>(async () => false);
 // one. Free unless a case says otherwise.
 const claimRender = jest.fn(() => true);
 // The tool's action bar and its stage, which the provider fills through
-// portals, and the screen the tool is on. A case changes them and renders the
-// tool again, as the tool does when its phase changes.
+// portals, the screen the tool is on and the shape picked. A case changes them
+// and renders the tool again, as the tool does when its phase changes.
 let actionsSlot: HTMLDivElement | null = null;
 let stageSlot: HTMLDivElement | null = null;
 let phase: VideoPhase = 'setup';
+let output: VideoOrientationId = 'vertical';
 // The voice list the selector loads. Empty, so it says it is loading, unless a
 // case gives it voices.
 let voiceList: {
@@ -68,6 +69,7 @@ import {
   VideoContextWrapper,
   VideoPhase,
 } from '@gitroom/frontend/components/videos/video.context.wrapper';
+import type { VideoOrientationId } from '@gitroom/nestjs-libraries/dtos/videos/video.orientation.catalog';
 
 const Slides = videosList.find(
   (p) => p.identifier === 'image-text-slides'
@@ -161,7 +163,7 @@ const Harness: FC = () => {
     <VideoContextWrapper.Provider
       value={{
         value: '',
-        output: 'vertical',
+        output,
         onMedia,
         close: () => undefined,
         phase,
@@ -233,6 +235,7 @@ afterEach(() => {
   actionsSlot = null;
   stageSlot = null;
   phase = 'setup';
+  output = 'vertical';
   jest.clearAllMocks();
 });
 
@@ -273,6 +276,31 @@ describe('the render it starts', () => {
     await settle();
 
     expect(created()).toHaveLength(1);
+  });
+
+  // The tool stamps the next version with the shape picked beside the result
+  // (FR-008), so the render has to be made in that shape too, not the first
+  // render's.
+  it("renders the shape picked beside a result on the handshake's `regenerate`", async () => {
+    const { rerender } = await review(() => Promise.resolve(rendered()));
+    await click(buttonStarting('Create video'));
+    await settle();
+    const { regenerate } = startRender.mock.calls[0][0];
+
+    phase = 'result';
+    actionsSlot = null;
+    stageSlot = null;
+    output = 'horizontal';
+    await rerender();
+    await act(async () => {
+      regenerate();
+    });
+    await settle();
+
+    expect(created().map(([, init]) => JSON.parse(init.body).output)).toEqual([
+      'vertical',
+      'horizontal',
+    ]);
   });
 
   // The window lets the claim go when the render is handed back, so every way
