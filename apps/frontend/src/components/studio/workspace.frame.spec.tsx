@@ -28,6 +28,10 @@ jest.mock('next/link', () => ({
 
 import {
   CreditsPill,
+  StageProgress,
+  StageResult,
+  StageSample,
+  VersionsStrip,
   WorkspaceFrame,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { buttonClassName } from '@gitroom/react/form/button';
@@ -345,5 +349,313 @@ describe('CreditsPill', () => {
         'font-[600]',
       ])
     );
+  });
+});
+
+// The stage parts (contracts/workspace-parts.md §3, FR-006 to FR-008): what
+// the stage shows in turn, the sample before anything is made, the wait, then
+// the result with every version made since the page opened. They take words,
+// never keys, but the ones they own: each tool translates its own.
+
+describe('StageSample', () => {
+  const sample = (props: Partial<Parameters<typeof StageSample>[0]> = {}) => (
+    <StageSample
+      cover="/studio/covers/ai-image.webp"
+      icon={<svg data-testid="glyph" />}
+      title="Your image appears here"
+      body="Describe it, pick a shape and a style, then press Generate."
+      {...props}
+    />
+  );
+
+  it('shows the cover marked as a sample, the title and the line on what to do', async () => {
+    const host = await mount(sample());
+
+    expect(host.querySelector('img')?.getAttribute('src')).toBe(
+      '/studio/covers/ai-image.webp'
+    );
+    expect(byTestId(host, 'glyph')).toBeNull();
+    expect(host.textContent).toContain('Sample');
+    expect(host.textContent).toContain('Your image appears here');
+    expect(host.textContent).toContain(
+      'Describe it, pick a shape and a style, then press Generate.'
+    );
+  });
+
+  it('shows the given icon when the tool has no cover', async () => {
+    const host = await mount(sample({ cover: undefined }));
+
+    expect(host.querySelector('img')).toBeNull();
+    expect(byTestId(host, 'glyph')).not.toBeNull();
+    expect(host.textContent).toContain('Sample');
+  });
+
+  it('offers no examples when the tool has none', async () => {
+    const host = await mount(sample());
+
+    expect(host.textContent).not.toContain('Try one');
+    expect(host.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  // An example fills the prompt; it never renders by itself.
+  it('offers at most three examples, each handing its text back', async () => {
+    const onExample = jest.fn();
+    const host = await mount(
+      sample({
+        examples: [
+          'Iced lemonade on a sunny terrace',
+          'Coffee on a marble table, morning light',
+          'Ramadan sweets from above',
+          'A fourth one',
+        ],
+        onExample,
+      })
+    );
+    const chips = Array.from(host.querySelectorAll('button'));
+
+    expect(host.textContent).toContain('Try one');
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      'Iced lemonade on a sunny terrace',
+      'Coffee on a marble table, morning light',
+      'Ramadan sweets from above',
+    ]);
+    expect(chips.every((chip) => chip.getAttribute('type') === 'button')).toBe(
+      true
+    );
+
+    await click(chips[1]);
+
+    expect(onExample).toHaveBeenCalledTimes(1);
+    expect(onExample).toHaveBeenCalledWith(
+      'Coffee on a marble table, morning light'
+    );
+  });
+});
+
+describe('StageProgress', () => {
+  const progress = (
+    props: Partial<Parameters<typeof StageProgress>[0]> = {}
+  ) => (
+    <StageProgress
+      ratio={9 / 16}
+      title="Creating your video…"
+      detail="Usually takes a few minutes"
+      note="You can leave this page."
+      {...props}
+    />
+  );
+  const placeholder = (host: HTMLElement) =>
+    host.querySelector<HTMLElement>('.motion-safe\\:animate-pulse');
+
+  // The wait draws the shape that is coming, as large as the stage allows:
+  // as tall as the room, never wider than it.
+  it('draws a placeholder of the chosen shape, as large as the stage allows', async () => {
+    const host = await mount(progress());
+    const box = placeholder(host)!;
+
+    expect(parseFloat(box.style.aspectRatio)).toBeCloseTo(9 / 16, 5);
+    expect(box.style.width).toBe(`calc(100cqh * ${9 / 16})`);
+    expect(tokens(box)).toContain('max-w-full');
+    // the room is a size container of its own, so the words below keep theirs
+    expect(tokens(box.parentElement)).toContain('[container-type:size]');
+  });
+
+  it('says what it is making, how long it takes and that the member can leave', async () => {
+    const host = await mount(progress());
+
+    expect(host.textContent).toContain('Creating your video…');
+    expect(host.textContent).toContain('Usually takes a few minutes');
+    expect(host.textContent).toContain('You can leave this page.');
+    expect(host.textContent).not.toContain('elapsed');
+  });
+
+  it('adds the elapsed time when it is given', async () => {
+    const host = await mount(progress({ elapsed: '0:42 elapsed' }));
+
+    expect(host.textContent).toContain(
+      'Usually takes a few minutes · 0:42 elapsed'
+    );
+  });
+
+  // Marked by shape as well as colour: a tick when done, a turning ring while
+  // running, an empty one until then.
+  it('lists the steps done, at work and to come, with the count of the one at work', async () => {
+    const host = await mount(
+      progress({
+        steps: [
+          { label: 'Writing the script', state: 'done' },
+          { label: 'Drawing the slides', state: 'now', count: '2/4' },
+          { label: 'Putting the video together', state: 'todo' },
+        ],
+      })
+    );
+    const row = (label: string) =>
+      Array.from(host.querySelectorAll('div')).find(
+        (node) =>
+          node.children.length === 2 && node.textContent?.startsWith(label)
+      );
+    const mark = (label: string) => row(label)?.firstElementChild;
+
+    expect(tokens(row('Writing the script'))).toContain('text-inkSoft');
+    expect(mark('Writing the script')?.querySelector('svg')).not.toBeNull();
+    expect(tokens(row('Drawing the slides'))).toEqual(
+      expect.arrayContaining(['text-ink', 'font-[600]'])
+    );
+    expect(tokens(mark('Drawing the slides'))).toContain(
+      'motion-safe:animate-spin'
+    );
+    expect(row('Drawing the slides')?.textContent).toBe(
+      'Drawing the slides · 2/4'
+    );
+    expect(
+      row('Drawing the slides')?.querySelector('[dir="ltr"]')?.textContent
+    ).toBe(' · 2/4');
+    expect(tokens(row('Putting the video together'))).toContain('text-muted');
+    expect(mark('Putting the video together')?.querySelector('svg')).toBeNull();
+  });
+});
+
+describe('StageResult', () => {
+  const result = (props: Partial<Parameters<typeof StageResult>[0]> = {}) => (
+    <StageResult
+      media={{ path: 'https://cdn.example/lemonade.png' }}
+      kind="image"
+      ratio={1}
+      alt="Iced lemonade on a sunny terrace"
+      caption={<span data-testid="caption">Square · Photo</span>}
+      actions={
+        <button type="button" data-testid="download">
+          Download
+        </button>
+      }
+      {...props}
+    />
+  );
+
+  // The result fills the box the placeholder drew.
+  it('opens an image full size in a new tab, in the placeholder box', async () => {
+    const host = await mount(result());
+    const link = host.querySelector<HTMLElement>('a[target="_blank"]')!;
+    const image = link.querySelector('img')!;
+
+    expect(link.getAttribute('href')).toBe('https://cdn.example/lemonade.png');
+    expect(image.getAttribute('src')).toBe('https://cdn.example/lemonade.png');
+    expect(image.getAttribute('alt')).toBe('Iced lemonade on a sunny terrace');
+    expect(tokens(image)).toContain('object-cover');
+    expect(parseFloat(link.style.aspectRatio)).toBeCloseTo(1, 5);
+    expect(link.style.width).toBe('calc(100cqh * 1)');
+    expect(tokens(link)).toEqual(
+      expect.arrayContaining([
+        'max-w-full',
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+  });
+
+  it('plays a video where it sits', async () => {
+    const host = await mount(
+      result({
+        kind: 'video',
+        ratio: 16 / 9,
+        media: { path: 'https://cdn.example/clip.mp4' },
+      })
+    );
+    const video = host.querySelector<HTMLElement>('video')!;
+
+    expect(host.querySelector('a')).toBeNull();
+    expect(video.getAttribute('src')).toBe('https://cdn.example/clip.mp4');
+    expect(video.hasAttribute('controls')).toBe(true);
+    expect(video.hasAttribute('playsinline')).toBe(true);
+    expect(parseFloat(video.style.aspectRatio)).toBeCloseTo(16 / 9, 5);
+  });
+
+  it('says it is saved and holds the caption, the actions, the versions and what goes below', async () => {
+    const host = await mount(
+      result({
+        versions: <div data-testid="versions" />,
+        below: <div data-testid="edit-bar" />,
+      })
+    );
+
+    expect(host.textContent).toContain('Saved to your Media library');
+    expect(byTestId(host, 'caption')).not.toBeNull();
+    expect(byTestId(host, 'download')).not.toBeNull();
+    expect(byTestId(host, 'versions')).not.toBeNull();
+    expect(byTestId(host, 'edit-bar')).not.toBeNull();
+    expect(
+      follows(byTestId(host, 'edit-bar'), byTestId(host, 'versions'))
+    ).toBe(true);
+  });
+});
+
+describe('VersionsStrip', () => {
+  const images = [
+    { path: 'https://cdn.example/1.png', kind: 'image' as const },
+    { path: 'https://cdn.example/2.png', kind: 'image' as const },
+    { path: 'https://cdn.example/3.png', kind: 'image' as const },
+  ];
+
+  it('draws nothing while there is one version', async () => {
+    const host = await mount(
+      <VersionsStrip
+        versions={images.slice(0, 1)}
+        shown={0}
+        onSelect={jest.fn()}
+      />
+    );
+
+    expect(host.innerHTML).toBe('');
+  });
+
+  it('draws one button per version from two, the one on screen pressed', async () => {
+    const onSelect = jest.fn();
+    const host = await mount(
+      <VersionsStrip versions={images} shown={1} onSelect={onSelect} />
+    );
+    const buttons = Array.from(host.querySelectorAll('button'));
+
+    expect(
+      host.querySelector('[role="group"]')?.getAttribute('aria-label')
+    ).toBe('Versions');
+    expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Version 1',
+      'Version 2',
+      'Version 3',
+    ]);
+    expect(
+      buttons.map((button) => button.getAttribute('aria-pressed'))
+    ).toEqual(['false', 'true', 'false']);
+    expect(tokens(buttons[0])).toEqual(
+      expect.arrayContaining([
+        'focus-visible:ring-2',
+        'focus-visible:ring-brand',
+      ])
+    );
+
+    await click(buttons[2]);
+
+    expect(onSelect).toHaveBeenCalledWith(2);
+  });
+
+  // A video version shows its first frame, the poster a strip can carry.
+  it('draws a video version from its first frame', async () => {
+    const host = await mount(
+      <VersionsStrip
+        versions={[
+          images[0],
+          { path: 'https://cdn.example/clip.mp4', kind: 'video' },
+        ]}
+        shown={0}
+        onSelect={jest.fn()}
+      />
+    );
+    const video = host.querySelector('video')!;
+
+    expect(video.getAttribute('src')).toBe(
+      'https://cdn.example/clip.mp4#t=0.1'
+    );
+    expect(video.getAttribute('preload')).toBe('metadata');
+    expect(video.hasAttribute('controls')).toBe(false);
   });
 });
