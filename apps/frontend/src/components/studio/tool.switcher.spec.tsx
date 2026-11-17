@@ -618,6 +618,27 @@ describe('the look', () => {
     });
   });
 
+  // On a phone the heading gives the slot its place (layout/title.tsx), so
+  // the switcher starts the bar's row, whose gap spaces it from the menu
+  // button, and its name takes what the bar has left, cut short there, while
+  // its picture keeps its size (spec 061, T062a W4).
+  it("takes the heading's place at phone width and gives its name the room left", async () => {
+    const host = await render();
+    const name = trigger().querySelector('span:not([aria-hidden])')!;
+
+    expect(classes(host.firstElementChild!)).toEqual(
+      expect.arrayContaining(['min-w-0', 'ms-[12px]', 'phone:ms-0'])
+    );
+    expect(classes(trigger())).toContain('min-w-0');
+    expect(name.textContent).toBe('AI image generator');
+    expect(classes(name)).toEqual(
+      expect.arrayContaining(['flex-1', 'min-w-0', 'truncate'])
+    );
+    expect(classes(trigger().querySelector('span[aria-hidden]')!)).toContain(
+      'flex-none'
+    );
+  });
+
   it('uses no physical-side classes, so it mirrors in Arabic', async () => {
     await open();
     const nodes = [

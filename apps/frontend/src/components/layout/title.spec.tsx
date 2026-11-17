@@ -135,4 +135,25 @@ describe('Title', () => {
       expect(slot?.childNodes).toHaveLength(0);
     }
   );
+
+  // A phone's bar has no room for both, so what a page puts in the slot (a
+  // Studio tool page's switcher) takes the heading's place there (spec 061,
+  // T062a W4). The rule is the slot's, not any page's: the heading hides at
+  // phone width while its next sibling, the slot, holds something. The
+  // selector is read out of the class, so it is the one Tailwind emits.
+  it('hides the heading at phone width while the slot holds something', () => {
+    render();
+    const heading = document.querySelector('h1')!;
+    const slot = heading.nextElementSibling!;
+    const rule = heading.className
+      .split(' ')
+      .map((name) => /^phone:has-\[(.+)\]:hidden$/.exec(name)?.[1])
+      .find(Boolean);
+
+    expect(rule).toBeDefined();
+    expect(heading.matches(`:has(${rule})`)).toBe(false);
+
+    slot.appendChild(document.createElement('div'));
+    expect(heading.matches(`:has(${rule})`)).toBe(true);
+  });
 });
