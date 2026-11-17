@@ -1081,6 +1081,26 @@ describe('the stage', () => {
     expect(stage()!.textContent).not.toContain('Your video appears here');
   });
 
+  // A provider's stage part is a flex item that fills a column (StageSample's
+  // own box), so the filled slot is that column and no provider wraps it.
+  it("makes a filled slot the column the provider's part fills", async () => {
+    mockStageContent = <div data-testid="storyboard">Slide 1</div>;
+    await open({ layout: 'page', destination: 'media', provider: slides });
+    await settle();
+
+    expect(
+      (mockVideo!.stageSlot!.getAttribute('class') ?? '').split(/\s+/)
+    ).toEqual(
+      expect.arrayContaining([
+        'flex-1',
+        'min-h-0',
+        'overflow-y-auto',
+        'flex',
+        'flex-col',
+      ])
+    );
+  });
+
   it('shows the wait in the chosen shape, with the time it has taken', async () => {
     rendersForever();
     await generate({ layout: 'page', destination: 'media' });
