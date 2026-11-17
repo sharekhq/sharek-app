@@ -11,12 +11,13 @@ import {
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { buttonClassName } from '@gitroom/react/form/button';
+import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import {
   CheckmarkIcon,
   ChevronDownIcon,
+  PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { CARD_PADDING } from '@gitroom/frontend/components/ui/page.scroll';
 import { CHIP, CHIP_IDLE } from '@gitroom/frontend/components/ui/pick.controls';
@@ -212,6 +213,37 @@ export const CreditsPill: FC<{ count: number }> = ({ count }) => {
     <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
       {t('credits_left_count', '{{count}} credits left', { count })}
     </div>
+  );
+};
+
+/**
+ * The bar's main button, worded as every tool words it (tasks D6): Creating…
+ * while a render runs, Generate again once a window's settings fold after a
+ * result, Generate otherwise. The press and the type are the tool's.
+ */
+export const GenerateButton: FC<{
+  working: boolean;
+  /** The stacked layout, once its settings fold after a result. */
+  again: boolean;
+  type?: 'button' | 'submit';
+  onClick?: () => void;
+  disabled?: boolean;
+}> = ({ working, again, type, onClick, disabled }) => {
+  const t = useT();
+  return (
+    <Button
+      type={type}
+      size="large"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={working}
+    >
+      {working
+        ? t('workspace_working', 'Creating…')
+        : again
+        ? t('workspace_generate_again', 'Generate again')
+        : t('generate', 'Generate')}
+    </Button>
   );
 };
 
@@ -506,6 +538,68 @@ export const StageResult: FC<{
       {versions}
       {below}
     </div>
+  );
+};
+
+/**
+ * A result's actions, chosen on the host rather than the destination
+ * (contracts/workspace-parts.md §3): Download in every host; in a host that
+ * accepts, a window or a tab, the accept button, Done when the result is for
+ * the Media library and Use image or Use video when it goes to a post or a
+ * reference row; on the Studio page, which accepts nothing, Create a post when
+ * there is a channel to post it to (FR-007). A workflow's way back leads
+ * (tasks D7).
+ */
+export const StageActions: FC<{
+  media: { id: string; path: string };
+  kind: 'image' | 'video';
+  destination: MediaDestination;
+  /**
+   * The accept button's press, given only in a host that accepts: the tool's
+   * own, which hands the result over and then calls the host's `onAccept`.
+   */
+  onAccept?: () => void;
+  /** The Studio tool page's Create a post, only when there is a channel. */
+  onCreatePost?: (media: { id: string; path: string }) => void;
+  /** A workflow's way back to an earlier screen: Image Text Slides' Edit script. */
+  back?: { label: string; onClick: () => void };
+}> = ({ media, kind, destination, onAccept, onCreatePost, back }) => {
+  const t = useT();
+  return (
+    <>
+      {back && (
+        <Button variant="secondary" size="large" onClick={back.onClick}>
+          {back.label}
+        </Button>
+      )}
+      {/* A tab, not this page, when the browser ignores `download` for a
+          file on another origin: leaving the page would lose its versions. */}
+      <a
+        href={media.path}
+        download
+        target="_blank"
+        rel="noreferrer"
+        className={buttonClassName({ variant: 'secondary', size: 'large' })}
+      >
+        {t('workspace_download', 'Download')}
+      </a>
+      {onAccept ? (
+        <Button size="large" onClick={onAccept}>
+          {destination === 'media'
+            ? t('done', 'Done')
+            : kind === 'image'
+            ? t('use_image', 'Use image')
+            : t('use_video', 'Use video')}
+        </Button>
+      ) : (
+        !!onCreatePost && (
+          <Button size="large" onClick={() => onCreatePost(media)}>
+            <PlusIcon />
+            {t('studio_create_post', 'Create a post')}
+          </Button>
+        )
+      )}
+    </>
   );
 };
 

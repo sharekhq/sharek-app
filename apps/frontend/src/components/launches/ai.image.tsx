@@ -37,9 +37,11 @@ import {
   CHIP_IDLE,
   CHIP_ON,
 } from '@gitroom/frontend/components/ui/pick.controls';
-import { AiImageIcon, PlusIcon } from '@gitroom/frontend/components/ui/icons';
+import { AiImageIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   CreditsPill,
+  GenerateButton,
+  StageActions,
   StageProgress,
   StageResult,
   StageSample,
@@ -858,39 +860,13 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
           </>
         }
         actions={
-          <>
-            {/* A tab, not this page, when the browser ignores `download`
-                for a file on another origin: leaving the page would lose
-                its versions. */}
-            <a
-              href={version.media.path}
-              download
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClassName({
-                variant: 'secondary',
-                size: 'large',
-              })}
-            >
-              {t('workspace_download', 'Download')}
-            </a>
-            {destination === 'media' ? (
-              // Only with a channel to post it to.
-              !!onCreatePost && (
-                <Button
-                  size="large"
-                  onClick={() => onCreatePost(version.media)}
-                >
-                  <PlusIcon />
-                  {t('studio_create_post', 'Create a post')}
-                </Button>
-              )
-            ) : (
-              <Button size="large" onClick={useImage}>
-                {t('use_image', 'Use image')}
-              </Button>
-            )}
-          </>
+          <StageActions
+            media={version.media}
+            kind="image"
+            destination={destination}
+            onAccept={onAccept && useImage}
+            onCreatePost={onCreatePost}
+          />
         }
         versions={
           <VersionsStrip
@@ -965,15 +941,15 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       />
     );
 
-  const working = phase === 'generating';
+  // Once there is a result a window folds its settings, so the result and
+  // the bar share it.
+  const folded = versions.length > 0;
 
   return (
     <WorkspaceFrame
       layout={layout}
       settings={settings}
-      // Once there is a result a window folds its settings, so the result and
-      // the bar share it.
-      folded={versions.length > 0}
+      folded={folded}
       settingsSummary={t(
         'workspace_settings_summary_image',
         'Prompt, brand, shape and style'
@@ -983,19 +959,12 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
         <>
           <CostNote>{cost}</CostNote>
           <div className="flex-1" />
-          <Button
-            type="button"
-            size="large"
+          <GenerateButton
+            working={phase === 'generating'}
+            again={layout === 'stacked' && folded}
             onClick={generate}
             disabled={overflow}
-            aria-busy={working}
-          >
-            {working
-              ? t('workspace_working', 'Creating…')
-              : layout === 'stacked' && versions.length
-              ? t('workspace_generate_again', 'Generate again')
-              : t('generate', 'Generate')}
-          </Button>
+          />
         </>
       }
       credits={<CreditsPill count={credits?.credits || 0} />}
