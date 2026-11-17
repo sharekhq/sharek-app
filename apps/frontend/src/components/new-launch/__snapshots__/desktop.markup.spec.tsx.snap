@@ -2239,7 +2239,7 @@ exports[`the media library from 1026px up the picker with two picked 1`] = `
 
 exports[`the tool buttons from 1026px up AI image 1`] = `
 "<div class="relative">
-  <div aria-label="AI Image" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Image" data-tooltip-id="tooltip">
+  <button aria-label="AI Image" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Image" data-tooltip-id="tooltip" type="button">
     <div class="flex gap-[6px] items-center">
       <div>
         <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
@@ -2257,14 +2257,14 @@ exports[`the tool buttons from 1026px up AI image 1`] = `
         "AI Image"
       </div>
     </div>
-  </div>
+  </button>
 </div>
 "
 `;
 
 exports[`the tool buttons from 1026px up AI video 1`] = `
 "<div class="relative">
-  <div aria-label="AI Video" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Video" data-tooltip-id="tooltip">
+  <button aria-label="AI Video" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Video" data-tooltip-id="tooltip" type="button">
     <div class="flex gap-[6px] items-center">
       <div>
         <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
@@ -2282,7 +2282,7 @@ exports[`the tool buttons from 1026px up AI video 1`] = `
         "AI Video"
       </div>
     </div>
-  </div>
+  </button>
 </div>
 "
 `;
@@ -2460,7 +2460,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
         </div>
       </div>
       <div class="relative">
-        <div aria-label="AI Image" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Image" data-tooltip-id="tooltip">
+        <button aria-label="AI Image" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Image" data-tooltip-id="tooltip" type="button">
           <div class="flex gap-[6px] items-center">
             <div>
               <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
@@ -2478,10 +2478,10 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
               "AI Image"
             </div>
           </div>
-        </div>
+        </button>
       </div>
       <div class="relative">
-        <div aria-label="AI Video" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Video" data-tooltip-id="tooltip">
+        <button aria-label="AI Video" class="bg-aiSoft border border-transparent coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:border-aiAccent items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-aiAccent" data-tooltip-content="AI Video" data-tooltip-id="tooltip" type="button">
           <div class="flex gap-[6px] items-center">
             <div>
               <svg fill="none" height="16" viewBox="0 0 16 16" width="16" xmlns="http://www.w3.org/2000/svg">
@@ -2499,7 +2499,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
               "AI Video"
             </div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
     <div class="flex h-full items-center text-newColColor">

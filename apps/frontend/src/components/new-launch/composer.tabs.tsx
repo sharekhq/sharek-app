@@ -3,6 +3,7 @@
 import {
   createContext,
   FC,
+  MouseEvent,
   ReactNode,
   RefObject,
   useCallback,
@@ -38,6 +39,8 @@ export interface ComposerTab {
   /** None once the editor deleted its post (review C7). */
   place: PreviewPlace | undefined;
   busy: boolean;
+  /** The ✦ button last pressed for the tab, which the phone layer's Back and close give the focus back to (FR-026). */
+  opener?: HTMLElement;
 }
 
 export interface PendingMedia {
@@ -50,11 +53,12 @@ export interface ComposerTabs {
   tabs: Partial<Record<ComposerTabKind, ComposerTab>>;
   active: 'preview' | ComposerTabKind;
   pending: PendingMedia[];
-  /** One of each (FR-021): selects an open tab of that kind, which takes this target and the post at `index` when idle; a busy one keeps its own. */
+  /** One of each (FR-021): selects an open tab of that kind, which takes this target and the post at `index` when idle; a busy one keeps its own. Either takes the `opener`. */
   open(
     kind: ComposerTabKind,
     target: ComposerTab['target'],
-    index: number
+    index: number,
+    opener?: HTMLElement
   ): void;
   /** Selects Post preview only when that tab was on screen; a running render keeps its pending entry until it settles (FR-025). */
   close(kind: ComposerTabKind): void;
@@ -106,24 +110,30 @@ export const ComposerTabsProvider: FC<{
 
   // The post a button works for, read at the click: the channel on screen
   // when it holds its own values, as the editor's appendImages chooses (D10).
-  const open = useCallback<ComposerTabs['open']>((kind, target, index) => {
-    const state = useLaunchStore.getState();
-    const place = {
-      channel: state.internal.some(
-        (entry) => entry.integration.id === state.current
-      )
-        ? state.current
-        : 'global',
-      index,
-    };
-    setTabs((current) => ({
-      ...current,
-      [kind]: current[kind]?.busy
-        ? current[kind]
-        : { kind, target, place, busy: false },
-    }));
-    setActive(kind);
-  }, []);
+  const open = useCallback<ComposerTabs['open']>(
+    (kind, target, index, opener) => {
+      const state = useLaunchStore.getState();
+      const place = {
+        channel: state.internal.some(
+          (entry) => entry.integration.id === state.current
+        )
+          ? state.current
+          : 'global',
+        index,
+      };
+      setTabs((current) => {
+        const tab = current[kind];
+        return {
+          ...current,
+          [kind]: tab?.busy
+            ? { ...tab, opener }
+            : { kind, target, place, busy: false, opener },
+        };
+      });
+      setActive(kind);
+    },
+    []
+  );
 
   const close = useCallback((kind: ComposerTabKind) => {
     setTabs((current) => {
@@ -301,7 +311,8 @@ export const useComposerStage = (): ComposerStageState =>
  * What the composer's ✦ AI Image and AI Video buttons do: in the composer, a
  * result for a post's row (the editor gives it the post's index, `place`) is
  * made in its kind's tab beside it, for that post, whose channel the provider
- * reads at the click (FR-021, tasks D10); outside it (Samy, Studio), for a
+ * reads at the click, and the tab keeps the button pressed for the focus to
+ * come back to (FR-021, FR-026, tasks D10); outside it (Samy, Studio), for a
  * reference row, or for a row that is not a post's (a channel's settings, a
  * model's reference), the tool's window (review C1).
  */
@@ -311,7 +322,7 @@ export const useOpenTool = (
   place: number | undefined,
   destination: MediaDestination,
   openWindow: () => void
-): (() => void) => {
+): ((event: MouseEvent<HTMLElement>) => void) => {
   const tabs = useComposerTabs();
   // The row's latest handler, read when the result lands, which can be long
   // after the click; none once the button is gone (tasks D10).
@@ -323,11 +334,11 @@ export const useOpenTool = (
     };
   }, [onChange]);
 
-  return () => {
+  return (event) => {
     if (!tabs || destination !== 'post' || place === undefined) {
       openWindow();
       return;
     }
-    tabs.open(kind, () => latestOnChange.current, place);
+    tabs.open(kind, () => latestOnChange.current, place, event.currentTarget);
   };
 };
