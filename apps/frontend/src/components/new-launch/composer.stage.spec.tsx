@@ -288,12 +288,25 @@ describe('the tab strip', () => {
     await open('image');
     await open('video');
 
+    // A tablist owns only tabs (WAI-ARIA's deletable tabs): the × is the
+    // pointer's, out of the tab order and the accessibility tree, and Delete
+    // closes the tab in focus, which moves to the tab then selected.
     const close = buttonNamed(`Close ${IMAGE}`, strip())!;
     expect(buttonNamed(`Close ${VIDEO}`, strip())).toBeTruthy();
+    expect(close.getAttribute('tabindex')).toBe('-1');
+    expect(close.getAttribute('aria-hidden')).toBe('true');
     await click(close);
 
     expect(tabsShown().map(label)).toEqual(['Post preview', VIDEO]);
     expect(host.querySelector('[data-tool="image"]')).toBeNull();
+
+    expect(tab(VIDEO)!.getAttribute('aria-keyshortcuts')).toBe('Delete');
+    tab(VIDEO)!.focus();
+    await press(tab(VIDEO)!, 'Delete');
+
+    expect(tabsShown().map(label)).toEqual(['Post preview']);
+    expect(host.querySelector('[data-tool="video"]')).toBeNull();
+    expect(document.activeElement).toBe(tab('Post preview'));
   });
 
   it('shows a spinner on a working tab, busy with its name unchanged, while its tool holds a pending entry at its place', async () => {
