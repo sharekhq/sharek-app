@@ -1,15 +1,6 @@
 import { act, ReactNode } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
-type Media = { id: string; path: string };
-/** What the page hands each AI tool: a result sink and its own card as trigger. */
-type Trigger = {
-  onChange: (media: Media) => void;
-  renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  only?: string;
-  destination?: string;
-};
-
 const toast = jest.fn();
 const openModal = jest.fn();
 let providers:
@@ -21,11 +12,9 @@ let user: { tier: { ai: boolean } };
 let billingEnabled = true;
 let showImageEditor = true;
 let emptyCatalog = false;
-// Whether the AI tools report a generation under way to their cards.
-let generating = false;
-const videoTriggers: Trigger[] = [];
-const imageTriggers: Trigger[] = [];
 const push = jest.fn();
+/** Each useStudioCatalog call, so a case can see the page build through it. */
+const catalogHook = jest.fn();
 /** Each t() call, so a case can check the options a sentence is given. */
 const translated: Array<{ key: string; params?: Record<string, unknown> }> = [];
 
@@ -69,10 +58,25 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/new-launch/add.edit.modal', () => ({
   AddEditModal: () => null,
 }));
-// The two AI tools stand in for themselves as triggers whose "open" completes
-// at once, so the page's own wiring — the trigger it renders, the provider it
-// seeds, what it does with a result — is all that is under test here. Their
-// own behaviour has specs of its own.
+// A page tool's card is a next/link.
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: ReactNode;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+// The AI tools are never mounted here: their cards link to their pages, so the
+// page's own wiring is all that is under test. Their own behaviour has specs
+// of its own.
 // The registry knows Veo 3 and Image Text Slides, with the Studio parts their
 // providers declare (their own specs pin them), and nothing else, so a
 // provider with a card and a provider without one can be told apart.
@@ -127,23 +131,14 @@ const registryCards: Record<
 };
 const registryCard = (identifier: string) => registryCards[identifier];
 
+// The cover mirrors ai.image.tsx's export.
 jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: Trigger) => {
-    imageTriggers.push(props);
-    return props.renderTrigger(
-      () => props.onChange({ id: 'img-1', path: 'https://media/img-1.png' }),
-      generating
-    );
-  },
+  AiImageTool: () => null,
+  AI_IMAGE_COVER: '/studio/covers/ai-image.webp',
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideo: (props: Trigger) => {
-    videoTriggers.push(props);
-    return props.renderTrigger(
-      () => props.onChange({ id: 'vid-1', path: 'https://media/vid-1.mp4' }),
-      generating
-    );
-  },
+  AiVideo: () => null,
+  AiVideoTool: () => null,
   useAiVideoTypes: () => ({ data: providers, isLoading: providersLoading }),
   videoTypeLabel: (
     t: (key: string, fallback: string) => string,
@@ -161,31 +156,42 @@ jest.mock(
     videoTypeCard: (identifier: string) => registryCard(identifier),
   })
 );
-// Samy's play mark and the spinner, as marks the cases can find; the play
-// mark's centring is its own.
+// Samy's play mark, as a mark the cases can find; its centring is its own.
 jest.mock('@gitroom/frontend/components/agents/agent.attachments', () => ({
   PlayBadge: () => <span data-play-badge="" />,
 }));
-jest.mock('@gitroom/frontend/components/layout/loading', () => ({
-  __esModule: true,
-  default: () => <span data-spinner="" />,
-}));
 // The catalog has its own spec; the page only needs a way to be handed an
-// empty one, which no real deployment produces while the fixed tools exist.
+// empty one, which no real deployment produces while the fixed tools exist,
+// and to be seen building it through the hook a tool page shares (D4).
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
   const actual = jest.requireActual(
     '@gitroom/frontend/components/studio/studio.tools'
   );
   return {
     ...actual,
-    buildStudioCatalog: (params: unknown) =>
-      emptyCatalog
-        ? { listings: [], chips: [], hasLockedTools: false, empty: true }
-        : actual.buildStudioCatalog(params),
+    useStudioCatalog: () => {
+      catalogHook();
+      const built = actual.useStudioCatalog();
+      return emptyCatalog
+        ? {
+            catalog: {
+              listings: [],
+              chips: [],
+              hasLockedTools: false,
+              empty: true,
+            },
+            loading: false,
+          }
+        : built;
+    },
   };
 });
 
-import { StudioComponent } from '@gitroom/frontend/components/studio/studio.component';
+import {
+  StudioComponent,
+  useCreatePost,
+} from '@gitroom/frontend/components/studio/studio.component';
+import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import {
   CHIP,
   CHIP_COUNT,
@@ -197,14 +203,14 @@ import {
 
 const mounted: Root[] = [];
 
-const mount = async () => {
+const mount = async (page: ReactNode = <StudioComponent />) => {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);
   mounted.push(root);
 
   await act(async () => {
-    root.render(<StudioComponent />);
+    root.render(page);
   });
 };
 
@@ -222,8 +228,11 @@ const click = async (element: Element | null | undefined) => {
 };
 
 const buttons = () => Array.from(document.querySelectorAll('button'));
+/** The cards: a page tool's is a link, a window tool's a button. */
+const cards = () =>
+  Array.from(document.querySelectorAll('section a, section button'));
 const card = (name: string) =>
-  buttons().find((node) => node.textContent?.includes(name));
+  cards().find((node) => node.textContent?.includes(name));
 const button = (label: string) =>
   buttons().find((node) => node.textContent?.trim() === label);
 const headings = () =>
@@ -243,14 +252,12 @@ const NAMES = [
 ];
 /** The listings a section shows, by name, in order: none while it is hidden. */
 const listed = (heading: string) =>
-  Array.from(section(heading)?.querySelectorAll('button') ?? []).map((node) =>
-    NAMES.find((name) => node.textContent?.includes(name))
+  Array.from(section(heading)?.querySelectorAll('a, button') ?? []).map(
+    (node) => NAMES.find((name) => node.textContent?.includes(name))
   );
 /** A card carrying the chip. Cards live in a section; the banner does not. */
 const lockedCards = () =>
-  Array.from(document.querySelectorAll('section button')).filter((node) =>
-    node.textContent?.includes('Upgrade')
-  );
+  cards().filter((node) => node.textContent?.includes('Upgrade'));
 /** The banner's Upgrade action: the chips carry the word too, inside a card. */
 const upgradeActions = () =>
   buttons().filter((node) => node.textContent?.trim() === 'Upgrade');
@@ -330,6 +337,18 @@ const fail = async (picture: Element | null) => {
     picture?.dispatchEvent(new Event('error'));
   });
 };
+const PICTURE = { id: 'img-1', path: 'https://media/img-1.png' };
+/**
+ * A design saved from the image editor's window, the one tool on this page
+ * that opens in place: page tools' cards link out.
+ */
+const saveFromEditor = async () => {
+  await click(card('Image editor'));
+  const editor = openModal.mock.calls[0][0].children(jest.fn());
+  await act(async () => {
+    editor.props.setMedia([PICTURE]);
+  });
+};
 
 beforeEach(() => {
   providers = [
@@ -342,9 +361,6 @@ beforeEach(() => {
   showImageEditor = true;
   providersLoading = false;
   emptyCatalog = false;
-  generating = false;
-  videoTriggers.length = 0;
-  imageTriggers.length = 0;
   translated.length = 0;
 });
 
@@ -463,6 +479,19 @@ describe('the page', () => {
         '[&::-webkit-scrollbar]:hidden',
       ])
     );
+  });
+
+  // D4: the Studio page and a tool page list, lock and address the same
+  // tools, so both build the catalog through one hook.
+  it('builds its catalog through useStudioCatalog, as a tool page does', async () => {
+    await mount();
+
+    expect(catalogHook).toHaveBeenCalled();
+    expect(listed('Tools')).toEqual([
+      'AI image generator',
+      'Image Text Slides',
+      'Image editor',
+    ]);
   });
 });
 
@@ -889,15 +918,6 @@ describe('a card', () => {
     ).toEqual([]);
   });
 
-  it('shows the spinner on the picture, in place of the play mark, while its tool is at work', async () => {
-    generating = true;
-    await mount();
-
-    expect(card('Veo 3')!.getAttribute('aria-busy')).toBe('true');
-    expect(frameOf('Veo 3').querySelector('[data-spinner]')).toBeTruthy();
-    expect(playBadge(frameOf('Veo 3'))).toBeNull();
-  });
-
   // FR-015, US1 scenario 8: on a phone a row, the picture first, so on the
   // start side in either direction; the maker line stays.
   it('becomes a row on a phone, without its facts', async () => {
@@ -952,27 +972,55 @@ describe('a card', () => {
 });
 
 describe('opening a card', () => {
-  // No chooser: each video card is its own provider's trigger, in the page's
-  // order, Image Text Slides under Tools before Veo 3 under Models.
-  it('gives each video provider a card that opens that provider alone', async () => {
+  // No chooser and no window (FR-001): each video card is a link to its own
+  // provider's page, the grid's cell itself, Image Text Slides under Tools
+  // and Veo 3 under Models.
+  it('gives each video provider a card that links to its own page, /studio/<slug>, the link the card’s root', async () => {
     await mount();
 
-    expect(videoTriggers.map((props) => props.only)).toEqual([
-      'image-text-slides',
-      'veo3',
+    expect(
+      ['Image Text Slides', 'Veo 3'].map((name) => [
+        card(name)!.tagName,
+        card(name)!.getAttribute('href'),
+      ])
+    ).toEqual([
+      ['A', '/studio/image-text-slides'],
+      ['A', '/studio/veo3'],
     ]);
+    expect(card('Image Text Slides')!.parentElement).toBe(
+      section('Tools')!.children[1]
+    );
+    expect(card('Veo 3')!.parentElement).toBe(section('Models')!.children[1]);
   });
 
-  // Nothing is being composed on this page, so the generators must not promise
-  // a post they cannot deliver — their waiting screens name the Media library.
-  it('tells every generator its result is not going into a post', async () => {
+  // FR-033: the link carries what the button carried, so the card looks and
+  // takes the focus as before, and holds no second control.
+  it('puts the card’s classes and focus ring on each page tool’s link, with no button inside it', async () => {
     await mount();
 
-    expect(imageTriggers.map((props) => props.destination)).toEqual(['media']);
-    expect(videoTriggers.map((props) => props.destination)).toEqual([
-      'media',
-      'media',
-    ]);
+    expect(card('AI image generator')!.getAttribute('href')).toBe(
+      '/studio/ai-image'
+    );
+    ['AI image generator', 'Image Text Slides', 'Veo 3'].forEach((name) => {
+      const link = card(name)!;
+      expect(link.tagName).toBe('A');
+      expect(classes(link)).toEqual(
+        expect.arrayContaining([
+          'flex',
+          'flex-col',
+          'phone:flex-row',
+          'text-start',
+          'bg-surface',
+          'border',
+          'border-line',
+          'rounded-[12px]',
+          'overflow-hidden',
+          'focus-visible:ring-2',
+          'focus-visible:ring-brand',
+        ])
+      );
+      expect(link.querySelector('button, a')).toBeNull();
+    });
   });
 
   it('opens the image editor in one click', async () => {
@@ -989,30 +1037,29 @@ describe('opening a card', () => {
   });
 });
 
+// The results this page receives come from the image editor's window; a page
+// tool raises its own notice on its page.
 describe('when a creation finishes', () => {
   it('confirms where it went and opens nothing on its own', async () => {
     await mount();
 
-    await click(card('AI image generator'));
+    await saveFromEditor();
 
     expect(toast).toHaveBeenCalledWith('Saved to your Media library', 'success');
-    expect(openModal).not.toHaveBeenCalled();
+    // the editor's own window, and nothing after it
+    expect(openModal).toHaveBeenCalledTimes(1);
   });
 
   it('offers a post with the result already attached', async () => {
     await mount();
 
-    await click(card('Veo 3'));
+    await saveFromEditor();
     await click(button('Create a post'));
 
-    expect(openModal).toHaveBeenCalledTimes(1);
-    const editor = openModal.mock.calls[0][0].children;
+    expect(openModal).toHaveBeenCalledTimes(2);
+    const editor = openModal.mock.calls[1][0].children;
     expect(editor.props.onlyValues).toEqual([
-      {
-        content: '',
-        id: expect.any(String),
-        image: [{ id: 'vid-1', path: 'https://media/vid-1.mp4' }],
-      },
+      { content: '', id: expect.any(String), image: [PICTURE] },
     ]);
     expect(editor.props.allIntegrations).toEqual(integrations);
     expect(editor.props.integrations).toEqual(integrations);
@@ -1020,10 +1067,10 @@ describe('when a creation finishes', () => {
 
   it('withdraws the offer once that post is saved', async () => {
     await mount();
-    await click(card('Veo 3'));
+    await saveFromEditor();
     await click(button('Create a post'));
 
-    const editor = openModal.mock.calls[0][0].children;
+    const editor = openModal.mock.calls[1][0].children;
     await act(async () => {
       editor.props.mutate();
     });
@@ -1033,7 +1080,7 @@ describe('when a creation finishes', () => {
 
   it('lets the offer be put away', async () => {
     await mount();
-    await click(card('AI image generator'));
+    await saveFromEditor();
 
     await click(document.querySelector('button[aria-label="Close"]'));
 
@@ -1046,10 +1093,75 @@ describe('when a creation finishes', () => {
     integrations = [];
     await mount();
 
-    await click(card('AI image generator'));
+    await saveFromEditor();
 
     expect(toast).toHaveBeenCalledWith('Saved to your Media library', 'success');
     expect(button('Create a post')).toBeUndefined();
+  });
+});
+
+// D4: the notice's Create a post, which a tool page hands its tool as well.
+describe('useCreatePost', () => {
+  let createPost: ReturnType<typeof useCreatePost>;
+  const Host = () => {
+    createPost = useCreatePost();
+    return null;
+  };
+
+  it('opens the post editor with the media attached and today’s options', async () => {
+    await mount(<Host />);
+    const onDone = jest.fn();
+
+    await act(async () => {
+      createPost!(PICTURE, onDone);
+    });
+
+    expect(openModal).toHaveBeenCalledTimes(1);
+    const [params] = openModal.mock.calls[0];
+    expect(params).toEqual(
+      expect.objectContaining({
+        id: 'add-edit-modal',
+        closeOnClickOutside: false,
+        removeLayout: true,
+        closeOnEscape: false,
+        withCloseButton: false,
+        askClose: true,
+        fullScreen: true,
+        size: '80%',
+      })
+    );
+    const editor = params.children;
+    expect(editor.type).toBe(AddEditModal);
+    expect(editor.props).toEqual(
+      expect.objectContaining({
+        allIntegrations: integrations,
+        integrations,
+        onlyValues: [{ content: '', id: expect.any(String), image: [PICTURE] }],
+        reopenModal: expect.any(Function),
+      })
+    );
+    editor.props.mutate();
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  // A tool page hands it on as onCreatePost, which gives the media alone, and
+  // the editor calls mutate once the post is saved.
+  it('lets that post be saved when nothing waits on it', async () => {
+    await mount(<Host />);
+
+    await act(async () => {
+      createPost!(PICTURE);
+    });
+
+    const editor = openModal.mock.calls[0][0].children;
+    expect(() => editor.props.mutate()).not.toThrow();
+  });
+
+  it('is undefined while there is no channel to post to', async () => {
+    integrations = [];
+    await mount(<Host />);
+
+    expect(createPost).toBeUndefined();
   });
 });
 
@@ -1102,15 +1214,36 @@ describe('when the plan excludes the tools', () => {
     expect(card('Veo 3')?.textContent).toContain('Upgrade');
   });
 
-  it('leads a locked card to billing and never opens the tool', async () => {
+  // FR-013: a tool page opens locked with Upgrade in its bar, so a locked
+  // card leads there as an entitled one does, and keeps its badge.
+  it('links each locked page tool’s card to its page all the same, its badge kept', async () => {
     await mount();
 
-    await click(card('Veo 3'));
+    expect(
+      ['AI image generator', 'Image Text Slides', 'Veo 3'].map((name) => [
+        card(name)!.tagName,
+        card(name)!.getAttribute('href'),
+        Array.from(frameOf(name).children).some(
+          (node) => node.textContent === 'Upgrade'
+        ),
+      ])
+    ).toEqual([
+      ['A', '/studio/ai-image', true],
+      ['A', '/studio/image-text-slides', true],
+      ['A', '/studio/veo3', true],
+    ]);
+    expect(card('Veo 3')!.querySelector('button')).toBeNull();
+  });
+
+  // The image editor opens in a window, so locked it is never mounted behind
+  // its card, which leads to billing instead.
+  it('still leads the locked image editor to billing, its window unopened', async () => {
+    await mount();
+
+    await click(card('Image editor'));
 
     expect(push).toHaveBeenCalledWith('/billing');
     expect(openModal).not.toHaveBeenCalled();
-    // The tool is not even mounted behind the card, so there is nothing to open.
-    expect(videoTriggers).toHaveLength(0);
   });
 
   it('carries exactly one upgrade action, at the top of the page', async () => {
@@ -1156,7 +1289,7 @@ describe('the video catalog follows the platform', () => {
 
     await click(chip('Video'));
 
-    expect(document.querySelectorAll('section button')).toHaveLength(2);
+    expect(cards()).toHaveLength(2);
   });
 
   it('lists one when one is offered', async () => {
@@ -1165,7 +1298,7 @@ describe('the video catalog follows the platform', () => {
 
     await click(chip('Video'));
 
-    expect(document.querySelectorAll('section button')).toHaveLength(1);
+    expect(cards()).toHaveLength(1);
     expect(card('Veo 3')).toBeTruthy();
   });
 
@@ -1205,7 +1338,8 @@ describe('the video catalog follows the platform', () => {
     expect(chipLabels()).toEqual(['All', 'Images', 'Edit & enhance']);
     expect(headings()).toEqual(['Tools']);
     expect(card('Image editor')).toBeTruthy();
-    expect(videoTriggers).toHaveLength(0);
+    // no video card while the list loads
+    expect(listed('Tools')).toEqual(['AI image generator', 'Image editor']);
   });
 });
 
@@ -1332,10 +1466,9 @@ describe("the dashboard's one look", () => {
 
   it('rounds every card and the no-match box at 12px', async () => {
     await mount();
-    const cards = Array.from(document.querySelectorAll('section button'));
 
-    expect(cards).toHaveLength(4);
-    cards.forEach((node) => {
+    expect(cards()).toHaveLength(4);
+    cards().forEach((node) => {
       expect(classes(node)).toContain('rounded-[12px]');
       expect(classes(node)).not.toContain('rounded-[14px]');
     });
@@ -1349,7 +1482,7 @@ describe("the dashboard's one look", () => {
 
   it("puts Create a post's 16px plus 6px from its label", async () => {
     await mount();
-    await click(card('AI image generator'));
+    await saveFromEditor();
     const inner = button('Create a post')!.children[0];
 
     expect(classes(inner)).toContain('gap-[6px]');
