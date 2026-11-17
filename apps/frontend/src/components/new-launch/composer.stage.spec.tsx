@@ -671,6 +671,28 @@ describe('a post deleted or moved while its result is made', () => {
     expect(posted()).toEqual([['m-1'], [], []]);
   });
 
+  // The first post's up arrow and the last one's down are dimmed, still
+  // buttons a key presses; the store leaves those posts where they are.
+  it('stays where it is when the first post is moved up or the last one down', async () => {
+    thread();
+    await render();
+    await open('video', () => undefined, 0);
+    await open('image', () => undefined, 2);
+    await act(async () => {
+      tabs!.postMoved('global', 0, 'up');
+      tabs!.postMoved('global', 2, 'down');
+    });
+    await loading(mockTools.props.video, true);
+    await loading(mockTools.props.image, true);
+
+    expect(
+      tabs!.pending.map((entry) => [entry.kind, entry.place.index])
+    ).toEqual([
+      ['video', 0],
+      ['image', 2],
+    ]);
+  });
+
   it('from a tab closed while busy follows its post too', async () => {
     const handler = jest.fn();
     thread();
