@@ -12,7 +12,12 @@ export function useHasScroll(
     check();
 
     const observer = new MutationObserver(check);
-    observer.observe(el, { childList: true, subtree: true });
+    observer.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style'],
+    });
 
     return () => observer.disconnect();
   }, [ref]);
