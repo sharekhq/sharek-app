@@ -73,7 +73,7 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
     },
   };
   Object.entries(cards).forEach(([identifier, card]) =>
-    videoWrapper(identifier, () => null, { card })
+    videoWrapper(identifier, (): null => null, { card })
   );
   return {
     VideoWrapper: () => null,
@@ -627,7 +627,7 @@ describe('pages and windows', () => {
 });
 
 describe('a new provider (SC-004)', () => {
-  const Stub = () => null;
+  const Stub = (): null => null;
 
   it('lists a provider that registers itself with its slug, its page, its maker and facts, and changes no other listing', () => {
     const before = summary(catalog()).listings;

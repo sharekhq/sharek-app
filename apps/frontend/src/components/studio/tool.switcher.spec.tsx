@@ -92,7 +92,7 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => {
     },
   };
   Object.entries(cards).forEach(([identifier, card]) =>
-    videoWrapper(identifier, () => null, { card })
+    videoWrapper(identifier, (): null => null, { card })
   );
   return {
     VideoWrapper: () => null,
@@ -139,7 +139,7 @@ type CatalogInput = Parameters<typeof buildStudioCatalog>[0];
 // A video provider that registers itself with a Studio card, as a new one
 // would (SC-004): listed under Models with its picture, its name and its
 // maker, as Veo 3 is.
-videoWrapper('stub-model', () => null, {
+videoWrapper('stub-model', (): null => null, {
   card: {
     name: { key: 'video_type_stub_model', fallback: 'Stub model' },
     description: {

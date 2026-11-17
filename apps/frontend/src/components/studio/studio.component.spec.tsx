@@ -1103,7 +1103,7 @@ describe('when a creation finishes', () => {
 // D4: the notice's Create a post, which a tool page hands its tool as well.
 describe('useCreatePost', () => {
   let createPost: ReturnType<typeof useCreatePost>;
-  const Host = () => {
+  const Host = (): null => {
     createPost = useCreatePost();
     return null;
   };

@@ -157,7 +157,7 @@ import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-
 
 // A video provider that registers itself with a Studio card, as a new one
 // would (SC-004): a model with a maker and a fact.
-videoWrapper('stub-model', () => null, {
+videoWrapper('stub-model', (): null => null, {
   card: {
     name: { key: 'video_type_stub_model', fallback: 'Stub model' },
     description: {
