@@ -985,12 +985,13 @@ export const AiImage: FC<{
   destination?: MediaDestination;
   /**
    * The index of the post whose media row holds the button: in the composer,
-   * where the image lands once the button is gone (tasks D10).
+   * where the image lands once the button is gone (tasks D10). A row under no
+   * post has none, and its button opens the window.
    */
   place?: number;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, destination = 'post', place = 0 } = props;
+  const { onChange, renderTrigger, destination = 'post', place } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
