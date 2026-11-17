@@ -389,3 +389,81 @@ describe('Part 2: the workspace', () => {
     );
   });
 });
+
+// The composer's frame (new-launch/manage.modal.tsx) and its stage
+// (new-launch/composer.stage.tsx). The root takes the shell's insets in place
+// of its 40px padding, so at desktop width the card covers exactly the Studio
+// page's card, with its 12px corners on the card, the left header and the tab
+// strip; at 1025px and below the composer fills the screen, and an active AI
+// tab is a layer over it. The rest is asserted elsewhere: the layer's
+// mobile:fixed and the busy tab's motion-safe:animate-spin in Part 2; the
+// pending placeholder's motion-safe:animate-pulse in samy-images and its
+// bg-surface2 in channel-panels and others; the layer's bg-newBgColorInner in
+// channel-panels and dashboard-polish; its Back chevron's rtl:rotate-180 in
+// channel-panels; hidden in channel-panels and emit, mobile:hidden in
+// shell-studio and others.
+describe('Part 3: the composer', () => {
+  test("the composer's insets and its card's, left header's and tab strip's corners emit their one rule, outside any query", async () => {
+    await assertEmits(
+      {
+        // the root, inside the shell's rail and top bar
+        'ps-[100px]': [['padding-inline-start', '100px']],
+        'pe-[12px]': [['padding-inline-end', '12px']],
+        'py-[12px]': [
+          ['padding-top', '12px'],
+          ['padding-bottom', '12px'],
+        ],
+        // the card, as the Studio page's card
+        'rounded-[12px]': [['border-radius', '12px']],
+        // the left header on the start side, the tab strip on the end side
+        'rounded-s-[12px]': [
+          ['border-start-start-radius', '12px'],
+          ['border-end-start-radius', '12px'],
+        ],
+        'rounded-e-[12px]': [
+          ['border-start-end-radius', '12px'],
+          ['border-end-end-radius', '12px'],
+        ],
+      },
+      null
+    );
+  });
+
+  test('at 1025px and below the composer drops its insets and its corners, and each mobile: form is emitted after what it replaces', async () => {
+    await assertEmits(
+      {
+        'mobile:p-0': [['padding', '0px']],
+        'mobile:rounded-none': [['border-radius', '0px']],
+      },
+      '(max-width: 1025px)'
+    );
+    // Equal specificity on one element: the later rule wins inside the
+    // query, so a mobile: form emitted first would keep the shell's insets
+    // or the card's corners on a full-screen composer.
+    const pairs = [
+      ['ps-[100px]', 'mobile:p-0'],
+      ['pe-[12px]', 'mobile:p-0'],
+      ['py-[12px]', 'mobile:p-0'],
+      ['rounded-[12px]', 'mobile:rounded-none'],
+    ];
+    const css = await emit(pairs.flat());
+    for (const [desktop, small] of pairs) {
+      const [wide] = rules(css, desktop);
+      const [narrow] = rules(css, small);
+      assert.ok(
+        wide && narrow && wide.index < narrow.index,
+        `${small} must be emitted after ${desktop}`
+      );
+    }
+  });
+
+  test('at 1025px and below an active AI tab is a layer over the whole screen, above the composer', async () => {
+    await assertEmits(
+      {
+        'mobile:inset-0': [['inset', '0px']],
+        'mobile:z-[600]': [['z-index', '600']],
+      },
+      '(max-width: 1025px)'
+    );
+  });
+});
