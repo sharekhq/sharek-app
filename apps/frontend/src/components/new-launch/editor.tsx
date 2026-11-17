@@ -1081,6 +1081,7 @@ export const Editor: FC<{
                 {setImages && (
                   <MultiMediaComponent
                     mediaNotAvailable={num > 0 && comments === 'no-media'}
+                    place={num}
                     allData={allValues}
                     text={valueWithoutHtml}
                     label={t('attachments', 'Attachments')}
