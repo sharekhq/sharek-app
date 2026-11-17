@@ -59,6 +59,8 @@ export interface ComposerTabs {
   /** Selects Post preview only when that tab was on screen; a running render keeps its pending entry until it settles (FR-025). */
   close(kind: ComposerTabKind): void;
   select(tab: 'preview' | ComposerTabKind): void;
+  /** The editor added a post after the one at `index` on `channel`: each place there follows its post (review C7). */
+  postAdded(channel: string, index: number): void;
   /** The editor deleted the post at `index` on `channel`: each place there follows its post (review C7). */
   postRemoved(channel: string, index: number): void;
   /** The editor moved the post at `index` on `channel` a step, swapping it with its neighbour (review C7). */
@@ -149,10 +151,10 @@ export const ComposerTabsProvider: FC<{
 
   const rendering = useRef(new Set<RefObject<ComposerTab>>());
 
-  // The editor deleted or moved a post on `channel` (review C7): each place
-  // there, an open tab's, a pending entry's and a rendering panel's, follows
-  // its post to the index `to` gives, or goes with it. A moved place lands
-  // through the store from then on, since the row at its old index now
+  // The editor added, deleted or moved a post on `channel` (review C7): each
+  // place there, an open tab's, a pending entry's and a rendering panel's,
+  // follows its post to the index `to` gives, or goes with it. A moved place
+  // lands through the store from then on, since the row at its old index now
   // shows another post; a deleted post's result lands in no post, as once
   // the composer has closed (research R1).
   const movePlaces = useCallback(
@@ -191,6 +193,12 @@ export const ComposerTabsProvider: FC<{
       });
     },
     []
+  );
+
+  const postAdded = useCallback<ComposerTabs['postAdded']>(
+    (channel, index) =>
+      movePlaces(channel, (each) => (each > index ? each + 1 : each)),
+    [movePlaces]
   );
 
   const postRemoved = useCallback<ComposerTabs['postRemoved']>(
@@ -247,6 +255,7 @@ export const ComposerTabsProvider: FC<{
       open,
       close,
       select: setActive,
+      postAdded,
       postRemoved,
       postMoved,
       addPending,
@@ -261,6 +270,7 @@ export const ComposerTabsProvider: FC<{
       pending,
       open,
       close,
+      postAdded,
       postRemoved,
       postMoved,
       addPending,

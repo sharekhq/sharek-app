@@ -369,6 +369,7 @@ export const EditorWrapper: FC<{
       if (window.matchMedia(MOBILE_QUERY).matches) {
         setFocusIndex(index + 1);
       }
+      tabs?.postAdded(internal ? current : 'global', index);
       if (internal) {
         return addInternalValue(index, current, [
           {
@@ -389,7 +390,7 @@ export const EditorWrapper: FC<{
         },
       ]);
     },
-    [current, global, internal]
+    [current, global, internal, tabs]
   );
 
   const deletePost = useCallback(
