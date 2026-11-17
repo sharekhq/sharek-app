@@ -141,19 +141,20 @@ describe('Title', () => {
   // T062a W4). The rule is the slot's, not any page's: the heading hides at
   // phone width while its next sibling, the slot, holds something. The
   // selector is read out of the class, so it is the one Tailwind emits.
+  // happy-dom keeps an element's answer to a selector after its sibling
+  // changes, so each state is asked of a heading of its own.
   it('hides the heading at phone width while the slot holds something', () => {
     render();
-    const heading = document.querySelector('h1')!;
-    const slot = heading.nextElementSibling!;
-    const rule = heading.className
+    render();
+    const [empty, filled] = Array.from(document.querySelectorAll('h1'));
+    const rule = empty.className
       .split(' ')
       .map((name) => /^phone:has-\[(.+)\]:hidden$/.exec(name)?.[1])
       .find(Boolean);
+    filled.nextElementSibling!.appendChild(document.createElement('div'));
 
     expect(rule).toBeDefined();
-    expect(heading.matches(`:has(${rule})`)).toBe(false);
-
-    slot.appendChild(document.createElement('div'));
-    expect(heading.matches(`:has(${rule})`)).toBe(true);
+    expect(empty.matches(`:has(${rule})`)).toBe(false);
+    expect(filled.matches(`:has(${rule})`)).toBe(true);
   });
 });

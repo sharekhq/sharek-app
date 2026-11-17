@@ -13,7 +13,10 @@ export const Title = () => {
 
   return (
     <>
-      <h1 className="truncate">{currentTitle}</h1>
+      {/* On a phone, what a page puts in the slot takes the heading's place. */}
+      <h1 className="truncate phone:has-[+#top-bar-slot:not(:empty)]:hidden">
+        {currentTitle}
+      </h1>
       <div id="top-bar-slot" className="contents" />
     </>
   );
