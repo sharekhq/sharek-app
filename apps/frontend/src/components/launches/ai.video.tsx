@@ -372,10 +372,14 @@ export const AiVideoTool: FC<
         setPhase('result');
         return;
       }
-      // Closed mid-render. The waiting screen promised a video would reach
-      // the post, and this one is paid for — attaching it is closer to that
-      // promise than leaving the composer empty.
-      onChange(held.current.media);
+      // Closed mid-render. The waiting screen promised the post or the
+      // reference row a video, and this one is paid for — attaching it is
+      // closer to that promise than leaving it empty. The Media library
+      // already holds it, so handing it on there would only announce an
+      // older video as new.
+      if (destination !== 'media') {
+        onChange(held.current.media);
+      }
       releaseLock();
       return;
     }
@@ -385,7 +389,7 @@ export const AiVideoTool: FC<
     if (mounted.current) {
       setPhase('setup');
     }
-  }, [releaseLock, endRequest, onChange]);
+  }, [releaseLock, endRequest, onChange, destination]);
 
   const hasSteps = !!handshake?.steps?.length;
 
