@@ -11,6 +11,7 @@ import {
 } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { PENDING_KINDS } from '@gitroom/react/helpers/video.or.image';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import {
@@ -39,8 +40,6 @@ import {
   VideoType,
 } from '@gitroom/frontend/components/launches/ai.video';
 import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
-
-const KINDS: ComposerTabKind[] = ['image', 'video'];
 
 /**
  * The composer's right column: the tab strip where the 65px header was, then
@@ -88,7 +87,7 @@ export const ComposerStage: FC<{
           >
             {t('post_preview', 'Post preview')}
           </button>
-          {KINDS.map((kind) => {
+          {PENDING_KINDS.map((kind) => {
             const tab = stage.tabs[kind];
             if (!tab) {
               return null;
@@ -177,7 +176,7 @@ export const ComposerStage: FC<{
           </PreviewFit>
         </Scrollable>
       </div>
-      {KINDS.map((kind) => {
+      {PENDING_KINDS.map((kind) => {
         const tab = stage.tabs[kind];
         return (
           tab && (

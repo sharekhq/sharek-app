@@ -2,11 +2,13 @@ import { FC } from 'react';
 import { clsx } from 'clsx';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-export type PendingKind = 'image' | 'video';
+/** The kinds of result a preview can hold a place for while it is made. */
+export const PENDING_KINDS = ['image', 'video'] as const;
+export type PendingKind = (typeof PENDING_KINDS)[number];
 /** The path a preview holds for a result still being made for the post. */
 export const pendingMediaPath = (kind: PendingKind) => `pending:${kind}`;
 export const isPendingMediaPath = (path: string) =>
-  (['image', 'video'] as const).find((kind) => path === pendingMediaPath(kind));
+  PENDING_KINDS.find((kind) => path === pendingMediaPath(kind));
 /** The media a preview holds for a result still being made for the post. */
 export const pendingPreviewMedia = (entry: {
   id: string;
