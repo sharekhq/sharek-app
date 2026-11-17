@@ -4,6 +4,7 @@ import { FC, ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { Button } from '@gitroom/react/form/button';
 import { AspectTile } from '@gitroom/frontend/components/ui/aspect.tile';
+import { CHOICE_ON } from '@gitroom/frontend/components/ui/pick.controls';
 
 // The field parts every tool's settings share, so the AI image and AI video
 // tools and their providers draw a field the same way. Each tool keeps its own
@@ -94,7 +95,7 @@ export const ChoiceField: FC<ChoiceFieldProps> = ({
             // at 1025px and below the options share the row, as the voice
             // sets do: at the Button's 16px sides six of them ran past a phone
             '!flex-1 mobile:min-w-0 mobile:px-[8px]',
-            value === option.id && '!bg-brandSoft !text-brandText !border-brand'
+            value === option.id && CHOICE_ON
           )}
           onClick={() => onChange(option.id)}
         >
