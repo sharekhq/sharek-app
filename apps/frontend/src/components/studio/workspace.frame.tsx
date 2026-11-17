@@ -290,16 +290,19 @@ export const StageSample: FC<{
   onExample?: (text: string) => void;
 }> = ({ cover, icon, title, body, examples, onExample }) => {
   const t = useT();
+  // A picture that does not load gives way to the icon, as on the Studio card.
+  const [coverFailed, setCoverFailed] = useState(false);
   return (
     <div className={STAGE_PART}>
       <div className={STAGE_ROOM}>
         <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface2">
-          {cover ? (
+          {cover && !coverFailed ? (
             <img
               src={cover}
               width="640"
               height="360"
               alt=""
+              onError={() => setCoverFailed(true)}
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
