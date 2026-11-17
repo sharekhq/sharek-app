@@ -9,6 +9,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { VideoPromptField } from '@gitroom/frontend/components/videos/video.modal.parts';
+import { ChoiceField } from '@gitroom/frontend/components/studio/workspace.fields';
+import { StageSample } from '@gitroom/frontend/components/studio/workspace.frame';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import { useVideoFunction } from '@gitroom/frontend/components/videos/video.render.component';
 import useSWR from 'swr';
@@ -315,6 +317,9 @@ const STEPS: {
 const SLIDE_OPTIONS = [1, 2, 3, 4, 5, 6];
 const MAX_SLIDES = SLIDE_OPTIONS[SLIDE_OPTIONS.length - 1];
 
+/** Public path, as Studio's card and the Script screen's sample draw it. */
+const SLIDES_COVER = '/studio/covers/image-text-slides.webp';
+
 /**
  * Mirrors the backend's WORDS_PER_SLIDE budget and SILENT_CHARS_PER_SECOND
  * reading pace so the review screen can show a length before anything renders.
@@ -348,7 +353,7 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
   const fetch = useFetch();
   const toaster = useToaster();
   const { watch, setValue, trigger, getValues } = useFormContext();
-  const { output, actionsSlot } = useVideo();
+  const { output, actionsSlot, stageSlot } = useVideo();
   const [loading, setLoading] = useState(false);
   const voiceover = watch('voiceover');
   const slides = watch('slides');
@@ -411,29 +416,15 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
         )}
       />
 
-      <div>
-        <div className="text-[14px] font-[600] mb-[6px]">
-          {t('slides_count', 'Slides')}
-        </div>
-        <div className="flex gap-[8px]">
-          {SLIDE_OPTIONS.map((count) => (
-            <Button
-              key={count}
-              type="button"
-              variant="secondary"
-              className={clsx(
-                // at 1025px and below the six share the row, as the voice
-                // sets do: at the Button's 24px sides they ran past a phone
-                '!flex-1 mobile:min-w-0 mobile:px-[8px]',
-                slides === count && '!bg-brandSoft !text-brandText !border-brand'
-              )}
-              onClick={() => setValue('slides', count)}
-            >
-              {count}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <ChoiceField
+        label={t('slides_count', 'Slides')}
+        options={SLIDE_OPTIONS.map((count) => ({
+          id: String(count),
+          label: String(count),
+        }))}
+        value={String(slides)}
+        onChange={(count) => setValue('slides', Number(count))}
+      />
 
       <div className="flex items-center justify-between border border-tableBorder rounded-[8px] p-[12px]">
         <div className="text-[14px]">{t('voiceover', 'Voiceover')}</div>
@@ -452,6 +443,24 @@ const SetupScreen: FC<{ onPlanned: (storyboard: Storyboard) => void }> = ({
           )}
         </div>
       )}
+
+      {/* Until there is a script, the stage shows where it will appear. The
+          slot is a plain box, so the sample is given its height. */}
+      {!!stageSlot &&
+        createPortal(
+          <div className="h-full flex flex-col">
+            <StageSample
+              cover={SLIDES_COVER}
+              icon={SlidesDiagram}
+              title={t('slides_empty_title', 'Your script appears here')}
+              body={t(
+                'slides_empty_body',
+                'Press Continue and Sharek writes a script, slide by slide. You edit it here before anything is charged.'
+              )}
+            />
+          </div>,
+          stageSlot
+        )}
 
       {/* Planning the script costs nothing — the credit is spent by Create
           video on the next screen, and saying so here stops the user hesitating
@@ -518,7 +527,7 @@ const ReviewScreen: FC<{
   onCreate: () => void;
 }> = ({ storyboard, onChangeStoryboard, onBack, onCreate }) => {
   const t = useT();
-  const { actionsSlot } = useVideo();
+  const { actionsSlot, stageSlot } = useVideo();
   const slides = storyboard.slides;
 
   const setText = (index: number, text: string) =>
@@ -554,7 +563,9 @@ const ReviewScreen: FC<{
     (slide) => slide.text.length > MAX_CHARS_PER_SLIDE
   );
 
-  return (
+  // The script is this step's work, so its cards take the stage, where the
+  // Script screen's sample was; their buttons go to the bar.
+  const cards = (
     <div className="flex flex-col gap-[12px]">
       <div className="text-[12px] text-muted">
         {t('estimated_length', 'About {{seconds}}s', {
@@ -677,6 +688,12 @@ const ReviewScreen: FC<{
           )}
         </div>
       )}
+    </div>
+  );
+
+  return (
+    <>
+      {!!stageSlot && createPortal(cards, stageSlot)}
 
       {/* Adding a slide edits the deck; back and create leave the screen. The
           two jobs sit on opposite ends rather than reading as one row of three.
@@ -717,7 +734,7 @@ const ReviewScreen: FC<{
           </>,
           actionsSlot
         )}
-    </div>
+    </>
   );
 };
 
@@ -997,6 +1014,6 @@ videoWrapper('image-text-slides', ImageSlidesComponent, {
       },
     ],
     diagram: SlidesDiagram,
-    studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
+    studio: { kind: 'tool', cover: SLIDES_COVER },
   },
 });
