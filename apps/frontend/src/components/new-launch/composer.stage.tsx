@@ -39,6 +39,7 @@ import {
   useAiVideoTypes,
   VideoType,
 } from '@gitroom/frontend/components/launches/ai.video';
+import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
 
 const KINDS: ComposerTabKind[] = ['image', 'video'];
 
@@ -273,9 +274,9 @@ const AiTabPanel: FC<{
     [composerOpen, closeTab]
   );
 
-  const tool = {
-    layout: 'stacked' as const,
-    destination: 'post' as const,
+  const tool: WorkspaceToolProps = {
+    layout: 'stacked',
+    destination: 'post',
     active: shown,
     onChange: land,
     onAccept: closeTab,
