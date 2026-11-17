@@ -31,11 +31,7 @@ import {
   VideoTrail,
 } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import {
-  ModalHeaderSlot,
-  ModalHeaderSlotTarget,
-  useModals,
-} from '@gitroom/frontend/components/layout/new-modal';
+import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import {
   VIDEO_ORIENTATION_IDS,
@@ -45,13 +41,19 @@ import {
   VideoOrientationId,
 } from '@gitroom/nestjs-libraries/dtos/videos/video.orientation.catalog';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
-import { ModalActionBar } from '@gitroom/frontend/components/ui/modal.action.bar';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
-  AspectTile,
-  MEDIA_PREVIEW_MAX_HEIGHT,
-  MEDIA_PREVIEW_MAX_WIDTH,
-} from '@gitroom/frontend/components/ui/aspect.tile';
+  CreditsPill,
+  StageProgress,
+  StageResult,
+  StageSample,
+  VersionsStrip,
+  WorkspaceFrame,
+  WorkspaceToolProps,
+} from '@gitroom/frontend/components/studio/workspace.frame';
+import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
+import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
+import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
 
 export type Media = { id: string; path: string };
 
@@ -135,54 +137,42 @@ const VideoTypeChooserCard: FC<{
   );
 };
 
-/**
- * The waiting placeholder and the finished player share one shape — the chosen
- * orientation's own proportions fitted into the given box — so the wait shows
- * what is coming. The centred layout gives both the same box as well, so the
- * result fills the outline the wait drew; only the step-list layout, which has
- * to sit the placeholder beside a column of text, draws the shape smaller.
- */
-const orientationBox = (ratio: string, maxWidth: number, maxHeight: number) => {
-  const [width, height] = ratio.split(':').map(Number);
-  const scale = Math.min(maxWidth / width, maxHeight / height);
-  return {
-    width: Math.round(width * scale),
-    height: Math.round(height * scale),
-  };
+/** The shape's proportions, width over height, as the stage parts take them. */
+const orientationRatio = (id: VideoOrientationId) => {
+  const [width, height] = VIDEO_ORIENTATIONS[id].ratio.split(':').map(Number);
+  return width / height;
 };
-
-/**
- * The waiting placeholder in the step-list layout sits beside the step column,
- * so it is the one box that cannot take the full preview width: at 460 a 16:9
- * render would leave the steps 16px to live in. Capped here instead, which
- * still puts a 9:16 placeholder within 13px of the player that replaces it —
- * the shape the wait draws is the shape that arrives.
- */
-const STEP_LIST_PLACEHOLDER_MAX_WIDTH = 240;
-
-const pillClasses =
-  'h-[26px] px-[10px] inline-flex items-center gap-[5px] bg-surface border border-line rounded-full text-[12px] font-[600] text-inkSoft';
 
 /** m:ss. Built rather than localised — the digits stay Latin in both languages. */
 const formatElapsed = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
-export const Modal: FC<{
-  close: () => void;
-  type: VideoType;
-  setLoading: (loading: boolean) => void;
-  onChange: (params: { id: string; path: string }) => void;
-  /** Returns to the chooser. Undefined when there is only one type to choose. */
-  onChangeType?: () => void;
-  destination?: MediaDestination;
-}> = (props) => {
+/** A video this tool made, and the shape it was made in, which its box keeps. */
+type Version = { media: Media; output: VideoOrientationId };
+
+/**
+ * The AI video tool, wherever it is hosted: its Studio page (`page`) or a
+ * window (`stacked`). The settings stay beside the stage, which shows the
+ * sample, the wait or the video, with every video made since it opened.
+ */
+export const AiVideoTool: FC<
+  WorkspaceToolProps & {
+    type: VideoType;
+    /** Returns to the chooser. Undefined when there is only one type to choose. */
+    onChangeType?: () => void;
+  }
+> = (props) => {
   const {
     type,
+    layout,
+    destination,
     onChange,
-    close,
+    onAccept,
+    onCreatePost,
     setLoading,
     onChangeType,
-    destination = 'post',
+    locked,
+    locksComposer = destination === 'post',
   } = props;
   const t = useT();
   const fetch = useFetch();
@@ -194,10 +184,18 @@ export const Modal: FC<{
   const [phase, setPhase] = useState<VideoPhase>('setup');
   const [handshake, setHandshake] = useState<RenderHandshake | null>(null);
   const [progress, setProgress] = useState<RenderProgress | null>(null);
-  const [result, setResult] = useState<Media | null>(null);
+  // Every video made since the tool opened, in order: a render adds one and
+  // never replaces what a credit was already spent on (FR-008).
+  const [versions, setVersions] = useState<Version[]>([]);
+  // The version on screen: the one Use video and Create a post take.
+  const [shown, setShown] = useState<Version | null>(null);
   // A ref callback rather than a lookup: the bar does not exist during a
   // provider's first render, and the modal replaces it on every phase change.
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  // The stage's slot, the same way, and whether the provider has put anything
+  // in it: what it puts there takes the sample's place.
+  const [stageSlot, setStageSlot] = useState<HTMLElement | null>(null);
+  const [stageFilled, setStageFilled] = useState(false);
   const [trail, setTrail] = useState<VideoTrail | null>(null);
   const [elapsed, setElapsed] = useState(0);
 
@@ -223,35 +221,66 @@ export const Modal: FC<{
   // answered: a second click there must not start a second paid render, and
   // the result must not be used or left while one is coming.
   const rendering = useRef(false);
-  // The held result is mirrored in a ref because `failRender` is handed to the
-  // provider and captured inside its own memoised render callback: a version
-  // whose identity changed with the result would go stale exactly when it
-  // matters — on a Regenerate that fails.
-  const held = useRef<Media | null>(null);
+  // The version on screen is mirrored in a ref because `failRender` is handed
+  // to the provider and captured inside its own memoised render callback: a
+  // version whose identity changed with it would go stale exactly when it
+  // matters — on a render that fails.
+  const held = useRef<Version | null>(null);
+  // The shape picked, for the same callbacks and for the render a result's
+  // handshake repeats: a shape picked beside a result is the next render's
+  // (FR-008). And the shape of the render under way, which its version keeps
+  // whatever is picked meanwhile.
+  const chosen = useRef<VideoOrientationId>('vertical');
+  const making = useRef<VideoOrientationId>('vertical');
 
-  const holdResult = (media: Media | null) => {
-    held.current = media;
-    setResult(media);
+  const holdResult = (version: Version | null) => {
+    held.current = version;
+    setShown(version);
   };
+
+  const choose = (id: VideoOrientationId) => {
+    chosen.current = id;
+    setPosition(id);
+  };
+
+  // Watched from the moment the node exists: the provider fills it on the
+  // render after, once the context has handed it over. The observer is read
+  // off `window`, where a test DOM also puts it.
+  const watchStageSlot = useCallback((node: HTMLDivElement | null) => {
+    setStageSlot(node);
+    if (!node) {
+      return;
+    }
+    const observer = new window.MutationObserver(() =>
+      setStageFilled(node.childNodes.length > 0)
+    );
+    observer.observe(node, { childList: true });
+    return () => {
+      observer.disconnect();
+      setStageSlot(null);
+      setStageFilled(false);
+    };
+  }, []);
 
   // `loading` follows the request, whose end also ends the render
   // (`rendering`); the composer lock follows the whole flow, which is not over
-  // until the video is attached or the user gives it up.
+  // until the video is attached or the user gives it up, and is taken only for
+  // the composer's post.
   // Memoized like `releaseLock` below: the context functions built on them have
   // to keep one identity for the life of the modal.
   const startRequest = useCallback(() => {
     inFlight.current = true;
-    setLoading(true);
-    if (!holdsLock.current) {
+    setLoading?.(true);
+    if (locksComposer && !holdsLock.current) {
       holdsLock.current = true;
       setLocked(true);
     }
-  }, [setLoading, setLocked]);
+  }, [setLoading, setLocked, locksComposer]);
 
   const endRequest = useCallback(() => {
     inFlight.current = false;
     rendering.current = false;
-    setLoading(false);
+    setLoading?.(false);
   }, [setLoading]);
 
   // Memoized so the unmount cleanup below keeps a stable dependency: a fresh
@@ -290,12 +319,16 @@ export const Modal: FC<{
     return true;
   }, []);
 
-  const startRender = useCallback((next: RenderHandshake) => {
-    setHandshake(next);
-    setProgress(null);
-    setPhase('rendering');
-    startRequest();
-  }, [startRequest]);
+  const startRender = useCallback(
+    (next: RenderHandshake) => {
+      making.current = chosen.current;
+      setHandshake(next);
+      setProgress(null);
+      setPhase('rendering');
+      startRequest();
+    },
+    [startRequest]
+  );
 
   const reportProgress = useCallback(
     (next: RenderProgress) => setProgress(next),
@@ -315,7 +348,9 @@ export const Modal: FC<{
         return;
       }
 
-      holdResult(media);
+      const version = { media, output: making.current };
+      setVersions((list) => [...list, version]);
+      holdResult(version);
       setPhase('result');
     },
     [onChange, mutateCredits, releaseLock, endRequest]
@@ -323,7 +358,7 @@ export const Modal: FC<{
 
   const failRender = useCallback(() => {
     endRequest();
-    // An earlier result was already paid for, so a Regenerate that fails must
+    // An earlier result was already paid for, so a render that fails must
     // not throw it away.
     if (held.current) {
       // Still watching: put it back on screen and keep the lock, because that
@@ -332,10 +367,10 @@ export const Modal: FC<{
         setPhase('result');
         return;
       }
-      // Closed mid-Regenerate. The waiting screen promised a video would reach
+      // Closed mid-render. The waiting screen promised a video would reach
       // the post, and this one is paid for — attaching it is closer to that
       // promise than leaving the composer empty.
-      onChange(held.current);
+      onChange(held.current.media);
       releaseLock();
       return;
     }
@@ -400,20 +435,16 @@ export const Modal: FC<{
 
     // No steps: this route emits only heartbeats until it is done, so the
     // waiting screen shows elapsed time rather than an invented step list.
-    startRender({
-      regenerate: () => generate(),
-      backLabel: t('edit_prompt', 'Edit prompt'),
-      // Setup is this provider's only screen and it stays mounted with its
-      // inputs, so returning to it needs nothing from the provider itself.
-      onBack: () => undefined,
-    });
+    // No way back either: the settings stay beside the result, and the next
+    // render starts from them as they stand.
+    startRender({ regenerate: () => generate() });
 
     try {
       const response = await fetch(`/media/generate-video`, {
         method: 'POST',
         body: JSON.stringify({
           type: type.identifier,
-          output: position,
+          output: chosen.current,
           customParams,
         }),
       });
@@ -473,7 +504,7 @@ export const Modal: FC<{
         'warning'
       );
     }
-  }, [type, position, claimRender, startRender, onMedia, failRender]);
+  }, [type, claimRender, startRender, onMedia, failRender]);
 
   const useVideoInPost = () => {
     // A render under way would finish after the window closed and hand the
@@ -482,8 +513,8 @@ export const Modal: FC<{
       return;
     }
     releaseLock();
-    onChange(result!);
-    close();
+    onChange(shown!.media);
+    onAccept?.();
   };
 
   const backFromResult = () => {
@@ -493,11 +524,12 @@ export const Modal: FC<{
       return;
     }
     // Giving up the result ends the flow; the provider's own inputs stay as
-    // they were, on the screen it returns to.
+    // they were, on the screen it returns to, and the versions stay for the
+    // video after it.
     releaseLock();
     holdResult(null);
     setPhase('setup');
-    handshake?.onBack();
+    handshake?.onBack?.();
   };
 
   const changeType = () => {
@@ -510,11 +542,17 @@ export const Modal: FC<{
   };
 
   // The video is already in the Media library by the time any of this renders
-  // — the route saves it as it finishes — so the destination names what happens
-  // next rather than whether the video is kept. A reference row has no video
-  // button to reach this at all, so it reads as the composer does.
-  const closeNote =
-    destination === 'media'
+  // — the route saves it as it finishes — so the note names what happens next
+  // rather than whether the video is kept. On its page the member can leave
+  // it; a reference row has no video button to reach this at all, so it reads
+  // as the composer does.
+  const note =
+    layout === 'page'
+      ? t(
+          'workspace_leave_note_video',
+          "You can leave this page. The video is saved to your Media library when it's ready."
+        )
+      : destination === 'media'
       ? t(
           'close_window_video_note_media',
           "You can close this window — the video will be saved to your Media library when it's ready."
@@ -524,41 +562,306 @@ export const Modal: FC<{
           "You can close this window — the video will be added to your post when it's ready."
         );
 
-  // Nothing to attach it to, so there is nothing to "use": the action only
-  // confirms the video and closes.
-  const acceptLabel =
-    destination === 'media' ? t('done', 'Done') : t('use_video', 'Use video');
-
-  const orientation = VIDEO_ORIENTATIONS[position];
-  const [ratioWidth, ratioHeight] = orientation.ratio.split(':').map(Number);
-  /**
-   * A step list can only sit beside the placeholder while the placeholder is
-   * narrow enough to leave it room, which a portrait shape is and a landscape
-   * one is not: at the full preview width a 16:9 box takes 460 of the panel's
-   * 496px. Landscape therefore stacks — and gains, because a stacked
-   * placeholder can be the player's exact outline rather than a shrunken
-   * stand-in for it. Derived from the shape, not from who is rendering it.
-   */
-  const stepsBeside = hasSteps && ratioHeight > ratioWidth;
-  const orientationSummary = (
+  const orientationSummary = (output: VideoOrientationId) => (
     <>
-      {t(`video_orientation_${position}`, VIDEO_ORIENTATION_LABELS[position])}
+      {t(`video_orientation_${output}`, VIDEO_ORIENTATION_LABELS[output])}
       {' · '}
-      <span dir="ltr">{orientation.ratio}</span>
+      <span dir="ltr">{VIDEO_ORIENTATIONS[output].ratio}</span>
     </>
   );
-  const summaryPills = (
-    // Centred only in the layout that is itself a centred column. Beside the
-    // step list it belongs on the same edge as the heading under it.
-    <div
-      className={clsx(
-        'flex gap-[8px] flex-wrap',
-        stepsBeside ? 'justify-start' : 'justify-center'
+
+  const studio = videoTypeCard(type.identifier)?.studio;
+  // The settings start with the type, a workflow's steps and a model's maker
+  // and facts, from the card it declares for the Studio page (FR-009, FR-010).
+  const head = (
+    <div className="flex flex-col gap-[8px]">
+      <div className="flex items-center gap-[10px] text-[13px] text-muted">
+        {/* Only while nothing is running: a type cannot be swapped out from
+            under a render, and the result belongs to the type that made it. */}
+        {onChangeType && phase === 'setup' ? (
+          <button
+            type="button"
+            onClick={changeType}
+            className="min-w-0 inline-flex items-center gap-[4px] rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+              className="flex-none rtl:rotate-180"
+            >
+              <path
+                d="M10 3L5 8l5 5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {/* The trail keeps its full width; a long type name gives way,
+                which matters most in Arabic. */}
+            <span className="truncate">{videoTypeLabel(t, type)}</span>
+          </button>
+        ) : (
+          <span className="min-w-0 truncate">{videoTypeLabel(t, type)}</span>
+        )}
+        {/* Only for a provider that declared one — a one-shot provider has no
+            flow to place the user inside, so it renders none (FR-004). */}
+        {!!trail && (
+          <div className="flex items-center gap-[8px] ms-auto flex-none">
+            {trail.steps.map((label, index) => {
+              // Every step is behind you once the video exists.
+              const done = phase === 'result' || index < trail.current;
+              const now = !done && index === trail.current;
+              return (
+                <Fragment key={label}>
+                  {index > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="w-[14px] h-[1px] bg-line flex-none"
+                    />
+                  )}
+                  <span
+                    className={clsx(
+                      'inline-flex items-center gap-[5px] text-[12px]',
+                      now ? 'text-ink font-[600]' : 'text-muted'
+                    )}
+                  >
+                    {/* A tick rather than a recoloured number: done and
+                        pending must not differ by colour alone. */}
+                    <span
+                      className={clsx(
+                        'w-[18px] h-[18px] rounded-full flex-none inline-flex items-center justify-center text-[10px] font-[700] border',
+                        done
+                          ? 'bg-brandSoft2 border-transparent text-brandText'
+                          : now
+                          ? 'bg-brand border-brand text-white'
+                          : 'bg-surface border-line text-muted'
+                      )}
+                    >
+                      {done ? (
+                        <svg
+                          width="9"
+                          height="9"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M2.5 6.2l2.3 2.3 4.7-5"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    {label}
+                  </span>
+                </Fragment>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {!!studio?.maker && (
+        <div className="text-[12px] text-muted">
+          {t('studio_model_by', 'by {{maker}} · {{category}}', {
+            maker: isolate(studio.maker.name),
+            category: t('studio_category_video', 'Video'),
+            // React escapes the line, so i18next mustn't first
+            interpolation: { escapeValue: false },
+          })}
+        </div>
       )}
-    >
-      <span className={pillClasses}>{orientationSummary}</span>
+      {!!studio?.facts?.length && (
+        <div className="flex flex-wrap gap-[6px]">
+          {studio.facts.map((fact) => (
+            <span key={fact.key} className={metaPillClasses}>
+              {t(fact.key, fact.fallback)}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
+
+  // Today's order: the shape first, then the provider's own fields.
+  const settings = (
+    <>
+      <OrientationField
+        label={t('video_orientation', 'Orientation')}
+        options={VIDEO_ORIENTATION_IDS.map((id) => ({
+          id,
+          label: t(`video_orientation_${id}`, VIDEO_ORIENTATION_LABELS[id]),
+          ratio: VIDEO_ORIENTATIONS[id].ratio,
+          glyph: VIDEO_ORIENTATIONS[id].glyph,
+          tooltipHtml: t(
+            `video_orientation_${id}_tooltip`,
+            VIDEO_ORIENTATION_TOOLTIPS[id]
+          ),
+        }))}
+        value={position}
+        onChange={(id) => choose(id as VideoOrientationId)}
+      />
+      <VideoWrapper identifier={type.identifier} />
+    </>
+  );
+
+  const stage =
+    phase === 'rendering' ? (
+      <StageProgress
+        ratio={orientationRatio(position)}
+        title={t('creating_your_video', 'Creating your video…')}
+        detail={t('video_render_minutes', 'Usually takes a few minutes')}
+        elapsed={
+          hasSteps
+            ? undefined
+            : t('video_elapsed', '{{time}} elapsed', {
+                time: formatElapsed(elapsed),
+              })
+        }
+        steps={handshake?.steps?.map((label, index) => {
+          const at = progress?.index ?? 0;
+          return {
+            label,
+            state: index < at ? 'done' : index === at ? 'now' : 'todo',
+            count:
+              index === at && progress?.total
+                ? `${progress.done}/${progress.total}`
+                : undefined,
+          } as const;
+        })}
+        note={note}
+      />
+    ) : phase === 'result' && shown ? (
+      <StageResult
+        media={shown.media}
+        kind="video"
+        ratio={orientationRatio(shown.output)}
+        alt={videoTypeLabel(t, type)}
+        caption={orientationSummary(shown.output)}
+        actions={
+          <>
+            {/* Only a workflow has an earlier screen to go back to. */}
+            {!!handshake?.backLabel && (
+              <Button variant="secondary" size="large" onClick={backFromResult}>
+                {handshake.backLabel}
+              </Button>
+            )}
+            {/* A new tab when the browser ignores `download` for a file on
+                another origin, so the page and its versions stay. */}
+            <a
+              href={shown.media.path}
+              download
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClassName({
+                variant: 'secondary',
+                size: 'large',
+              })}
+            >
+              {t('workspace_download', 'Download')}
+            </a>
+            {/* Nothing to attach it to in Studio: the post is made from it. */}
+            {destination === 'media' ? (
+              !!onCreatePost && (
+                <Button size="large" onClick={() => onCreatePost(shown.media)}>
+                  <PlusIcon />
+                  {t('studio_create_post', 'Create a post')}
+                </Button>
+              )
+            ) : (
+              <Button size="large" onClick={useVideoInPost}>
+                {t('use_video', 'Use video')}
+              </Button>
+            )}
+          </>
+        }
+        versions={
+          <VersionsStrip
+            versions={versions.map((version) => ({
+              path: version.media.path,
+              kind: 'video' as const,
+            }))}
+            shown={versions.indexOf(shown)}
+            onSelect={(index) => holdResult(versions[index])}
+          />
+        }
+      />
+    ) : (
+      <>
+        <div
+          ref={watchStageSlot}
+          className={clsx(
+            'w-full',
+            stageFilled && 'flex-1 min-h-0 overflow-y-auto'
+          )}
+        />
+        {!stageFilled && (
+          <StageSample
+            cover={studio?.cover}
+            icon={
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M8 5.5l10 6.5-10 6.5V5.5z" />
+              </svg>
+            }
+            title={t('workspace_video_empty_title', 'Your video appears here')}
+            body={t(
+              'workspace_video_empty_body',
+              'Fill in the settings, then press Generate.'
+            )}
+          />
+        )}
+      </>
+    );
+
+  const folded = versions.length > 0 && phase !== 'setup';
+  const actions =
+    phase === 'setup' && videoOwnsActions(type.identifier) ? (
+      // The provider owns the whole row while it is set up: it is the only
+      // side that knows which of its screens is showing, and so whether the
+      // next click spends a credit (FR-018).
+      <div
+        ref={setActionsSlot}
+        className="video-actions-content flex-1 flex items-center gap-[10px]"
+      />
+    ) : (
+      <>
+        <CostNote>{t('video_uses_one_credit', 'Uses 1 video credit')}</CostNote>
+        <div className="flex-1" />
+        {phase === 'rendering' ? (
+          // One render at a time: the button says so, and a press starts
+          // nothing.
+          <Button size="large" aria-busy="true">
+            {t('workspace_working', 'Creating…')}
+          </Button>
+        ) : phase === 'result' ? (
+          // The same render again, through the handshake, as one more
+          // version (FR-008).
+          <Button size="large" onClick={() => handshake?.regenerate()}>
+            {layout === 'stacked'
+              ? t('workspace_generate_again', 'Generate again')
+              : t('generate', 'Generate')}
+          </Button>
+        ) : (
+          <Button type="submit" size="large">
+            {t('generate', 'Generate')}
+          </Button>
+        )}
+      </>
+    );
 
   return (
     <VideoContextWrapper.Provider
@@ -567,9 +870,10 @@ export const Modal: FC<{
         value: '',
         output: position,
         onMedia,
-        close,
+        close: () => onAccept?.(),
         phase,
         actionsSlot,
+        stageSlot,
         claimRender,
         startRender,
         reportProgress,
@@ -586,376 +890,41 @@ export const Modal: FC<{
             ? (e) => e.preventDefault()
             : form.handleSubmit(generate)
         }
-        className="flex flex-col gap-[16px] -mt-[12px]"
+        // The frame lays the tool out; the form only gathers its fields.
+        className="contents"
       >
-        <ModalHeaderSlot>
-          <div className="bg-ai text-aiAccent rounded-full px-[12px] py-[4px] text-[12px] font-[600]">
-            {t('credits_left_count', '{{count}} credits left', {
-              count: data?.credits || 0,
-            })}
-          </div>
-        </ModalHeaderSlot>
-        <div className="flex items-center gap-[10px] text-[13px] text-muted">
-          {/* Only while nothing is running: a type cannot be swapped out from
-              under a render, and the result belongs to the type that made it. */}
-          {onChangeType && phase === 'setup' ? (
-            <button
-              type="button"
-              onClick={changeType}
-              className="min-w-0 inline-flex items-center gap-[4px] rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-                className="flex-none rtl:rotate-180"
-              >
-                <path
-                  d="M10 3L5 8l5 5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {/* The trail keeps its full width; a long type name gives way,
-                  which matters most in Arabic. */}
-              <span className="truncate">{videoTypeLabel(t, type)}</span>
-            </button>
-          ) : (
-            <span className="min-w-0 truncate">{videoTypeLabel(t, type)}</span>
-          )}
-          {/* Only for a provider that declared one — a one-shot provider has no
-              flow to place the user inside, so it renders none (FR-004). */}
-          {!!trail && (
-            <div className="flex items-center gap-[8px] ms-auto flex-none">
-              {trail.steps.map((label, index) => {
-                // Every step is behind you once the video exists.
-                const done = phase === 'result' || index < trail.current;
-                const now = !done && index === trail.current;
-                return (
-                  <Fragment key={label}>
-                    {index > 0 && (
-                      <span
-                        aria-hidden="true"
-                        className="w-[14px] h-[1px] bg-line flex-none"
-                      />
-                    )}
-                    <span
-                      className={clsx(
-                        'inline-flex items-center gap-[5px] text-[12px]',
-                        now ? 'text-ink font-[600]' : 'text-muted'
-                      )}
-                    >
-                      {/* A tick rather than a recoloured number: done and
-                          pending must not differ by colour alone. */}
-                      <span
-                        className={clsx(
-                          'w-[18px] h-[18px] rounded-full flex-none inline-flex items-center justify-center text-[10px] font-[700] border',
-                          done
-                            ? 'bg-brandSoft2 border-transparent text-brandText'
-                            : now
-                            ? 'bg-brand border-brand text-white'
-                            : 'bg-surface border-line text-muted'
-                        )}
-                      >
-                        {done ? (
-                          <svg
-                            width="9"
-                            height="9"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M2.5 6.2l2.3 2.3 4.7-5"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        ) : (
-                          index + 1
-                        )}
-                      </span>
-                      {label}
-                    </span>
-                  </Fragment>
-                );
-              })}
-            </div>
-          )}
-        </div>
         <FormProvider {...form}>
-          {/* Hidden rather than unmounted while a render runs: the provider
-              holds the storyboard and the filled-in fields the result screen's
-              return action goes back to. Orientation sits outside the scroller
-              so the choice — and its tooltips — stay visible however far the
-              body is scrolled (FR-003). */}
-          <div
-            className={clsx(
-              'flex flex-col gap-[6px]',
-              phase !== 'setup' && 'hidden'
+          <WorkspaceFrame
+            layout={layout}
+            head={head}
+            settings={settings}
+            folded={folded}
+            settingsSummary={t(
+              'workspace_settings_summary_video',
+              'Prompt and settings'
             )}
-          >
-            <div className="text-[14px] font-[600]">
-              {t('video_orientation', 'Orientation')}
-            </div>
-            <div className="flex gap-[8px]">
-              {VIDEO_ORIENTATION_IDS.map((id) => (
-                <AspectTile
-                  key={id}
-                  label={t(
-                    `video_orientation_${id}`,
-                    VIDEO_ORIENTATION_LABELS[id]
-                  )}
-                  ratio={VIDEO_ORIENTATIONS[id].ratio}
-                  glyph={VIDEO_ORIENTATIONS[id].glyph}
-                  selected={position === id}
-                  tooltipHtml={t(
-                    `video_orientation_${id}_tooltip`,
-                    VIDEO_ORIENTATION_TOOLTIPS[id]
-                  )}
-                  onSelect={() => setPosition(id)}
-                />
-              ))}
-            </div>
-          </div>
-          <div
-            className={clsx(
-              'max-h-[min(430px,60vh)] overflow-x-hidden overflow-y-auto flex flex-col gap-[16px] p-[4px] -m-[4px]',
-              phase !== 'setup' && 'hidden'
-            )}
-          >
-            <VideoWrapper identifier={type.identifier} />
-          </div>
-
-          {phase === 'rendering' && (
-            <>
-              <div
-                className={clsx(
-                  'bg-panel rounded-[18px] p-[20px] flex',
-                  stepsBeside
-                    ? 'gap-[20px] items-center'
-                    : 'flex-col items-center justify-center text-center gap-[16px]'
-                )}
-              >
-                {!stepsBeside && summaryPills}
-                {/* The placeholder carries the chosen shape so the wait shows
-                    what is coming. The app's reduced-motion layer stops the
-                    pulse. */}
-                <div
-                  className="bg-surface2 rounded-[12px] flex-none animate-pulse flex items-center justify-center text-muted"
-                  style={orientationBox(
-                    orientation.ratio,
-                    stepsBeside
-                      ? STEP_LIST_PLACEHOLDER_MAX_WIDTH
-                      : MEDIA_PREVIEW_MAX_WIDTH,
-                    MEDIA_PREVIEW_MAX_HEIGHT
-                  )}
-                >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5.5l10 6.5-10 6.5V5.5z" />
-                  </svg>
-                </div>
-                <div className={clsx(stepsBeside && 'flex-1 min-w-0')}>
-                  {stepsBeside && summaryPills}
-                  <div
-                    className={clsx(
-                      'text-[15px] font-[600]',
-                      stepsBeside && 'mt-[10px]'
-                    )}
-                  >
-                    {t('creating_your_video', 'Creating your video…')}
-                  </div>
-                  <div className="text-[12px] text-muted mt-[2px]">
-                    {t('video_render_minutes', 'Usually takes a few minutes')}
-                    {!hasSteps && (
-                      <>
-                        {' · '}
-                        {t('video_elapsed', '{{time}} elapsed', {
-                          time: formatElapsed(elapsed),
-                        })}
-                      </>
-                    )}
-                  </div>
-                  {hasSteps && (
-                    // Stacked, the list keeps its own start edge inside a
-                    // centred column: a checklist whose ticks do not line up
-                    // is not a checklist.
-                    <div
-                      className={clsx(
-                        'flex flex-col gap-[9px] mt-[14px]',
-                        !stepsBeside && 'w-fit mx-auto text-start'
-                      )}
-                    >
-                      {handshake!.steps!.map((label, index) => {
-                        const at = progress?.index ?? 0;
-                        const done = index < at;
-                        const active = index === at;
-                        return (
-                          <div
-                            key={label}
-                            className={clsx(
-                              'flex items-center gap-[9px] text-[13px]',
-                              active
-                                ? 'text-ink font-[600]'
-                                : done
-                                ? 'text-inkSoft'
-                                : 'text-muted'
-                            )}
-                          >
-                            {/* Marked by shape as well as colour: a tick when
-                                done, a broken ring while running, an empty one
-                                until then. */}
-                            <span
-                              className={clsx(
-                                'w-[17px] h-[17px] rounded-full flex-none inline-flex items-center justify-center border-[1.5px]',
-                                done
-                                  ? 'bg-success border-success text-white'
-                                  : active
-                                  ? 'border-brand border-t-transparent animate-spin'
-                                  : 'border-line bg-surface'
-                              )}
-                            >
-                              {done && (
-                                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                                  <path
-                                    d="M2.5 6.2l2.3 2.3 4.7-5"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              )}
-                            </span>
-                            <span>
-                              {label}
-                              {active && !!progress?.total && (
-                                <span dir="ltr" className="tabular-nums">
-                                  {' · '}
-                                  {progress.done}/{progress.total}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-[8px] items-start text-[12px] text-muted">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  className="flex-none mt-[3px]"
-                >
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4" />
-                  <path
-                    d="M8 7.5V11M8 5v.5"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                {closeNote}
-              </div>
-            </>
-          )}
-
-          {phase === 'result' && !!result && (
-            <div className="bg-panel rounded-[18px] p-[20px] flex flex-col items-center gap-[16px]">
-              <video
-                src={result.path}
-                controls
-                playsInline
-                style={orientationBox(
-                  orientation.ratio,
-                  MEDIA_PREVIEW_MAX_WIDTH,
-                  MEDIA_PREVIEW_MAX_HEIGHT
-                )}
-                // The same recessed fill the waiting placeholder used, so the
-                // result reads as that box filled in — and so a video whose
-                // own aspect differs letterboxes into a neutral both themes
-                // can carry, rather than a token that inverts.
-                className="rounded-[12px] shadow-card bg-surface2"
-              />
-              <div className="text-[12px] text-muted text-center">
-                {orientationSummary}
-              </div>
-            </div>
-          )}
-
-          {/* No bar while a render runs — there is nothing to act on until it
-              lands. */}
-          {phase !== 'rendering' && (
-            <ModalActionBar>
-              {phase === 'result' ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="large"
-                    onClick={backFromResult}
-                  >
-                    {handshake?.backLabel}
-                  </Button>
-                  <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="large"
-                    onClick={() => handshake?.regenerate()}
-                  >
-                    {t('regenerate', 'Regenerate')}
-                    <span className="ms-[6px] font-[500] opacity-75">
-                      · {t('one_credit', '1 credit')}
-                    </span>
-                  </Button>
-                  <Button size="large" onClick={useVideoInPost}>
-                    {acceptLabel}
-                  </Button>
-                </>
-              ) : videoOwnsActions(type.identifier) ? (
-                // The provider owns the whole row: it is the only side that
-                // knows which of its screens is showing, and so whether the
-                // next click spends a credit (FR-018).
-                <div
-                  ref={setActionsSlot}
-                  className="video-actions-content flex-1 flex items-center gap-[10px]"
-                />
-              ) : (
-                <>
-                  <CostNote>
-                    {t('video_uses_one_credit', 'Uses 1 video credit')}
-                  </CostNote>
-                  <div className="flex-1" />
-                  <Button type="submit" size="large">
-                    {t('generate', 'Generate')}
-                  </Button>
-                </>
-              )}
-            </ModalActionBar>
-          )}
+            stage={stage}
+            actions={actions}
+            credits={<CreditsPill count={data?.credits || 0} />}
+            locked={locked}
+            cost={t('video_uses_one_credit', 'Uses 1 video credit')}
+          />
         </FormProvider>
       </form>
     </VideoContextWrapper.Provider>
   );
 };
 
-const AiVideoModal: FC<{
-  list: VideoType[];
-  close: () => void;
-  setLoading: (loading: boolean) => void;
-  onChange: (params: { id: string; path: string }) => void;
-  destination: MediaDestination;
-}> = (props) => {
-  const { list, close, setLoading, onChange, destination } = props;
+/**
+ * The window's body: the types to choose from, then the chosen type's tool,
+ * with the way back to the list when there is more than one.
+ */
+export const AiVideoChooser: FC<
+  WorkspaceToolProps & {
+    list: VideoType[];
+  }
+> = (props) => {
+  const { list, ...tool } = props;
   const t = useT();
   const [type, setType] = useState<VideoType | null>(
     list.length === 1 ? list[0] : null
@@ -981,15 +950,12 @@ const AiVideoModal: FC<{
   }
 
   return (
-    <Modal
+    <AiVideoTool
+      {...tool}
       type={type}
-      close={close}
-      setLoading={setLoading}
-      onChange={onChange}
       // A chosen type is no longer a dead end: with more than one to choose
-      // from, the subhead offers the way back to the chooser (FR-017).
+      // from, the head offers the way back to the chooser (FR-017).
       onChangeType={list.length > 1 ? () => setType(null) : undefined}
-      destination={destination}
     />
   );
 };
@@ -1037,6 +1003,8 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
+  /** Whether a render locks the composer; by default, one for its post. */
+  locksComposer?: boolean;
 }> = (props) => {
   const t = useT();
   const {
@@ -1044,6 +1012,7 @@ export const AiVideo: FC<{
     renderTrigger,
     only,
     destination = 'post',
+    locksComposer,
   } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
@@ -1065,20 +1034,26 @@ export const AiVideo: FC<{
           {only
             ? videoTypeLabel(t, list[0])
             : t('generate_ai_video', 'Generate AI Video')}
-          <ModalHeaderSlotTarget className="flex-1 flex justify-end" />
         </div>
       ),
+      // One size, clear of the top of the screen, so the stacked frame's bar
+      // is never below it.
+      size: 'min(640px, 100%)',
+      height: 'min(860px, calc(100dvh - 48px))',
+      top: 24,
       children: (close) => (
-        <AiVideoModal
+        <AiVideoChooser
           list={list}
-          onChange={onChange}
-          setLoading={setLoading}
-          close={close}
+          layout="stacked"
           destination={destination}
+          onChange={onChange}
+          onAccept={close}
+          setLoading={setLoading}
+          locksComposer={locksComposer}
         />
       ),
     });
-  }, [loading, list, onChange, only, destination]);
+  }, [loading, list, onChange, only, destination, locksComposer]);
 
   if (isLoading || list?.length === 0) {
     return null;
