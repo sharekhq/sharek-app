@@ -933,6 +933,16 @@ describe('the two buttons', () => {
     expect(attachments.attached).toEqual([row('made')]);
   });
 
+  // FR-021a (spec 061, tasks D13): Samy composes no post, so its AI Image
+  // never takes the composer's lock; were it to, a composer opened while the
+  // image renders would wait for it.
+  it('ask AI Image to leave the composer unlocked', async () => {
+    await render();
+    const props = aiImageProps[aiImageProps.length - 1];
+
+    expect(props.locksComposer).toBe(false);
+  });
+
   // Its window can be closed while it renders, and the image still arrives here.
   it('hold AI Image while it renders, with the name still showing', async () => {
     ai.loading = true;

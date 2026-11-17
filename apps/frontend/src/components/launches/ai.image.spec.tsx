@@ -24,6 +24,28 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) => select({ setLocked }),
 }));
+// The modal manager as it is, each window's options recorded on the way in:
+// the AI image window's size, height and top are what keep its bar on the
+// screen (FR-016a, SC-001).
+const opened: Array<Record<string, any>> = [];
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => {
+  const actual = jest.requireActual(
+    '@gitroom/frontend/components/layout/new-modal'
+  );
+  return {
+    ...actual,
+    useModals: () => {
+      const modals = actual.useModals();
+      return {
+        ...modals,
+        openModal: (options: Record<string, any>) => {
+          opened.push(options);
+          modals.openModal(options);
+        },
+      };
+    },
+  };
+});
 // A kit image as GET /brands gives it; one deleted from Media has no path.
 const kitImage = (id: string, missing = false) => ({
   id,
@@ -126,7 +148,11 @@ import {
   ModalManagerInner,
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
-import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
+import {
+  AI_IMAGE_COVER,
+  AiImage,
+  AiImageTool,
+} from '@gitroom/frontend/components/launches/ai.image';
 import { buttonClassName } from '@gitroom/react/form/button';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
@@ -223,7 +249,7 @@ const button = (label: string) =>
     (node) => node.textContent?.trim() === label
   );
 
-// Some actions carry a credit cost after the label ("Regenerate· 1 credit"),
+// Some actions carry a credit cost after the label ("Apply edit· 1 credit"),
 // so an exact match silently finds nothing and clicking it does nothing.
 const buttonStarting = (label: string) =>
   Array.from(document.querySelectorAll('button')).find((node) =>
@@ -267,20 +293,57 @@ const settle = async () => {
   });
 };
 
-/** Opens the AI image modal, types a prompt, and presses Generate. */
-const generate = async (
+/** Leaves what is mounted: the window closed, the page left. */
+const leave = () =>
+  act(() => {
+    closeEveryModal?.();
+    mounted.splice(0).forEach((root) => root.unmount());
+  });
+
+/** Opens the AI image window from the composer's ✦ button. */
+const openWindow = async (
   destination?: MediaDestination,
   onChange = jest.fn()
 ) => {
   await mount(
     <AiImage value="" onChange={onChange} destination={destination} />
   );
-
   await click(document.querySelector('.bg-aiSoft'));
-  await type(
-    document.querySelector('textarea') as HTMLTextAreaElement,
-    'a pomegranate on a table'
+};
+
+/** Opens the AI image window, types a prompt, and presses Generate. */
+const generate = async (
+  destination?: MediaDestination,
+  onChange = jest.fn()
+) => {
+  await openWindow(destination, onChange);
+  await type(promptField(), 'a pomegranate on a table');
+  await click(button('Generate'));
+};
+
+/**
+ * Opens the tool on its Studio page (contracts/workspace-parts.md §6), where
+ * nothing is being composed: what it makes stays in the Media library.
+ */
+const openPage = async (
+  props: Partial<Parameters<typeof AiImageTool>[0]> = {}
+) => {
+  await mount(
+    <AiImageTool
+      layout="page"
+      destination="media"
+      onChange={jest.fn()}
+      {...props}
+    />
   );
+};
+
+/** The same, with a prompt typed and Generate pressed. */
+const generateOnPage = async (
+  props: Partial<Parameters<typeof AiImageTool>[0]> = {}
+) => {
+  await openPage(props);
+  await type(promptField(), 'a pomegranate on a table');
   await click(button('Generate'));
 };
 
@@ -291,6 +354,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   picker.length = 0;
+  opened.length = 0;
   brandList = BRANDS;
   localStorage.clear();
   jest.clearAllMocks();
@@ -299,9 +363,46 @@ afterEach(() => {
 const asked = (url: string) =>
   request.mock.calls.filter(([called]) => called === url);
 
-// The window's one field: the prompt on the compose step, the change on the
-// result step.
-const field = () => document.querySelector('textarea') as HTMLTextAreaElement;
+// The frame's regions (contracts/workspace-parts.md §1). The stage is the
+// first size container on the screen, as the stage parts nest their own in
+// it; the bar holds the credits and the main button; the settings are the
+// rest, on screen beside or above the stage whatever it shows.
+const stage = () =>
+  Array.from(document.querySelectorAll('div')).find((node) =>
+    node.classList.contains('[container-type:size]')
+  );
+const bar = () =>
+  Array.from(document.querySelectorAll('div')).find(
+    (node) =>
+      node.classList.contains('border-t') &&
+      node.classList.contains('bg-surface')
+  );
+const inStage = (node: Element) => !!stage()?.contains(node);
+// The button that ends the bar: Generate, Creating… while a render runs, or
+// Generate again once the window's settings fold.
+const mainButton = () =>
+  Array.from(bar()?.querySelectorAll('button') ?? []).pop();
+// The window's settings, folded into one row once there is a result.
+const settingsRow = () =>
+  Array.from(document.querySelectorAll('button')).find((node) =>
+    node.textContent?.startsWith('Settings')
+  );
+const follows = (
+  later: Node | null | undefined,
+  earlier: Node | null | undefined
+) =>
+  !!later &&
+  !!earlier &&
+  !!(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+// The Prompt, in the settings, and the change typed under the result, in the
+// stage's edit bar: once there is a result, both are on screen.
+const promptField = () =>
+  Array.from(document.querySelectorAll('textarea')).find(
+    (node) => !inStage(node)
+  ) as HTMLTextAreaElement;
+const editField = () =>
+  stage()?.querySelector('textarea') as HTMLTextAreaElement;
 const apply = () => buttonStarting('Apply edit');
 const preview = () =>
   document
@@ -311,7 +412,7 @@ const editBody = () =>
   JSON.parse(asked('/media/edit-image-with-prompt')[0][1].body);
 
 const applyEdit = async (change: string) => {
-  await type(field(), change);
+  await type(editField(), change);
   await click(apply());
 };
 
@@ -335,8 +436,8 @@ describe('when the generation is refused for credits', () => {
   it('returns to the composer with the prompt intact', async () => {
     await generate();
 
-    expect(field()).toBeTruthy();
-    expect(field().value).toBe('a pomegranate on a table');
+    expect(promptField()).toBeTruthy();
+    expect(promptField().value).toBe('a pomegranate on a table');
   });
 
   // The pre-flight refuses before anything is committed to, so the composer is
@@ -355,7 +456,9 @@ describe('when the generation is refused for credits', () => {
 
     expect(asked('/media/generate-image/allowed')).toHaveLength(1);
     expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
-    // Still the composer: its Generate action is what the setup phase renders.
+    // Still the sample on the stage, and Generate in the bar: the progress
+    // never took the stage.
+    expect(stage()?.textContent).toContain('Your image appears here');
     expect(buttonStarting('Generate')).toBeTruthy();
   });
 });
@@ -431,7 +534,7 @@ describe('the streamed render', () => {
       'Your request was rejected by the AI safety system.',
       'warning'
     );
-    expect(field().value).toBe('a pomegranate on a table');
+    expect(promptField().value).toBe('a pomegranate on a table');
   });
 
   // The render cannot be cancelled once it runs, so a stream that ends without
@@ -520,23 +623,49 @@ describe('the streamed render', () => {
     expect(onChange).toHaveBeenCalledWith(done.media);
     expect(setLocked).toHaveBeenLastCalledWith(false);
   });
+
+  // The page's render outlives the page as the window's outlives the window
+  // (FR-014): left mid-render, the image is handed on when it lands, which on
+  // the Studio page is what raises the ready notice.
+  it('hands the image on when the page was left mid-render', async () => {
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+    const onChange = jest.fn();
+
+    await generateOnPage({ onChange });
+    await settle();
+    leave();
+    await act(async () => {
+      deliver(streamed(done));
+    });
+    await settle();
+
+    expect(onChange).toHaveBeenCalledWith(done.media);
+    expect(setLocked).not.toHaveBeenCalled();
+  });
 });
 
-// The credit for the first image was already spent, so a refused Regenerate
-// must not take it off screen — `ai.video`'s failRender holds its result for
-// exactly this reason.
-describe('when a Regenerate is refused', () => {
+// The credit for the first image was already spent, so a refused second
+// Generate must not take it off screen — `ai.video`'s failRender holds its
+// result for exactly this reason.
+describe('when a second Generate is refused', () => {
   it('keeps the image the credit already paid for', async () => {
     renders(done);
     await generate();
 
-    // On screen, and reachable: the result phase is what offers "Use image".
+    // On screen, and reachable: the result is what offers "Use image".
     expect(button('Use image')).toBeTruthy();
 
     request.mockImplementation(refused);
-    const regenerate = buttonStarting('Regenerate');
-    expect(regenerate).toBeTruthy();
-    await click(regenerate);
+    const again = mainButton();
+    expect(again).toBeTruthy();
+    await click(again);
     // The rejection is handled a microtask after the click; asserting before
     // this flush reads the pre-click DOM and passes whatever the code does.
     await act(async () => {
@@ -549,6 +678,41 @@ describe('when a Regenerate is refused', () => {
       document.querySelector('img[src="https://media/first.png"]')
     ).toBeTruthy();
   });
+});
+
+// The settings stay on screen beside the result, so a prompt changed for a
+// second version is still there when that version does not come (spec, Edge
+// Cases): nothing is added, and nothing typed is lost.
+describe('a second Generate that does not land', () => {
+  it.each([
+    ['the credits are refused', () => request.mockImplementation(refused)],
+    [
+      'the render fails',
+      () =>
+        renders({
+          name: 'error',
+          error: true,
+          message: 'The renderer fell over.',
+        }),
+    ],
+  ])(
+    'adds no version and keeps the prompt typed for it when %s',
+    async (_case, answerWith) => {
+      renders(done);
+      await generateOnPage();
+      await type(promptField(), 'a fig on a plate');
+      answerWith();
+
+      await click(mainButton());
+      await settle();
+
+      expect(
+        document.querySelector('[role="group"][aria-label="Versions"]')
+      ).toBeNull();
+      expect(preview()).toBe('https://media/first.png');
+      expect(promptField().value).toBe('a fig on a plate');
+    }
+  );
 });
 
 // The composer keeps the ✦ button it has today (FR-010): nothing about the
@@ -590,9 +754,8 @@ describe('with a trigger of its own', () => {
   });
 });
 
-// The waiting screen tells the user what closing it costs them: nothing,
-// because the image lands by itself. Where it lands is the caller's, and
-// Studio's copy of the generator has no post to land it in.
+// The progress tells the user what closing the window costs them: nothing,
+// because the image lands by itself. Where it lands is the caller's.
 describe('the note under the waiting screen', () => {
   beforeEach(() => {
     // Never resolves, so the generating phase stays on screen to be read.
@@ -607,17 +770,8 @@ describe('the note under the waiting screen', () => {
     await generate();
     await settle();
 
-    expect(document.body.textContent).toContain(
+    expect(stage()?.textContent).toContain(
       "the image will be added to your post when it's ready"
-    );
-  });
-
-  it('promises the Media library when nothing is being composed', async () => {
-    await generate('media');
-    await settle();
-
-    expect(document.body.textContent).toContain(
-      "the image will be saved to your Media library when it's ready"
     );
   });
 
@@ -625,15 +779,36 @@ describe('the note under the waiting screen', () => {
     await generate('reference');
     await settle();
 
-    expect(document.body.textContent).toContain(
+    expect(stage()?.textContent).toContain(
       "the image will be added to your reference images when it's ready"
     );
   });
 });
 
+// The Studio page is no window to close: its note says the member can leave
+// it, and promises nothing for the browser tab (FR-014, research R1).
+describe('the note under the progress', () => {
+  it('on the Studio page (`destination="media"`) says the image goes on if the member leaves (`workspace_leave_note_image`)', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+
+    await generateOnPage();
+    await settle();
+
+    expect(stage()?.textContent).toContain(
+      "You can leave this page. The image is saved to your Media library when it's ready."
+    );
+    expect(document.body.textContent).not.toContain('close this window');
+  });
+});
+
 // The image is a Media row before this screen exists — the route uploads and
-// saves it — so outside a composer the action is not "use" at all: there is
-// nothing left to attach it to, and it only confirms and closes.
+// saves it — so on the Studio page there is nothing to "use" it in: it can be
+// downloaded, or taken into a new post when there is a channel to post it to
+// (FR-007, tasks D4).
 describe('the action that accepts the result', () => {
   beforeEach(() => {
     renders(done);
@@ -645,17 +820,45 @@ describe('the action that accepts the result', () => {
     expect(button('Use image')).toBeTruthy();
   });
 
-  it('only confirms when the image is not going anywhere else', async () => {
-    await generate('media');
+  it('on the page offers Download (`<a download>`) and, only with `onCreatePost`, Create a post; no Use image, no Done', async () => {
+    const onCreatePost = jest.fn();
+    await generateOnPage({ onCreatePost });
+    const download = document.querySelector('a[download]');
 
+    expect(download?.textContent?.trim()).toBe('Download');
+    expect(download?.getAttribute('href')).toBe('https://media/first.png');
     expect(button('Use image')).toBeFalsy();
-    expect(button('Done')).toBeTruthy();
+    expect(button('Done')).toBeFalsy();
+
+    await click(button('Create a post'));
+
+    expect(onCreatePost).toHaveBeenCalledWith(done.media);
+
+    // No channel, no Create a post.
+    leave();
+    await generateOnPage();
+
+    expect(document.querySelector('a[download]')).toBeTruthy();
+    expect(button('Create a post')).toBeUndefined();
   });
 
   it('offers to use the image when it fills a reference row', async () => {
     await generate('reference');
 
     expect(button('Use image')).toBeTruthy();
+  });
+
+  // A window hands the image to whoever opened it; Create a post is the
+  // Studio page's (contracts/workspace-parts.md §3).
+  it('in a window offers Download beside Use image, and no Create a post', async () => {
+    await generate();
+    const download = document.querySelector('a[download]');
+
+    expect(download?.textContent?.trim()).toBe('Download');
+    expect(download?.getAttribute('href')).toBe('https://media/first.png');
+    expect(!!download && inStage(download)).toBe(true);
+    expect(button('Use image')).toBeTruthy();
+    expect(button('Create a post')).toBeUndefined();
   });
 });
 
@@ -675,23 +878,42 @@ describe('the hint under the prompt', () => {
 
 const ref = (id: string) => ({ id, path: `https://media/${id}.png` });
 
-/** Opens the Media library from the add tile and picks these. */
-const attach = async (...items: { id: string; path: string }[]) => {
-  await click(button('Add image'));
+// Once there is a result two reference rows are on screen: the settings', for
+// the render, and the edit bar's in the stage, for the change, which starts
+// with the image being edited.
+const addImage = (edit = false) =>
+  Array.from(document.querySelectorAll('button')).find(
+    (node) => node.textContent?.trim() === 'Add image' && inStage(node) === edit
+  );
+
+/** Opens the Media library from a row's add tile and picks these. */
+const attachTo = async (
+  edit: boolean,
+  items: { id: string; path: string }[]
+) => {
+  await click(addImage(edit));
   await act(async () => {
     picker[picker.length - 1].setMedia(items);
   });
 };
+const attach = (...items: { id: string; path: string }[]) =>
+  attachTo(false, items);
+const attachToEdit = (...items: { id: string; path: string }[]) =>
+  attachTo(true, items);
 
-const thumbnails = () =>
+const referenceRow = (edit: boolean) =>
   Array.from(
     document.querySelectorAll<HTMLImageElement>('img[alt^="Reference image"]')
-  ).map((img) => ({
-    alt: img.alt,
-    src: img.getAttribute('src'),
-    // The number drawn on the thumbnail, next to the picture.
-    number: img.parentElement?.textContent?.trim(),
-  }));
+  )
+    .filter((img) => inStage(img) === edit)
+    .map((img) => ({
+      alt: img.alt,
+      src: img.getAttribute('src'),
+      // The number drawn on the thumbnail, next to the picture.
+      number: img.parentElement?.textContent?.trim(),
+    }));
+const thumbnails = () => referenceRow(false);
+const editThumbnails = () => referenceRow(true);
 
 // Feature 031-ai-image-references-edit, US1: up to four Media images the render
 // draws on, numbered in the order they were attached (contracts/ui.md).
@@ -779,10 +1001,7 @@ describe('reference images', () => {
       if (items.length) {
         await attach(...items);
       }
-      await type(
-        document.querySelector('textarea') as HTMLTextAreaElement,
-        'the cup from image 1 on the table in image 2'
-      );
+      await type(promptField(), 'the cup from image 1 on the table in image 2');
       await click(button('Generate'));
     };
 
@@ -895,7 +1114,7 @@ describe('editing the result', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  // FR-011: the cost is on the action, as Regenerate's is.
+  // FR-011: the cost is on the action itself.
   it('states its cost on the action', async () => {
     await toResult();
 
@@ -905,9 +1124,9 @@ describe('editing the result', () => {
   it("counts the change against the prompt's ceiling", async () => {
     await toResult();
 
-    await type(field(), 'make it white');
+    await type(editField(), 'make it white');
 
-    expect(field().maxLength).toBe(2000);
+    expect(editField().maxLength).toBe(2000);
     expect(document.body.textContent).toContain('13 / 2000');
   });
 
@@ -941,19 +1160,19 @@ describe('editing the result', () => {
   });
 
   // An edit keeps its frame (FR-012): the preset the image was made at, even
-  // after the compose step has moved on to another.
+  // after the settings beside it have moved on to another.
   it('keeps the preset the image was made at', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
-    await type(field(), 'a pomegranate on a table');
+    await type(promptField(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
     renders(done);
     await click(button('Generate'));
 
-    await click(button('Back to prompt'));
+    await click(settingsRow());
     await click(buttonStarting('Landscape'));
     renders({ name: 'error', error: true, message: 'The renderer fell over.' });
-    await click(button('Generate'));
+    await click(mainButton());
     renders(edited);
 
     await applyEdit('make the background plain white');
@@ -963,7 +1182,7 @@ describe('editing the result', () => {
 
   it('sends the images added to it after the one being edited', async () => {
     await toResult();
-    await attach(ref('logo'));
+    await attachToEdit(ref('logo'));
 
     await applyEdit('put the logo from image 2 on the cup');
 
@@ -972,13 +1191,13 @@ describe('editing the result', () => {
 
   it('shows the edit, and clears the change and the images added to it', async () => {
     await toResult();
-    await attach(ref('logo'));
+    await attachToEdit(ref('logo'));
 
     await applyEdit('put the logo from image 2 on the cup');
 
     expect(preview()).toBe('https://media/edited.png');
-    expect(field().value).toBe('');
-    expect(thumbnails()).toEqual([
+    expect(editField().value).toBe('');
+    expect(editThumbnails()).toEqual([
       {
         alt: 'Reference image 1',
         src: 'https://media/edited.png',
@@ -990,7 +1209,7 @@ describe('editing the result', () => {
   // A failed edit costs nothing and takes nothing away (spec, Edge Cases).
   it('keeps the image, the change and the added images when the edit fails', async () => {
     await toResult();
-    await attach(ref('logo'));
+    await attachToEdit(ref('logo'));
     renders({
       name: 'error',
       error: true,
@@ -1004,8 +1223,8 @@ describe('editing the result', () => {
       'warning'
     );
     expect(preview()).toBe('https://media/first.png');
-    expect(field().value).toBe('put the logo from image 2 on the cup');
-    expect(thumbnails().map((thumbnail) => thumbnail.src)).toEqual([
+    expect(editField().value).toBe('put the logo from image 2 on the cup');
+    expect(editThumbnails().map((thumbnail) => thumbnail.src)).toEqual([
       'https://media/first.png',
       'https://media/logo.png',
     ]);
@@ -1024,7 +1243,7 @@ describe('editing the result', () => {
     ],
   ])('explains a missing image %i of the edit', async (index, message) => {
     await toResult();
-    await attach(ref('logo'));
+    await attachToEdit(ref('logo'));
     request.mockImplementation((url: string) =>
       Promise.resolve(
         url.endsWith('/allowed')
@@ -1047,8 +1266,8 @@ describe('editing the result', () => {
   it('says nothing and keeps everything when the credits have run out', async () => {
     const onChange = jest.fn();
     await toResult(onChange);
-    await attach(ref('logo'));
-    await type(field(), 'put the logo from image 2 on the cup');
+    await attachToEdit(ref('logo'));
+    await type(editField(), 'put the logo from image 2 on the cup');
     request.mockImplementation(refused);
 
     await click(apply());
@@ -1057,50 +1276,50 @@ describe('editing the result', () => {
     expect(toast).not.toHaveBeenCalled();
     expect(asked('/media/edit-image-with-prompt')).toHaveLength(0);
     expect(preview()).toBe('https://media/first.png');
-    expect(field().value).toBe('put the logo from image 2 on the cup');
-    expect(thumbnails()).toHaveLength(2);
+    expect(editField().value).toBe('put the logo from image 2 on the cup');
+    expect(editThumbnails()).toHaveLength(2);
 
     await click(button('Use image'));
     expect(onChange).toHaveBeenCalledWith(done.media);
   });
 
-  // FR-019: two actions called "Edit" side by side would be one too many; the
-  // way back to the compose step says where it goes instead.
-  it('names no action "Edit", and goes back to the prompt with it kept', async () => {
+  // FR-019: two actions called "Edit" side by side would be one too many. The
+  // prompt is behind no way back any more: it stays in the settings beside
+  // the result, as it was typed (FR-008).
+  it('names no action "Edit", and keeps the prompt in the settings beside the result', async () => {
     await toResult();
 
     const labels = Array.from(document.querySelectorAll('button')).map(
       (node) => node.textContent?.trim() ?? ''
     );
     expect(labels.some((label) => label.startsWith('Edit'))).toBe(false);
-
-    await click(button('Back to prompt'));
-
-    expect(field().value).toBe('a pomegranate on a table');
+    expect(preview()).toBe('https://media/first.png');
+    expect(inStage(promptField())).toBe(false);
+    expect(promptField().value).toBe('a pomegranate on a table');
   });
 
   // FR-013: the image being edited is image 1, so the images added to it
   // count from 2, as the change names them.
   it('shows the image being edited as a fixed image 1, and numbers added ones from 2', async () => {
     await toResult();
-    await attach(ref('logo'));
+    await attachToEdit(ref('logo'));
 
-    expect(thumbnails()).toEqual([
+    expect(editThumbnails()).toEqual([
       { alt: 'Reference image 1', src: 'https://media/first.png', number: '1' },
       { alt: 'Reference image 2', src: 'https://media/logo.png', number: '2' },
     ]);
     expect(
-      document.querySelector('button[aria-label="Remove reference image 1"]')
+      stage()?.querySelector('button[aria-label="Remove reference image 1"]')
     ).toBeNull();
     expect(
-      document.querySelector('button[aria-label="Remove reference image 2"]')
+      stage()?.querySelector('button[aria-label="Remove reference image 2"]')
     ).toBeTruthy();
   });
 
   it('leaves the slots the image being edited does not take', async () => {
     await toResult();
 
-    await click(button('Add image'));
+    await click(addImage(true));
 
     expect(picker[picker.length - 1].max).toBe(3);
   });
@@ -1109,9 +1328,9 @@ describe('editing the result', () => {
   it('adds nothing when the image being edited is picked again', async () => {
     await toResult();
 
-    await attach(done.media);
+    await attachToEdit(done.media);
 
-    expect(thumbnails()).toHaveLength(1);
+    expect(editThumbnails()).toHaveLength(1);
   });
 
   it('says it is editing, and which version', async () => {
@@ -1126,8 +1345,8 @@ describe('editing the result', () => {
     await applyEdit('make the background plain white');
     await settle();
 
-    expect(document.body.textContent).toContain('Editing your image…');
-    expect(document.body.textContent).toContain('Edit of version 1');
+    expect(stage()?.textContent).toContain('Editing your image…');
+    expect(stage()?.textContent).toContain('Edit of version 1');
   });
 
   // Closing the window gives up watching, not the edit, as for a generation.
@@ -1201,14 +1420,14 @@ describe('editing the result', () => {
     expect(onChange).toHaveBeenCalledWith(edited.media);
   });
 
-  // Regenerate is still the compose request (FR-022), whatever was edited.
-  it('regenerates from the prompt after an edit', async () => {
+  // Generate is still the settings' request (FR-022), whatever was edited.
+  it('generates from the prompt, not the edit, when Generate is pressed after an edit', async () => {
     await toResult();
     await applyEdit('make the background plain white');
     request.mockClear();
     renders(done);
 
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
 
     expect(asked('/media/edit-image-with-prompt')).toHaveLength(0);
     expect(
@@ -1247,26 +1466,27 @@ describe('the version strip', () => {
   const lastScrolled = (scrolled: jest.SpyInstance) =>
     scrolled.mock.contexts[scrolled.mock.contexts.length - 1];
 
-  /** Generates the first image and regenerates a second. */
+  /** Generates the first image and a second with another press of Generate. */
   const toTwoVersions = async (onChange = jest.fn()) => {
     renders(done);
     await generate(undefined, onChange);
     renders(second);
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
   };
 
   /**
-   * Generates the first image, then goes back and generates the second from
-   * another prompt, in Watercolor: two versions described differently.
+   * Generates the first image, then the second from another prompt, in
+   * Watercolor, set in the window's settings with the first still on screen:
+   * two versions described differently.
    */
   const toTwoPrompts = async () => {
     renders(done);
     await generate();
-    await click(button('Back to prompt'));
-    await type(field(), 'a fig on a plate');
+    await click(settingsRow());
+    await type(promptField(), 'a fig on a plate');
     await click(button('Watercolor'));
     renders(second);
-    await click(button('Generate'));
+    await click(mainButton());
   };
 
   // US3 scenario 1 and FR-020: one image has nothing to go back to.
@@ -1277,7 +1497,7 @@ describe('the version strip', () => {
     expect(strip()).toBeNull();
 
     renders(second);
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
 
     expect(pressed()).toEqual(['false', 'true']);
     // The check, beside the ring.
@@ -1324,14 +1544,14 @@ describe('the version strip', () => {
   it('edits the version picked, at the preset it was made at', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
-    await type(field(), 'a pomegranate on a table');
+    await type(promptField(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
     renders(done);
     await click(button('Generate'));
-    await click(button('Back to prompt'));
+    await click(settingsRow());
     await click(buttonStarting('Landscape'));
     renders(second);
-    await click(button('Generate'));
+    await click(mainButton());
     renders(third);
 
     await click(version(1));
@@ -1345,31 +1565,33 @@ describe('the version strip', () => {
   });
 
   // US3 scenario 3 and FR-022: nothing in the strip is replaced.
-  it('adds a Regenerate after an edit as a third version', async () => {
+  it('adds a second Generate after an edit as a third version', async () => {
     renders(done);
     await generate();
     renders(second);
     await applyEdit('make the background plain white');
     renders(third);
 
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
 
     expect(pressed()).toEqual(['false', 'false', 'true']);
     expect(preview()).toBe('https://media/third.png');
   });
 
-  // US3 scenario 5 and FR-023: the strip lasts as long as the window.
-  it('keeps the strip through Back to prompt', async () => {
+  // US3 scenario 5 and FR-023: the strip lasts as long as the window, the
+  // prompt changed beside it or not.
+  it('keeps every version through a changed prompt and another Generate', async () => {
     renders(done);
     await generate();
     renders(second);
     await applyEdit('make the background plain white');
     renders(third);
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
 
-    await click(button('Back to prompt'));
+    await click(settingsRow());
+    await type(promptField(), 'a fig on a plate');
     renders(fourth);
-    await click(button('Generate'));
+    await click(mainButton());
 
     expect(pressed()).toEqual(['false', 'false', 'false', 'true']);
   });
@@ -1379,7 +1601,7 @@ describe('the version strip', () => {
   it('still picks and uses versions after an edit is refused for credits', async () => {
     const onChange = jest.fn();
     await toTwoVersions(onChange);
-    await type(field(), 'make the background plain white');
+    await type(editField(), 'make the background plain white');
     request.mockImplementation(refused);
     await click(apply());
     await settle();
@@ -1398,16 +1620,16 @@ describe('the version strip', () => {
   // leaves the added images, as a second pick of an attached image would.
   it('takes the version picked out of the images added to the edit', async () => {
     await toTwoVersions();
-    await attach(done.media);
+    await attachToEdit(done.media);
 
-    expect(thumbnails().map((thumbnail) => thumbnail.src)).toEqual([
+    expect(editThumbnails().map((thumbnail) => thumbnail.src)).toEqual([
       'https://media/second.png',
       'https://media/first.png',
     ]);
 
     await click(version(1));
 
-    expect(thumbnails()).toEqual([
+    expect(editThumbnails()).toEqual([
       { alt: 'Reference image 1', src: 'https://media/first.png', number: '1' },
     ]);
 
@@ -1417,26 +1639,27 @@ describe('the version strip', () => {
     expect(editBody()).not.toHaveProperty('references');
   });
 
-  // The compose step may have moved on since a version was made, so the
-  // caption and the picture's description come from the version.
+  // The settings may have moved on since a version was made, so the caption
+  // and the picture's description come from the version. The stage is read,
+  // as the Prompt in the settings still holds what was typed last.
   it('describes each version by the prompt and style it was made from', async () => {
     await toTwoPrompts();
 
-    expect(document.body.textContent).toContain(
+    expect(stage()?.textContent).toContain(
       'a fig on a plate · Square · Watercolor'
     );
 
     await click(version(1));
 
-    expect(document.body.textContent).toContain(
+    expect(stage()?.textContent).toContain(
       'a pomegranate on a table · Square · ✦Auto'
     );
-    expect(document.body.textContent).not.toContain('a fig on a plate');
+    expect(stage()?.textContent).not.toContain('a fig on a plate');
     expect(previewAlt()).toBe('a pomegranate on a table');
   });
 
   // As the approved mockup has it, an edit is described as the version it
-  // changed (review-3 A8), whatever the compose step says by then.
+  // changed (review-3 A8), whatever the settings say by then.
   it('describes an edit by the version it changed', async () => {
     await toTwoPrompts();
     await click(version(1));
@@ -1445,7 +1668,7 @@ describe('the version strip', () => {
     await applyEdit('make the background plain white');
 
     expect(preview()).toBe('https://media/third.png');
-    expect(document.body.textContent).toContain(
+    expect(stage()?.textContent).toContain(
       'a pomegranate on a table · Square · ✦Auto'
     );
     expect(previewAlt()).toBe('a pomegranate on a table');
@@ -1476,8 +1699,8 @@ describe('the version strip', () => {
     scrolled.mockRestore();
   });
 
-  // The waiting screen replaces the strip, so a failed render comes back to a
-  // new one, scrolled to its start.
+  // The progress replaces the result on the stage, strip and all, so a
+  // failed render comes back to a new strip, scrolled to its start.
   it('brings the version on screen back into view after a failed edit', async () => {
     const scrolled = jest.spyOn(Element.prototype, 'scrollIntoView');
     await toTwoVersions();
@@ -1512,8 +1735,8 @@ describe('the version strip', () => {
   });
 });
 
-// Generate, Regenerate and Apply edit stay on screen while the credits are
-// checked, so a second click there started a second render and a second charge.
+// Generate and Apply edit stay on screen while the credits are checked, so a
+// second click there started a second render and a second charge.
 describe('a second click while the credits are checked', () => {
   /**
    * Holds every credit check until the returned function answers them all;
@@ -1541,20 +1764,20 @@ describe('a second click while the credits are checked', () => {
     const answerChecks = holdCreditChecks();
 
     await generate();
-    await click(button('Generate'));
+    await click(mainButton());
     await answerChecks();
 
     expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
   });
 
-  it('starts one regeneration', async () => {
+  it('starts one render from a second Generate on a result', async () => {
     renders(done);
     await generate();
     request.mockClear();
     const answerChecks = holdCreditChecks();
 
-    await click(buttonStarting('Regenerate'));
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
+    await click(mainButton());
     await answerChecks();
 
     expect(asked('/media/generate-image-with-prompt')).toHaveLength(1);
@@ -1563,10 +1786,7 @@ describe('a second click while the credits are checked', () => {
   it('applies one edit', async () => {
     renders(done);
     await generate();
-    await type(
-      document.querySelector('textarea') as HTMLTextAreaElement,
-      'make the background plain white'
-    );
+    await type(editField(), 'make the background plain white');
     const answerChecks = holdCreditChecks();
 
     await click(buttonStarting('Apply edit'));
@@ -1597,7 +1817,7 @@ describe('a second click while the credits are checked', () => {
     request.mockClear();
     const answerChecks = holdCreditChecks();
 
-    await click(buttonStarting('Regenerate'));
+    await click(mainButton());
     await click(button('Use image'));
     await answerChecks();
 
@@ -1606,16 +1826,16 @@ describe('a second click while the credits are checked', () => {
     expect(button('Use image')).toBeTruthy();
   });
 
-  // Going back would show the prompt until the check answers, and then the
-  // waiting screen over it.
-  it('keeps the result on screen when Back to prompt is pressed', async () => {
+  // Nothing takes the result's place until the check has answered: a refused
+  // check would leave a wait on the stage for a render that never starts.
+  it("keeps the result on the stage while a second Generate's check runs", async () => {
     renders(done);
     await generate();
     const answerChecks = holdCreditChecks();
 
-    await click(buttonStarting('Regenerate'));
-    await click(button('Back to prompt'));
+    await click(mainButton());
 
+    expect(preview()).toBe('https://media/first.png');
     expect(button('Use image')).toBeTruthy();
     await answerChecks();
   });
@@ -1625,8 +1845,8 @@ describe('a second click while the credits are checked', () => {
   it('keeps the version being edited on screen', async () => {
     renders(done);
     await generate();
-    await click(buttonStarting('Regenerate'));
-    await type(field(), 'make the background plain white');
+    await click(mainButton());
+    await type(editField(), 'make the background plain white');
     const answerChecks = holdCreditChecks();
 
     await click(apply());
@@ -1644,26 +1864,28 @@ describe('keyboard visibility', () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
-    expect(field().className).toContain('focus-visible:ring-2');
-    expect(field().className).toContain('focus-visible:ring-brand');
+    expect(promptField().className).toContain('focus-visible:ring-2');
+    expect(promptField().className).toContain('focus-visible:ring-brand');
   });
 
   it('rings the edit field', async () => {
     renders(done);
     await generate();
 
-    expect(field().className).toContain('focus-visible:ring-2');
-    expect(field().className).toContain('focus-visible:ring-brand');
+    expect(editField().className).toContain('focus-visible:ring-2');
+    expect(editField().className).toContain('focus-visible:ring-brand');
   });
 
-  // The chips, the tiles and the actions, with the frame's close button, which
-  // already carries its own.
-  it('rings every button on the compose step', async () => {
+  // The settings' chips, tiles and Brand, the stage's example prompts and the
+  // bar's Generate, with the window's close button, which already carries its
+  // own.
+  it("rings every button before a result: the settings, the stage's sample chips and the bar", async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     const interactive = Array.from(document.querySelectorAll('button'));
 
-    expect(interactive.length).toBeGreaterThan(0);
+    expect(stage()?.querySelectorAll('button')).toHaveLength(3);
+    expect(mainButton()).toBeTruthy();
     interactive.forEach((element) => {
       expect(element.className).toContain('focus-visible:ring-2');
       expect(element.className).toContain('focus-visible:ring-brand');
@@ -1683,15 +1905,23 @@ describe('keyboard visibility', () => {
     });
   });
 
-  // The version strip's buttons with the edit row's and the action bar's.
-  it('rings every button on the result step', async () => {
+  // The versions strip, the result's actions and the edit bar on the stage,
+  // the Settings row and the settings it opens, and the bar's Generate again.
+  it("rings every button with a result: the versions strip, the result's actions, the edit bar, the settings and the bar", async () => {
     renders(done);
     await generate();
-    await click(buttonStarting('Regenerate'));
-    const interactive = Array.from(document.querySelectorAll('button'));
+    await click(mainButton());
+    const interactive = [
+      ...Array.from(document.querySelectorAll('button')),
+      ...Array.from(document.querySelectorAll('a[download]')),
+    ];
 
     expect(version(1)).toBeTruthy();
     expect(version(2)).toBeTruthy();
+    expect(button('Use image')).toBeTruthy();
+    expect(document.querySelector('a[download]')).toBeTruthy();
+    expect(apply()).toBeTruthy();
+    expect(settingsRow()).toBeTruthy();
     interactive.forEach((element) => {
       expect(element.className).toContain('focus-visible:ring-2');
       expect(element.className).toContain('focus-visible:ring-brand');
@@ -1729,34 +1959,50 @@ describe('the style search under a finger', () => {
   });
 });
 
-// Spec 060 (FR-026, FR-027, contracts/ui.md §9): the window's action row is
-// one height, the shared button's large size, and its boxes type at 14px with
-// a mouse, 16px under a finger, as the style search does.
-describe("the window's action row and boxes", () => {
+// Spec 060 (FR-026, FR-027, contracts/ui.md §9): the main actions are one
+// height, the shared button's large size, in the frame's bar and the result's
+// row alike (tasks D15 e), and the boxes type at 14px with a mouse, 16px under
+// a finger, as the style search does.
+describe("the frame's buttons and boxes", () => {
   const own = (node: Element | null | undefined) =>
     node?.className.split(' ') ?? [];
 
-  it('draws Generate at the large size', async () => {
+  it('draws Generate at the large size, in the window and on the page', async () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
+    expect(mainButton()).toBe(button('Generate'));
+    expect(own(button('Generate'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+
+    leave();
+    await openPage();
+
+    expect(mainButton()).toBe(button('Generate'));
     expect(own(button('Generate'))).toEqual(
       expect.arrayContaining(['h-[44px]', 'px-[20px]'])
     );
   });
 
-  it('draws Back to prompt, Regenerate and Use image at the large size', async () => {
+  it('draws Use image at the large size', async () => {
     renders(done);
     await generate();
 
-    [
-      button('Back to prompt'),
-      buttonStarting('Regenerate'),
-      button('Use image'),
-    ].forEach((action) =>
-      expect(own(action)).toEqual(
-        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
-      )
+    expect(own(button('Use image'))).toEqual(
+      expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+    );
+  });
+
+  it('draws Download and Create a post at the large size on the page', async () => {
+    renders(done);
+    await generateOnPage({ onCreatePost: jest.fn() });
+
+    [document.querySelector('a[download]'), button('Create a post')].forEach(
+      (action) =>
+        expect(own(action)).toEqual(
+          expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+        )
     );
   });
 
@@ -1764,20 +2010,20 @@ describe("the window's action row and boxes", () => {
     await mount(<AiImage value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
-    expect(own(field())).toEqual(
+    expect(own(promptField())).toEqual(
       expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
     );
-    expect(own(field())).not.toContain('text-[16px]');
+    expect(own(promptField())).not.toContain('text-[16px]');
   });
 
   it('types the edit at 14px with a mouse, 16px under a finger', async () => {
     renders(done);
     await generate();
 
-    expect(own(field())).toEqual(
+    expect(own(editField())).toEqual(
       expect.arrayContaining(['text-[14px]', 'coarse:text-[16px]'])
     );
-    expect(own(field())).not.toContain('text-[16px]');
+    expect(own(editField())).not.toContain('text-[16px]');
   });
 });
 
@@ -1821,7 +2067,8 @@ describe("the styles in the dashboard's one chip look", () => {
     await click(document.querySelector('.bg-aiSoft'));
     await click(button('Watercolor'));
     await click(button('All styles'));
-    const chips = Array.from(document.querySelectorAll('button')).filter(
+    // The catalogue's, on the stage; the settings' row is beside it.
+    const chips = Array.from(stage()?.querySelectorAll('button') ?? []).filter(
       (node) =>
         IMAGE_STYLES.some((entry) => entry.label === node.textContent?.trim())
     );
@@ -1955,7 +2202,7 @@ describe('the Brand field', () => {
 
   const generateNow = async () => {
     renders(done);
-    await type(field(), 'A Ramadan night menu post');
+    await type(promptField(), 'A Ramadan night menu post');
     await click(button('Generate'));
   };
 
@@ -2242,7 +2489,7 @@ describe('the Brand field', () => {
     renders(done);
     await compose();
     await attach(ref('a'), ref('b'), ref('c'), ref('d'));
-    await type(field(), 'A Ramadan night menu post');
+    await type(promptField(), 'A Ramadan night menu post');
     await pick('Bayt Al Qahwa');
   };
   const counter = (text: string) =>
@@ -2298,32 +2545,33 @@ describe('the Brand field', () => {
     expect(body()).not.toHaveProperty('brand');
   });
 
-  // Three images added to an edit on No brand, then, back at the prompt, a
-  // brand whose logo takes one of the edit's places and a new image: the
-  // edit is held as Generate is, saying so under its images.
+  // Three images added to an edit on No brand, then, in the settings with the
+  // result still on screen, a brand whose logo takes one of the edit's places
+  // and a new image: the edit is held as Generate is, saying so under its
+  // images.
   const editOverTheCap = async () => {
     renders(done);
     await compose();
-    await type(field(), 'A Ramadan night menu post');
+    await type(promptField(), 'A Ramadan night menu post');
     await click(button('Generate'));
-    await attach(ref('a'), ref('b'), ref('c'));
-    await click(button('Back to prompt'));
+    await attachToEdit(ref('a'), ref('b'), ref('c'));
+    await click(settingsRow());
     await pick('Bayt Al Qahwa');
     renders({
       name: 'done',
       media: { id: 'media-2', path: 'https://media/second.png' },
     });
-    await click(button('Generate'));
-    await type(field(), 'put the logo on the cup');
+    await click(mainButton());
+    await type(editField(), 'put the logo on the cup');
   };
 
   it('holds Apply edit while more images are added to it than fit beside the logo', async () => {
     await editOverTheCap();
 
-    expect(thumbnails()).toHaveLength(4);
+    expect(editThumbnails()).toHaveLength(4);
     expect(counter('4 / 3')?.classList.contains('text-error')).toBe(true);
     expect(lines()).toContain(TOO_MANY_LINE);
-    expect(button('Add image')).toBeUndefined();
+    expect(addImage(true)).toBeUndefined();
     expect(apply()?.disabled).toBe(true);
 
     request.mockClear();
@@ -2335,7 +2583,7 @@ describe('the Brand field', () => {
   it('lets Apply edit go with the brand once one of the images is removed', async () => {
     await editOverTheCap();
     await click(
-      document.querySelector('button[aria-label="Remove reference image 4"]')
+      stage()?.querySelector('button[aria-label="Remove reference image 4"]')
     );
 
     expect(counter('3 / 3')?.classList.contains('text-error')).toBe(false);
@@ -2405,7 +2653,7 @@ describe('the Brand field', () => {
 
     expect(counters()).toContain('1 / 4');
 
-    await click(button('Add image'));
+    await click(addImage(true));
 
     expect(picker[picker.length - 1].max).toBe(3);
   });
@@ -2447,7 +2695,7 @@ describe('the Brand field', () => {
 
     expect(counters()).toContain('1 / 3');
 
-    await click(button('Add image'));
+    await click(addImage(true));
 
     expect(picker[picker.length - 1].max).toBe(2);
 
@@ -2543,7 +2791,7 @@ describe('the Brand field', () => {
       refusedWith(status, body);
       await compose();
       await pick('Bayt Al Qahwa');
-      await type(field(), 'A Ramadan night menu post');
+      await type(promptField(), 'A Ramadan night menu post');
       await click(button('Generate'));
 
       expect(toast).toHaveBeenCalledTimes(1);
@@ -2576,7 +2824,7 @@ describe('the Brand field', () => {
   // them.
   it('opens Manage brands in a new tab and keeps the window as it was', async () => {
     await compose();
-    await type(field(), 'A Ramadan night menu post');
+    await type(promptField(), 'A Ramadan night menu post');
     await pick('Bayt Al Qahwa');
     await click(brandButton());
     const manage = document.querySelector('a[href="/brands"]');
@@ -2587,7 +2835,433 @@ describe('the Brand field', () => {
     await click(manage);
 
     expect(document.querySelector('[role="listbox"]')).toBeNull();
-    expect(field()?.value).toBe('A Ramadan night menu post');
+    expect(promptField()?.value).toBe('A Ramadan night menu post');
     expect(brandButton()?.textContent).toBe('Bayt Al Qahwa');
+  });
+});
+
+// Spec 061 (FR-001 to FR-003, FR-013, FR-016a; contracts/workspace-parts.md
+// §1, §5, §6; tasks D5, D6): the tool draws one frame wherever it is hosted.
+// On its Studio page the settings sit beside the stage; in a window they
+// stack under it, at a size that keeps the bar on the screen, and fold into
+// one row once there is a result. The bar holds the credits and the main
+// button, which never leaves it.
+describe('the workspace frame', () => {
+  it('opens the window as one stacked column, no taller than the screen', async () => {
+    await openWindow();
+
+    expect(opened[0]).toMatchObject({
+      size: 'min(640px, 100%)',
+      height: 'min(860px, calc(100dvh - 48px))',
+      top: 24,
+    });
+    // The stage first, then the settings, then the bar.
+    expect(stage()?.className.split(' ')).toContain(
+      'h-[clamp(240px,45dvh,440px)]'
+    );
+    expect(follows(promptField(), stage())).toBe(true);
+    expect(follows(bar(), promptField())).toBe(true);
+  });
+
+  it('sets the settings and the bar beside the stage on the page', async () => {
+    await openPage();
+    const panel = promptField()?.closest('.w-\\[360px\\]');
+
+    expect(panel).toBeTruthy();
+    expect(!!bar() && !!panel?.contains(bar()!)).toBe(true);
+    expect(!!stage() && !panel?.contains(stage()!)).toBe(true);
+  });
+
+  // The window's header held the pill until now (FR-003): one pill, in the
+  // bar, in every host.
+  it.each([
+    ['in the window', () => openWindow()],
+    ['on the page', () => openPage()],
+  ])(
+    'shows the credits left %s in the bar, and only there',
+    async (_host, open) => {
+      await open();
+      const pills = Array.from(document.querySelectorAll('div')).filter(
+        (node) => node.textContent === '0 credits left' && !node.children.length
+      );
+
+      expect(pills).toHaveLength(1);
+      expect(!!bar()?.contains(pills[0])).toBe(true);
+    }
+  );
+
+  // D6: Generate, Creating… while a render runs, then Generate again in the
+  // window, whose settings have folded; always the bar's large button.
+  it('keeps the main button in the bar at the large size on every step', async () => {
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+    const large = () =>
+      expect(mainButton()?.className.split(' ')).toEqual(
+        expect.arrayContaining(['h-[44px]', 'px-[20px]'])
+      );
+
+    await openWindow();
+
+    expect(mainButton()?.textContent?.trim()).toBe('Generate');
+    large();
+
+    await type(promptField(), 'a pomegranate on a table');
+    await click(mainButton());
+    await settle();
+
+    expect(mainButton()?.textContent?.trim()).toBe('Creating…');
+    expect(mainButton()?.getAttribute('aria-busy')).toBe('true');
+    large();
+
+    await act(async () => {
+      deliver(streamed(done));
+    });
+    await settle();
+
+    expect(mainButton()?.textContent?.trim()).toBe('Generate again');
+    expect(mainButton()?.getAttribute('aria-busy')).not.toBe('true');
+    large();
+  });
+
+  // FR-015, FR-016a: once there is a result the window folds its settings
+  // into one row that opens them, so the result and the bar share the window.
+  it("folds the window's settings into one Settings row after a result, and offers Generate again", async () => {
+    renders(done);
+    await openWindow();
+
+    expect(settingsRow()).toBeUndefined();
+
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+
+    expect(settingsRow()?.textContent).toContain(
+      'Prompt, brand, shape and style'
+    );
+    expect(settingsRow()?.getAttribute('aria-expanded')).toBe('false');
+    expect(promptField()?.closest('.hidden')).toBeTruthy();
+    expect(mainButton()?.textContent?.trim()).toBe('Generate again');
+
+    await click(settingsRow());
+
+    expect(settingsRow()?.getAttribute('aria-expanded')).toBe('true');
+    expect(promptField()?.closest('.hidden')).toBeNull();
+    expect(promptField().value).toBe('a pomegranate on a table');
+  });
+
+  // FR-013: on a plan without AI the page opens with its settings and stage
+  // to read, and the bar offers Upgrade beside what the tool costs (D5).
+  it('shows the cost and Upgrade in place of Generate on a locked page', async () => {
+    await openPage({ locked: true });
+    const upgrade = bar()?.querySelector('a[href="/billing"]');
+
+    expect(upgrade?.textContent).toBe('Upgrade');
+    expect(bar()?.textContent).toContain('Uses 1 image credit');
+    expect(button('Generate')).toBeUndefined();
+    expect(promptField()).toBeTruthy();
+    expect(stage()?.textContent).toContain('Your image appears here');
+  });
+
+  // FR-008, FR-016a: the settings never leave, so there is no step back to
+  // them, and the main button makes every version after the first.
+  it.each([
+    ['in the window', () => openWindow()],
+    ['on the page', () => openPage()],
+  ])(
+    'offers no Back to prompt and no Regenerate %s, before or after a result',
+    async (_host, open) => {
+      const labels = () =>
+        Array.from(document.querySelectorAll('button')).map(
+          (node) => node.textContent?.trim() ?? ''
+        );
+      renders(done);
+      await open();
+
+      expect(labels()).not.toContain('Back to prompt');
+      expect(labels().some((label) => label.startsWith('Regenerate'))).toBe(
+        false
+      );
+
+      await type(promptField(), 'a pomegranate on a table');
+      await click(button('Generate'));
+
+      expect(preview()).toBe('https://media/first.png');
+      expect(labels()).not.toContain('Back to prompt');
+      expect(labels().some((label) => label.startsWith('Regenerate'))).toBe(
+        false
+      );
+    }
+  );
+});
+
+// SC-003 (FR-008): a second version from a changed prompt is one press after
+// typing it, the first result on screen all the while; it was Back to prompt,
+// the edit, then Generate.
+describe('a second version from the settings', () => {
+  it('makes version 2 from a changed prompt in one press, the settings on screen throughout', async () => {
+    renders(done);
+    await generateOnPage();
+    const settings = promptField();
+    const removed: Node[] = [];
+    const collect = (records: MutationRecord[]) =>
+      records.forEach((record) =>
+        removed.push(...Array.from(record.removedNodes))
+      );
+    const observer = new window.MutationObserver(collect);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    await type(promptField(), 'a fig on a plate');
+
+    expect(preview()).toBe('https://media/first.png');
+
+    renders({
+      name: 'done',
+      media: { id: 'media-2', path: 'https://media/second.png' },
+    });
+    // The page's main button keeps its name: only a window's folds (D6).
+    await click(button('Generate'));
+    collect(observer.takeRecords());
+    observer.disconnect();
+
+    expect(
+      Array.from(
+        document.querySelectorAll(
+          '[role="group"][aria-label="Versions"] button'
+        )
+      ).map((node) => node.getAttribute('aria-pressed'))
+    ).toEqual(['false', 'true']);
+    expect(preview()).toBe('https://media/second.png');
+    expect(
+      JSON.parse(asked('/media/generate-image-with-prompt')[1][1].body).prompt
+    ).toBe('a fig on a plate');
+    expect(promptField()).toBe(settings);
+    expect(
+      removed.some((node) => node === settings || node.contains(settings))
+    ).toBe(false);
+  });
+});
+
+// Spec 061 (FR-005, FR-006, FR-007; contracts/workspace-parts.md §3; tasks
+// D3): the stage shows, in turn, the tool's sample and its example prompts,
+// the style catalogue while All styles is open, the progress in the chosen
+// shape, and the result with its edit bar, the settings staying put beside or
+// above it.
+describe('the stage', () => {
+  it.each([
+    ['on the page', () => openPage()],
+    ['in the window', () => openWindow()],
+  ])(
+    'shows the sample %s before anything is made: the cover marked Sample, what appears and what to do',
+    async (_host, open) => {
+      await open();
+
+      expect(AI_IMAGE_COVER).toBe('/studio/covers/ai-image.webp');
+      expect(stage()?.querySelector('img')?.getAttribute('src')).toBe(
+        AI_IMAGE_COVER
+      );
+      expect(stage()?.textContent).toContain('Sample');
+      expect(stage()?.textContent).toContain('Your image appears here');
+      expect(stage()?.textContent).toContain(
+        'Describe it, pick a shape and a style, then press Generate.'
+      );
+    }
+  );
+
+  it('fills the Prompt from an example and sends nothing', async () => {
+    await openPage();
+    const examples = Array.from(stage()?.querySelectorAll('button') ?? []);
+
+    expect(examples.map((node) => node.textContent)).toEqual([
+      'Iced lemonade on a sunny terrace',
+      'Coffee on a marble table, morning light',
+      'Ramadan sweets from above',
+    ]);
+
+    await click(examples[1]);
+
+    expect(promptField().value).toBe('Coffee on a marble table, morning light');
+    expect(request).not.toHaveBeenCalled();
+    expect(stage()?.textContent).toContain('Your image appears here');
+  });
+
+  // FR-005: All styles opens on the stage, the settings and Generate beside
+  // it, and a style picked there joins the settings' row as it does today.
+  it('opens All styles on the stage, the settings and Generate still beside it', async () => {
+    const deep = IMAGE_STYLES.find(
+      (entry) =>
+        !IMAGE_POPULAR_STYLES.some((popular) => popular.id === entry.id)
+    )!;
+    await openPage();
+    await type(promptField(), 'a pomegranate on a table');
+
+    await click(button('All styles'));
+
+    expect(
+      stage()?.querySelector('input[placeholder="Search styles"]')
+    ).toBeTruthy();
+    expect(promptField().value).toBe('a pomegranate on a table');
+    expect(!!button('✦Auto') && !inStage(button('✦Auto')!)).toBe(true);
+    expect(mainButton()?.textContent?.trim()).toBe('Generate');
+
+    await click(
+      Array.from(stage()?.querySelectorAll('button') ?? []).find(
+        (node) => node.textContent?.trim() === deep.label
+      )
+    );
+
+    expect(
+      stage()?.querySelector('input[placeholder="Search styles"]')
+    ).toBeNull();
+    expect(!!button(deep.label) && !inStage(button(deep.label)!)).toBe(true);
+  });
+
+  // FR-006: the wait draws the shape the settings chose, with today's words;
+  // the note under it is each host's (the note describes, above).
+  it('shows the progress in the chosen shape while the image is made', async () => {
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise(() => undefined)
+    );
+    await openWindow();
+    await type(promptField(), 'a pomegranate on a table');
+    await click(buttonStarting('Portrait'));
+
+    await click(button('Generate'));
+    await settle();
+    const placeholder = stage()?.querySelector<HTMLElement>(
+      '.motion-safe\\:animate-pulse'
+    );
+
+    expect(parseFloat(placeholder?.style.aspectRatio ?? '')).toBeCloseTo(
+      4 / 5,
+      5
+    );
+    expect(stage()?.textContent).toContain('Creating your image…');
+    expect(stage()?.textContent).toContain('Usually takes about half a minute');
+    expect(promptField().value).toBe('a pomegranate on a table');
+  });
+
+  // FR-007: the result where the wait drew it, saved, and the edit bar under
+  // it with its cost on Apply edit.
+  it('shows the result saved to the Media library, with the edit bar and its cost under it', async () => {
+    renders(done);
+    await generate();
+    const result = document.querySelector(
+      'a[aria-label="Open the image full size"]'
+    );
+
+    expect(!!result && inStage(result)).toBe(true);
+    expect(stage()?.textContent).toContain('Saved to your Media library');
+    expect(follows(editField(), result)).toBe(true);
+    expect(!!apply() && inStage(apply()!)).toBe(true);
+    expect(apply()?.textContent).toContain('1 credit');
+  });
+});
+
+// Spec 061 (FR-021a; tasks D13): the composer's guard is the post's. A window
+// working for the composer's post takes it from the request until the image
+// is used or given up, as today; the Studio page, a reference row and Samy's
+// AI Image work for no post being composed and never take it, so the
+// composer Create a post opens is free to use.
+describe("the composer's lock", () => {
+  /** Lets the credit check through and holds the render until it lands. */
+  const holdRender = () => {
+    let deliver: (response: unknown) => void = () => undefined;
+    request.mockImplementation((url: string) =>
+      url.endsWith('/allowed')
+        ? Promise.resolve(answer(200, true))
+        : new Promise((resolve) => {
+            deliver = resolve;
+          })
+    );
+    return async () => {
+      await act(async () => {
+        deliver(streamed(done));
+      });
+      await settle();
+    };
+  };
+
+  it('is never taken on the Studio page, before, during or after a result', async () => {
+    const land = holdRender();
+    await openPage();
+
+    expect(setLocked).not.toHaveBeenCalled();
+
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+    await settle();
+
+    expect(setLocked).not.toHaveBeenCalled();
+
+    await land();
+
+    expect(preview()).toBe('https://media/first.png');
+    expect(setLocked).not.toHaveBeenCalled();
+
+    leave();
+
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('is never taken by a window that fills a reference row', async () => {
+    renders(done);
+    await generate('reference');
+
+    expect(preview()).toBe('https://media/first.png');
+
+    await click(button('Use image'));
+
+    expect(setLocked).not.toHaveBeenCalled();
+  });
+
+  it('is taken from the request by a window for the post, and given back when the image is used', async () => {
+    const land = holdRender();
+    await generate();
+    await settle();
+
+    expect(setLocked).toHaveBeenCalledTimes(1);
+    expect(setLocked).toHaveBeenCalledWith(true);
+
+    await land();
+    await click(button('Use image'));
+
+    expect(setLocked).toHaveBeenLastCalledWith(false);
+  });
+
+  it('is given back when a window for the post closes with nothing in flight', async () => {
+    renders(done);
+    await generate();
+
+    expect(setLocked).toHaveBeenLastCalledWith(true);
+
+    act(() => {
+      closeEveryModal?.();
+    });
+
+    expect(setLocked).toHaveBeenLastCalledWith(false);
+  });
+
+  // Samy's AI Image is for a post no composer holds (tasks D13).
+  it('is never taken by an AI Image told not to lock the composer, as Samy opens it', async () => {
+    renders(done);
+    await mount(
+      <AiImage value="" onChange={jest.fn()} locksComposer={false} />
+    );
+    await click(document.querySelector('.bg-aiSoft'));
+    await type(promptField(), 'a pomegranate on a table');
+    await click(button('Generate'));
+
+    expect(preview()).toBe('https://media/first.png');
+
+    await click(button('Use image'));
+
+    expect(setLocked).not.toHaveBeenCalled();
   });
 });
