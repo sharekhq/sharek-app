@@ -95,7 +95,9 @@ export const ComposerStage: FC<{
             }
             const on = stage.active === kind;
             // The tab and its close side by side in one option's look: a
-            // button can't hold another.
+            // button can't hold another. A tablist owns only tabs (WAI-ARIA's
+            // deletable tabs): Delete closes the tab in focus, which moves to
+            // Post preview, then selected; the × is the pointer's alone.
             return (
               <div
                 key={kind}
@@ -111,8 +113,15 @@ export const ComposerStage: FC<{
                   aria-controls={panelId(kind)}
                   aria-selected={on}
                   aria-busy={tab.busy}
+                  aria-keyshortcuts="Delete"
                   tabIndex={on ? 0 : -1}
                   onClick={() => stage.select(kind)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Delete') {
+                      stage.close(kind);
+                      document.getElementById(tabId('preview'))?.focus();
+                    }
+                  }}
                   className={clsx(SWITCH_OPTION, 'min-w-0 gap-[6px] pe-[4px]')}
                 >
                   {tab.busy ? (
@@ -129,6 +138,8 @@ export const ComposerStage: FC<{
                 </button>
                 <button
                   type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
                   onClick={() => stage.close(kind)}
                   aria-label={t('workspace_close_tab', 'Close {{name}}', {
                     name: names[kind],
