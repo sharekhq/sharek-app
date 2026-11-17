@@ -402,8 +402,9 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
         } else {
           // Closed mid-render, or its tab behind another. It is paid for, and
           // the post or the reference row was promised an image — attaching
-          // it is closer to that than nothing. The Media library already holds it, so handing it on
-          // there would only announce an older image as new.
+          // it is closer to that than nothing. The Media library already holds
+          // it, so handing it on there would only announce an older image as
+          // new.
           if (destination !== 'media') {
             onChange(held.media);
           }
