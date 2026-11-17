@@ -989,17 +989,9 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
-  /** Whether a render locks the composer; by default, one for its post. */
-  locksComposer?: boolean;
 }> = (props) => {
   const t = useT();
-  const {
-    onChange,
-    renderTrigger,
-    only,
-    destination = 'post',
-    locksComposer,
-  } = props;
+  const { onChange, renderTrigger, only, destination = 'post' } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -1035,11 +1027,10 @@ export const AiVideo: FC<{
           onChange={onChange}
           onAccept={close}
           setLoading={setLoading}
-          locksComposer={locksComposer}
         />
       ),
     });
-  }, [loading, list, onChange, only, destination, locksComposer]);
+  }, [loading, list, onChange, only, destination]);
 
   if (isLoading || list?.length === 0) {
     return null;
