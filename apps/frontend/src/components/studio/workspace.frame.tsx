@@ -139,14 +139,16 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   // padding to both edges and its foot. From 1025px down the window scrolls
   // and the page card clips, so a sticky bar would never pin: the bar is
   // fixed to the foot of the screen, under the menu drawer's scrim and every
-  // popup, clear of the home indicator, as the composer's tool bar is.
+  // popup, clear of the home indicator, as the composer's tool bar is. In a
+  // window it sticks inside the scroller's padding, so it sticks 4px lower
+  // and covers the ring room there, where scrolled content would show.
   const bar = (
     <div
       className={clsx(
         'py-[16px] border-t border-line bg-surface flex flex-wrap items-center gap-[10px]',
         page
           ? '-mx-[20px] -mb-[20px] px-[20px] mobile:m-0 mobile:px-[16px] mobile:pb-[calc(16px+env(safe-area-inset-bottom))] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[90]'
-          : 'sticky bottom-0'
+          : 'sticky -bottom-[4px]'
       )}
     >
       {credits}
