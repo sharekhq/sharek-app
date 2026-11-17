@@ -45,7 +45,7 @@ describe('AI image window locale keys', () => {
     'please_describe_the_change',
     'editing_your_image',
     'image_edit_pill',
-    'back_to_prompt',
+    // back_to_prompt went with the result step; the prompt stays on screen (spec 061).
     'image_edit_missing',
     'image_versions',
     'image_version_n',

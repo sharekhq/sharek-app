@@ -28,8 +28,7 @@ const KEYS = [
   'close_window_video_note',
   'use_video',
   'edit_script',
-  'edit_prompt',
-  'regenerate',
+  // edit_prompt and regenerate went with the result step; the settings stay beside it (spec 061).
   'one_credit',
   // Action bar cost statements (T029)
   'video_nothing_charged_yet',

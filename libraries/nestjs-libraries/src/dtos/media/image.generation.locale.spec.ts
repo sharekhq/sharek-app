@@ -42,9 +42,8 @@ const KEYS = [
   'use_image',
   'open_image_full_size',
   'image_uses_one_credit',
-  'regenerate',
+  // regenerate and edit_prompt went with the result step; the settings stay beside it (spec 061).
   'one_credit',
-  'edit_prompt',
   'auto_style',
   // Style catalog UI (T019)
   'all_styles',
