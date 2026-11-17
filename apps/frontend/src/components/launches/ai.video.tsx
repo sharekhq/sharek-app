@@ -1,4 +1,4 @@
-import { Button, buttonClassName } from '@gitroom/react/form/button';
+import { buttonClassName } from '@gitroom/react/form/button';
 import React, {
   FC,
   Fragment,
@@ -46,6 +46,8 @@ import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   CreditsPill,
+  GenerateButton,
+  StageActions,
   StageProgress,
   StageResult,
   StageSample,
@@ -54,7 +56,6 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
-import { PlusIcon } from '@gitroom/frontend/components/ui/icons';
 
 export type Media = { id: string; path: string };
 
@@ -736,41 +737,19 @@ export const AiVideoTool: FC<
         alt={videoTypeLabel(t, type)}
         caption={orientationSummary(shown.output)}
         actions={
-          <>
-            {/* Only a workflow has an earlier screen to go back to. */}
-            {!!handshake?.backLabel && (
-              <Button variant="secondary" size="large" onClick={backFromResult}>
-                {handshake.backLabel}
-              </Button>
-            )}
-            {/* A new tab when the browser ignores `download` for a file on
-                another origin, so the page and its versions stay. */}
-            <a
-              href={shown.media.path}
-              download
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClassName({
-                variant: 'secondary',
-                size: 'large',
-              })}
-            >
-              {t('workspace_download', 'Download')}
-            </a>
-            {/* Nothing to attach it to in Studio: the post is made from it. */}
-            {destination === 'media' ? (
-              !!onCreatePost && (
-                <Button size="large" onClick={() => onCreatePost(shown.media)}>
-                  <PlusIcon />
-                  {t('studio_create_post', 'Create a post')}
-                </Button>
-              )
-            ) : (
-              <Button size="large" onClick={useVideoInPost}>
-                {t('use_video', 'Use video')}
-              </Button>
-            )}
-          </>
+          <StageActions
+            media={shown.media}
+            kind="video"
+            destination={destination}
+            onAccept={onAccept && useVideoInPost}
+            onCreatePost={onCreatePost}
+            // Only a workflow has an earlier screen to go back to.
+            back={
+              handshake?.backLabel
+                ? { label: handshake.backLabel, onClick: backFromResult }
+                : undefined
+            }
+          />
         }
         versions={
           <VersionsStrip
@@ -826,25 +805,17 @@ export const AiVideoTool: FC<
       <>
         <CostNote>{t('video_uses_one_credit', 'Uses 1 video credit')}</CostNote>
         <div className="flex-1" />
-        {phase === 'rendering' ? (
-          // One render at a time: the button says so, and a press starts
-          // nothing.
-          <Button size="large" aria-busy="true">
-            {t('workspace_working', 'Creating…')}
-          </Button>
-        ) : phase === 'result' ? (
-          // The same render again, through the handshake, as one more
-          // version (FR-008).
-          <Button size="large" onClick={() => handshake?.regenerate()}>
-            {layout === 'stacked'
-              ? t('workspace_generate_again', 'Generate again')
-              : t('generate', 'Generate')}
-          </Button>
-        ) : (
-          <Button type="submit" size="large">
-            {t('generate', 'Generate')}
-          </Button>
-        )}
+        <GenerateButton
+          working={phase === 'rendering'}
+          again={layout === 'stacked' && folded}
+          // The form's submit in setup. On a result, the same render again,
+          // through the handshake, as one more version (FR-008). While one
+          // runs, a press starts nothing.
+          type={phase === 'setup' ? 'submit' : undefined}
+          onClick={
+            phase === 'result' ? () => handshake?.regenerate() : undefined
+          }
+        />
       </>
     );
 
