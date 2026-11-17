@@ -89,7 +89,7 @@ type HangingPanel = ReturnType<typeof useHangingPanel>;
 // do. The list hanging in the body comes after the rest of the page, so Tab
 // and Shift+Tab in it close it as a menu does, `close` giving the focus back
 // to the button; the sheet keeps its own Tab.
-const onMenuKeyDown = (
+export const onMenuKeyDown = (
   e: KeyboardEvent<HTMLDivElement>,
   { panelRef, show }: HangingPanel,
   close: () => void

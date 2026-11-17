@@ -20,8 +20,10 @@ import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-
 import { ChevronDownIcon } from '@gitroom/frontend/components/ui/icons';
 import {
   onListKeyDown,
+  onMenuKeyDown,
   Option,
 } from '@gitroom/frontend/components/brands/brand.menu';
+import { GROUP_LABEL } from '@gitroom/frontend/components/ui/split.panel';
 import {
   filterStudio,
   StudioCatalog,
@@ -81,10 +83,7 @@ const ToolGroup: FC<{ title: string; children: ReactNode }> = ({
   children,
 }) => (
   <div role="group" aria-label={title} className="flex flex-col">
-    <div
-      aria-hidden="true"
-      className="px-[10px] pt-[8px] pb-[6px] text-[12px] font-[600] text-muted"
-    >
+    <div aria-hidden="true" className={GROUP_LABEL}>
       {title}
     </div>
     {children}
@@ -256,7 +255,7 @@ export const ToolSwitcher: FC<{
   const t = useT();
   const router = useRouter();
   const hanging = useHangingPanel();
-  const { ref, panelRef, show, setShow, below } = hanging;
+  const { ref, show, setShow, below } = hanging;
   const button = useRef<HTMLButtonElement>(null);
   const open = !!show;
   const name = current.entry.name(t);
@@ -273,19 +272,12 @@ export const ToolSwitcher: FC<{
     }
   };
 
-  const keys = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (
-      show &&
-      (e.key === 'Escape' ||
-        (e.key === 'Tab' && panelRef.current?.contains(e.target as Node)))
-    ) {
-      e.preventDefault();
-      close();
-    }
-  };
-
   return (
-    <div ref={ref} onKeyDown={keys} className="flex min-w-0 ms-[12px]">
+    <div
+      ref={ref}
+      onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
+      className="flex min-w-0 ms-[12px]"
+    >
       <button
         ref={button}
         type="button"
