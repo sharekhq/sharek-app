@@ -587,6 +587,128 @@ describe('a result', () => {
   });
 });
 
+// The editor tells the tabs when it deletes a post or moves one a step: a
+// place on that channel follows its post, landing through the store, since
+// the row at its old index now shows another post; a deleted post's places
+// go, its result then only in the Media library (research R1, review C7).
+describe('a post deleted or moved while its result is made', () => {
+  const thread = () =>
+    useLaunchStore.setState({
+      global: ['p0', 'p1', 'p2'].map((id) => ({
+        id,
+        content: '',
+        delay: 0,
+        media: [],
+      })),
+    });
+  const posted = () =>
+    useLaunchStore.getState().global.map((post) => post.media.map((m) => m.id));
+
+  it('follows its post to the index before when an earlier post is deleted, and lands there through the store, not the old row’s handler', async () => {
+    const handler = jest.fn();
+    thread();
+    await render();
+    await open('image', () => handler, 2);
+    await loading(mockTools.props.image, true);
+    await act(async () => {
+      tabs!.postRemoved('global', 0);
+      useLaunchStore.getState().deleteGlobalValue(0);
+    });
+
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([
+      { channel: 'global', index: 1 },
+    ]);
+
+    await lands(mockTools.props.image);
+    expect(posted()).toEqual([[], ['m-1']]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('lands in no post, its placeholder and lock gone, when its post is deleted', async () => {
+    const handler = jest.fn();
+    thread();
+    await render();
+    await open('image', () => handler, 1);
+    await loading(mockTools.props.image, true);
+    await open('video', () => handler, 1);
+    await act(async () => {
+      tabs!.postRemoved('global', 1);
+      useLaunchStore.getState().deleteGlobalValue(1);
+    });
+
+    expect(tabs!.pending).toEqual([]);
+    expect(useLaunchStore.getState().locked).toBe(false);
+
+    await loading(mockTools.props.video, true);
+    expect(tabs!.pending).toEqual([]);
+
+    await lands(mockTools.props.image);
+    await lands(mockTools.props.video);
+    expect(posted()).toEqual([[], []]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('follows its post when it is moved a step, and so does the post it swaps with', async () => {
+    thread();
+    await render();
+    await open('video', () => undefined, 0);
+    await open('image', () => undefined, 1);
+    await loading(mockTools.props.image, true);
+    await act(async () => {
+      tabs!.postMoved('global', 1, 'up');
+      useLaunchStore.getState().changeOrderGlobal(1, 'up');
+    });
+    await loading(mockTools.props.video, true);
+
+    expect(
+      tabs!.pending.map((entry) => [entry.kind, entry.place.index])
+    ).toEqual([
+      ['image', 0],
+      ['video', 1],
+    ]);
+
+    await lands(mockTools.props.image);
+    expect(posted()).toEqual([['m-1'], [], []]);
+  });
+
+  it('from a tab closed while busy follows its post too', async () => {
+    const handler = jest.fn();
+    thread();
+    await render();
+    await open('image', () => handler, 2);
+    const tool = mockTools.props.image;
+    await loading(tool, true);
+    await click(buttonNamed(`Close ${IMAGE}`, strip())!);
+    await act(async () => {
+      tabs!.postRemoved('global', 0);
+      useLaunchStore.getState().deleteGlobalValue(0);
+    });
+    await lands(tool);
+
+    expect(posted()).toEqual([[], ['m-1']]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('keeps its place and its row’s handler when a later post, or another channel’s, is deleted or moved', async () => {
+    const handler = jest.fn();
+    composing('int-1');
+    await render();
+    await open('image', () => handler, 1);
+    await loading(mockTools.props.image, true);
+    await act(async () => {
+      tabs!.postRemoved('int-1', 2);
+      tabs!.postMoved('int-1', 2, 'down');
+      tabs!.postRemoved('global', 0);
+      tabs!.postMoved('global', 1, 'down');
+    });
+
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([second]);
+
+    await lands(mockTools.props.image);
+    expect(handler).toHaveBeenCalledWith(media);
+  });
+});
+
 // Each AI panel hosts its tool in the stacked layout, for the post; Post
 // preview is the scroll box around the fitted preview, which takes the
 // composer's ref.
