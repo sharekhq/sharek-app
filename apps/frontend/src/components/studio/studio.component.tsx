@@ -1,14 +1,13 @@
 'use client';
 
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { Button } from '@gitroom/react/form/button';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
-import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import Loading from '@gitroom/frontend/components/layout/loading';
@@ -16,10 +15,7 @@ import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.m
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 import { PlayBadge } from '@gitroom/frontend/components/agents/agent.attachments';
-import {
-  Media,
-  useAiVideoTypes,
-} from '@gitroom/frontend/components/launches/ai.video';
+import { Media } from '@gitroom/frontend/components/launches/ai.video';
 import {
   onRadioGroupKeyDown,
   SearchField,
@@ -40,11 +36,11 @@ import {
   PlusIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import {
-  buildStudioCatalog,
   filterStudio,
-  STUDIO_TOOLS,
   StudioChip,
   StudioTool,
+  studioToolHref,
+  useStudioCatalog,
 } from '@gitroom/frontend/components/studio/studio.tools';
 
 const StudioEmptyIllustration = () => (
@@ -102,6 +98,45 @@ const useGoToBilling = () => {
 };
 
 /**
+ * Opens the post editor the way Samy's manualPosting does, with the media
+ * already attached; `onDone` runs once that post is saved. Undefined while
+ * there is no channel: the editor renders nothing without one, and it opens
+ * with no close button, so the offer waits for one.
+ */
+export const useCreatePost = ():
+  | ((media: Media, onDone?: () => void) => void)
+  | undefined => {
+  const modals = useModals();
+  const { data: integrations } = useIntegrationList();
+  const createPost = useCallback(
+    (media: Media, onDone?: () => void) => {
+      modals.openModal({
+        id: 'add-edit-modal',
+        closeOnClickOutside: false,
+        removeLayout: true,
+        closeOnEscape: false,
+        withCloseButton: false,
+        askClose: true,
+        fullScreen: true,
+        children: (
+          <AddEditModal
+            allIntegrations={integrations}
+            integrations={integrations}
+            date={newDayjs()}
+            onlyValues={[{ content: '', id: makeId(10), image: [media] }]}
+            reopenModal={() => {}}
+            mutate={() => onDone?.()}
+          />
+        ),
+        size: '80%',
+      });
+    },
+    [integrations, modals]
+  );
+  return integrations?.length ? createPost : undefined;
+};
+
+/**
  * A listing's sample picture in a 16:9 frame, then its text: a tool's name
  * and description, with no category line, as the chip above names it; a
  * model's name, maker, description and facts. On a phone, a row with the
@@ -124,17 +159,14 @@ const StudioCard: FC<{
   const [coverFailed, setCoverFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const facts = entry.facts?.(t);
+  const href = studioToolHref(entry);
 
-  const card = (open: () => void, loading: boolean) => (
-    <button
-      type="button"
-      onClick={open}
-      aria-busy={loading || undefined}
-      className={clsx(
-        'flex flex-col phone:flex-row text-start bg-surface border border-line rounded-[12px] overflow-hidden transition-all focus-visible:ring-2 focus-visible:ring-brand',
-        !locked && 'hover:shadow-card motion-safe:hover:-translate-y-[2px]'
-      )}
-    >
+  const className = clsx(
+    'flex flex-col phone:flex-row text-start bg-surface border border-line rounded-[12px] overflow-hidden transition-all focus-visible:ring-2 focus-visible:ring-brand',
+    !locked && 'hover:shadow-card motion-safe:hover:-translate-y-[2px]'
+  );
+  const body = (loading: boolean) => (
+    <>
       <span className="relative block shrink-0 aspect-video overflow-hidden bg-surface2 phone:w-[128px] phone:aspect-auto phone:min-h-[100px]">
         {entry.cover && !coverFailed ? (
           <img
@@ -222,11 +254,30 @@ const StudioCard: FC<{
           </span>
         )}
       </span>
+    </>
+  );
+  const card = (open: () => void, loading: boolean) => (
+    <button
+      type="button"
+      onClick={open}
+      aria-busy={loading || undefined}
+      className={className}
+    >
+      {body(loading)}
     </button>
   );
 
-  // A locked tool is never mounted behind its card: the card leads to billing
-  // instead, so there is nothing here that could open (FR-005).
+  // A page tool's card is a link to its page, locked or not: the page itself
+  // offers Upgrade (FR-013). A locked window tool is never mounted behind its
+  // card: the card leads to billing instead, so there is nothing here that
+  // could open (FR-005).
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {body(false)}
+      </Link>
+    );
+  }
   return locked ? (
     card(goToBilling, false)
   ) : (
@@ -281,29 +332,15 @@ const NoMatchIllustration = () => (
 
 export const StudioComponent: FC = () => {
   const t = useT();
-  const user = useUser();
   const goToBilling = useGoToBilling();
-  const { billingEnabled, showImageEditor } = useVariables();
-  const modals = useModals();
   const toaster = useToaster();
-  const { data: videoOptions } = useAiVideoTypes();
-  const { data: integrations } = useIntegrationList();
+  const createPost = useCreatePost();
+  const { catalog } = useStudioCatalog();
   const [lastSaved, setLastSaved] = useState<Media | null>(null);
   const [chip, setChip] = useState<StudioChip['id']>('all');
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const catalog = useMemo(
-    () =>
-      buildStudioCatalog({
-        tools: STUDIO_TOOLS,
-        videoOptions,
-        user,
-        billingEnabled,
-        showImageEditor,
-      }),
-    [videoOptions, user, billingEnabled, showImageEditor]
-  );
   const sections = useMemo(
     () => filterStudio(catalog, chip, query, t),
     [catalog, chip, query, t]
@@ -330,34 +367,6 @@ export const StudioComponent: FC = () => {
     },
     [t, toaster]
   );
-
-  // Opens the editor the way Samy's manualPosting does, with the result
-  // already attached.
-  const createPost = useCallback(() => {
-    if (!lastSaved) {
-      return;
-    }
-    modals.openModal({
-      id: 'add-edit-modal',
-      closeOnClickOutside: false,
-      removeLayout: true,
-      closeOnEscape: false,
-      withCloseButton: false,
-      askClose: true,
-      fullScreen: true,
-      children: (
-        <AddEditModal
-          allIntegrations={integrations}
-          integrations={integrations}
-          date={newDayjs()}
-          onlyValues={[{ content: '', id: makeId(10), image: [lastSaved] }]}
-          reopenModal={() => {}}
-          mutate={() => setLastSaved(null)}
-        />
-      ),
-      size: '80%',
-    });
-  }, [integrations, lastSaved, modals]);
 
   if (catalog.empty) {
     return (
@@ -407,10 +416,11 @@ export const StudioComponent: FC = () => {
           <span className="flex-1 min-w-[200px] text-[15px] font-[600] text-ink">
             {t('studio_saved_to_media', 'Saved to your Media library')}
           </span>
-          {/* The editor renders nothing without a channel, and it opens with
-              no close button — so the offer waits for one. */}
-          {!!integrations?.length && (
-            <Button variant="secondary" onClick={createPost}>
+          {createPost && (
+            <Button
+              variant="secondary"
+              onClick={() => createPost(lastSaved, () => setLastSaved(null))}
+            >
               <PlusIcon />
               {t('studio_create_post', 'Create a post')}
             </Button>
