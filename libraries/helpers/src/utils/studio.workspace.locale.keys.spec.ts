@@ -2,9 +2,8 @@
 // its stage and the top bar's tool switcher, the way studio.locale.keys.spec.ts guards the Studio
 // page, and the composer's tab strip with its AI tabs. Like Studio's, these keys live in en and ar
 // only, so only those two are read. The new words are plan.md § i18n's "Part 2 (new)" and
-// "Part 3 (new)" tables, word for word; the keys the windows' result steps read and the
-// composer's video window note are gone from both, and the window notes that still have a window
-// stay.
+// "Part 3 (new)" tables, word for word; the keys the windows' result steps read are gone from
+// both, and the window notes that still have a window stay.
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -172,19 +171,23 @@ const REWORDED = [
 
 // What the windows' result steps read: the AI image window's Back to prompt, Regenerate and
 // Edit prompt, which the page's settings beside the result replace, and the image's
-// close-the-window note for Studio, which always has a page now. From part 3, the composer's
-// video window note: no video window for the post remains, its tab says its own.
+// close-the-window note for Studio, which always has a page now.
 const REMOVED = [
   'back_to_prompt',
   'regenerate',
   'edit_prompt',
   'close_window_note_media',
-  'close_window_video_note',
 ];
 
-// Image Text Slides' Edit script after a video (tasks.md D7), and the video window note for
-// Studio: a provider with no page still opens a window (D8).
-const KEPT = ['edit_script', 'close_window_video_note_media'];
+// Image Text Slides' Edit script after a video (tasks.md D7), and the video window notes: a
+// provider with no page still opens a window for Studio (D8), and a row that is not a post's (a
+// channel's settings) still opens the video window for the post outside a composer tab (part 3,
+// review C4).
+const KEPT = [
+  'edit_script',
+  'close_window_video_note_media',
+  'close_window_video_note',
+];
 
 const placeholders = (value: string) =>
   Array.from(value.matchAll(/{{\s*(\w+)\s*}}/g), (m) => m[1]).sort();
@@ -293,5 +296,9 @@ describe('the words that stay', () => {
     expect(typeof ar[key]).toBe('string');
     expect(ar[key].length).toBeGreaterThan(0);
     expect(ar[key]).not.toBe(en[key]);
+  });
+
+  it.each(KEPT)('%s is read by a t() call in the app', (key) => {
+    expect(APP_READS).toContain(key);
   });
 });

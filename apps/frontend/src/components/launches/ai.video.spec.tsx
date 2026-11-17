@@ -47,6 +47,7 @@ const mockOpenTool = jest.fn(
   }
 );
 jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
+  useComposerTabs: () => mockTabs,
   useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
     mockOpenTool(...args),
 }));
@@ -693,13 +694,15 @@ describe('the note under the waiting screen', () => {
     rendersForever();
   });
 
-  // A video for the post is made in a composer tab only (spec 061 part 3).
+  // A window for the post outside a composer tab, as a channel's settings row
+  // opens: it can be closed (`close_window_video_note`, review C4).
   it('promises the post by default', async () => {
     await generate();
 
     expect(document.body.textContent).toContain(
-      "The video is added to your post when it's ready."
+      "You can close this window — the video will be added to your post when it's ready."
     );
+    expect(document.body.textContent).not.toContain('Keep writing');
   });
 
   it('promises the Media library when nothing is being composed', async () => {
