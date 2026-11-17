@@ -34,7 +34,7 @@ const mockOpenTool = jest.fn(
   (
     _kind: string,
     _onChange: unknown,
-    _place: number,
+    _place: number | undefined,
     _destination: MediaDestination,
     openWindow: () => void
   ) => {
@@ -3355,8 +3355,9 @@ describe('the stage', () => {
 // Spec 061 part 3 (FR-021, FR-027; tasks D10): in the composer, AI Image opens
 // its tab beside the post, never a window, for the post its button is under.
 // The button hands the composer's opener its kind, its row's handler, the
-// post's index and where the image goes; Samy and a reference row keep the
-// window (composer.stage.spec.tsx).
+// post's index (none for a row under no post) and where the image goes; Samy,
+// a reference row and a row under no post keep the window
+// (composer.stage.spec.tsx).
 describe('in the composer', () => {
   const aiButton = () => document.querySelector('.bg-aiSoft');
 
@@ -3371,7 +3372,7 @@ describe('in the composer', () => {
 
   it('opens the AI image tab for the post, never a window', async () => {
     const onChange = jest.fn();
-    await row(onChange);
+    await row(onChange, { place: 0 });
     await click(aiButton());
 
     expect(mockOpenTool).toHaveBeenLastCalledWith(
@@ -3406,8 +3407,23 @@ describe('in the composer', () => {
     expect(mockOpenTool).toHaveBeenLastCalledWith(
       'image',
       onChange,
-      0,
+      undefined,
       'reference',
+      expect.any(Function)
+    );
+  });
+
+  // A row under no post, a channel's settings say, hands no index, so the
+  // opener keeps the window (review C1).
+  it('hands the opener no place for a row under no post', async () => {
+    const onChange = jest.fn();
+    await row(onChange);
+
+    expect(mockOpenTool).toHaveBeenLastCalledWith(
+      'image',
+      onChange,
+      undefined,
+      'post',
       expect.any(Function)
     );
   });
