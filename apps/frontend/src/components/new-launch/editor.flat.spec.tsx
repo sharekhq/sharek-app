@@ -63,8 +63,13 @@ const mockDialog = { confirmed: false };
 jest.mock('@gitroom/react/helpers/delete.dialog', () => ({
   deleteDialog: async () => mockDialog.confirmed,
 }));
-// The composer's tabs, which the editor tells when it deletes or moves a post.
-const mockTabs = { postRemoved: jest.fn(), postMoved: jest.fn() };
+// The composer's tabs, which the editor tells when it adds, deletes or moves
+// a post.
+const mockTabs = {
+  postAdded: jest.fn(),
+  postRemoved: jest.fn(),
+  postMoved: jest.fn(),
+};
 jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
   useComposerTabs: () => mockTabs,
 }));
@@ -120,6 +125,7 @@ beforeAll(() => {
 beforeEach(() => {
   mobile = true;
   mockDialog.confirmed = false;
+  mockTabs.postAdded.mockClear();
   mockTabs.postRemoved.mockClear();
   mockTabs.postMoved.mockClear();
   viewport = new VisualViewport();
@@ -371,7 +377,7 @@ describe('a post with comments', () => {
   });
 
   // They remember a post by its index, so they follow it when the writer
-  // deletes a post or moves one a step (spec 061, review C7).
+  // adds or deletes a post or moves one a step (spec 061, review C7).
   const deletes = (host: HTMLElement) =>
     Array.from(
       host.querySelectorAll<HTMLElement>('button[aria-label="Delete Post"]')
@@ -430,6 +436,33 @@ describe('a post with comments', () => {
     await press(down);
 
     expect(mockTabs.postMoved).toHaveBeenCalledWith('global', 0, 'down');
+  });
+
+  it('tells them after which post it adds one, mid-thread on a phone', async () => {
+    const { host } = await thread();
+    // where Add comment scrolls to, 20ms after the click
+    const content = document.createElement('div');
+    content.id = 'social-content';
+    document.body.appendChild(content);
+    // the writer goes to the first post, whose pinned bar then holds it
+    const firstText = host.querySelectorAll('.ProseMirror')[0].parentElement!;
+    await act(async () => {
+      firstText.dispatchEvent(
+        new (window as unknown as { FocusEvent: typeof FocusEvent }).FocusEvent(
+          'focusin',
+          { bubbles: true }
+        )
+      );
+    });
+    const add = Array.from(
+      tools(host)[0].querySelectorAll<HTMLElement>('button')
+    ).find((button) => button.textContent?.includes('Add comment or post'))!;
+    await press(add);
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 30));
+    });
+
+    expect(mockTabs.postAdded).toHaveBeenCalledWith('global', 0);
   });
 
   it('moves the bar to the post the writer goes to', async () => {

@@ -587,10 +587,11 @@ describe('a result', () => {
   });
 });
 
-// The editor tells the tabs when it deletes a post or moves one a step: a
-// place on that channel follows its post, landing through the store, since
-// the row at its old index now shows another post; a deleted post's places
-// go, its result then only in the Media library (research R1, review C7).
+// The editor tells the tabs when it adds or deletes a post or moves one a
+// step: a place on that channel follows its post, landing through the store,
+// since the row at its old index now shows another post; a deleted post's
+// places go, its result then only in the Media library (research R1,
+// review C7).
 describe('a post deleted or moved while its result is made', () => {
   const thread = () =>
     useLaunchStore.setState({
@@ -691,6 +692,47 @@ describe('a post deleted or moved while its result is made', () => {
       ['video', 0],
       ['image', 2],
     ]);
+  });
+
+  it('follows its post to the index after when a post is added before it, and lands there through the store, not the old row’s handler', async () => {
+    const handler = jest.fn();
+    thread();
+    await render();
+    await open('image', () => handler, 1);
+    await loading(mockTools.props.image, true);
+    await act(async () => {
+      tabs!.postAdded('global', 0);
+      useLaunchStore
+        .getState()
+        .addGlobalValue(0, [{ id: 'new', content: '', delay: 0, media: [] }]);
+    });
+
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([
+      { channel: 'global', index: 2 },
+    ]);
+
+    await lands(mockTools.props.image);
+    expect(posted()).toEqual([[], [], ['m-1'], []]);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('keeps its place and its row’s handler when a post is added after it', async () => {
+    const handler = jest.fn();
+    thread();
+    await render();
+    await open('image', () => handler, 1);
+    await loading(mockTools.props.image, true);
+    await act(async () => {
+      tabs!.postAdded('global', 1);
+      tabs!.postAdded('global', 2);
+    });
+
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([
+      { channel: 'global', index: 1 },
+    ]);
+
+    await lands(mockTools.props.image);
+    expect(handler).toHaveBeenCalledWith(media);
   });
 
   it('from a tab closed while busy follows its post too', async () => {
