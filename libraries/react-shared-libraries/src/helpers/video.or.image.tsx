@@ -43,6 +43,8 @@ export const VideoOrImage: FC<{
   onShape?: (ratio: number) => void;
 }> = (props) => {
   const { src, autoplay, isContain, imageClassName, videoClassName } = props;
+  // The load handlers only with onShape: the public preview page renders this
+  // as a server component, whose renderer refuses a function prop.
   const report = (width: number, height: number) => {
     if (height > 0) props.onShape?.(width / height);
   };
@@ -58,8 +60,10 @@ export const VideoOrImage: FC<{
         className={clsx('w-full h-full', videoClassName)}
         muted={true}
         loop={true}
-        onLoadedMetadata={(e) =>
-          report(e.currentTarget.videoWidth, e.currentTarget.videoHeight)
+        onLoadedMetadata={
+          props.onShape &&
+          ((e) =>
+            report(e.currentTarget.videoWidth, e.currentTarget.videoHeight))
         }
       />
     );
@@ -72,8 +76,10 @@ export const VideoOrImage: FC<{
         imageClassName
       )}
       src={src}
-      onLoad={(e) =>
-        report(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)
+      onLoad={
+        props.onShape &&
+        ((e) =>
+          report(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight))
       }
     />
   );
