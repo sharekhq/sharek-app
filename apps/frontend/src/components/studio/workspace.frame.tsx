@@ -73,7 +73,7 @@ const SETTINGS_SCROLL =
  * The one frame every AI tool draws, whatever hosts it. On its Studio page
  * (`page`) the settings sit in a 360px panel on the start side, scrolling on
  * their own above the action bar, and the stage fills the rest. From 1025px
- * down the window scrolls and the bar sticks to the bottom of the screen; on a
+ * down the window scrolls and the bar is fixed to the foot of the screen; on a
  * phone the page stacks, the stage first.
  * A window or a tab (`stacked`) draws the stage, the settings and the bar in
  * one column that scrolls in the host's height, the bar stuck to its bottom.
@@ -130,13 +130,16 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   );
 
   // In the page the bar spans the panel, so it reaches past the panel's
-  // padding to both edges and its foot.
+  // padding to both edges and its foot. From 1025px down the window scrolls
+  // and the page card clips, so a sticky bar would never pin: the bar is
+  // fixed to the foot of the screen, under the menu drawer's scrim and every
+  // popup, clear of the home indicator, as the composer's tool bar is.
   const bar = (
     <div
       className={clsx(
         'py-[16px] border-t border-line bg-surface flex flex-wrap items-center gap-[10px]',
         page
-          ? '-mx-[20px] -mb-[20px] px-[20px] mobile:-mx-[16px] mobile:-mb-[16px] mobile:px-[16px] mobile:sticky mobile:bottom-0'
+          ? '-mx-[20px] -mb-[20px] px-[20px] mobile:m-0 mobile:px-[16px] mobile:pb-[calc(16px+env(safe-area-inset-bottom))] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[90]'
           : 'sticky bottom-0'
       )}
     >
@@ -157,7 +160,11 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
 
   if (page) {
     return (
-      <div className="flex h-full min-h-0 mobile:h-auto phone:flex-col">
+      // The fixed bar leaves the flow, so the page keeps room under its
+      // content as tall as the bar: its line, 16px above and below a 44px
+      // row, one row from 769px where the bar spans the screen; on a phone
+      // the credits may take a row of their own (26px and the 10px gap).
+      <div className="flex h-full min-h-0 mobile:h-auto mobile:pb-[calc(77px+env(safe-area-inset-bottom))] phone:flex-col phone:pb-[calc(113px+env(safe-area-inset-bottom))]">
         <div
           className={clsx(
             CARD_PADDING,
