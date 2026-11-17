@@ -11,6 +11,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -57,13 +58,19 @@ export const TopBarSlot: FC<{ children: ReactNode }> = ({ children }) => {
 
 // A listing's picture, small: its cover, or its glyph while it has none or
 // the cover does not load, as its Studio card gives way (FR-017).
-const ToolPicture: FC<{ entry: StudioToolEntry }> = ({ entry }) => {
+const ToolPicture: FC<{ entry: StudioToolEntry; className?: string }> = ({
+  entry,
+  className,
+}) => {
   const [failed, setFailed] = useState(false);
 
   return (
     <span
       aria-hidden="true"
-      className="relative flex-none w-[48px] h-[27px] rounded-[6px] overflow-hidden bg-surface2 flex items-center justify-center text-muted [&_svg]:size-4"
+      className={clsx(
+        'relative flex-none w-[48px] h-[27px] rounded-[6px] overflow-hidden bg-surface2 flex items-center justify-center text-muted [&_svg]:size-4',
+        className
+      )}
     >
       {entry.cover && !failed ? (
         <img
@@ -247,8 +254,8 @@ const ToolList: FC<{
  * (contracts/studio-addresses.md § Top bar): a button with the current
  * listing's picture and name that opens every listing of the Studio page
  * (FR-011). On a phone it takes the title's place (layout/title.tsx), so it
- * drops the margin that sets it off from the title there, and its name is
- * what gives way. It hangs from the button against the viewport and renders
+ * drops the margin that sets it off from the title there, and its picture,
+ * so its name has the room left, on up to two lines. It hangs from the button against the viewport and renders
  * into the body, as the brand list does, so the top bar's box cannot clip
  * it. Escape closes it, and so does Tab, since the list in the body comes
  * after the rest of the page; either way, and after a choice, the focus goes
@@ -306,10 +313,12 @@ export const ToolSwitcher: FC<{
           interpolation: { escapeValue: false },
         })}
         onClick={() => setShow(open ? false : below())}
-        className="min-w-0 max-w-[320px] h-[40px] coarse:h-[44px] flex items-center gap-[10px] ps-[6px] pe-[10px] bg-surface border border-line rounded-[8px] text-[14px] font-[600] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
+        className="min-w-0 max-w-[320px] h-[40px] coarse:h-[44px] flex items-center gap-[10px] ps-[6px] phone:ps-[10px] pe-[10px] bg-surface border border-line rounded-[8px] text-[14px] font-[600] text-ink text-start cursor-pointer hover:border-inkSoft aria-expanded:border-brand transition-colors focus-visible:ring-2 focus-visible:ring-brand"
       >
-        <ToolPicture entry={current.entry} />
-        <span className="flex-1 min-w-0 truncate">{name}</span>
+        <ToolPicture entry={current.entry} className="phone:hidden" />
+        <span className="flex-1 min-w-0 truncate phone:whitespace-normal phone:line-clamp-2 phone:text-[13px] phone:leading-[16px]">
+          {name}
+        </span>
         <ChevronDownIcon
           size={16}
           aria-hidden="true"
