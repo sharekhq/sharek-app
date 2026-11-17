@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -161,6 +161,24 @@ describe('VideoOrImage', () => {
       renderToStaticMarkup(<VideoOrImage src={src} autoplay={false} />)
     ).toBe(markup);
   });
+
+  // The public preview page renders VideoOrImage as a server component, whose
+  // renderer refuses a function prop on an element (a 500 for every post with
+  // media): without onShape there is no handler to pass.
+  it.each([
+    ['an image', '/a.png', 'img', 'onLoad'],
+    ['a video', '/a.mp4', 'video', 'onLoadedMetadata'],
+  ])(
+    'gives %s no load handler without onShape',
+    (_name, src, type, handler) => {
+      const element = VideoOrImage({ src, autoplay: false }) as ReactElement<
+        Record<string, unknown>
+      >;
+
+      expect(element.type).toBe(type);
+      expect(element.props[handler]).toBeUndefined();
+    }
+  );
 
   // While a result is being made, the preview shows a placeholder where it
   // will go, and loads nothing from the pending path.
