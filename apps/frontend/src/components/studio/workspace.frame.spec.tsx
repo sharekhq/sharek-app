@@ -271,7 +271,7 @@ describe('the stacked layout', () => {
     expect(tokens(bar(host))).toEqual(
       expect.arrayContaining([
         'sticky',
-        '-bottom-[4px]',
+        'bottom-0',
         'border-t',
         'border-line',
         'bg-surface',
@@ -394,20 +394,31 @@ describe('the settings scroller', () => {
     });
   });
 
-  // The live walk: a window's bar stuck 4px above the window's foot and
-  // scrolled content showed under it. A sticky box keeps inside its
-  // scroller's padding, so the bar sticks as far past it as the ring room
-  // reaches and covers it; the room stays for the fields' rings.
-  it("lets a window's bar cover the ring room at its foot", async () => {
+  // The live walks: a window's bar stuck 4px above the window's foot, then,
+  // stuck 4px lower, still rested 4px above it at the scroll's end, a sticky
+  // box keeping inside its scroller's padding and never leaving its place in
+  // the flow. The bar is the scroller's last child and its button's ring falls
+  // inside its own padding, so the scroller keeps no ring room under it.
+  it("lets a window's bar meet its foot while it scrolls and at its end", async () => {
     const host = await mount(frame({ layout: 'stacked' }));
     const scroller = byTestId(host, 'field')!.closest('.overflow-y-auto');
 
     expect(scroller?.contains(bar(host)!)).toBe(true);
-    expect(tokens(scroller)).toContain('p-[4px]');
-    expect(tokens(bar(host))).toEqual(
-      expect.arrayContaining(['sticky', '-bottom-[4px]'])
+    expect(scroller?.lastElementChild).toBe(bar(host));
+    expect(tokens(scroller)).toEqual(
+      expect.arrayContaining(['p-[4px]', '-m-[4px]', 'pb-0'])
     );
-    expect(tokens(bar(host))).not.toContain('bottom-0');
+    expect(tokens(bar(host))).toEqual(
+      expect.arrayContaining(['sticky', 'bottom-0'])
+    );
+    expect(tokens(bar(host))).not.toContain('-bottom-[4px]');
+  });
+
+  it("keeps the page's settings their ring room at the foot", async () => {
+    const host = await mount(frame());
+    const scroller = byTestId(host, 'field')!.closest('.overflow-y-auto');
+
+    expect(tokens(scroller)).not.toContain('pb-0');
   });
 });
 
