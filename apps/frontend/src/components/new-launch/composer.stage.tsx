@@ -226,14 +226,16 @@ const AiTabPanel: FC<{
 
   // The tool's request: a pending entry where the render was started, for
   // the previews' placeholder and the composer's lock, until it settles,
-  // whether the tab is still open or not (D10, D14).
+  // whether the tab is still open or not (D10, D14). A start while one is
+  // open replaces its entry (review C5).
   const setLoading = (loading: boolean) => {
+    if (render.current) {
+      removePending(render.current);
+      render.current = undefined;
+    }
     if (loading) {
       render.current = makeId(10);
       addPending({ id: render.current, kind, place: latest.current.place });
-    } else if (render.current) {
-      removePending(render.current);
-      render.current = undefined;
     }
     if (mounted.current) {
       setBusy(kind, loading);
