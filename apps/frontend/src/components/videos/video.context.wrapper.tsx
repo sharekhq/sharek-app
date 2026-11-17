@@ -66,8 +66,9 @@ export const VideoContextWrapper = createContext<{
    * The stage's slot, for a provider whose middle step belongs in the stage
    * (a workflow's storyboard) to portal into. The tool hands over the node,
    * as it does `actionsSlot`, because it does not exist on the provider's
-   * first render. `null`: there is no stage to fill (the stage is showing
-   * progress or a result), and the provider renders nothing there.
+   * first render. Only a provider registered with `ownsStage` gets one.
+   * `null`: there is no stage to fill (the provider doesn't own it, or the
+   * stage is showing progress or a result), and it renders nothing there.
    */
   stageSlot: HTMLElement | null;
   /**
