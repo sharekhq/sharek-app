@@ -424,11 +424,10 @@ describe('Part 2: the workspace', () => {
 // channel-panels; hidden in channel-panels and emit, mobile:hidden in
 // shell-studio and others.
 describe('Part 3: the composer', () => {
-  test("the composer's insets and its card's, left header's and tab strip's corners emit their one rule, outside any query", async () => {
+  test("the shell's insets and the composer's card's, left header's and tab strip's corners emit their one rule, outside any query", async () => {
     await assertEmits(
       {
-        // the root, inside the shell's rail and top bar
-        'ps-[100px]': [['padding-inline-start', '100px']],
+        // the shell's insets, still used by the layout
         'pe-[12px]': [['padding-inline-end', '12px']],
         'py-[12px]': [
           ['padding-top', '12px'],
@@ -462,7 +461,6 @@ describe('Part 3: the composer', () => {
     // query, so a mobile: form emitted first would keep the shell's insets
     // or the card's corners on a full-screen composer.
     const pairs = [
-      ['ps-[100px]', 'mobile:p-0'],
       ['pe-[12px]', 'mobile:p-0'],
       ['py-[12px]', 'mobile:p-0'],
       ['rounded-[12px]', 'mobile:rounded-none'],
