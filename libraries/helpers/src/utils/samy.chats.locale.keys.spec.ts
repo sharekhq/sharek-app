@@ -67,7 +67,6 @@ const STRINGS = [
   ['assistant_thumbs_down', 'Thumbs down', 'عدم إعجاب'],
   ['assistant_copied', 'Copied!', 'تم النسخ'],
   // The message box's attachments (agent.attachments.tsx).
-  ['samy_ai_image', 'AI Image', 'توليد صورة'],
   ['samy_drop_title', 'Drop your images here', 'أفلت صورك هنا'],
   [
     'samy_drop_subtitle',

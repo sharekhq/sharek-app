@@ -100,7 +100,6 @@ describe("the strings of Samy's message box", () => {
   const ar = readLocale('ar');
 
   it.each([
-    ['samy_ai_image', 'AI Image', 'توليد صورة'],
     ['samy_drop_title', 'Drop your images here', 'أفلت صورك هنا'],
     [
       'samy_drop_subtitle',

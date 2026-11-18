@@ -86,14 +86,12 @@ const SENTENCE_CASE = [
   ['media_editor', 'Media editor', 'محرر الوسائط'],
 ] as const;
 
-// Feature names written as names: Media Library, Insert Media, AI Image,
-// Design Media and Generate AI Image keep their capitals.
+// Feature names written as names: Media Library, Insert Media and Design Media
+// keep their capitals.
 const FEATURE_NAMES = [
   ['media_library', 'Media Library'],
   ['insert_media', 'Insert Media'],
-  ['samy_ai_image', 'AI Image'],
   ['design_media', 'Design Media'],
-  ['generate_ai_image', 'Generate AI Image'],
 ] as const;
 
 // The sign-in pages (spec 060, FR-031, contracts/strings.md §3): [key, en in

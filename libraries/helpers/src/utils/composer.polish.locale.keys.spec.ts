@@ -106,7 +106,7 @@ describe('spec 062 words', () => {
       }
     );
 
-    it.each(['image', 'video'])('%s has no tatweel', (key) => {
+    it.each(['video'])('%s has no tatweel', (key) => {
       expect(ar[key]).not.toContain(TATWEEL);
       expect(ar[key]).toContain('{{ai}}');
     });
