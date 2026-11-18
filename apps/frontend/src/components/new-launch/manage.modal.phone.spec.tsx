@@ -434,7 +434,7 @@ describe('the preview', () => {
   it('stays shown over the editor while an AI tab is open, until Back to the post', async () => {
     const host = await open();
     const column = Array.from(host.querySelectorAll('div')).find((each) =>
-      each.className.split(' ').includes('w-[580px]')
+      each.className.split(' ').includes('[@media(min-width:1026px)]:w-[45%]')
     )!;
     const editorColumn = () =>
       host.querySelector('[data-editor]')!.parentElement!;
