@@ -634,6 +634,17 @@ describe('the tool list still loading', () => {
     expect(mountedTools()).toEqual([VEO]);
   });
 
+  it('the fallback tool keeps its panel after switching away', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'video:gone');
+    await render();
+    await open();
+    expect(onScreen()).toEqual([IMAGE]);
+
+    await pick(VEO);
+
+    expect(mountedTools()).toEqual([IMAGE, VEO]);
+  });
+
   it('falls back to the AI image generator once loaded when the remembered tool is not in the list', async () => {
     window.localStorage.setItem(STORAGE_KEY, 'video:gone');
     await render();
