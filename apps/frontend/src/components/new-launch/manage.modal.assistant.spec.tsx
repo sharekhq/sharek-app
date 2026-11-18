@@ -14,15 +14,19 @@ import { createRoot } from 'react-dom/client';
 // key it is asked for, which makes a label that stopped going through `t` — or one
 // that went through the wrong key — a visible difference here rather than on screen.
 const capturedLabels: any[] = [];
+const capturedButtons: any[] = [];
+const mockChat = { open: false, setOpen: jest.fn(), icons: {} as any };
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string) => key,
 }));
 jest.mock('@copilotkit/react-ui', () => ({
-  CopilotPopup: ({ labels }: any) => {
+  CopilotPopup: ({ labels, Button }: any) => {
     capturedLabels.push(labels);
+    capturedButtons.push(Button);
     return null;
   },
+  useChatContext: () => mockChat,
 }));
 // Scenery, as in manage.modal.validation.spec.tsx: the modal has to mount for the
 // popup it renders to receive its props.
@@ -139,6 +143,7 @@ Object.assign(global, { ResizeObserver: NoObserver });
 
 const render = () => {
   capturedLabels.length = 0;
+  capturedButtons.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
   act(() => {
@@ -173,5 +178,23 @@ describe("the composer's assistant labels", () => {
     for (const label of ['title', 'initial', ...Object.keys(ASSISTANT_LABELS)]) {
       expect(typeof labels[label]).toBe('string');
     }
+  });
+});
+
+describe("the composer's assistant button", () => {
+  const named = (open: boolean) => {
+    render();
+    const Button = capturedButtons[capturedButtons.length - 1];
+    mockChat.open = open;
+    const container = document.createElement('div');
+    act(() => {
+      createRoot(container).render(<Button />);
+    });
+    return container.querySelector('button')!.getAttribute('aria-label');
+  };
+
+  it('the button is named from the locale, not "Open Chat"', () => {
+    expect(named(false)).toBe('assistant_open_chat');
+    expect(named(true)).toBe('assistant_close_chat');
   });
 });
