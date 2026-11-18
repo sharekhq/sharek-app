@@ -107,9 +107,12 @@ jest.mock(
   '@gitroom/frontend/components/new-launch/dummy.code.component',
   () => ({ DummyCodeComponent: () => null })
 );
-jest.mock('@gitroom/frontend/components/launches/creation.method.badge', () => ({
-  CreationMethodBadge: () => null,
-}));
+jest.mock(
+  '@gitroom/frontend/components/launches/creation.method.badge',
+  () => ({
+    CreationMethodBadge: () => null,
+  })
+);
 // The settings sheet reads the providers' settings through their module,
 // which brings the channel previews; scenery, as in
 // high.order.provider.spec.tsx.
@@ -267,21 +270,16 @@ describe('the composer frame', () => {
     existing = {};
   });
 
-  it('sits inside the shell’s insets, edge to edge on a phone', async () => {
+  it('the root adds no inset of its own on desktop (the window wrapper owns it)', async () => {
     const classes = classesOf((await render()).firstElementChild!);
 
-    expect(classes).toEqual(
-      expect.arrayContaining([
-        'py-[12px]',
-        'pe-[12px]',
-        'ps-[100px]',
-        'mobile:p-0',
-      ])
+    expect(classes).toContain('mobile:p-0');
+    ['py-[12px]', 'pe-[12px]', 'ps-[100px]', 'p-[40px]'].forEach((inset) =>
+      expect(classes).not.toContain(inset)
     );
-    expect(classes).not.toContain('p-[40px]');
   });
 
-  it('keeps the extension composer’s 40px margins in place of the insets', async () => {
+  it('keeps props.padding for the extension path', async () => {
     const classes = classesOf(
       (await render({ padding: 'p-[40px]' })).firstElementChild!
     );
@@ -290,6 +288,35 @@ describe('the composer frame', () => {
     ['py-[12px]', 'pe-[12px]', 'ps-[100px]'].forEach((inset) =>
       expect(classes).not.toContain(inset)
     );
+  });
+
+  it('the preview column is 45% between 440 and 680px', async () => {
+    const host = await render();
+    const column = Array.from(host.querySelectorAll('div')).find((each) =>
+      classesOf(each).includes('[@media(min-width:1026px)]:w-[45%]')
+    )!;
+
+    expect(classesOf(column)).toEqual(
+      expect.arrayContaining([
+        '[@media(min-width:1026px)]:min-w-[440px]',
+        '[@media(min-width:1026px)]:max-w-[680px]',
+        'mobile:!w-full',
+        'mobile:flex-1',
+      ])
+    );
+    expect(host.innerHTML).not.toContain('w-[580px]');
+  });
+
+  it('the left pane can shrink', async () => {
+    const host = await render();
+    const pane = Array.from(host.querySelectorAll('div')).find(
+      (each) =>
+        classesOf(each).includes('border-newBorder') &&
+        classesOf(each).includes('border-e') &&
+        classesOf(each).includes('flex-1')
+    )!;
+
+    expect(classesOf(pane)).toContain('min-w-0');
   });
 
   it('rounds the left header’s start corners at 12px', async () => {
@@ -305,7 +332,7 @@ describe('the composer frame', () => {
   it('holds the composer’s tabs, Post preview first, and its close in the right column', async () => {
     const host = await render();
     const column = Array.from(host.querySelectorAll('div')).find((each) =>
-      classesOf(each).includes('w-[580px]')
+      classesOf(each).includes('[@media(min-width:1026px)]:w-[45%]')
     )!;
     const tablist = column.querySelector('[role="tablist"]');
 
