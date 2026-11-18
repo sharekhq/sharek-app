@@ -14,3 +14,6 @@ export const VIDEO_PROMPT_MIN_CHARS = 15;
 
 /** Longest prompt either video provider will accept. */
 export const VIDEO_PROMPT_MAX_CHARS = 2000;
+
+/** Shortest AI image prompt the composer accepts, level with the video minimum. Frontend-only: the image API enforces no minimum. */
+export const IMAGE_PROMPT_MIN_CHARS = 15;
