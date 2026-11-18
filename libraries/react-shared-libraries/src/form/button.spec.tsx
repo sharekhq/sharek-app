@@ -33,7 +33,7 @@ const KIND = {
     'hover:bg-surface2',
   ],
   ghost: ['bg-transparent', 'text-ink', 'hover:bg-boxHover'],
-  danger: ['bg-error', 'text-white'],
+  danger: ['bg-error', 'text-[color:var(--on-error)]'],
   dangerGhost: ['bg-transparent', 'text-error', 'hover:bg-boxHover'],
   // The AI tools' tint (Question 4), its clear border showing on hover.
   ai: [
