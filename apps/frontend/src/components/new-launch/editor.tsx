@@ -1197,7 +1197,13 @@ export const Editor: FC<{
                         </div>
                       </div>
                     }
-                    toolsClassName={
+                    toolsClassName={clsx(
+                      // from 1026px the bar stays in view at the bottom of the
+                      // left side's scroll area; the box around it is
+                      // `contents` so the card is its parent. Only this row: a
+                      // reference row would scroll and pin at once and paint
+                      // over the pinned bar
+                      '[@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:z-[100] [@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:rounded-b-[5px]',
                       flat
                         ? active
                           ? clsx(
@@ -1210,7 +1216,7 @@ export const Editor: FC<{
                             )
                           : 'mobile:hidden'
                         : undefined
-                    }
+                    )}
                     toolsStyle={
                       // above the keyboard there is no home indicator to clear
                       flat && active && keyboard

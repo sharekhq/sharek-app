@@ -218,26 +218,16 @@ describe('the media strip', () => {
 
     expect(host.querySelector('[data-ai]')).toBeNull();
   });
-  // From 1026px the tool bar and the counter stay in view at the bottom of the
-  // left side's scroll area while the text and the thumbnails scroll above
-  // (spec 062, FR-003). A sticky bar only moves inside its parent's box, so the
-  // box around the thumbnails and the bar dissolves (`contents`) into the
-  // editor card, which is as tall as the scroll area. jsdom has no layout: the
-  // classes are the assertion.
-  it('pins the bar to the bottom of the scroll area from 1026px, and only there', async () => {
-    const host = await render({ place: 0 });
-    const classes = strip(host).className.split(' ');
+  // The 1026px pin (spec 062, FR-003) belongs to the composer editor's own
+  // `toolsClassName`; the strip never pins by itself, with a `place` or not.
+  it('MultiMediaComponent never pins its tool row by itself', async () => {
+    for (const props of [{ place: 0 }, {}]) {
+      const host = await render(props);
 
-    expect(classes).toEqual(
-      expect.arrayContaining([
-        '[@media(min-width:1026px)]:sticky',
-        '[@media(min-width:1026px)]:bottom-0',
-        '[@media(min-width:1026px)]:bg-panel',
-      ])
-    );
-    expect(classes).not.toEqual(
-      expect.arrayContaining([expect.stringMatching(/^(mobile:)?sticky$/)])
-    );
+      expect(strip(host).className).not.toContain('sticky');
+    }
+    const host = await render({ place: 0 });
+
     expect(strip(host).parentElement!.className.split(' ')).toContain(
       '[@media(min-width:1026px)]:contents'
     );
@@ -249,13 +239,5 @@ describe('the media strip', () => {
     const host = await render();
 
     expect(strip(host).className).not.toContain('sticky');
-  });
-
-  it("the composer editor's row stays pinned from 1026px", async () => {
-    const host = await render({ place: 0 });
-
-    expect(strip(host).className).toContain(
-      '[@media(min-width:1026px)]:sticky'
-    );
   });
 });
