@@ -152,6 +152,7 @@ jest.mock(
 
 import { ManageModal } from '@gitroom/frontend/components/new-launch/manage.modal';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
+import type { ComposerTabs } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 // The preview column's fit measures the column; a case reports its height as
 // the browser would.
@@ -342,6 +343,57 @@ describe('the assistant', () => {
         .split(/\s+/)
         .filter((each) => each.includes('bottom-'))
     ).toEqual([
+      'mobile:!bottom-[112px]',
+      '[@media(min-width:1026px)]:!bottom-[112px]',
+    ]);
+  });
+
+  // An AI tab's own bar sits under the raised Assistant, which would cover the
+  // end of its main button, so the Assistant leaves while an AI tab is on
+  // screen, at every width (spec 061, walk fix F-1b).
+  const classes = () => (assistant.className ?? '').split(/\s+/);
+  const tabs = () => mockEditor.tabs as ComposerTabs;
+
+  it('is hidden at every width while an AI Image or AI Video tab is on screen', async () => {
+    existing = {};
+    assistant = {};
+    await render();
+
+    expect(classes()).not.toContain('hidden');
+
+    await act(async () => {
+      tabs().open('image', () => undefined, 0);
+    });
+
+    expect(classes()).toContain('hidden');
+
+    await act(async () => {
+      tabs().select('preview');
+    });
+    await act(async () => {
+      tabs().open('video', () => undefined, 0);
+    });
+
+    expect(classes()).toContain('hidden');
+  });
+
+  it('is back above the bottom bar once Post preview is on screen', async () => {
+    existing = {};
+    assistant = {};
+    const host = await render();
+    await act(async () => {
+      tabs().open('image', () => undefined, 0);
+    });
+    const preview = Array.from(host.querySelectorAll('[role="tab"]')).find(
+      (tab) => tab.textContent === 'Post preview'
+    ) as HTMLElement;
+
+    await act(async () => {
+      preview.click();
+    });
+
+    expect(classes()).not.toContain('hidden');
+    expect(classes().filter((each) => each.includes('bottom-'))).toEqual([
       'mobile:!bottom-[112px]',
       '[@media(min-width:1026px)]:!bottom-[112px]',
     ]);

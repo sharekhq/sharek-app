@@ -510,4 +510,11 @@ describe('Part 3: the composer', () => {
       '[@media(min-width:1026px)]:!bottom-[112px] must be !important'
     );
   });
+
+  // While an AI tab is on screen the Assistant, button and window, is gone at
+  // every width: CopilotKit's sheet sets no display on its popup, so the plain
+  // rule holds.
+  test("while an AI tab is on screen the composer's Assistant is gone at every width", async () => {
+    await assertEmits({ hidden: [['display', 'none']] }, null);
+  });
 });
