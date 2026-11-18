@@ -600,10 +600,7 @@ describe('the lookup tools', () => {
     const required = (name: string) =>
       (tools.find((t) => t.name === name)!.inputSchema as any).required;
 
-    expect(required('list_whop_experiences')).toEqual([
-      'integrationId',
-      'id',
-    ]);
+    expect(required('list_whop_experiences')).toEqual(['integrationId', 'id']);
     expect(required('list_skool_labels')).toEqual(['integrationId', 'id']);
   });
 
