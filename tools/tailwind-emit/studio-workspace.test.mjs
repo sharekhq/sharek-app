@@ -535,4 +535,18 @@ describe('Part 3: the composer', () => {
       null
     );
   });
+  // The hub's cards share the row (FR-011): one auto-fill grid, 280px a card.
+  test('minmax(280px,1fr) grid emits', async () => {
+    await assertEmits(
+      {
+        'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]': [
+          [
+            'grid-template-columns',
+            'repeat(auto-fill,minmax(280px,1fr))',
+          ],
+        ],
+      },
+      null
+    );
+  });
 });
