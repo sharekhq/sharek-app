@@ -56,7 +56,7 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
             id: 'ai-image',
             post: {
               kind: 'image',
-              panel: (props: WorkspaceToolProps) => {
+              panel: (props: WorkspaceToolProps): null => {
                 mockTools.props.image = props;
                 return null;
               },
