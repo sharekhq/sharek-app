@@ -197,7 +197,7 @@ export const FacebookPreview: FC<{
           <div>{t('preview_facebook_comments', '20 Comments')}</div>
         </div>
       </div>
-      <div className="pt-[8px] flex gap-[8px] text-[14px] font-[700] px-[32px] justify-between border-t border-borderLinkedin text-textLinkedin">
+      <div className="pt-[8px] flex gap-[8px] text-[14px] font-[700] px-[8px] justify-between border-t border-borderLinkedin text-textLinkedin">
         <div className="flex gap-[4px] items-center">
           <svg
             className="shrink-0"
