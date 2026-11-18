@@ -652,6 +652,18 @@ describe('get_posting_rules', () => {
     expect(text).not.toMatch(/musicSearch|locationSearch/);
   });
 
+  // Method names that are plain words (boards, tags, list, label) are also
+  // what the settings text says in prose, so only camelCase ones are mapped.
+  it('keeps the plain words of rules and settings that equal a lookup method name', async () => {
+    const pinterest = JSON.stringify((await rules('pinterest')).settings);
+    const wordpress = JSON.stringify((await rules('wordpress')).settings);
+
+    expect(pinterest).toContain('the boards list of the channel');
+    expect(pinterest).not.toContain('list_pinterest_boards');
+    expect(wordpress).toMatch(/\btags\b/);
+    expect(wordpress).not.toContain('list_wordpress_tags');
+  });
+
   it('lists no lookup for an unlisted provider', async () => {
     expect(
       (await rules('pinterest', { SHAREK_LISTED_PROVIDERS: 'x' })).lookups
