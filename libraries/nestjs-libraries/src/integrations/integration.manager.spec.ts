@@ -271,3 +271,105 @@ describe('IntegrationManager.getAllLookups', () => {
     ).toEqual([]);
   });
 });
+
+// The ChatGPT toolset is built from the providers' own @Tool declarations, so
+// every declaration has to carry a lookup that reads well to a model.
+describe('provider lookup declarations', () => {
+  const manager = new IntegrationManager(null as any, null as any);
+  const tools = manager.getAllTools();
+  const lookups = manager.getAllLookups();
+
+  // A declaration is the prototype that owns the method plus the method name,
+  // so a child provider inheriting a method is not a second declaration.
+  const ownerOf = (identifier: string, methodName: string) => {
+    let proto = socialIntegrationList.find(
+      (provider) => provider.identifier === identifier
+    )!.constructor.prototype;
+
+    while (!Object.prototype.hasOwnProperty.call(proto, methodName)) {
+      proto = Object.getPrototypeOf(proto);
+    }
+
+    return proto;
+  };
+
+  const declarations = new Map<
+    any,
+    Map<string, (typeof lookups)[string][number]>
+  >();
+
+  Object.entries(lookups).forEach(([identifier, list]) =>
+    list.forEach((lookup) => {
+      const owner = ownerOf(identifier, lookup.methodName);
+      const byMethod = declarations.get(owner) || new Map();
+      byMethod.set(lookup.methodName, lookup);
+      declarations.set(owner, byMethod);
+    })
+  );
+
+  const all = [...declarations.values()].flatMap((byMethod) => [
+    ...byMethod.values(),
+  ]);
+
+  it('gives every @Tool method a lookup', () => {
+    const missing = Object.entries(tools).flatMap(([identifier, list]) =>
+      list
+        .filter(
+          (tool) =>
+            !lookups[identifier].some(
+              (lookup) => lookup.methodName === tool.methodName
+            )
+        )
+        .map((tool) => `${identifier}.${tool.methodName}`)
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it('declares exactly 27 lookups', () => {
+    expect(all).toHaveLength(27);
+  });
+
+  it('keeps every name unique per declaration', () => {
+    const names = all.map((lookup) => lookup.name);
+
+    expect(names.filter((name, i) => names.indexOf(name) !== i)).toEqual([]);
+  });
+
+  it('writes names in snake_case starting with a lookup verb', () => {
+    all.forEach((lookup) => {
+      expect(lookup.name).toMatch(/^[a-z]+(_[a-z0-9]+)+$/);
+      expect(lookup.name).toMatch(/^(list|search|find|get)_/);
+    });
+  });
+
+  it('keeps internal and steering words out of name, title and description', () => {
+    const banned =
+      /\b(postiz|mcp|integration|trigger|schema|tool|instead|prefer|better|never|always)\b/i;
+
+    all.forEach((lookup) => {
+      [lookup.name, lookup.title, lookup.description].forEach((text) =>
+        expect(text).not.toMatch(banned)
+      );
+    });
+  });
+
+  it('allows optionalFields only on instagram audio and tiktok music, as dataSchema keys', () => {
+    const withOptional = Object.entries(lookups).flatMap(([identifier, list]) =>
+      list
+        .filter((lookup) => lookup.optionalFields)
+        .map((lookup) => `${identifier}.${lookup.methodName}`)
+    );
+
+    expect(withOptional.sort()).toEqual([
+      'instagram.audioSearch',
+      'tiktok-business.musicSearch',
+    ]);
+
+    all.forEach((lookup) =>
+      (lookup.optionalFields || []).forEach((field) =>
+        expect(lookup.dataSchema.map((item: any) => item.key)).toContain(field)
+      )
+    );
+  });
+});
