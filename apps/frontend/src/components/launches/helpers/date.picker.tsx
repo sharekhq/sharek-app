@@ -1,5 +1,6 @@
 import { FC, useCallback, useState } from 'react';
 import dayjs from 'dayjs';
+import i18next from 'i18next';
 import clsx from 'clsx';
 import { Calendar, TimeInput } from '@mantine/dates';
 import { useClickOutside } from '@mantine/hooks';
@@ -96,6 +97,9 @@ export const DatePickerPanel: FC<{
   const { date, onChange, sheet } = props;
   const t = useT();
   const [month, setMonth] = useState(toPickerDate(date));
+  // dayjs's global locale is set elsewhere on a language change; name the
+  // weekdays and the month from the interface language itself
+  const locale = i18next.resolvedLanguage || 'en';
 
   // the pickers give machine-local dates, so their wall clock is read with
   // plain dayjs and then placed in the user's timezone
@@ -137,13 +141,13 @@ export const DatePickerPanel: FC<{
             {t('date', 'Date')}
           </div>
           <div className="flex-1 h-[52px] px-[16px] flex items-center rounded-[10px] border border-line bg-newBgColorInner text-[14px]">
-            {date.format('ddd, D MMMM')}
+            {date.locale(locale).format('ddd, D MMMM')}
           </div>
         </div>
         <div className="bg-panel rounded-[12px] px-[16px] py-[12px] mb-[24px]">
           <div className="flex items-center gap-[4px] mb-[8px]">
             <div className="flex-1 text-[15px] font-[600]">
-              {dayjs(month).format('MMMM, YYYY')}
+              {dayjs(month).locale(locale).format('MMMM, YYYY')}
             </div>
             <button
               type="button"
@@ -174,7 +178,7 @@ export const DatePickerPanel: FC<{
           </div>
           <Calendar
             fullWidth={true}
-            locale={dayjs.locale()}
+            locale={locale}
             month={month}
             onMonthChange={setMonth}
             onChange={(day) => {
