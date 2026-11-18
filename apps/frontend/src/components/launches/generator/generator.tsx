@@ -200,6 +200,7 @@ const FirstStep: FC = (props) => {
           withCloseButton: false,
           askClose: true,
           fullScreen: true,
+          composerWindow: true,
           children: (
             <AddEditModal
               allIntegrations={integrations.map((p) => ({

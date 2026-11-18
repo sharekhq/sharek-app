@@ -204,6 +204,7 @@ const usePostActions = (onMutate?: () => void) => {
         withCloseButton: false,
         askClose: true,
         fullScreen: true,
+        composerWindow: true,
         children: (
           <ExistingData value={data}>
             <AddEditModal
@@ -1046,6 +1047,7 @@ export const CalendarColumn: FC<{
       withCloseButton: false,
       askClose: true,
       fullScreen: true,
+      composerWindow: true,
       children: (
         <AddEditModal
           allIntegrations={integrations.map((p) => ({
