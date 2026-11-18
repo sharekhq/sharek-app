@@ -388,6 +388,9 @@ const AiToolPanel: FC<{
         rendering.current.delete(latest);
         render.current = undefined;
       }
+      if (loading) {
+        latest.current = tabNow.current;
+      }
       const { place } = latest.current;
       if (loading && place) {
         render.current = makeId(10);
