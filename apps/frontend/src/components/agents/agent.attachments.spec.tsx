@@ -32,10 +32,7 @@ const uppy = {
 };
 const show = jest.fn();
 const openModal = jest.fn();
-const aiImageProps: Array<Record<string, any>> = [];
-const ai = { loading: false };
 const translator = { prefix: '' };
-const user: { tier: { ai?: boolean } } = { tier: { ai: true } };
 
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: (options: UploaderOptions) => {
@@ -50,24 +47,12 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   mediaLibrarySize: () => 'library-size',
   MediaBox: () => null,
 }));
-// Renders the trigger it's handed, as the real one does, so the button is there.
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: {
-    renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  }) => {
-    aiImageProps.push(props);
-    return <>{props.renderTrigger(() => undefined, ai.loading)}</>;
-  },
-}));
 jest.mock('@gitroom/frontend/components/layout/loading', () => ({
   __esModule: true,
   default: () => <span data-spinner="" />,
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: ({ url }: { url: string }) => <video data-frame={url} />,
-}));
-jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => user,
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ openModal }),
@@ -181,8 +166,6 @@ beforeEach(() => {
   (URL as any).createObjectURL = jest.fn((f: File) => `blob:${f.name}`);
   (URL as any).revokeObjectURL = jest.fn();
   uppyState.currentUploads = {};
-  user.tier = { ai: true };
-  ai.loading = false;
   translator.prefix = '';
 });
 
@@ -192,7 +175,6 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   uploader.options = undefined;
-  aiImageProps.length = 0;
   Object.keys(listeners).forEach((event) => delete listeners[event]);
   jest.clearAllMocks();
 });
@@ -863,7 +845,6 @@ describe('the two buttons', () => {
   });
 
   it('there is no AI Image button for any plan', async () => {
-    user.tier = { ai: true };
     const { host } = await render();
 
     expect(

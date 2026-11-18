@@ -19,20 +19,15 @@ import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { followChatBottom } from '@gitroom/frontend/components/agents/agent.created.media';
-import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import Loading from '@gitroom/frontend/components/layout/loading';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
-import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import {
   MAX_UPLOAD_SIZE,
   MediaBox,
   mediaLibrarySize,
 } from '@gitroom/frontend/components/media/media.component';
 import { useUppyUploader } from '@gitroom/frontend/components/media/new.uploader';
-import {
-  AiImageIcon,
-  InsertMediaIcon,
-} from '@gitroom/frontend/components/ui/icons';
+import { InsertMediaIcon } from '@gitroom/frontend/components/ui/icons';
 
 export type Attachment = { id: string; path: string };
 
@@ -434,18 +429,12 @@ const TOOL_BUTTON = clsx(
   buttonClassName({ variant: 'secondary', size: 'small' }),
   TOOL_STEPS
 );
-// AI Image keeps its AI tint at the small size.
-const AI_TOOL_BUTTON = clsx(
-  buttonClassName({ variant: 'ai', size: 'small' }),
-  TOOL_STEPS
-);
 const TOOL_ICON =
   'flex-none w-[16px] h-[16px] phone:w-[20px] phone:h-[20px] [@media(max-width:340px)]:!hidden';
 
-/** The box's two labelled buttons. */
-export const AttachmentTools: FC<{ value: string }> = ({ value }) => {
+/** The box's labelled button. */
+export const AttachmentTools: FC = () => {
   const t = useT();
-  const user = useUser();
   const modals = useModals();
   const { addMedia } = useAttachments();
 
@@ -471,32 +460,6 @@ export const AttachmentTools: FC<{ value: string }> = ({ value }) => {
         <InsertMediaIcon className={TOOL_ICON} />
         <span>{t('insert_media', 'Insert Media')}</span>
       </button>
-      {!!user?.tier?.ai && (
-        <AiImage
-          value={value}
-          onChange={addMedia}
-          renderTrigger={(open, loading) => (
-            <button
-              type="button"
-              onClick={open}
-              disabled={loading}
-              className={AI_TOOL_BUTTON}
-            >
-              {loading ? (
-                <Loading
-                  height={16}
-                  width={16}
-                  type="spin"
-                  color="currentColor"
-                />
-              ) : (
-                <AiImageIcon className={TOOL_ICON} />
-              )}
-              <span>{t('samy_ai_image', 'AI Image')}</span>
-            </button>
-          )}
-        />
-      )}
     </div>
   );
 };
