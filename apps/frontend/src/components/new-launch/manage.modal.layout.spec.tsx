@@ -297,6 +297,19 @@ describe('the compose card', () => {
     );
     expect(classes).not.toContain('rounded-[24px]');
   });
+
+  // On a phone the card's sticky header (back, a 430px date button, Post)
+  // set its min-content to 608px and, as a flex item with min-width:auto,
+  // the card grew past a 390px screen, pushing Post, Settings and the
+  // preview cards off it (spec 062 walk, FR-019)
+  it('can shrink below its content so nothing is wider than a phone', async () => {
+    existing = {};
+    const card = (await render()).querySelector('.bg-newBgColorInner')!;
+
+    expect((card.getAttribute('class') ?? '').split(/\s+/)).toContain(
+      'min-w-0'
+    );
+  });
 });
 
 // The composer sits in the shell's insets as a Studio page's card does, and
