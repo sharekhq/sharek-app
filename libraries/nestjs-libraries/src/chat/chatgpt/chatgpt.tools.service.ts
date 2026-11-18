@@ -175,15 +175,13 @@ const postingRulesOutput = z.object({
 });
 
 // A lookup a provider declares, with the providers that offer it.
-interface OfferedLookup {
-  name: string;
-  title: string;
-  description: string;
-  optionalFields?: string[];
-  methodName: string;
+type OfferedLookup = Omit<
+  ReturnType<IntegrationManager['getAllLookups']>[string][number],
+  'dataSchema'
+> & {
   dataSchema: { key: string; type: string; description: string }[];
   providers: string[];
-}
+};
 
 // The tools of the ChatGPT connection: the source tools' behaviour under their
 // own names, descriptions and hints.
@@ -248,56 +246,87 @@ export class ChatgptToolsService {
     const lookups = source.triggerTool ? this._offeredLookups(providers) : [];
 
     const core = Object.entries(CHATGPT_TOOLSET)
-      .filter(([key]) => source[key])
+      .filter(([key]) => source[key] && key !== 'integrationSchema')
       .map(([key, row]) => {
         const src = source[key];
         const rewrite = renamer(names, row.resultRewrites);
-        const rules = key === 'integrationSchema';
 
         return [
           row.name,
           createTool({
             id: row.name,
             description: row.description,
-            inputSchema: withDescriptions(src.inputSchema, {
-              ...row.input,
-              ...(rules && {
-                platform: `The platform identifier of the channel, one of ${providers.join(
-                  ', '
-                )}`,
-              }),
-            }),
-            outputSchema: rules
-              ? postingRulesOutput
-              : withDescriptions(src.outputSchema, row.output),
+            inputSchema: withDescriptions(src.inputSchema, row.input),
+            outputSchema: withDescriptions(src.outputSchema, row.output),
             mcp: {
               annotations: { title: row.title, ...row.annotations },
               _meta: { ...src.mcp?._meta, ...row.meta },
             },
             execute: async (input: any, context: any) =>
-              rewriting(rewrite, async () => {
-                const result = await src.execute(input, context);
-
-                return rules
-                  ? this._postingRules(
-                      result.output,
-                      input.platform,
-                      lookups,
-                      rewrite
-                    )
-                  : result;
-              }),
+              rewriting(rewrite, () => src.execute(input, context)),
           } as any),
         ];
       });
 
     return Object.fromEntries([
       ...core,
+      ...(source.integrationSchema
+        ? [
+            [
+              CHATGPT_TOOLSET.integrationSchema.name,
+              this._postingRulesTool(
+                source.integrationSchema,
+                renamer(
+                  names,
+                  CHATGPT_TOOLSET.integrationSchema.resultRewrites
+                ),
+                providers,
+                lookups
+              ),
+            ],
+          ]
+        : []),
       ...lookups.map((lookup) => [
         lookup.name,
         this._lookupTool(source.triggerTool, lookup, renamer(names)),
       ]),
     ]);
+  }
+
+  // get_posting_rules: the source tool's rules and settings with the lookups
+  // of the platform added, and the platforms Add Channel offers named.
+  private _postingRulesTool(
+    src: any,
+    rewrite: (text: string) => string,
+    providers: string[],
+    lookups: OfferedLookup[]
+  ) {
+    const row = CHATGPT_TOOLSET.integrationSchema;
+
+    return createTool({
+      id: row.name,
+      description: row.description,
+      inputSchema: withDescriptions(src.inputSchema, {
+        ...row.input,
+        platform: `The platform identifier of the channel, one of ${providers.join(
+          ', '
+        )}`,
+      }),
+      outputSchema: postingRulesOutput,
+      mcp: {
+        annotations: { title: row.title, ...row.annotations },
+        _meta: { ...src.mcp?._meta, ...row.meta },
+      },
+      execute: async (input: any, context: any) =>
+        rewriting(rewrite, async () =>
+          this._postingRules(
+            (await src.execute(input, context)).output,
+            input.platform,
+            lookups,
+            rewrite
+          )
+        ),
+    } as any);
   }
 
   // The widgets of the ChatGPT connection: the upload widget under its own uri,
@@ -371,7 +400,11 @@ export class ChatgptToolsService {
       id: lookup.name,
       description: lookup.description,
       inputSchema: z.object({
-        integrationId: z.string().describe('The channel id from list_channels'),
+        integrationId: z
+          .string()
+          .describe(
+            `The channel id from ${CHATGPT_TOOLSET.integrationList.name}`
+          ),
         ...Object.fromEntries(
           lookup.dataSchema.map(({ key, description }) => {
             const field = z.string().describe(description);
@@ -405,7 +438,7 @@ export class ChatgptToolsService {
           );
           if (!channel) {
             throw new Error(
-              'Channel not found, use list_channels to get a valid channel id'
+              `Channel not found, use ${CHATGPT_TOOLSET.integrationList.name} to get a valid channel id`
             );
           }
           if (!lookup.providers.includes(channel.providerIdentifier)) {
