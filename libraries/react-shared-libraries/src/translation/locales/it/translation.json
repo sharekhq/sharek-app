@@ -762,7 +762,6 @@
   "your_assistant": "Il tuo assistente",
   "agent_welcome_message": "Ciao, sono il tuo agente Sharek 🙌🏻.\n\nPosso programmare uno o più post su più canali e generare immagini e video.\n\nPuoi selezionare i canali che vuoi usare dal menu a sinistra.\n\nPuoi vedere le tue conversazioni precedenti dal menu a destra.\n\nPuoi anche usarmi come server MCP, vai su Impostazioni >> API pubblica",
   "samy": "Samy",
-  "samy_ai_image": "Immagine AI",
   "samy_drop_title": "Rilascia qui le tue immagini",
   "samy_drop_subtitle": "Verranno aggiunte al tuo messaggio",
   "samy_attached_image": "Immagine allegata {{n}}",
