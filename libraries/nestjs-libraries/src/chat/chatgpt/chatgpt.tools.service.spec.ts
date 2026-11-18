@@ -714,9 +714,20 @@ describe('get_posting_rules', () => {
 
 describe('the ChatGPT resources', () => {
   const backendUrl = 'https://api.sharek.test/api';
+  const upload = {
+    name: 'Upload Media',
+    description:
+      'Upload an image or video from the device to the media library',
+    html: '<p>the upload widget</p>',
+    meta: {
+      csp: { connectDomains: ['https://api.sharek.test'] },
+      permissions: { clipboardWrite: {} },
+      prefersBorder: true,
+    },
+  };
 
   it('serves only the upload widget, under a sharek uri', () => {
-    const resources = service.resources(backendUrl, true);
+    const resources = service.resources(upload, backendUrl, true);
 
     expect(Object.keys(resources)).toEqual([CHATGPT_UPLOAD_WIDGET_URI]);
     expect(CHATGPT_UPLOAD_WIDGET_URI).toBe('ui://sharek/upload');
@@ -727,8 +738,9 @@ describe('the ChatGPT resources', () => {
     'builds its html with the ChatGPT ticket tool name (adjustable %s)',
     (adjustable) => {
       expect(
-        service.resources(backendUrl, adjustable)[CHATGPT_UPLOAD_WIDGET_URI]
-          .html
+        service.resources(upload, backendUrl, adjustable)[
+          CHATGPT_UPLOAD_WIDGET_URI
+        ].html
       ).toBe(
         uploadWidgetHtml(backendUrl, adjustable, {
           ticketTool: 'get_upload_ticket',
@@ -738,20 +750,12 @@ describe('the ChatGPT resources', () => {
     }
   );
 
-  it('keeps the name, description and meta of the upload resource', () => {
-    const { html, ...rest } = service.resources(backendUrl, true)[
+  it('keeps the name, description and meta of the upload resource it is given', () => {
+    const { html, ...rest } = service.resources(upload, backendUrl, true)[
       CHATGPT_UPLOAD_WIDGET_URI
     ];
+    const { html: baseHtml, ...base } = upload;
 
-    expect(rest).toEqual({
-      name: 'Upload Media',
-      description:
-        'Upload an image or video from the device to the media library',
-      meta: {
-        csp: { connectDomains: ['https://api.sharek.test'] },
-        permissions: { clipboardWrite: {} },
-        prefersBorder: true,
-      },
-    });
+    expect(rest).toEqual(base);
   });
 });
