@@ -338,7 +338,7 @@ export const StageSample: FC<{
   return (
     <div className={STAGE_PART}>
       <div className={STAGE_ROOM}>
-        <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface2">
+        <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface">
           {cover && !coverFailed ? (
             <img
               src={cover}
