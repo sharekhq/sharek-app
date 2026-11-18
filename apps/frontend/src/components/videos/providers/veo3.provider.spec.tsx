@@ -43,11 +43,7 @@ const SELECTION = [
 jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
-    MultiMediaComponent: ({
-      aiNotAvailable,
-      value,
-      onChange,
-    }: MediaRowProps) =>
+    MultiMediaComponent: ({ aiNotAvailable, value, onChange }: MediaRowProps) =>
       React.createElement(
         'div',
         {
