@@ -29,6 +29,8 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 const mockTools = {
   props: {} as Record<string, any>,
   mounts: {} as Record<string, number>,
+  loading: false,
+  dropped: [] as string[],
 };
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
   const { useEffect } = require('react');
@@ -59,14 +61,20 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
   ];
   return {
     AI_IMAGE_TOOL: 'ai-image',
-    useComposerCatalog: (accepts: string[]) => ({
-      catalog: {
-        listings: listings.filter(({ entry }) =>
-          accepts.includes(entry.post.kind)
-        ),
-      },
-      loading: false,
-    }),
+    useComposerCatalog: (accepts: string[]) => {
+      const listed = listings.filter(
+        ({ entry }) => !mockTools.dropped.includes(entry.id)
+      );
+      return {
+        catalog: {
+          listings: listed.filter(({ entry }) =>
+            accepts.includes(entry.post.kind)
+          ),
+        },
+        every: { listings: listed },
+        loading: mockTools.loading,
+      };
+    },
   };
 });
 // The tool switcher: a button per listed tool calling onPick, with the shown
@@ -158,6 +166,8 @@ beforeEach(() => {
   tabs = null;
   mockTools.props = {};
   mockTools.mounts = {};
+  mockTools.loading = false;
+  mockTools.dropped = [];
   mockPreview.refs.length = 0;
   window.localStorage.clear();
   useLaunchStore.getState().reset();
@@ -396,7 +406,7 @@ describe('the tab strip', () => {
     ).toBeTruthy();
     expect(label(working)).toBe(NAME);
     expect(tabs!.pending).toEqual([
-      { id: expect.any(String), kind: 'image', place: second, tool: IMAGE },
+      { id: expect.any(String), kind: 'image', place: second },
     ]);
 
     await loading(IMAGE, false);
@@ -578,6 +588,48 @@ describe('the tool the tab opens on', () => {
 // One tab: a button pressed while it is open selects it. An idle panel takes
 // the button's target and place; a busy one keeps where its render started.
 // The post a button works for is read at the click.
+describe('the tool list still loading', () => {
+  it('shows no tool, and not the AI image generator, until the list holds the remembered video tool', async () => {
+    window.localStorage.setItem(STORAGE_KEY, VEO);
+    mockTools.loading = true;
+    await render();
+    await open();
+
+    expect(host.querySelector('[data-switcher]')).toBeNull();
+    expect(mountedTools()).toEqual([]);
+
+    mockTools.loading = false;
+    await open();
+    expect(switcher().getAttribute('data-current')).toBe(VEO);
+    expect(mountedTools()).toEqual([VEO]);
+  });
+
+  it('falls back to the AI image generator once loaded when the remembered tool is not in the list', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'video:gone');
+    await render();
+    await open();
+
+    expect(switcher().getAttribute('data-current')).toBe(IMAGE);
+  });
+});
+
+describe('a busy tool whose listing goes', () => {
+  it('is no longer busy once its render settles, with its panel gone', async () => {
+    await render();
+    await open();
+    await loading(IMAGE, true);
+    expect(busyIds()).toEqual([IMAGE]);
+
+    mockTools.dropped = [IMAGE];
+    await open();
+    expect(toolElement(IMAGE)).toBeNull();
+
+    await loading(IMAGE, false);
+    expect(tab(NAME)!.getAttribute('aria-busy')).not.toBe('true');
+    expect(tabs!.busy).toEqual([]);
+  });
+});
+
 describe('the post the tab works for', () => {
   it('works for the post its button is under, in the channel on screen when that channel holds its own values', async () => {
     await render();
@@ -634,6 +686,24 @@ describe('the post the tab works for', () => {
     await lands(IMAGE);
     expect(before).toHaveBeenCalledWith(media);
     expect(after).not.toHaveBeenCalled();
+  });
+
+  it('sends the next render of a tool to the row pressed last while the previous one ran, once it settled', async () => {
+    const before = jest.fn();
+    const after = jest.fn();
+    await render();
+    await open(() => before);
+    await loading(IMAGE, true);
+    composing('int-1');
+    await open(() => after, 1);
+    await loading(IMAGE, false);
+
+    await loading(IMAGE, true);
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([second]);
+
+    await lands(IMAGE);
+    expect(after).toHaveBeenCalledWith(media);
+    expect(before).not.toHaveBeenCalled();
   });
 
   it('keeps the button pressed last with the tab, and its row’s latest handler, not the click’s', async () => {
