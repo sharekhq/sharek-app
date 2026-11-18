@@ -279,7 +279,7 @@ const AiTab: FC<{
               <ToolSwitcher
                 current={current}
                 catalog={catalog}
-                onPick={pick}
+                onPick={(id) => pick(id, shown)}
                 busy={busy}
               />
             </div>

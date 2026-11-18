@@ -71,7 +71,7 @@ export interface ComposerTabs {
     accepts: PendingKind[]
   ): void;
   /** The member picked a tool in the switcher: shown now and remembered. */
-  pick(tool: string): void;
+  pick(tool: string, from?: string): void;
   /** Selects Post preview only when the tab was on screen; a running render keeps its pending entry until it settles (FR-025). */
   close(): void;
   select(tab: 'preview' | 'ai'): void;
@@ -174,15 +174,16 @@ export const ComposerTabsProvider: FC<{
     [defaultTool]
   );
 
-  const pick = useCallback((tool: string) => {
+  const pick = useCallback((tool: string, from?: string) => {
     setTab(
       (current) =>
         current && {
           ...current,
           tool,
-          visited: current.visited.includes(tool)
-            ? current.visited
-            : [...current.visited, tool],
+          visited: [tool, ...(from ? [from] : [])].reduce(
+            (all, each) => (all.includes(each) ? all : [...all, each]),
+            current.visited
+          ),
         }
     );
     rememberTool(tool);
