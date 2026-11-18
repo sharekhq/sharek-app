@@ -545,6 +545,30 @@ body .copilotKitPopup {
   z-index: 600;
 }
 
+/* The composer's Assistant sits on the end side: CopilotKit pins the button
+   (`.copilotKitPopup`) and its window to `right: 1rem`, so in Arabic both move to
+   the left. The button is solid white in dark, so it takes the theme's own
+   surface and ink instead. The `body` ancestors outrank the vendor sheet, which
+   loads after this file, so no !important is needed. */
+html[dir='rtl'] body .copilotKitPopup {
+  right: auto;
+  left: 1rem;
+}
+
+@media (min-width: 640px) {
+  html[dir='rtl'] body .copilotKitWindow {
+    right: auto;
+    left: 1rem;
+    transform-origin: bottom left;
+  }
+}
+
+body.dark .copilotKitButton {
+  background-color: var(--surface-2);
+  border-color: var(--surface-2);
+  color: var(--ink);
+}
+
 /* "Powered by CopilotKit" under the input. There is no prop for it — the widget
    shows the tag whenever no CopilotKit Cloud key is configured, which is always
    here — so the stylesheet is the only place to turn it off.

@@ -559,11 +559,11 @@ describe('The composer Assistant look', () => {
     postcss.parse(
       sass.compile(
         fileURLToPath(
-          new URL('../apps/frontend/src/app/global.scss', import.meta.url)
+          new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
         ),
         {
           loadPaths: [
-            fileURLToPath(new URL('../node_modules', import.meta.url)),
+            fileURLToPath(new URL('../../node_modules', import.meta.url)),
           ],
         }
       ).css
@@ -578,18 +578,18 @@ describe('The composer Assistant look', () => {
       if (inMedia !== Boolean(atRule)) return;
       rule.walkDecls((d) => {
         out[d.prop] = d.value;
-        assert.equal(d.important, false, `${selector} ${d.prop}`);
+        assert.ok(!d.important, `${selector} ${d.prop}`);
       });
     });
     return out;
   };
   test('Assistant button mirrors in rtl and has a dark surface in dark', () => {
-    assert.deepEqual(decls("html[dir='rtl'] body .copilotKitPopup"), {
+    assert.deepEqual(decls('html[dir=rtl] body .copilotKitPopup'), {
       right: 'auto',
       left: '1rem',
     });
     assert.deepEqual(
-      decls("html[dir='rtl'] body .copilotKitWindow", '(min-width: 640px)'),
+      decls('html[dir=rtl] body .copilotKitWindow', '(min-width: 640px)'),
       { right: 'auto', left: '1rem', 'transform-origin': 'bottom left' }
     );
     assert.deepEqual(decls('body.dark .copilotKitButton'), {
