@@ -1311,8 +1311,11 @@ export const MultiMediaComponent: FC<{
             !flush && 'px-[12px] border-t border-newColColor',
             // from 1026px the bar stays in view at the bottom of the left
             // side's scroll area; the box around it is `contents` so the card
-            // is its parent
-            '[@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:z-[100] [@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:rounded-b-[5px]',
+            // is its parent. Only the composer editor's row (the one that has
+            // a `place`): a reference row would scroll and pin at once and
+            // paint over the pinned bar
+            place !== undefined &&
+              '[@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:z-[100] [@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:rounded-b-[5px]',
             toolsClassName
           )}
           style={toolsStyle}
