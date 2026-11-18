@@ -243,6 +243,47 @@ describe('an existing post', () => {
   });
 });
 
+// With a channel's Settings open the editor pane is hidden, and the channel
+// row (the picks and the tabs, Global among them) stays in the column so the
+// settings of another channel, or Global, are one click away (FR-007).
+describe('a channel’s Settings', () => {
+  const hiddenWithin = (element: Element) => {
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      if (node.classList.contains('hidden')) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const openSettings = async () => {
+    existing = {};
+    const host = await render();
+    await act(async () => {
+      useLaunchStore.setState({ current: 'int-1' });
+    });
+    await act(async () => {
+      (host.querySelector('.cursor-pointer') as HTMLElement).click();
+    });
+    return host;
+  };
+
+  it('with a channel’s Settings open the channel row is still rendered and switching works', async () => {
+    const host = await openSettings();
+
+    expect(
+      host.querySelector('#social-content')!.parentElement!.classList
+    ).toContain('hidden');
+    expect(hiddenWithin(host.querySelector('[data-picks]')!)).toBe(false);
+  });
+
+  it('Back to global stays reachable', async () => {
+    const host = await openSettings();
+
+    expect(hiddenWithin(host.querySelector('[data-current]')!)).toBe(false);
+  });
+});
+
 // The compose window takes the Studio page card's 12px corners on a wide
 // screen (spec 061), and still fills a phone's screen edge to edge with none.
 describe('the compose card', () => {
