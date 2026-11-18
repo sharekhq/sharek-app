@@ -2005,6 +2005,32 @@ describe('keyboard visibility', () => {
     });
   });
 
+  // The list takes the stage, which the stacked layout puts above the chips
+  // the member pressed All styles from, so it is scrolled into view. Nearest,
+  // and no behaviour: reduced motion is the stylesheet's call.
+  it('opening All styles in the composer tab brings the list into view', async () => {
+    const scrolled = jest.spyOn(Element.prototype, 'scrollIntoView');
+    await mount(
+      <AiImageTool
+        layout="stacked"
+        destination="post"
+        onChange={jest.fn()}
+        onAccept={jest.fn()}
+        setLoading={jest.fn()}
+      />
+    );
+    scrolled.mockClear();
+
+    await click(button('All styles'));
+
+    expect(scrolled).toHaveBeenCalledTimes(1);
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    expect((scrolled.mock.instances[0] as Element).textContent).toContain(
+      'Style'
+    );
+    scrolled.mockRestore();
+  });
+
   it('rings every button in the style catalog', async () => {
     await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
