@@ -736,7 +736,7 @@ describe('with onPick and busy', () => {
     await click(option('Veo 3'));
 
     expect(onPick).toHaveBeenCalledTimes(1);
-    expect(onPick).toHaveBeenCalledWith('veo3');
+    expect(onPick).toHaveBeenCalledWith('video:veo3');
     expect(mockPush).not.toHaveBeenCalled();
     expect(listbox()).toBeNull();
   });
@@ -778,7 +778,7 @@ describe('with onPick and busy', () => {
   });
 
   it('a busy tool reads Creating… as its second line', async () => {
-    await renderPicking(jest.fn(), build(), ['veo3']);
+    await renderPicking(jest.fn(), build(), ['video:veo3']);
 
     expect(lineOf(option('Veo 3')!)).toBe('Creating…');
     expect(lineOf(option('Kling')!)).not.toBe('Creating…');
