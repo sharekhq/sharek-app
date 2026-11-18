@@ -16,6 +16,10 @@
  * Shared by the composer's popup and Samy's chat, so it lives here rather than in
  * either of them — the same reason `tutorial.video.ts` sits beside it.
  */
+import { createElement } from 'react';
+import { useChatContext } from '@copilotkit/react-ui';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+
 export interface AssistantLabel {
   key: string;
   defaultValue: string;
@@ -69,3 +73,36 @@ export const assistantLabels = (
       t(key, defaultValue),
     ])
   );
+
+/**
+ * CopilotKit's own button hard-codes "Open Chat" / "Close Chat" as its accessible
+ * name and takes no label for it, so `CopilotPopup` gets this copy of it instead:
+ * the same markup, classes and icons, named from the locale.
+ */
+export const AssistantButton = () => {
+  const t = useT();
+  const { open, setOpen, icons } = useChatContext();
+  return createElement(
+    'div',
+    { onClick: () => setOpen(!open) },
+    createElement(
+      'button',
+      {
+        className: `copilotKitButton ${open ? 'open' : ''}`,
+        'aria-label': open
+          ? t('assistant_close_chat', 'Close the Assistant chat')
+          : t('assistant_open_chat', 'Open the Assistant chat'),
+      },
+      createElement(
+        'div',
+        { className: 'copilotKitButtonIcon copilotKitButtonIconOpen' },
+        icons.openIcon
+      ),
+      createElement(
+        'div',
+        { className: 'copilotKitButtonIcon copilotKitButtonIconClose' },
+        icons.closeIcon
+      )
+    )
+  );
+};

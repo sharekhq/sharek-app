@@ -13,7 +13,10 @@ import { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.e
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
-import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
+import {
+  AssistantButton,
+  assistantLabels,
+} from '@gitroom/frontend/components/ui/assistant.labels';
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
@@ -1500,6 +1503,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           stageTab !== 'preview' && 'hidden',
           mobileTab === 'preview' && 'mobile:hidden'
         )}
+        Button={AssistantButton}
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`
