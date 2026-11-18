@@ -319,6 +319,23 @@ describe('the button', () => {
   });
 });
 
+describe('the spacing', () => {
+  it("the button takes the caller's spacing and has none of its own", async () => {
+    const catalog = build();
+    const tool = findStudioTool(catalog, 'ai-image');
+    expect(tool).toBeDefined();
+    const bare = await mount(
+      <ToolSwitcher current={tool!} catalog={catalog} />
+    );
+    expect(bare.innerHTML).not.toMatch(/\bms-/);
+    const spaced = await mount(
+      <ToolSwitcher current={tool!} catalog={catalog} className="ms-[7px]" />
+    );
+    expect(spaced.innerHTML).toContain('ms-[7px]');
+    expect(spaced.innerHTML).not.toContain('ms-[12px]');
+  });
+});
+
 describe('the list', () => {
   it('shows a search field, then Tools, then Models', async () => {
     await open();
