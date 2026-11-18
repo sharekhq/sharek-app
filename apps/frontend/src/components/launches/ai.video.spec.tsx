@@ -1044,13 +1044,12 @@ describe('the settings', () => {
     expect(JSON.parse(init.body).output).toBe('horizontal');
   });
 
-  it("start a model's settings with its maker and facts, from its card", async () => {
+  it('the tool head shows no name, maker or facts', async () => {
     await open({ layout: 'page', destination: 'media' });
 
     const settings = panel()!;
-    const orientation = byText(settings, 'Orientation');
-    ['Google', '~8 s', '1080p', 'Sound'].forEach((text) =>
-      expect(follows(orientation, holding(settings, text))).toBe(true)
+    ['Veo 3', 'Google', '~8 s', '1080p', 'Sound'].forEach((text) =>
+      expect(holding(settings, text)).toBeFalsy()
     );
   });
 
@@ -1070,28 +1069,15 @@ describe('the settings', () => {
     expect(follows(byText(settings, 'Orientation'), render)).toBe(true);
   });
 
-  // The live walk: in the page's 360px panel the steps kept their width and
-  // cut "Image Text Slides" to 69 of its 104px. The name stays whole; when
-  // the row is short the steps take the next line, from its start.
-  it("keep a workflow's whole name, its steps going under it when the row is short", async () => {
+  it("Image Text Slides' head is its step trail alone", async () => {
     await open({ layout: 'page', destination: 'media', provider: slides });
 
     act(() =>
       mockVideo!.setTrail({ steps: ['Script', 'Review', 'Render'], current: 0 })
     );
 
-    const name = holding(panel()!, 'Image Text Slides')!;
-    const row = name.parentElement!;
-    expect(tokens(name)).not.toContain('truncate');
-    expect(tokens(row)).toEqual(
-      expect.arrayContaining(['flex-wrap', 'justify-between'])
-    );
-    expect(row.contains(holding(panel()!, 'Script')!)).toBe(true);
-    expect(
-      Array.from(row.querySelectorAll('*')).filter((node) =>
-        tokens(node).includes('ms-auto')
-      )
-    ).toHaveLength(0);
+    expect(holding(panel()!, 'Image Text Slides')).toBeFalsy();
+    expect(holding(panel()!, 'Script')).toBeTruthy();
   });
 
   // The window's own scroller goes: the frame's settings scroll for it.
@@ -1474,7 +1460,7 @@ describe('AiVideoChooser', () => {
       (node) => node.textContent?.trim() === label
     );
 
-  it('draws the chooser, then the chosen tool with a way back to it', async () => {
+  it('draws the chooser, then the chosen tool', async () => {
     await mount(
       <AiVideoChooser
         list={providers}
@@ -1492,33 +1478,7 @@ describe('AiVideoChooser', () => {
 
     expect(document.body.textContent).not.toContain('Choose a video type');
     expect(mainButton()?.textContent?.trim()).toBe('Generate');
-
-    await click(backTo('Veo 3'));
-
-    expect(document.body.textContent).toContain('Choose a video type');
-  });
-
-  // The way back names the type in full, as the page's head does.
-  it("keeps the chosen type's whole name on its way back", async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    await click(buttonStarting('Image Text Slides'));
-
-    const back = backTo('Image Text Slides')!;
-    expect(
-      Array.from(back.querySelectorAll('*')).filter((node) =>
-        tokens(node).includes('truncate')
-      )
-    ).toHaveLength(0);
+    expect(backTo('Veo 3')).toBeUndefined();
   });
 
   it('opens the one type there is, with no way back', async () => {
