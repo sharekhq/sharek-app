@@ -110,6 +110,20 @@ afterEach(() => {
 });
 
 describe('the page layout', () => {
+  it('the panel is clamp(380px,34%,460px) and full width on a phone', async () => {
+    const host = await mount(frame());
+    const panel = host.firstElementChild!.children[0];
+
+    expect(tokens(panel)).toEqual(
+      expect.arrayContaining([
+        'w-[clamp(380px,34%,460px)]',
+        'phone:w-full',
+        'phone:border-e-0',
+      ])
+    );
+    expect(tokens(panel)).not.toContain('w-[360px]');
+  });
+
   it('puts the settings panel first, on the start side, with the head, the scroller and the bar', async () => {
     const host = await mount(frame());
     const root = host.firstElementChild!;
@@ -117,7 +131,7 @@ describe('the page layout', () => {
 
     expect(tokens(panel)).toEqual(
       expect.arrayContaining([
-        'w-[360px]',
+        'w-[clamp(380px,34%,460px)]',
         'shrink-0',
         'border-e',
         'border-line',
@@ -714,6 +728,35 @@ describe('StageResult', () => {
       {...props}
     />
   );
+
+  // The versions row is drawn with or without versions, so the stage's room
+  // (and the picture sized from it) does not change when the strip appears.
+  it('the result keeps its stage box when versions appear', async () => {
+    const without = await mount(result());
+    const withVersions = await mount(
+      result({
+        versions: (
+          <VersionsStrip
+            versions={[
+              { path: 'https://cdn.example/a.png', kind: 'image' },
+              { path: 'https://cdn.example/b.png', kind: 'image' },
+            ]}
+            shown={1}
+            onSelect={() => undefined}
+          />
+        ),
+      })
+    );
+    const row = (host: HTMLElement) =>
+      byTestId(host, 'versions-row') as HTMLElement;
+
+    expect(tokens(row(without))).toEqual(
+      expect.arrayContaining(['h-[68px]', 'shrink-0'])
+    );
+    expect(row(without).children.length).toBe(0);
+    expect(tokens(row(withVersions))).toEqual(tokens(row(without)));
+    expect(row(withVersions).querySelector('[role="group"]')).not.toBeNull();
+  });
 
   // The result fills the box the placeholder drew.
   it('opens an image full size in a new tab, in the placeholder box', async () => {
