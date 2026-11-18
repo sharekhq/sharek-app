@@ -281,22 +281,14 @@ export class ChatgptToolsService {
 
   // The widgets of the ChatGPT connection: the upload widget under its own uri,
   // calling the ChatGPT name of the ticket tool.
-  resources(backendUrl: string, adjustable: boolean) {
+  resources(upload: object, backendUrl: string, adjustable: boolean) {
     return {
       [CHATGPT_UPLOAD_WIDGET_URI]: {
-        name: 'Upload Media',
-        description:
-          'Upload an image or video from the device to the media library',
+        ...upload,
         html: uploadWidgetHtml(backendUrl, adjustable, {
           ticketTool: CHATGPT_TOOLSET.uploadWidgetTicketTool.name,
           app: 'sharek-upload',
         }),
-        meta: {
-          csp: { connectDomains: [new URL(backendUrl).origin] },
-          // the "Copy link" button of the uploaded media
-          permissions: { clipboardWrite: {} },
-          prefersBorder: true,
-        },
       },
     };
   }
