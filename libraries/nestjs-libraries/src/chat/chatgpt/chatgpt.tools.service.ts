@@ -284,8 +284,14 @@ export class ChatgptToolsService {
     offered: OfferedLookup[]
   ) {
     const own = offered.filter((lookup) => lookup.providers.includes(platform));
+    // Only camelCase method names (musicSearch) read as a function name; plain
+    // ones (boards, tags, list) are also the words the settings text uses.
     const rewrite = renamer(
-      Object.fromEntries(own.map((lookup) => [lookup.methodName, lookup.name]))
+      Object.fromEntries(
+        own
+          .filter((lookup) => /[A-Z]/.test(lookup.methodName))
+          .map((lookup) => [lookup.methodName, lookup.name])
+      )
     );
 
     return {

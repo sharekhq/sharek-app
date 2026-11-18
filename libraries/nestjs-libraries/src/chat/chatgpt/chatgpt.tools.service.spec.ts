@@ -698,7 +698,9 @@ describe('get_posting_rules', () => {
 
     for (const { identifier } of socialIntegrationList) {
       const output = await rules(identifier);
-      const own = lookups[identifier].map((lookup) => lookup.methodName);
+      const own = lookups[identifier]
+        .map((lookup) => lookup.methodName)
+        .filter((methodName) => /[A-Z]/.test(methodName));
       const old = new RegExp(`\\b(${[...sourceNames, ...own].join('|')})\\b`);
 
       for (const text of stringsIn([output.rules, output.settings])) {
