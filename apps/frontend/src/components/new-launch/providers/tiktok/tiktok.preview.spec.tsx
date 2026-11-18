@@ -78,6 +78,16 @@ describe('TiktokPreview', () => {
     expect(root.classList.contains('overflow-hidden')).toBe(true);
   });
 
+  it('the @handle reads left to right in Arabic', async () => {
+    document.documentElement.dir = 'rtl';
+    const host = await showPreview();
+    document.documentElement.dir = '';
+    const handle = Array.from(host.querySelectorAll('bdi')).find((el) =>
+      el.textContent?.includes('@Sharek')
+    );
+    expect(handle?.getAttribute('dir')).toBe('ltr');
+  });
+
   it('no physical left/right classes', async () => {
     const host = await showPreview();
     expect(
