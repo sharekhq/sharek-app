@@ -180,6 +180,18 @@ describe('the date picker’s date', () => {
     expect(line(host)).toMatch(/12:30 م$/);
   });
 
+  // The desktop popover draws its own Calendar; the live walk of 1ecb200 found
+  // its month and weekdays still English under Arabic, since only the phone
+  // sheet's Calendar was given the interface language (spec 062 walk, FR-024)
+  it('the desktop popover names the month in the interface language', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('en');
+    mockCalendarProps = {};
+    await open('24');
+
+    expect(mockCalendarProps.locale).toBe('ar');
+  });
+
   it('the Arabic bottom-bar date reads in one direction with Arabic punctuation', async () => {
     await i18next.changeLanguage('ar');
     dayjs.locale('ar');

@@ -294,6 +294,7 @@ export const DatePickerPanel: FC<{
   return (
     <>
       <Calendar
+        locale={locale}
         onChange={changeDate('date')}
         value={toPickerDate(date)}
         dayClassName={(date, modifiers) => {
