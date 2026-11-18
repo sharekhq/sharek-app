@@ -189,3 +189,11 @@ describe('IntegrationManager.isDashboardCallable', () => {
     expect(refused).toEqual([]);
   });
 });
+
+// Characterization of the decorated helpers of every provider, taken before the
+// lookups are exposed to ChatGPT: the catalog must not change when they are.
+describe('IntegrationManager.getAllTools', () => {
+  it('lists every provider with its decorated helpers', () => {
+    expect(new IntegrationManager().getAllTools()).toMatchSnapshot();
+  });
+});

@@ -26,4 +26,15 @@ describe('the upload widget', () => {
     expect(html).toContain('<input id="adjust" type="checkbox" />');
     expect(html).toContain('Adjust media to platform limits');
   });
+
+  // Characterization of the default page, taken before the ticket tool and the
+  // app name become options: the default output must not change.
+  it.each([false, true])(
+    'renders the default page, adjustable %s',
+    (adjustable) => {
+      expect(
+        uploadWidgetHtml('https://api.example.com', adjustable)
+      ).toMatchSnapshot();
+    }
+  );
 });
