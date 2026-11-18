@@ -7,6 +7,7 @@ import * as path from 'path';
 /** The slice of the media picker's props this spec drives. */
 interface MediaRowProps {
   destination?: string;
+  aiNotAvailable?: boolean;
   value?: Array<{ id: string; path: string }>;
   onChange: (event: {
     target: { value: Array<{ id: string; path: string }> };
@@ -43,10 +44,19 @@ const SELECTION = [
 jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
-    MultiMediaComponent: ({ destination, value, onChange }: MediaRowProps) =>
+    MultiMediaComponent: ({
+      destination,
+      aiNotAvailable,
+      value,
+      onChange,
+    }: MediaRowProps) =>
       React.createElement(
         'div',
-        { 'data-testid': 'media-row', 'data-destination': destination },
+        {
+          'data-testid': 'media-row',
+          'data-destination': destination,
+          'data-ai-not-available': String(!!aiNotAvailable),
+        },
         React.createElement(
           'span',
           { 'data-testid': 'shown' },
@@ -218,6 +228,13 @@ describe('veo3 reference images', () => {
     expect(row?.getAttribute('data-destination')).toBe('reference');
     expect(follows(hint, label)).toBe(true);
     expect(follows(row, hint)).toBe(true);
+  });
+
+  it('the reference images row offers no AI tool', async () => {
+    await render();
+    const row = document.querySelector('[data-testid="media-row"]');
+
+    expect(row?.getAttribute('data-ai-not-available')).toBe('true');
   });
 
   it('shows back what the request will carry, not what was picked', async () => {

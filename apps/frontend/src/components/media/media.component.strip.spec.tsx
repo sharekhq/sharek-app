@@ -6,18 +6,18 @@ import { createRoot } from 'react-dom/client';
 // Each button keeps its name, on the control as well as in its label. The mock
 // list is media.component.uploader.spec.tsx's, which mounts the same component;
 // only the image editor's switch and the AI buttons differ.
+let mockPlanHasAi = true;
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback?: string) => fallback ?? _key,
 }));
-// The AI buttons show the post they work for (spec 061, FR-024).
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: { place?: number }) => (
-    <div data-ai="image" data-place={props.place} />
-  ),
-}));
-jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideo: (props: { place?: number }) => (
-    <div data-ai="video" data-place={props.place} />
+// The one AI button shows the post it works for and what it accepts (spec 064).
+jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
+  CreateWithAi: (props: { place?: number; accepts: string[] }) => (
+    <div
+      data-ai="create"
+      data-place={props.place}
+      data-accepts={props.accepts.join(',')}
+    />
   ),
 }));
 // Scenery, none of it asserted on: the component has to mount for its strip to
@@ -52,7 +52,7 @@ jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => undefined }),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ tier: { ai: true }, totalChannels: 1 }),
+  useUser: () => ({ tier: { ai: mockPlanHasAi }, totalChannels: 1 }),
 }));
 // The image editor is switched on so Design Media is in the row.
 jest.mock('@gitroom/react/helpers/variable.context', () => ({
@@ -186,14 +186,37 @@ describe('the media strip', () => {
     );
   });
 
-  it('hands its AI buttons the post it was given', async () => {
+  it('hands its AI button the post it was given', async () => {
     const host = await render({ place: 2 });
     const ai = Array.from(host.querySelectorAll<HTMLElement>('[data-ai]'));
 
     expect(ai.map((each) => [each.dataset.ai, each.dataset.place])).toEqual([
-      ['image', '2'],
-      ['video', '2'],
+      ['create', '2'],
     ]);
+  });
+
+  it('the row shows one Create with AI with image and video', async () => {
+    const host = await render({ place: 0 });
+    const ai = Array.from(host.querySelectorAll<HTMLElement>('[data-ai]'));
+
+    expect(ai.map((each) => each.dataset.accepts)).toEqual(['image,video']);
+  });
+
+  it('a plan without AI shows no Create with AI', async () => {
+    mockPlanHasAi = false;
+    try {
+      const host = await render({ place: 0 });
+
+      expect(host.querySelector('[data-ai]')).toBeNull();
+    } finally {
+      mockPlanHasAi = true;
+    }
+  });
+
+  it('aiNotAvailable hides Create with AI', async () => {
+    const host = await render({ place: 0, aiNotAvailable: true });
+
+    expect(host.querySelector('[data-ai]')).toBeNull();
   });
   // From 1026px the tool bar and the counter stay in view at the bottom of the
   // left side's scroll area while the text and the thumbnails scroll above
