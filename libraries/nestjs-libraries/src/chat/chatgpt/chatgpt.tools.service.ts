@@ -97,11 +97,27 @@ const rewriteStrings = (value: any, rewrite: (text: string) => string): any =>
       )
     : value;
 
-// Runs a tool and renames the names in its result, or in the message of the
-// error it throws.
+// Rewrites the strings under the error and errors keys of a result, wherever
+// they are: the rest is data of the user (post content, channel names).
+const rewriteErrors = (value: any, rewrite: (text: string) => string): any =>
+  Array.isArray(value)
+    ? value.map((item) => rewriteErrors(item, rewrite))
+    : isPlainObject(value)
+    ? Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [
+          key,
+          ['error', 'errors'].includes(key)
+            ? rewriteStrings(item, rewrite)
+            : rewriteErrors(item, rewrite),
+        ])
+      )
+    : value;
+
+// Runs a tool and renames the names in the errors of its result, or in the
+// message of the error it throws.
 const rewriting = async (rewrite: (text: string) => string, run: () => any) => {
   try {
-    return rewriteStrings(await run(), rewrite);
+    return rewriteErrors(await run(), rewrite);
   } catch (error) {
     if (error instanceof Error) {
       error.message = rewrite(error.message);
@@ -263,7 +279,12 @@ export class ChatgptToolsService {
                 const result = await src.execute(input, context);
 
                 return rules
-                  ? this._postingRules(result.output, input.platform, lookups)
+                  ? this._postingRules(
+                      result.output,
+                      input.platform,
+                      lookups,
+                      rewrite
+                    )
                   : result;
               }),
           } as any),
@@ -303,7 +324,8 @@ export class ChatgptToolsService {
   private _postingRules(
     output: { rules: string; maxLength: number; settings: any },
     platform: string,
-    offered: OfferedLookup[]
+    offered: OfferedLookup[],
+    rename: (text: string) => string
   ) {
     const own = offered.filter((lookup) => lookup.providers.includes(platform));
     // Only camelCase method names (musicSearch) read as a function name; plain
@@ -318,9 +340,12 @@ export class ChatgptToolsService {
 
     return {
       output: {
-        rules: rewriteStrings(output.rules, rewrite),
+        rules: rewriteStrings(rewriteStrings(output.rules, rewrite), rename),
         maxLength: output.maxLength,
-        settings: rewriteStrings(output.settings, rewrite),
+        settings: rewriteStrings(
+          rewriteStrings(output.settings, rewrite),
+          rename
+        ),
         lookups: own.map((lookup) => ({
           name: lookup.name,
           description: lookup.description,
