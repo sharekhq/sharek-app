@@ -1143,6 +1143,18 @@ describe('the stage', () => {
     );
   });
 
+  // Stacked, the sample's stage takes its content's height, so the slot does
+  // not shrink to a fixed one (spec 064, T028).
+  it('lets the slot take its content height in the stacked stage while the sample shows', async () => {
+    await open({ layout: 'stacked', destination: 'media', provider: slides });
+    await settle();
+
+    expect(
+      (mockVideo!.stageSlot!.getAttribute('class') ?? '').split(/\s+/)
+    ).toContain('group-data-[sample]/stage:flex-none');
+    expect(stage()!.hasAttribute('data-sample')).toBe(true);
+  });
+
   it('shows the wait in the chosen shape, with the time it has taken', async () => {
     rendersForever();
     await generate({ layout: 'page', destination: 'media' });
