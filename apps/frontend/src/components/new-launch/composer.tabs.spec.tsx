@@ -123,8 +123,8 @@ describe('CreateWithAi', () => {
       open: true,
       accepts,
       place: { channel: 'global', index: 2 },
-      opener: button(),
     });
+    expect(tabs!.tab!.opener).toBe(button());
   });
 
   it('renders nothing outside the composer or without a place', async () => {
@@ -194,19 +194,28 @@ describe('the AI tab state', () => {
     await openTab();
     expect(tabs!.tab!.tool).toBe(AI_IMAGE_TOOL);
 
-    jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked');
+    const storage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('blocked');
+      },
     });
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked');
-    });
-    await act(async () => {
-      tabs!.close();
-    });
-    await openTab();
-    expect(tabs!.tab!.tool).toBe(AI_IMAGE_TOOL);
-    await act(async () => {
-      expect(() => tabs!.pick('veo3')).not.toThrow();
-    });
+    try {
+      await act(async () => {
+        tabs!.close();
+      });
+      await openTab();
+      expect(tabs!.tab!.tool).toBe(AI_IMAGE_TOOL);
+      await act(async () => {
+        expect(() => tabs!.pick('veo3')).not.toThrow();
+      });
+    } finally {
+      if (storage) {
+        Object.defineProperty(globalThis, 'localStorage', storage);
+      } else {
+        delete (globalThis as { localStorage?: Storage }).localStorage;
+      }
+    }
   });
 });

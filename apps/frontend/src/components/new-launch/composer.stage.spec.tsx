@@ -455,18 +455,27 @@ describe('the tool the tab opens on', () => {
   });
 
   it('leaves the AI image generator when storage throws, and still switches tools', async () => {
-    jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked');
+    const storage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('blocked');
+      },
     });
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked');
-    });
-    await render();
-    await open();
-    expect(onScreen()).toEqual([IMAGE]);
+    try {
+      await render();
+      await open();
+      expect(onScreen()).toEqual([IMAGE]);
 
-    await pick(VEO);
-    expect(onScreen()).toEqual([VEO]);
+      await pick(VEO);
+      expect(onScreen()).toEqual([VEO]);
+    } finally {
+      if (storage) {
+        Object.defineProperty(globalThis, 'localStorage', storage);
+      } else {
+        delete (globalThis as { localStorage?: Storage }).localStorage;
+      }
+    }
   });
 
   it('shows the picked tool’s panel and remembers it', async () => {
