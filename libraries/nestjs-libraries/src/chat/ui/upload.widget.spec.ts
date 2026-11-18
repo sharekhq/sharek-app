@@ -37,4 +37,16 @@ describe('the upload widget', () => {
       ).toMatchSnapshot();
     }
   );
+
+  it('takes the ticket tool and the app name as options', () => {
+    const html = uploadWidgetHtml('https://api.example.com', false, {
+      ticketTool: 'get_upload_ticket',
+      app: 'sharek-upload',
+    });
+
+    expect(html).toContain('get_upload_ticket');
+    expect(html).toContain('sharek-upload');
+    expect(html).not.toContain('uploadWidgetTicketTool');
+    expect(html).not.toContain('postiz-upload');
+  });
 });
