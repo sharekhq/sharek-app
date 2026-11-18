@@ -312,6 +312,36 @@ describe('the stage background', () => {
 });
 
 describe('the stacked layout', () => {
+  it('the stacked action bar is inset like the fields', async () => {
+    const host = await mount(frame({ layout: 'stacked' }));
+
+    expect(tokens(bar(host))).toContain('px-[16px]');
+  });
+
+  // The sample's box is sized from the stage height, so it differed per tool:
+  // the stacked stage hands every sample one maximum, the AI image's.
+  it("every tool's sample is one centred size in the stacked layout", async () => {
+    const host = await mount(frame({ layout: 'stacked' }));
+
+    expect(tokens(byTestId(host, 'stage')!.parentElement)).toContain(
+      '[--sample-max:400px]'
+    );
+  });
+
+  it("the page layout's sample is unchanged", async () => {
+    const host = await mount(frame());
+    const sample = await mount(
+      <StageSample icon={<svg />} title="Title" body="Body" />
+    );
+
+    expect(
+      tokens(byTestId(host, 'stage')!.parentElement).join(' ')
+    ).not.toContain('--sample-max');
+    expect(sample.querySelector('.aspect-video')?.className).toContain(
+      'var(--sample-max,640px)'
+    );
+  });
+
   it('draws the stage, then the settings, then the bar', async () => {
     const host = await mount(frame({ layout: 'stacked' }));
     const stage = byTestId(host, 'stage')!.parentElement;
