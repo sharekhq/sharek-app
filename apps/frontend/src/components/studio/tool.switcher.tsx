@@ -298,7 +298,9 @@ export const ToolSwitcher: FC<{
   catalog: StudioCatalog;
   onPick?: (toolId: string) => void;
   busy?: readonly string[];
-}> = ({ current, catalog, onPick, busy }) => {
+  /** The outer spacing: the top bar's start margin on Studio's page, none in the composer. */
+  className?: string;
+}> = ({ current, catalog, onPick, busy, className }) => {
   const t = useT();
   const router = useRouter();
   const hanging = useHangingPanel();
@@ -335,7 +337,7 @@ export const ToolSwitcher: FC<{
     <div
       ref={ref}
       onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
-      className="flex min-w-0 ms-[12px] phone:ms-0"
+      className={clsx('flex min-w-0', className)}
     >
       <button
         ref={button}

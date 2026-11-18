@@ -1024,7 +1024,7 @@ export const MultiMediaComponent: FC<{
   mediaNotAvailable?: boolean;
   designNotAvailable?: boolean;
   aiNotAvailable?: boolean;
-  /** The index of the post this row belongs to, for its AI buttons. */
+  /** The index of the post this row belongs to, for its Create with AI button. */
   place?: number;
   /**
    * Drops the chrome this component wears inside the composer — the divider

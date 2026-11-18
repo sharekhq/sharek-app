@@ -675,7 +675,7 @@ describe('the look', () => {
     const name = trigger().querySelector('span:not([aria-hidden])')!;
 
     expect(classes(host.firstElementChild!)).toEqual(
-      expect.arrayContaining(['min-w-0', 'ms-[12px]', 'phone:ms-0'])
+      expect.arrayContaining(['min-w-0'])
     );
     expect(classes(trigger())).toContain('min-w-0');
     expect(name.textContent).toBe('AI image generator');
