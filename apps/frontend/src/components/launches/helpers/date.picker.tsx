@@ -361,16 +361,26 @@ export const DatePicker: FC<{
   // line that truncates.
   const row =
     'px-[16px] border border-newTextColor/10 mobile:border-line rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ms-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0';
+  // the Arabic comma, so the short date does not carry a Latin one
+  const comma = i18next.resolvedLanguage === 'ar' ? '،' : ',';
   const lines = (
     <>
       <div>
         <CalendarIcon />
       </div>
-      <div className="mobile:hidden">
-        {date.format(isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm')}
+      <div className="mobile:hidden" dir={i18next.dir()}>
+        <bdi>
+          {date.format(
+            isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm'
+          )}
+        </bdi>
       </div>
-      <div className="hidden mobile:block truncate">
-        {date.format(isUSCitizen() ? 'MMM D, h:mm A' : 'D MMM, HH:mm')}
+      <div className="hidden mobile:block truncate" dir={i18next.dir()}>
+        <bdi>
+          {date.format(
+            isUSCitizen() ? `MMM D${comma} h:mm A` : `D MMM${comma} HH:mm`
+          )}
+        </bdi>
       </div>
     </>
   );

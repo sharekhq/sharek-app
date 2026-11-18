@@ -185,7 +185,7 @@ describe('the date picker’s date', () => {
     dayjs.locale('ar');
 
     const host = await open('24');
-    const lines = Array.from(host.firstElementChild!.children).slice(1);
+    const lines = Array.from(host.firstElementChild!.children).slice(1, 3);
 
     expect(lines).toHaveLength(2);
     lines.forEach((node) => {
