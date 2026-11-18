@@ -196,6 +196,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         <div
           className={clsx(
             CARD_PADDING,
+            STAGE_BACKGROUND,
             'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center phone:order-first phone:flex-none',
             // A size container is as tall as it is told, so a stage that
             // grows with its result stops being one.
@@ -217,6 +218,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
     <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL, 'pb-0')}>
       <div
         className={clsx(
+          STAGE_BACKGROUND,
           'flex-none flex flex-col items-center justify-center',
           // As on a phone's page: a size container is as tall as it is
           // told, so a stage that grows with its result stops being one.
@@ -247,6 +249,13 @@ export const WORKSPACE_WINDOW = {
   height: 'min(860px, calc(100dvh - 48px))',
   top: 24,
 };
+
+/**
+ * The stage's background: the panel tint under a dot grid of the theme's ink,
+ * so the result reads against it in either theme.
+ */
+export const STAGE_BACKGROUND =
+  'bg-[var(--panel)] [background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px]';
 
 /** The credits left, in the action bar. */
 export const CreditsPill: FC<{ count: number }> = ({ count }) => {
