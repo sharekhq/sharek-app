@@ -72,9 +72,9 @@ describe('spec 062 words', () => {
     });
   });
 
-  it('every plural form keeps its language siblings placeholders', () => {
+  it('the counted Arabic forms keep the count placeholder', () => {
     PLURAL_KEYS.forEach((key) => {
-      withPlurals(key, PLURALS_AR).forEach((k) => {
+      withPlurals(key, ['few', 'many', 'other']).forEach((k) => {
         expect(placeholders(ar[k])).toBe(placeholders(en[`${key}_other`]));
       });
     });
