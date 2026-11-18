@@ -11,7 +11,11 @@ export const UPLOAD_WIDGET_URI = 'ui://postiz/upload';
 // the host) -> POST /media-widget/upload -> report the media back to the model.
 // The upload is a plain multipart fetch on purpose: no custom headers and no
 // XHR progress listeners, so the browser never sends a CORS preflight
-export const uploadWidgetHtml = (backendUrl: string, adjustable: boolean) => `<!DOCTYPE html>
+export const uploadWidgetHtml = (
+  backendUrl: string,
+  adjustable: boolean,
+  names = { ticketTool: 'uploadWidgetTicketTool', app: 'postiz-upload' }
+) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -123,7 +127,7 @@ export const uploadWidgetHtml = (backendUrl: string, adjustable: boolean) => `<!
   });
 
   function getTicket() {
-    return request('tools/call', { name: 'uploadWidgetTicketTool', arguments: { sessionId: sessionId } }).then(function (result) {
+    return request('tools/call', { name: '${names.ticketTool}', arguments: { sessionId: sessionId } }).then(function (result) {
       var content = (result && result.structuredContent) || {};
       if (!content.ticket) throw new Error(content.error || 'Could not get an upload ticket');
       return content.ticket;
@@ -323,7 +327,7 @@ export const uploadWidgetHtml = (backendUrl: string, adjustable: boolean) => `<!
   });
 
   request('ui/initialize', {
-    appInfo: { name: 'postiz-upload', version: '1.0.0' },
+    appInfo: { name: '${names.app}', version: '1.0.0' },
     appCapabilities: {},
     protocolVersion: '2026-01-26',
   }).then(
