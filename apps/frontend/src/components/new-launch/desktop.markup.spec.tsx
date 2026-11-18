@@ -736,6 +736,7 @@ describe('the tool buttons from 1026px up', () => {
           label="Attachments"
           description=""
           value={[shownMedia[0]]}
+          place={0}
           dummy={false}
           name="image"
           onChange={jest.fn()}
