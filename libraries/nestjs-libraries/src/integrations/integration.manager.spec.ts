@@ -10,6 +10,7 @@ jest.mock('nostr-tools', () => ({
   SimplePool: class {},
 }));
 
+import { Tool } from './tool.decorator';
 import {
   IntegrationManager,
   socialIntegrationList,
@@ -187,5 +188,189 @@ describe('IntegrationManager.isDashboardCallable', () => {
       .map((provider) => provider.identifier);
 
     expect(refused).toEqual([]);
+  });
+});
+
+// Characterization of the decorated helpers of every provider, taken before the
+// lookups are exposed to ChatGPT: the catalog must not change when they are.
+describe('IntegrationManager.getAllTools', () => {
+  it('lists every provider with its decorated helpers', () => {
+    expect(new IntegrationManager().getAllTools()).toMatchSnapshot();
+  });
+});
+
+// The fixtures are decorated classes that stand in for a provider (and a child
+// of it) in the manager's catalog: they exercise the decorator and the
+// inheritance independently of the real providers.
+class LookupParent {
+  identifier = 'lookup-parent';
+
+  @Tool({
+    description: 'Plain helper',
+    dataSchema: [{ key: 'id', type: 'string', description: 'An id' }],
+    lookup: {
+      name: 'list_things',
+      title: 'List things',
+      description: 'Lists the things',
+      optionalFields: ['id'],
+    },
+  })
+  things() {}
+
+  @Tool({ description: 'No lookup here', dataSchema: [] })
+  plain() {}
+}
+
+class LookupChild extends LookupParent {
+  identifier = 'lookup-child';
+}
+
+describe('IntegrationManager.getAllLookups', () => {
+  const fixtures = [new LookupParent(), new LookupChild()] as any[];
+  const manager = new IntegrationManager();
+
+  beforeAll(() => socialIntegrationList.push(...fixtures));
+  afterAll(() => socialIntegrationList.splice(-fixtures.length));
+
+  const expected = {
+    methodName: 'things',
+    dataSchema: [{ key: 'id', type: 'string', description: 'An id' }],
+    name: 'list_things',
+    title: 'List things',
+    description: 'Lists the things',
+    optionalFields: ['id'],
+  };
+
+  it('returns the lookup of a decorated method that declares one', () => {
+    expect(manager.getAllLookups()['lookup-parent']).toEqual([expected]);
+  });
+
+  it('lets a child class inherit its parent lookup', () => {
+    expect(manager.getAllLookups()['lookup-child']).toEqual([expected]);
+  });
+
+  it('gives no lookup entry to a tool without a lookup', () => {
+    expect(
+      manager
+        .getAllLookups()
+        ['lookup-parent'].some((lookup) => lookup.methodName === 'plain')
+    ).toBe(false);
+  });
+
+  it('keeps lookup out of the custom:tool metadata', () => {
+    const tools = manager.getAllTools()['lookup-parent'];
+
+    expect(tools.map((tool) => Object.keys(tool))).toEqual([
+      ['methodName', 'description', 'dataSchema'],
+      ['methodName', 'description', 'dataSchema'],
+    ]);
+  });
+
+  it('lists an empty array for providers without lookups', () => {
+    expect(
+      manager.getAllLookups()[socialIntegrationList[0].identifier]
+    ).toEqual([]);
+  });
+});
+
+// The ChatGPT toolset is built from the providers' own @Tool declarations, so
+// every declaration has to carry a lookup that reads well to a model.
+describe('provider lookup declarations', () => {
+  const manager = new IntegrationManager(null as any, null as any);
+  const tools = manager.getAllTools();
+  const lookups = manager.getAllLookups();
+
+  // A declaration is the prototype that owns the method plus the method name,
+  // so a child provider inheriting a method is not a second declaration.
+  const ownerOf = (identifier: string, methodName: string) => {
+    let proto = socialIntegrationList.find(
+      (provider) => provider.identifier === identifier
+    )!.constructor.prototype;
+
+    while (!Object.prototype.hasOwnProperty.call(proto, methodName)) {
+      proto = Object.getPrototypeOf(proto);
+    }
+
+    return proto;
+  };
+
+  const declarations = new Map<
+    any,
+    Map<string, (typeof lookups)[string][number]>
+  >();
+
+  Object.entries(lookups).forEach(([identifier, list]) =>
+    list.forEach((lookup) => {
+      const owner = ownerOf(identifier, lookup.methodName);
+      const byMethod = declarations.get(owner) || new Map();
+      byMethod.set(lookup.methodName, lookup);
+      declarations.set(owner, byMethod);
+    })
+  );
+
+  const all = [...declarations.values()].flatMap((byMethod) => [
+    ...byMethod.values(),
+  ]);
+
+  it('gives every @Tool method a lookup', () => {
+    const missing = Object.entries(tools).flatMap(([identifier, list]) =>
+      list
+        .filter(
+          (tool) =>
+            !lookups[identifier].some(
+              (lookup) => lookup.methodName === tool.methodName
+            )
+        )
+        .map((tool) => `${identifier}.${tool.methodName}`)
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it('declares exactly 27 lookups', () => {
+    expect(all).toHaveLength(27);
+  });
+
+  it('keeps every name unique per declaration', () => {
+    const names = all.map((lookup) => lookup.name);
+
+    expect(names.filter((name, i) => names.indexOf(name) !== i)).toEqual([]);
+  });
+
+  it('writes names in snake_case starting with a lookup verb', () => {
+    all.forEach((lookup) => {
+      expect(lookup.name).toMatch(/^[a-z]+(_[a-z0-9]+)+$/);
+      expect(lookup.name).toMatch(/^(list|search|find|get)_/);
+    });
+  });
+
+  it('keeps internal and steering words out of name, title and description', () => {
+    const banned =
+      /\b(postiz|mcp|integration|trigger|schema|tool|instead|prefer|better|never|always)\b/i;
+
+    all.forEach((lookup) => {
+      [lookup.name, lookup.title, lookup.description].forEach((text) =>
+        expect(text).not.toMatch(banned)
+      );
+    });
+  });
+
+  it('allows optionalFields only on instagram audio and tiktok music, as dataSchema keys', () => {
+    const withOptional = Object.entries(lookups).flatMap(([identifier, list]) =>
+      list
+        .filter((lookup) => lookup.optionalFields)
+        .map((lookup) => `${identifier}.${lookup.methodName}`)
+    );
+
+    expect(withOptional.sort()).toEqual([
+      'instagram.audioSearch',
+      'tiktok-business.musicSearch',
+    ]);
+
+    all.forEach((lookup) =>
+      (lookup.optionalFields || []).forEach((field) =>
+        expect(lookup.dataSchema.map((item: any) => item.key)).toContain(field)
+      )
+    );
   });
 });

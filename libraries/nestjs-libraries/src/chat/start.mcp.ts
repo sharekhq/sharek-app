@@ -14,6 +14,8 @@ import { UPLOAD_WIDGET_URI, uploadWidgetHtml } from '@gitroom/nestjs-libraries/c
 import { CLIPPING_WIDGET_URI, clippingWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/clipping.widget';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
+import { ChatgptToolsService } from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.tools.service';
+import { CHATGPT_SERVER_NAME } from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.toolset';
 const fixAcceptHeader = (req: Request) => {
   const value = 'application/json, text/event-stream';
   req.headers.accept = value;
@@ -53,6 +55,7 @@ export const startMcp = async (app: INestApplication) => {
   const oauthService = app.get(OAuthService, { strict: false });
   const loadToolsService = app.get(LoadToolsService, { strict: false });
   const mcpRelayService = app.get(McpRelayService, { strict: false });
+  const chatgptToolsService = app.get(ChatgptToolsService, { strict: false });
 
   const resolveAuth = async (token: string) => {
     if (token.startsWith('pos_')) {
@@ -158,6 +161,19 @@ export const startMcp = async (app: INestApplication) => {
     protocolVersion: '2026-07-28',
     tools,
     appResources,
+  });
+
+  // The ChatGPT connection: its own tool names, descriptions and widget, no agent
+  const chatgptServer = new MCPServer({
+    name: CHATGPT_SERVER_NAME,
+    version: '1.0.0',
+    protocolVersion: '2026-07-28',
+    tools: chatgptToolsService.tools(tools),
+    appResources: chatgptToolsService.resources(
+      appResources[UPLOAD_WIDGET_URI],
+      backendUrl!,
+      UploadFactory.processorEnabled()
+    ),
   });
 
   // a widget of a hidden tool is hidden with it
@@ -275,8 +291,9 @@ export const startMcp = async (app: INestApplication) => {
       selfHostedServer?: MCPServer;
     }
   > = {
-    // ChatGPT app submission (pre-defined client credentials, no DCR)
-    '/mcp-oauth-chatgpt': { middleware: createResourceMiddleware('/mcp-oauth-chatgpt', '/mcp-oauth-chatgpt'), mcpServer: oauthServer, selfHostedServer },
+    // ChatGPT app submission (pre-defined client credentials, no DCR). No
+    // selfHostedServer: a self-hosted token gets the existing 401
+    '/mcp-oauth-chatgpt': { middleware: createResourceMiddleware('/mcp-oauth-chatgpt', '/mcp-oauth-chatgpt'), mcpServer: chatgptServer },
     // Former ChatGPT path, kept for connectors that were created against it
     '/mcp-oauth': { middleware: createResourceMiddleware('/mcp-oauth', '/mcp-oauth-dynamic'), mcpServer: oauthServer, selfHostedServer },
     // Claude connector directory submission

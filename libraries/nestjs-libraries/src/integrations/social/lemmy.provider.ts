@@ -372,6 +372,12 @@ export class LemmyProvider extends SocialAbstract implements SocialProvider {
         description: 'Keyword to search for',
       },
     ],
+    lookup: {
+      name: 'search_lemmy_communities',
+      title: 'Search Lemmy Communities',
+      description:
+        "Searches Lemmy communities by a word. Call it when the user wants to post to a Lemmy community. Returns the matching communities for the post's community setting.",
+    },
   })
   async subreddits(
     accessToken: string,

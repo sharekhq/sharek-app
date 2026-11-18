@@ -95,7 +95,16 @@ export class DevToProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'Tag list', dataSchema: [] })
+  @Tool({
+    description: 'Tag list',
+    dataSchema: [],
+    lookup: {
+      name: 'list_devto_tags',
+      title: 'List Dev.to Tags',
+      description:
+        "Lists the tags a Dev.to article can use. Call it when the user wants to tag a post on a Dev.to channel. Returns the tags for the post's tags setting.",
+    },
+  })
   async tags(token: string) {
     const tags = await (
       await fetch('https://dev.to/api/tags?per_page=1000&page=1', {
@@ -108,7 +117,16 @@ export class DevToProvider extends SocialAbstract implements SocialProvider {
     return tags.map((p: any) => ({ value: p.id, label: p.name }));
   }
 
-  @Tool({ description: 'Organization list', dataSchema: [] })
+  @Tool({
+    description: 'Organization list',
+    dataSchema: [],
+    lookup: {
+      name: 'list_devto_organizations',
+      title: 'List Dev.to Organizations',
+      description:
+        "Lists the Dev.to organizations the channel's account belongs to. Call it when the user wants to publish a Dev.to article under an organization. Returns the organizations for the post's organization setting.",
+    },
+  })
   async organizations(token: string) {
     const orgs = await (
       await fetch('https://dev.to/api/articles/me/all?per_page=1000', {

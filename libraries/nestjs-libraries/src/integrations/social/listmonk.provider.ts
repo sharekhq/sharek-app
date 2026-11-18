@@ -118,7 +118,16 @@ export class ListmonkProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'List of available lists', dataSchema: [] })
+  @Tool({
+    description: 'List of available lists',
+    dataSchema: [],
+    lookup: {
+      name: 'list_listmonk_lists',
+      title: 'List Listmonk Lists',
+      description:
+        "Lists the mailing lists of the Listmonk channel. Call it when the user wants to send a campaign through Listmonk. Returns the lists for the post's list setting.",
+    },
+  })
   async list(
     token: string,
     data: any,
@@ -145,7 +154,16 @@ export class ListmonkProvider extends SocialAbstract implements SocialProvider {
     return postTypes.data.results.map((p: any) => ({ id: p.id, name: p.name }));
   }
 
-  @Tool({ description: 'List of available templates', dataSchema: [] })
+  @Tool({
+    description: 'List of available templates',
+    dataSchema: [],
+    lookup: {
+      name: 'list_listmonk_templates',
+      title: 'List Listmonk Templates',
+      description:
+        "Lists the email templates of the Listmonk channel. Call it when the user wants to pick a template for a Listmonk campaign. Returns the templates for the post's template setting.",
+    },
+  })
   async templates(
     token: string,
     data: any,

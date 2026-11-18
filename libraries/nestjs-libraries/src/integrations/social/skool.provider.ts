@@ -130,7 +130,16 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'Groups', dataSchema: [] })
+  @Tool({
+    description: 'Groups',
+    dataSchema: [],
+    lookup: {
+      name: 'list_skool_groups',
+      title: 'List Skool Groups',
+      description:
+        'Lists the Skool groups of the channel\'s account. Call it when the user wants to post to Skool, because a Skool post needs a group. Returns the groups for the post\'s group setting.',
+    },
+  })
   async groups(accessToken: string, params: any, id: string, integration: Integration) {
     try {
       const { client_id, auth_token } = this.getCookies(integration);
@@ -154,7 +163,23 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'Label', dataSchema: [] })
+  @Tool({
+    description: 'Label',
+    dataSchema: [],
+    lookup: {
+      name: 'list_skool_labels',
+      title: 'List Skool Labels',
+      description:
+        'Lists the post labels of a Skool group, by the group id list_skool_groups returns. Call it when the user wants to label a Skool post. Returns the labels for the post\'s label setting.',
+      fields: [
+        {
+          key: 'id',
+          type: 'string',
+          description: 'The Skool group id from list_skool_groups',
+        },
+      ],
+    },
+  })
   async label(accessToken: string, params: any, id: string, integration: Integration) {
     try {
       const { client_id, auth_token } = this.getCookies(integration);

@@ -694,6 +694,12 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
         description: 'Search subreddit by string',
       },
     ],
+    lookup: {
+      name: 'search_reddit_subreddits',
+      title: 'Search Subreddits',
+      description:
+        'Searches subreddits by a word. Call it when the user wants to post to Reddit, because a Reddit post needs a subreddit. Returns the matching subreddits with their details.',
+    },
   })
   async subreddits(accessToken: string, data: any) {
     // A pasted "r/name" or reddit.com/r/name URL: search by the name alone (the
@@ -804,6 +810,12 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
           'Search flairs and restrictions by subreddit key should be "/r/[name]"',
       },
     ],
+    lookup: {
+      name: 'get_reddit_subreddit_rules',
+      title: 'Get Subreddit Rules',
+      description:
+        "Gets the post flairs and posting restrictions of one subreddit. Call it when the user wants to post to a subreddit that may require a flair. Returns the flairs and restrictions for the post's settings.",
+    },
   })
   async restrictions(accessToken: string, data: { subreddit: string }) {
     const {

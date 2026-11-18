@@ -1,0 +1,259 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`IntegrationManager.getAllTools lists every provider with its decorated helpers 1`] = `
+{
+  "bluesky": [],
+  "devto": [
+    {
+      "dataSchema": [],
+      "description": "Tag list",
+      "methodName": "tags",
+    },
+    {
+      "dataSchema": [],
+      "description": "Organization list",
+      "methodName": "organizations",
+    },
+  ],
+  "discord": [
+    {
+      "dataSchema": [],
+      "description": "Channels",
+      "methodName": "channels",
+    },
+  ],
+  "dribbble": [
+    {
+      "dataSchema": [],
+      "description": "Teams list",
+      "methodName": "teams",
+    },
+  ],
+  "facebook": [],
+  "gmb": [],
+  "hashnode": [
+    {
+      "dataSchema": [],
+      "description": "Tags",
+      "methodName": "tagsList",
+    },
+    {
+      "dataSchema": [],
+      "description": "Publications",
+      "methodName": "publications",
+    },
+  ],
+  "instagram": [
+    {
+      "dataSchema": [
+        {
+          "description": "Search query, leave empty for trending audio",
+          "key": "q",
+          "type": "string",
+        },
+        {
+          "description": "Either "music" or "original_sound", defaults to "music"",
+          "key": "type",
+          "type": "string",
+        },
+      ],
+      "description": "Search audio (music or original sounds) to attach to a Reel via the "audio" setting, an empty query returns trending audio",
+      "methodName": "audioSearch",
+    },
+  ],
+  "instagram-standalone": [],
+  "kick": [],
+  "lemmy": [
+    {
+      "dataSchema": [
+        {
+          "description": "Keyword to search for",
+          "key": "word",
+          "type": "string",
+        },
+      ],
+      "description": "Search for Lemmy communities by keyword",
+      "methodName": "subreddits",
+    },
+  ],
+  "linkedin": [
+    {
+      "dataSchema": [
+        {
+          "description": "Company page vanity name",
+          "key": "query",
+          "type": "string",
+        },
+      ],
+      "description": "Find a company page to tag by its exact vanity name (the part after linkedin.com/company/). Tag it in the post content with <span data-mention-id="{id}" data-mention-label="{label}">@{label}</span>",
+      "methodName": "mention",
+    },
+  ],
+  "linkedin-page": [
+    {
+      "dataSchema": [
+        {
+          "description": "Company page vanity name",
+          "key": "query",
+          "type": "string",
+        },
+      ],
+      "description": "Find a company page to tag by its exact vanity name (the part after linkedin.com/company/). Tag it in the post content with <span data-mention-id="{id}" data-mention-label="{label}">@{label}</span>",
+      "methodName": "mention",
+    },
+  ],
+  "listmonk": [
+    {
+      "dataSchema": [],
+      "description": "List of available lists",
+      "methodName": "list",
+    },
+    {
+      "dataSchema": [],
+      "description": "List of available templates",
+      "methodName": "templates",
+    },
+  ],
+  "mastodon": [],
+  "medium": [
+    {
+      "dataSchema": [],
+      "description": "List of publications",
+      "methodName": "publications",
+    },
+  ],
+  "mewe": [
+    {
+      "dataSchema": [],
+      "description": "Groups",
+      "methodName": "groups",
+    },
+  ],
+  "moltbook": [],
+  "nostr": [],
+  "pinterest": [
+    {
+      "dataSchema": [],
+      "description": "List of boards",
+      "methodName": "boards",
+    },
+  ],
+  "reddit": [
+    {
+      "dataSchema": [
+        {
+          "description": "Search subreddit by string",
+          "key": "word",
+          "type": "string",
+        },
+      ],
+      "description": "Get list of subreddits with information",
+      "methodName": "subreddits",
+    },
+    {
+      "dataSchema": [
+        {
+          "description": "Search flairs and restrictions by subreddit key should be "/r/[name]"",
+          "key": "subreddit",
+          "type": "string",
+        },
+      ],
+      "description": "Get list of flairs and restrictions for a subreddit",
+      "methodName": "restrictions",
+    },
+  ],
+  "skool": [
+    {
+      "dataSchema": [],
+      "description": "Groups",
+      "methodName": "groups",
+    },
+    {
+      "dataSchema": [],
+      "description": "Label",
+      "methodName": "label",
+    },
+  ],
+  "slack": [
+    {
+      "dataSchema": [],
+      "description": "Get list of channels",
+      "methodName": "channels",
+    },
+  ],
+  "telegram": [],
+  "threads": [],
+  "tiktok": [],
+  "tiktok-business": [
+    {
+      "dataSchema": [
+        {
+          "description": "Genre to filter the tracks by (for example POP, ROCK, ELECTRONIC), leave empty for all genres",
+          "key": "genre",
+          "type": "string",
+        },
+      ],
+      "description": "Load commercial music library tracks that can be attached to a post via the "music" setting",
+      "methodName": "musicSearch",
+    },
+    {
+      "dataSchema": [
+        {
+          "description": "Search query for the location",
+          "key": "q",
+          "type": "string",
+        },
+      ],
+      "description": "Search location tags that can be attached to a post via the "location" setting",
+      "methodName": "locationSearch",
+    },
+  ],
+  "tumblr": [],
+  "twitch": [],
+  "vk": [],
+  "whop": [
+    {
+      "dataSchema": [],
+      "description": "Companies",
+      "methodName": "companies",
+    },
+    {
+      "dataSchema": [],
+      "description": "Experiences",
+      "methodName": "experiences",
+    },
+  ],
+  "wordpress": [
+    {
+      "dataSchema": [],
+      "description": "Get list of post types",
+      "methodName": "postTypes",
+    },
+    {
+      "dataSchema": [],
+      "description": "Get list of categories",
+      "methodName": "categoriesList",
+    },
+    {
+      "dataSchema": [],
+      "description": "Get list of tags",
+      "methodName": "tagsList",
+    },
+  ],
+  "wrapcast": [
+    {
+      "dataSchema": [
+        {
+          "description": "Search word",
+          "key": "word",
+          "type": "string",
+        },
+      ],
+      "description": "Search channels",
+      "methodName": "subreddits",
+    },
+  ],
+  "x": [],
+  "youtube": [],
+}
+`;

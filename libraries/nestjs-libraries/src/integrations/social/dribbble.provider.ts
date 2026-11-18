@@ -90,7 +90,16 @@ export class DribbbleProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  @Tool({ description: 'Teams list', dataSchema: [] })
+  @Tool({
+    description: 'Teams list',
+    dataSchema: [],
+    lookup: {
+      name: 'list_dribbble_teams',
+      title: 'List Dribbble Teams',
+      description:
+        "Lists the Dribbble teams of the channel's account. Call it when the user wants to post a shot for a team. Returns the teams for the post's team setting.",
+    },
+  })
   async teams(accessToken: string) {
     const { teams } = await (
       await this.fetch('https://api.dribbble.com/v2/user', {
