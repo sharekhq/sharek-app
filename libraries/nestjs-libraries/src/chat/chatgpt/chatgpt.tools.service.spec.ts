@@ -36,6 +36,7 @@ jest.mock('nostr-tools', () => ({
 }));
 
 import { MCPServer } from '@mastra/mcp';
+import { uploadWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/upload.widget';
 import {
   IntegrationManager,
   socialIntegrationList,
@@ -708,5 +709,49 @@ describe('get_posting_rules', () => {
         expect(text).not.toMatch(/\bCLI\b|public API|docs\./i);
       }
     }
+  });
+});
+
+describe('the ChatGPT resources', () => {
+  const backendUrl = 'https://api.sharek.test/api';
+
+  it('serves only the upload widget, under a sharek uri', () => {
+    const resources = service.resources(backendUrl, true);
+
+    expect(Object.keys(resources)).toEqual([CHATGPT_UPLOAD_WIDGET_URI]);
+    expect(CHATGPT_UPLOAD_WIDGET_URI).toBe('ui://sharek/upload');
+    expect(JSON.stringify(resources)).not.toMatch(/postiz/i);
+  });
+
+  it.each([true, false])(
+    'builds its html with the ChatGPT ticket tool name (adjustable %s)',
+    (adjustable) => {
+      expect(
+        service.resources(backendUrl, adjustable)[CHATGPT_UPLOAD_WIDGET_URI]
+          .html
+      ).toBe(
+        uploadWidgetHtml(backendUrl, adjustable, {
+          ticketTool: 'get_upload_ticket',
+          app: 'sharek-upload',
+        })
+      );
+    }
+  );
+
+  it('keeps the name, description and meta of the upload resource', () => {
+    const { html, ...rest } = service.resources(backendUrl, true)[
+      CHATGPT_UPLOAD_WIDGET_URI
+    ];
+
+    expect(rest).toEqual({
+      name: 'Upload Media',
+      description:
+        'Upload an image or video from the device to the media library',
+      meta: {
+        csp: { connectDomains: ['https://api.sharek.test'] },
+        permissions: { clipboardWrite: {} },
+        prefersBorder: true,
+      },
+    });
   });
 });
