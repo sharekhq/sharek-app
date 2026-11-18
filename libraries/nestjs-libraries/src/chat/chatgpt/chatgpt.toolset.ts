@@ -66,11 +66,6 @@ export const CHATGPT_TOOLSET: Record<string, ChatgptToolRow> = {
       isPremium:
         'Whether the X account has X Premium, which allows longer posts; false when unknown or for other platforms',
     },
-    output: {
-      'output.tools':
-        'The lookup tools that find the ids, tags and other values some settings need',
-      'output.tools[].dataSchema': 'The settings this lookup finds values for',
-    },
   },
   integrationSchedulePostTool: {
     name: 'schedule_post',

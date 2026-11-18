@@ -180,9 +180,15 @@ describe('withDescriptions', () => {
 
 describe('the ChatGPT toolset', () => {
   it('exposes exactly the core tools', () => {
-    expect(Object.keys(chatgpt).sort()).toEqual(
-      Object.values(bySourceName).sort()
+    const lookups = Object.values(manager.getAllLookups()).flatMap((list) =>
+      list.map((lookup) => lookup.name)
     );
+
+    expect(
+      Object.keys(chatgpt)
+        .filter((name) => !lookups.includes(name))
+        .sort()
+    ).toEqual(Object.values(bySourceName).sort());
   });
 
   it('leaves get_media_status out when the source has no media status tool', () => {
