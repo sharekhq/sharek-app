@@ -13,10 +13,8 @@ import { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.e
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
-import {
-  AssistantButton,
-  assistantLabels,
-} from '@gitroom/frontend/components/ui/assistant.labels';
+import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
+import { AssistantButton } from '@gitroom/frontend/components/ui/assistant.button';
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
