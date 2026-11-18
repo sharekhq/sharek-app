@@ -123,7 +123,6 @@ jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImageTool: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideoChooser: () => null,
   useAiVideoTypes: () => ({ data: [], isLoading: false }),
 }));
 // The preview, recording the ref it is handed; the fit, a box around it.

@@ -22,7 +22,6 @@ jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
   AiImageTool: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideoChooser: () => null,
   useAiVideoTypes: () => ({ data: [], isLoading: false }),
 }));
 

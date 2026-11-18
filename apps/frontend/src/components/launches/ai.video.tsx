@@ -70,71 +70,6 @@ export const videoTypeLabel = (t: ReturnType<typeof useT>, type: VideoType) => {
   return card ? t(card.name.key, card.name.fallback) : type.title;
 };
 
-const metaPillClasses =
-  'text-[11px] font-[600] text-inkSoft bg-panel border border-line rounded-full px-[8px] py-[2px]';
-
-/**
- * One choice in the type chooser: what this type produces, in a diagram it
- * drew itself, a sentence, and the facts a first-time chooser needs — length,
- * quality, what it suits.
- */
-const VideoTypeChooserCard: FC<{
-  type: VideoType;
-  onSelect: () => void;
-}> = ({ type, onSelect }) => {
-  const t = useT();
-  const card = videoTypeCard(type.identifier);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="flex gap-[14px] items-start text-start bg-surface border border-line rounded-[14px] p-[16px] hover:border-inkSoft transition-colors focus-visible:ring-2 focus-visible:ring-brand"
-    >
-      {!!card && (
-        <span className="w-[72px] h-[72px] flex-none rounded-[12px] bg-ai text-aiAccent flex items-center justify-center">
-          {card.diagram}
-        </span>
-      )}
-      <span className="flex-1 min-w-0">
-        <span className="block text-[15px] font-[600]">
-          {videoTypeLabel(t, type)}
-        </span>
-        {!!card && (
-          <>
-            <span className="block text-[12px] text-muted mt-[3px] leading-[1.55]">
-              {t(card.description.key, card.description.fallback)}
-            </span>
-            <span className="flex flex-wrap gap-[6px] mt-[8px]">
-              {card.pills.map((pill) => (
-                <span key={pill.key} className={metaPillClasses}>
-                  {t(pill.key, pill.fallback)}
-                </span>
-              ))}
-            </span>
-          </>
-        )}
-      </span>
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        fill="none"
-        aria-hidden="true"
-        className="text-muted flex-none self-center rtl:rotate-180"
-      >
-        <path
-          d="M6 3l5 5-5 5"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </button>
-  );
-};
-
 /** The shape's proportions, width over height, as the stage parts take them. */
 const orientationRatio = (id: VideoOrientationId) => {
   const [width, height] = VIDEO_ORIENTATIONS[id].ratio.split(':').map(Number);
@@ -769,43 +704,6 @@ export const AiVideoTool: FC<
 };
 
 /**
- * The window's body: the types to choose from, then the chosen type's tool,
- * with the way back to the list when there is more than one.
- */
-export const AiVideoChooser: FC<
-  WorkspaceToolProps & {
-    list: VideoType[];
-  }
-> = (props) => {
-  const { list, ...tool } = props;
-  const t = useT();
-  const [type, setType] = useState<VideoType | null>(
-    list.length === 1 ? list[0] : null
-  );
-
-  if (!type) {
-    return (
-      <div className="flex flex-col gap-[16px] -mt-[12px]">
-        <div className="text-[13px] text-muted">
-          {t('choose_a_video_type', 'Choose a video type')}
-        </div>
-        <div className="flex flex-col gap-[10px]">
-          {list.map((p) => (
-            <VideoTypeChooserCard
-              key={p.identifier}
-              type={p}
-              onSelect={() => setType(p)}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return <AiVideoTool {...tool} type={type} />;
-};
-
-/**
  * The providers the platform offers for text-to-video. Studio's trigger and
  * its page share it under one SWR key, so both read one request.
  */
@@ -837,12 +735,10 @@ export const AiVideo: FC<{
    */
   renderTrigger: (open: () => void, loading: boolean) => ReactNode;
   /**
-   * Opens this one provider directly, under its own name: a single-item list
-   * already auto-selects and hides the chooser. Matching nothing — the
-   * capability went away since the page loaded — renders nothing, as an
-   * empty list always has.
+   * Opens this one provider directly, under its own name. Matching nothing —
+   * the capability went away since the page loaded — renders nothing.
    */
-  only?: string;
+  only: string;
   /**
    * Where the finished video goes — what the waiting note promises and what
    * the action that accepts it is called.
@@ -856,7 +752,7 @@ export const AiVideo: FC<{
 
   const { isLoading, data } = useAiVideoTypes();
   const list = useMemo(
-    () => (only ? data?.filter((type) => type.identifier === only) : data),
+    () => data?.filter((type) => type.identifier === only),
     [data, only]
   );
 
@@ -868,15 +764,13 @@ export const AiVideo: FC<{
       title: (
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
-          {only
-            ? videoTypeLabel(t, list[0])
-            : t('generate_ai_video', 'Generate AI Video')}
+          {videoTypeLabel(t, list[0])}
         </div>
       ),
       ...WORKSPACE_WINDOW,
       children: (close) => (
-        <AiVideoChooser
-          list={list}
+        <AiVideoTool
+          type={list[0]}
           layout="stacked"
           destination={destination}
           onChange={onChange}

@@ -94,7 +94,7 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
 
 import {
   AiVideo,
-  AiVideoChooser,
+  AiVideoTool,
   AiVideoTool,
 } from '@gitroom/frontend/components/launches/ai.video';
 import {
@@ -425,10 +425,9 @@ const openWindow = async (
 
 /**
  * The tool in a composer tab (contracts/composer-and-preview.md §4): the
- * chooser, stacked, for the post, with what the stage hands it; one type
- * opens straight away. `show` draws it again, on screen or behind another tab.
+ * one type's tool, stacked, for the post, with what the stage hands it. `show` draws it again, on screen or behind another tab.
  */
-const openTab = async (list = providers.slice(0, 1)) => {
+const openTab = async () => {
   mockTabs = { open: jest.fn() };
   const host = {
     onChange: jest.fn(),
@@ -442,8 +441,8 @@ const openTab = async (list = providers.slice(0, 1)) => {
   const show = (active: boolean) =>
     act(async () => {
       root.render(
-        <AiVideoChooser
-          list={list}
+        <AiVideoTool
+          type={providers[0]}
           layout="stacked"
           destination="post"
           active={active}
@@ -602,25 +601,7 @@ describe('when the render fails for anything else', () => {
 // Studio renders a card of its own as the trigger for a provider with no page
 // of its own.
 describe('with a trigger of its own', () => {
-  it('renders that trigger alone and opens the chooser from it', async () => {
-    await mount(
-      <AiVideo
-        value=""
-        onChange={jest.fn()}
-        renderTrigger={cardTrigger}
-        destination="media"
-      />
-    );
-
-    expect(document.querySelector('.bg-aiSoft')).toBeNull();
-
-    await click(document.querySelector('[data-testid="card"]'));
-
-    expect(document.body.textContent).toContain('Choose a video type');
-  });
-
-  // A single-item list already auto-selects, so one card per provider needs
-  // no chooser — and the title names the provider instead of the generic one.
+  // One card per provider: the title names the provider.
   it('opens one provider directly, under its own name, when told which', async () => {
     await mount(
       <AiVideo
@@ -628,14 +609,13 @@ describe('with a trigger of its own', () => {
         onChange={jest.fn()}
         only="veo3"
         renderTrigger={cardTrigger}
-destination="post"
+        destination="post"
       />
     );
 
     await click(document.querySelector('[data-testid="card"]'));
 
     const text = document.body.textContent ?? '';
-    expect(text).not.toContain('Choose a video type');
     expect(text).not.toContain('Generate AI Video');
     expect(text).toContain('Veo 3');
     expect(
@@ -653,7 +633,7 @@ destination="post"
         onChange={jest.fn()}
         only="sora"
         renderTrigger={cardTrigger}
-destination="post"
+        destination="post"
       />
     );
 
@@ -945,19 +925,19 @@ describe('a second click while the credits are checked', () => {
       <AiVideo
         value=""
         onChange={jest.fn()}
+        only="veo3"
         renderTrigger={cardTrigger}
         destination="media"
       />
     );
     await click(document.querySelector('[data-testid="card"]'));
-    await click(buttonStarting('Veo 3'));
     const answerChecks = holdCreditChecks();
     await click(buttonStarting('Generate'));
     await settle();
 
     await click(buttonStarting('Veo 3'));
 
-    expect(document.body.textContent).not.toContain('Choose a video type');
+    expect(mainButton()).toBeTruthy();
     await answerChecks();
   });
 });
@@ -1452,53 +1432,6 @@ describe("a workflow's back action", () => {
   });
 });
 
-// The window's and the composer tab's chooser (contracts §5): today's list of
-// types, then the chosen type's tool with a way back to the list.
-describe('AiVideoChooser', () => {
-  const backTo = (label: string) =>
-    Array.from(document.querySelectorAll('button')).find(
-      (node) => node.textContent?.trim() === label
-    );
-
-  it('draws the chooser, then the chosen tool', async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    expect(document.body.textContent).toContain('Choose a video type');
-
-    await click(buttonStarting('Veo 3'));
-
-    expect(document.body.textContent).not.toContain('Choose a video type');
-    expect(mainButton()?.textContent?.trim()).toBe('Generate');
-    expect(backTo('Veo 3')).toBeUndefined();
-  });
-
-  it('opens the one type there is, with no way back', async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers.slice(0, 1)}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    expect(document.body.textContent).not.toContain('Choose a video type');
-    expect(mainButton()?.textContent?.trim()).toBe('Generate');
-    expect(backTo('Veo 3')).toBeUndefined();
-  });
-});
-
 // The windows that stay take the frame's stacked layout (maintainer's Q1), at
 // one size, so the bar is never below the screen (contracts §6).
 describe('the window', () => {
@@ -1615,14 +1548,9 @@ describe('as a composer tab', () => {
   });
 
   // FR-023: the tab is the window's body beside the post.
-  it("starts with the chooser, then the choice's fields, its progress and Use video", async () => {
+  it("starts with the type's fields, then its progress and Use video", async () => {
     const land = holdRender();
-    const { onChange, onAccept } = await openTab(providers);
-
-    expect(document.body.textContent).toContain('Choose a video type');
-    expect(buttonStarting('Image Text Slides')).toBeTruthy();
-
-    await click(buttonStarting('Veo 3'));
+    const { onChange, onAccept } = await openTab();
 
     expect(byTestId('provider-fields')).toBeTruthy();
 
