@@ -1488,8 +1488,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       <CopilotPopup
         // clear of the pinned tool bar and of the Post menu at 1025px and below;
         // wider, above the bottom bar (its 84px and the 12px inset under it)
-        // with CopilotKit's own 16px gap
-        className="mobile:!z-[460] mobile:!bottom-[112px] [@media(min-width:1026px)]:!bottom-[112px]"
+        // with CopilotKit's own 16px gap; gone while an AI tab, whose own bar
+        // it would cover, is on screen
+        className={clsx(
+          'mobile:!z-[460] mobile:!bottom-[112px] [@media(min-width:1026px)]:!bottom-[112px]',
+          stageTab !== 'preview' && 'hidden'
+        )}
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`
