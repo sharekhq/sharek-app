@@ -39,7 +39,10 @@ import {
   useAiVideoTypes,
   VideoType,
 } from '@gitroom/frontend/components/launches/ai.video';
-import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
+import {
+  STAGE_BACKGROUND,
+  type WorkspaceToolProps,
+} from '@gitroom/frontend/components/studio/workspace.frame';
 
 /**
  * The composer's right column: the tab strip where the 65px header was, then
@@ -165,7 +168,10 @@ export const ComposerStage: FC<{
         id={panelId('preview')}
         aria-labelledby={tabId('preview')}
         hidden={stage.active !== 'preview'}
-        className="flex-1 relative bg-panel mobile:bg-transparent"
+        className={clsx(
+          'flex-1 relative mobile:bg-transparent mobile:[background-image:none]',
+          STAGE_BACKGROUND
+        )}
       >
         <Scrollable
           scrollClasses="!pe-[20px]"
@@ -319,7 +325,10 @@ const AiTabPanel: FC<{
       id={panelId}
       aria-labelledby={tabId}
       hidden={!shown}
-      className="flex-1 relative bg-newBgColorInner mobile:fixed mobile:inset-0 mobile:z-[600]"
+      className={clsx(
+        'flex-1 relative mobile:fixed mobile:inset-0 mobile:z-[600] mobile:bg-newBgColorInner mobile:[background-image:none]',
+        STAGE_BACKGROUND
+      )}
     >
       <div className="absolute inset-0 flex flex-col">
         <div className="hidden mobile:flex flex-none items-center gap-[8px] h-[60px] ps-[16px] pe-[4px]">
