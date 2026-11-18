@@ -1080,7 +1080,7 @@ export const Editor: FC<{
               />
               <div
                 className={clsx(
-                  'flex bg-panel rounded-b-[5px] cursor-default',
+                  'flex bg-panel rounded-b-[5px] cursor-default [@media(min-width:1026px)]:contents',
                   flat && 'mobile:pt-[16px] mobile:bg-transparent'
                 )}
               >

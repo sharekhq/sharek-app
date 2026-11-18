@@ -2421,8 +2421,8 @@ exports[`the tool buttons from 1026px up signature 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up the media strip 1`] = `
-"<div class="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
-  <div class="flex gap-[10px] px-[12px]">
+"<div class="[@media(min-width:1026px)]:contents b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
+  <div class="[@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:pb-[8px] flex gap-[10px] px-[12px]">
     <div data-mock="ReactSortable">
       <div class="border-2 border-tableBorder coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[40px] relative rounded-[5px] transition-all w-[40px]">
         <svg class="-start-[4px] -top-[4px] absolute cursor-move dragging pb-[3px] pe-[1px] z-[20]" fill="none" height="15" viewBox="0 0 15 15" width="15" xmlns="http://www.w3.org/2000/svg">
@@ -2443,7 +2443,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
       </div>
     </div>
   </div>
-  <div class="b1 border-newColColor border-t flex gap-[8px] px-[12px] text-textColor w-full">
+  <div class="[@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:rounded-b-[5px] [@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:z-[100] b1 border-newColColor border-t flex gap-[8px] px-[12px] text-textColor w-full">
     <div class="b2 flex flex-wrap gap-[4px] items-center py-[10px]">
       <div aria-label="Insert Media" class="bg-quiet border border-line coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-ink" data-tooltip-content="Insert Media" data-tooltip-id="tooltip">
         <div class="flex gap-[6px] items-center">

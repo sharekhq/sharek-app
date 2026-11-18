@@ -215,8 +215,8 @@ describe('the media strip', () => {
     expect(classes).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/^(mobile:)?sticky$/)])
     );
-    expect(
-      strip(host).parentElement!.className.split(' ')
-    ).toContain('[@media(min-width:1026px)]:contents');
+    expect(strip(host).parentElement!.className.split(' ')).toContain(
+      '[@media(min-width:1026px)]:contents'
+    );
   });
 });
