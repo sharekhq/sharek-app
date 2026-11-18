@@ -1013,7 +1013,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
+            <div className="flex-1 flex flex-col min-w-0 gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
               {/* The channel row stays in the column while a channel's
                     Settings hide the editor pane below. */}
               <div className="flex flex-col shrink-0 min-w-0 gap-[32px] mobile:gap-[16px] pt-[20px] ps-[20px] pe-[8px] pb-[6px] mobile:px-[16px] mobile:pt-[12px] mobile:pb-0">
@@ -1052,7 +1052,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                     </>
                   )}
                 </div>
-                <div className="mobile:flex mobile:items-center mobile:gap-[4px]">
+                <div className="mobile:flex mobile:items-center mobile:gap-[4px] min-w-0">
                   {(!existingData.integration ||
                     !!existingData.siblings?.length) && <SelectCurrent />}
                   {!existingData.integration && (
@@ -1494,10 +1494,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         // clear of the pinned tool bar and of the Post menu at 1025px and below;
         // wider, above the bottom bar (its 84px and the 12px inset under it)
         // with CopilotKit's own 16px gap; gone while an AI tab, whose own bar
-        // it would cover, is on screen
+        // it would cover, is on screen, and over the phone preview
         className={clsx(
           'mobile:!z-[460] mobile:!bottom-[112px] [@media(min-width:1026px)]:!bottom-[112px]',
-          stageTab !== 'preview' && 'hidden'
+          stageTab !== 'preview' && 'hidden',
+          mobileTab === 'preview' && 'mobile:hidden'
         )}
         hitEscapeToClose={false}
         clickOutsideToClose={true}
