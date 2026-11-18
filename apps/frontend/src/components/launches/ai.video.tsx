@@ -46,6 +46,7 @@ import {
   StageActions,
   StageProgress,
   StageResult,
+  STAGE_SAMPLE_FIT,
   StageSample,
   TickIcon,
   VersionsStrip,
@@ -598,7 +599,10 @@ export const AiVideoTool: FC<
       // step (a workflow's storyboard) there, as the column its part fills.
       <div
         ref={setStageSlot}
-        className="w-full flex-1 min-h-0 overflow-y-auto flex flex-col"
+        className={clsx(
+          'w-full flex-1 min-h-0 overflow-y-auto flex flex-col',
+          STAGE_SAMPLE_FIT
+        )}
       />
     ) : (
       <StageSample
@@ -692,6 +696,9 @@ export const AiVideoTool: FC<
             )}
             stage={stage}
             result={phase === 'result' && !!shown}
+            sample={
+              phase !== 'rendering' && !(phase === 'result' && !!shown)
+            }
             actions={actions}
             credits={<CreditsPill count={data?.credits || 0} />}
             locked={locked}

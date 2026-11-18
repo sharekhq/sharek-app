@@ -394,6 +394,66 @@ describe('the stacked layout', () => {
     );
   });
 
+  // The composer tab scrolls, and the sample's box is a fixed 400x225: the
+  // stage takes its height instead of clipping it (spec 064, T028).
+  it("the stacked stage fits its sample's height while showing the sample", async () => {
+    const host = await mount(
+      frame({
+        layout: 'stacked',
+        sample: true,
+        stage: <StageSample icon={<svg />} title="Title" body="Body" />,
+      })
+    );
+    const stage = host.querySelector('[data-sample]')!;
+    const part = stage.firstElementChild!;
+    const room = part.firstElementChild!;
+
+    expect(tokens(stage)).toEqual(
+      expect.arrayContaining([
+        'flex-none',
+        '[container-type:normal]',
+        'group/stage',
+      ])
+    );
+    expect(tokens(stage)).not.toContain('h-[clamp(240px,45dvh,440px)]');
+    expect(tokens(stage)).not.toContain('[container-type:size]');
+    expect(tokens(part)).toContain('group-data-[sample]/stage:flex-none');
+    expect(tokens(room)).toEqual(
+      expect.arrayContaining([
+        'group-data-[sample]/stage:flex-none',
+        'group-data-[sample]/stage:[container-type:inline-size]',
+      ])
+    );
+  });
+
+  it('the stacked stage keeps its fixed height and containment while a render runs or a result shows', async () => {
+    const waiting = await mount(frame({ layout: 'stacked' }));
+    const showing = await mount(frame({ layout: 'stacked', result: true }));
+
+    expect(waiting.querySelector('[data-sample]')).toBeNull();
+    expect(showing.querySelector('[data-sample]')).toBeNull();
+    expect(tokens(byTestId(waiting, 'stage')!.parentElement)).toEqual(
+      expect.arrayContaining([
+        'h-[clamp(240px,45dvh,440px)]',
+        '[container-type:size]',
+      ])
+    );
+  });
+
+  it("the page layout's stage, part and room are unchanged", async () => {
+    const host = await mount(
+      frame({
+        sample: true,
+        stage: <StageSample icon={<svg />} title="Title" body="Body" />,
+      })
+    );
+    const stage = host.querySelector('.flex-1.min-w-0')!;
+
+    expect(stage.hasAttribute('data-sample')).toBe(false);
+    expect(tokens(stage)).not.toContain('group/stage');
+    expect(tokens(stage)).toContain('[container-type:size]');
+  });
+
   it('shows the settings and no Settings row before a result', async () => {
     const host = await mount(frame({ layout: 'stacked' }));
 

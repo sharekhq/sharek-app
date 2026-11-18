@@ -1385,7 +1385,7 @@ export const MultiMediaComponent: FC<{
           {(!!toolBar || !!toolBarEnd) && (
             <div className="hidden mobile:flex sticky end-0 ms-auto items-center">
               {!!toolBar && (
-                <div className="self-stretch w-[40px] pointer-events-none bg-gradient-to-l rtl:bg-gradient-to-r from-newBgColorInner" />
+                <div className="self-stretch w-[40px] -ms-[40px] pointer-events-none bg-gradient-to-l rtl:bg-gradient-to-r from-newBgColorInner" />
               )}
               {toolBarEnd && (
                 <div className="flex items-center bg-newBgColorInner">

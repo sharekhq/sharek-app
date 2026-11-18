@@ -58,6 +58,11 @@ export interface WorkspaceFrameProps {
    * height (FR-015, FR-016a).
    */
   result?: boolean;
+  /**
+   * The stage shows the sample: a window or a tab takes its height, as the
+   * sample is one fixed size, where the wait and the result keep theirs.
+   */
+  sample?: boolean;
   /** The action bar's contents when not locked: cost note + main button, or a provider's slot. */
   actions: ReactNode;
   /** Credits left, shown in the bar. */
@@ -97,6 +102,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   settingsSummary,
   stage,
   result,
+  sample,
   actions,
   credits,
   locked,
@@ -217,14 +223,17 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
   return (
     <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL, 'pb-0')}>
       <div
+        data-sample={sample || undefined}
         className={clsx(
           STAGE_BACKGROUND,
+          'group/stage',
           // One sample size for every tool, the AI image's, whatever the
           // stage's width (StageSample reads it).
           'flex-none flex flex-col items-center justify-center [--sample-w:min(100%,400px)]',
           // As on a phone's page: a size container is as tall as it is
           // told, so a stage that grows with its result stops being one.
-          result
+          // The sample is one fixed size, so its stage takes that height.
+          result || sample
             ? '[container-type:normal]'
             : 'h-[clamp(240px,45dvh,440px)] [container-type:size]'
         )}
@@ -308,6 +317,16 @@ const STAGE_PART =
 // room stops being one where its stage grows (StageResult).
 const STAGE_ROOM_BOX = 'flex-1 min-h-0 w-full flex items-center justify-center';
 const STAGE_ROOM = clsx(STAGE_ROOM_BOX, '[container-type:size]');
+// A stacked stage showing the sample (WorkspaceFrame's `sample`) takes the
+// sample's height, so its part and room keep their content's instead of
+// shrinking to a fixed stage.
+export const STAGE_SAMPLE_FIT = 'group-data-[sample]/stage:flex-none';
+const STAGE_PART_SAMPLE = clsx(STAGE_PART, STAGE_SAMPLE_FIT);
+const STAGE_ROOM_SAMPLE = clsx(
+  STAGE_ROOM,
+  STAGE_SAMPLE_FIT,
+  'group-data-[sample]/stage:[container-type:inline-size]'
+);
 
 /**
  * The placeholder's box and the result's, so the result lands where the wait
@@ -338,8 +357,8 @@ export const StageSample: FC<{
   // A picture that does not load gives way to the icon, as on the Studio card.
   const [coverFailed, setCoverFailed] = useState(false);
   return (
-    <div className={STAGE_PART}>
-      <div className={STAGE_ROOM}>
+    <div className={STAGE_PART_SAMPLE}>
+      <div className={STAGE_ROOM_SAMPLE}>
         <div className="relative w-[var(--sample-w,min(100cqw,calc(100cqh*16/9),640px))] aspect-video overflow-hidden rounded-[12px] bg-surface">
           {cover && !coverFailed ? (
             <img

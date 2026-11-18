@@ -240,4 +240,14 @@ describe('the media strip', () => {
 
     expect(strip(host).className).not.toContain('sticky');
   });
+
+  // The fade sits in the flow at the end of the row: its 40px made a 390px
+  // row scroll 32px with nothing hidden. -ms-[40px] keeps its width and place
+  // and takes no room (spec 064, T031).
+  it("the row's end fade takes no width", async () => {
+    const host = await render({ toolBar: <span>tool</span> });
+    const fade = host.querySelector('.pointer-events-none.w-\\[40px\\]')!;
+
+    expect(fade.className.split(' ')).toContain('-ms-[40px]');
+  });
 });
