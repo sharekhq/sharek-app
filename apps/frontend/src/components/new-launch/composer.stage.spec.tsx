@@ -736,6 +736,27 @@ describe('the post the tab works for', () => {
     expect(before).not.toHaveBeenCalled();
   });
 
+  // FR-013
+  it('a tool that settled while hidden sends its next render to the row pressed last', async () => {
+    const before = jest.fn();
+    const after = jest.fn();
+    await render();
+    await open(() => before);
+    await loading(IMAGE, true);
+    composing('int-1');
+    await open(() => after, 1);
+    await pick(VEO);
+    await loading(IMAGE, false);
+    await pick(IMAGE);
+
+    await loading(IMAGE, true);
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([second]);
+
+    await lands(IMAGE);
+    expect(after).toHaveBeenCalledWith(media);
+    expect(before).not.toHaveBeenCalled();
+  });
+
   it('keeps the button pressed last with the tab, and its row’s latest handler, not the click’s', async () => {
     const opener = document.createElement('button');
     document.body.appendChild(opener);
