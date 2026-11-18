@@ -225,7 +225,7 @@ describe('the media strip', () => {
   // editor card, which is as tall as the scroll area. jsdom has no layout: the
   // classes are the assertion.
   it('pins the bar to the bottom of the scroll area from 1026px, and only there', async () => {
-    const host = await render();
+    const host = await render({ place: 0 });
     const classes = strip(host).className.split(' ');
 
     expect(classes).toEqual(
@@ -240,6 +240,22 @@ describe('the media strip', () => {
     );
     expect(strip(host).parentElement!.className.split(' ')).toContain(
       '[@media(min-width:1026px)]:contents'
+    );
+  });
+
+  // Veo 3's and Seedance's reference rows pass no `place`: pinned, they scroll
+  // and stick at once and paint over the pinned bar (spec 064, walk R5).
+  it('the reference images row is not pinned', async () => {
+    const host = await render();
+
+    expect(strip(host).className).not.toContain('sticky');
+  });
+
+  it("the composer editor's row stays pinned from 1026px", async () => {
+    const host = await render({ place: 0 });
+
+    expect(strip(host).className).toContain(
+      '[@media(min-width:1026px)]:sticky'
     );
   });
 });
