@@ -35,7 +35,7 @@ let mockProperties: { brand?: string } | undefined;
 let mockChannels: Channel[] = [];
 let mockBrands: Brand[] | undefined;
 let mockPanel: { onChange: (ids: string[]) => void } | undefined;
-let mockAiImage: { onChange: (media: { id: string; path: string }) => void };
+const openModal = jest.fn();
 
 jest.mock('@copilotkit/react-ui', () => ({
   // The chat's own messages, which the note scrolls as the tray does, then
@@ -111,14 +111,8 @@ jest.mock('@gitroom/frontend/components/brands/use.brands', () => ({
   ...jest.requireActual('@gitroom/frontend/components/brands/use.brands'),
   useBrands: () => ({ data: mockBrands }),
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: {
-    onChange: (media: { id: string; path: string }) => void;
-    renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  }) => {
-    mockAiImage = props;
-    return <>{props.renderTrigger(() => undefined, false)}</>;
-  },
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
+  useModals: () => ({ openModal }),
 }));
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: () => ({
@@ -145,9 +139,6 @@ jest.mock('@gitroom/react/helpers/video.frame', () => ({
 }));
 jest.mock('@gitroom/react/helpers/use.media.directory', () => ({
   useMediaDirectory: () => ({ set: (p: string) => p }),
-}));
-jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ tier: { ai: true } }),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => {} }),
@@ -387,8 +378,15 @@ const choose = async (text: string) => {
   await click(option(text));
 };
 const attach = async (id: string, ext: string) => {
+  await act(async () => {
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent === i18next.t('insert_media'))!
+      .click();
+  });
   await act(async () =>
-    mockAiImage.onChange({ id, path: `https://media/${id}.${ext}` })
+    openModal.mock.calls[openModal.mock.calls.length - 1][0]
+      .children(() => {})
+      .props.setMedia([{ id, path: `https://media/${id}.${ext}` }])
   );
 };
 

@@ -5,11 +5,11 @@ import * as path from 'path';
 
 // How the chat wires up what's attached to a message. CopilotChat renders its
 // Input slot and the real provider runs, so an image reaches the message the way
-// it will in the app: through AI Image's `onChange`, here read off a stub.
+// it will in the app: through Insert Media's library, here read off a stub.
 const sent = jest.fn();
 const inputProps: Array<Record<string, any>> = [];
 const dropProps: Array<Record<string, any>> = [];
-const aiImageProps: Array<Record<string, any>> = [];
+const openModal = jest.fn();
 const params = { id: 'thread-1' };
 
 jest.mock('@copilotkit/react-ui', () => ({
@@ -72,19 +72,11 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   mediaLibrarySize: () => '',
   MediaBox: () => null,
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: {
-    renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  }) => {
-    aiImageProps.push(props);
-    return <>{props.renderTrigger(() => undefined, false)}</>;
-  },
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
+  useModals: () => ({ openModal }),
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: () => <video />,
-}));
-jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ tier: { ai: true } }),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => {} }),
@@ -126,11 +118,15 @@ const mount = async () => {
 
 const input = () => inputProps[inputProps.length - 1];
 const attach = async (id: string, ext: string) => {
+  await act(async () => {
+    (
+      document.querySelector('[data-tools] button') as HTMLButtonElement
+    ).click();
+  });
   await act(async () =>
-    aiImageProps[aiImageProps.length - 1].onChange({
-      id,
-      path: `https://media/${id}.${ext}`,
-    })
+    openModal.mock.calls[openModal.mock.calls.length - 1][0]
+      .children(() => {})
+      .props.setMedia([{ id, path: `https://media/${id}.${ext}` }])
   );
 };
 const send = async (text: string) => {
@@ -152,7 +148,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   inputProps.length = 0;
   dropProps.length = 0;
-  aiImageProps.length = 0;
+  openModal.mockClear();
   sent.mockClear();
 });
 
@@ -210,7 +206,6 @@ describe('what a sent message carries', () => {
       'a poster\n[--Media--]Image: https://media/a.png\n[--Media--]'
     );
     expect(result).toBe(receipt);
-    expect(aiImageProps[aiImageProps.length - 1].value).toBe('');
   });
 });
 
@@ -227,7 +222,7 @@ describe('the box', () => {
     expect(input().uploading).toBe(true);
   });
 
-  it('gets the two buttons in its tools slot, and the tiles above the text', async () => {
+  it('gets Insert Media in its tools slot, and the tiles above the text', async () => {
     const { host } = await mount();
     await attach('a', 'png');
 
@@ -235,7 +230,7 @@ describe('the box', () => {
       Array.from(host.querySelectorAll('[data-tools] button')).map(
         (button) => button.textContent
       )
-    ).toEqual(['Insert Media', 'AI Image']);
+    ).toEqual(['Insert Media']);
     expect(
       host.querySelector('[data-attachments] img')?.getAttribute('src')
     ).toBe('https://media/a.png');
@@ -247,14 +242,6 @@ describe('the box', () => {
     expect(
       host.querySelector('[data-summary] [data-channel-summary]')
     ).not.toBeNull();
-  });
-
-  it('hands AI Image what has been typed', async () => {
-    await mount();
-
-    await act(async () => input().onChange('a poster'));
-
-    expect(aiImageProps[aiImageProps.length - 1].value).toBe('a poster');
   });
 
   // The board leaves 20px under the box: the wrapper's pb-[20px], upstream's,

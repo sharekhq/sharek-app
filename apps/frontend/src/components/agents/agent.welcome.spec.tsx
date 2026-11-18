@@ -9,7 +9,7 @@ import { createRoot, Root } from 'react-dom/client';
 // attachments provider holds the tray, as in agent.chat.input.spec.
 const sent = jest.fn();
 const inputProps: Array<ComponentProps<typeof Input>> = [];
-const aiImageProps: Array<ComponentProps<typeof AiImage>> = [];
+const openModal = jest.fn();
 const params = { id: 'new' };
 const chat = { messages: [] as Array<Record<string, unknown>> };
 // The interface language: English draws each English default, Arabic each key,
@@ -109,17 +109,11 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   mediaLibrarySize: () => '',
   MediaBox: () => null,
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: ComponentProps<typeof AiImage>) => {
-    aiImageProps.push(props);
-    return <>{props.renderTrigger(() => undefined, false)}</>;
-  },
+jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
+  useModals: () => ({ openModal }),
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: () => <video />,
-}));
-jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => ({ tier: { ai: true } }),
 }));
 jest.mock('@gitroom/react/toaster/toaster', () => ({
   useToaster: () => ({ show: () => {} }),
@@ -171,7 +165,6 @@ jest.mock('@gitroom/frontend/components/ui/icons', () => {
 import { AgentChat } from '@gitroom/frontend/components/agents/agent.chat';
 import { FOCUS_RING } from '@gitroom/frontend/components/launches/channel.panel';
 import type { Input } from '@gitroom/frontend/components/agents/agent.input';
-import type { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 
 const mounted: Root[] = [];
 
@@ -201,11 +194,15 @@ const paragraphs = (block: HTMLElement) =>
     .map((child) => child.textContent);
 const input = () => inputProps[inputProps.length - 1];
 const attach = async (id: string, ext: string) => {
+  await act(async () => {
+    (
+      document.querySelector('[data-tools] button') as HTMLButtonElement
+    ).click();
+  });
   await act(async () =>
-    aiImageProps[aiImageProps.length - 1].onChange({
-      id,
-      path: `https://media/${id}.${ext}`,
-    })
+    openModal.mock.calls[openModal.mock.calls.length - 1][0]
+      .children(() => {})
+      .props.setMedia([{ id, path: `https://media/${id}.${ext}` }])
   );
 };
 
@@ -233,7 +230,7 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   inputProps.length = 0;
-  aiImageProps.length = 0;
+  openModal.mockClear();
   sent.mockClear();
 });
 
