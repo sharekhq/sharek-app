@@ -10,6 +10,7 @@ import { ChatThreadsService } from '@gitroom/nestjs-libraries/chat/chat.threads.
 import { ReadWebPageTool } from '@gitroom/nestjs-libraries/chat/tools/read.web.page.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web.search.tool';
 import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.tool';
+import { ChatgptToolsService } from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.tools.service';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { BrandKitTool } from '@gitroom/nestjs-libraries/chat/tools/brand.kit.too
   providers: [
     MastraService,
     LoadToolsService,
+    ChatgptToolsService,
     McpRelayService,
     SamyImageTool,
     BrandKitTool,
