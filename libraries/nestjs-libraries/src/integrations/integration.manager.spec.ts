@@ -199,8 +199,9 @@ describe('IntegrationManager.getAllTools', () => {
   });
 });
 
-// No provider declares a lookup yet, so the fixtures are decorated classes that
-// stand in for a provider (and a child of it) in the manager's catalog.
+// The fixtures are decorated classes that stand in for a provider (and a child
+// of it) in the manager's catalog: they exercise the decorator and the
+// inheritance independently of the real providers.
 class LookupParent {
   identifier = 'lookup-parent';
 
