@@ -120,7 +120,7 @@ export class HashnodeProvider extends SocialAbstract implements SocialProvider {
       name: 'list_hashnode_tags',
       title: 'List Hashnode Tags',
       description:
-        'Lists the tags a Hashnode article can use. Call it when the user wants to tag a post on a Hashnode channel. Returns the tags for the post\'s tags setting.',
+        "Lists the tags a Hashnode article can use. Call it when the user wants to tag a post on a Hashnode channel. Returns the tags for the post's tags setting.",
     },
   })
   tagsList() {
@@ -134,7 +134,7 @@ export class HashnodeProvider extends SocialAbstract implements SocialProvider {
       name: 'list_hashnode_publications',
       title: 'List Hashnode Publications',
       description:
-        'Lists the Hashnode publications of the channel\'s account. Call it when the user wants to post to Hashnode, because a Hashnode post needs a publication. Returns the publications for the post\'s publication setting.',
+        "Lists the Hashnode publications of the channel's account. Call it when the user wants to post to Hashnode, because a Hashnode post needs a publication. Returns the publications for the post's publication setting.",
     },
   })
   async publications(accessToken: string) {

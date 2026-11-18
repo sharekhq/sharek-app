@@ -93,7 +93,7 @@ export class MediumProvider extends SocialAbstract implements SocialProvider {
       name: 'list_medium_publications',
       title: 'List Medium Publications',
       description:
-        'Lists the Medium publications the channel\'s account can post to. Call it when the user wants to publish a Medium story in a publication. Returns the publications for the post\'s publication setting.',
+        "Lists the Medium publications the channel's account can post to. Call it when the user wants to publish a Medium story in a publication. Returns the publications for the post's publication setting.",
     },
   })
   async publications(accessToken: string, _: any, id: string) {
