@@ -70,6 +70,8 @@ import { MCPServer } from '@mastra/mcp';
 import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
+import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
+import { ChatgptToolsService } from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.tools.service';
 
 // Every constructor argument gets the same stub; no tool takes more than three
 // (IntegrationTriggerTool). The real VideoManager lists the video types this
@@ -228,6 +230,92 @@ describe('the self-hosted connection', () => {
         outputSchema,
         _meta,
         annotations: selfHostedTools[name].mcp?.annotations,
+      }).toMatchSnapshot();
+    }
+  );
+});
+
+// What startMcp builds for the ChatGPT connection: ChatgptToolsService over the
+// full set, with the lookups of the providers Add Channel offers. Both lists
+// are read when the tools are built, so they are fixed here and put back.
+const chatgptEnv = {
+  SHAREK_LISTED_PROVIDERS: 'pinterest,instagram',
+  HIDDEN_PROVIDERS: 'instagram',
+};
+const chatgptTools: Record<string, any> = (() => {
+  const before = Object.fromEntries(
+    Object.keys(chatgptEnv).map((key) => [key, process.env[key]])
+  );
+  Object.assign(process.env, chatgptEnv);
+  try {
+    return new ChatgptToolsService(new IntegrationManager(), {} as any).tools(
+      tools
+    );
+  } finally {
+    Object.entries(before).forEach(([key, value]) =>
+      value === undefined ? delete process.env[key] : (process.env[key] = value)
+    );
+  }
+})();
+const chatgptServer = new MCPServer({
+  name: 'Sharek',
+  version: '1.0.0',
+  tools: chatgptTools,
+});
+
+describe('the ChatGPT connection', () => {
+  it('exposes exactly the pinned tools', () => {
+    expect(Object.keys(chatgptTools).sort()).toEqual([
+      'delete_post',
+      'generate_image',
+      'get_media_status',
+      'get_posting_rules',
+      'get_upload_status',
+      'get_upload_ticket',
+      'list_brands',
+      'list_channels',
+      'list_media',
+      'list_pinterest_boards',
+      'list_posts',
+      'schedule_post',
+      'update_post_settings',
+      'upload_media_from_device',
+      'upload_media_from_url',
+    ]);
+  });
+
+  it('has none of the tools that are not on this connection', () => {
+    const notHere = [
+      'triggerTool',
+      'videoFunctionTool',
+      'generateVideoOptions',
+      'generateVideoTool',
+      'videoStatusTool',
+      'integrationSchema',
+      'clippingTool',
+      'clippingStatusTool',
+      'clippingWidgetTicketTool',
+    ];
+    expect(
+      Object.keys(chatgptTools).filter((n) => notHere.includes(n))
+    ).toEqual([]);
+  });
+
+  it.each(Object.keys(chatgptTools))(
+    '%s keeps its ChatGPT contract',
+    async (name) => {
+      const { tools: listed } = await chatgptServer.getToolListInfo();
+      const { description, inputSchema, outputSchema, _meta } = listed.find(
+        (tool) => tool.name === name
+      )!;
+
+      expect({
+        name,
+        description,
+        inputSchema,
+        outputSchema,
+        _meta,
+        annotations: chatgptTools[name].mcp?.annotations,
       }).toMatchSnapshot();
     }
   );

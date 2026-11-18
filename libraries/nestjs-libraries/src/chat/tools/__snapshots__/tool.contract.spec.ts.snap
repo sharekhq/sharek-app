@@ -1,5 +1,1105 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`the ChatGPT connection delete_post keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false,
+    "title": "Delete Post",
+  },
+  "description": "Deletes one post and its comments from Sharek. Call it when the user asks to delete a post, with the post id from list_posts. A post made for several channels has a separate id on each channel, and deleting a repeating post deletes every repetition. A deleted scheduled post is not published; a deleted published post is removed from Sharek only and stays on the social network. This cannot be undone. Returns the deleted post's id, or errors that explain why it could not be deleted.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "description": "The "id" of the post to delete",
+        "type": "string",
+      },
+    },
+    "required": [
+      "id",
+    ],
+    "type": "object",
+  },
+  "name": "delete_post",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "postId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "postId",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "errors": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "errors",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection generate_image keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false,
+    "title": "Generate Image",
+  },
+  "description": "Generates an image with AI from a text prompt and saves it to the user's Sharek media library, using the account's image credits. Call it when the user asks Sharek to create an image, for example for an Instagram post. Returns the image's id and path, which schedule_post can attach; returns an error when the account has no image credits left.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "prompt": {
+        "description": "What the image shows, in the user's words",
+        "type": "string",
+      },
+    },
+    "required": [
+      "prompt",
+    ],
+    "type": "object",
+  },
+  "name": "generate_image",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "id": {
+        "type": "string",
+      },
+      "path": {
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection get_media_status keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "Get Media Status",
+  },
+  "description": "Checks whether a media uploaded with adjust set to true has finished adjusting to the platforms' size and format limits. Call it when the user asks whether such an upload is ready, with the id upload_media_from_url returned. Returns its status: processing while it is being adjusted, ready once the adjusted file is in place at the same path, or ready with a warning when the adjustment failed and the original file is kept. A post published while the status is processing uses the original file.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "description": "The media id upload_media_from_url returned",
+        "type": "string",
+      },
+    },
+    "required": [
+      "id",
+    ],
+    "type": "object",
+  },
+  "name": "get_media_status",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "id": {
+        "type": "string",
+      },
+      "path": {
+        "type": "string",
+      },
+      "status": {
+        "type": "string",
+      },
+      "warning": {
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection get_posting_rules keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "Get Posting Rules",
+  },
+  "description": "Gets what a platform needs before Sharek can publish a post to it: its rules, the maximum post length, the settings a post can or must include, and the lookup tools that find the values some settings need, such as a Pinterest board. Call it for each platform a post goes to, before schedule_post or update_post_settings. Returns rules, maxLength, settings and lookups.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "isPremium": {
+        "description": "Whether the X account has X Premium, which allows longer posts; false when unknown or for other platforms",
+        "type": "boolean",
+      },
+      "platform": {
+        "description": "The platform identifier of the channel, one of pinterest",
+        "type": "string",
+      },
+    },
+    "required": [
+      "isPremium",
+      "platform",
+    ],
+    "type": "object",
+  },
+  "name": "get_posting_rules",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "lookups": {
+            "description": "The lookup tools that find the ids, tags and other values some settings need",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "description": "What the lookup tool finds",
+                  "type": "string",
+                },
+                "inputs": {
+                  "description": "The fields the lookup tool takes besides the channel id",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "description": "What the field holds",
+                        "type": "string",
+                      },
+                      "key": {
+                        "description": "The name of the field to pass",
+                        "type": "string",
+                      },
+                      "required": {
+                        "description": "Whether the field is needed",
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "key",
+                      "description",
+                      "required",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "name": {
+                  "description": "The name of the lookup tool",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "name",
+                "description",
+                "inputs",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "maxLength": {
+            "description": "The maximum length of a post or comment",
+            "type": "number",
+          },
+          "rules": {
+            "description": "What the platform requires of a post",
+            "type": "string",
+          },
+          "settings": {
+            "description": "The settings a post to this platform can or must include",
+          },
+        },
+        "required": [
+          "rules",
+          "maxLength",
+          "lookups",
+        ],
+        "type": "object",
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection get_upload_status keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "Get Upload Status",
+  },
+  "description": "Lists the files the user uploaded through the upload widget in one session, using the sessionId upload_media_from_device returned. Call it when the user says they uploaded a file, or asks about one. Returns each file's id, path and status: a ready file can be attached to a post, a processing file is still being prepared, and ready with a warning means the adjustment failed and the original file is kept. An empty list means nothing was uploaded yet.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "sessionId": {
+        "description": "The sessionId upload_media_from_device returned",
+        "type": "string",
+      },
+    },
+    "required": [
+      "sessionId",
+    ],
+    "type": "object",
+  },
+  "name": "get_upload_status",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "media": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "error": {
+              "type": "string",
+            },
+            "id": {
+              "type": "string",
+            },
+            "path": {
+              "type": "string",
+            },
+            "status": {
+              "type": "string",
+            },
+            "warning": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "path",
+            "status",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection get_upload_ticket keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {
+    "ui": {
+      "visibility": [
+        "app",
+      ],
+    },
+  },
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false,
+    "title": "Get Upload Ticket",
+  },
+  "description": "Used by the upload widget to get a short-lived upload ticket for the sessionId upload_media_from_device returned. Returns the ticket.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "sessionId": {
+        "description": "The sessionId upload_media_from_device returned",
+        "type": "string",
+      },
+    },
+    "required": [
+      "sessionId",
+    ],
+    "type": "object",
+  },
+  "name": "get_upload_ticket",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "ticket": {
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection list_brands keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "List Brands",
+  },
+  "description": "Lists the brands in the user's Sharek account; a brand groups the channels of one business or client. Call it when the user mentions a brand or wants to work with one brand's channels or posts. Returns each brand's id and name, which list_channels and list_posts take to filter by brand.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "name": "list_brands",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+            },
+            "name": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "name",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection list_channels keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "List Channels",
+  },
+  "description": "Lists the social media channels connected in the user's Sharek account, such as Instagram, X or LinkedIn accounts and pages. Call it when the user asks which channels they have, or to get a channel's id before get_posting_rules, schedule_post or a lookup tool. Optionally lists only one brand's channels. Returns each channel's id, name, platform and picture, and the brand it belongs to.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "group": {
+        "description": "Optional brand id from list_brands, to list only that brand's channels",
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+  "name": "list_channels",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+            },
+            "name": {
+              "type": "string",
+            },
+            "picture": {
+              "type": "string",
+            },
+            "platform": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "name",
+            "picture",
+            "platform",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection list_media keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "List Media",
+  },
+  "description": "Lists the images and videos in the user's Sharek media library, newest first, 32 per page, optionally searched by original file name. Call it when the user wants to reuse a file they uploaded before. Returns each file's id, name, path and upload date; the path can be attached with schedule_post.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "page": {
+        "description": "Page number, starting at 1",
+        "minimum": 1,
+        "type": "integer",
+      },
+      "search": {
+        "description": "Filter by original filename (case-insensitive contains)",
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+  "name": "list_media",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "createdAt": {
+              "type": "string",
+            },
+            "id": {
+              "type": "string",
+            },
+            "name": {
+              "type": "string",
+            },
+            "originalName": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "path": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "id",
+            "name",
+            "originalName",
+            "path",
+            "createdAt",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+      "pages": {
+        "type": "number",
+      },
+    },
+    "required": [
+      "pages",
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection list_pinterest_boards keeps its ChatGPT contract 1`] = `
+{
+  "_meta": undefined,
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true,
+    "readOnlyHint": true,
+    "title": "List Pinterest Boards",
+  },
+  "description": "Lists the boards of the Pinterest channel. Call it when the user wants to create a pin, because a pin needs a board. Returns the boards for the post's board setting.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "integrationId": {
+        "description": "The channel id from list_channels",
+        "type": "string",
+      },
+    },
+    "required": [
+      "integrationId",
+    ],
+    "type": "object",
+  },
+  "name": "list_pinterest_boards",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "anyOf": [
+          {
+            "items": {
+              "additionalProperties": {},
+              "type": "object",
+            },
+            "type": "array",
+          },
+          {
+            "additionalProperties": {},
+            "type": "object",
+          },
+          {
+            "type": "string",
+          },
+        ],
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection list_posts keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true,
+    "title": "List Posts",
+  },
+  "description": "Lists the user's posts whose publish date falls between startDate and endDate (UTC), in any state: scheduled, draft, published or failed. Call it when the user asks what is planned or published, or to find the id of a post to change or delete; for all upcoming posts, pass a wide window such as now to a year ahead. Optionally lists only one brand's posts. Returns each post's id, publish date, state, error for a failed post, content, channel and settings.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "customer": {
+        "description": "Optional brand id from list_brands, to list only that brand's posts",
+        "type": "string",
+      },
+      "endDate": {
+        "description": "End of the window (UTC), for example 2026-08-20T00:00:00",
+        "type": "string",
+      },
+      "startDate": {
+        "description": "Start of the window (UTC), for example 2026-07-20T00:00:00",
+        "type": "string",
+      },
+    },
+    "required": [
+      "startDate",
+      "endDate",
+    ],
+    "type": "object",
+  },
+  "name": "list_posts",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "posts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string",
+                },
+                "error": {
+                  "description": "Curated failure message for errored posts, null otherwise",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "group": {
+                  "description": "The brand of the post's channel",
+                  "type": "string",
+                },
+                "id": {
+                  "description": "The post id",
+                  "type": "string",
+                },
+                "integrationId": {
+                  "description": "The channel id",
+                  "type": "string",
+                },
+                "integrationName": {
+                  "description": "The channel name",
+                  "type": "string",
+                },
+                "platform": {
+                  "type": "string",
+                },
+                "publishDate": {
+                  "description": "UTC time",
+                  "type": "string",
+                },
+                "settings": {
+                  "description": "The post current provider settings",
+                },
+                "state": {
+                  "description": "QUEUE, DRAFT, PUBLISHED or ERROR",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "publishDate",
+                "state",
+                "error",
+                "content",
+                "group",
+                "integrationId",
+                "platform",
+                "integrationName",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "posts",
+        ],
+        "type": "object",
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection schedule_post keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false,
+    "title": "Schedule Post",
+  },
+  "description": "Creates posts on the user's connected channels: saved as a draft, scheduled for a date, or published now. Call it when the user asks to draft, schedule or publish a post. Each socialPost item is one post on one channel, and its postsAndComments holds the post first and then its comments: one LinkedIn post with one comment is one socialPost item with two postsAndComments items, and 20 Facebook posts on different days are 20 socialPost items with one postsAndComments item each. Channel ids come from list_channels and each platform's settings from get_posting_rules. Returns each created post's id and a previewUrl the user can open; when validation fails it returns errors that say what to fix, and the call can be made again with corrected input. It does not change or delete existing posts.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "socialPost": {
+        "description": "One item per post per channel",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "date": {
+              "description": "The date of the post in UTC time",
+              "type": "string",
+            },
+            "integrationId": {
+              "description": "The channel id from list_channels",
+              "type": "string",
+            },
+            "isPremium": {
+              "description": "For an X channel, whether the account has X Premium; false for other platforms",
+              "type": "boolean",
+            },
+            "postsAndComments": {
+              "description": "The post first, then each comment in order",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "attachments": {
+                    "description": "The media of the post: a media path from upload_media_from_url, generate_image, list_media or get_upload_status, or { path, alt?, thumbnail?, thumbnailTimestamp? } where alt is the alt text, thumbnail is the path of an uploaded JPEG or PNG used as a video's cover, and thumbnailTimestamp is the video frame to use as the cover, in milliseconds",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "alt": {
+                              "type": "string",
+                            },
+                            "path": {
+                              "type": "string",
+                            },
+                            "thumbnail": {
+                              "type": "string",
+                            },
+                            "thumbnailTimestamp": {
+                              "minimum": 0,
+                              "type": "integer",
+                            },
+                          },
+                          "required": [
+                            "path",
+                          ],
+                          "type": "object",
+                        },
+                      ],
+                    },
+                    "type": "array",
+                  },
+                  "content": {
+                    "description": "The text as HTML. Wrap each line in <p>. Allowed tags: h1, h2, h3, u, strong, li, ul, p (u and strong can't be combined), img (<img src="...">) only when the platform's rules from get_posting_rules say pictures go inside the content, and span only for a mention in the exact format a lookup tool returned",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "content",
+                  "attachments",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "settings": {
+              "description": "The platform settings of this post as key and value pairs; the keys come from get_posting_rules",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "description": "Name of the settings key to pass",
+                    "type": "string",
+                  },
+                  "value": {
+                    "description": "The value. Where a setting is an id, pass the id a lookup tool returned, not its display label",
+                  },
+                },
+                "required": [
+                  "key",
+                ],
+                "type": "object",
+              },
+              "type": "array",
+            },
+            "shortLink": {
+              "description": "Whether to replace the links in the post with short links; true only when the user agreed to short links",
+              "type": "boolean",
+            },
+            "type": {
+              "description": "draft saves a draft, schedule publishes at date, now publishes right away (with the current date as date)",
+              "enum": [
+                "draft",
+                "schedule",
+                "now",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "integrationId",
+            "isPremium",
+            "date",
+            "shortLink",
+            "type",
+            "postsAndComments",
+            "settings",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+    },
+    "required": [
+      "socialPost",
+    ],
+    "type": "object",
+  },
+  "name": "schedule_post",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "anyOf": [
+          {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "integration": {
+                  "type": "string",
+                },
+                "postId": {
+                  "type": "string",
+                },
+                "previewUrl": {
+                  "description": "Public preview page of the created post, share it with the user",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "postId",
+                "integration",
+                "previewUrl",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "errors": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "errors",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection update_post_settings keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false,
+    "title": "Update Post Settings",
+  },
+  "description": "Changes the platform settings of a post that is not published yet (scheduled or draft); its content and publish date stay as they are. Call it when the user wants to change a setting of an existing post, such as a Pinterest board or a TikTok privacy option. Takes the post id from list_posts and only the keys to change, which are merged into the existing settings; the keys a platform accepts come from get_posting_rules. Returns the updated post; when validation fails it returns errors that say what to fix, and the call can be made again with corrected input.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "description": "The "id" of the post to update its settings",
+        "type": "string",
+      },
+      "settings": {
+        "description": "The settings keys to change and their new values, merged into the existing settings; the keys come from get_posting_rules",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "description": "Name of the settings key to change",
+              "type": "string",
+            },
+            "value": {
+              "description": "The new value. Where a setting is an id, pass the id a lookup tool returned, not its display label",
+            },
+          },
+          "required": [
+            "key",
+          ],
+          "type": "object",
+        },
+        "type": "array",
+      },
+    },
+    "required": [
+      "id",
+      "settings",
+    ],
+    "type": "object",
+  },
+  "name": "update_post_settings",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "output": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "postId": {
+                "type": "string",
+              },
+              "publishDate": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "postId",
+              "publishDate",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "errors": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "errors",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+    },
+    "required": [
+      "output",
+    ],
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection upload_media_from_device keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {
+    "ui": {
+      "resourceUri": "ui://sharek/upload",
+    },
+  },
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false,
+    "title": "Upload Media From Device",
+  },
+  "description": "Shows an upload widget in the conversation, where the user adds images or videos from their own device to the Sharek media library. Call it when the user wants to attach a file from their device to a post. Returns a sessionId; the files the user uploads are reported in the conversation and can be read with get_upload_status.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "name": "upload_media_from_device",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "sessionId": {
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
+exports[`the ChatGPT connection upload_media_from_url keeps its ChatGPT contract 1`] = `
+{
+  "_meta": {},
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false,
+    "title": "Upload Media From URL",
+  },
+  "description": "Uploads an image or video from a public http(s) URL to the user's Sharek media library. Call it when the user gives a link to media for a post. Returns the media's id, path and status; the path can be attached with schedule_post, or used as an <img> src in the content when the platform's rules say pictures go inside the content. Returns an error when the URL can't be fetched.",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "url": {
+        "description": "The public http(s) URL of the image or video; a file on the user's device goes through upload_media_from_device",
+        "format": "uri",
+        "type": "string",
+      },
+    },
+    "required": [
+      "url",
+    ],
+    "type": "object",
+  },
+  "name": "upload_media_from_url",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "error": {
+        "type": "string",
+      },
+      "id": {
+        "type": "string",
+      },
+      "path": {
+        "type": "string",
+      },
+      "status": {
+        "type": "string",
+      },
+    },
+    "type": "object",
+  },
+}
+`;
+
 exports[`the MCP tool contracts clippingStatusTool keeps its contract 1`] = `
 {
   "_meta": undefined,
