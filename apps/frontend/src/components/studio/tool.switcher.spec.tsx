@@ -708,6 +708,91 @@ describe('the look', () => {
   });
 });
 
+// Spec 064 (D2, R8): the composer's AI button hands a pick to its caller
+// instead of routing, and marks the tools it is making.
+describe('with onPick and busy', () => {
+  const renderPicking = async (
+    onPick: (toolId: string) => void,
+    catalog: StudioCatalog = build(),
+    busy?: readonly string[]
+  ) => {
+    const tool = findStudioTool(catalog, 'ai-image');
+    expect(tool).toBeDefined();
+    await mount(
+      <ToolSwitcher
+        current={tool!}
+        catalog={catalog}
+        onPick={onPick}
+        busy={busy}
+      />
+    );
+    await click(trigger());
+  };
+
+  it('with onPick, picking a page tool calls onPick with its id and does not route', async () => {
+    const onPick = jest.fn();
+    await renderPicking(onPick);
+
+    await click(option('Veo 3'));
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith('veo3');
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(listbox()).toBeNull();
+  });
+
+  it('with onPick, a locked or window tool is picked through onPick too, never /billing', async () => {
+    const onPick = jest.fn();
+    await renderPicking(onPick, locked());
+
+    await click(option('Image editor'));
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockOpenModal).not.toHaveBeenCalled();
+    expect(listbox()).toBeNull();
+  });
+
+  it('with onPick, the opened-page focus hand-off is not written', async () => {
+    await renderPicking(jest.fn());
+    await click(option('Veo 3'));
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    await render('veo3');
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('with onPick, the panel opens on the z-[300] layer above the composer window; without it, z-[100] as today', async () => {
+    await renderPicking(jest.fn());
+    expect(classes(listbox()!.parentElement!)).toContain('z-[300]');
+
+    act(() => {
+      mounted.splice(0).forEach((root) => root.unmount());
+    });
+    document.body.innerHTML = '';
+    await open();
+    expect(classes(listbox()!.parentElement!)).toContain('z-[100]');
+  });
+
+  it('a busy tool reads Creating… as its second line', async () => {
+    await renderPicking(jest.fn(), build(), ['veo3']);
+
+    expect(lineOf(option('Veo 3')!)).toBe('Creating…');
+    expect(lineOf(option('Kling')!)).not.toBe('Creating…');
+    expect(mockTranslated).toContain('composer_ai_creating');
+  });
+
+  it('the current tool keeps its check while busy', async () => {
+    await renderPicking(jest.fn(), build(), ['ai-image']);
+
+    expect(ticked(option('AI image generator')!)).toBe(true);
+    expect(lineOf(option('AI image generator')!)).toBe('Creating…');
+  });
+});
+
 describe('TopBarSlot', () => {
   it("portals its children into the top bar's slot once it is there", async () => {
     const slot = document.createElement('span');
