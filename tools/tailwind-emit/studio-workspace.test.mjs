@@ -517,4 +517,22 @@ describe('Part 3: the composer', () => {
   test("while an AI tab is on screen the composer's Assistant is gone at every width", async () => {
     await assertEmits({ hidden: [['display', 'none']] }, null);
   });
+  // The stage's panel tint and its dot grid (FR-010): both read the theme's
+  // tokens, so one class set serves both themes.
+  test('the stage dot grid and tint emit in both themes', async () => {
+    await assertEmits(
+      {
+        'bg-[var(--panel)]': [['background-color', 'var(--panel)']],
+        '[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)]':
+          [
+            [
+              'background-image',
+              'radial-gradient(color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px)',
+            ],
+          ],
+        '[background-size:20px_20px]': [['background-size', '20px 20px']],
+      },
+      null
+    );
+  });
 });

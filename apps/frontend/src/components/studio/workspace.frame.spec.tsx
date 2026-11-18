@@ -32,6 +32,7 @@ import {
   StageActions,
   StageProgress,
   StageResult,
+  STAGE_BACKGROUND,
   StageSample,
   VersionsStrip,
   WorkspaceFrame,
@@ -251,6 +252,21 @@ describe('the page layout', () => {
 
     expect(settingsRow(host)!.getAttribute('aria-expanded')).toBe('true');
     expect(tokens(scroller)).not.toContain('phone:hidden');
+  });
+});
+
+describe('the stage background', () => {
+  it('both stages carry STAGE_BACKGROUND', async () => {
+    const page = await mount(frame());
+    const stacked = await mount(frame({ layout: 'stacked' }));
+    const want = STAGE_BACKGROUND.split(' ');
+
+    expect(tokens(page.firstElementChild!.children[1])).toEqual(
+      expect.arrayContaining(want)
+    );
+    expect(tokens(byTestId(stacked, 'stage')!.parentElement)).toEqual(
+      expect.arrayContaining(want)
+    );
   });
 });
 
