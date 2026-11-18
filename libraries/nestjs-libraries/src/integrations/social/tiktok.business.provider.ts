@@ -834,6 +834,13 @@ export class TiktokBusinessProvider
           'Genre to filter the tracks by (for example POP, ROCK, ELECTRONIC), leave empty for all genres',
       },
     ],
+    lookup: {
+      name: 'search_tiktok_music',
+      title: 'Search TikTok Music',
+      description:
+        "Lists commercial music library tracks that can be added to a TikTok post, optionally by genre. Call it when the user wants music on a TikTok post. Returns the tracks for the post's music setting.",
+      optionalFields: ['genre'],
+    },
   })
   async musicSearch(
     accessToken: string,
@@ -897,6 +904,12 @@ export class TiktokBusinessProvider
         description: 'Search query for the location',
       },
     ],
+    lookup: {
+      name: 'search_tiktok_locations',
+      title: 'Search TikTok Locations',
+      description:
+        "Searches location tags by a word. Call it when the user wants to tag a location on a TikTok post. Returns the locations for the post's location setting.",
+    },
   })
   async locationSearch(accessToken: string, data: { q: string }, id: string) {
     if (!data?.q) {

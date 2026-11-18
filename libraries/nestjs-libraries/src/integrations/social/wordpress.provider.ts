@@ -239,6 +239,12 @@ export class WordpressProvider
   @Tool({
     description: 'Get list of post types',
     dataSchema: [],
+    lookup: {
+      name: 'list_wordpress_post_types',
+      title: 'List WordPress Post Types',
+      description:
+        "Lists the post types of the WordPress site. Call it when the user wants to publish as a type other than a standard post. Returns the post types for the post's type setting.",
+    },
   })
   async postTypes(token: string) {
     const postTypes = await this.wpGet(token, '/wp-json/wp/v2/types');
@@ -264,6 +270,12 @@ export class WordpressProvider
   @Tool({
     description: 'Get list of categories',
     dataSchema: [],
+    lookup: {
+      name: 'list_wordpress_categories',
+      title: 'List WordPress Categories',
+      description:
+        "Lists the categories of the WordPress site. Call it when the user wants to file a WordPress article under a category. Returns the categories for the post's category setting.",
+    },
   })
   async categoriesList(token: string) {
     const categories = await this.wpGet(
@@ -282,6 +294,12 @@ export class WordpressProvider
   @Tool({
     description: 'Get list of tags',
     dataSchema: [],
+    lookup: {
+      name: 'list_wordpress_tags',
+      title: 'List WordPress Tags',
+      description:
+        "Lists the tags of the WordPress site. Call it when the user wants to tag a WordPress article. Returns the tags for the post's tags setting.",
+    },
   })
   async tagsList(token: string) {
     const tags = await this.wpGet(token, '/wp-json/wp/v2/tags?per_page=100');

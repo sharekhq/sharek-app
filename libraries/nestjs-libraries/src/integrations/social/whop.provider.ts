@@ -173,7 +173,16 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  @Tool({ description: 'Companies', dataSchema: [] })
+  @Tool({
+    description: 'Companies',
+    dataSchema: [],
+    lookup: {
+      name: 'list_whop_companies',
+      title: 'List Whop Companies',
+      description:
+        "Lists the Whop companies of the channel's account. Call it when the user wants to post to Whop, because a Whop post needs a company. Returns the companies for the post's company setting.",
+    },
+  })
   async companies(accessToken: string, params: any, id: string) {
     try {
       const response = await fetch(
@@ -196,7 +205,16 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'Experiences', dataSchema: [] })
+  @Tool({
+    description: 'Experiences',
+    dataSchema: [],
+    lookup: {
+      name: 'list_whop_experiences',
+      title: 'List Whop Experiences',
+      description:
+        "Lists the experiences of the Whop company. Call it when the user wants to post to a Whop experience. Returns the experiences for the post's experience setting.",
+    },
+  })
   async experiences(accessToken: string, params: any, id: string) {
     try {
       if (!params?.id) return [];
