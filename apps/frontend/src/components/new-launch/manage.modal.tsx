@@ -971,8 +971,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     <div
       className={clsx(
         'w-full h-full flex-1',
-        // the shell's insets; the extension's composer keeps its margins
-        props.padding || 'py-[12px] pe-[12px] ps-[100px]',
+        // the modal window owns the inset on desktop; the extension's
+        // composer keeps its margins
+        props.padding,
         'mobile:p-0 mobile:h-auto mobile:min-h-full flex relative'
       )}
     >
@@ -996,7 +997,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         <div className="flex-1 flex min-h-0 mobile:contents">
           <div
             className={clsx(
-              'flex flex-col flex-1 border-e border-newBorder',
+              'flex flex-col flex-1 min-w-0 border-e border-newBorder',
               // A single pane has no divider to draw, and nothing to its start
               // edge to be floored against.
               'mobile:border-e-0 mobile:min-w-0',
@@ -1200,9 +1201,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
           <div
             className={clsx(
-              // 580 fixed is the single biggest term in compose's width. At
-              // 1025px and below the preview replaces the editor instead.
-              'w-[580px] flex flex-col',
+              // 45% of the card, clamped, from 1026px up. At 1025px and
+              // below the preview replaces the editor instead.
+              '[@media(min-width:1026px)]:w-[45%] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:max-w-[680px] flex flex-col',
               'mobile:!w-full mobile:flex-1',
               mobileTab === 'edit' && stageTab === 'preview' && 'mobile:hidden'
             )}
