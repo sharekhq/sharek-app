@@ -6,6 +6,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { VIDEO_ORIENTATION_IDS } from './video.orientation.catalog';
+import {
+  IMAGE_PROMPT_MIN_CHARS,
+  VIDEO_PROMPT_MIN_CHARS,
+} from './video.prompt.bounds';
 
 const LOCALES_DIR = path.join(
   __dirname,
@@ -140,4 +144,11 @@ describe('AI video modal Arabic quality', () => {
       expect(ar[`video_orientation_${id}_tooltip`]).toContain('dir="ltr"');
     }
   );
+});
+
+describe('prompt minimums', () => {
+  it('image and video minimums are the same 15', () => {
+    expect(IMAGE_PROMPT_MIN_CHARS).toBe(15);
+    expect(IMAGE_PROMPT_MIN_CHARS).toBe(VIDEO_PROMPT_MIN_CHARS);
+  });
 });
