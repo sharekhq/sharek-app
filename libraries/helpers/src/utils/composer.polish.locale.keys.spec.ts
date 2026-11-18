@@ -115,5 +115,17 @@ describe('spec 062 words', () => {
       expect(ar.label_x_community_url).not.toMatch(/[()]/);
       expect(ar.label_x_community_url).toMatch(/https:\/\/\S+$/);
     });
+
+    it('no two facebook_preset_* share an Arabic name', () => {
+      const names = FACEBOOK_PRESETS.map(
+        (preset) => ar[`facebook_preset_${preset.id}`]
+      );
+      expect(new Set(names).size).toBe(names.length);
+    });
+
+    it('video_prompt_shortfall_many puts the tanween on the letter before the alef', () => {
+      expect(ar.video_prompt_shortfall_many).toContain('حرفًا');
+      expect(ar.video_prompt_shortfall_many).not.toContain('حرفاً');
+    });
   });
 });
