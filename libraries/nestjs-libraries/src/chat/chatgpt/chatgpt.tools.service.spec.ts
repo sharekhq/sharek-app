@@ -273,74 +273,107 @@ describe('the ChatGPT toolset', () => {
 });
 
 describe('the ChatGPT names in returned text', () => {
-  it('renames every source name, record key and id alike, as whole words', async () => {
-    const run = service.tools(
-      sourceRunning('integrationList', async () => ({
-        output: [
-          {
-            id: '1',
-            picture: '',
-            platform: 'x',
-            name: 'try integrationSchedulePostTool, schedulePostTool or uploadFromUrlTool, then integrationList; xintegrationListx stays',
-          },
-        ],
-      }))
-    ).list_channels;
+  // The output schema is checked on the way out, so each test returns a
+  // result its tool's schema accepts.
+  const posts = (post: object) => ({
+    output: {
+      posts: [
+        {
+          id: '1',
+          publishDate: '',
+          state: 'QUEUE',
+          error: null,
+          content: '',
+          group: '',
+          integrationId: '',
+          platform: 'x',
+          integrationName: '',
+          settings: {},
+          ...post,
+        },
+      ],
+    },
+  });
 
-    expect((await run.execute({}, context())).output[0].name).toBe(
+  it('renames every source name, record key and id alike, as whole words, in an error', async () => {
+    const run = service.tools(
+      sourceRunning('integrationSchedulePostTool', async () => ({
+        output: {
+          errors:
+            'try integrationSchedulePostTool, schedulePostTool or uploadFromUrlTool, then integrationList; xintegrationListx stays',
+        },
+      }))
+    ).schedule_post;
+
+    const result = await run.execute({ socialPost: [] }, context());
+
+    expect(result.output.errors).toBe(
       'try schedule_post, schedule_post or upload_media_from_url, then list_channels; xintegrationListx stays'
     );
   });
 
-  it('rewrites only string values, not keys, dates or class instances', async () => {
+  it('renames the error strings of a result, not keys, dates or class instances', async () => {
     class Box {
       note = 'integrationList';
     }
     const date = new Date(0);
     const box = new Box();
-    // The output schema is checked on the way out, so the free-form field of
-    // list_posts (settings) carries the values under test.
+    // The free-form field of list_posts (settings) carries the values under test.
     const run = service.tools(
-      sourceRunning('postsListTool', async () => ({
-        output: {
-          posts: [
-            {
-              id: '1',
-              publishDate: '',
-              state: 'QUEUE',
-              error: null,
-              content: '',
-              group: '',
-              integrationId: '',
-              platform: 'x',
-              integrationName: '',
-              settings: {
-                integrationList: [
-                  'integrationList',
-                  { deep: 'integrationList' },
-                ],
-                date,
-                box,
-                count: 3,
-              },
-            },
-          ],
-        },
-      }))
+      sourceRunning('postsListTool', async () =>
+        posts({
+          error: 'integrationList',
+          settings: {
+            errors: ['integrationList', { deep: 'integrationList' }],
+            integrationList: 'integrationList',
+            date,
+            box,
+            count: 3,
+          },
+        })
+      )
     ).list_posts;
 
     const result = (
       await run.execute({ startDate: '', endDate: '' }, context())
-    ).output.posts[0].settings;
+    ).output.posts[0];
 
-    expect(result.integrationList).toEqual([
+    expect(result.error).toBe('list_channels');
+    expect(result.settings.errors).toEqual([
       'list_channels',
       { deep: 'list_channels' },
     ]);
-    expect(result.date).toBe(date);
-    expect(result.box).toBe(box);
-    expect(result.box.note).toBe('integrationList');
-    expect(result.count).toBe(3);
+    expect(result.settings.integrationList).toBe('integrationList');
+    expect(result.settings.date).toBe(date);
+    expect(result.settings.box).toBe(box);
+    expect(result.settings.box.note).toBe('integrationList');
+    expect(result.settings.count).toBe(3);
+  });
+
+  it('leaves the post content of the user as it is', async () => {
+    const run = service.tools(
+      sourceRunning('postsListTool', async () =>
+        posts({ content: 'about groupList today' })
+      )
+    ).list_posts;
+
+    const result = await run.execute({ startDate: '', endDate: '' }, context());
+
+    expect(result.output.posts[0].content).toBe('about groupList today');
+  });
+
+  it('leaves the channel name of the user as it is', async () => {
+    const run = service.tools(
+      sourceRunning('integrationList', async () => ({
+        output: [
+          { id: '1', picture: '', platform: 'x', name: 'integrationList' },
+        ],
+      }))
+    ).list_channels;
+
+    expect((await run.execute({}, context())).output[0].name).toBe(
+      'integrationList'
+    );
   });
 
   it('rethrows the same Error with a rewritten message', async () => {
@@ -561,7 +594,7 @@ describe('the lookup tools', () => {
   it('hands a channel of the right provider to the trigger tool, renaming the result', async () => {
     getIntegrationById.mockResolvedValue({ providerIdentifier: 'instagram' });
     triggerExecute.mockResolvedValue({
-      output: [{ id: 'try integrationList' }],
+      output: { error: 'try integrationList' },
     });
     const ctx = context();
 
@@ -578,7 +611,7 @@ describe('the lookup tools', () => {
       },
       ctx
     );
-    expect(result).toEqual({ output: [{ id: 'try list_channels' }] });
+    expect(result).toEqual({ output: { error: 'try list_channels' } });
   });
 
   it('passes the failure message of the trigger tool on, with names renamed', async () => {
