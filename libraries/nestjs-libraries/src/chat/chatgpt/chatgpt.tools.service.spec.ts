@@ -36,6 +36,11 @@ jest.mock('nostr-tools', () => ({
 }));
 
 import { MCPServer } from '@mastra/mcp';
+import {
+  IntegrationManager,
+  socialIntegrationList,
+} from '@gitroom/nestjs-libraries/integrations/integration.manager';
+import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import {
@@ -49,7 +54,10 @@ import {
 
 // Every constructor argument gets the same stub. The media service's upload
 // rejects, so the real uploadFromUrlTool reaches its failed-upload branch.
+const manager = new IntegrationManager();
 const stub = {
+  getAllTools: () => manager.getAllTools(),
+  getAllRulesDescription: () => manager.getAllRulesDescription(),
   getAllVideos: () => [{ title: 'Fake Provider' }],
   uploadFromUrl: async () => {
     throw new Error('connect ECONNREFUSED');
@@ -64,8 +72,11 @@ const source: Record<string, any> = Object.fromEntries(
   })
 );
 
-// The integration manager and service are only used by the lookups.
-const service = new ChatgptToolsService(stub as any, stub as any);
+// The integration manager and service are used by the lookups.
+const getIntegrationById = jest.fn();
+const service = new ChatgptToolsService(manager, {
+  getIntegrationById,
+} as any);
 const chatgpt: Record<string, any> = service.tools(source);
 
 // getToolListInfo leaves the annotations out; the tools/list handler adds
@@ -202,9 +213,13 @@ describe('the ChatGPT toolset', () => {
       expect(stripDescriptions(to.inputSchema)).toEqual(
         stripDescriptions(from.inputSchema)
       );
-      expect(stripDescriptions(to.outputSchema)).toEqual(
-        stripDescriptions(from.outputSchema)
-      );
+      // get_posting_rules has its own output schema by design (lookups
+      // replace tools), pinned in its own cases.
+      if (name !== 'get_posting_rules') {
+        expect(stripDescriptions(to.outputSchema)).toEqual(
+          stripDescriptions(from.outputSchema)
+        );
+      }
     }
   });
 
@@ -377,6 +392,300 @@ describe('the ChatGPT wording', () => {
             throw new Error(`${tool.name} has ${label}: ${text}`);
           }
         }
+      }
+    }
+  });
+});
+
+// Both lists are read when the tools are built, so each case sets them and
+// puts them back.
+const build = (env: Record<string, string | undefined> = {}) => {
+  const values = {
+    SHAREK_LISTED_PROVIDERS: undefined,
+    HIDDEN_PROVIDERS: undefined,
+    ...env,
+  } as Record<string, string | undefined>;
+  const before = Object.fromEntries(
+    Object.keys(values).map((key) => [key, process.env[key]])
+  );
+  const apply = (next: Record<string, string | undefined>) =>
+    Object.entries(next).forEach(([key, value]) =>
+      value === undefined ? delete process.env[key] : (process.env[key] = value)
+    );
+  apply(values);
+  try {
+    return service.tools(sourceWithTrigger);
+  } finally {
+    apply(before);
+  }
+};
+
+const triggerExecute = jest.fn();
+const sourceWithTrigger = {
+  ...source,
+  triggerTool: Object.assign(Object.create(source.triggerTool), {
+    execute: triggerExecute,
+  }),
+};
+
+const coreNames = Object.values(bySourceName);
+const lookupNames = (env: Record<string, string | undefined> = {}) =>
+  Object.keys(build(env)).filter((name) => !coreNames.includes(name));
+
+describe('the lookup tools', () => {
+  beforeEach(() => {
+    triggerExecute.mockReset();
+    getIntegrationById.mockReset();
+  });
+
+  it('offers one tool per lookup name, linkedin and linkedin-page sharing one', () => {
+    const lookups = manager.getAllLookups();
+    const declared = Object.values(lookups).flatMap((list) =>
+      list.map((lookup) => lookup.name)
+    );
+
+    expect(lookupNames().sort()).toEqual([...new Set(declared)].sort());
+    expect(lookups['linkedin-page'].length).toBeGreaterThan(0);
+    expect(
+      lookupNames({ SHAREK_LISTED_PROVIDERS: 'linkedin,linkedin-page' })
+    ).toEqual(lookups['linkedin'].map((lookup) => lookup.name));
+  });
+
+  it('offers nothing of an unlisted or a hidden provider', () => {
+    const pinterest = manager.getAllLookups()['pinterest'].map((l) => l.name);
+
+    expect(lookupNames({ SHAREK_LISTED_PROVIDERS: 'x' })).toEqual([]);
+    expect(lookupNames({ SHAREK_LISTED_PROVIDERS: 'pinterest' })).toEqual(
+      pinterest
+    );
+    expect(
+      lookupNames({
+        SHAREK_LISTED_PROVIDERS: 'pinterest',
+        HIDDEN_PROVIDERS: 'pinterest',
+      })
+    ).toEqual([]);
+  });
+
+  it('throws when two different declarations share a name', () => {
+    class ClashA {
+      identifier = 'clash-a';
+      @Tool({
+        description: 'a',
+        dataSchema: [],
+        lookup: { name: 'clash_lookup', title: 'A', description: 'A' },
+      })
+      one() {}
+    }
+    class ClashB {
+      identifier = 'clash-b';
+      @Tool({
+        description: 'b',
+        dataSchema: [],
+        lookup: { name: 'clash_lookup', title: 'B', description: 'B' },
+      })
+      two() {}
+    }
+    const fixtures = [new ClashA(), new ClashB()] as any[];
+    socialIntegrationList.push(...fixtures);
+    try {
+      expect(() => build()).toThrow(/clash_lookup/);
+    } finally {
+      socialIntegrationList.splice(-fixtures.length);
+    }
+  });
+
+  it('takes the channel id and the declared fields, optional ones as declared', async () => {
+    const tool = (await listed(build())).find(
+      (t) => t.name === 'search_instagram_audio'
+    )!;
+    const schema: any = tool.inputSchema;
+
+    expect(Object.keys(schema.properties).sort()).toEqual([
+      'integrationId',
+      'q',
+      'type',
+    ]);
+    expect(schema.properties.integrationId.description).toBe(
+      'The channel id from list_channels'
+    );
+    expect(schema.required).toEqual(['integrationId']);
+    expect(tool.annotations).toEqual({
+      title: 'Search Instagram Audio',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+  });
+
+  it('answers with the output schema of the trigger tool', async () => {
+    const from = (await listed(source)).find((t) => t.name === 'triggerTool')!;
+    const tool = (await listed(build())).find(
+      (t) => t.name === 'list_pinterest_boards'
+    )!;
+
+    expect(tool.outputSchema).toEqual(from.outputSchema);
+  });
+
+  it('throws for an unknown channel without calling the trigger tool', async () => {
+    getIntegrationById.mockResolvedValue(null);
+
+    await expect(
+      build().list_pinterest_boards.execute(
+        { integrationId: 'nope' },
+        context()
+      )
+    ).rejects.toThrow(
+      'Channel not found, use list_channels to get a valid channel id'
+    );
+    expect(getIntegrationById).toHaveBeenCalledWith('org-1', 'nope');
+    expect(triggerExecute).not.toHaveBeenCalled();
+  });
+
+  it('throws naming the providers of a lookup for a channel of another provider', async () => {
+    getIntegrationById.mockResolvedValue({ providerIdentifier: 'x' });
+
+    await expect(
+      build().search_tiktok_music.execute({ integrationId: 'c1' }, context())
+    ).rejects.toThrow(/tiktok-business/);
+    expect(triggerExecute).not.toHaveBeenCalled();
+  });
+
+  it('hands a channel of the right provider to the trigger tool, renaming the result', async () => {
+    getIntegrationById.mockResolvedValue({ providerIdentifier: 'instagram' });
+    triggerExecute.mockResolvedValue({
+      output: [{ id: 'try integrationList' }],
+    });
+    const ctx = context();
+
+    const result = await build().search_instagram_audio.execute(
+      { integrationId: 'c1', q: 'jazz' },
+      ctx
+    );
+
+    expect(triggerExecute).toHaveBeenCalledWith(
+      {
+        integrationId: 'c1',
+        methodName: 'audioSearch',
+        dataSchema: [{ key: 'q', value: 'jazz' }],
+      },
+      ctx
+    );
+    expect(result).toEqual({ output: [{ id: 'try list_channels' }] });
+  });
+
+  it('passes the failure message of the trigger tool on, with names renamed', async () => {
+    getIntegrationById.mockResolvedValue({ providerIdentifier: 'instagram' });
+    triggerExecute.mockRejectedValue(
+      new Error('The channel was disconnected, use integrationList')
+    );
+
+    await expect(
+      build().search_instagram_audio.execute({ integrationId: 'c1' }, context())
+    ).rejects.toThrow('The channel was disconnected, use list_channels');
+  });
+});
+
+describe('get_posting_rules', () => {
+  const rules = async (
+    platform: string,
+    env: Record<string, string | undefined> = {}
+  ) =>
+    (
+      await build(env).get_posting_rules.execute(
+        { isPremium: false, platform },
+        context()
+      )
+    ).output;
+
+  it('returns rules, length, settings and lookups, with no tools key', async () => {
+    const output = await rules('pinterest');
+
+    expect(Object.keys(output).sort()).toEqual([
+      'lookups',
+      'maxLength',
+      'rules',
+      'settings',
+    ]);
+    expect(output.lookups.map((l: any) => l.name)).toContain(
+      'list_pinterest_boards'
+    );
+    for (const lookup of output.lookups) {
+      expect(Object.keys(lookup).sort()).toEqual([
+        'description',
+        'inputs',
+        'name',
+      ]);
+      for (const input of lookup.inputs) {
+        expect(Object.keys(input).sort()).toEqual([
+          'description',
+          'key',
+          'required',
+        ]);
+      }
+    }
+  });
+
+  it('marks optional lookup fields as not required', async () => {
+    const audio = (await rules('instagram')).lookups.find(
+      (l: any) => l.name === 'search_instagram_audio'
+    );
+
+    expect(audio.inputs.map((i: any) => [i.key, i.required])).toEqual([
+      ['q', false],
+      ['type', false],
+    ]);
+  });
+
+  it('names the lookup tools where TikTok rules and settings name the methods', async () => {
+    const output = await rules('tiktok-business');
+    const text = JSON.stringify([output.rules, output.settings]);
+
+    expect(text).toContain('search_tiktok_music');
+    expect(text).toContain('search_tiktok_locations');
+    expect(text).not.toMatch(/musicSearch|locationSearch/);
+  });
+
+  it('lists no lookup for an unlisted provider', async () => {
+    expect(
+      (await rules('pinterest', { SHAREK_LISTED_PROVIDERS: 'x' })).lookups
+    ).toEqual([]);
+  });
+
+  it('lists only the listed identifiers in the platform description', async () => {
+    const tool = (
+      await listed(build({ SHAREK_LISTED_PROVIDERS: 'pinterest,instagram' }))
+    ).find((t) => t.name === 'get_posting_rules')!;
+    const description = (tool.inputSchema as any).properties.platform
+      .description;
+
+    expect(description).toContain('pinterest');
+    expect(description).toContain('instagram');
+    expect(description).not.toContain('linkedin');
+  });
+
+  // The text a result carries: its string values, not its keys.
+  const stringsIn = (value: any): string[] =>
+    typeof value === 'string'
+      ? [value]
+      : value && typeof value === 'object'
+      ? Object.values(value).flatMap(stringsIn)
+      : [];
+
+  it('returns no old tool name, own lookup method name or CLI or API pointer for any provider', async () => {
+    const lookups = manager.getAllLookups();
+    const sourceNames = Object.keys(source).concat(
+      Object.values(source).map((tool: any) => tool.id)
+    );
+
+    for (const { identifier } of socialIntegrationList) {
+      const output = await rules(identifier);
+      const own = lookups[identifier].map((lookup) => lookup.methodName);
+      const old = new RegExp(`\\b(${[...sourceNames, ...own].join('|')})\\b`);
+
+      for (const text of stringsIn([output.rules, output.settings])) {
+        expect(text).not.toMatch(old);
+        expect(text).not.toMatch(/\bCLI\b|public API|docs\./i);
       }
     }
   });
