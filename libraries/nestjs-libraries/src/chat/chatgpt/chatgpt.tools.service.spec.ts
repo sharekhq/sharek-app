@@ -558,6 +558,38 @@ describe('the lookup tools', () => {
     });
   });
 
+  it('requires the id that the Whop experience and Skool label lookups read', async () => {
+    const tools = await listed(build());
+    const required = (name: string) =>
+      (tools.find((t) => t.name === name)!.inputSchema as any).required;
+
+    expect(required('list_whop_experiences')).toEqual([
+      'integrationId',
+      'id',
+    ]);
+    expect(required('list_skool_labels')).toEqual(['integrationId', 'id']);
+  });
+
+  it('forwards the id of a lookup that declares it as a field', async () => {
+    getIntegrationById.mockResolvedValue({ providerIdentifier: 'whop' });
+    triggerExecute.mockResolvedValue({ output: [] });
+    const ctx = context();
+
+    await build().list_whop_experiences.execute(
+      { integrationId: 'c1', id: 'biz_1' },
+      ctx
+    );
+
+    expect(triggerExecute).toHaveBeenCalledWith(
+      {
+        integrationId: 'c1',
+        methodName: 'experiences',
+        dataSchema: [{ key: 'id', value: 'biz_1' }],
+      },
+      ctx
+    );
+  });
+
   it('answers with the output schema of the trigger tool', async () => {
     const from = (await listed(source)).find((t) => t.name === 'triggerTool')!;
     const tool = (await listed(build())).find(
