@@ -41,7 +41,7 @@ const SeedanceSettings: FC = () => {
         allData={[]}
         dummy={true}
         designNotAvailable={true}
-        aiVideoNotAvailable={true}
+        aiNotAvailable={true}
         destination="reference"
         text={t('images', 'Images')}
         description={t('images', 'Images')}
