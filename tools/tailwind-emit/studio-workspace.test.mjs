@@ -17,8 +17,6 @@ import { fileURLToPath } from 'node:url';
 
 import postcss from 'postcss';
 import * as sass from 'sass';
-import * as sass from 'sass';
-import { fileURLToPath } from 'node:url';
 
 import { emit } from './emit.mjs';
 
