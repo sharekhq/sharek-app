@@ -309,7 +309,7 @@ exports[`the channel tabs from 1026px up a new post 1`] = `
       </div>
     </div>
     <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] text-brand w-[40px]">
-      <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
+      <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
         "X"
       </div>
       <div class="-end-[3px] -top-[1px] absolute bg-brand h-[8px] rounded-full w-[8px]" data-tooltip-content="No longer in global mode" data-tooltip-id="tooltip" />
@@ -319,7 +319,7 @@ exports[`the channel tabs from 1026px up a new post 1`] = `
       </div>
     </div>
     <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-      <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
+      <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
         "X"
       </div>
       <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
@@ -447,83 +447,85 @@ exports[`the character counter from 1026px up one channel, within its limit 1`] 
 `;
 
 exports[`the composer shell from 1026px up a new post 1`] = `
-"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+"<div class="flex flex-1 h-full relative w-full">
   <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
-      <div class="border-e border-newBorder flex flex-1 flex-col">
+      <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
-        <div class="bg-panel flex flex-1 flex-col gap-[16px]">
-          <div class="flex-1 relative">
-            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] pt-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
-              <div class="flex w-full">
-                <div class="flex flex-1">
-                  <div class="flex">
-                    <div class="flex flex-1">
-                      <div class="flex flex-1 innerComponent">
-                        <div class="flex flex-1 flex-wrap gap-[12px]">
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
-                            </div>
+        <div class="bg-panel flex flex-1 flex-col gap-[16px] min-w-0">
+          <div class="flex flex-col gap-[32px] min-w-0 pb-[6px] pe-[8px] ps-[20px] pt-[20px] shrink-0">
+            <div class="flex w-full">
+              <div class="flex flex-1">
+                <div class="flex">
+                  <div class="flex flex-1">
+                    <div class="flex flex-1 innerComponent">
+                      <div class="flex flex-1 flex-wrap gap-[12px]">
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <i data-mock="SelectCustomer" />
                 </div>
               </div>
-              <div class="flex flex-1 flex-col gap-[6px]">
-                <div>
-                  <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
-                    <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
-                      <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
-                        <div>
-                          <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
-                          "X"
-                        </div>
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
-                          "X"
-                        </div>
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
-                        </div>
-                      </div>
+              <div>
+                <i data-mock="SelectCustomer" />
+              </div>
+            </div>
+            <div class="min-w-0">
+              <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
+                <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
+                  <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
+                    <div>
+                      <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
+                      </svg>
                     </div>
                   </div>
-                  <div class="h-[40px]" />
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
+                      "X"
+                    </div>
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
+                    </div>
+                  </div>
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
+                      "X"
+                    </div>
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              <div class="h-[40px]" />
+            </div>
+          </div>
+          <div class="flex-1 relative">
+            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
+              <div class="flex flex-1 flex-col gap-[6px]">
                 <div class="flex flex-1 min-w-0">
                   <i data-mock="EditorWrapper" />
                 </div>
@@ -565,7 +567,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
           </div>
         </div>
       </div>
-      <div class="flex flex-col w-[580px]">
+      <div class="[@media(min-width:1026px)]:max-w-[680px] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:w-[45%] flex flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
           <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
             <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
@@ -578,7 +580,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
             </svg>
           </button>
         </div>
-        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+        <div aria-labelledby="_r_ID_-tab-preview" class="[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px] bg-[var(--panel)] flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
           <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
@@ -643,8 +645,10 @@ exports[`the composer shell from 1026px up a new post 1`] = `
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              "21/10/2026 21:30"
+            <div dir="rtl">
+              <bdi>
+                "21/10/2026 21:30"
+              </bdi>
             </div>
           </div>
         </div>
@@ -678,83 +682,85 @@ exports[`the composer shell from 1026px up a new post 1`] = `
 `;
 
 exports[`the composer shell from 1026px up a new post that a channel blocks from publishing 1`] = `
-"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+"<div class="flex flex-1 h-full relative w-full">
   <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
-      <div class="border-e border-newBorder flex flex-1 flex-col">
+      <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
-        <div class="bg-panel flex flex-1 flex-col gap-[16px]">
-          <div class="flex-1 relative">
-            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] pt-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
-              <div class="flex w-full">
-                <div class="flex flex-1">
-                  <div class="flex">
-                    <div class="flex flex-1">
-                      <div class="flex flex-1 innerComponent">
-                        <div class="flex flex-1 flex-wrap gap-[12px]">
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
-                            </div>
+        <div class="bg-panel flex flex-1 flex-col gap-[16px] min-w-0">
+          <div class="flex flex-col gap-[32px] min-w-0 pb-[6px] pe-[8px] ps-[20px] pt-[20px] shrink-0">
+            <div class="flex w-full">
+              <div class="flex flex-1">
+                <div class="flex">
+                  <div class="flex flex-1">
+                    <div class="flex flex-1 innerComponent">
+                      <div class="flex flex-1 flex-wrap gap-[12px]">
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <i data-mock="SelectCustomer" />
                 </div>
               </div>
-              <div class="flex flex-1 flex-col gap-[6px]">
-                <div>
-                  <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
-                    <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
-                      <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
-                        <div>
-                          <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
-                          "X"
-                        </div>
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
-                          "X"
-                        </div>
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
-                        </div>
-                      </div>
+              <div>
+                <i data-mock="SelectCustomer" />
+              </div>
+            </div>
+            <div class="min-w-0">
+              <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
+                <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
+                  <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
+                    <div>
+                      <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
+                      </svg>
                     </div>
                   </div>
-                  <div class="h-[40px]" />
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
+                      "X"
+                    </div>
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
+                    </div>
+                  </div>
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
+                      "X"
+                    </div>
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              <div class="h-[40px]" />
+            </div>
+          </div>
+          <div class="flex-1 relative">
+            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
+              <div class="flex flex-1 flex-col gap-[6px]">
                 <div class="flex flex-1 min-w-0">
                   <i data-mock="EditorWrapper" />
                 </div>
@@ -796,7 +802,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
           </div>
         </div>
       </div>
-      <div class="flex flex-col w-[580px]">
+      <div class="[@media(min-width:1026px)]:max-w-[680px] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:w-[45%] flex flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
           <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
             <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
@@ -809,7 +815,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
             </svg>
           </button>
         </div>
-        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+        <div aria-labelledby="_r_ID_-tab-preview" class="[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px] bg-[var(--panel)] flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
           <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
@@ -874,8 +880,10 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              "21/10/2026 21:30"
+            <div dir="rtl">
+              <bdi>
+                "21/10/2026 21:30"
+              </bdi>
             </div>
           </div>
         </div>
@@ -909,65 +917,67 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
 `;
 
 exports[`the composer shell from 1026px up a new post with no channel picked 1`] = `
-"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+"<div class="flex flex-1 h-full relative w-full">
   <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
-      <div class="border-e border-newBorder flex flex-1 flex-col">
+      <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
-        <div class="bg-panel flex flex-1 flex-col gap-[16px]">
-          <div class="flex-1 relative">
-            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] pt-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
-              <div class="flex w-full">
-                <div class="flex flex-1">
-                  <div class="flex">
-                    <div class="flex flex-1">
-                      <div class="flex flex-1 innerComponent">
-                        <div class="flex flex-1 flex-wrap gap-[12px]">
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
-                            </div>
+        <div class="bg-panel flex flex-1 flex-col gap-[16px] min-w-0">
+          <div class="flex flex-col gap-[32px] min-w-0 pb-[6px] pe-[8px] ps-[20px] pt-[20px] shrink-0">
+            <div class="flex w-full">
+              <div class="flex flex-1">
+                <div class="flex">
+                  <div class="flex flex-1">
+                    <div class="flex flex-1 innerComponent">
+                      <div class="flex flex-1 flex-wrap gap-[12px]">
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <i data-mock="SelectCustomer" />
                 </div>
               </div>
-              <div class="flex flex-1 flex-col gap-[6px]">
-                <div>
-                  <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
-                    <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
-                      <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
-                        <div>
-                          <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
-                          </svg>
-                        </div>
-                      </div>
+              <div>
+                <i data-mock="SelectCustomer" />
+              </div>
+            </div>
+            <div class="min-w-0">
+              <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
+                <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
+                  <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
+                    <div>
+                      <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
+                      </svg>
                     </div>
                   </div>
-                  <div class="h-[40px]" />
                 </div>
+              </div>
+              <div class="h-[40px]" />
+            </div>
+          </div>
+          <div class="flex-1 relative">
+            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
+              <div class="flex flex-1 flex-col gap-[6px]">
                 <div class="flex flex-1 min-w-0">
                   <i data-mock="EditorWrapper" />
                 </div>
@@ -1009,7 +1019,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
           </div>
         </div>
       </div>
-      <div class="flex flex-col w-[580px]">
+      <div class="[@media(min-width:1026px)]:max-w-[680px] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:w-[45%] flex flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
           <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
             <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
@@ -1022,7 +1032,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
             </svg>
           </button>
         </div>
-        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+        <div aria-labelledby="_r_ID_-tab-preview" class="[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px] bg-[var(--panel)] flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
           <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
@@ -1087,8 +1097,10 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              "21/10/2026 21:30"
+            <div dir="rtl">
+              <bdi>
+                "21/10/2026 21:30"
+              </bdi>
             </div>
           </div>
         </div>
@@ -1122,74 +1134,76 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
 `;
 
 exports[`the composer shell from 1026px up a set being added 1`] = `
-"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+"<div class="flex flex-1 h-full relative w-full">
   <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
-      <div class="border-e border-newBorder flex flex-1 flex-col">
+      <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
-        <div class="bg-panel flex flex-1 flex-col gap-[16px]">
-          <div class="flex-1 relative">
-            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] pt-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
-              <div class="flex w-full">
-                <div class="flex flex-1">
-                  <div class="flex">
-                    <div class="flex flex-1">
-                      <div class="flex flex-1 innerComponent">
-                        <div class="flex flex-1 flex-wrap gap-[12px]">
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
-                            </div>
+        <div class="bg-panel flex flex-1 flex-col gap-[16px] min-w-0">
+          <div class="flex flex-col gap-[32px] min-w-0 pb-[6px] pe-[8px] ps-[20px] pt-[20px] shrink-0">
+            <div class="flex w-full">
+              <div class="flex flex-1">
+                <div class="flex">
+                  <div class="flex flex-1">
+                    <div class="flex flex-1 innerComponent">
+                      <div class="flex flex-1 flex-wrap gap-[12px]">
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Videos" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-transparent cursor-pointer duration-500 filter flex grayscale items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-transparent min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="youtube" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <img class="-end-[5px] absolute bottom-0 min-w-[16px] z-10" src="/icons/platforms/youtube.svg" width="16" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <i data-mock="SelectCustomer" />
                 </div>
               </div>
-              <div class="flex flex-1 flex-col gap-[6px]">
-                <div>
-                  <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
-                    <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
-                      <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
-                        <div>
-                          <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-white w-[8px]">
-                          "X"
-                        </div>
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
-                        </div>
-                      </div>
+              <div>
+                <i data-mock="SelectCustomer" />
+              </div>
+            </div>
+            <div class="min-w-0">
+              <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
+                <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
+                  <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center rounded-[8px] text-brand w-[40px]">
+                    <div>
+                      <svg fill="none" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.56267 6.23601L6.13604 8.78837C6.32197 8.92118 6.41494 8.98759 6.51225 9.00289C6.59786 9.01635 6.68554 9.00278 6.76309 8.96407C6.85121 8.92008 6.91976 8.82868 7.05686 8.64588L7.81194 7.63909C7.85071 7.5874 7.8701 7.56155 7.89288 7.53925C7.91311 7.51945 7.93531 7.50177 7.95913 7.48647C7.98595 7.46924 8.01547 7.45612 8.07452 7.42988L11.2983 5.99707C11.432 5.93767 11.4988 5.90798 11.5492 5.8616C11.5938 5.82057 11.6288 5.77033 11.652 5.71436C11.6782 5.65108 11.6831 5.57812 11.6928 5.4322L11.9288 1.8915M11.2493 11.2503L13.4294 12.1846C13.6823 12.293 13.8088 12.3472 13.8757 12.4372C13.9345 12.5162 13.9634 12.6135 13.9573 12.7117C13.9504 12.8237 13.8741 12.9382 13.7214 13.1672L12.6973 14.7035C12.6249 14.812 12.5887 14.8663 12.5409 14.9056C12.4986 14.9403 12.4498 14.9664 12.3974 14.9824C12.3382 15.0003 12.273 15.0003 12.1426 15.0003H10.4799C10.3071 15.0003 10.2207 15.0003 10.1472 14.9714C10.0822 14.9459 10.0248 14.9045 9.98003 14.851C9.92936 14.7904 9.90204 14.7084 9.8474 14.5445L9.25334 12.7623C9.22111 12.6656 9.205 12.6173 9.20076 12.5681C9.19699 12.5246 9.20011 12.4807 9.21 12.4381C9.22114 12.3901 9.24393 12.3445 9.28951 12.2533L9.74077 11.3508C9.83246 11.1674 9.8783 11.0758 9.94891 11.0188C10.0111 10.9687 10.0865 10.9375 10.166 10.9289C10.2561 10.9193 10.3534 10.9517 10.5479 11.0165L11.2493 11.2503ZM18.3327 10.0003C18.3327 14.6027 14.6017 18.3337 9.99935 18.3337C5.39698 18.3337 1.66602 14.6027 1.66602 10.0003C1.66602 5.39795 5.39698 1.66699 9.99935 1.66699C14.6017 1.66699 18.3327 5.39795 18.3327 10.0003Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
+                      </svg>
                     </div>
                   </div>
-                  <div class="h-[40px]" />
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="-start-[3px] -top-[1px] absolute bg-error flex h-[8px] items-center justify-center rounded-full text-[8px] text-[color:var(--on-error)] w-[8px]">
+                      "X"
+                    </div>
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              <div class="h-[40px]" />
+            </div>
+          </div>
+          <div class="flex-1 relative">
+            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
+              <div class="flex flex-1 flex-col gap-[6px]">
                 <div class="flex flex-1 min-w-0">
                   <i data-mock="EditorWrapper" />
                 </div>
@@ -1231,7 +1245,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
           </div>
         </div>
       </div>
-      <div class="flex flex-col w-[580px]">
+      <div class="[@media(min-width:1026px)]:max-w-[680px] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:w-[45%] flex flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
           <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
             <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
@@ -1244,7 +1258,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
             </svg>
           </button>
         </div>
-        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+        <div aria-labelledby="_r_ID_-tab-preview" class="[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px] bg-[var(--panel)] flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
           <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
@@ -1309,8 +1323,10 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              "21/10/2026 21:30"
+            <div dir="rtl">
+              <bdi>
+                "21/10/2026 21:30"
+              </bdi>
             </div>
           </div>
         </div>
@@ -1325,62 +1341,64 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
 `;
 
 exports[`the composer shell from 1026px up an existing post with another channel, on its own channel 1`] = `
-"<div class="flex flex-1 h-full pe-[12px] ps-[100px] py-[12px] relative w-full">
+"<div class="flex flex-1 h-full relative w-full">
   <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
     <div class="flex flex-1 min-h-0">
-      <div class="border-e border-newBorder flex flex-1 flex-col">
+      <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
           "Create Post"
           <i data-mock="CreationMethodBadge" />
         </div>
-        <div class="bg-panel flex flex-1 flex-col gap-[16px]">
-          <div class="flex-1 relative">
-            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] pt-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
-              <div class="flex w-full">
-                <div class="flex flex-1">
-                  <div class="flex">
-                    <div class="flex flex-1">
-                      <div class="flex flex-1 innerComponent">
-                        <div class="flex flex-1 flex-wrap gap-[12px]">
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
-                            </div>
+        <div class="bg-panel flex flex-1 flex-col gap-[16px] min-w-0">
+          <div class="flex flex-col gap-[32px] min-w-0 pb-[6px] pe-[8px] ps-[20px] pt-[20px] shrink-0">
+            <div class="flex w-full">
+              <div class="flex flex-1">
+                <div class="flex">
+                  <div class="flex flex-1">
+                    <div class="flex flex-1 innerComponent">
+                      <div class="flex flex-1 flex-wrap gap-[12px]">
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="instagram" data-height="42" data-mock="ImageWithFallback" data-src="https://pictures.test/1.png" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="instagram" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="16" />
                           </div>
-                          <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                            <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
-                              <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
-                              <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
-                            </div>
+                        </div>
+                        <div class="flex gap-[8px] items-center" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                          <div class="bg-fifth border-[2px] border-brand cursor-pointer duration-500 filter flex items-center justify-center relative rounded-full transition-all">
+                            <i class="border-[1.5px] border-surface min-h-[42px] min-w-[42px] rounded-full transition-all" data-alt="linkedin" data-height="42" data-mock="ImageWithFallback" data-src="/no-picture.jpg" data-width="42" />
+                            <i class="-end-[5px] absolute bottom-0 min-h-[16px] min-w-[16px] rounded-[4px] z-10" data-alt="linkedin" data-height="16" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="16" />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div />
               </div>
-              <div class="flex flex-1 flex-col gap-[6px]">
-                <div>
-                  <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
-                    <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
-                      <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] text-brand w-[40px]">
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
-                        </div>
-                      </div>
-                      <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
-                        <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
-                          <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
-                          <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
-                        </div>
-                      </div>
+              <div />
+            </div>
+            <div class="min-w-0">
+              <div class="absolute left-0 px-[20px] select-none w-full z-[100]">
+                <div class="flex gap-[6px] overflow-x-auto scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary w-full">
+                  <div class="bg-surface border border-brand coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] text-brand w-[40px]">
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="Sharek Café" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="instagram" data-height="26" data-mock="SafeImage" data-src="https://pictures.test/1.png" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="instagram" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/instagram.png" data-width="12" />
                     </div>
                   </div>
-                  <div class="h-[40px]" />
+                  <div class="bg-surface border border-line coarse:h-[44px] coarse:w-[44px] cursor-pointer flex gap-[8px] h-[40px] items-center justify-center relative rounded-[8px] w-[40px]">
+                    <div class="duration-500 filter flex h-full items-center justify-center relative rounded-full transition-all w-full" data-tooltip-content="مطعم الريف" data-tooltip-id="tooltip">
+                      <i class="min-w-[26px] rounded-full" data-alt="linkedin" data-height="26" data-mock="SafeImage" data-src="/no-picture.jpg" data-width="26" />
+                      <i class="absolute bottom-[6px] end-[6px] min-h-[12px] min-w-[12px] rounded-[3px] z-10" data-alt="linkedin" data-height="12" data-mock="SafeImage" data-src="/icons/platforms/linkedin.png" data-width="12" />
+                    </div>
+                  </div>
                 </div>
+              </div>
+              <div class="h-[40px]" />
+            </div>
+          </div>
+          <div class="flex-1 relative">
+            <div class="absolute flex flex-col gap-[32px] h-full left-0 overflow-x-hidden overflow-y-auto pe-[8px] ps-[20px] scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner top-0 w-full" id="social-content">
+              <div class="flex flex-1 flex-col gap-[6px]">
                 <div class="flex flex-1 min-w-0">
                   <i data-mock="EditorWrapper" />
                 </div>
@@ -1417,7 +1435,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
           </div>
         </div>
       </div>
-      <div class="flex flex-col w-[580px]">
+      <div class="[@media(min-width:1026px)]:max-w-[680px] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:w-[45%] flex flex-col">
         <div class="!rounded-b-[0] bg-newBgColor flex gap-[12px] h-[65px] items-center px-[20px] rounded-e-[12px]">
           <div aria-label="Post preview and AI tools" class="flex flex-1 gap-[4px] items-center min-w-0" role="tablist">
             <button aria-controls="_r_ID_-panel-preview" aria-selected="true" class="bg-brandSoft coarse:min-h-[44px] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand font-[600] h-[30px] hover:text-brandText inline-flex items-center justify-center px-[12px] rounded-[6px] text-[13px] text-brandText transition-colors whitespace-nowrap" id="_r_ID_-tab-preview" role="tab" tabindex="0" type="button">
@@ -1430,7 +1448,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
             </svg>
           </button>
         </div>
-        <div aria-labelledby="_r_ID_-tab-preview" class="bg-panel flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
+        <div aria-labelledby="_r_ID_-tab-preview" class="[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px] bg-[var(--panel)] flex-1 relative" id="_r_ID_-panel-preview" role="tabpanel">
           <div class="absolute h-full overflow-x-hidden overflow-y-auto p-[20px] pe-[8px] scrollbar scrollbar-thumb-newColColor scrollbar-track-panel start-0 top-0 w-full">
             <div class="h-full">
               <div class="mx-auto">
@@ -1505,8 +1523,10 @@ exports[`the composer shell from 1026px up an existing post with another channel
                 <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
               </svg>
             </div>
-            <div>
-              "21/10/2026 21:30"
+            <div dir="rtl">
+              <bdi>
+                "21/10/2026 21:30"
+              </bdi>
             </div>
           </div>
         </div>
@@ -1546,8 +1566,10 @@ exports[`the date picker from 1026px up closed 1`] = `
       <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
     </svg>
   </div>
-  <div>
-    "21/10/2026 21:30"
+  <div dir="rtl">
+    <bdi>
+      "21/10/2026 21:30"
+    </bdi>
   </div>
 </div>
 "
@@ -1560,8 +1582,10 @@ exports[`the date picker from 1026px up open 1`] = `
       <path d="M15.75 7.41667H0.75M11.5833 0.75V4.08333M4.91667 0.75V4.08333M4.75 17.4167H11.75C13.1501 17.4167 13.8502 17.4167 14.385 17.1442C14.8554 16.9045 15.2378 16.522 15.4775 16.0516C15.75 15.5169 15.75 14.8168 15.75 13.4167V6.41667C15.75 5.01654 15.75 4.31647 15.4775 3.78169C15.2378 3.31129 14.8554 2.92883 14.385 2.68915C13.8502 2.41667 13.1501 2.41667 11.75 2.41667H4.75C3.34987 2.41667 2.6498 2.41667 2.11502 2.68915C1.64462 2.92883 1.26217 3.31129 1.02248 3.78169C0.75 4.31647 0.75 5.01654 0.75 6.41667V13.4167C0.75 14.8168 0.75 15.5169 1.02248 16.0516C1.26217 16.522 1.64462 16.9045 2.11502 17.1442C2.6498 17.4167 3.34987 17.4167 4.75 17.4167Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" />
     </svg>
   </div>
-  <div>
-    "21/10/2026 21:30"
+  <div dir="rtl">
+    <bdi>
+      "21/10/2026 21:30"
+    </bdi>
   </div>
   <div class="-translate-x-[50%] absolute animate-fadeIn bg-sixth border border-tableBorder bottom-[100%] flex flex-col mb-[16px] p-[16px] rounded-[16px] rtl:translate-x-[50%] start-[50%] text-textColor z-[300]">
     <div class="mantine-1nw5k7j mantine-Calendar-calendarBase">
