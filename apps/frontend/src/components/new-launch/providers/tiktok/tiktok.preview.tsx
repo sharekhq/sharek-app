@@ -77,7 +77,7 @@ export const TiktokPreview: FC<{
           data-tiktok-caption
           className="absolute pointer-events-none w-full h-full start-0 top-0 ps-[12px] pe-[52px] py-[25px] justify-end items-start text-white flex flex-col bg-[linear-gradient(to_top,color-mix(in_srgb,black_70%,transparent),transparent_55%)]"
         >
-          <div className="text-[14px] font-[500]">@{integration?.name}</div>
+          <div className="text-[14px] font-[500]"><bdi dir="ltr">@{integration?.name}</bdi></div>
           <div dir="auto" className="text-[13px] font-[400] whitespace-pre-line line-clamp-6 w-full"
             dangerouslySetInnerHTML={{
               __html: sanitizeDisplayHtml(renderContent?.[0]?.text),

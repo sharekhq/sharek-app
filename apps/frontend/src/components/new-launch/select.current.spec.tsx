@@ -202,3 +202,19 @@ describe('the channel tabs at 1025px and below', () => {
     ]);
   });
 });
+
+// At 390px the tab row's own width (470px) pushed the composer to 608px: the
+// wrapper sat beside the + button and the eye at its content's width. It takes
+// the row's remaining width instead, and the row scrolls inside its own box
+// (spec 062, FR-019). jsdom cannot measure, so the classes are the assertion.
+describe('the channel-row wrapper on a phone', () => {
+  it('can shrink below its content on a phone', async () => {
+    existing = {};
+    const host = await render();
+    const wrapper = host.querySelector('.select-none')!;
+
+    expect(wrapper.className.split(' ')).toEqual(
+      expect.arrayContaining(['mobile:min-w-0', 'mobile:flex-1'])
+    );
+  });
+});

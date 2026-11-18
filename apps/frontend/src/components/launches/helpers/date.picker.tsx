@@ -369,7 +369,7 @@ export const DatePicker: FC<{
         <CalendarIcon />
       </div>
       <div className="mobile:hidden" dir={i18next.dir()}>
-        <bdi>
+        <bdi dir="ltr">
           {date.format(
             isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm'
           )}
