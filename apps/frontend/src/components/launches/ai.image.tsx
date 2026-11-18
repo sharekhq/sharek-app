@@ -249,6 +249,16 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
     []
   );
 
+  // Opened from the chips of the stacked layout, the list takes the stage
+  // above them: it is scrolled into view, nearest, so one already in view
+  // moves nothing; whether it glides is the stylesheet's call.
+  const catalogueRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (catalogOpen && layout === 'stacked') {
+      catalogueRoot.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [catalogOpen, layout]);
+
   // The catalogue is a view of the stage: it closes on a pick, on Show less
   // and when a render takes the stage.
   const closeCatalog = () => {
@@ -725,7 +735,10 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   // The whole catalogue, on the stage beside the settings; it scrolls on its
   // own, with room for the focus ring on every side.
   const catalogue = (
-    <div className="flex-1 min-h-0 w-full max-w-[640px] overflow-y-auto flex flex-col gap-[16px] p-[4px] -m-[4px] text-start">
+    <div
+      ref={catalogueRoot}
+      className="flex-1 min-h-0 w-full max-w-[640px] overflow-y-auto flex flex-col gap-[16px] p-[4px] -m-[4px] text-start"
+    >
       <div className="flex flex-col gap-[6px]">
         <div className="text-[14px] font-[600]">{t('style', 'Style')}</div>
         <div className="flex items-center gap-[8px] h-[38px] px-[12px] bg-surface border border-line rounded-[8px] focus-within:ring-2 focus-within:ring-brand">

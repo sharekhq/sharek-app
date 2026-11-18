@@ -94,7 +94,6 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
 
 import {
   AiVideo,
-  AiVideoChooser,
   AiVideoTool,
 } from '@gitroom/frontend/components/launches/ai.video';
 import {
@@ -139,11 +138,6 @@ const veo3Card: VideoTypeCard = {
     key: 'video_type_veo3_desc',
     fallback: 'One continuous live-action shot with real camera movement.',
   },
-  pills: [
-    { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
-    { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
-  ],
-  diagram: null,
   studio: {
     kind: 'model',
     cover: '/studio/covers/veo3.webp',
@@ -162,8 +156,6 @@ const slidesCard: VideoTypeCard = {
     key: 'video_type_slides_desc',
     fallback: 'A narrated slideshow of AI images with captions burned in.',
   },
-  pills: [],
-  diagram: null,
   studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
 };
 
@@ -425,10 +417,9 @@ const openWindow = async (
 
 /**
  * The tool in a composer tab (contracts/composer-and-preview.md §4): the
- * chooser, stacked, for the post, with what the stage hands it; one type
- * opens straight away. `show` draws it again, on screen or behind another tab.
+ * one type's tool, stacked, for the post, with what the stage hands it. `show` draws it again, on screen or behind another tab.
  */
-const openTab = async (list = providers.slice(0, 1)) => {
+const openTab = async () => {
   mockTabs = { open: jest.fn() };
   const host = {
     onChange: jest.fn(),
@@ -442,8 +433,8 @@ const openTab = async (list = providers.slice(0, 1)) => {
   const show = (active: boolean) =>
     act(async () => {
       root.render(
-        <AiVideoChooser
-          list={list}
+        <AiVideoTool
+          type={providers[0]}
           layout="stacked"
           destination="post"
           active={active}
@@ -602,25 +593,22 @@ describe('when the render fails for anything else', () => {
 // Studio renders a card of its own as the trigger for a provider with no page
 // of its own.
 describe('with a trigger of its own', () => {
-  it('renders that trigger alone and opens the chooser from it', async () => {
+  it('renders that trigger alone', async () => {
     await mount(
       <AiVideo
         value=""
         onChange={jest.fn()}
+        only="veo3"
         renderTrigger={cardTrigger}
         destination="media"
       />
     );
 
     expect(document.querySelector('.bg-aiSoft')).toBeNull();
-
-    await click(document.querySelector('[data-testid="card"]'));
-
-    expect(document.body.textContent).toContain('Choose a video type');
+    expect(document.querySelector('[data-testid="card"]')).toBeTruthy();
   });
 
-  // A single-item list already auto-selects, so one card per provider needs
-  // no chooser — and the title names the provider instead of the generic one.
+  // One card per provider: the title names the provider.
   it('opens one provider directly, under its own name, when told which', async () => {
     await mount(
       <AiVideo
@@ -628,14 +616,13 @@ describe('with a trigger of its own', () => {
         onChange={jest.fn()}
         only="veo3"
         renderTrigger={cardTrigger}
-destination="post"
+        destination="post"
       />
     );
 
     await click(document.querySelector('[data-testid="card"]'));
 
     const text = document.body.textContent ?? '';
-    expect(text).not.toContain('Choose a video type');
     expect(text).not.toContain('Generate AI Video');
     expect(text).toContain('Veo 3');
     expect(
@@ -653,7 +640,7 @@ destination="post"
         onChange={jest.fn()}
         only="sora"
         renderTrigger={cardTrigger}
-destination="post"
+        destination="post"
       />
     );
 
@@ -937,29 +924,6 @@ describe('a second click while the credits are checked', () => {
     expect(buttonStarting('Use video')).toBeTruthy();
     act(() => mockVideo!.failRender());
   });
-
-  // Swapping the type unmounts the tool over its render, which goes on
-  // without it, and the next type could start another.
-  it('keeps the type while a render is starting', async () => {
-    await mount(
-      <AiVideo
-        value=""
-        onChange={jest.fn()}
-        renderTrigger={cardTrigger}
-        destination="media"
-      />
-    );
-    await click(document.querySelector('[data-testid="card"]'));
-    await click(buttonStarting('Veo 3'));
-    const answerChecks = holdCreditChecks();
-    await click(buttonStarting('Generate'));
-    await settle();
-
-    await click(buttonStarting('Veo 3'));
-
-    expect(document.body.textContent).not.toContain('Choose a video type');
-    await answerChecks();
-  });
 });
 
 // Spec 060 (FR-026, contracts/ui.md §9) and tasks D15e: the main button and
@@ -1044,13 +1008,12 @@ describe('the settings', () => {
     expect(JSON.parse(init.body).output).toBe('horizontal');
   });
 
-  it("start a model's settings with its maker and facts, from its card", async () => {
+  it('the tool head shows no name, maker or facts', async () => {
     await open({ layout: 'page', destination: 'media' });
 
     const settings = panel()!;
-    const orientation = byText(settings, 'Orientation');
-    ['Google', '~8 s', '1080p', 'Sound'].forEach((text) =>
-      expect(follows(orientation, holding(settings, text))).toBe(true)
+    ['Veo 3', 'Google', '~8 s', '1080p', 'Sound'].forEach((text) =>
+      expect(holding(settings, text)).toBeFalsy()
     );
   });
 
@@ -1070,28 +1033,15 @@ describe('the settings', () => {
     expect(follows(byText(settings, 'Orientation'), render)).toBe(true);
   });
 
-  // The live walk: in the page's 360px panel the steps kept their width and
-  // cut "Image Text Slides" to 69 of its 104px. The name stays whole; when
-  // the row is short the steps take the next line, from its start.
-  it("keep a workflow's whole name, its steps going under it when the row is short", async () => {
+  it("Image Text Slides' head is its step trail alone", async () => {
     await open({ layout: 'page', destination: 'media', provider: slides });
 
     act(() =>
       mockVideo!.setTrail({ steps: ['Script', 'Review', 'Render'], current: 0 })
     );
 
-    const name = holding(panel()!, 'Image Text Slides')!;
-    const row = name.parentElement!;
-    expect(tokens(name)).not.toContain('truncate');
-    expect(tokens(row)).toEqual(
-      expect.arrayContaining(['flex-wrap', 'justify-between'])
-    );
-    expect(row.contains(holding(panel()!, 'Script')!)).toBe(true);
-    expect(
-      Array.from(row.querySelectorAll('*')).filter((node) =>
-        tokens(node).includes('ms-auto')
-      )
-    ).toHaveLength(0);
+    expect(holding(panel()!, 'Image Text Slides')).toBeFalsy();
+    expect(holding(panel()!, 'Script')).toBeTruthy();
   });
 
   // The window's own scroller goes: the frame's settings scroll for it.
@@ -1466,79 +1416,6 @@ describe("a workflow's back action", () => {
   });
 });
 
-// The window's and the composer tab's chooser (contracts §5): today's list of
-// types, then the chosen type's tool with a way back to the list.
-describe('AiVideoChooser', () => {
-  const backTo = (label: string) =>
-    Array.from(document.querySelectorAll('button')).find(
-      (node) => node.textContent?.trim() === label
-    );
-
-  it('draws the chooser, then the chosen tool with a way back to it', async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    expect(document.body.textContent).toContain('Choose a video type');
-
-    await click(buttonStarting('Veo 3'));
-
-    expect(document.body.textContent).not.toContain('Choose a video type');
-    expect(mainButton()?.textContent?.trim()).toBe('Generate');
-
-    await click(backTo('Veo 3'));
-
-    expect(document.body.textContent).toContain('Choose a video type');
-  });
-
-  // The way back names the type in full, as the page's head does.
-  it("keeps the chosen type's whole name on its way back", async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    await click(buttonStarting('Image Text Slides'));
-
-    const back = backTo('Image Text Slides')!;
-    expect(
-      Array.from(back.querySelectorAll('*')).filter((node) =>
-        tokens(node).includes('truncate')
-      )
-    ).toHaveLength(0);
-  });
-
-  it('opens the one type there is, with no way back', async () => {
-    await mount(
-      <AiVideoChooser
-        list={providers.slice(0, 1)}
-        layout="stacked"
-        destination="post"
-        onChange={jest.fn()}
-        onAccept={jest.fn()}
-        setLoading={jest.fn()}
-      />
-    );
-
-    expect(document.body.textContent).not.toContain('Choose a video type');
-    expect(mainButton()?.textContent?.trim()).toBe('Generate');
-    expect(backTo('Veo 3')).toBeUndefined();
-  });
-});
-
 // The windows that stay take the frame's stacked layout (maintainer's Q1), at
 // one size, so the bar is never below the screen (contracts §6).
 describe('the window', () => {
@@ -1655,14 +1532,9 @@ describe('as a composer tab', () => {
   });
 
   // FR-023: the tab is the window's body beside the post.
-  it("starts with the chooser, then the choice's fields, its progress and Use video", async () => {
+  it("starts with the type's fields, then its progress and Use video", async () => {
     const land = holdRender();
-    const { onChange, onAccept } = await openTab(providers);
-
-    expect(document.body.textContent).toContain('Choose a video type');
-    expect(buttonStarting('Image Text Slides')).toBeTruthy();
-
-    await click(buttonStarting('Veo 3'));
+    const { onChange, onAccept } = await openTab();
 
     expect(byTestId('provider-fields')).toBeTruthy();
 

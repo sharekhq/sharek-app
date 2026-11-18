@@ -312,6 +312,37 @@ describe('the stage background', () => {
 });
 
 describe('the stacked layout', () => {
+  it("the stacked bar's contents line up with the fields and its box reaches past them", async () => {
+    const host = await mount(frame({ layout: 'stacked' }));
+
+    expect(tokens(bar(host))).toEqual(
+      expect.arrayContaining(['-mx-[16px]', 'px-[16px]'])
+    );
+  });
+
+  // The sample's box was sized from the stage height, so it differed per tool.
+  it('the stacked sample is one width-only size (<=400px, 16:9) whatever the stage height', async () => {
+    const host = await mount(frame({ layout: 'stacked' }));
+
+    expect(tokens(byTestId(host, 'stage')!.parentElement)).toContain(
+      '[--sample-w:min(100%,400px)]'
+    );
+  });
+
+  it("the page layout's sample is unchanged", async () => {
+    const host = await mount(frame());
+    const sample = await mount(
+      <StageSample icon={<svg />} title="Title" body="Body" />
+    );
+
+    expect(
+      tokens(byTestId(host, 'stage')!.parentElement).join(' ')
+    ).not.toContain('--sample-w');
+    expect(sample.querySelector('.aspect-video')?.className).toContain(
+      'min(100cqw,calc(100cqh*16/9),640px)'
+    );
+  });
+
   it('draws the stage, then the settings, then the bar', async () => {
     const host = await mount(frame({ layout: 'stacked' }));
     const stage = byTestId(host, 'stage')!.parentElement;

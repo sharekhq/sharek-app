@@ -1014,19 +1014,6 @@ videoWrapper('image-text-slides', ImageSlidesComponent, {
       fallback:
         'A narrated slideshow of AI images with captions burned in. You review and edit the script before anything is rendered.',
     },
-    pills: [
-      { key: 'video_type_slides_pill_slides', fallback: '1–6 slides' },
-      { key: 'video_type_slides_pill_length', fallback: '10–55 s' },
-      {
-        key: 'video_type_slides_pill_voiceover',
-        fallback: 'Voiceover optional',
-      },
-      {
-        key: 'video_type_slides_pill_bestfor',
-        fallback: 'Best for lists & explainers',
-      },
-    ],
-    diagram: SlidesDiagram,
     studio: { kind: 'tool', cover: SLIDES_COVER },
   },
 });

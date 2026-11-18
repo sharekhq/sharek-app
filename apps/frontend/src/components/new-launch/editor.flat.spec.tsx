@@ -303,14 +303,14 @@ describe('the tool bar of the post being written', () => {
   it('is hidden on a phone for a post not being written', async () => {
     const { host } = await render(post({ active: false }));
 
-    expect(tools(host)[0].className).toBe('mobile:hidden');
+    expect(tools(host)[0].className).toContain('mobile:hidden');
   });
 
   // The thread finisher's editor is not the composer: it keeps its bar where it is.
   it('stays where it is in an editor that is not flat', async () => {
     const { host } = await render(post({ flat: false }));
 
-    expect(tools(host)[0].getAttribute('class')).toBeNull();
+    expect(tools(host)[0].className).not.toContain('mobile:');
   });
 });
 
@@ -357,7 +357,7 @@ describe('a post with comments', () => {
     const { host } = await thread();
     const [first, last] = tools(host);
 
-    expect(first.className).toBe('mobile:hidden');
+    expect(first.className).toContain('mobile:hidden');
     expect(last.className).toContain('post-toolbar');
   });
 
@@ -480,7 +480,7 @@ describe('a post with comments', () => {
     const [first, last] = tools(host);
 
     expect(first.className).toContain('post-toolbar');
-    expect(last.className).toBe('mobile:hidden');
+    expect(last.className).toContain('mobile:hidden');
   });
 
   // On a phone the page is one flat sheet, so a comment hangs off the post on

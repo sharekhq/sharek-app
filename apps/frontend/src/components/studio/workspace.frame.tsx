@@ -149,7 +149,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         'py-[16px] border-t border-line bg-surface flex flex-wrap items-center gap-[10px]',
         page
           ? '-mx-[20px] -mb-[20px] px-[20px] mobile:m-0 mobile:px-[16px] mobile:pb-[calc(16px+env(safe-area-inset-bottom))] mobile:fixed mobile:inset-x-0 mobile:bottom-0 mobile:z-[90]'
-          : 'sticky bottom-0'
+          : 'sticky bottom-0 -mx-[16px] px-[16px]'
       )}
     >
       {credits}
@@ -219,7 +219,9 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
       <div
         className={clsx(
           STAGE_BACKGROUND,
-          'flex-none flex flex-col items-center justify-center',
+          // One sample size for every tool, the AI image's, whatever the
+          // stage's width (StageSample reads it).
+          'flex-none flex flex-col items-center justify-center [--sample-w:min(100%,400px)]',
           // As on a phone's page: a size container is as tall as it is
           // told, so a stage that grows with its result stops being one.
           result
@@ -338,7 +340,7 @@ export const StageSample: FC<{
   return (
     <div className={STAGE_PART}>
       <div className={STAGE_ROOM}>
-        <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface">
+        <div className="relative w-[var(--sample-w,min(100cqw,calc(100cqh*16/9),640px))] aspect-video overflow-hidden rounded-[12px] bg-surface">
           {cover && !coverFailed ? (
             <img
               src={cover}

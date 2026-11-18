@@ -1,4 +1,4 @@
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { isolate } from '@gitroom/frontend/components/launches/helpers/platform-label';
 
@@ -21,20 +21,15 @@ export interface StudioMaker {
 }
 
 /**
- * How the type chooser presents a provider. Declared by the provider itself so
- * the modal can describe every type without knowing any of them (FR-004).
+ * How a provider presents itself. Declared by the provider itself so the
+ * modal can describe every type without knowing any of them (FR-004).
  */
 export interface VideoTypeCard {
   name: VideoTypeText;
   description: VideoTypeText;
-  /** Short facts — length, quality, what it suits. */
-  pills: VideoTypeText[];
-  /** Inline SVG drawn to a 52px box; inherits the AI accent from its tile. */
-  diagram: ReactNode;
   /**
    * How Studio lists the provider. The provider presents itself, so Studio
-   * never names a provider. The chooser (`launches/ai.video.tsx`) doesn't
-   * read it.
+   * never names a provider.
    */
   studio?: {
     kind: 'tool' | 'model';
