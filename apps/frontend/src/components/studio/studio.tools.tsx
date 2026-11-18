@@ -21,6 +21,8 @@ import {
 import { matchesSearch } from '@gitroom/frontend/components/launches/channel.panel';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
 import type { StudioMaker } from '@gitroom/frontend/components/videos/video.wrapper';
+import type { PendingKind } from '@gitroom/react/helpers/video.or.image';
+import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
 
 const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
@@ -110,6 +112,15 @@ export interface StudioToolEntry {
    * trigger around the card; opening is the tool's own.
    */
   trigger?: (props: StudioTriggerProps) => ReactNode;
+  /**
+   * What a post is offered from this tool: the kind of media it hands the
+   * post, and the tool body the composer renders in its tab. Absent: the tool
+   * reaches no post.
+   */
+  post?: {
+    kind: PendingKind;
+    panel: (props: WorkspaceToolProps) => ReactNode;
+  };
 }
 
 export interface StudioTool {
@@ -214,6 +225,9 @@ const AiVideoGlyph = () => (
   </svg>
 );
 
+/** The AI image generator's id: the composer's default tool. */
+export const AI_IMAGE_TOOL = 'ai-image';
+
 export const STUDIO_TOOLS: StudioToolEntry[] = [
   {
     id: 'image-editor',
@@ -232,7 +246,7 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
     trigger: (props) => <ImageEditorTrigger {...props} />,
   },
   {
-    id: 'ai-image',
+    id: AI_IMAGE_TOOL,
     slug: 'ai-image',
     kind: 'tool',
     category: 'images',
@@ -245,6 +259,7 @@ export const STUDIO_TOOLS: StudioToolEntry[] = [
     cover: AI_IMAGE_COVER,
     icon: <AiImageGlyph />,
     entitled: needsAi,
+    post: { kind: 'image', panel: (props) => <AiImageTool {...props} /> },
     workspace: ({ locked, onReady, onCreatePost }) => (
       <AiImageTool
         layout="page"
@@ -287,6 +302,10 @@ export const videoTool = (type: VideoType, paged: boolean): StudioToolEntry => {
     facts: facts && ((t) => facts.map((fact) => t(fact.key, fact.fallback))),
     sampleLength: studio?.sampleLength,
     entitled: needsAi,
+    post: {
+      kind: 'video',
+      panel: (props) => <AiVideoTool type={type} {...props} />,
+    },
     workspace: paged
       ? ({ locked, onReady, onCreatePost }) => (
           <AiVideoTool
@@ -310,6 +329,28 @@ export const videoTool = (type: VideoType, paged: boolean): StudioToolEntry => {
             destination="media"
           />
         ),
+  };
+};
+
+const assembleCatalog = (listings: StudioTool[]): StudioCatalog => {
+  const chips: StudioChip[] = [
+    {
+      id: 'all',
+      label: (t) => t('studio_chip_all', 'All'),
+      count: listings.length,
+    },
+    ...CATEGORIES.map((category) => ({
+      ...category,
+      count: listings.filter((tool) => tool.entry.category === category.id)
+        .length,
+    })).filter((chip) => chip.count > 0),
+  ];
+
+  return {
+    listings,
+    chips,
+    hasLockedTools: listings.some((tool) => tool.state === 'locked'),
+    empty: listings.length === 0,
   };
 };
 
@@ -345,26 +386,27 @@ export const buildStudioCatalog = (params: {
     })
   );
 
-  const chips: StudioChip[] = [
-    {
-      id: 'all',
-      label: (t) => t('studio_chip_all', 'All'),
-      count: listings.length,
-    },
-    ...CATEGORIES.map((category) => ({
-      ...category,
-      count: listings.filter((tool) => tool.entry.category === category.id)
-        .length,
-    })).filter((chip) => chip.count > 0),
-  ];
-
-  return {
-    listings,
-    chips,
-    hasLockedTools: listings.some((tool) => tool.state === 'locked'),
-    empty: listings.length === 0,
-  };
+  return assembleCatalog(listings);
 };
+
+/**
+ * The composer's list: the entitled listings that hand a post one of the
+ * accepted kinds, in Studio order, with the chips and flags recomputed over
+ * them. A locked tool is dropped, since the composer has nothing to upgrade
+ * inside a post.
+ */
+export const inPostCatalog = (
+  catalog: StudioCatalog,
+  accepts: PendingKind[]
+): StudioCatalog =>
+  assembleCatalog(
+    catalog.listings.filter(
+      ({ entry, state }) =>
+        state === 'entitled' &&
+        !!entry.post &&
+        accepts.includes(entry.post.kind)
+    )
+  );
 
 /**
  * What the page shows for a chip and a search: the listings of the chip's
@@ -438,4 +480,16 @@ export const useStudioCatalog = (): {
     [videoOptions, user, billingEnabled, showImageEditor]
   );
   return { catalog, loading: isLoading };
+};
+
+/** The Studio catalog narrowed to what a post accepts; loading as Studio's. */
+export const useComposerCatalog = (
+  accepts: PendingKind[]
+): { catalog: StudioCatalog; loading: boolean } => {
+  const { catalog, loading } = useStudioCatalog();
+  const narrowed = useMemo(
+    () => inPostCatalog(catalog, accepts),
+    [catalog, accepts]
+  );
+  return { catalog: narrowed, loading };
 };

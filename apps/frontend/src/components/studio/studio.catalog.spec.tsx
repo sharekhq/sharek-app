@@ -939,10 +939,7 @@ describe('what reaches a post', () => {
   const panel = (entry: StudioToolEntry | undefined) =>
     entry?.post?.panel(toolProps) as ReactElement<Record<string, any>>;
 
-  const postEntry = (
-    id: string,
-    kind: 'image' | 'video'
-  ): StudioToolEntry => ({
+  const postEntry = (id: string, kind: 'image' | 'video'): StudioToolEntry => ({
     id,
     slug: id,
     kind: 'tool',
