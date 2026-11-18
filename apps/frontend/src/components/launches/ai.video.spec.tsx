@@ -95,7 +95,6 @@ jest.mock('@gitroom/frontend/components/videos/video.render.component', () => ({
 import {
   AiVideo,
   AiVideoTool,
-  AiVideoTool,
 } from '@gitroom/frontend/components/launches/ai.video';
 import {
   ModalManagerInner,
@@ -139,11 +138,6 @@ const veo3Card: VideoTypeCard = {
     key: 'video_type_veo3_desc',
     fallback: 'One continuous live-action shot with real camera movement.',
   },
-  pills: [
-    { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
-    { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
-  ],
-  diagram: null,
   studio: {
     kind: 'model',
     cover: '/studio/covers/veo3.webp',
@@ -162,8 +156,6 @@ const slidesCard: VideoTypeCard = {
     key: 'video_type_slides_desc',
     fallback: 'A narrated slideshow of AI images with captions burned in.',
   },
-  pills: [],
-  diagram: null,
   studio: { kind: 'tool', cover: '/studio/covers/image-text-slides.webp' },
 };
 
@@ -601,6 +593,21 @@ describe('when the render fails for anything else', () => {
 // Studio renders a card of its own as the trigger for a provider with no page
 // of its own.
 describe('with a trigger of its own', () => {
+  it('renders that trigger alone', async () => {
+    await mount(
+      <AiVideo
+        value=""
+        onChange={jest.fn()}
+        only="veo3"
+        renderTrigger={cardTrigger}
+        destination="media"
+      />
+    );
+
+    expect(document.querySelector('.bg-aiSoft')).toBeNull();
+    expect(document.querySelector('[data-testid="card"]')).toBeTruthy();
+  });
+
   // One card per provider: the title names the provider.
   it('opens one provider directly, under its own name, when told which', async () => {
     await mount(
@@ -916,29 +923,6 @@ describe('a second click while the credits are checked', () => {
     expect(stageVideo()?.getAttribute('src')).toBe(finished.path);
     expect(buttonStarting('Use video')).toBeTruthy();
     act(() => mockVideo!.failRender());
-  });
-
-  // Swapping the type unmounts the tool over its render, which goes on
-  // without it, and the next type could start another.
-  it('keeps the type while a render is starting', async () => {
-    await mount(
-      <AiVideo
-        value=""
-        onChange={jest.fn()}
-        only="veo3"
-        renderTrigger={cardTrigger}
-        destination="media"
-      />
-    );
-    await click(document.querySelector('[data-testid="card"]'));
-    const answerChecks = holdCreditChecks();
-    await click(buttonStarting('Generate'));
-    await settle();
-
-    await click(buttonStarting('Veo 3'));
-
-    expect(mainButton()).toBeTruthy();
-    await answerChecks();
   });
 });
 

@@ -45,7 +45,7 @@ export const videoOwnsStage = (identifier: string) =>
   !!videosList.find((v) => v.identifier === identifier)?.ownsStage;
 
 /**
- * How the chooser should present this provider, or undefined when it declared
+ * How this provider presents itself, or undefined when it declared
  * nothing. Same reason as above: the modal asks the registry, never the
  * identifier.
  */

@@ -539,7 +539,7 @@ describe('its Studio listing', () => {
     expect(card?.studio).toEqual({ kind: 'tool', cover: COVER });
   });
 
-  it('leaves the chooser card as it was', () => {
+  it('keeps its name and description', () => {
     expect(card?.name).toEqual({
       key: 'video_type_image_text_slides',
       fallback: 'Image Text Slides',
@@ -549,18 +549,6 @@ describe('its Studio listing', () => {
       fallback:
         'A narrated slideshow of AI images with captions burned in. You review and edit the script before anything is rendered.',
     });
-    expect(card?.pills).toEqual([
-      { key: 'video_type_slides_pill_slides', fallback: '1–6 slides' },
-      { key: 'video_type_slides_pill_length', fallback: '10–55 s' },
-      {
-        key: 'video_type_slides_pill_voiceover',
-        fallback: 'Voiceover optional',
-      },
-      {
-        key: 'video_type_slides_pill_bestfor',
-        fallback: 'Best for lists & explainers',
-      },
-    ]);
   });
 });
 

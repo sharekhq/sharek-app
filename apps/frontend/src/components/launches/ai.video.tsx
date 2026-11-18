@@ -65,7 +65,10 @@ export type VideoType = { identifier: string; title: string };
  * when it declares no card. The modal never keeps a table of identifiers
  * (FR-004).
  */
-export const videoTypeLabel = (t: ReturnType<typeof useT>, type: VideoType) => {
+export const videoTypeLabel = (
+  t: ReturnType<typeof useT>,
+  type: VideoType
+) => {
   const card = videoTypeCard(type.identifier);
   return card ? t(card.name.key, card.name.fallback) : type.title;
 };
@@ -142,10 +145,7 @@ export const AiVideoTool: FC<
     ).json();
   }, []);
 
-  const { data, mutate: mutateCredits } = useSWR(
-    'copilot-credits',
-    loadCredits
-  );
+  const { data, mutate: mutateCredits } = useSWR('copilot-credits', loadCredits);
 
   // A render outlives the modal: the closure keeps running after an early close
   // and attaches the video itself, so it has to know whether anyone is still
@@ -470,7 +470,7 @@ export const AiVideoTool: FC<
   // The settings start with a workflow's steps; the name, maker and facts
   // are the tool switcher's and the Studio page's top bar.
   const head = !!trail && (
-    <div className="flex items-center gap-[8px] text-[13px] text-muted">
+    <div className="flex flex-wrap items-center gap-[8px] min-w-0 text-[13px] text-muted">
       {trail.steps.map((label, index) => {
         // Every step is behind you once the video exists.
         const done = phase === 'result' || index < trail.current;
@@ -751,26 +751,26 @@ export const AiVideo: FC<{
   const modals = useModals();
 
   const { isLoading, data } = useAiVideoTypes();
-  const list = useMemo(
-    () => data?.filter((type) => type.identifier === only),
+  const type = useMemo(
+    () => data?.find((item) => item.identifier === only),
     [data, only]
   );
 
   const openVideoModal = useCallback(() => {
-    if (loading || !list?.length) {
+    if (loading || !type) {
       return;
     }
     modals.openModal({
       title: (
         <div className="flex items-center gap-[10px]">
           <span className="text-aiAccent">✦</span>
-          {videoTypeLabel(t, list[0])}
+          {videoTypeLabel(t, type)}
         </div>
       ),
       ...WORKSPACE_WINDOW,
       children: (close) => (
         <AiVideoTool
-          type={list[0]}
+          type={type}
           layout="stacked"
           destination={destination}
           onChange={onChange}
@@ -779,9 +779,9 @@ export const AiVideo: FC<{
         />
       ),
     });
-  }, [loading, list, onChange, only, destination]);
+  }, [loading, type, onChange, destination]);
 
-  if (isLoading || list?.length === 0) {
+  if (isLoading || !type) {
     return null;
   }
 

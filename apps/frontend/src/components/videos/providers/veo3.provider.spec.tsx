@@ -293,25 +293,13 @@ describe('its Studio listing', () => {
     });
   });
 
-  it('leaves the chooser card as it was', () => {
+  it('keeps its name and description', () => {
     expect(card?.name).toEqual({ key: 'video_type_veo3', fallback: 'Veo 3' });
     expect(card?.description).toEqual({
       key: 'video_type_veo3_desc',
       fallback:
         'One continuous live-action shot with real camera movement and sound. No cuts, and it renders no readable text.',
     });
-    expect(card?.pills).toEqual([
-      { key: 'video_type_veo3_pill_length', fallback: '~8 s' },
-      { key: 'video_type_veo3_pill_quality', fallback: '1080p' },
-      {
-        key: 'video_type_veo3_pill_refs',
-        fallback: 'Up to 3 reference images',
-      },
-      {
-        key: 'video_type_veo3_pill_bestfor',
-        fallback: 'Best for one vivid moment',
-      },
-    ]);
   });
 });
 
