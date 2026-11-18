@@ -8,7 +8,11 @@ import {
 import { filterListedProviders } from '@gitroom/nestjs-libraries/integrations/listed.providers';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
-import { CHATGPT_TOOLSET } from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.toolset';
+import {
+  CHATGPT_TOOLSET,
+  CHATGPT_UPLOAD_WIDGET_URI,
+} from '@gitroom/nestjs-libraries/chat/chatgpt/chatgpt.toolset';
+import { uploadWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/upload.widget';
 
 // A path is keys joined by dots, `[]` after a key steps into its array's items
 // (`socialPost[].postsAndComments[].content`).
@@ -273,6 +277,28 @@ export class ChatgptToolsService {
         this._lookupTool(source.triggerTool, lookup, renamer(names)),
       ]),
     ]);
+  }
+
+  // The widgets of the ChatGPT connection: the upload widget under its own uri,
+  // calling the ChatGPT name of the ticket tool.
+  resources(backendUrl: string, adjustable: boolean) {
+    return {
+      [CHATGPT_UPLOAD_WIDGET_URI]: {
+        name: 'Upload Media',
+        description:
+          'Upload an image or video from the device to the media library',
+        html: uploadWidgetHtml(backendUrl, adjustable, {
+          ticketTool: CHATGPT_TOOLSET.uploadWidgetTicketTool.name,
+          app: 'sharek-upload',
+        }),
+        meta: {
+          csp: { connectDomains: [new URL(backendUrl).origin] },
+          // the "Copy link" button of the uploaded media
+          permissions: { clipboardWrite: {} },
+          prefersBorder: true,
+        },
+      },
+    };
   }
 
   // The rules and settings of a platform with its own lookup method names
