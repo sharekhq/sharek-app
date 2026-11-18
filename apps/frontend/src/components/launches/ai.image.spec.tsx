@@ -3028,7 +3028,7 @@ describe('the workspace frame', () => {
 
   it('sets the settings and the bar beside the stage on the page', async () => {
     await openPage();
-    const panel = promptField()?.closest('.w-\\[360px\\]');
+    const panel = promptField()?.closest('[class*="380px,34"]');
 
     expect(panel).toBeTruthy();
     expect(!!bar() && !!panel?.contains(bar()!)).toBe(true);
