@@ -869,16 +869,7 @@ describe('the note under the waiting screen', () => {
     await settle();
 
     expect(stage()?.textContent).toContain(
-      "the image will be added to your post when it's ready"
-    );
-  });
-
-  it('promises the reference images when it fills a reference row', async () => {
-    await generate('reference');
-    await settle();
-
-    expect(stage()?.textContent).toContain(
-      "the image will be added to your reference images when it's ready"
+      "The image is added to your post when it's ready"
     );
   });
 });
@@ -938,12 +929,6 @@ describe('the action that accepts the result', () => {
 
     expect(document.querySelector('a[download]')).toBeTruthy();
     expect(button('Create a post')).toBeUndefined();
-  });
-
-  it('offers to use the image when it fills a reference row', async () => {
-    await generate('reference');
-
-    expect(button('Use image')).toBeTruthy();
   });
 
   // A window hands the image to whoever opened it; Create a post is the
@@ -3445,17 +3430,6 @@ describe("the composer's lock", () => {
     expect(setLocked).not.toHaveBeenCalled();
 
     leave();
-
-    expect(setLocked).not.toHaveBeenCalled();
-  });
-
-  it('is never taken by a window that fills a reference row', async () => {
-    renders(done);
-    await generate('reference');
-
-    expect(preview()).toBe('https://media/first.png');
-
-    await click(button('Use image'));
 
     expect(setLocked).not.toHaveBeenCalled();
   });

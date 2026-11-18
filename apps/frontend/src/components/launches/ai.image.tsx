@@ -44,7 +44,6 @@ import {
   OrientationField,
 } from '@gitroom/frontend/components/studio/workspace.fields';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
-import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import {
   BrandField,
   brandRefusal,
@@ -188,9 +187,6 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
-  // Inside the composer the tool is one of its tabs: its windows open outside
-  // it (contracts/composer-and-preview.md §4).
-  const inTab = !!useComposerTabs();
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<ImageAspectId>('square');
   // Auto imposes nothing, so it is the absence of a style rather than a value.
@@ -538,27 +534,16 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   // The image is already in the Media library by the time any of this renders
   // — the route saves it before it answers — so the note names what happens
   // next rather than whether the image is kept. The Studio page is no window
-  // to close: the member can leave it; a composer tab sits beside the post; a
-  // window says where the image goes.
+  // to close: the member can leave it; a composer tab sits beside the post.
   const progressNote =
     layout === 'page'
       ? t(
           'workspace_leave_note_image',
           "You can leave this page. The image is saved to your Media library when it's ready."
         )
-      : inTab
-      ? t(
+      : t(
           'composer_leave_note_image',
           "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready."
-        )
-      : destination === 'reference'
-      ? t(
-          'close_window_note_reference',
-          "You can close this window — the image will be added to your reference images when it's ready."
-        )
-      : t(
-          'close_window_note',
-          "You can close this window — the image will be added to your post when it's ready."
         );
 
   const cost = t('image_uses_one_credit', 'Uses 1 image credit');
