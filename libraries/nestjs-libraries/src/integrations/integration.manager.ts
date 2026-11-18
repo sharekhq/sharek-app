@@ -167,6 +167,29 @@ export class IntegrationManager {
     );
   }
 
+  getAllLookups(): {
+    [key: string]: {
+      methodName: string;
+      name: string;
+      title: string;
+      description: string;
+      optionalFields?: string[];
+      dataSchema: any;
+    }[];
+  } {
+    return socialIntegrationList.reduce(
+      (all, current) => ({
+        ...all,
+        [current.identifier]:
+          Reflect.getMetadata(
+            'custom:tool:lookup',
+            current.constructor.prototype
+          ) || [],
+      }),
+      {}
+    );
+  }
+
   // POST /integrations/function runs a provider method by name with the
   // channel's token as its first argument, so only @Tool methods and the ones
   // marked @DashboardFunction may be run that way.
