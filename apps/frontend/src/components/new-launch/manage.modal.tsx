@@ -1066,7 +1066,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       >
                         <PlusIcon size={24} />
                       </button>
-                      <div className="hidden mobile:block flex-1" />
                       {previewButton}
                       {settingsButton}
                     </>
