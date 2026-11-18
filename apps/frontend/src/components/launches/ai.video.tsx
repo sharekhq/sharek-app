@@ -57,10 +57,7 @@ import {
   WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 import { OrientationField } from '@gitroom/frontend/components/studio/workspace.fields';
-import {
-  useComposerTabs,
-  useOpenTool,
-} from '@gitroom/frontend/components/new-launch/composer.tabs';
+import { useComposerTabs } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 export type Media = { id: string; path: string };
 
@@ -931,15 +928,9 @@ export const AiVideo: FC<{
    * the action that accepts it is called. The composer's post by default.
    */
   destination?: MediaDestination;
-  /**
-   * The index of the post whose media row holds the button: in the composer,
-   * where the video lands once the button is gone (tasks D10). A row under no
-   * post has none, and its button opens the window.
-   */
-  place?: number;
 }> = (props) => {
   const t = useT();
-  const { onChange, renderTrigger, only, destination = 'post', place } = props;
+  const { onChange, renderTrigger, only, destination = 'post' } = props;
   const [loading, setLoading] = useState(false);
   const modals = useModals();
 
@@ -976,17 +967,6 @@ export const AiVideo: FC<{
     });
   }, [loading, list, onChange, only, destination]);
 
-  // In the composer the post's video is made in a tab beside it (FR-021). A
-  // trigger of its own (a Studio card) is never in the composer: it keeps
-  // the window.
-  const open = useOpenTool(
-    'video',
-    onChange,
-    place,
-    destination,
-    openVideoModal
-  );
-
   if (isLoading || list?.length === 0) {
     return null;
   }
@@ -999,7 +979,7 @@ export const AiVideo: FC<{
     <div className="relative">
       <button
         type="button"
-        onClick={open}
+        onClick={openVideoModal}
         data-tooltip-id="tooltip"
         data-tooltip-content={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}
         aria-label={t('video', '{{ai}} Video', { ai: t('ai', 'AI') })}

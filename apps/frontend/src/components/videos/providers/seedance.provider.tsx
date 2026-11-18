@@ -42,7 +42,6 @@ const SeedanceSettings: FC = () => {
         dummy={true}
         designNotAvailable={true}
         aiNotAvailable={true}
-        destination="reference"
         text={t('images', 'Images')}
         description={t('images', 'Images')}
         name="images"

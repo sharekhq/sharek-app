@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import {
   createContext,
   FC,
-  MouseEvent,
   ReactNode,
   RefObject,
   useCallback,
@@ -19,7 +18,6 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { buttonClassName } from '@gitroom/react/form/button';
 import { AiImageIcon } from '@gitroom/frontend/components/ui/icons';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
-import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 
 /** A post in the composer: `'global'` or a channel's id, and the post's index. */
 export interface PreviewPlace {
@@ -395,37 +393,4 @@ export const CreateWithAi: FC<{
       </div>
     </button>
   );
-};
-
-/**
- * What the composer's ✦ AI Image and AI Video buttons do until the Create
- * with AI button replaces them: in the composer, the AI tab for the post's
- * row; outside it (Samy, Studio), for a reference row, or for a row that is
- * not a post's, the tool's window (review C1).
- */
-export const useOpenTool = (
-  kind: PendingKind,
-  onChange: (media: { id: string; path: string }) => void,
-  place: number | undefined,
-  destination: MediaDestination,
-  openWindow: () => void
-): ((event: MouseEvent<HTMLElement>) => void) => {
-  const tabs = useComposerTabs();
-  // The row's latest handler, read when the result lands, which can be long
-  // after the click; none once the button is gone (tasks D10).
-  const latestOnChange = useRef<typeof onChange | undefined>(undefined);
-  useEffect(() => {
-    latestOnChange.current = onChange;
-    return () => {
-      latestOnChange.current = undefined;
-    };
-  }, [onChange]);
-
-  return (event) => {
-    if (!tabs || destination !== 'post' || place === undefined) {
-      openWindow();
-      return;
-    }
-    tabs.open(() => latestOnChange.current, place, event.currentTarget, [kind]);
-  };
 };

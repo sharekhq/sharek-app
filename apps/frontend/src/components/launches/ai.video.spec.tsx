@@ -29,27 +29,11 @@ jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) =>
     select({ setLocked, setActivateExitButton: jest.fn() }),
 }));
-// The composer's tabs: none outside the composer, as Studio and a reference
-// row see it; inside it, a case hands its own. The ✦ button's opener (its
-// cases in composer.stage.spec.tsx) is recorded with what the button hands
-// it, and opens the tabs' tab when a case handed them, the tool's window
-// otherwise.
+// The composer's tabs: none outside the composer, as Studio sees it; inside
+// it, a case hands its own.
 let mockTabs: { open: jest.Mock } | null = null;
-const mockOpenTool = jest.fn(
-  (
-    _kind: string,
-    _onChange: unknown,
-    _place: number | undefined,
-    _destination: MediaDestination,
-    openWindow: () => void
-  ) => {
-    return () => (mockTabs ? mockTabs.open() : openWindow());
-  }
-);
 jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
   useComposerTabs: () => mockTabs,
-  useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
-    mockOpenTool(...args),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { current: 'STANDARD' }, role: 'ADMIN' }),
@@ -1683,83 +1667,6 @@ describe('a render that lands after the tool is gone', () => {
       expect(onChange).toHaveBeenCalledTimes(1);
       expect(onChange).toHaveBeenCalledWith(finished);
     }
-  });
-});
-
-// Spec 061 part 3 (FR-021, FR-023; tasks D10): in the composer, AI Video opens
-// its tab beside the post, never a window, for the post its button is under.
-// The button hands the composer's opener its kind, its row's handler, the
-// post's index (none for a row under no post) and where the video goes;
-// Studio, a reference row and a row under no post keep the window
-// (composer.stage.spec.tsx).
-describe('in the composer', () => {
-  const aiButton = () => document.querySelector('.bg-aiSoft');
-
-  /** The composer's ✦ button under one post's media row. */
-  const row = async (
-    onChange: jest.Mock,
-    props: { place?: number; destination?: MediaDestination } = {}
-  ) => {
-    mockTabs = { open: jest.fn() };
-    await mount(<AiVideo value="" onChange={onChange} {...props} />);
-  };
-
-  it('opens the AI video tab for the post, never a window', async () => {
-    const onChange = jest.fn();
-    await row(onChange, { place: 0 });
-    await click(aiButton());
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      0,
-      'post',
-      expect.any(Function)
-    );
-    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
-    expect(mockOpened).toHaveLength(0);
-  });
-
-  // The stage reads the post's channel at the click (tasks D10).
-  it('hands the tab the index of the post its button is under', async () => {
-    const onChange = jest.fn();
-    await row(onChange, { place: 2 });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      2,
-      'post',
-      expect.any(Function)
-    );
-  });
-
-  it("hands the opener a reference row's destination", async () => {
-    const onChange = jest.fn();
-    await row(onChange, { destination: 'reference' });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      undefined,
-      'reference',
-      expect.any(Function)
-    );
-  });
-
-  // A row under no post, a channel's settings say, hands no index, so the
-  // opener keeps the window (review C1).
-  it('hands the opener no place for a row under no post', async () => {
-    const onChange = jest.fn();
-    await row(onChange);
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      undefined,
-      'post',
-      expect.any(Function)
-    );
   });
 });
 

@@ -86,7 +86,6 @@ const VEO3Settings: FC = () => {
           dummy={true}
           designNotAvailable={true}
           aiNotAvailable={true}
-          destination="reference"
           flush={true}
           text={t('images', 'Images')}
           description={t('images', 'Images')}

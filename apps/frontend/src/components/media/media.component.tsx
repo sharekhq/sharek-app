@@ -43,7 +43,6 @@ import {
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { groupBy, omit } from 'lodash';
 import { CreateWithAi } from '@gitroom/frontend/components/new-launch/composer.tabs';
-import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { ThirdPartyMediaLibrary } from '@gitroom/frontend/components/third-parties/third-party.media-library';
 import { Dashboard } from '@uppy/react';
@@ -1025,12 +1024,6 @@ export const MultiMediaComponent: FC<{
   mediaNotAvailable?: boolean;
   designNotAvailable?: boolean;
   aiNotAvailable?: boolean;
-  /**
-   * Where this row's media ends up, for the generators that open from it to
-   * promise. The composer's post by default; a row that collects something
-   * else — a provider's reference images — says so.
-   */
-  destination?: MediaDestination;
   /** The index of the post this row belongs to, for its AI buttons. */
   place?: number;
   /**

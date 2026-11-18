@@ -4,7 +4,6 @@ import { FormProvider, useForm } from 'react-hook-form';
 
 /** The slice of the media picker's props this spec reads. */
 interface MediaRowProps {
-  destination?: string;
   designNotAvailable?: boolean;
   aiNotAvailable?: boolean;
 }
@@ -21,13 +20,11 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
     MultiMediaComponent: ({
-      destination,
       designNotAvailable,
       aiNotAvailable,
     }: MediaRowProps) =>
       React.createElement('div', {
         'data-testid': 'media-row',
-        'data-destination': destination,
         'data-design': String(!designNotAvailable),
         'data-ai-not-available': String(!!aiNotAvailable),
       }),
@@ -76,7 +73,6 @@ describe('seedance reference images', () => {
     await render();
     const row = document.querySelector('[data-testid="media-row"]');
 
-    expect(row?.getAttribute('data-destination')).toBe('reference');
     expect(row?.getAttribute('data-design')).toBe('false');
     expect(row?.getAttribute('data-ai-not-available')).toBe('true');
   });

@@ -6,7 +6,6 @@ import * as path from 'path';
 
 /** The slice of the media picker's props this spec drives. */
 interface MediaRowProps {
-  destination?: string;
   aiNotAvailable?: boolean;
   value?: Array<{ id: string; path: string }>;
   onChange: (event: {
@@ -45,7 +44,6 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
     MultiMediaComponent: ({
-      destination,
       aiNotAvailable,
       value,
       onChange,
@@ -54,7 +52,6 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => {
         'div',
         {
           'data-testid': 'media-row',
-          'data-destination': destination,
           'data-ai-not-available': String(!!aiNotAvailable),
         },
         React.createElement(
@@ -225,7 +222,6 @@ describe('veo3 reference images', () => {
     const row =
       document.querySelector('[data-testid="media-row"]') ?? undefined;
 
-    expect(row?.getAttribute('data-destination')).toBe('reference');
     expect(follows(hint, label)).toBe(true);
     expect(follows(row, hint)).toBe(true);
   });

@@ -1,4 +1,4 @@
-import { act, FC, ReactNode, useEffect } from 'react';
+import { act, FC, ReactNode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const toast = jest.fn();
@@ -24,26 +24,11 @@ jest.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) => select({ setLocked }),
 }));
-// The composer's tabs: none outside the composer, as Samy and a reference row
-// see it; inside it, a case hands its own. The ✦ button's opener (its cases
-// in composer.stage.spec.tsx) is recorded with what the button hands it, and
-// opens the tabs' tab when a case handed them, the tool's window otherwise.
+// The composer's tabs: none outside the composer, as Samy sees it; inside it,
+// a case hands its own.
 let mockTabs: { open: jest.Mock } | null = null;
-const mockOpenTool = jest.fn(
-  (
-    _kind: string,
-    _onChange: unknown,
-    _place: number | undefined,
-    _destination: MediaDestination,
-    openWindow: () => void
-  ) => {
-    return () => (mockTabs ? mockTabs.open() : openWindow());
-  }
-);
 jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
   useComposerTabs: () => mockTabs,
-  useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
-    mockOpenTool(...args),
 }));
 // The modal manager as it is, each window's options recorded on the way in:
 // the AI image window's size, height and top are what keep its bar on the
@@ -171,10 +156,9 @@ import {
 } from '@gitroom/frontend/components/layout/new-modal';
 import {
   AI_IMAGE_COVER,
-  AiImage,
   AiImageTool,
 } from '@gitroom/frontend/components/launches/ai.image';
-import { buttonClassName } from '@gitroom/react/form/button';
+import { WORKSPACE_WINDOW } from '@gitroom/frontend/components/studio/workspace.frame';
 import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import type { Brand } from '@gitroom/frontend/components/brands/use.brands';
 import { LOGO_TILE_DARK } from '@gitroom/frontend/components/brands/brand.mark';
@@ -321,13 +305,53 @@ const leave = () =>
     mounted.splice(0).forEach((root) => root.unmount());
   });
 
-/** Opens the AI image window from the composer's ✦ button. */
+/**
+ * What opened the tool in a window before the composer's tab replaced it: a
+ * ✦ button that opens AiImageTool, stacked, in the workspace window, which
+ * hands the tool the onChange, the close and the loading flag.
+ */
+const AiImageWindow: FC<{
+  value: string;
+  onChange: (params: { id: string; path: string }) => void;
+  destination?: MediaDestination;
+}> = ({ onChange, destination = 'post' }) => {
+  const modals = useModals();
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      className="bg-aiSoft focus-visible:ring-2 focus-visible:ring-brand"
+      onClick={() => {
+        if (loading) {
+          return;
+        }
+        modals.openModal({
+          title: 'Generate AI Image',
+          ...WORKSPACE_WINDOW,
+          children: (close) => (
+            <AiImageTool
+              layout="stacked"
+              destination={destination}
+              onChange={onChange}
+              onAccept={close}
+              setLoading={setLoading}
+            />
+          ),
+        });
+      }}
+    >
+      AI Image
+    </button>
+  );
+};
+
+/** Opens the AI image window from its ✦ button. */
 const openWindow = async (
   destination?: MediaDestination,
   onChange = jest.fn()
 ) => {
   await mount(
-    <AiImage value="" onChange={onChange} destination={destination} />
+    <AiImageWindow value="" onChange={onChange} destination={destination} />
   );
   await click(document.querySelector('.bg-aiSoft'));
 };
@@ -828,65 +852,6 @@ describe('a second Generate that does not land', () => {
   );
 });
 
-// The composer keeps the ✦ button it has today (FR-010): nothing about the
-// trigger changes for a caller that asks for nothing new.
-describe('as the composer button', () => {
-  it('renders the ✦ button and opens the generator from it, as before', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
-
-    const trigger = document.querySelector('.bg-aiSoft');
-    expect(trigger?.textContent?.trim()).toBe('AI Image');
-
-    await click(trigger);
-
-    expect(document.querySelector('textarea')).toBeTruthy();
-  });
-
-  // A keyboard reaches it, a screen reader reads its tooltip's words, and it
-  // rings as the button set does.
-  it('is a button a keyboard reaches, named as its tooltip, with the focus ring', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
-
-    const trigger = document.querySelector<HTMLElement>('.bg-aiSoft')!;
-    expect(trigger.tagName).toBe('BUTTON');
-    expect(trigger.getAttribute('type')).toBe('button');
-    expect(trigger.dataset.tooltipContent).toBe('AI Image');
-    expect(trigger.getAttribute('aria-label')).toBe('AI Image');
-    expect(trigger.className.split(' ')).toEqual(
-      expect.arrayContaining([
-        'focus-visible:ring-2',
-        'focus-visible:ring-brand',
-      ])
-    );
-    trigger.focus();
-    expect(document.activeElement).toBe(trigger);
-  });
-});
-
-// Studio renders a card of its own as the trigger; the wiring behind it stays
-// here rather than being copied.
-describe('with a trigger of its own', () => {
-  it('renders that trigger alone and opens the generator from it', async () => {
-    await mount(
-      <AiImage
-        value=""
-        onChange={jest.fn()}
-        renderTrigger={(open) => (
-          <button data-testid="card" onClick={open}>
-            Card
-          </button>
-        )}
-      />
-    );
-
-    expect(document.querySelector('.bg-aiSoft')).toBeNull();
-
-    await click(document.querySelector('[data-testid="card"]'));
-
-    expect(document.querySelector('textarea')).toBeTruthy();
-  });
-});
-
 // The progress tells the user what closing the window costs them: nothing,
 // because the image lands by itself. Where it lands is the caller's.
 describe('the note under the waiting screen', () => {
@@ -1030,7 +995,7 @@ describe('the action that accepts the result', () => {
 // words are copy, so the composer says how to make it a certainty.
 describe('the hint under the prompt', () => {
   it('tells the user to put the exact words in quotes', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
     expect(document.body.textContent).toContain(
@@ -1083,7 +1048,7 @@ const editThumbnails = () => referenceRow(true);
 describe('reference images', () => {
   /** Opens the window on its compose step. */
   const compose = async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
   };
 
@@ -1325,7 +1290,7 @@ describe('editing the result', () => {
   // An edit keeps its frame (FR-012): the preset the image was made at, even
   // after the settings beside it have moved on to another.
   it('keeps the preset the image was made at', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await type(promptField(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
@@ -1705,7 +1670,7 @@ describe('the version strip', () => {
   // An edit keeps the frame of the version it changes (FR-012), which a
   // version picked in the strip need not share with the latest.
   it('edits the version picked, at the preset it was made at', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await type(promptField(), 'a pomegranate on a table');
     await click(buttonStarting('Portrait'));
@@ -2024,7 +1989,7 @@ describe('a second click while the credits are checked', () => {
 // explicit focus-visible ring shows no focus at all.
 describe('keyboard visibility', () => {
   it('rings the prompt field', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
     expect(promptField().className).toContain('focus-visible:ring-2');
@@ -2043,7 +2008,7 @@ describe('keyboard visibility', () => {
   // bar's Generate, with the window's close button, which already carries its
   // own.
   it("rings every button before a result: the settings, the stage's sample chips and the bar", async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     const interactive = Array.from(document.querySelectorAll('button'));
 
@@ -2056,7 +2021,7 @@ describe('keyboard visibility', () => {
   });
 
   it('rings every button in the style catalog', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const interactive = Array.from(document.querySelectorAll('button'));
@@ -2094,7 +2059,7 @@ describe('keyboard visibility', () => {
   // The search field sits borderless inside its box, so the ring belongs on
   // the box and has to key off focus-within.
   it('rings the style search around its box', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const box = document.querySelector('input[placeholder="Search styles"]')!
@@ -2109,7 +2074,7 @@ describe('keyboard visibility', () => {
 // focus and leaves it zoomed, so the composer read too wide on an iPhone.
 describe('the style search under a finger', () => {
   it('types at 16px on a touch screen, 14px with a mouse', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await click(button('All styles'));
     const search = document.querySelector(
@@ -2131,7 +2096,7 @@ describe("the frame's buttons and boxes", () => {
     node?.className.split(' ') ?? [];
 
   it('draws Generate at the large size, in the window and on the page', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
     expect(mainButton()).toBe(button('Generate'));
@@ -2170,7 +2135,7 @@ describe("the frame's buttons and boxes", () => {
   });
 
   it('types the prompt at 14px with a mouse, 16px under a finger', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
     expect(own(promptField())).toEqual(
@@ -2210,7 +2175,7 @@ describe("the styles in the dashboard's one chip look", () => {
   };
 
   it('draws Auto current on arrival, the popular styles and All styles idle, and moves the current one with a click', async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
 
     expect(half(button('✦Auto'))).toBe('on');
@@ -2226,7 +2191,7 @@ describe("the styles in the dashboard's one chip look", () => {
   });
 
   it("draws the catalog's styles as the same chips, the chosen one current", async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
     await click(button('Watercolor'));
     await click(button('All styles'));
@@ -2242,37 +2207,6 @@ describe("the styles in the dashboard's one chip look", () => {
         chip.textContent?.trim() === 'Watercolor' ? 'on' : 'idle'
       )
     );
-  });
-
-  // Question 4: the editor's AI image tile keeps its AI tint and takes the
-  // small size beside Insert Media, from the one button set's AI look: 32px
-  // with 8px corners and 12px sides, its label 13px semibold 6px from its
-  // 16px icon, still 44px under a finger, and a 44px square at 1025px and
-  // below, where the look's border would widen it past its 20px icon.
-  it("draws the editor's AI image tile at the small size in its AI tint", async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
-    const tile = document.querySelector('.bg-aiSoft')!;
-    const own = tile.className.split(' ');
-    const label = Array.from(tile.querySelectorAll('div')).find(
-      (node) => node.textContent === 'AI Image' && !node.children.length
-    )!;
-
-    expect(own).toEqual(
-      expect.arrayContaining([
-        ...buttonClassName({ variant: 'ai', size: 'small' }).split(' '),
-        'coarse:h-[44px]',
-        'coarse:min-w-[44px]',
-        'mobile:h-[44px]',
-        'mobile:min-w-[44px]',
-        'mobile:px-0',
-      ])
-    );
-    ['h-[30px]', 'rounded-[6px]', 'px-[8px]', 'bg-ai'].forEach((name) =>
-      expect(own).not.toContain(name)
-    );
-    expect(label.className).not.toContain('text-[10px]');
-    expect(label.parentElement!.className.split(' ')).toContain('gap-[6px]');
-    expect(tile.querySelector('svg')?.getAttribute('width')).toBe('16');
   });
 });
 
@@ -2300,7 +2234,7 @@ describe('the Brand field', () => {
   });
 
   const compose = async () => {
-    await mount(<AiImage value="" onChange={jest.fn()} />);
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
     await click(document.querySelector('.bg-aiSoft'));
   };
 
@@ -3381,83 +3315,6 @@ describe('the stage', () => {
     );
     expect(stage()?.classList.contains('[container-type:normal]')).toBe(true);
     expect(resultLink()?.classList.contains('!w-full')).toBe(true);
-  });
-});
-
-// Spec 061 part 3 (FR-021, FR-027; tasks D10): in the composer, AI Image opens
-// its tab beside the post, never a window, for the post its button is under.
-// The button hands the composer's opener its kind, its row's handler, the
-// post's index (none for a row under no post) and where the image goes; Samy,
-// a reference row and a row under no post keep the window
-// (composer.stage.spec.tsx).
-describe('in the composer', () => {
-  const aiButton = () => document.querySelector('.bg-aiSoft');
-
-  /** The composer's ✦ button under one post's media row. */
-  const row = async (
-    onChange: jest.Mock,
-    props: { place?: number; destination?: MediaDestination } = {}
-  ) => {
-    mockTabs = { open: jest.fn() };
-    await mount(<AiImage value="" onChange={onChange} {...props} />);
-  };
-
-  it('opens the AI image tab for the post, never a window', async () => {
-    const onChange = jest.fn();
-    await row(onChange, { place: 0 });
-    await click(aiButton());
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'image',
-      onChange,
-      0,
-      'post',
-      expect.any(Function)
-    );
-    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
-    expect(opened).toHaveLength(0);
-  });
-
-  // The stage reads the post's channel at the click (tasks D10).
-  it('hands the tab the index of the post its button is under', async () => {
-    const onChange = jest.fn();
-    await row(onChange, { place: 2 });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'image',
-      onChange,
-      2,
-      'post',
-      expect.any(Function)
-    );
-  });
-
-  it("hands the opener a reference row's destination", async () => {
-    const onChange = jest.fn();
-    await row(onChange, { destination: 'reference' });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'image',
-      onChange,
-      undefined,
-      'reference',
-      expect.any(Function)
-    );
-  });
-
-  // A row under no post, a channel's settings say, hands no index, so the
-  // opener keeps the window (review C1).
-  it('hands the opener no place for a row under no post', async () => {
-    const onChange = jest.fn();
-    await row(onChange);
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'image',
-      onChange,
-      undefined,
-      'post',
-      expect.any(Function)
-    );
   });
 });
 
