@@ -168,7 +168,16 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'Groups', dataSchema: [] })
+  @Tool({
+    description: 'Groups',
+    dataSchema: [],
+    lookup: {
+      name: 'list_mewe_groups',
+      title: 'List MeWe Groups',
+      description:
+        'Lists the MeWe groups of the channel\'s account. Call it when the user wants to post to a MeWe group. Returns the groups for the post\'s group setting.',
+    },
+  })
   async groups(
     accessToken: string,
     params: any,

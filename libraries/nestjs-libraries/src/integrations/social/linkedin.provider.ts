@@ -1213,6 +1213,12 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     dataSchema: [
       { key: 'query', type: 'string', description: 'Company page vanity name' },
     ],
+    lookup: {
+      name: 'find_linkedin_company_page',
+      title: 'Find LinkedIn Company Page',
+      description:
+        'Finds a LinkedIn company page by its exact vanity name (the part after linkedin.com/company/), for LinkedIn and LinkedIn Page channels. Call it when the user wants to mention a company in a LinkedIn post. Returns the page\'s id and name; the mention goes in the post content as <span data-mention-id="{id}" data-mention-label="{label}">@{label}</span>.',
+    },
   })
   override async mention(token: string, data: { query: string }) {
     const { elements } = await (

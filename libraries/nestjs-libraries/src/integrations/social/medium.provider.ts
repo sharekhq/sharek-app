@@ -86,7 +86,16 @@ export class MediumProvider extends SocialAbstract implements SocialProvider {
     }
   }
 
-  @Tool({ description: 'List of publications', dataSchema: [] })
+  @Tool({
+    description: 'List of publications',
+    dataSchema: [],
+    lookup: {
+      name: 'list_medium_publications',
+      title: 'List Medium Publications',
+      description:
+        'Lists the Medium publications the channel\'s account can post to. Call it when the user wants to publish a Medium story in a publication. Returns the publications for the post\'s publication setting.',
+    },
+  })
   async publications(accessToken: string, _: any, id: string) {
     const { data } = await (
       await fetch(`https://api.medium.com/v1/users/${id}/publications`, {
