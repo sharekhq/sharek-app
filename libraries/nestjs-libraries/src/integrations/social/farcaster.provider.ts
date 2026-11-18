@@ -262,6 +262,12 @@ export class FarcasterProvider
   @Tool({
     description: 'Search channels',
     dataSchema: [{ key: 'word', type: 'string', description: 'Search word' }],
+    lookup: {
+      name: 'search_farcaster_channels',
+      title: 'Search Farcaster Channels',
+      description:
+        "Searches Farcaster channels by a word. Call it when the user wants to post a cast to a Farcaster channel. Returns the matching channels for the post's channel setting.",
+    },
   })
   async subreddits(
     accessToken: string,

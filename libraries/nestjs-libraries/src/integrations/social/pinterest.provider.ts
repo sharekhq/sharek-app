@@ -267,7 +267,16 @@ export class PinterestProvider
     };
   }
 
-  @Tool({ description: 'List of boards', dataSchema: [] })
+  @Tool({
+    description: 'List of boards',
+    dataSchema: [],
+    lookup: {
+      name: 'list_pinterest_boards',
+      title: 'List Pinterest Boards',
+      description:
+        "Lists the boards of the Pinterest channel. Call it when the user wants to create a pin, because a pin needs a board. Returns the boards for the post's board setting.",
+    },
+  })
   async boards(accessToken: string) {
     const { items } = await (
       await fetch('https://api.pinterest.com/v5/boards?page_size=250', {

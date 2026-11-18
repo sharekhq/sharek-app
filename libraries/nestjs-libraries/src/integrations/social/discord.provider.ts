@@ -118,7 +118,16 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  @Tool({ description: 'Channels', dataSchema: [] })
+  @Tool({
+    description: 'Channels',
+    dataSchema: [],
+    lookup: {
+      name: 'list_discord_channels',
+      title: 'List Discord Channels',
+      description:
+        "Lists the channels of the Discord server connected as a Sharek channel. Call it when the user wants to post to Discord, because a Discord post needs a channel. Returns the channels for the post's channel setting.",
+    },
+  })
   async channels(accessToken: string, params: any, id: string) {
     const list = await (
       await this.fetch(`https://discord.com/api/guilds/${id}/channels`, {

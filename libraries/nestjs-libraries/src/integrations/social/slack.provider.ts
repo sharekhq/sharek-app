@@ -130,6 +130,12 @@ export class SlackProvider extends SocialAbstract implements SocialProvider {
   @Tool({
     description: 'Get list of channels',
     dataSchema: [],
+    lookup: {
+      name: 'list_slack_channels',
+      title: 'List Slack Channels',
+      description:
+        "Lists the channels of the Slack workspace connected as a Sharek channel. Call it when the user wants to post to Slack, because a Slack post needs a channel. Returns the channels for the post's channel setting.",
+    },
   })
   async channels(accessToken: string, params: any, id: string) {
     const list = await (

@@ -1323,6 +1323,13 @@ export class InstagramProvider
         description: 'Either "music" or "original_sound", defaults to "music"',
       },
     ],
+    lookup: {
+      name: 'search_instagram_audio',
+      title: 'Search Instagram Audio',
+      description:
+        "Searches music or original sounds that can be added to an Instagram Reel; an empty search returns trending audio. Call it when the user wants a Reel with audio. Returns the audio for the post's audio setting.",
+      optionalFields: ['q', 'type'],
+    },
   })
   async audioSearch(
     token: string,
