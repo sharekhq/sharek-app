@@ -77,7 +77,7 @@ const SETTINGS_SCROLL =
 
 /**
  * The one frame every AI tool draws, whatever hosts it. On its Studio page
- * (`page`) the settings sit in a panel of clamp(380px,34%,460px) on the start side, scrolling on
+ * (`page`) the settings sit in a panel of clamp(380px,34vw,460px) on the start side, scrolling on
  * their own above the action bar, and the stage fills the rest. From 1025px
  * down the window scrolls and the bar is fixed to the foot of the screen; on a
  * phone the page stacks, the stage first.
@@ -177,7 +177,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         <div
           className={clsx(
             CARD_PADDING,
-            'w-[clamp(380px,34%,460px)] shrink-0 min-h-0 flex flex-col gap-[16px] border-e border-line phone:w-full phone:border-e-0'
+            'w-[clamp(380px,34vw,460px)] shrink-0 min-h-0 flex flex-col gap-[16px] border-e border-line phone:w-full phone:border-e-0'
           )}
         >
           {head}
