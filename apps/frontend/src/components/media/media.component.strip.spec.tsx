@@ -195,4 +195,28 @@ describe('the media strip', () => {
       ['video', '2'],
     ]);
   });
+  // From 1026px the tool bar and the counter stay in view at the bottom of the
+  // left side's scroll area while the text and the thumbnails scroll above
+  // (spec 062, FR-003). A sticky bar only moves inside its parent's box, so the
+  // box around the thumbnails and the bar dissolves (`contents`) into the
+  // editor card, which is as tall as the scroll area. jsdom has no layout: the
+  // classes are the assertion.
+  it('pins the bar to the bottom of the scroll area from 1026px, and only there', async () => {
+    const host = await render();
+    const classes = strip(host).className.split(' ');
+
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        '[@media(min-width:1026px)]:sticky',
+        '[@media(min-width:1026px)]:bottom-0',
+        '[@media(min-width:1026px)]:bg-panel',
+      ])
+    );
+    expect(classes).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(mobile:)?sticky$/)])
+    );
+    expect(
+      strip(host).parentElement!.className.split(' ')
+    ).toContain('[@media(min-width:1026px)]:contents');
+  });
 });
