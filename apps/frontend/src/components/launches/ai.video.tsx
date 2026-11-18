@@ -19,7 +19,6 @@ import {
   videoOwnsStage,
   videoTypeCard,
 } from '@gitroom/frontend/components/videos/video.render.component';
-import { studioMakerLine } from '@gitroom/frontend/components/videos/video.wrapper';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import {
@@ -66,10 +65,7 @@ export type VideoType = { identifier: string; title: string };
  * when it declares no card. The modal never keeps a table of identifiers
  * (FR-004).
  */
-export const videoTypeLabel = (
-  t: ReturnType<typeof useT>,
-  type: VideoType
-) => {
+export const videoTypeLabel = (t: ReturnType<typeof useT>, type: VideoType) => {
   const card = videoTypeCard(type.identifier);
   return card ? t(card.name.key, card.name.fallback) : type.title;
 };
@@ -160,8 +156,6 @@ type Version = { media: Media; output: VideoOrientationId };
 export const AiVideoTool: FC<
   WorkspaceToolProps & {
     type: VideoType;
-    /** Returns to the chooser. Undefined when there is only one type to choose. */
-    onChangeType?: () => void;
   }
 > = (props) => {
   const {
@@ -172,7 +166,6 @@ export const AiVideoTool: FC<
     onAccept,
     onCreatePost,
     setLoading,
-    onChangeType,
     active = true,
     locked,
   } = props;
@@ -214,7 +207,10 @@ export const AiVideoTool: FC<
     ).json();
   }, []);
 
-  const { data, mutate: mutateCredits } = useSWR('copilot-credits', loadCredits);
+  const { data, mutate: mutateCredits } = useSWR(
+    'copilot-credits',
+    loadCredits
+  );
 
   // A render outlives the modal: the closure keeps running after an early close
   // and attaches the video itself, so it has to know whether anyone is still
@@ -501,15 +497,6 @@ export const AiVideoTool: FC<
     handshake?.onBack?.();
   };
 
-  const changeType = () => {
-    // A render under way would go on after this window is gone, and the next
-    // type could start another.
-    if (rendering.current) {
-      return;
-    }
-    onChangeType?.();
-  };
-
   // The video is already in the Media library by the time any of this renders
   // — the route saves it as it finishes — so the note names what happens next
   // rather than whether the video is kept. On its page the member can leave
@@ -545,104 +532,47 @@ export const AiVideoTool: FC<
   );
 
   const studio = videoTypeCard(type.identifier)?.studio;
-  // The settings start with the type, a workflow's steps and a model's maker
-  // and facts, from the card it declares for the Studio page (FR-009, FR-010).
-  const head = (
-    <div className="flex flex-col gap-[8px]">
-      {/* The name stays whole: when the row is short a workflow's steps take
-          the next line, from its start. */}
-      <div className="flex flex-wrap items-center justify-between gap-[10px] text-[13px] text-muted">
-        {/* Only while nothing is running: a type cannot be swapped out from
-            under a render, and the result belongs to the type that made it. */}
-        {onChangeType && phase === 'setup' ? (
-          <button
-            type="button"
-            onClick={changeType}
-            className="min-w-0 inline-flex items-center gap-[4px] rounded-[6px] hover:text-ink transition-colors focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-              className="flex-none rtl:rotate-180"
-            >
-              <path
-                d="M10 3L5 8l5 5"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+  // The settings start with a workflow's steps; the name, maker and facts
+  // are the tool switcher's and the Studio page's top bar.
+  const head = !!trail && (
+    <div className="flex items-center gap-[8px] text-[13px] text-muted">
+      {trail.steps.map((label, index) => {
+        // Every step is behind you once the video exists.
+        const done = phase === 'result' || index < trail.current;
+        const now = !done && index === trail.current;
+        return (
+          <Fragment key={label}>
+            {index > 0 && (
+              <span
+                aria-hidden="true"
+                className="w-[14px] h-[1px] bg-line flex-none"
               />
-            </svg>
-            <span>{videoTypeLabel(t, type)}</span>
-          </button>
-        ) : (
-          <span className="min-w-0">{videoTypeLabel(t, type)}</span>
-        )}
-        {/* Only for a provider that declared one — a one-shot provider has no
-            flow to place the user inside, so it renders none (FR-004). */}
-        {!!trail && (
-          <div className="flex items-center gap-[8px] flex-none">
-            {trail.steps.map((label, index) => {
-              // Every step is behind you once the video exists.
-              const done = phase === 'result' || index < trail.current;
-              const now = !done && index === trail.current;
-              return (
-                <Fragment key={label}>
-                  {index > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className="w-[14px] h-[1px] bg-line flex-none"
-                    />
-                  )}
-                  <span
-                    className={clsx(
-                      'inline-flex items-center gap-[5px] text-[12px]',
-                      now ? 'text-ink font-[600]' : 'text-muted'
-                    )}
-                  >
-                    {/* A tick rather than a recoloured number: done and
+            )}
+            <span
+              className={clsx(
+                'inline-flex items-center gap-[5px] text-[12px]',
+                now ? 'text-ink font-[600]' : 'text-muted'
+              )}
+            >
+              {/* A tick rather than a recoloured number: done and
                         pending must not differ by colour alone. */}
-                    <span
-                      className={clsx(
-                        'w-[18px] h-[18px] rounded-full flex-none inline-flex items-center justify-center text-[10px] font-[700] border',
-                        done
-                          ? 'bg-brandSoft2 border-transparent text-brandText'
-                          : now
-                          ? 'bg-brand border-brand text-white'
-                          : 'bg-surface border-line text-muted'
-                      )}
-                    >
-                      {done ? <TickIcon size={9} /> : index + 1}
-                    </span>
-                    {label}
-                  </span>
-                </Fragment>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {!!studio?.maker && (
-        <div className="text-[12px] text-muted">
-          {studioMakerLine(
-            t,
-            studio.maker,
-            t('studio_category_video', 'Video')
-          )}
-        </div>
-      )}
-      {!!studio?.facts?.length && (
-        <div className="flex flex-wrap gap-[6px]">
-          {studio.facts.map((fact) => (
-            <span key={fact.key} className={metaPillClasses}>
-              {t(fact.key, fact.fallback)}
+              <span
+                className={clsx(
+                  'w-[18px] h-[18px] rounded-full flex-none inline-flex items-center justify-center text-[10px] font-[700] border',
+                  done
+                    ? 'bg-brandSoft2 border-transparent text-brandText'
+                    : now
+                    ? 'bg-brand border-brand text-white'
+                    : 'bg-surface border-line text-muted'
+                )}
+              >
+                {done ? <TickIcon size={9} /> : index + 1}
+              </span>
+              {label}
             </span>
-          ))}
-        </div>
-      )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 
@@ -872,15 +802,7 @@ export const AiVideoChooser: FC<
     );
   }
 
-  return (
-    <AiVideoTool
-      {...tool}
-      type={type}
-      // A chosen type is no longer a dead end: with more than one to choose
-      // from, the head offers the way back to the chooser (FR-017).
-      onChangeType={list.length > 1 ? () => setType(null) : undefined}
-    />
-  );
+  return <AiVideoTool {...tool} type={type} />;
 };
 
 /**
