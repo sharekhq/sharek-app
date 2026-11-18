@@ -321,7 +321,7 @@ describe('the Studio tool page', () => {
     expect(mockImageMounts).toBe(1);
   });
 
-  it('draws a provider that registers itself, with its maker and facts at the top of the settings, then the shared Orientation (SC-004)', async () => {
+  it('draws a provider that registers itself, with no name, maker or facts above the shared Orientation (SC-004, spec 064 walk pick)', async () => {
     const host = await mount('stub-model');
 
     expect(lastProps(mockVideoTool)).toMatchObject({
@@ -333,13 +333,13 @@ describe('the Studio tool page', () => {
     expect(lastProps(mockSwitcher).current.entry.slug).toBe('stub-model');
     // The frame's settings panel, before its stage.
     const panel = host.querySelector('form > div > div');
-    const head = panel?.firstElementChild;
-    expect(head?.textContent).toContain('Stub model');
-    expect(head?.textContent).toContain(`by ${isolate('Acme')} · Video`);
-    expect(head?.textContent).toContain('4K');
-    expect(head?.textContent).not.toContain('Orientation');
+    // The switcher names the tool, so the settings no longer repeat its
+    // name, maker or facts (spec 064, T023).
     const text = panel?.textContent ?? '';
-    expect(text.indexOf('4K')).toBeLessThan(text.indexOf('Orientation'));
+    expect(text).not.toContain('Stub model');
+    expect(text).not.toContain(`by ${isolate('Acme')} · Video`);
+    expect(text).not.toContain('4K');
+    expect(text.indexOf('Orientation')).toBeGreaterThan(-1);
     expect(text.indexOf('Orientation')).toBeLessThan(text.indexOf('Vertical'));
     expect(text).toContain('Horizontal');
   });
