@@ -248,6 +248,33 @@ describe('the page layout', () => {
     );
   });
 
+  // At 1024px the page is still side by side but takes its natural height, so
+  // a size container stage centred in it sat below the fold: from mobile
+  // (1025px) the stage is bounded and top-aligned, and a result lets it grow.
+  it('the stacked stage starts at mobile (1025px)', async () => {
+    const waiting = await mount(frame());
+    const showing = await mount(frame({ result: true }));
+    const stageOf = (host: HTMLElement) => host.firstElementChild!.children[1];
+
+    expect(tokens(stageOf(waiting))).toEqual(
+      expect.arrayContaining([
+        'mobile:h-[clamp(240px,45dvh,440px)]',
+        'mobile:self-start',
+        'phone:self-stretch',
+      ])
+    );
+    expect(tokens(stageOf(showing))).toEqual(
+      expect.arrayContaining([
+        'mobile:[container-type:normal]',
+        'mobile:self-start',
+        'phone:self-stretch',
+      ])
+    );
+    expect(tokens(stageOf(showing))).not.toContain(
+      'mobile:h-[clamp(240px,45dvh,440px)]'
+    );
+  });
+
   // The page keeps its settings open beside the result; only the phone's
   // stacked page folds them.
   it('folds the settings only on a phone', async () => {

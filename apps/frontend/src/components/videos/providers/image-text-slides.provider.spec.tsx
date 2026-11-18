@@ -469,6 +469,16 @@ describe("the window's action rows and boxes", () => {
     );
   });
 
+  it('Review buttons never wrap', async () => {
+    await review(() => Promise.resolve(rendered()));
+
+    [
+      buttonStarting('Add slide'),
+      buttonStarting('Back'),
+      buttonStarting('Create video'),
+    ].forEach((action) => expect(own(action)).toContain('whitespace-nowrap'));
+  });
+
   it('draws the voice sets as a 40px row, 44px under a finger, at 14px', async () => {
     voiceList = {
       voices: [voice('en-1'), voice('en-2')],
