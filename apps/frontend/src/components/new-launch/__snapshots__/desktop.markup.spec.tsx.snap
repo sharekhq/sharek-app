@@ -646,7 +646,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -881,7 +881,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1098,7 +1098,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1324,7 +1324,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1524,7 +1524,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1567,7 +1567,7 @@ exports[`the date picker from 1026px up closed 1`] = `
     </svg>
   </div>
   <div dir="rtl">
-    <bdi>
+    <bdi dir="ltr">
       "21/10/2026 21:30"
     </bdi>
   </div>
@@ -1583,7 +1583,7 @@ exports[`the date picker from 1026px up open 1`] = `
     </svg>
   </div>
   <div dir="rtl">
-    <bdi>
+    <bdi dir="ltr">
       "21/10/2026 21:30"
     </bdi>
   </div>

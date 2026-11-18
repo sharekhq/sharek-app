@@ -96,6 +96,8 @@ export const DatePickerPanel: FC<{
 }> = (props) => {
   const { date, onChange, sheet } = props;
   const t = useT();
+  // the Arabic comma, so the panel's dates do not carry a Latin one
+  const comma = i18next.resolvedLanguage === 'ar' ? '،' : ',';
   const [month, setMonth] = useState(toPickerDate(date));
   // dayjs's global locale is set elsewhere on a language change; name the
   // weekdays and the month from the interface language itself
@@ -141,13 +143,13 @@ export const DatePickerPanel: FC<{
             {t('date', 'Date')}
           </div>
           <div className="flex-1 h-[52px] px-[16px] flex items-center rounded-[10px] border border-line bg-newBgColorInner text-[14px]">
-            {date.locale(locale).format('ddd, D MMMM')}
+            {date.locale(locale).format(`ddd${comma} D MMMM`)}
           </div>
         </div>
         <div className="bg-panel rounded-[12px] px-[16px] py-[12px] mb-[24px]">
           <div className="flex items-center gap-[4px] mb-[8px]">
             <div className="flex-1 text-[15px] font-[600]">
-              {dayjs(month).locale(locale).format('MMMM, YYYY')}
+              {dayjs(month).locale(locale).format(`MMMM${comma} YYYY`)}
             </div>
             <button
               type="button"
@@ -219,7 +221,7 @@ export const DatePickerPanel: FC<{
           <div className="flex items-center gap-[12px] min-w-0">
             {/* hours before minutes in both directions, as the date line
                 reads (D-44) */}
-            <div className="flex rtl:flex-row-reverse items-center gap-[4px] min-w-0">
+            <div dir="ltr" className="flex items-center gap-[4px] min-w-0">
               {twelveHours ? (
                 <TimeField
                   value={date.hour() % 12 || 12}
