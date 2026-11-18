@@ -565,6 +565,14 @@ describe('StageSample', () => {
     );
   });
 
+  it('the sample frame is bg-surface', async () => {
+    const host = await mount(sample());
+
+    const frame = host.querySelector('img')?.parentElement;
+    expect(frame?.className).toContain('bg-surface');
+    expect(frame?.className).not.toContain('bg-surface2');
+  });
+
   it('shows the given icon when the tool has no cover', async () => {
     const host = await mount(sample({ cover: undefined }));
 
