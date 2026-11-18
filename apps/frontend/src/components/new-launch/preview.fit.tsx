@@ -7,14 +7,14 @@ import {
   useMediaQuery,
 } from '@gitroom/react/helpers/use.media.query';
 
-// The composer's preview column draws each post at a phone's width, 360px,
+// The composer's preview column draws each post at a phone's width, 420px,
 // the width the providers' previews are written for, so a post looks as it
 // will on a phone rather than stretched across the column (FR-028). It then
 // scales the post down until the whole of it fits the column's height, never
-// under 0.7: below that the text gets too small to read, so the post keeps
-// 0.7 and the column scrolls (FR-029).
-export const PREVIEW_PHONE_WIDTH = 360;
-export const PREVIEW_MIN_SCALE = 0.7;
+// under 0.9: below that the text gets too small to read, so the post keeps
+// 0.9 and the column scrolls (FR-029).
+export const PREVIEW_PHONE_WIDTH = 420;
+export const PREVIEW_MIN_SCALE = 0.9;
 
 /** room and natural in px; 1 when either is 0 (hidden column, first paint). */
 export const fitScale = (room: number, natural: number) =>
