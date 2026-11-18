@@ -16,6 +16,10 @@ interface MediaRowProps {
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string, fallback: string) => fallback,
 }));
+const toast = jest.fn();
+jest.mock('@gitroom/react/toaster/toaster', () => ({
+  useToaster: () => ({ show: toast }),
+}));
 jest.mock('@gitroom/frontend/components/videos/video.context.wrapper', () => ({
   useVideo: () => ({ value: '' }),
 }));
@@ -51,6 +55,13 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => {
         React.createElement('button', {
           'data-testid': 'select',
           onClick: () => onChange({ target: { value: SELECTION } }),
+        }),
+        React.createElement('button', {
+          'data-testid': 'select-images',
+          onClick: () =>
+            onChange({
+              target: { value: SELECTION.filter((f) => f.id !== '3') },
+            }),
         })
       ),
   };
@@ -93,8 +104,16 @@ const render = async () => {
     });
   };
 
+  const pressImagesOnly = async () => {
+    const button = document.querySelector('[data-testid="select-images"]')!;
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  };
+
   return {
     press,
+    pressImagesOnly,
     /** The paths the row is showing back to the user. */
     shown: () =>
       JSON.parse(
@@ -208,6 +227,25 @@ describe('veo3 reference images', () => {
     // Videos are dropped and the rest is capped at three, so a fourth image is
     // never sent — showing five thumbnails would promise otherwise.
     expect(run.shown()).toEqual(['one.png', 'two.png', 'three.png']);
+  });
+
+  it('a dropped video shows the skipped toast', async () => {
+    toast.mockClear();
+    const run = await render();
+    await run.press();
+
+    expect(toast).toHaveBeenCalledWith(
+      "Videos can't be used as a reference and were skipped",
+      'warning'
+    );
+  });
+
+  it('nothing dropped, no toast', async () => {
+    toast.mockClear();
+    const run = await render();
+    await run.pressImagesOnly();
+
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('writes the images to the field the backend reads', async () => {

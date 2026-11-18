@@ -14,6 +14,7 @@ import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
+import { AssistantButton } from '@gitroom/frontend/components/ui/assistant.button';
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
 import { SelectCurrent } from '@gitroom/frontend/components/new-launch/select.current';
@@ -971,8 +972,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     <div
       className={clsx(
         'w-full h-full flex-1',
-        // the shell's insets; the extension's composer keeps its margins
-        props.padding || 'py-[12px] pe-[12px] ps-[100px]',
+        // the modal window owns the inset on desktop; the extension's
+        // composer keeps its margins
+        props.padding,
         'mobile:p-0 mobile:h-auto mobile:min-h-full flex relative'
       )}
     >
@@ -996,7 +998,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         <div className="flex-1 flex min-h-0 mobile:contents">
           <div
             className={clsx(
-              'flex flex-col flex-1 border-e border-newBorder',
+              'flex flex-col flex-1 min-w-0 border-e border-newBorder',
               // A single pane has no divider to draw, and nothing to its start
               // edge to be floored against.
               'mobile:border-e-0 mobile:min-w-0',
@@ -1012,7 +1014,65 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                 size="sm"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
+            <div className="flex-1 flex flex-col min-w-0 gap-[16px] mobile:gap-0 bg-panel mobile:bg-transparent">
+              {/* The channel row stays in the column while a channel's
+                    Settings hide the editor pane below. */}
+              <div className="flex flex-col shrink-0 min-w-0 gap-[32px] mobile:gap-[16px] pt-[20px] ps-[20px] pe-[8px] pb-[6px] mobile:px-[16px] mobile:pt-[12px] mobile:pb-0">
+                {/* at 1025px and below a new post picks its channels in
+                      the + sheet */}
+                <div
+                  className={clsx(
+                    'flex w-full',
+                    !existingData.integration && 'mobile:hidden'
+                  )}
+                >
+                  <div className="flex flex-1">
+                    <PicksSocialsComponent toolTip={true} />
+                  </div>
+                  <div className="mobile:hidden">
+                    {/* an existing post keeps its channels */}
+                    {!dummy && !existingData.integration && (
+                      <SelectCustomer
+                        onChange={changeCustomer}
+                        integrations={integrations}
+                      />
+                    )}
+                  </div>
+                  {!!existingData.integration && (
+                    <>
+                      <div className="hidden mobile:flex items-center">
+                        <CreationMethodBadge
+                          creationMethod={
+                            existingData?.posts?.[0]?.creationMethod
+                          }
+                          size="sm"
+                        />
+                      </div>
+                      {previewButton}
+                      {settingsButton}
+                    </>
+                  )}
+                </div>
+                <div className="mobile:flex mobile:items-center mobile:gap-[4px] min-w-0">
+                  {(!existingData.integration ||
+                    !!existingData.siblings?.length) && <SelectCurrent />}
+                  {!existingData.integration && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setMobileSheet('channels')}
+                        aria-label={t('select_channels', 'Select Channels')}
+                        className="hidden mobile:flex shrink-0 w-[44px] h-[44px] rounded-[8px] bg-btnSimple justify-center items-center focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        <PlusIcon size={24} />
+                      </button>
+                      <div className="hidden mobile:block flex-1" />
+                      {previewButton}
+                      {settingsButton}
+                    </>
+                  )}
+                </div>
+              </div>
               <div
                 className={clsx(
                   // at 1025px and below the page scrolls, not this box
@@ -1025,63 +1085,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               >
                 <div
                   id="social-content"
-                  className="gap-[32px] mobile:gap-[16px] flex flex-col pe-[8px] pt-[20px] ps-[20px] mobile:px-[16px] mobile:pt-[12px] mobile:static mobile:flex-1 absolute top-0 left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
+                  className="gap-[32px] mobile:gap-[16px] flex flex-col pe-[8px] ps-[20px] mobile:px-[16px] mobile:static mobile:flex-1 absolute top-0 left-0 w-full h-full mobile:h-auto overflow-x-hidden overflow-y-auto mobile:overflow-y-visible scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner"
                 >
-                  {/* at 1025px and below a new post picks its channels in
-                      the + sheet */}
-                  <div
-                    className={clsx(
-                      'flex w-full',
-                      !existingData.integration && 'mobile:hidden'
-                    )}
-                  >
-                    <div className="flex flex-1">
-                      <PicksSocialsComponent toolTip={true} />
-                    </div>
-                    <div className="mobile:hidden">
-                      {/* an existing post keeps its channels */}
-                      {!dummy && !existingData.integration && (
-                        <SelectCustomer
-                          onChange={changeCustomer}
-                          integrations={integrations}
-                        />
-                      )}
-                    </div>
-                    {!!existingData.integration && (
-                      <>
-                        <div className="hidden mobile:flex items-center">
-                          <CreationMethodBadge
-                            creationMethod={
-                              existingData?.posts?.[0]?.creationMethod
-                            }
-                            size="sm"
-                          />
-                        </div>
-                        {previewButton}
-                        {settingsButton}
-                      </>
-                    )}
-                  </div>
                   <div className="flex flex-1 gap-[6px] mobile:gap-[16px] flex-col">
-                    <div className="mobile:flex mobile:items-center mobile:gap-[4px]">
-                      {(!existingData.integration ||
-                        !!existingData.siblings?.length) && <SelectCurrent />}
-                      {!existingData.integration && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setMobileSheet('channels')}
-                            aria-label={t('select_channels', 'Select Channels')}
-                            className="hidden mobile:flex shrink-0 w-[44px] h-[44px] rounded-[8px] bg-btnSimple justify-center items-center focus-visible:ring-2 focus-visible:ring-brand"
-                          >
-                            <PlusIcon size={24} />
-                          </button>
-                          <div className="hidden mobile:block flex-1" />
-                          {previewButton}
-                          {settingsButton}
-                        </>
-                      )}
-                    </div>
                     {/* min-w-0: the outermost item of the editor's flex chain.
                         The rest are in editor.tsx — see the note at its :363. */}
                     <div
@@ -1200,9 +1206,9 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           </div>
           <div
             className={clsx(
-              // 580 fixed is the single biggest term in compose's width. At
-              // 1025px and below the preview replaces the editor instead.
-              'w-[580px] flex flex-col',
+              // 45% of the card, clamped, from 1026px up. At 1025px and
+              // below the preview replaces the editor instead.
+              '[@media(min-width:1026px)]:w-[45%] [@media(min-width:1026px)]:min-w-[440px] [@media(min-width:1026px)]:max-w-[680px] flex flex-col',
               'mobile:!w-full mobile:flex-1',
               mobileTab === 'edit' && stageTab === 'preview' && 'mobile:hidden'
             )}
@@ -1489,11 +1495,13 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         // clear of the pinned tool bar and of the Post menu at 1025px and below;
         // wider, above the bottom bar (its 84px and the 12px inset under it)
         // with CopilotKit's own 16px gap; gone while an AI tab, whose own bar
-        // it would cover, is on screen
+        // it would cover, is on screen, and over the phone preview
         className={clsx(
           'mobile:!z-[460] mobile:!bottom-[112px] [@media(min-width:1026px)]:!bottom-[112px]',
-          stageTab !== 'preview' && 'hidden'
+          stageTab !== 'preview' && 'hidden',
+          mobileTab === 'preview' && 'mobile:hidden'
         )}
+        Button={AssistantButton}
         hitEscapeToClose={false}
         clickOutsideToClose={true}
         instructions={`

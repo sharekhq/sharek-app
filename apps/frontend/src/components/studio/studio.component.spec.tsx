@@ -944,11 +944,27 @@ describe('a card', () => {
     expect(classes(section('Tools')!.children[1])).toEqual(
       expect.arrayContaining([
         'grid',
-        'grid-cols-[repeat(auto-fill,minmax(220px,1fr))]',
+        'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]',
         'gap-[16px]',
         'phone:grid-cols-1',
       ])
     );
+  });
+
+  it('fills the row with auto-fill 280px cards', async () => {
+    await mount();
+
+    expect(classes(section('Tools')!.children[1])).toContain(
+      'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]'
+    );
+  });
+
+  it('lets a lone card take one column', async () => {
+    await mount();
+
+    const grid = classes(section('Models')!.children[1]);
+    expect(grid).toContain('grid-cols-[repeat(auto-fill,minmax(280px,1fr))]');
+    expect(grid).not.toContain('grid-cols-1');
   });
 
   // FR-032, research R15: with reduced motion a card gains its shadow and
@@ -1140,6 +1156,16 @@ describe('useCreatePost', () => {
     );
     editor.props.mutate();
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the composer as a window', async () => {
+    await mount(<Host />);
+
+    await act(async () => {
+      createPost!(PICTURE);
+    });
+
+    expect(openModal.mock.calls[0][0].composerWindow).toBe(true);
   });
 
   // A tool page hands it on as onCreatePost, which gives the media alone, and

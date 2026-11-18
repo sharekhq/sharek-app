@@ -175,10 +175,10 @@ export const InformationComponent: FC<{
       return null;
     }
 
-    // Find the smallest limit that hasn't been exceeded yet
-    // If all are exceeded, show the smallest one
-    const validLimit = limits.find((item) => item.count <= item.limit);
-    return validLimit ?? limits[0];
+    // Show the smallest limit that is exceeded, the channel that fails the post
+    // If none is exceeded, show the smallest one
+    const exceededLimit = limits.find((item) => item.count > item.limit);
+    return exceededLimit ?? limits[0];
   }, [isGlobal, selectedIntegrations, chars, isInternal, countFor]);
 
   const isEmpty = !isPicture && !totalChars;

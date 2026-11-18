@@ -58,8 +58,8 @@ export const TiktokPreview: FC<{
     return { text: finalValue, images: p.image };
   });
   return (
-    <div className="p-[15px] absolute left-0 top-0 w-full h-full [container-type:size] flex justify-center items-center bg-newBgColorInner">
-      <div className="relative">
+    <div className="p-[15px] absolute start-0 top-0 w-full h-full min-w-0 overflow-hidden [container-type:size] flex justify-center items-center bg-newBgColorInner">
+      <div className="relative min-w-0">
         <SliderComponent
           list={renderContent?.[0]?.images.map((image, index) => (
             <a
@@ -71,9 +71,12 @@ export const TiktokPreview: FC<{
               <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
             </a>
           ))}
-          className="h-[min(100cqh,(100cqw-47px)*16/9)] bg-black aspect-[calc(9/16)] rounded-[3px] overflow-hidden"
+          className="h-[min(100cqh,(100cqw-30px)*16/9)] bg-black aspect-[calc(9/16)] rounded-[3px] overflow-hidden"
         />
-        <div className="absolute pointer-events-none w-full h-full start-0 top-0 px-[12px] py-[25px] justify-end items-start text-white flex flex-col">
+        <div
+          data-tiktok-caption
+          className="absolute pointer-events-none w-full h-full start-0 top-0 ps-[12px] pe-[52px] py-[25px] justify-end items-start text-white flex flex-col bg-[linear-gradient(to_top,color-mix(in_srgb,black_70%,transparent),transparent_55%)]"
+        >
           <div className="text-[14px] font-[500]">@{integration?.name}</div>
           <div dir="auto" className="text-[13px] font-[400] whitespace-pre-line line-clamp-6 w-full"
             dangerouslySetInnerHTML={{
@@ -81,15 +84,17 @@ export const TiktokPreview: FC<{
             }}
           />
         </div>
-      </div>
-      <div className="h-[min(100cqh,(100cqw-47px)*16/9)] flex flex-col justify-end gap-[10px] ml-[18px]">
+      <div
+        data-tiktok-rail
+        className="absolute end-[8px] bottom-[25px] flex flex-col items-center gap-[10px]"
+      >
         <div className="relative">
           <img
             src={integration?.picture || '/no-picture.jpg'}
             alt="social"
             className="rounded-full z-[2] w-[29px] h-[29px]"
           />
-          <div className="absolute left-[50%] -translate-x-[50%] bottom-0 translate-y-[50%] z-[1]">
+          <div className="absolute start-[50%] -translate-x-[50%] rtl:translate-x-[50%] bottom-0 translate-y-[50%] z-[1]">
             <svg
               width="13"
               height="13"
@@ -180,6 +185,7 @@ export const TiktokPreview: FC<{
             className="rounded-full relative z-[2] w-[29px] h-[29px]"
           />
         </div>
+      </div>
       </div>
     </div>
   );

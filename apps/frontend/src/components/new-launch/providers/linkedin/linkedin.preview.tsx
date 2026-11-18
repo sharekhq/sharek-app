@@ -354,9 +354,10 @@ export const LinkedinPreview: FC<{
           <div>{t('preview_linkedin_reposts', '8 Reposts')}</div>
         </div>
       </div>
-      <div className="pt-[8px] flex text-[14px] font-[700] px-[32px] justify-between border-t border-borderLinkedin text-textLinkedin">
+      <div className="pt-[8px] flex gap-[8px] text-[14px] font-[700] px-[8px] justify-between border-t border-borderLinkedin text-textLinkedin">
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             width="20"
             height="21"
@@ -372,6 +373,7 @@ export const LinkedinPreview: FC<{
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             width="21"
             height="19"
@@ -384,10 +386,11 @@ export const LinkedinPreview: FC<{
               strokeWidth="2"
             />
           </svg>
-          <div>{t('comments', 'Comments')}</div>
+          <div>{t('preview_linkedin_comment', 'Comment')}</div>
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             width="18"
             height="25"
@@ -414,6 +417,7 @@ export const LinkedinPreview: FC<{
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             width="21"
             height="21"

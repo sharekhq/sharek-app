@@ -107,9 +107,12 @@ jest.mock(
   '@gitroom/frontend/components/new-launch/dummy.code.component',
   () => ({ DummyCodeComponent: () => null })
 );
-jest.mock('@gitroom/frontend/components/launches/creation.method.badge', () => ({
-  CreationMethodBadge: () => null,
-}));
+jest.mock(
+  '@gitroom/frontend/components/launches/creation.method.badge',
+  () => ({
+    CreationMethodBadge: () => null,
+  })
+);
 // The settings sheet reads the providers' settings through their module,
 // which brings the channel previews; scenery, as in
 // high.order.provider.spec.tsx.
@@ -240,6 +243,47 @@ describe('an existing post', () => {
   });
 });
 
+// With a channel's Settings open the editor pane is hidden, and the channel
+// row (the picks and the tabs, Global among them) stays in the column so the
+// settings of another channel, or Global, are one click away (FR-007).
+describe('a channel’s Settings', () => {
+  const hiddenWithin = (element: Element) => {
+    for (let node: Element | null = element; node; node = node.parentElement) {
+      if (node.classList.contains('hidden')) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const openSettings = async () => {
+    existing = {};
+    const host = await render();
+    await act(async () => {
+      useLaunchStore.setState({ current: 'int-1' });
+    });
+    await act(async () => {
+      (host.querySelector('.cursor-pointer') as HTMLElement).click();
+    });
+    return host;
+  };
+
+  it('with a channel’s Settings open the channel row is still rendered and switching works', async () => {
+    const host = await openSettings();
+
+    expect(
+      host.querySelector('#social-content')!.parentElement!.classList
+    ).toContain('hidden');
+    expect(hiddenWithin(host.querySelector('[data-picks]')!)).toBe(false);
+  });
+
+  it('Back to global stays reachable', async () => {
+    const host = await openSettings();
+
+    expect(hiddenWithin(host.querySelector('[data-current]')!)).toBe(false);
+  });
+});
+
 // The compose window takes the Studio page card's 12px corners on a wide
 // screen (spec 061), and still fills a phone's screen edge to edge with none.
 describe('the compose card', () => {
@@ -267,21 +311,16 @@ describe('the composer frame', () => {
     existing = {};
   });
 
-  it('sits inside the shell’s insets, edge to edge on a phone', async () => {
+  it('the root adds no inset of its own on desktop (the window wrapper owns it)', async () => {
     const classes = classesOf((await render()).firstElementChild!);
 
-    expect(classes).toEqual(
-      expect.arrayContaining([
-        'py-[12px]',
-        'pe-[12px]',
-        'ps-[100px]',
-        'mobile:p-0',
-      ])
+    expect(classes).toContain('mobile:p-0');
+    ['py-[12px]', 'pe-[12px]', 'ps-[100px]', 'p-[40px]'].forEach((inset) =>
+      expect(classes).not.toContain(inset)
     );
-    expect(classes).not.toContain('p-[40px]');
   });
 
-  it('keeps the extension composer’s 40px margins in place of the insets', async () => {
+  it('keeps props.padding for the extension path', async () => {
     const classes = classesOf(
       (await render({ padding: 'p-[40px]' })).firstElementChild!
     );
@@ -290,6 +329,35 @@ describe('the composer frame', () => {
     ['py-[12px]', 'pe-[12px]', 'ps-[100px]'].forEach((inset) =>
       expect(classes).not.toContain(inset)
     );
+  });
+
+  it('the preview column is 45% between 440 and 680px', async () => {
+    const host = await render();
+    const column = Array.from(host.querySelectorAll('div')).find((each) =>
+      classesOf(each).includes('[@media(min-width:1026px)]:w-[45%]')
+    )!;
+
+    expect(classesOf(column)).toEqual(
+      expect.arrayContaining([
+        '[@media(min-width:1026px)]:min-w-[440px]',
+        '[@media(min-width:1026px)]:max-w-[680px]',
+        'mobile:!w-full',
+        'mobile:flex-1',
+      ])
+    );
+    expect(host.innerHTML).not.toContain('w-[580px]');
+  });
+
+  it('the left pane can shrink', async () => {
+    const host = await render();
+    const pane = Array.from(host.querySelectorAll('div')).find(
+      (each) =>
+        classesOf(each).includes('border-newBorder') &&
+        classesOf(each).includes('border-e') &&
+        classesOf(each).includes('flex-1')
+    )!;
+
+    expect(classesOf(pane)).toContain('min-w-0');
   });
 
   it('rounds the left header’s start corners at 12px', async () => {
@@ -305,7 +373,7 @@ describe('the composer frame', () => {
   it('holds the composer’s tabs, Post preview first, and its close in the right column', async () => {
     const host = await render();
     const column = Array.from(host.querySelectorAll('div')).find((each) =>
-      classesOf(each).includes('w-[580px]')
+      classesOf(each).includes('[@media(min-width:1026px)]:w-[45%]')
     )!;
     const tablist = column.querySelector('[role="tablist"]');
 
@@ -400,7 +468,7 @@ describe('the assistant', () => {
   });
 });
 
-// On a wide screen the preview column draws each post at a phone's 360px,
+// On a wide screen the preview column draws each post at a phone's 420px,
 // scaled to the column inside its scroll box (FR-028), and the composer's
 // ref still reaches the preview itself, which mounts once (FR-032).
 describe('the preview column', () => {
@@ -423,7 +491,7 @@ describe('the preview column', () => {
     window.matchMedia = realMatchMedia;
   });
 
-  it('draws the preview at 360px inside the scroll box', async () => {
+  it('draws the preview at 420px inside the scroll box', async () => {
     const host = await render();
     const content = host.querySelector('[data-show-all]')!
       .parentElement as HTMLElement;
@@ -434,7 +502,7 @@ describe('the preview column', () => {
     });
     await measure();
 
-    expect(content.style.width).toBe('360px');
+    expect(content.style.width).toBe('420px');
     expect(room.parentElement!.classList.contains('overflow-y-auto')).toBe(
       true
     );

@@ -4,6 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
 import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { VideoPromptField } from '@gitroom/frontend/components/videos/video.modal.parts';
 import {
@@ -36,6 +37,7 @@ const AUDIO_HINTS = {
 
 const VEO3Settings: FC = () => {
   const t = useT();
+  const toaster = useToaster();
   const { watch, setValue } = useFormContext();
   const { value } = useVideo();
 
@@ -91,14 +93,21 @@ const VEO3Settings: FC = () => {
           name="images"
           label={t('label_media', 'Media')}
           value={images}
-          onChange={(val) =>
-            setValue(
-              'images',
-              val.target.value
-                .filter((f) => !hasExtension(f.path, 'mp4'))
-                .slice(0, 3)
-            )
-          }
+          onChange={(val) => {
+            const images = val.target.value.filter(
+              (f) => !hasExtension(f.path, 'mp4')
+            );
+            if (images.length < val.target.value.length) {
+              toaster.show(
+                t(
+                  'veo3_reference_skipped',
+                  "Videos can't be used as a reference and were skipped"
+                ),
+                'warning'
+              );
+            }
+            setValue('images', images.slice(0, 3));
+          }}
         />
       </FieldLabel>
     </div>

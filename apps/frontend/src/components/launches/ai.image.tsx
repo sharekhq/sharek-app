@@ -17,6 +17,7 @@ import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { Textarea } from '@gitroom/react/form/textarea';
 import useSWR from 'swr';
+import { IMAGE_PROMPT_MIN_CHARS } from '@gitroom/nestjs-libraries/dtos/videos/video.prompt.bounds';
 import {
   IMAGE_ASPECT_IDS,
   IMAGE_ASPECT_PRESETS,
@@ -444,6 +445,20 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
     if (!prompt.trim()) {
       toaster.show(
         t('please_type_your_prompt', 'Please type your prompt'),
+        'warning'
+      );
+      return;
+    }
+
+    // Before the credit: the minimum is the frontend's own, the API accepts less.
+    const missing = IMAGE_PROMPT_MIN_CHARS - prompt.trim().length;
+    if (missing > 0) {
+      toaster.show(
+        t(
+          'video_prompt_shortfall',
+          'Add at least {{count}} more characters to generate',
+          { count: missing }
+        ),
         'warning'
       );
       return;

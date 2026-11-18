@@ -9,8 +9,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   // The fallback with {{var}} filled in, because that is what t() renders. A mock that
   // returned the raw default would have this spec assert a string no reader ever sees.
   useT:
-    () =>
-    (key: string, fallback: string, params?: Record<string, unknown>) =>
+    () => (key: string, fallback: string, params?: Record<string, unknown>) =>
       fallback.replace(/{{(\w+)}}/g, (whole, name) =>
         params && name in params ? String(params[name]) : whole
       ),
@@ -3029,7 +3028,7 @@ describe('the workspace frame', () => {
 
   it('sets the settings and the bar beside the stage on the page', async () => {
     await openPage();
-    const panel = promptField()?.closest('.w-\\[360px\\]');
+    const panel = promptField()?.closest('[class*="380px,34"]');
 
     expect(panel).toBeTruthy();
     expect(!!bar() && !!panel?.contains(bar()!)).toBe(true);
@@ -3641,5 +3640,29 @@ describe("the composer's lock", () => {
     await click(button('Use image'));
 
     expect(setLocked).not.toHaveBeenCalled();
+  });
+});
+
+describe('a prompt shorter than the minimum', () => {
+  it('a 3-character prompt spends no credit and shows the shortfall (window)', async () => {
+    await openWindow();
+    await type(promptField(), 'abc');
+    await click(button('Generate'));
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
+    expect(toast).toHaveBeenCalledWith(
+      'Add at least 12 more characters to generate',
+      'warning'
+    );
+  });
+
+  it('a 3-character prompt spends no credit and shows the shortfall (Studio page)', async () => {
+    await openPage();
+    await type(promptField(), 'abc');
+    await click(button('Generate'));
+    expect(asked('/media/generate-image-with-prompt')).toHaveLength(0);
+    expect(toast).toHaveBeenCalledWith(
+      'Add at least 12 more characters to generate',
+      'warning'
+    );
   });
 });

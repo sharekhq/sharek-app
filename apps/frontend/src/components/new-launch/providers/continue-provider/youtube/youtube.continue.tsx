@@ -1,5 +1,7 @@
 'use client';
 
+import { FC } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { withContinueProvider } from '../with-continue-provider';
 
 interface YoutubeItem {
@@ -17,6 +19,13 @@ interface YoutubeItem {
 interface YoutubeSelection {
   id: string;
 }
+
+const YoutubeSubscribers: FC<{ count: number }> = ({ count }) => {
+  const t = useT();
+  return (
+    <>{t('youtube_continue_subscribers', '{{count}} subscribers', { count })}</>
+  );
+};
 
 export const YoutubeContinue = withContinueProvider<
   YoutubeItem,
@@ -78,7 +87,7 @@ export const YoutubeContinue = withContinueProvider<
       )}
       {item.subscriberCount && (
         <div className="text-xs text-muted">
-          {parseInt(item.subscriberCount).toLocaleString()} subscribers
+          <YoutubeSubscribers count={Number(item.subscriberCount)} />
         </div>
       )}
     </>

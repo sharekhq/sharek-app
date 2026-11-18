@@ -32,6 +32,7 @@ import {
   StageActions,
   StageProgress,
   StageResult,
+  STAGE_BACKGROUND,
   StageSample,
   VersionsStrip,
   WorkspaceFrame,
@@ -109,6 +110,20 @@ afterEach(() => {
 });
 
 describe('the page layout', () => {
+  it('the panel is clamp(380px,34vw,460px) and full width on a phone', async () => {
+    const host = await mount(frame());
+    const panel = host.firstElementChild!.children[0];
+
+    expect(tokens(panel)).toEqual(
+      expect.arrayContaining([
+        'w-[clamp(380px,34vw,460px)]',
+        'phone:w-full',
+        'phone:border-e-0',
+      ])
+    );
+    expect(tokens(panel)).not.toContain('w-[360px]');
+  });
+
   it('puts the settings panel first, on the start side, with the head, the scroller and the bar', async () => {
     const host = await mount(frame());
     const root = host.firstElementChild!;
@@ -116,7 +131,7 @@ describe('the page layout', () => {
 
     expect(tokens(panel)).toEqual(
       expect.arrayContaining([
-        'w-[360px]',
+        'w-[clamp(380px,34vw,460px)]',
         'shrink-0',
         'border-e',
         'border-line',
@@ -233,6 +248,33 @@ describe('the page layout', () => {
     );
   });
 
+  // At 1024px the page is still side by side but takes its natural height, so
+  // a size container stage centred in it sat below the fold: from mobile
+  // (1025px) the stage is bounded and top-aligned, and a result lets it grow.
+  it('the stacked stage starts at mobile (1025px)', async () => {
+    const waiting = await mount(frame());
+    const showing = await mount(frame({ result: true }));
+    const stageOf = (host: HTMLElement) => host.firstElementChild!.children[1];
+
+    expect(tokens(stageOf(waiting))).toEqual(
+      expect.arrayContaining([
+        'mobile:h-[clamp(240px,45dvh,440px)]',
+        'mobile:self-start',
+        'phone:self-stretch',
+      ])
+    );
+    expect(tokens(stageOf(showing))).toEqual(
+      expect.arrayContaining([
+        'mobile:[container-type:normal]',
+        'mobile:self-start',
+        'phone:self-stretch',
+      ])
+    );
+    expect(tokens(stageOf(showing))).not.toContain(
+      'mobile:h-[clamp(240px,45dvh,440px)]'
+    );
+  });
+
   // The page keeps its settings open beside the result; only the phone's
   // stacked page folds them.
   it('folds the settings only on a phone', async () => {
@@ -251,6 +293,21 @@ describe('the page layout', () => {
 
     expect(settingsRow(host)!.getAttribute('aria-expanded')).toBe('true');
     expect(tokens(scroller)).not.toContain('phone:hidden');
+  });
+});
+
+describe('the stage background', () => {
+  it('both stages carry STAGE_BACKGROUND', async () => {
+    const page = await mount(frame());
+    const stacked = await mount(frame({ layout: 'stacked' }));
+    const want = STAGE_BACKGROUND.split(' ');
+
+    expect(tokens(page.firstElementChild!.children[1])).toEqual(
+      expect.arrayContaining(want)
+    );
+    expect(tokens(byTestId(stacked, 'stage')!.parentElement)).toEqual(
+      expect.arrayContaining(want)
+    );
   });
 });
 
@@ -535,6 +592,14 @@ describe('StageSample', () => {
     );
   });
 
+  it('the sample frame is bg-surface', async () => {
+    const host = await mount(sample());
+
+    const frame = host.querySelector('img')?.parentElement;
+    expect(frame?.className).toContain('bg-surface');
+    expect(frame?.className).not.toContain('bg-surface2');
+  });
+
   it('shows the given icon when the tool has no cover', async () => {
     const host = await mount(sample({ cover: undefined }));
 
@@ -698,6 +763,35 @@ describe('StageResult', () => {
       {...props}
     />
   );
+
+  // The versions row is drawn with or without versions, so the stage's room
+  // (and the picture sized from it) does not change when the strip appears.
+  it('the result keeps its stage box when versions appear', async () => {
+    const without = await mount(result());
+    const withVersions = await mount(
+      result({
+        versions: (
+          <VersionsStrip
+            versions={[
+              { path: 'https://cdn.example/a.png', kind: 'image' },
+              { path: 'https://cdn.example/b.png', kind: 'image' },
+            ]}
+            shown={1}
+            onSelect={() => undefined}
+          />
+        ),
+      })
+    );
+    const row = (host: HTMLElement) =>
+      byTestId(host, 'versions-row') as HTMLElement;
+
+    expect(tokens(row(without))).toEqual(
+      expect.arrayContaining(['h-[68px]', 'shrink-0'])
+    );
+    expect(row(without).children.length).toBe(0);
+    expect(tokens(row(withVersions))).toEqual(tokens(row(without)));
+    expect(row(withVersions).querySelector('[role="group"]')).not.toBeNull();
+  });
 
   // The result fills the box the placeholder drew.
   it('opens an image full size in a new tab, in the placeholder box', async () => {

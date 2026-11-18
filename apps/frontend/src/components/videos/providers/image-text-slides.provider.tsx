@@ -702,18 +702,26 @@ const ReviewScreen: FC<{
               type="button"
               variant="secondary"
               size="large"
+              className="whitespace-nowrap"
               onClick={add}
               disabled={slides.length >= MAX_SLIDES}
             >
               {t('add_slide', 'Add slide')}
             </Button>
             <span className="flex-1" />
-            <Button type="button" variant="ghost" size="large" onClick={onBack}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="large"
+              className="whitespace-nowrap"
+              onClick={onBack}
+            >
               {t('back', 'Back')}
             </Button>
             <Button
               type="button"
               size="large"
+              className="whitespace-nowrap"
               onClick={onCreate}
               // An empty row is dropped server-side, so blocking here is the only
               // thing that stops a slide vanishing without explanation.

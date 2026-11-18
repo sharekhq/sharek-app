@@ -1,6 +1,9 @@
 /* Semantic brand layer — source of truth; legacy tokens re-point to these (data-model.md §1–2). */
 :root {
+  color-scheme: light;
   .dark {
+    color-scheme: dark;
+    --on-error: #140F11; /* text on a solid --error fill: 6.7:1 (white on #F47174 is 2.81:1) */
     --brand: #B92D43;
     --brand-text: #F0708A;
     --badge-tile: #F7F1EF;
@@ -47,6 +50,8 @@
     --cat-mulberry-text: #B85FD2;
   }
   .light {
+    color-scheme: light;
+    --on-error: #FFFFFF; /* text on a solid --error fill: 4.95:1 */
     --brand: #B92D43;
     --brand-text: #B92D43;
     --badge-tile: var(--brand);

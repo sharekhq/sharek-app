@@ -24,6 +24,12 @@ interface OpenModalInterface {
   closeOnClickOutside?: boolean;
   removeLayout?: boolean;
   fullScreen?: boolean;
+  /**
+   * From 1026px the modal is a window over the whole app: the overlay blurs
+   * what is behind it and the wrapper keeps 12px from every edge, capped at
+   * 1600px and centred. Only read with `removeLayout` and `fullScreen`.
+   */
+  composerWindow?: boolean;
   top?: string | number;
   closeOnEscape?: boolean;
   withCloseButton?: boolean;
@@ -206,6 +212,8 @@ export const Component: FC<{
             ? 'pb-[50px] min-w-full min-h-full'
             : 'w-full h-full mobile:block',
           'fixed flex left-0 top-0 bg-popup transition-all animate-fadeIn overflow-y-auto text-newTextColor',
+          modal.composerWindow &&
+            '[@media(min-width:1026px)]:backdrop-blur-[8px]',
           !isLast && '!overflow-hidden'
         )}
       >
@@ -224,7 +232,9 @@ export const Component: FC<{
             className={clsx(
               modal.fullScreen
                 ? 'flex flex-1 min-w-0'
-                : 'absolute top-0 left-0 min-w-full min-h-full'
+                : 'absolute top-0 left-0 min-w-full min-h-full',
+              modal.composerWindow &&
+                '[@media(min-width:1026px)]:p-[12px] [@media(min-width:1026px)]:max-w-[1600px] [@media(min-width:1026px)]:mx-auto'
             )}
           >
             <div

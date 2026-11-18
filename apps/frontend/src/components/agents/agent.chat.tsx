@@ -557,6 +557,7 @@ export const OpenModal: FC<{
           withCloseButton: false,
           askClose: true,
           fullScreen: true,
+          composerWindow: true,
           title: ``,
           // Deliberately no ExistingDataContextProvider: these are new posts,
           // and that context puts AddEditModal into edit-an-existing-post mode.

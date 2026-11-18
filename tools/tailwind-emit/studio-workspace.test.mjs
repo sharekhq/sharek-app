@@ -13,7 +13,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { fileURLToPath } from 'node:url';
+
 import postcss from 'postcss';
+import * as sass from 'sass';
 
 import { emit } from './emit.mjs';
 
@@ -173,7 +176,7 @@ describe('Part 2: the workspace', () => {
     await assertEmits(
       {
         // the settings panel, on the start side of the page layout
-        'w-[360px]': [['width', '360px']],
+        'w-[clamp(380px,34vw,460px)]': [['width', 'clamp(380px,34vw,460px)']],
         'border-e': [['border-inline-end-width', '1px']],
         // the stage, first in the stacked layout
         'h-[clamp(240px,45dvh,440px)]': [
@@ -421,11 +424,10 @@ describe('Part 2: the workspace', () => {
 // channel-panels; hidden in channel-panels and emit, mobile:hidden in
 // shell-studio and others.
 describe('Part 3: the composer', () => {
-  test("the composer's insets and its card's, left header's and tab strip's corners emit their one rule, outside any query", async () => {
+  test("the shell's insets and the composer's card's, left header's and tab strip's corners emit their one rule, outside any query", async () => {
     await assertEmits(
       {
-        // the root, inside the shell's rail and top bar
-        'ps-[100px]': [['padding-inline-start', '100px']],
+        // the shell's insets, still used by the layout
         'pe-[12px]': [['padding-inline-end', '12px']],
         'py-[12px]': [
           ['padding-top', '12px'],
@@ -459,7 +461,6 @@ describe('Part 3: the composer', () => {
     // query, so a mobile: form emitted first would keep the shell's insets
     // or the card's corners on a full-screen composer.
     const pairs = [
-      ['ps-[100px]', 'mobile:p-0'],
       ['pe-[12px]', 'mobile:p-0'],
       ['py-[12px]', 'mobile:p-0'],
       ['rounded-[12px]', 'mobile:rounded-none'],
@@ -516,5 +517,137 @@ describe('Part 3: the composer', () => {
   // rule holds.
   test("while an AI tab is on screen the composer's Assistant is gone at every width", async () => {
     await assertEmits({ hidden: [['display', 'none']] }, null);
+  });
+  // The stage's panel tint and its dot grid (FR-010): both read the theme's
+  // tokens, so one class set serves both themes.
+  test('the stage dot grid and tint emit in both themes', async () => {
+    await assertEmits(
+      {
+        'bg-[var(--panel)]': [['background-color', 'var(--panel)']],
+        '[background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)]':
+          [
+            [
+              'background-image',
+              'radial-gradient(color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px)',
+            ],
+          ],
+        '[background-size:20px_20px]': [['background-size', '20px 20px']],
+      },
+      null
+    );
+  });
+  // The hub's cards share the row (FR-011): one auto-fill grid, 280px a card.
+  test('minmax(280px,1fr) grid emits', async () => {
+    await assertEmits(
+      {
+        'grid-cols-[repeat(auto-fill,minmax(280px,1fr))]': [
+          ['grid-template-columns', 'repeat(auto-fill,minmax(280px,1fr))'],
+        ],
+      },
+      null
+    );
+  });
+});
+
+// The composer's Assistant (FR-021): CopilotKit's own button and window sit
+// bottom-right and its button is solid white in dark. Its stylesheet loads after
+// global.scss, so global.scss outranks it through a `body` ancestor.
+describe('The composer Assistant look', () => {
+  const sheet = () =>
+    postcss.parse(
+      sass.compile(
+        fileURLToPath(
+          new URL('../../apps/frontend/src/app/global.scss', import.meta.url)
+        ),
+        {
+          loadPaths: [
+            fileURLToPath(new URL('../../node_modules', import.meta.url)),
+          ],
+        }
+      ).css
+    );
+  const decls = (selector, atRule) => {
+    const out = {};
+    sheet().walkRules((rule) => {
+      if (collapse(rule.selector) !== selector) return;
+      const inMedia =
+        rule.parent.type === 'atrule' &&
+        collapse(rule.parent.params) === atRule;
+      if (inMedia !== Boolean(atRule)) return;
+      rule.walkDecls((d) => {
+        out[d.prop] = d.value;
+        assert.ok(!d.important, `${selector} ${d.prop}`);
+      });
+    });
+    return out;
+  };
+  test('Assistant button mirrors in rtl and has a dark surface in dark', () => {
+    assert.deepEqual(decls('html[dir=rtl] body .copilotKitPopup'), {
+      right: 'auto',
+      left: '1rem',
+    });
+    assert.deepEqual(
+      decls('html[dir=rtl] body .copilotKitWindow', '(min-width: 640px)'),
+      { right: 'auto', left: '1rem', 'transform-origin': 'bottom left' }
+    );
+    assert.deepEqual(decls('body.dark .copilotKitButton'), {
+      'background-color': 'var(--surface-2)',
+      'border-color': 'var(--surface-2)',
+      color: 'var(--ink)',
+    });
+  });
+});
+
+// 062 — the colour tokens (colors.scss), read from the compiled sheet.
+describe('Colour tokens', () => {
+  const sheet = () =>
+    postcss.parse(
+      sass.compile(
+        fileURLToPath(
+          new URL('../../apps/frontend/src/app/colors.scss', import.meta.url)
+        )
+      ).css
+    );
+  const decl = (selector, prop) => {
+    let value;
+    sheet().walkRules((rule) => {
+      if (collapse(rule.selector) !== selector) return;
+      rule.walkDecls(prop, (d) => {
+        value = collapse(d.value);
+      });
+    });
+    return value;
+  };
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  };
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  test('color-scheme follows the theme', () => {
+    assert.equal(decl(':root', 'color-scheme'), 'light');
+    assert.equal(decl(':root .dark', 'color-scheme'), 'dark');
+  });
+
+  test('white-or-black on error meets AA in both themes', () => {
+    for (const selector of [':root .dark', ':root .light']) {
+      const onError = decl(selector, '--on-error');
+      const error = decl(selector, '--error');
+      assert.ok(onError, `${selector} has --on-error`);
+      assert.ok(
+        contrast(onError, error) >= 4.5,
+        `${selector}: ${onError} on ${error} is ${contrast(
+          onError || '#000000',
+          error
+        )}`
+      );
+    }
   });
 });

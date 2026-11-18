@@ -102,6 +102,7 @@ export const Sets: FC = () => {
         withCloseButton: false,
         askClose: true,
         fullScreen: true,
+        composerWindow: true,
         children: (
           <AddEditModal
             allIntegrations={integrations.map((p: any) => ({

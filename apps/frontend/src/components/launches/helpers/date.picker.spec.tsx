@@ -18,6 +18,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 type CalendarProps = {
   value?: Date;
   month?: Date;
+  locale?: string;
   onChange?: (day: Date) => void;
   dayClassName?: (
     day: Date,
@@ -105,6 +106,7 @@ afterEach(async () => {
   });
   document.body.innerHTML = '';
   mockCalendarProps = {};
+  dayjs.locale('en');
   setUserTimezone(null);
   localStorage.clear();
   words = {};
@@ -176,6 +178,22 @@ describe('the date picker’s date', () => {
     );
 
     expect(line(host)).toMatch(/12:30 م$/);
+  });
+
+  it('the Arabic bottom-bar date reads in one direction with Arabic punctuation', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open('24');
+    const lines = Array.from(host.firstElementChild!.children).slice(1, 3);
+
+    expect(lines).toHaveLength(2);
+    lines.forEach((node) => {
+      expect(node.getAttribute('dir')).toBe('rtl');
+      expect(node.querySelector('bdi')).not.toBeNull();
+    });
+    expect(lines[1].textContent).toContain('،');
+    expect(lines[1].textContent).not.toContain(',');
   });
 });
 
@@ -333,6 +351,21 @@ describe('the date sheet', () => {
     expect(dayClassName!(new Date(2026, 9, 1), { outside: true })).toEqual(
       expect.stringContaining('!text-muted')
     );
+  });
+
+  // dayjs's own locale is a global another module sets on a language change; the
+  // sheet reads the interface language itself, so the weekdays and the month
+  // name cannot stay English under an Arabic interface.
+  it('names the weekdays and the month in the interface language', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('en');
+    const host = await sheet('24');
+
+    expect(mockCalendarProps.locale).toBe('ar');
+    expect(host.textContent).toContain(
+      dayjs('2026-10-21').locale('ar').format('MMMM')
+    );
+    expect(host.textContent).not.toContain('October');
   });
 
   it('draws 44px days', async () => {

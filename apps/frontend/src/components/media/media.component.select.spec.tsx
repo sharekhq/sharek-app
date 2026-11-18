@@ -404,7 +404,11 @@ describe('selecting on the Media page', () => {
     });
     expect(bar()!.lastElementChild).toBe(remove);
     expect(classes(remove)).toEqual(
-      expect.arrayContaining(['ms-auto', 'bg-error', 'text-white'])
+      expect.arrayContaining([
+        'ms-auto',
+        'bg-error',
+        'text-[color:var(--on-error)]',
+      ])
     );
     expect(remove.querySelector('svg')).toBeTruthy();
   });

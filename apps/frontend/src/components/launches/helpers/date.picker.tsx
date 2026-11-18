@@ -1,5 +1,6 @@
 import { FC, useCallback, useState } from 'react';
 import dayjs from 'dayjs';
+import i18next from 'i18next';
 import clsx from 'clsx';
 import { Calendar, TimeInput } from '@mantine/dates';
 import { useClickOutside } from '@mantine/hooks';
@@ -96,6 +97,9 @@ export const DatePickerPanel: FC<{
   const { date, onChange, sheet } = props;
   const t = useT();
   const [month, setMonth] = useState(toPickerDate(date));
+  // dayjs's global locale is set elsewhere on a language change; name the
+  // weekdays and the month from the interface language itself
+  const locale = i18next.resolvedLanguage || 'en';
 
   // the pickers give machine-local dates, so their wall clock is read with
   // plain dayjs and then placed in the user's timezone
@@ -137,13 +141,13 @@ export const DatePickerPanel: FC<{
             {t('date', 'Date')}
           </div>
           <div className="flex-1 h-[52px] px-[16px] flex items-center rounded-[10px] border border-line bg-newBgColorInner text-[14px]">
-            {date.format('ddd, D MMMM')}
+            {date.locale(locale).format('ddd, D MMMM')}
           </div>
         </div>
         <div className="bg-panel rounded-[12px] px-[16px] py-[12px] mb-[24px]">
           <div className="flex items-center gap-[4px] mb-[8px]">
             <div className="flex-1 text-[15px] font-[600]">
-              {dayjs(month).format('MMMM, YYYY')}
+              {dayjs(month).locale(locale).format('MMMM, YYYY')}
             </div>
             <button
               type="button"
@@ -174,7 +178,7 @@ export const DatePickerPanel: FC<{
           </div>
           <Calendar
             fullWidth={true}
-            locale={dayjs.locale()}
+            locale={locale}
             month={month}
             onMonthChange={setMonth}
             onChange={(day) => {
@@ -357,16 +361,26 @@ export const DatePicker: FC<{
   // line that truncates.
   const row =
     'px-[16px] border border-newTextColor/10 mobile:border-line rounded-[8px] justify-center flex gap-[8px] items-center relative h-[44px] text-[15px] mobile:text-[13px] font-[600] ms-[7px] mobile:m-0 cursor-pointer select-none flex-1 mobile:min-w-0';
+  // the Arabic comma, so the short date does not carry a Latin one
+  const comma = i18next.resolvedLanguage === 'ar' ? '،' : ',';
   const lines = (
     <>
       <div>
         <CalendarIcon />
       </div>
-      <div className="mobile:hidden">
-        {date.format(isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm')}
+      <div className="mobile:hidden" dir={i18next.dir()}>
+        <bdi>
+          {date.format(
+            isUSCitizen() ? 'MM/DD/YYYY hh:mm A' : 'DD/MM/YYYY HH:mm'
+          )}
+        </bdi>
       </div>
-      <div className="hidden mobile:block truncate">
-        {date.format(isUSCitizen() ? 'MMM D, h:mm A' : 'D MMM, HH:mm')}
+      <div className="hidden mobile:block truncate" dir={i18next.dir()}>
+        <bdi>
+          {date.format(
+            isUSCitizen() ? `MMM D${comma} h:mm A` : `D MMM${comma} HH:mm`
+          )}
+        </bdi>
       </div>
     </>
   );

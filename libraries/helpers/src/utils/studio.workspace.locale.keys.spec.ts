@@ -84,7 +84,7 @@ const STRINGS = [
   [
     'workspace_example_1',
     'Iced lemonade on a sunny terrace',
-    'ليموناضة مثلجة على شرفة مشمسة',
+    'ليمونادة مثلجة على شرفة مشمسة',
   ],
   [
     'workspace_example_2',

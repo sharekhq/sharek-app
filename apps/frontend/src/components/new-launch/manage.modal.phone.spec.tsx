@@ -434,7 +434,7 @@ describe('the preview', () => {
   it('stays shown over the editor while an AI tab is open, until Back to the post', async () => {
     const host = await open();
     const column = Array.from(host.querySelectorAll('div')).find((each) =>
-      each.className.split(' ').includes('w-[580px]')
+      each.className.split(' ').includes('[@media(min-width:1026px)]:w-[45%]')
     )!;
     const editorColumn = () =>
       host.querySelector('[data-editor]')!.parentElement!;
@@ -500,6 +500,54 @@ describe('the assistant', () => {
     expect(assistant.className!.split(' ')).toEqual(
       expect.arrayContaining(['mobile:!z-[460]', 'mobile:!bottom-[112px]'])
     );
+  });
+
+  // Over the phone preview the Assistant would cover the post's own end, so it
+  // leaves at 1025px and below only, and is back in the editor (spec 062,
+  // FR-021).
+  it('is hidden at 1025px and below while Post preview is on screen, and back in the editor', async () => {
+    const host = await open();
+    const eye = host.querySelector('button[aria-label="Preview"]');
+
+    expect(assistant.className!.split(' ')).not.toContain('mobile:hidden');
+
+    await press(eye);
+
+    expect(assistant.className!.split(' ')).toContain('mobile:hidden');
+    expect(assistant.className!.split(' ')).not.toContain('hidden');
+
+    await press(eye);
+
+    expect(assistant.className!.split(' ')).not.toContain('mobile:hidden');
+  });
+});
+
+// At 390px with four or more channels the tab row, which scrolls, widened the
+// composer to 416px: a flex item is as wide as its content unless every flex
+// ancestor up to the pane lets it shrink. jsdom cannot measure, so the class
+// chain is the assertion (spec 062, FR-019).
+describe('the channel row', () => {
+  it('every flex ancestor of the channel row has min-w-0', async () => {
+    const host = await open();
+    let node = host.querySelector('button[aria-label="Select Channels"]')!
+      .parentElement!;
+    const chain: HTMLElement[] = [];
+
+    while (!node.className.split(' ').includes('border-e')) {
+      chain.push(node);
+      node = node.parentElement!;
+    }
+
+    expect(chain.length).toBeGreaterThan(2);
+    chain
+      .filter((each) =>
+        each.className.split(' ').some((c) => /^(mobile:)?flex(-col)?$/.test(c))
+      )
+      .forEach((each) => {
+        expect(each.className.split(' ')).toEqual(
+          expect.arrayContaining([expect.stringMatching(/^(mobile:)?min-w-0$/)])
+        );
+      });
   });
 });
 

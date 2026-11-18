@@ -479,7 +479,8 @@ const stage = () =>
   document.querySelector<HTMLElement>(
     '.\\[container-type\\:size\\], .\\[container-type\\:normal\\]'
   );
-const panel = () => document.querySelector<HTMLElement>('.w-\\[360px\\]');
+const panel = () =>
+  document.querySelector<HTMLElement>('[class*="380px,34"]');
 const bar = () => document.querySelector<HTMLElement>('.border-t');
 const mainButton = () => bar()?.querySelector('button');
 const stageVideo = () => stage()?.querySelector('video[controls]');

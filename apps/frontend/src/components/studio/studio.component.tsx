@@ -118,6 +118,7 @@ export const useCreatePost = ():
         closeOnEscape: false,
         withCloseButton: false,
         askClose: true,
+        composerWindow: true,
         fullScreen: true,
         children: (
           <AddEditModal
@@ -296,7 +297,7 @@ const StudioSection: FC<{
     </div>
     {/* Five across at 1440px, auto-fill so a short row keeps its widths; one
         column of rows on a phone (FR-015, research R7). */}
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-[16px] phone:grid-cols-1 phone:gap-[10px]">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[16px] phone:grid-cols-1 phone:gap-[10px]">
       {tools.map((tool) => (
         <StudioCard
           key={tool.entry.id}

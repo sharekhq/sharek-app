@@ -108,7 +108,7 @@ export const FacebookSettings = () => {
                     bg ? { background: bg.background, color: bg.text } : undefined
                   }
                 >
-                  {item.name}
+                  {t('facebook_preset_' + item.id, item.name)}
                 </option>
               );
             })}

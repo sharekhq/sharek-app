@@ -44,7 +44,7 @@ export const buttonClassName = ({
       primary: 'bg-brand text-white',
       secondary: 'bg-quiet text-ink border border-line hover:bg-surface2',
       ghost: 'bg-transparent text-ink hover:bg-boxHover',
-      danger: 'bg-error text-white',
+      danger: 'bg-error text-[color:var(--on-error)]',
       dangerGhost: 'bg-transparent text-error hover:bg-boxHover',
       ai: 'bg-aiSoft text-aiAccent border border-transparent hover:border-aiAccent',
     }[variant],

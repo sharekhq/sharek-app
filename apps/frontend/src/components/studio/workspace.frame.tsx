@@ -77,7 +77,7 @@ const SETTINGS_SCROLL =
 
 /**
  * The one frame every AI tool draws, whatever hosts it. On its Studio page
- * (`page`) the settings sit in a 360px panel on the start side, scrolling on
+ * (`page`) the settings sit in a panel of clamp(380px,34vw,460px) on the start side, scrolling on
  * their own above the action bar, and the stage fills the rest. From 1025px
  * down the window scrolls and the bar is fixed to the foot of the screen; on a
  * phone the page stacks, the stage first.
@@ -177,7 +177,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         <div
           className={clsx(
             CARD_PADDING,
-            'w-[360px] shrink-0 min-h-0 flex flex-col gap-[16px] border-e border-line phone:w-full phone:border-e-0'
+            'w-[clamp(380px,34vw,460px)] shrink-0 min-h-0 flex flex-col gap-[16px] border-e border-line phone:w-full phone:border-e-0'
           )}
         >
           {head}
@@ -196,12 +196,13 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
         <div
           className={clsx(
             CARD_PADDING,
-            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center phone:order-first phone:flex-none',
+            STAGE_BACKGROUND,
+            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center mobile:self-start phone:self-stretch phone:order-first phone:flex-none',
             // A size container is as tall as it is told, so a stage that
             // grows with its result stops being one.
             result
-              ? 'phone:[container-type:normal]'
-              : 'phone:h-[clamp(240px,45dvh,440px)]'
+              ? 'mobile:[container-type:normal] phone:[container-type:normal]'
+              : 'mobile:h-[clamp(240px,45dvh,440px)] phone:h-[clamp(240px,45dvh,440px)]'
           )}
         >
           {stage}
@@ -217,6 +218,7 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
     <div className={clsx('flex-1 min-h-0', SETTINGS_SCROLL, 'pb-0')}>
       <div
         className={clsx(
+          STAGE_BACKGROUND,
           'flex-none flex flex-col items-center justify-center',
           // As on a phone's page: a size container is as tall as it is
           // told, so a stage that grows with its result stops being one.
@@ -247,6 +249,13 @@ export const WORKSPACE_WINDOW = {
   height: 'min(860px, calc(100dvh - 48px))',
   top: 24,
 };
+
+/**
+ * The stage's background: the panel tint under a dot grid of the theme's ink,
+ * so the result reads against it in either theme.
+ */
+export const STAGE_BACKGROUND =
+  'bg-[var(--panel)] [background-image:radial-gradient(color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px)] [background-size:20px_20px]';
 
 /** The credits left, in the action bar. */
 export const CreditsPill: FC<{ count: number }> = ({ count }) => {
@@ -329,7 +338,7 @@ export const StageSample: FC<{
   return (
     <div className={STAGE_PART}>
       <div className={STAGE_ROOM}>
-        <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface2">
+        <div className="relative w-[min(100cqw,calc(100cqh*16/9),640px)] aspect-video overflow-hidden rounded-[12px] bg-surface">
           {cover && !coverFailed ? (
             <img
               src={cover}
@@ -598,7 +607,15 @@ export const StageResult: FC<{
       <div className="flex flex-wrap items-center justify-center gap-[10px]">
         {actions}
       </div>
-      {versions}
+      {/* A row of the strip's own height (52px thumbnails and their 8px
+          padding) is always drawn, so the stage's room, and the picture
+          sized from it, does not change when the second version lands. */}
+      <div
+        data-testid="versions-row"
+        className="h-[68px] shrink-0 flex items-center justify-center"
+      >
+        {versions}
+      </div>
       {below}
     </div>
   );
