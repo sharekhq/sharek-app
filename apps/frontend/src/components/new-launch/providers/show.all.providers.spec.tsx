@@ -44,15 +44,31 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({}));
 // stand-in keeping its latest props, so a case starts a render as the real
 // tool does.
 const mockTools = { props: {} as Record<string, any> };
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImageTool: (props: any) => {
-    mockTools.props.image = props;
-    return null;
-  },
+jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
+  AI_IMAGE_TOOL: 'ai-image',
+  useComposerCatalog: () => ({
+    catalog: {
+      listings: [
+        {
+          state: 'entitled',
+          entry: {
+            id: 'ai-image',
+            post: {
+              kind: 'image',
+              panel: (props: any) => {
+                mockTools.props.image = props;
+                return null;
+              },
+            },
+          },
+        },
+      ],
+    },
+    loading: false,
+  }),
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideoChooser: () => null,
-  useAiVideoTypes: () => ({ data: [], isLoading: false }),
+jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
+  ToolSwitcher: () => null,
 }));
 jest.mock('@gitroom/frontend/components/new-launch/preview.fit', () => ({
   PreviewFit: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -144,7 +160,7 @@ const render = async (
 // The composer: its tabs around the stage, whose Post preview holds the
 // previews.
 const inComposer = (preview: ReturnType<typeof createRef<Preview>>) => (
-  <ComposerTabsProvider>
+  <ComposerTabsProvider defaultTool="ai-image">
     <Probe />
     <ComposerStage previewRef={preview} onClose={jest.fn()} />
   </ComposerTabsProvider>
@@ -155,7 +171,7 @@ const inComposer = (preview: ReturnType<typeof createRef<Preview>>) => (
 // it has posts of its own, else the global one.
 const makingForTheSecondPost = async () => {
   await act(async () => {
-    tabs!.open('image', () => undefined, 1);
+    tabs!.open(() => undefined, 1, undefined, ['image', 'video']);
   });
   await act(async () => {
     mockTools.props.image.setLoading(true);

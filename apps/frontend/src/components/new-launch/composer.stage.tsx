@@ -8,16 +8,21 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
 } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { PENDING_KINDS } from '@gitroom/react/helpers/video.or.image';
+import {
+  PENDING_KINDS,
+  type PendingKind,
+} from '@gitroom/react/helpers/video.or.image';
+import Loading from '@gitroom/frontend/components/layout/loading';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import {
   ComposerTab,
-  ComposerTabKind,
   ComposerTabs,
+  ComposerTarget,
   useComposerStage,
 } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { ShowAllProviders } from '@gitroom/frontend/components/new-launch/providers/show.all.providers';
@@ -32,23 +37,28 @@ import {
   SWITCH_OPTION_IDLE,
   SWITCH_OPTION_ON,
 } from '@gitroom/frontend/components/ui/pick.controls';
-import { AiImageTool } from '@gitroom/frontend/components/launches/ai.image';
 import { onRadioGroupKeyDown } from '@gitroom/frontend/components/launches/channel.panel';
 import {
-  AiVideoChooser,
-  useAiVideoTypes,
-  VideoType,
-} from '@gitroom/frontend/components/launches/ai.video';
+  AI_IMAGE_TOOL,
+  StudioToolEntry,
+  useComposerCatalog,
+} from '@gitroom/frontend/components/studio/studio.tools';
+import { ToolSwitcher } from '@gitroom/frontend/components/studio/tool.switcher';
 import {
   STAGE_BACKGROUND,
   type WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
 
+// Every tool a post can be handed, whatever the row takes: a busy tool keeps
+// its panel when a narrower row opens the tab.
+const EVERY_KIND: PendingKind[] = [...PENDING_KINDS];
+
 /**
  * The composer's right column: the tab strip where the 65px header was, then
- * Post preview and each open AI tab's panel. Every open panel stays mounted,
- * hidden when not shown, so each tool keeps its settings, progress and
- * versions (FR-021). At 1025px and below the strip is hidden and an active
+ * Post preview and the Create with AI tab's panel. The tab hosts one tool at
+ * a time, chosen in its switcher; each tool shown since the tab opened stays
+ * mounted, hidden when not shown, so it keeps its settings, progress and
+ * versions (FR-021). At 1025px and below the strip is hidden and the active
  * AI tab is a layer over the composer, with its own Back and close (FR-026).
  */
 export const ComposerStage: FC<{
@@ -58,13 +68,11 @@ export const ComposerStage: FC<{
   const t = useT();
   const id = useId();
   const stage = useComposerStage();
-  const { data: videoTypes } = useAiVideoTypes();
-  const names: Record<ComposerTabKind, string> = {
-    image: t('studio_tool_ai_image', 'AI image generator'),
-    video: t('video', '{{ai}} Video', { ai: t('ai', 'AI') }),
-  };
-  const tabId = (tab: ComposerTabs['active']) => `${id}-tab-${tab}`;
-  const panelId = (tab: ComposerTabs['active']) => `${id}-panel-${tab}`;
+  const { tab, busy } = stage;
+  const name = t('create_with_ai', 'Create with AI');
+  const tabId = (each: ComposerTabs['active']) => `${id}-tab-${each}`;
+  const panelId = (each: ComposerTabs['active']) => `${id}-panel-${each}`;
+  const on = !!tab?.open && stage.active === 'ai';
 
   return (
     <>
@@ -90,69 +98,61 @@ export const ComposerStage: FC<{
           >
             {t('post_preview', 'Post preview')}
           </button>
-          {PENDING_KINDS.map((kind) => {
-            const tab = stage.tabs[kind];
-            if (!tab) {
-              return null;
-            }
-            const on = stage.active === kind;
+          {tab?.open && (
             // The tab and its close side by side in one option's look: a
             // button can't hold another. A tablist owns only tabs (WAI-ARIA's
             // deletable tabs): Delete closes the tab in focus, which moves to
             // Post preview, then selected; the × is the pointer's alone.
-            return (
-              <div
-                key={kind}
-                className={clsx(
-                  'min-w-0 inline-flex items-center rounded-[6px] transition-colors',
-                  on ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
-                )}
+            <div
+              className={clsx(
+                'min-w-0 inline-flex items-center rounded-[6px] transition-colors',
+                on ? SWITCH_OPTION_ON : SWITCH_OPTION_IDLE
+              )}
+            >
+              <button
+                type="button"
+                role="tab"
+                id={tabId('ai')}
+                aria-controls={panelId('ai')}
+                aria-selected={on}
+                aria-busy={busy.length > 0}
+                aria-keyshortcuts="Delete"
+                tabIndex={on ? 0 : -1}
+                onClick={() => stage.select('ai')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Delete') {
+                    stage.close();
+                    document.getElementById(tabId('preview'))?.focus();
+                  }
+                }}
+                className={clsx(SWITCH_OPTION, 'min-w-0 gap-[6px] pe-[4px]')}
               >
-                <button
-                  type="button"
-                  role="tab"
-                  id={tabId(kind)}
-                  aria-controls={panelId(kind)}
-                  aria-selected={on}
-                  aria-busy={tab.busy}
-                  aria-keyshortcuts="Delete"
-                  tabIndex={on ? 0 : -1}
-                  onClick={() => stage.select(kind)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Delete') {
-                      stage.close(kind);
-                      document.getElementById(tabId('preview'))?.focus();
-                    }
-                  }}
-                  className={clsx(SWITCH_OPTION, 'min-w-0 gap-[6px] pe-[4px]')}
-                >
-                  {tab.busy ? (
-                    <span
-                      aria-hidden="true"
-                      className="flex-none w-[12px] h-[12px] rounded-full border-[1.5px] border-current border-t-transparent motion-safe:animate-spin"
-                    />
-                  ) : (
-                    <span aria-hidden="true" className="text-aiAccent">
-                      ✦
-                    </span>
-                  )}
-                  <span className="truncate">{names[kind]}</span>
-                </button>
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  onClick={() => stage.close(kind)}
-                  aria-label={t('workspace_close_tab', 'Close {{name}}', {
-                    name: names[kind],
-                  })}
-                  className="flex-none w-[22px] h-[22px] coarse:w-[44px] coarse:h-[44px] me-[4px] coarse:me-0 flex justify-center items-center rounded-[4px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  <CloseIcon size={14} />
-                </button>
-              </div>
-            );
-          })}
+                {busy.length > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    className="flex-none w-[12px] h-[12px] rounded-full border-[1.5px] border-current border-t-transparent motion-safe:animate-spin"
+                  />
+                ) : (
+                  <span aria-hidden="true" className="text-aiAccent">
+                    ✦
+                  </span>
+                )}
+                <span className="truncate">{name}</span>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                onClick={() => stage.close()}
+                aria-label={t('workspace_close_tab', 'Close {{name}}', {
+                  name,
+                })}
+                className="flex-none w-[22px] h-[22px] coarse:w-[44px] coarse:h-[44px] me-[4px] coarse:me-0 flex justify-center items-center rounded-[4px] text-muted hover:text-ink focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <CloseIcon size={14} />
+              </button>
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -182,141 +182,68 @@ export const ComposerStage: FC<{
           </PreviewFit>
         </Scrollable>
       </div>
-      {PENDING_KINDS.map((kind) => {
-        const tab = stage.tabs[kind];
-        return (
-          tab && (
-            <AiTabPanel
-              key={kind}
-              kind={kind}
-              tab={tab}
-              name={names[kind]}
-              shown={stage.active === kind}
-              tabId={tabId(kind)}
-              panelId={panelId(kind)}
-              videoTypes={videoTypes || []}
-            />
-          )
-        );
-      })}
+      {tab && (tab.open || busy.length > 0) && (
+        <AiTab
+          tab={tab}
+          name={name}
+          on={on}
+          tabId={tabId('ai')}
+          panelId={panelId('ai')}
+        />
+      )}
     </>
   );
 };
 
-// An AI tab's panel, hosting its tool for the post.
-const AiTabPanel: FC<{
-  kind: ComposerTabKind;
+// The Create with AI tab's panel: the phone header, the tool switcher and one
+// panel for each tool shown since the tab opened or still rendering. It is
+// mounted while the tab is open or a tool is busy, so a render outlives the
+// tab's closing.
+const AiTab: FC<{
   tab: ComposerTab;
   name: string;
-  shown: boolean;
+  on: boolean;
   tabId: string;
   panelId: string;
-  videoTypes: VideoType[];
-}> = ({ kind, tab, name, shown, tabId, panelId, videoTypes }) => {
+}> = ({ tab, name, on, tabId, panelId }) => {
   const t = useT();
-  const {
-    select,
-    close,
-    addPending,
-    removePending,
-    setBusy,
-    composerOpen,
-    rendering,
-  } = useComposerStage();
-  // The tab's latest target and place, kept after it closes: its tool's
-  // render still settles then, and lands through them, never through a newer
-  // tab of its kind (D10). While it renders, the provider moves them with
-  // the post when the editor deletes or moves one (review C7).
-  const latest = useRef(tab);
+  const { select, close, pick, busy } = useComposerStage();
+  const { catalog, loading } = useComposerCatalog(tab.accepts);
+  const { catalog: every } = useComposerCatalog(EVERY_KIND);
+  // The tools shown since the tab last opened: they keep their panel while
+  // the tab is open, and closing it lets the idle ones go.
+  const [visited, setVisited] = useState<string[]>([]);
+
+  // The remembered tool when the row offers it, else the AI image generator,
+  // else the list's first; never written back.
+  const current =
+    catalog.listings.find(({ entry }) => entry.id === tab.tool) ||
+    catalog.listings.find(({ entry }) => entry.id === AI_IMAGE_TOOL) ||
+    catalog.listings[0];
+  const shown = current?.entry.id;
+
   useEffect(() => {
-    latest.current = tab;
-  }, [tab]);
-  // The pending entry of the render under way.
-  const render = useRef<string | undefined>(undefined);
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+    setVisited((each) => {
+      if (!tab.open) {
+        return each.length ? [] : each;
+      }
+      return !shown || each.includes(shown) ? each : [...each, shown];
+    });
+  }, [tab.open, shown]);
 
-  // Only while the panel is mounted: once its tab closed, an open tab of its
-  // kind is a newer one's. It and the two below keep one identity for the
-  // panel's life: the video tool builds its render's handlers on them
-  // (review C9).
-  const closeTab = useCallback(() => {
-    if (mounted.current) {
-      close(kind);
-    }
-  }, [close, kind]);
-
-  // The tool's request: a pending entry where the render was started, for
-  // the previews' placeholder and the composer's lock, until it settles,
-  // whether the tab is still open or not (D10, D14); none once the editor
-  // deleted the tab's post (review C7). A start while one is open replaces
-  // its entry (review C5).
-  const setLoading = useCallback(
-    (loading: boolean) => {
-      if (render.current) {
-        removePending(render.current);
-        rendering.current.delete(latest);
-        render.current = undefined;
-      }
-      const { place } = latest.current;
-      if (loading && place) {
-        render.current = makeId(10);
-        addPending({ id: render.current, kind, place });
-        rendering.current.add(latest);
-      }
-      if (mounted.current) {
-        setBusy(kind, loading);
-      }
-    },
-    [addPending, removePending, setBusy, rendering, kind]
-  );
-
-  // The media row's latest handler while its button is there, which also
-  // puts an image in the text of a row in inline-images mode; once the button
-  // is gone, appended at the post's place through the store, which reads the
-  // latest state (D10); once the composer has closed, in no post: the store
-  // then holds the next composer's (research R1, review C3), nor once the
-  // editor deleted the post (review C7). The tab closes, and the selection
-  // moves to Post preview only if it was on screen.
-  const land = useCallback(
-    (media: { id: string; path: string }) => {
-      const { target, place } = latest.current;
-      const handler = target();
-      if (handler) {
-        handler(media);
-      } else if (composerOpen.current && place) {
-        const store = useLaunchStore.getState();
-        if (place.channel === 'global') {
-          store.appendGlobalValueMedia(place.index, [media]);
-        } else {
-          store.appendInternalValueMedia(place.channel, place.index, [media]);
-        }
-      }
-      closeTab();
-    },
-    [composerOpen, closeTab]
-  );
+  const idle = !tab.open
+    ? []
+    : shown && !visited.includes(shown)
+    ? [...visited, shown]
+    : visited;
+  const mountedIds = [...idle, ...busy.filter((each) => !idle.includes(each))];
 
   // The layer covers the post on a phone: leaving it gives the focus back to
-  // the ✦ button the tab was opened from, while that button is still there.
+  // the Create with AI button the tab was opened from, while it is there.
   const backToOpener = () => {
     if (tab.opener?.isConnected) {
       tab.opener.focus();
     }
-  };
-
-  const tool: WorkspaceToolProps = {
-    layout: 'stacked',
-    destination: 'post',
-    active: shown,
-    onChange: land,
-    onAccept: closeTab,
-    setLoading,
   };
 
   return (
@@ -324,7 +251,7 @@ const AiTabPanel: FC<{
       role="tabpanel"
       id={panelId}
       aria-labelledby={tabId}
-      hidden={!shown}
+      hidden={!on}
       className={clsx(
         'flex-1 relative mobile:fixed mobile:inset-0 mobile:z-[600] mobile:bg-newBgColorInner mobile:[background-image:none]',
         STAGE_BACKGROUND
@@ -349,7 +276,7 @@ const AiTabPanel: FC<{
           <button
             type="button"
             onClick={() => {
-              close(kind);
+              close();
               backToOpener();
             }}
             aria-label={t('workspace_close_tab', 'Close {{name}}', { name })}
@@ -358,16 +285,168 @@ const AiTabPanel: FC<{
             <CloseIcon />
           </button>
         </div>
-        <div className="flex-1 min-h-0 flex flex-col p-[20px] mobile:p-[16px] mobile:pt-0">
-          {kind === 'image' ? (
-            <AiImageTool {...tool} />
+        <div className="flex-1 min-h-0 flex flex-col gap-[16px] p-[20px] mobile:p-[16px] mobile:pt-0">
+          {current ? (
+            <div className="flex-none flex">
+              <ToolSwitcher
+                current={current}
+                catalog={catalog}
+                onPick={pick}
+                busy={busy}
+              />
+            </div>
           ) : (
-            <AiVideoChooser list={videoTypes} {...tool} />
+            loading && (
+              <div className="flex-1 flex justify-center items-center">
+                <Loading
+                  height={20}
+                  width={20}
+                  type="spin"
+                  color="currentColor"
+                />
+              </div>
+            )
           )}
+          {mountedIds.map((toolId) => {
+            const entry = every.listings.find(
+              (listing) => listing.entry.id === toolId
+            )?.entry;
+            return (
+              entry?.post && (
+                <div
+                  key={toolId}
+                  hidden={toolId !== shown}
+                  className={clsx(
+                    toolId === shown && 'flex-1 min-h-0 flex flex-col'
+                  )}
+                >
+                  <AiToolPanel
+                    entry={entry}
+                    tab={tab}
+                    onScreen={on && toolId === shown}
+                    shown={tab.open && toolId === shown}
+                  />
+                </div>
+              )
+            );
+          })}
         </div>
       </div>
     </div>
   );
+};
+
+// One tool's panel in the tab, hosting the tool for the post.
+const AiToolPanel: FC<{
+  entry: StudioToolEntry;
+  tab: ComposerTab;
+  onScreen: boolean;
+  shown: boolean;
+}> = ({ entry, tab, onScreen, shown }) => {
+  const { close, addPending, removePending, setBusy, composerOpen, rendering } =
+    useComposerStage();
+  // The tab's latest target and place while the tool is idle; its own from
+  // the request until it settles, and kept after the tab closes: its
+  // render still lands through them, never through a newer press (D10). While
+  // it renders, the provider moves them with the post when the editor deletes
+  // or moves one (review C7).
+  const latest = useRef<ComposerTarget>({
+    target: tab.target,
+    place: tab.place,
+  });
+  // The pending entry of the render under way.
+  const render = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!render.current) {
+      latest.current = { target: tab.target, place: tab.place };
+    }
+  }, [tab.target, tab.place]);
+  // Read when a result lands or is accepted, which can be long after the
+  // render that made the handlers: they keep one identity for the panel's
+  // life, as the video tool builds its render's handlers on them (review C9).
+  const shownRef = useRef(shown);
+  useEffect(() => {
+    shownRef.current = shown;
+  }, [shown]);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // Only while the panel is mounted and its tool is the tab's shown one:
+  // otherwise the tab is showing another tool, or is closed already.
+  const closeTab = useCallback(() => {
+    if (mounted.current && shownRef.current) {
+      close();
+    }
+  }, [close]);
+
+  // The tool's request: a pending entry where the render was started, for
+  // the previews' placeholder and the composer's lock, until it settles,
+  // whether the tab is still open or not (D10, D14); none once the editor
+  // deleted the tab's post (review C7). A start while one is open replaces
+  // its entry (review C5).
+  const tool = entry.id;
+  const kind = entry.post!.kind;
+  const setLoading = useCallback(
+    (loading: boolean) => {
+      if (render.current) {
+        removePending(render.current);
+        rendering.current.delete(latest);
+        render.current = undefined;
+      }
+      const { place } = latest.current;
+      if (loading && place) {
+        render.current = makeId(10);
+        addPending({ id: render.current, kind, place, tool });
+        rendering.current.add(latest);
+      }
+      if (mounted.current) {
+        setBusy(tool, loading);
+      }
+    },
+    [addPending, removePending, setBusy, rendering, kind, tool]
+  );
+
+  // The media row's latest handler while its button is there, which also
+  // puts an image in the text of a row in inline-images mode; once the button
+  // is gone, appended at the post's place through the store, which reads the
+  // latest state (D10); once the composer has closed, in no post: the store
+  // then holds the next composer's (research R1, review C3), nor once the
+  // editor deleted the post (review C7). The tab closes, and the selection
+  // moves to Post preview, only when this tool is the tab's shown one.
+  const land = useCallback(
+    (media: { id: string; path: string }) => {
+      const { target, place } = latest.current;
+      const handler = target();
+      if (handler) {
+        handler(media);
+      } else if (composerOpen.current && place) {
+        const store = useLaunchStore.getState();
+        if (place.channel === 'global') {
+          store.appendGlobalValueMedia(place.index, [media]);
+        } else {
+          store.appendInternalValueMedia(place.channel, place.index, [media]);
+        }
+      }
+      closeTab();
+    },
+    [composerOpen, closeTab]
+  );
+
+  const props: WorkspaceToolProps = {
+    layout: 'stacked',
+    destination: 'post',
+    active: onScreen,
+    onChange: land,
+    onAccept: closeTab,
+    setLoading,
+  };
+
+  return <>{entry.post!.panel(props)}</>;
 };
 
 const Scrollable: FC<{

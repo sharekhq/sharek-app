@@ -73,7 +73,7 @@ afterEach(() => {
 const render = async (children: ReactNode) => {
   await act(async () => {
     root.render(
-      <ComposerTabsProvider>
+      <ComposerTabsProvider defaultTool={AI_IMAGE_TOOL}>
         <Probe />
         {children}
       </ComposerTabsProvider>

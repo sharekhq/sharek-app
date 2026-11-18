@@ -183,7 +183,10 @@ const render = async (
 ) => {
   await act(async () => {
     root.render(
-      <ComposerTabsProvider onActiveChange={options.onActiveChange}>
+      <ComposerTabsProvider
+        defaultTool={IMAGE}
+        onActiveChange={options.onActiveChange}
+      >
         <Probe />
         <ComposerStage
           previewRef={previewRef}

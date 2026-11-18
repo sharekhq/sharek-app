@@ -60,13 +60,26 @@ jest.mock(
   }
 );
 // The AI tools the composer's tabs host, as in composer.stage.spec.tsx: the
-// real ones bring the media library and its ESM-only uploader.
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImageTool: () => <div data-tool="image" />,
+// catalog's real tools bring the media library and its ESM-only uploader.
+jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
+  AI_IMAGE_TOOL: 'ai-image',
+  useComposerCatalog: () => ({
+    catalog: {
+      listings: [
+        {
+          state: 'entitled',
+          entry: {
+            id: 'ai-image',
+            post: { kind: 'image', panel: () => <div data-tool="image" /> },
+          },
+        },
+      ],
+    },
+    loading: false,
+  }),
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideoChooser: () => <div data-tool="video" />,
-  useAiVideoTypes: () => ({ data: [], isLoading: false }),
+jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
+  ToolSwitcher: () => null,
 }));
 jest.mock('@gitroom/frontend/components/launches/helpers/date.picker', () => ({
   DatePicker: () => <div data-date />,
@@ -435,7 +448,7 @@ describe('the assistant', () => {
   const classes = () => (assistant.className ?? '').split(/\s+/);
   const tabs = () => mockEditor.tabs as ComposerTabs;
 
-  it('is hidden at every width while an AI Image or AI Video tab is on screen', async () => {
+  it('is hidden at every width while the AI tab is on screen', async () => {
     existing = {};
     assistant = {};
     await render();
@@ -443,7 +456,7 @@ describe('the assistant', () => {
     expect(classes()).not.toContain('hidden');
 
     await act(async () => {
-      tabs().open('image', () => undefined, 0);
+      tabs().open(() => undefined, 0, undefined, ['image', 'video']);
     });
 
     expect(classes()).toContain('hidden');
@@ -452,7 +465,7 @@ describe('the assistant', () => {
       tabs().select('preview');
     });
     await act(async () => {
-      tabs().open('video', () => undefined, 0);
+      tabs().open(() => undefined, 0, undefined, ['image', 'video']);
     });
 
     expect(classes()).toContain('hidden');
@@ -463,7 +476,7 @@ describe('the assistant', () => {
     assistant = {};
     const host = await render();
     await act(async () => {
-      tabs().open('image', () => undefined, 0);
+      tabs().open(() => undefined, 0, undefined, ['image', 'video']);
     });
     const preview = Array.from(host.querySelectorAll('[role="tab"]')).find(
       (tab) => tab.textContent === 'Post preview'

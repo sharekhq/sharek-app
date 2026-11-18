@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import clsx from 'clsx';
+import { AI_IMAGE_TOOL } from '@gitroom/frontend/components/studio/studio.tools';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { deriveTranslationKey } from '@gitroom/react/translation/derive-key';
 import { assistantLabels } from '@gitroom/frontend/components/ui/assistant.labels';
@@ -72,10 +73,7 @@ import { useShortlinkPreference } from '@gitroom/frontend/components/settings/sh
 import dayjs from 'dayjs';
 import { Button, buttonClassName } from '@gitroom/react/form/button';
 import { ComposerStage } from '@gitroom/frontend/components/new-launch/composer.stage';
-import {
-  ComposerTabKind,
-  ComposerTabsProvider,
-} from '@gitroom/frontend/components/new-launch/composer.tabs';
+import { ComposerTabsProvider } from '@gitroom/frontend/components/new-launch/composer.tabs';
 
 // The two answers under a question sit side by side, and stack on a phone,
 // where each takes the full width and grows to fit a long channel name.
@@ -95,9 +93,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
   // at 1025px and below the preview takes the editor's place
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   // an AI tab's layer sits in the preview's column, shown while it is active
-  const [stageTab, setStageTab] = useState<'preview' | ComposerTabKind>(
-    'preview'
-  );
+  const [stageTab, setStageTab] = useState<'preview' | 'ai'>('preview');
   // the sheets that hold the rest of the composer at 1025px and below
   const [mobileSheet, setMobileSheet] = useState<
     'channels' | 'settings' | 'tags' | 'repeat' | 'date' | null
@@ -1529,7 +1525,10 @@ After using the addPostFor{num} it will create a new addPostContentFor{num+ 1} f
   );
 
   return (
-    <ComposerTabsProvider onActiveChange={setStageTab}>
+    <ComposerTabsProvider
+      defaultTool={AI_IMAGE_TOOL}
+      onActiveChange={setStageTab}
+    >
       {composer}
     </ComposerTabsProvider>
   );
