@@ -64,6 +64,9 @@ describe('LinkedIn preview action row', () => {
 
     expect(items).toHaveLength(4);
     expect(row.className).toMatch(/\bgap-\[/);
+    // 32px each side left 296px at a 360px preview for four items: the row now pads 8px
+    expect(row.className).toContain('px-[8px]');
+    expect(row.className).not.toContain('px-[32px]');
     items.forEach((item) => {
       expect(item.className).toMatch(/\bgap-\[/);
       expect(item.querySelector('svg')?.getAttribute('class')).toContain(
