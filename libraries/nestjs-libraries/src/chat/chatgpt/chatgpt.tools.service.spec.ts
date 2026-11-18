@@ -35,6 +35,8 @@ jest.mock('nostr-tools', () => ({
   SimplePool: class {},
 }));
 
+import { Logger } from '@nestjs/common';
+import { z } from 'zod';
 import { MCPServer } from '@mastra/mcp';
 import { uploadWidgetHtml } from '@gitroom/nestjs-libraries/chat/ui/upload.widget';
 import {
@@ -506,7 +508,10 @@ describe('the lookup tools', () => {
     ).toEqual([]);
   });
 
-  it('throws when two different declarations share a name', () => {
+  it('leaves both tools out and logs when two different declarations share a name', () => {
+    const logged = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
     class ClashA {
       identifier = 'clash-a';
       @Tool({
@@ -528,9 +533,41 @@ describe('the lookup tools', () => {
     const fixtures = [new ClashA(), new ClashB()] as any[];
     socialIntegrationList.push(...fixtures);
     try {
-      expect(() => build()).toThrow(/clash_lookup/);
+      const names = Object.keys(build());
+
+      expect(names).not.toContain('clash_lookup');
+      expect(names).toContain('list_channels');
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringMatching(/clash_lookup/)
+      );
     } finally {
       socialIntegrationList.splice(-fixtures.length);
+      logged.mockRestore();
+    }
+  });
+
+  it('leaves a tool out and logs when its described path no longer matches', () => {
+    const logged = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    try {
+      const names = Object.keys(
+        service.tools({
+          ...sourceWithTrigger,
+          integrationList: {
+            ...source.integrationList,
+            inputSchema: z.object({}),
+          },
+        })
+      );
+
+      expect(names).not.toContain('list_channels');
+      expect(names).toContain('list_posts');
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringMatching(/list_channels/)
+      );
+    } finally {
+      logged.mockRestore();
     }
   });
 
