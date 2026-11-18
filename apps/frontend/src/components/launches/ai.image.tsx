@@ -950,8 +950,13 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       stage={stage}
       // The result is on the stage; All styles takes its place while open.
       result={!catalogOpen && phase === 'result' && !!version}
+      sample={
+        phase !== 'generating' &&
+        !catalogOpen &&
+        !(phase === 'result' && !!version)
+      }
       actions={
-        <>
+        <div className="flex-1 flex items-center gap-[10px]">
           <CostNote>{cost}</CostNote>
           <div className="flex-1" />
           <GenerateButton
@@ -960,7 +965,7 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
             onClick={generate}
             disabled={overflow}
           />
-        </>
+        </div>
       }
       credits={<CreditsPill count={credits?.credits || 0} />}
       locked={locked}

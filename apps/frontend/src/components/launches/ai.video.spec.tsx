@@ -1257,7 +1257,8 @@ describe('the stage', () => {
     renders();
     await open();
 
-    expect(tokens(stage())).toContain('h-[clamp(240px,45dvh,440px)]');
+    // The sample's stage takes the sample's height (spec 064, T028).
+    expect(tokens(stage())).not.toContain('h-[clamp(240px,45dvh,440px)]');
 
     await pressGenerate();
     await settle();

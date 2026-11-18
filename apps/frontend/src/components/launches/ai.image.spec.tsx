@@ -2124,6 +2124,16 @@ describe("the frame's buttons and boxes", () => {
     );
   });
 
+  it('the cost note and Generate travel as one group in the bar, like the video tools', async () => {
+    await mount(<AiImageWindow value="" onChange={jest.fn()} />);
+    await click(document.querySelector('.bg-aiSoft'));
+
+    const group = button('Generate')?.parentElement;
+    expect(own(group)).toEqual(
+      expect.arrayContaining(['flex-1', 'flex', 'items-center', 'gap-[10px]'])
+    );
+  });
+
   it('draws Use image at the large size', async () => {
     renders(done);
     await generate();
@@ -2964,9 +2974,7 @@ describe('the workspace frame', () => {
       top: 24,
     });
     // The stage first, then the settings, then the bar.
-    expect(stage()?.className.split(' ')).toContain(
-      'h-[clamp(240px,45dvh,440px)]'
-    );
+    expect(stage()?.className.split(' ')).toContain('[container-type:normal]');
     expect(follows(promptField(), stage())).toBe(true);
     expect(follows(bar(), promptField())).toBe(true);
   });
@@ -3314,8 +3322,9 @@ describe('the stage', () => {
     renders(done);
     await openWindow();
 
+    // The sample's stage takes the sample's height (spec 064, T028).
     expect(stage()?.classList.contains('h-[clamp(240px,45dvh,440px)]')).toBe(
-      true
+      false
     );
 
     await type(promptField(), 'a pomegranate on a table');
