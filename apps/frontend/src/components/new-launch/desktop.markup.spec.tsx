@@ -299,7 +299,10 @@ import { HeadingComponent } from '@gitroom/frontend/components/new-launch/headin
 import { AddPostButton } from '@gitroom/frontend/components/new-launch/add.post.button';
 import { PostComment } from '@gitroom/frontend/components/new-launch/providers/post-comment.enum';
 import { SignatureBox } from '@gitroom/frontend/components/signature';
-import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
+import {
+  ComposerTabsProvider,
+  CreateWithAi,
+} from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { buttonClassName } from '@gitroom/react/form/button';
 import { InformationComponent } from '@gitroom/frontend/components/launches/information.component';
 import {
@@ -689,16 +692,33 @@ describe('the tool buttons from 1026px up', () => {
         postComment={PostComment.COMMENT}
       />,
     ],
-    ['AI video', <AiVideo key="v" value="" onChange={jest.fn()} />],
+    [
+      'Create with AI',
+      <ComposerTabsProvider key="v" defaultTool="image">
+        <CreateWithAi
+          onChange={jest.fn()}
+          place={0}
+          accepts={['image', 'video']}
+        />
+      </ComposerTabsProvider>,
+    ],
   ])('%s', async (_name, element) => {
     expect(pin(await render(element))).toMatchSnapshot();
   });
 
-  // FR-026: AI Video is in the AI look at the small size, the one button set's.
-  it('sets AI Video at the small AI look', async () => {
+  // FR-026: Create with AI is in the AI look at the small size.
+  it('sets Create with AI at the small AI look', async () => {
     const video = (
-      await render(<AiVideo value="" onChange={jest.fn()} />)
-    ).querySelector('[aria-label]')!;
+      await render(
+        <ComposerTabsProvider defaultTool="image">
+          <CreateWithAi
+            onChange={jest.fn()}
+            place={0}
+            accepts={['image', 'video']}
+          />
+        </ComposerTabsProvider>
+      )
+    ).querySelector('button')!;
 
     expect(video.className.split(' ')).toEqual(
       expect.arrayContaining(
@@ -709,20 +729,22 @@ describe('the tool buttons from 1026px up', () => {
 
   it('the media strip', async () => {
     const host = await render(
-      <MultiMediaComponent
-        allData={[{ content: '' }]}
-        text=""
-        label="Attachments"
-        description=""
-        value={[shownMedia[0]]}
-        dummy={false}
-        name="image"
-        onChange={jest.fn()}
-        onOpen={jest.fn()}
-        onClose={jest.fn()}
-        toolBar={<i data-slot="toolBar" />}
-        information={<i data-slot="information" />}
-      />
+      <ComposerTabsProvider defaultTool="image">
+        <MultiMediaComponent
+          allData={[{ content: '' }]}
+          text=""
+          label="Attachments"
+          description=""
+          value={[shownMedia[0]]}
+          dummy={false}
+          name="image"
+          onChange={jest.fn()}
+          onOpen={jest.fn()}
+          onClose={jest.fn()}
+          toolBar={<i data-slot="toolBar" />}
+          information={<i data-slot="information" />}
+        />
+      </ComposerTabsProvider>
     );
 
     expect(pin(host)).toMatchSnapshot();
