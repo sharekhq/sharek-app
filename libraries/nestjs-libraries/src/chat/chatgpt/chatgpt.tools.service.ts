@@ -281,7 +281,11 @@ export class ChatgptToolsService {
 
   // The widgets of the ChatGPT connection: the upload widget under its own uri,
   // calling the ChatGPT name of the ticket tool.
-  resources(upload: object, backendUrl: string, adjustable: boolean) {
+  resources<T extends object>(
+    upload: T,
+    backendUrl: string,
+    adjustable: boolean
+  ) {
     return {
       [CHATGPT_UPLOAD_WIDGET_URI]: {
         ...upload,
