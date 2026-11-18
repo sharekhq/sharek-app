@@ -179,6 +179,22 @@ describe('the date picker’s date', () => {
 
     expect(line(host)).toMatch(/12:30 م$/);
   });
+
+  it('the Arabic bottom-bar date reads in one direction with Arabic punctuation', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open('24');
+    const lines = Array.from(host.firstElementChild!.children).slice(1);
+
+    expect(lines).toHaveLength(2);
+    lines.forEach((node) => {
+      expect(node.getAttribute('dir')).toBe('rtl');
+      expect(node.querySelector('bdi')).not.toBeNull();
+    });
+    expect(lines[1].textContent).toContain('،');
+    expect(lines[1].textContent).not.toContain(',');
+  });
 });
 
 // The account's timezone reaches Sharek's own picker: Mantine works in
