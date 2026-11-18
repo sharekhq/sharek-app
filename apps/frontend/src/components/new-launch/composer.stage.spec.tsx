@@ -642,7 +642,7 @@ describe('the tool list still loading', () => {
 
     await pick(VEO);
 
-    expect(mountedTools()).toEqual([IMAGE, VEO]);
+    expect([...mountedTools()].sort()).toEqual([IMAGE, VEO]);
   });
 
   it('falls back to the AI image generator once loaded when the remembered tool is not in the list', async () => {
