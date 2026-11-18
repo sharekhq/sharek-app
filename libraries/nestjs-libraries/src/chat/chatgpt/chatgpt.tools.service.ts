@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import {
@@ -194,6 +194,8 @@ const lookupInputs = (lookup: OfferedLookup) => [
 // own names, descriptions and hints.
 @Injectable()
 export class ChatgptToolsService {
+  private readonly _logger = new Logger(ChatgptToolsService.name);
+
   constructor(
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService
@@ -210,11 +212,13 @@ export class ChatgptToolsService {
 
   // One lookup per name among the offered providers. An inherited lookup is
   // one declaration, so linkedin and linkedin-page share a tool; two different
-  // declarations with one name can't both be served.
+  // declarations with one name can't both be served, so both are left out and
+  // the clash is logged.
   private _offeredLookups(providers: string[]) {
     const all = this._integrationManager.getAllLookups();
     const offered = new Map<string, OfferedLookup>();
     const declarations = new Map<string, any>();
+    const clashing = new Set<string>();
 
     for (const identifier of providers) {
       for (const lookup of all[identifier]) {
@@ -222,7 +226,8 @@ export class ChatgptToolsService {
           declarations.has(lookup.name) &&
           declarations.get(lookup.name) !== lookup
         ) {
-          throw new Error(
+          clashing.add(lookup.name);
+          this._logger.error(
             `Two different lookups are named ${lookup.name}, declared by ${
               offered.get(lookup.name)!.providers[0]
             } and ${identifier}`
@@ -239,7 +244,20 @@ export class ChatgptToolsService {
       }
     }
 
-    return [...offered.values()];
+    return [...offered.values()].filter(({ name }) => !clashing.has(name));
+  }
+
+  // A tool that can't be built is logged and left out, so the rest of the
+  // toolset is still served.
+  private _built(name: string, build: () => any): [string, any][] {
+    try {
+      return [[name, build()]];
+    } catch (error) {
+      this._logger.error(
+        `The ChatGPT tool ${name} is left out: ${(error as Error).message}`
+      );
+      return [];
+    }
   }
 
   tools(source: Record<string, any>) {
@@ -254,13 +272,12 @@ export class ChatgptToolsService {
 
     const core = Object.entries(CHATGPT_TOOLSET)
       .filter(([key]) => source[key] && key !== 'integrationSchema')
-      .map(([key, row]) => {
-        const src = source[key];
-        const rewrite = renamer(names, row.resultRewrites);
+      .flatMap(([key, row]) =>
+        this._built(row.name, () => {
+          const src = source[key];
+          const rewrite = renamer(names, row.resultRewrites);
 
-        return [
-          row.name,
-          createTool({
+          return createTool({
             id: row.name,
             description: row.description,
             inputSchema: withDescriptions(src.inputSchema, row.input),
@@ -271,32 +288,27 @@ export class ChatgptToolsService {
             },
             execute: async (input: any, context: any) =>
               rewriting(rewrite, () => src.execute(input, context)),
-          } as any),
-        ];
-      });
+          } as any);
+        })
+      );
 
     return Object.fromEntries([
       ...core,
       ...(source.integrationSchema
-        ? [
-            [
-              CHATGPT_TOOLSET.integrationSchema.name,
-              this._postingRulesTool(
-                source.integrationSchema,
-                renamer(
-                  names,
-                  CHATGPT_TOOLSET.integrationSchema.resultRewrites
-                ),
-                providers,
-                lookups
-              ),
-            ],
-          ]
+        ? this._built(CHATGPT_TOOLSET.integrationSchema.name, () =>
+            this._postingRulesTool(
+              source.integrationSchema,
+              renamer(names, CHATGPT_TOOLSET.integrationSchema.resultRewrites),
+              providers,
+              lookups
+            )
+          )
         : []),
-      ...lookups.map((lookup) => [
-        lookup.name,
-        this._lookupTool(source.triggerTool, lookup, renamer(names)),
-      ]),
+      ...lookups.flatMap((lookup) =>
+        this._built(lookup.name, () =>
+          this._lookupTool(source.triggerTool, lookup, renamer(names))
+        )
+      ),
     ]);
   }
 
