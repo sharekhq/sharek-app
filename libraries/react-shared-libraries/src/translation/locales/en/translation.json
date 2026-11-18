@@ -1808,6 +1808,8 @@
   "workspace_ready_image": "Your image is ready",
   "workspace_ready_video": "Your video is ready",
   "workspace_open": "Open",
+  "create_with_ai": "Create with AI",
+  "composer_ai_creating": "Creating…",
   "composer_tabs_label": "Post preview and AI tools",
   "composer_leave_note_image": "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready.",
   "composer_leave_note_video": "Keep writing, switch to Post preview or close this tab. The video is added to your post when it's ready.",

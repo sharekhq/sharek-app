@@ -29,7 +29,7 @@ const placeholders = (value: string) =>
     .sort()
     .join(',');
 // Every Arabic mark (tashkeel and the dagger alif) except tanween fath.
-const NON_FATH_MARK = /[ؐ-ٌؚ-ٰٟۖ-ۭ]/;
+const NON_FATH_MARK = /[ؐ-ٌؚ-ٰٟۖ-ۭ]/;
 
 describe('spec 064 words', () => {
   it.each(KEYS)('en has %s with the exact string', (key) => {
