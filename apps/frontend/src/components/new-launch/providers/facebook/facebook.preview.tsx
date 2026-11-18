@@ -136,7 +136,9 @@ export const FacebookPreview: FC<{
         <div className="flex flex-col leading-[18px]">
           <div className="text-[14px] font-[500]">{integration?.name}</div>
           <div className="text-[12px] font-[400] text-[#A3A3A3] flex gap-[4px] items-center">
-            <span>30m •</span>
+            <span>
+              {t('facebook_preview_time_minutes', '{{count}}m', { count: 30 })} •
+            </span>
             <span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -195,9 +197,10 @@ export const FacebookPreview: FC<{
           <div>{t('preview_facebook_comments', '20 Comments')}</div>
         </div>
       </div>
-      <div className="pt-[8px] flex text-[14px] font-[700] px-[32px] justify-between border-t border-borderLinkedin text-textLinkedin">
+      <div className="pt-[8px] flex gap-[8px] text-[14px] font-[700] px-[32px] justify-between border-t border-borderLinkedin text-textLinkedin">
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             width="24"
             height="24"
             viewBox="0 0 24 24"
@@ -213,6 +216,7 @@ export const FacebookPreview: FC<{
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             width="24"
             height="24"
             viewBox="0 0 24 24"
@@ -247,6 +251,7 @@ export const FacebookPreview: FC<{
         </div>
         <div className="flex gap-[4px] items-center">
           <svg
+            className="shrink-0"
             width="24"
             height="24"
             viewBox="0 0 24 24"
@@ -326,7 +331,9 @@ export const FacebookPreview: FC<{
                   </div>
                   <div className="flex font-[400] text-[12px] text-textLinkedin items-center">
                     <div className="flex gap-[16px] flex-1">
-                      <div className="font-[700]">9h</div>
+                      <div className="font-[700]">
+                        {t('facebook_preview_time_hours', '{{count}}h', { count: 9 })}
+                      </div>
                       <div className="font-[700]">{t('label_like', 'Like')}</div>
                       <div className="font-[700]">{t('label_reply', 'Reply')}</div>
                     </div>

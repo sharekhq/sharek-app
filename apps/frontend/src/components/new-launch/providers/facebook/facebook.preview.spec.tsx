@@ -14,8 +14,7 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => {
   const ar = require('../../../../../../../libraries/react-shared-libraries/src/translation/locales/ar/translation.json');
   return {
     useT:
-      () =>
-      (key: string, fallback?: string, options?: { count?: number }) => {
+      () => (key: string, fallback?: string, options?: { count?: number }) => {
         const suffix =
           options?.count === undefined
             ? ''
