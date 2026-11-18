@@ -266,8 +266,8 @@ describe('IntegrationManager.getAllLookups', () => {
   });
 
   it('lists an empty array for providers without lookups', () => {
-    expect(manager.getAllLookups()[socialIntegrationList[0].identifier]).toEqual(
-      []
-    );
+    expect(
+      manager.getAllLookups()[socialIntegrationList[0].identifier]
+    ).toEqual([]);
   });
 });
