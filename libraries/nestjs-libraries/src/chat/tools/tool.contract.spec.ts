@@ -44,8 +44,30 @@ jest.mock('nostr-tools', () => ({
   Relay: class {},
   SimplePool: class {},
 }));
+// The relay service only builds tool definitions here; its collaborators (the
+// OAuth service, the tool loader, the MCP client and the ssrf-safe fetch) run
+// when a self-hosted connection calls a tool, so they are shells.
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service',
+  () => ({ OAuthService: class {} })
+);
+jest.mock('@gitroom/nestjs-libraries/chat/load.tools.service', () => ({
+  LoadToolsService: class {},
+}));
+jest.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
+  Client: class {},
+}));
+jest.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
+  StreamableHTTPClientTransport: class {},
+  StreamableHTTPError: class {},
+}));
+jest.mock(
+  '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher',
+  () => ({ ssrfSafeDispatcher: {} })
+);
 
 import { MCPServer } from '@mastra/mcp';
+import { McpRelayService } from '@gitroom/nestjs-libraries/chat/mcp.relay.service';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 
@@ -110,4 +132,103 @@ describe('the MCP tool contracts', () => {
       annotations: tools[name].mcp?.annotations,
     }).toMatchSnapshot();
   });
+});
+
+// The Claude connector hides these (claudeHiddenTools in start.mcp.ts); its
+// definitions are the full set's, pinned above.
+const claudeHiddenTools = [
+  'generateImageTool',
+  'generateVideoTool',
+  'videoStatusTool',
+  'generateVideoOptions',
+  'videoFunctionTool',
+  'clippingTool',
+  'clippingStatusTool',
+  'clippingWidgetTicketTool',
+];
+
+describe('the Claude connection', () => {
+  it('exposes exactly the pinned tools', () => {
+    expect(
+      Object.keys(tools)
+        .filter((name) => !claudeHiddenTools.includes(name))
+        .sort()
+    ).toEqual([
+      'deletePostTool',
+      'groupList',
+      'integrationList',
+      'integrationSchedulePostTool',
+      'integrationSchema',
+      'mediaListTool',
+      'mediaStatusTool',
+      'postSettingsTool',
+      'postsListTool',
+      'triggerTool',
+      'uploadFromUrlTool',
+      'uploadWidgetStatusTool',
+      'uploadWidgetTicketTool',
+      'uploadWidgetTool',
+    ]);
+  });
+});
+
+// What startMcp passes to McpRelayService.tools: the agent's tools, so not the
+// ui:// widgets (mcpOnly) and not a tool this install has switched off. The
+// pinned storage reports no processor and no clipping.
+const agentTools: Record<string, any> = Object.fromEntries(
+  toolList
+    .map((Tool) => new (Tool as any)(stub, stub, stub) as AgentToolInterface)
+    .filter((instance) => !instance.mcpOnly)
+    .filter((instance) => !instance.available || instance.available())
+    .map((instance) => [instance.name, instance.run()])
+);
+const selfHostedTools: Record<string, any> = new McpRelayService(
+  {} as any,
+  {} as any
+).tools(agentTools);
+const selfHostedServer = new MCPServer({
+  name: 'Sharek MCP',
+  version: '1.0.0',
+  tools: selfHostedTools,
+});
+
+describe('the self-hosted connection', () => {
+  it('exposes exactly the pinned tools', () => {
+    expect(Object.keys(selfHostedTools).sort()).toEqual([
+      'deletePostTool',
+      'generateImageTool',
+      'generateVideoOptions',
+      'generateVideoTool',
+      'groupList',
+      'integrationList',
+      'integrationSchedulePostTool',
+      'integrationSchema',
+      'mediaListTool',
+      'postSettingsTool',
+      'postsListTool',
+      'triggerTool',
+      'uploadFromUrlTool',
+      'videoFunctionTool',
+      'videoStatusTool',
+    ]);
+  });
+
+  it.each(Object.keys(selfHostedTools))(
+    '%s keeps its self-hosted contract',
+    async (name) => {
+      const { tools: listed } = await selfHostedServer.getToolListInfo();
+      const { description, inputSchema, outputSchema, _meta } = listed.find(
+        (tool) => tool.name === name
+      )!;
+
+      expect({
+        name,
+        description,
+        inputSchema,
+        outputSchema,
+        _meta,
+        annotations: selfHostedTools[name].mcp?.annotations,
+      }).toMatchSnapshot();
+    }
+  );
 });
