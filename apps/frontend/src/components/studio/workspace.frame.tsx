@@ -197,12 +197,12 @@ export const WorkspaceFrame: FC<WorkspaceFrameProps> = ({
           className={clsx(
             CARD_PADDING,
             STAGE_BACKGROUND,
-            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center phone:order-first phone:flex-none',
+            'flex-1 min-w-0 [container-type:size] flex flex-col items-center justify-center mobile:self-start phone:self-stretch phone:order-first phone:flex-none',
             // A size container is as tall as it is told, so a stage that
             // grows with its result stops being one.
             result
-              ? 'phone:[container-type:normal]'
-              : 'phone:h-[clamp(240px,45dvh,440px)]'
+              ? 'mobile:[container-type:normal] phone:[container-type:normal]'
+              : 'mobile:h-[clamp(240px,45dvh,440px)] phone:h-[clamp(240px,45dvh,440px)]'
           )}
         >
           {stage}
