@@ -205,7 +205,6 @@ describe('the date picker’s date', () => {
 
     expect(long.querySelector('bdi')!.getAttribute('dir')).toBe('ltr');
   });
-
 });
 
 // The account's timezone reaches Sharek's own picker: Mantine works in
