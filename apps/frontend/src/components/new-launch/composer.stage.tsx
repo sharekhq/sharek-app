@@ -8,15 +8,10 @@ import {
   useEffect,
   useId,
   useRef,
-  useState,
 } from 'react';
 import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import {
-  PENDING_KINDS,
-  type PendingKind,
-} from '@gitroom/react/helpers/video.or.image';
-import Loading from '@gitroom/frontend/components/layout/loading';
+import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import {
@@ -48,10 +43,6 @@ import {
   STAGE_BACKGROUND,
   type WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
-
-// Every tool a post can be handed, whatever the row takes: a busy tool keeps
-// its panel when a narrower row opens the tab.
-const EVERY_KIND: PendingKind[] = [...PENDING_KINDS];
 
 /**
  * The composer's right column: the tab strip where the 65px header was, then
@@ -208,34 +199,31 @@ const AiTab: FC<{
 }> = ({ tab, name, on, tabId, panelId }) => {
   const t = useT();
   const { select, close, pick, busy } = useComposerStage();
-  const { catalog, loading } = useComposerCatalog(tab.accepts);
-  const { catalog: every } = useComposerCatalog(EVERY_KIND);
-  // The tools shown since the tab last opened: they keep their panel while
-  // the tab is open, and closing it lets the idle ones go.
-  const [visited, setVisited] = useState<string[]>([]);
+  // Every tool a post can be handed, whatever the row takes, is `every`: a
+  // busy tool keeps its panel when a narrower row opens the tab.
+  const { catalog, every, loading } = useComposerCatalog(tab.accepts);
 
-  // The remembered tool when the row offers it, else the AI image generator,
-  // else the list's first; never written back.
+  // The remembered tool when the row offers it; while the list loads it may
+  // not be listed yet, so none shows; once loaded, else the AI image
+  // generator, else the list's first. Never written back.
   const current =
     catalog.listings.find(({ entry }) => entry.id === tab.tool) ||
-    catalog.listings.find(({ entry }) => entry.id === AI_IMAGE_TOOL) ||
-    catalog.listings[0];
+    (loading
+      ? undefined
+      : catalog.listings.find(({ entry }) => entry.id === AI_IMAGE_TOOL) ||
+        catalog.listings[0]);
   const shown = current?.entry.id;
 
-  useEffect(() => {
-    setVisited((each) => {
-      if (!tab.open) {
-        return each.length ? [] : each;
-      }
-      return !shown || each.includes(shown) ? each : [...each, shown];
-    });
-  }, [tab.open, shown]);
-
-  const idle = !tab.open
-    ? []
-    : shown && !visited.includes(shown)
-    ? [...visited, shown]
-    : visited;
+  // The tools shown since the tab opened keep their panel while it is open,
+  // and closing it lets the idle ones go; a busy tool keeps its own.
+  const idle = tab.open
+    ? [
+        ...tab.visited.filter((each) =>
+          every.listings.some((listing) => listing.entry.id === each)
+        ),
+        ...(shown && !tab.visited.includes(shown) ? [shown] : []),
+      ]
+    : [];
   const mountedIds = [...idle, ...busy.filter((each) => !idle.includes(each))];
 
   // The layer covers the post on a phone: leaving it gives the focus back to
@@ -296,16 +284,7 @@ const AiTab: FC<{
               />
             </div>
           ) : (
-            loading && (
-              <div className="flex-1 flex justify-center items-center">
-                <Loading
-                  height={20}
-                  width={20}
-                  type="spin"
-                  color="currentColor"
-                />
-              </div>
-            )
+            loading && <LoadingComponent />
           )}
           {mountedIds.map((toolId) => {
             const entry = every.listings.find(
@@ -356,18 +335,26 @@ const AiToolPanel: FC<{
   });
   // The pending entry of the render under way.
   const render = useRef<string | undefined>(undefined);
+  // The tab's target and place now, which the row takes again when its render
+  // settles with the tool on screen, its result held for review: the row
+  // pressed last, not the one the render started for. A result nobody is
+  // there to review lands at once through the render's own row.
+  const tabNow = useRef<ComposerTarget>(latest.current);
   useEffect(() => {
+    tabNow.current = { target: tab.target, place: tab.place };
     if (!render.current) {
-      latest.current = { target: tab.target, place: tab.place };
+      latest.current = tabNow.current;
     }
   }, [tab.target, tab.place]);
   // Read when a result lands or is accepted, which can be long after the
   // render that made the handlers: they keep one identity for the panel's
   // life, as the video tool builds its render's handlers on them (review C9).
   const shownRef = useRef(shown);
+  const onScreenRef = useRef(onScreen);
   useEffect(() => {
     shownRef.current = shown;
-  }, [shown]);
+    onScreenRef.current = onScreen;
+  }, [shown, onScreen]);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -401,12 +388,13 @@ const AiToolPanel: FC<{
       const { place } = latest.current;
       if (loading && place) {
         render.current = makeId(10);
-        addPending({ id: render.current, kind, place, tool });
+        addPending({ id: render.current, kind, place });
         rendering.current.add(latest);
       }
-      if (mounted.current) {
-        setBusy(tool, loading);
+      if (!loading && onScreenRef.current) {
+        latest.current = tabNow.current;
       }
+      setBusy(tool, loading);
     },
     [addPending, removePending, setBusy, rendering, kind, tool]
   );
@@ -446,8 +434,15 @@ const AiToolPanel: FC<{
     setLoading,
   };
 
-  return <>{entry.post!.panel(props)}</>;
+  return <ToolPanel entry={entry} props={props} />;
 };
+
+// The tool's own panel for the post: its element type is the tool's, kept
+// across renders.
+const ToolPanel: FC<{ entry: StudioToolEntry; props: WorkspaceToolProps }> = ({
+  entry,
+  props,
+}) => entry.post!.panel(props);
 
 const Scrollable: FC<{
   className: string;

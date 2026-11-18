@@ -62,8 +62,11 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
   return {
     AI_IMAGE_TOOL: 'ai-image',
     useComposerCatalog: (accepts: string[]) => {
+      // Still loading, the video types aren't listed yet.
       const listed = listings.filter(
-        ({ entry }) => !mockTools.dropped.includes(entry.id)
+        ({ entry }) =>
+          !mockTools.dropped.includes(entry.id) &&
+          !(mockTools.loading && entry.post.kind === 'video')
       );
       return {
         catalog: {
@@ -869,12 +872,7 @@ describe('a result', () => {
     await pick(VEO);
     await loading(VEO, true);
 
-    expect(
-      tabs!.pending.map((entry) => [entry.tool, entry.place.index])
-    ).toEqual([
-      [IMAGE, 0],
-      [VEO, 1],
-    ]);
+    expect(tabs!.pending.map((entry) => entry.place.index)).toEqual([0, 1]);
     expect(busyIds()).toEqual([IMAGE, VEO]);
 
     await lands(IMAGE);
@@ -920,9 +918,7 @@ describe('a result', () => {
     expect(listed()).toEqual([IMAGE]);
     expect(onScreen()).toEqual([IMAGE]);
     expect(mountedTools()).toContain(VEO);
-    expect(tabs!.pending.map((entry) => [entry.tool, entry.place])).toEqual([
-      [VEO, first],
-    ]);
+    expect(tabs!.pending.map((entry) => entry.place)).toEqual([first]);
 
     await lands(VEO);
     expect(video).toHaveBeenCalledWith(media);
@@ -1093,12 +1089,7 @@ describe('a post deleted or moved while its result is made', () => {
     });
     await loading(VEO, true);
 
-    expect(
-      tabs!.pending.map((entry) => [entry.tool, entry.place.index])
-    ).toEqual([
-      [IMAGE, 0],
-      [VEO, 1],
-    ]);
+    expect(tabs!.pending.map((entry) => entry.place.index)).toEqual([0, 1]);
 
     await lands(IMAGE);
     expect(posted()).toEqual([['m-1'], [], []]);
@@ -1119,12 +1110,7 @@ describe('a post deleted or moved while its result is made', () => {
     });
     await loading(VEO, true);
 
-    expect(
-      tabs!.pending.map((entry) => [entry.tool, entry.place.index])
-    ).toEqual([
-      [IMAGE, 2],
-      [VEO, 0],
-    ]);
+    expect(tabs!.pending.map((entry) => entry.place.index)).toEqual([2, 0]);
   });
 
   it('follows its post to the index after when a post is added before it, and lands there through the store, not the old row’s handler', async () => {

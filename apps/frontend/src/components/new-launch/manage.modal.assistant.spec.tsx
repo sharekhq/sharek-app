@@ -52,8 +52,8 @@ jest.mock('@gitroom/frontend/components/new-launch/editor', () => ({
 // catalog's real tools bring the media library and its ESM-only uploader.
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
   AI_IMAGE_TOOL: 'ai-image',
-  useComposerCatalog: () => ({
-    catalog: {
+  useComposerCatalog: () => {
+    const catalog = {
       listings: [
         {
           state: 'entitled',
@@ -63,9 +63,9 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
           },
         },
       ],
-    },
-    loading: false,
-  }),
+    };
+    return { catalog, every: catalog, loading: false };
+  },
 }));
 jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
   ToolSwitcher: () => null,
@@ -108,12 +108,18 @@ jest.mock(
 jest.mock('@gitroom/frontend/components/launches/select.customer', () => ({
   SelectCustomer: () => null,
 }));
-jest.mock('@gitroom/frontend/components/new-launch/dummy.code.component', () => ({
-  DummyCodeComponent: () => null,
-}));
-jest.mock('@gitroom/frontend/components/launches/creation.method.badge', () => ({
-  CreationMethodBadge: () => null,
-}));
+jest.mock(
+  '@gitroom/frontend/components/new-launch/dummy.code.component',
+  () => ({
+    DummyCodeComponent: () => null,
+  })
+);
+jest.mock(
+  '@gitroom/frontend/components/launches/creation.method.badge',
+  () => ({
+    CreationMethodBadge: () => null,
+  })
+);
 // The settings sheet reads the providers' settings through their module,
 // which brings the channel previews; scenery, as in
 // high.order.provider.spec.tsx.
@@ -192,7 +198,11 @@ describe("the composer's assistant labels", () => {
   it('leaves none of the ten to the vendor', () => {
     const labels = render();
 
-    for (const label of ['title', 'initial', ...Object.keys(ASSISTANT_LABELS)]) {
+    for (const label of [
+      'title',
+      'initial',
+      ...Object.keys(ASSISTANT_LABELS),
+    ]) {
       expect(typeof labels[label]).toBe('string');
     }
   });

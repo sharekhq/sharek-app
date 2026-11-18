@@ -46,8 +46,8 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({}));
 const mockTools = { props: {} as Record<string, any> };
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
   AI_IMAGE_TOOL: 'ai-image',
-  useComposerCatalog: () => ({
-    catalog: {
+  useComposerCatalog: () => {
+    const catalog = {
       listings: [
         {
           state: 'entitled',
@@ -63,9 +63,9 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
           },
         },
       ],
-    },
-    loading: false,
-  }),
+    };
+    return { catalog, every: catalog, loading: false };
+  },
 }));
 jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
   ToolSwitcher: () => null,

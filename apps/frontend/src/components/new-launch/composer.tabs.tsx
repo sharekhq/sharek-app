@@ -43,6 +43,8 @@ export interface ComposerTab extends ComposerTarget {
   open: boolean;
   /** The catalog id of the tool the member wants on screen. */
   tool: string;
+  /** The tools shown since the tab opened, which keep their panel while it is open. */
+  visited: string[];
   /** What the row that opened the tab takes. */
   accepts: PendingKind[];
   /** The ✦ button last pressed for the tab, which the phone layer's Back and close give the focus back to (FR-026). */
@@ -53,8 +55,6 @@ export interface PendingMedia {
   id: string;
   kind: PendingKind;
   place: PreviewPlace;
-  /** The catalog id of the tool rendering it. */
-  tool: string;
 }
 
 export interface ComposerTabs {
@@ -155,26 +155,41 @@ export const ComposerTabsProvider: FC<{
           : 'global',
         index,
       };
-      setTab((current) => ({
-        target,
-        place,
-        opener,
-        accepts,
-        open: true,
-        tool: current?.open ? current.tool : rememberedTool() || defaultTool,
-      }));
+      setTab((current) => {
+        const tool = current?.open
+          ? current.tool
+          : rememberedTool() || defaultTool;
+        return {
+          target,
+          place,
+          opener,
+          accepts,
+          open: true,
+          tool,
+          visited: current?.open ? current.visited : [tool],
+        };
+      });
       setActive('ai');
     },
     [defaultTool]
   );
 
   const pick = useCallback((tool: string) => {
-    setTab((current) => current && { ...current, tool });
+    setTab(
+      (current) =>
+        current && {
+          ...current,
+          tool,
+          visited: current.visited.includes(tool)
+            ? current.visited
+            : [...current.visited, tool],
+        }
+    );
     rememberTool(tool);
   }, []);
 
   const close = useCallback(() => {
-    setTab((current) => current && { ...current, open: false });
+    setTab((current) => current && { ...current, open: false, visited: [] });
     setActive((current) => (current === 'ai' ? 'preview' : current));
   }, []);
 

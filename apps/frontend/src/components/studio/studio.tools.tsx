@@ -21,7 +21,10 @@ import {
 import { matchesSearch } from '@gitroom/frontend/components/launches/channel.panel';
 import { videoTypeCard } from '@gitroom/frontend/components/videos/video.render.component';
 import type { StudioMaker } from '@gitroom/frontend/components/videos/video.wrapper';
-import type { PendingKind } from '@gitroom/react/helpers/video.or.image';
+import {
+  PENDING_KINDS,
+  type PendingKind,
+} from '@gitroom/react/helpers/video.or.image';
 import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
 
 const Polonto = dynamic(
@@ -482,14 +485,21 @@ export const useStudioCatalog = (): {
   return { catalog, loading: isLoading };
 };
 
-/** The Studio catalog narrowed to what a post accepts; loading as Studio's. */
+/**
+ * The Studio catalog narrowed to what a post accepts, and to every tool a
+ * post can be handed whatever the row takes; loading as Studio's.
+ */
 export const useComposerCatalog = (
   accepts: PendingKind[]
-): { catalog: StudioCatalog; loading: boolean } => {
+): { catalog: StudioCatalog; every: StudioCatalog; loading: boolean } => {
   const { catalog, loading } = useStudioCatalog();
   const narrowed = useMemo(
     () => inPostCatalog(catalog, accepts),
     [catalog, accepts]
   );
-  return { catalog: narrowed, loading };
+  const every = useMemo(
+    () => inPostCatalog(catalog, [...PENDING_KINDS]),
+    [catalog]
+  );
+  return { catalog: narrowed, every, loading };
 };
