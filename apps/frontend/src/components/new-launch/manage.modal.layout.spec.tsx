@@ -427,7 +427,7 @@ describe('the assistant', () => {
   });
 });
 
-// On a wide screen the preview column draws each post at a phone's 360px,
+// On a wide screen the preview column draws each post at a phone's 420px,
 // scaled to the column inside its scroll box (FR-028), and the composer's
 // ref still reaches the preview itself, which mounts once (FR-032).
 describe('the preview column', () => {
@@ -450,7 +450,7 @@ describe('the preview column', () => {
     window.matchMedia = realMatchMedia;
   });
 
-  it('draws the preview at 360px inside the scroll box', async () => {
+  it('draws the preview at 420px inside the scroll box', async () => {
     const host = await render();
     const content = host.querySelector('[data-show-all]')!
       .parentElement as HTMLElement;
@@ -461,7 +461,7 @@ describe('the preview column', () => {
     });
     await measure();
 
-    expect(content.style.width).toBe('360px');
+    expect(content.style.width).toBe('420px');
     expect(room.parentElement!.classList.contains('overflow-y-auto')).toBe(
       true
     );

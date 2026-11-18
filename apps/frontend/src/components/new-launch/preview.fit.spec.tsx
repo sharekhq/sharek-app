@@ -155,18 +155,18 @@ const expectInFlow = (boxes: HTMLElement[]) =>
   });
 
 describe('fitScale', () => {
-  it('draws at a phone width of 360px and scales no lower than 0.7', () => {
-    expect(PREVIEW_PHONE_WIDTH).toBe(360);
-    expect(PREVIEW_MIN_SCALE).toBe(0.7);
+  it('draws at a phone width of 420px and scales no lower than 0.9', () => {
+    expect(PREVIEW_PHONE_WIDTH).toBe(420);
+    expect(PREVIEW_MIN_SCALE).toBe(0.9);
   });
 
   it.each([
     // part 1's room at 1440×900: the post fits as it is
     [631, 620, 1],
-    // part 1's room at 1280×720
-    [451, 620, 0.7274],
+    // a room just under the post's height
+    [580, 620, 0.9355],
     // below the floor the post keeps 0.7 and the column scrolls
-    [300, 620, 0.7],
+    [300, 620, 0.9],
     // a hidden column, or the first paint before anything is measured
     [0, 620, 1],
     [500, 0, 1],
@@ -176,14 +176,14 @@ describe('fitScale', () => {
 });
 
 describe('PreviewFit', () => {
-  it('draws the post at 360px and scales it to the room', async () => {
+  it('draws the post at 420px and scales it to the room', async () => {
     const { content, sizer, room } = await render();
-    await resizeTo(451, 620);
+    await resizeTo(580, 620);
 
     expect(watched()).toEqual(new Set([room, content]));
-    expect(content.style.width).toBe('360px');
-    expect(content.style.minHeight).toBe('451px');
-    expect(scaleOf(content)).toBeCloseTo(451 / 620, 6);
+    expect(content.style.width).toBe('420px');
+    expect(content.style.minHeight).toBe('580px');
+    expect(scaleOf(content)).toBeCloseTo(580 / 620, 6);
     [
       'absolute',
       'top-0',
@@ -194,18 +194,18 @@ describe('PreviewFit', () => {
     expect(sizer.classList.contains('relative')).toBe(true);
     expect(sizer.classList.contains('mx-auto')).toBe(true);
     expect(sizer.style.width).toMatch(/px$/);
-    expect(parseFloat(sizer.style.width)).toBeCloseTo(261.9, 1);
+    expect(parseFloat(sizer.style.width)).toBeCloseTo(392.9, 1);
     expect(sizer.style.height).toMatch(/px$/);
-    expect(parseFloat(sizer.style.height)).toBeCloseTo(451, 3);
+    expect(parseFloat(sizer.style.height)).toBeCloseTo(580, 3);
   });
 
-  it('keeps 0.7 below the floor, the sizer taller than the room', async () => {
+  it('keeps 0.9 below the floor, the sizer taller than the room', async () => {
     const { content, sizer } = await render();
     await resizeTo(300, 620);
 
-    expect(scaleOf(content)).toBeCloseTo(0.7, 6);
+    expect(scaleOf(content)).toBeCloseTo(0.9, 6);
     expect(content.style.minHeight).toBe('300px');
-    expect(parseFloat(sizer.style.height)).toBeCloseTo(434, 3);
+    expect(parseFloat(sizer.style.height)).toBeCloseTo(558, 3);
     expect(parseFloat(sizer.style.height)).toBeGreaterThan(300);
   });
 
