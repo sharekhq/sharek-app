@@ -205,6 +205,19 @@ describe('the date picker’s date', () => {
 
     expect(long.querySelector('bdi')!.getAttribute('dir')).toBe('ltr');
   });
+
+  it('the Arabic panel uses the Arabic comma and reads the time hour then minute', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open('24');
+    const text = host.textContent!;
+
+    expect(text).not.toMatch(/\p{Script=Arabic}, /u);
+    expect(text).not.toMatch(/\p{Script=Arabic},\s*\d/u);
+    const hour = host.querySelector('input')!;
+    expect(hour.closest('[dir="ltr"]')).not.toBeNull();
+  });
 });
 
 // The account's timezone reaches Sharek's own picker: Mantine works in
