@@ -1,7 +1,17 @@
-import { act, createRef, ReactNode } from 'react';
+import {
+  act,
+  ComponentProps,
+  createRef,
+  ReactNode,
+  Ref,
+  useEffect,
+} from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
+import type { ToolSwitcher } from '@gitroom/frontend/components/studio/tool.switcher';
+import type { Integrations } from '@gitroom/frontend/components/launches/calendar.context';
 
 // The composer's right side (spec 064, the one AI tab; plan D3, D4): a tab
 // strip with Post preview and, while a Create with AI button has opened it,
@@ -27,30 +37,33 @@ jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
 // would, also while it is hidden. The narrowing is the catalog's own: the
 // tools whose kind the row accepts.
 const mockTools = {
-  props: {} as Record<string, any>,
+  props: {} as Record<string, WorkspaceToolProps>,
   mounts: {} as Record<string, number>,
   loading: false,
   dropped: [] as string[],
 };
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
-  const { useEffect } = require('react');
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  const Panel = ({ id, props }: { id: string; props: WorkspaceToolProps }) => {
+    useEffect(() => {
+      mockTools.props[id] = props;
+    });
+    useEffect(() => {
+      mockTools.mounts[id] = (mockTools.mounts[id] || 0) + 1;
+    }, [id]);
+    return (
+      <div data-tool={id}>
+        <input data-typed={id} />
+      </div>
+    );
+  };
   const listing = (id: string, kind: 'image' | 'video') => ({
     state: 'entitled',
     entry: {
       id,
       post: {
         kind,
-        panel: (props: any) => {
-          mockTools.props[id] = props;
-          useEffect(() => {
-            mockTools.mounts[id] = (mockTools.mounts[id] || 0) + 1;
-          }, []);
-          return (
-            <div data-tool={id}>
-              <input data-typed={id} />
-            </div>
-          );
-        },
+        panel: (props: WorkspaceToolProps) => <Panel id={id} props={props} />,
       },
     },
   });
@@ -83,17 +96,22 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => {
 // The tool switcher: a button per listed tool calling onPick, with the shown
 // tool and the busy ids on its element.
 jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
-  ToolSwitcher: ({ current, catalog, onPick, busy }: any) => (
+  ToolSwitcher: ({
+    current,
+    catalog,
+    onPick,
+    busy,
+  }: ComponentProps<typeof ToolSwitcher>) => (
     <div
       data-switcher
       data-current={current.entry.id}
       data-busy={(busy || []).join(',')}
     >
-      {catalog.listings.map(({ entry }: any) => (
+      {catalog.listings.map(({ entry }) => (
         <button
           key={entry.id}
           data-pick={entry.id}
-          onClick={() => onPick(entry.id)}
+          onClick={() => onPick?.(entry.id)}
         />
       ))}
     </div>
@@ -113,10 +131,16 @@ const mockPreview = { refs: [] as unknown[] };
 jest.mock(
   '@gitroom/frontend/components/new-launch/providers/show.all.providers',
   () => {
-    const { forwardRef } = require('react');
+    const { forwardRef, useEffect } =
+      jest.requireActual<typeof import('react')>('react');
     return {
-      ShowAllProviders: forwardRef((_props: any, ref: any) => {
-        mockPreview.refs.push(ref);
+      ShowAllProviders: forwardRef(function ShowAllProviders(
+        _props: unknown,
+        ref: Ref<unknown>
+      ) {
+        useEffect(() => {
+          mockPreview.refs.push(ref);
+        });
         return <div data-show-all />;
       }),
     };
@@ -156,7 +180,10 @@ const second: PreviewPlace = { channel: 'int-1', index: 1 };
 // What a trigger reads through the context, from a child of the provider.
 let tabs: ComposerTabs | null;
 const Probe = (): null => {
-  tabs = useComposerTabs();
+  const context = useComposerTabs();
+  useEffect(() => {
+    tabs = context;
+  });
   return null;
 };
 
@@ -272,7 +299,7 @@ const composing = (current: string, own: string[] = [current]) => {
   useLaunchStore.setState({
     current,
     internal: own.map((id) => ({
-      integration: { id } as any,
+      integration: { id } as Integrations,
       integrationValue: [],
     })),
   });
@@ -961,8 +988,14 @@ describe('a result', () => {
     useLaunchStore.setState({
       current: 'int-1',
       internal: [
-        { integration: { id: 'int-1' } as any, integrationValue: value() },
-        { integration: { id: 'int-2' } as any, integrationValue: value() },
+        {
+          integration: { id: 'int-1' } as Integrations,
+          integrationValue: value(),
+        },
+        {
+          integration: { id: 'int-2' } as Integrations,
+          integrationValue: value(),
+        },
       ],
     });
     await render();

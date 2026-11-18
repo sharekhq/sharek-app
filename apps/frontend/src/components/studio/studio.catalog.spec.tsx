@@ -242,7 +242,7 @@ const page = (
     locked: false,
     onReady: jest.fn(),
   }
-) => entry?.workspace?.(props) as ReactElement<Record<string, any>>;
+) => entry?.workspace?.(props) as ReactElement<Record<string, jest.Mock>>;
 
 // A listing in Branding, which nothing fills today, so the chips' fixed order
 // can be seen whole.
@@ -604,7 +604,7 @@ describe('pages and windows', () => {
     const windowed = listing(built, 'video:Bad:Id')?.trigger?.({
       onSaved,
       renderTrigger,
-    }) as ReactElement<Record<string, any>>;
+    }) as ReactElement<Record<string, jest.Mock>>;
     expect(windowed.type).toBe(AiVideo);
     expect(windowed.props).toMatchObject({
       destination: 'media',
@@ -937,7 +937,7 @@ describe('what reaches a post', () => {
   } as unknown as Parameters<NonNullable<StudioToolEntry['post']>['panel']>[0];
 
   const panel = (entry: StudioToolEntry | undefined) =>
-    entry?.post?.panel(toolProps) as ReactElement<Record<string, any>>;
+    entry?.post?.panel(toolProps) as ReactElement<Record<string, jest.Mock>>;
 
   const postEntry = (id: string, kind: 'image' | 'video'): StudioToolEntry => ({
     id,

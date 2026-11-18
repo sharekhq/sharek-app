@@ -1,4 +1,4 @@
-import { act, ReactNode } from 'react';
+import { act, ReactNode, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 // The one AI button and the one AI tab's state (spec 064, plan D3, D5, D6):
@@ -26,25 +26,27 @@ jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
   useAiVideoTypes: () => ({ data: [], isLoading: false }),
 }));
 
+import type { PendingKind } from '@gitroom/react/helpers/video.or.image';
 import { buttonClassName } from '@gitroom/react/form/button';
 import { AI_IMAGE_TOOL } from '@gitroom/frontend/components/studio/studio.tools';
 import {
   ComposerTabs,
   ComposerTabsProvider,
   CreateWithAi,
-  PreviewPlace,
   useComposerTabs,
 } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 
 const KEY = 'composerAiTool';
 const media = { id: 'm-1', path: 'https://media/m-1.png' };
-const place: PreviewPlace = { channel: 'global', index: 0 };
-const accepts = ['image', 'video'] as any;
+const accepts: PendingKind[] = ['image', 'video'];
 
 let tabs: ComposerTabs | null;
 const Probe = (): null => {
-  tabs = useComposerTabs();
+  const context = useComposerTabs();
+  useEffect(() => {
+    tabs = context;
+  });
   return null;
 };
 
@@ -90,7 +92,7 @@ const openTab = async (
   target: () => ((m: typeof media) => void) | undefined = () => undefined
 ) => {
   await act(async () => {
-    (tabs as any).open(target, 0, undefined, accepts);
+    tabs!.open(target, 0, undefined, accepts);
   });
 };
 

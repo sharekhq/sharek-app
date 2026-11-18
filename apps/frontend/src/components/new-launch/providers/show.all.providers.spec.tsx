@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import { act, createRef, ReactNode } from 'react';
+import { act, createRef, ReactNode, useEffect } from 'react';
+import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
 import { createRoot, Root } from 'react-dom/client';
 
 // The composer's previews (spec 061, tasks D10): while an AI tab makes a
@@ -43,7 +44,7 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({}));
 // The AI tools the composer's tabs host, as in composer.stage.spec.tsx: a
 // stand-in keeping its latest props, so a case starts a render as the real
 // tool does.
-const mockTools = { props: {} as Record<string, any> };
+const mockTools = { props: {} as Record<string, WorkspaceToolProps> };
 jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
   AI_IMAGE_TOOL: 'ai-image',
   useComposerCatalog: () => {
@@ -55,7 +56,7 @@ jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
             id: 'ai-image',
             post: {
               kind: 'image',
-              panel: (props: any) => {
+              panel: (props: WorkspaceToolProps) => {
                 mockTools.props.image = props;
                 return null;
               },
@@ -117,7 +118,10 @@ const shown = (values: typeof posts) =>
 // What a trigger reads through the context, from a child of the provider.
 let tabs: ComposerTabs | null;
 const Probe = (): null => {
-  tabs = useComposerTabs();
+  const context = useComposerTabs();
+  useEffect(() => {
+    tabs = context;
+  });
   return null;
 };
 

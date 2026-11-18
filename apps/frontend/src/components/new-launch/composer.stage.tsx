@@ -339,7 +339,10 @@ const AiToolPanel: FC<{
   // settles with the tool on screen, its result held for review: the row
   // pressed last, not the one the render started for. A result nobody is
   // there to review lands at once through the render's own row.
-  const tabNow = useRef<ComposerTarget>(latest.current);
+  const tabNow = useRef<ComposerTarget>({
+    target: tab.target,
+    place: tab.place,
+  });
   useEffect(() => {
     tabNow.current = { target: tab.target, place: tab.place };
     if (!render.current) {
