@@ -173,7 +173,7 @@ describe('Part 2: the workspace', () => {
     await assertEmits(
       {
         // the settings panel, on the start side of the page layout
-        'w-[clamp(380px,34%,460px)]': [['width', 'clamp(380px, 34%, 460px)']],
+        'w-[clamp(380px,34vw,460px)]': [['width', 'clamp(380px,34vw,460px)']],
         'border-e': [['border-inline-end-width', '1px']],
         // the stage, first in the stacked layout
         'h-[clamp(240px,45dvh,440px)]': [

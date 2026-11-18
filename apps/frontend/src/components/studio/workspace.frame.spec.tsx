@@ -110,13 +110,13 @@ afterEach(() => {
 });
 
 describe('the page layout', () => {
-  it('the panel is clamp(380px,34%,460px) and full width on a phone', async () => {
+  it('the panel is clamp(380px,34vw,460px) and full width on a phone', async () => {
     const host = await mount(frame());
     const panel = host.firstElementChild!.children[0];
 
     expect(tokens(panel)).toEqual(
       expect.arrayContaining([
-        'w-[clamp(380px,34%,460px)]',
+        'w-[clamp(380px,34vw,460px)]',
         'phone:w-full',
         'phone:border-e-0',
       ])
@@ -131,7 +131,7 @@ describe('the page layout', () => {
 
     expect(tokens(panel)).toEqual(
       expect.arrayContaining([
-        'w-[clamp(380px,34%,460px)]',
+        'w-[clamp(380px,34vw,460px)]',
         'shrink-0',
         'border-e',
         'border-line',
