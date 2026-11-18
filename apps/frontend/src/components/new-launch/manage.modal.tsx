@@ -978,7 +978,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
         'mobile:p-0 mobile:h-auto mobile:min-h-full flex relative'
       )}
     >
-      <div className="flex flex-1 bg-newBgColorInner rounded-[12px] mobile:rounded-none flex-col">
+      <div className="flex flex-1 min-w-0 bg-newBgColorInner rounded-[12px] mobile:rounded-none flex-col">
         <MobileTopBar
           onBack={askClose}
           actions={mobileActions}
@@ -1066,7 +1066,6 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       >
                         <PlusIcon size={24} />
                       </button>
-                      <div className="hidden mobile:block flex-1" />
                       {previewButton}
                       {settingsButton}
                     </>

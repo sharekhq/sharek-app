@@ -1189,9 +1189,14 @@ export const MultiMediaComponent: FC<{
 
   return (
     <>
-      <div className="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
+      <div className="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full [@media(min-width:1026px)]:contents">
         {!!currentMedia?.length && (
-        <div className={clsx('flex gap-[10px]', !flush && 'px-[12px]')}>
+        <div
+          className={clsx(
+            'flex gap-[10px] [@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:pb-[8px]',
+            !flush && 'px-[12px]'
+          )}
+        >
             <ReactSortable
               list={currentMedia}
               setList={(value) =>
@@ -1313,6 +1318,10 @@ export const MultiMediaComponent: FC<{
             'mobile:overflow-x-auto mobile:flex-nowrap mobile:[&>*]:flex-none',
             'mobile:[scrollbar-width:none] mobile:[&::-webkit-scrollbar]:hidden',
             !flush && 'px-[12px] border-t border-newColColor',
+            // from 1026px the bar stays in view at the bottom of the left
+            // side's scroll area; the box around it is `contents` so the card
+            // is its parent
+            '[@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:z-[100] [@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:rounded-b-[5px]',
             toolsClassName
           )}
           style={toolsStyle}

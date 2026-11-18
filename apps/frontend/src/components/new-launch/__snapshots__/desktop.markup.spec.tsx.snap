@@ -448,7 +448,7 @@ exports[`the character counter from 1026px up one channel, within its limit 1`] 
 
 exports[`the composer shell from 1026px up a new post 1`] = `
 "<div class="flex flex-1 h-full relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col min-w-0 rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
@@ -646,7 +646,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -683,7 +683,7 @@ exports[`the composer shell from 1026px up a new post 1`] = `
 
 exports[`the composer shell from 1026px up a new post that a channel blocks from publishing 1`] = `
 "<div class="flex flex-1 h-full relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col min-w-0 rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
@@ -881,7 +881,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -918,7 +918,7 @@ exports[`the composer shell from 1026px up a new post that a channel blocks from
 
 exports[`the composer shell from 1026px up a new post with no channel picked 1`] = `
 "<div class="flex flex-1 h-full relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col min-w-0 rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
@@ -1098,7 +1098,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1135,7 +1135,7 @@ exports[`the composer shell from 1026px up a new post with no channel picked 1`]
 
 exports[`the composer shell from 1026px up a set being added 1`] = `
 "<div class="flex flex-1 h-full relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col min-w-0 rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
@@ -1324,7 +1324,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1342,7 +1342,7 @@ exports[`the composer shell from 1026px up a set being added 1`] = `
 
 exports[`the composer shell from 1026px up an existing post with another channel, on its own channel 1`] = `
 "<div class="flex flex-1 h-full relative w-full">
-  <div class="bg-newBgColorInner flex flex-1 flex-col rounded-[12px]">
+  <div class="bg-newBgColorInner flex flex-1 flex-col min-w-0 rounded-[12px]">
     <div class="flex flex-1 min-h-0">
       <div class="border-e border-newBorder flex flex-1 flex-col min-w-0">
         <div class="!rounded-b-[0] bg-newBgColor flex font-[600] gap-[12px] h-[65px] items-center px-[20px] rounded-s-[12px] text-[20px]">
@@ -1524,7 +1524,7 @@ exports[`the composer shell from 1026px up an existing post with another channel
               </svg>
             </div>
             <div dir="rtl">
-              <bdi>
+              <bdi dir="ltr">
                 "21/10/2026 21:30"
               </bdi>
             </div>
@@ -1567,7 +1567,7 @@ exports[`the date picker from 1026px up closed 1`] = `
     </svg>
   </div>
   <div dir="rtl">
-    <bdi>
+    <bdi dir="ltr">
       "21/10/2026 21:30"
     </bdi>
   </div>
@@ -1583,7 +1583,7 @@ exports[`the date picker from 1026px up open 1`] = `
     </svg>
   </div>
   <div dir="rtl">
-    <bdi>
+    <bdi dir="ltr">
       "21/10/2026 21:30"
     </bdi>
   </div>
@@ -2421,8 +2421,8 @@ exports[`the tool buttons from 1026px up signature 1`] = `
 `;
 
 exports[`the tool buttons from 1026px up the media strip 1`] = `
-"<div class="b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
-  <div class="flex gap-[10px] px-[12px]">
+"<div class="[@media(min-width:1026px)]:contents b1 flex flex-col gap-[8px] rounded-bl-[8px] select-none w-full">
+  <div class="[@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:pb-[8px] flex gap-[10px] px-[12px]">
     <div data-mock="ReactSortable">
       <div class="border-2 border-tableBorder coarse:h-[44px] coarse:w-[44px] cursor-pointer flex h-[40px] relative rounded-[5px] transition-all w-[40px]">
         <svg class="-start-[4px] -top-[4px] absolute cursor-move dragging pb-[3px] pe-[1px] z-[20]" fill="none" height="15" viewBox="0 0 15 15" width="15" xmlns="http://www.w3.org/2000/svg">
@@ -2443,7 +2443,7 @@ exports[`the tool buttons from 1026px up the media strip 1`] = `
       </div>
     </div>
   </div>
-  <div class="b1 border-newColColor border-t flex gap-[8px] px-[12px] text-textColor w-full">
+  <div class="[@media(min-width:1026px)]:bg-panel [@media(min-width:1026px)]:bottom-0 [@media(min-width:1026px)]:rounded-b-[5px] [@media(min-width:1026px)]:sticky [@media(min-width:1026px)]:z-[100] b1 border-newColColor border-t flex gap-[8px] px-[12px] text-textColor w-full">
     <div class="b2 flex flex-wrap gap-[4px] items-center py-[10px]">
       <div aria-label="Insert Media" class="bg-quiet border border-line coarse:h-[44px] coarse:min-h-[44px] coarse:min-w-[44px] cursor-pointer flex focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface font-[600] gap-[6px] h-[32px] hover:bg-surface2 items-center justify-center px-[12px] relative rounded-[8px] text-[13px] text-ink" data-tooltip-content="Insert Media" data-tooltip-id="tooltip">
         <div class="flex gap-[6px] items-center">

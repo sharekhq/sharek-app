@@ -101,7 +101,7 @@ export const SelectCurrent: FC = () => {
     <>
       {/* At 1025px and below the tabs share a row with the + button and the
           eye, so they shrink to fit it and scroll */}
-      <div className="select-none left-0 absolute w-full z-[100] px-[20px] mobile:static mobile:px-0 mobile:w-auto mobile:min-w-0">
+      <div className="select-none left-0 absolute w-full z-[100] px-[20px] mobile:static mobile:px-0 mobile:w-auto mobile:min-w-0 mobile:flex-1">
         <div
           ref={contentRef}
           className={clsx(
