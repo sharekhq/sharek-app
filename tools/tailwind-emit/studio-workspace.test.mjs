@@ -13,7 +13,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { fileURLToPath } from 'node:url';
+
 import postcss from 'postcss';
+import * as sass from 'sass';
+import * as sass from 'sass';
+import { fileURLToPath } from 'node:url';
 
 import { emit } from './emit.mjs';
 
@@ -545,5 +550,105 @@ describe('Part 3: the composer', () => {
       },
       null
     );
+  });
+});
+
+// The composer's Assistant (FR-021): CopilotKit's own button and window sit
+// bottom-right and its button is solid white in dark. Its stylesheet loads after
+// global.scss, so global.scss outranks it through a `body` ancestor.
+describe('The composer Assistant look', () => {
+  const sheet = () =>
+    postcss.parse(
+      sass.compile(
+        fileURLToPath(
+          new URL('../apps/frontend/src/app/global.scss', import.meta.url)
+        ),
+        {
+          loadPaths: [
+            fileURLToPath(new URL('../node_modules', import.meta.url)),
+          ],
+        }
+      ).css
+    );
+  const decls = (selector, atRule) => {
+    const out = {};
+    sheet().walkRules((rule) => {
+      if (collapse(rule.selector) !== selector) return;
+      const inMedia =
+        rule.parent.type === 'atrule' &&
+        collapse(rule.parent.params) === atRule;
+      if (inMedia !== Boolean(atRule)) return;
+      rule.walkDecls((d) => {
+        out[d.prop] = d.value;
+        assert.equal(d.important, false, `${selector} ${d.prop}`);
+      });
+    });
+    return out;
+  };
+  test('Assistant button mirrors in rtl and has a dark surface in dark', () => {
+    assert.deepEqual(decls("html[dir='rtl'] body .copilotKitPopup"), {
+      right: 'auto',
+      left: '1rem',
+    });
+    assert.deepEqual(
+      decls("html[dir='rtl'] body .copilotKitWindow", '(min-width: 640px)'),
+      { right: 'auto', left: '1rem', 'transform-origin': 'bottom left' }
+    );
+    assert.deepEqual(decls('body.dark .copilotKitButton'), {
+      'background-color': 'var(--surface-2)',
+      'border-color': 'var(--surface-2)',
+      color: 'var(--ink)',
+    });
+  });
+});
+
+// 062 — the colour tokens (colors.scss), read from the compiled sheet.
+describe('Colour tokens', () => {
+  const sheet = () =>
+    postcss.parse(
+      sass.compile(
+        fileURLToPath(
+          new URL('../../apps/frontend/src/app/colors.scss', import.meta.url)
+        )
+      ).css
+    );
+  const decl = (selector, prop) => {
+    let value;
+    sheet().walkRules((rule) => {
+      if (collapse(rule.selector) !== selector) return;
+      rule.walkDecls(prop, (d) => {
+        value = collapse(d.value);
+      });
+    });
+    return value;
+  };
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  };
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  test('color-scheme follows the theme', () => {
+    assert.equal(decl(':root', 'color-scheme'), 'light');
+    assert.equal(decl(':root .dark', 'color-scheme'), 'dark');
+  });
+
+  test('white-or-black on error meets AA in both themes', () => {
+    for (const selector of [':root .dark', ':root .light']) {
+      const onError = decl(selector, '--on-error');
+      const error = decl(selector, '--error');
+      assert.ok(onError, `${selector} has --on-error`);
+      assert.ok(
+        contrast(onError, error) >= 4.5,
+        `${selector}: ${onError} on ${error} is ${contrast(onError || '#000000', error)}`
+      );
+    }
   });
 });
