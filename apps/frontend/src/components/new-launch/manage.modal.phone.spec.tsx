@@ -482,6 +482,25 @@ describe('the assistant', () => {
       expect.arrayContaining(['mobile:!z-[460]', 'mobile:!bottom-[112px]'])
     );
   });
+
+  // Over an AI tab's layer the Assistant leaves, and is back once Back to the
+  // post shows the post again (spec 061, walk fix F-1b).
+  it('leaves over an AI tab’s layer and is back after Back to the post', async () => {
+    const host = await open();
+
+    await act(async () => {
+      mockEditor.tabs!.open('image', () => undefined, 0);
+    });
+
+    expect(assistant.className!.split(' ')).toContain('hidden');
+
+    await press(host.querySelector('button[aria-label="Back to the post"]'));
+
+    expect(assistant.className!.split(' ')).not.toContain('hidden');
+    expect(assistant.className!.split(' ')).toEqual(
+      expect.arrayContaining(['mobile:!z-[460]', 'mobile:!bottom-[112px]'])
+    );
+  });
 });
 
 describe('the + sheet', () => {
