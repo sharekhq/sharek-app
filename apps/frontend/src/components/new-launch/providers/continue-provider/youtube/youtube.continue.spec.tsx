@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // The subscribers line was a hard-coded English literal in every language
@@ -14,7 +14,9 @@ jest.mock(
   () => ({ useCustomProviderFunction: () => ({ get: async () => [] }) })
 );
 jest.mock('@gitroom/react/form/button', () => ({
-  Button: ({ children }: any) => <button type="button">{children}</button>,
+  Button: ({ children }: { children?: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
 }));
 
 import { YoutubeContinue } from '@gitroom/frontend/components/new-launch/providers/continue-provider/youtube/youtube.continue';

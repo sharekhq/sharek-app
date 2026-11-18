@@ -67,9 +67,12 @@ jest.mock(
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe.each([
-  ['warpcast', () => require('./warpcast/warpcast.provider').default],
-  ['lemmy', () => require('./lemmy/lemmy.provider').default],
-  ['reddit', () => require('./reddit/reddit.provider').default],
+  [
+    'warpcast',
+    () => jest.requireActual('./warpcast/warpcast.provider').default,
+  ],
+  ['lemmy', () => jest.requireActual('./lemmy/lemmy.provider').default],
+  ['reddit', () => jest.requireActual('./reddit/reddit.provider').default],
 ])('the %s remove badge', (_name, load) => {
   it('remove badge uses on-error', async () => {
     const Settings = load();
@@ -79,7 +82,7 @@ describe.each([
     await act(async () => {
       root.render(<Settings />);
     });
-    const badge = [...host.querySelectorAll('div')].find(
+    const badge = Array.from(host.querySelectorAll('div')).find(
       (el) => el.textContent === 'x' && el.className.includes('bg-error')
     );
     expect(badge).toBeTruthy();

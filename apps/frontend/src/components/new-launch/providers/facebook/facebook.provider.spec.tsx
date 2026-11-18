@@ -1,4 +1,4 @@
-import { act } from 'react';
+import { act, SelectHTMLAttributes } from 'react';
 import { createRoot } from 'react-dom/client';
 import { FACEBOOK_PRESETS } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
 
@@ -25,9 +25,15 @@ jest.mock(
   })
 );
 jest.mock('@gitroom/react/form/select', () => ({
-  Select: ({ children, label, hideErrors, ...rest }: any) => (
-    <select {...rest}>{children}</select>
-  ),
+  Select: ({
+    children,
+    label,
+    hideErrors,
+    ...rest
+  }: SelectHTMLAttributes<HTMLSelectElement> & {
+    label?: string;
+    hideErrors?: boolean;
+  }) => <select {...rest}>{children}</select>,
 }));
 jest.mock('@gitroom/react/form/input', () => ({ Input: () => null }));
 jest.mock(

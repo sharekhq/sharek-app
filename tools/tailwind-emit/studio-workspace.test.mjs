@@ -643,7 +643,10 @@ describe('Colour tokens', () => {
       assert.ok(onError, `${selector} has --on-error`);
       assert.ok(
         contrast(onError, error) >= 4.5,
-        `${selector}: ${onError} on ${error} is ${contrast(onError || '#000000', error)}`
+        `${selector}: ${onError} on ${error} is ${contrast(
+          onError || '#000000',
+          error
+        )}`
       );
     }
   });

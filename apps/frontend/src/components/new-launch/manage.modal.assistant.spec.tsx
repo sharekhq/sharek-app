@@ -13,9 +13,13 @@ import { createRoot } from 'react-dom/client';
 // The prop is the whole contract, so the prop is what this captures. `t` returns the
 // key it is asked for, which makes a label that stopped going through `t` — or one
 // that went through the wrong key — a visible difference here rather than on screen.
-const capturedLabels: any[] = [];
-const capturedButtons: any[] = [];
-const mockChat = { open: false, setOpen: jest.fn(), icons: {} as any };
+const capturedLabels: unknown[] = [];
+const capturedButtons: unknown[] = [];
+const mockChat = {
+  open: false,
+  setOpen: jest.fn(),
+  icons: {} as Record<string, unknown>,
+};
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (key: string) => key,

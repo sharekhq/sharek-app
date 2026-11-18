@@ -1,13 +1,13 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 
-let mockState: any;
+let mockState: unknown;
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback: string) => fallback,
 }));
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) => select(mockState),
+  useLaunchStore: (select: (state: unknown) => unknown) => select(mockState),
 }));
 jest.mock('@gitroom/react/helpers/safe.image', () => ({
   __esModule: true,

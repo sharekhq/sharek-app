@@ -2,7 +2,7 @@ import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) =>
+  useLaunchStore: (select: (state: { current: string }) => unknown) =>
     select({ current: 'global' }),
 }));
 // Scenery: the English fallbacks stand in for the locale files.
@@ -46,7 +46,7 @@ const showPreview = () =>
           name: 'Sharek',
           identifier: 'linkedin',
           picture: '',
-        } as any,
+        } as never,
         value: [{ id: 'v1', content: '<p>Hi</p>', image: [] }],
       }}
     >

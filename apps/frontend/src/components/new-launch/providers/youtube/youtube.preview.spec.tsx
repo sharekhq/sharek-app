@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 // Scenery: the preview reads only which editor tab is open.
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) =>
+  useLaunchStore: (select: (state: { current: string }) => unknown) =>
     select({ current: 'global' }),
 }));
 // Scenery: the English fallbacks stand in for the locale files.
@@ -41,7 +41,7 @@ describe('YoutubePreview', () => {
               name: 'Sharek',
               identifier: 'youtube',
               picture: 'https://media.sharek.app/int-1.png',
-            } as any,
+            } as never,
             value: [{ id: 'v1', content: '<p>Hi</p>', image: [] }],
           }}
         >

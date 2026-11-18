@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 // Scenery: the preview reads only which editor tab is open.
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) =>
+  useLaunchStore: (select: (state: { current: string }) => unknown) =>
     select({ current: 'global' }),
 }));
 
@@ -40,7 +40,7 @@ const showPreview = async () => {
             name: 'Sharek',
             identifier: 'tiktok',
             picture: 'https://media.sharek.app/int-1.png',
-          } as any,
+          } as never,
           value: [{ id: 'v1', content: '<p>Hi</p>', image: [] }],
         }}
       >

@@ -2,7 +2,7 @@ import { act, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
-  useLaunchStore: (select: (state: any) => any) =>
+  useLaunchStore: (select: (state: { current: string }) => unknown) =>
     select({ current: 'global' }),
 }));
 jest.mock('react-hook-form', () => ({
@@ -11,7 +11,9 @@ jest.mock('react-hook-form', () => ({
 }));
 // Scenery: the Arabic locale file answers, with its CLDR plural suffixes.
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => {
-  const ar = require('../../../../../../../libraries/react-shared-libraries/src/translation/locales/ar/translation.json');
+  const ar = jest.requireActual(
+    '../../../../../../../libraries/react-shared-libraries/src/translation/locales/ar/translation.json'
+  );
   return {
     useT:
       () => (key: string, fallback?: string, options?: { count?: number }) => {
@@ -60,7 +62,7 @@ const showPreview = (values: Array<{ id: string; content: string }>) =>
           name: 'Sharek',
           identifier: 'facebook',
           picture: '',
-        } as any,
+        } as never,
         value: values.map((value) => ({ ...value, image: [] })),
       }}
     >
