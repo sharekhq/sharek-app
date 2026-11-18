@@ -174,6 +174,7 @@ export class IntegrationManager {
       title: string;
       description: string;
       optionalFields?: string[];
+      fields?: { key: string; type: string; description: string }[];
       dataSchema: any;
     }[];
   } {

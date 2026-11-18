@@ -170,7 +170,14 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
       name: 'list_skool_labels',
       title: 'List Skool Labels',
       description:
-        'Lists the post labels of the Skool group. Call it when the user wants to label a Skool post. Returns the labels for the post\'s label setting.',
+        'Lists the post labels of a Skool group, by the group id list_skool_groups returns. Call it when the user wants to label a Skool post. Returns the labels for the post\'s label setting.',
+      fields: [
+        {
+          key: 'id',
+          type: 'string',
+          description: 'The Skool group id from list_skool_groups',
+        },
+      ],
     },
   })
   async label(accessToken: string, params: any, id: string, integration: Integration) {

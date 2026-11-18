@@ -8,6 +8,8 @@ export function Tool(params: {
     title: string;
     description: string;
     optionalFields?: string[];
+    // Inputs the method reads that its dataSchema doesn't declare
+    fields?: Array<{ key: string; type: string; description: string }>;
   };
 }) {
   return function (target: any, propertyKey: string | symbol) {

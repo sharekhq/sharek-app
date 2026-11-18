@@ -183,6 +183,13 @@ type OfferedLookup = Omit<
   providers: string[];
 };
 
+// What a lookup takes besides the channel id: its dataSchema keys and the
+// fields its method reads without declaring them.
+const lookupInputs = (lookup: OfferedLookup) => [
+  ...lookup.dataSchema,
+  ...(lookup.fields ?? []),
+];
+
 // The tools of the ChatGPT connection: the source tools' behaviour under their
 // own names, descriptions and hints.
 @Injectable()
@@ -378,7 +385,7 @@ export class ChatgptToolsService {
         lookups: own.map((lookup) => ({
           name: lookup.name,
           description: lookup.description,
-          inputs: lookup.dataSchema.map(({ key, description }) => ({
+          inputs: lookupInputs(lookup).map(({ key, description }) => ({
             key,
             description,
             required: !lookup.optionalFields?.includes(key),
@@ -406,7 +413,7 @@ export class ChatgptToolsService {
             `The channel id from ${CHATGPT_TOOLSET.integrationList.name}`
           ),
         ...Object.fromEntries(
-          lookup.dataSchema.map(({ key, description }) => {
+          lookupInputs(lookup).map(({ key, description }) => {
             const field = z.string().describe(description);
             return [
               key,
@@ -453,7 +460,7 @@ export class ChatgptToolsService {
             {
               integrationId: input.integrationId,
               methodName: lookup.methodName,
-              dataSchema: lookup.dataSchema
+              dataSchema: lookupInputs(lookup)
                 .filter(({ key }) => input[key] !== undefined)
                 .map(({ key }) => ({ key, value: input[key] })),
             },

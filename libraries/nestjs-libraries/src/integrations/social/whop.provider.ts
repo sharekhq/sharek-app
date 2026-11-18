@@ -212,7 +212,14 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
       name: 'list_whop_experiences',
       title: 'List Whop Experiences',
       description:
-        "Lists the experiences of the Whop company. Call it when the user wants to post to a Whop experience. Returns the experiences for the post's experience setting.",
+        "Lists the experiences of a Whop company, by the company id list_whop_companies returns. Call it when the user wants to post to a Whop experience. Returns the experiences for the post's experience setting.",
+      fields: [
+        {
+          key: 'id',
+          type: 'string',
+          description: 'The Whop company id from list_whop_companies',
+        },
+      ],
     },
   })
   async experiences(accessToken: string, params: any, id: string) {
