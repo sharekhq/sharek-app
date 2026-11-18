@@ -10,6 +10,7 @@ jest.mock('nostr-tools', () => ({
   SimplePool: class {},
 }));
 
+import { Tool } from './tool.decorator';
 import {
   IntegrationManager,
   socialIntegrationList,
@@ -195,5 +196,78 @@ describe('IntegrationManager.isDashboardCallable', () => {
 describe('IntegrationManager.getAllTools', () => {
   it('lists every provider with its decorated helpers', () => {
     expect(new IntegrationManager().getAllTools()).toMatchSnapshot();
+  });
+});
+
+// No provider declares a lookup yet, so the fixtures are decorated classes that
+// stand in for a provider (and a child of it) in the manager's catalog.
+class LookupParent {
+  identifier = 'lookup-parent';
+
+  @Tool({
+    description: 'Plain helper',
+    dataSchema: [{ key: 'id', type: 'string', description: 'An id' }],
+    lookup: {
+      name: 'list_things',
+      title: 'List things',
+      description: 'Lists the things',
+      optionalFields: ['id'],
+    },
+  })
+  things() {}
+
+  @Tool({ description: 'No lookup here', dataSchema: [] })
+  plain() {}
+}
+
+class LookupChild extends LookupParent {
+  identifier = 'lookup-child';
+}
+
+describe('IntegrationManager.getAllLookups', () => {
+  const fixtures = [new LookupParent(), new LookupChild()] as any[];
+  const manager = new IntegrationManager();
+
+  beforeAll(() => socialIntegrationList.push(...fixtures));
+  afterAll(() => socialIntegrationList.splice(-fixtures.length));
+
+  const expected = {
+    methodName: 'things',
+    dataSchema: [{ key: 'id', type: 'string', description: 'An id' }],
+    name: 'list_things',
+    title: 'List things',
+    description: 'Lists the things',
+    optionalFields: ['id'],
+  };
+
+  it('returns the lookup of a decorated method that declares one', () => {
+    expect(manager.getAllLookups()['lookup-parent']).toEqual([expected]);
+  });
+
+  it('lets a child class inherit its parent lookup', () => {
+    expect(manager.getAllLookups()['lookup-child']).toEqual([expected]);
+  });
+
+  it('gives no lookup entry to a tool without a lookup', () => {
+    expect(
+      manager
+        .getAllLookups()
+        ['lookup-parent'].some((lookup) => lookup.methodName === 'plain')
+    ).toBe(false);
+  });
+
+  it('keeps lookup out of the custom:tool metadata', () => {
+    const tools = manager.getAllTools()['lookup-parent'];
+
+    expect(tools.map((tool) => Object.keys(tool))).toEqual([
+      ['methodName', 'description', 'dataSchema'],
+      ['methodName', 'description', 'dataSchema'],
+    ]);
+  });
+
+  it('lists an empty array for providers without lookups', () => {
+    expect(manager.getAllLookups()[socialIntegrationList[0].identifier]).toEqual(
+      []
+    );
   });
 });
