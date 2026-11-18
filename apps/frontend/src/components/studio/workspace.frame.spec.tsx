@@ -312,19 +312,20 @@ describe('the stage background', () => {
 });
 
 describe('the stacked layout', () => {
-  it('the stacked action bar is inset like the fields', async () => {
+  it("the stacked bar's contents line up with the fields and its box reaches past them", async () => {
     const host = await mount(frame({ layout: 'stacked' }));
 
-    expect(tokens(bar(host))).toContain('px-[16px]');
+    expect(tokens(bar(host))).toEqual(
+      expect.arrayContaining(['-mx-[16px]', 'px-[16px]'])
+    );
   });
 
-  // The sample's box is sized from the stage height, so it differed per tool:
-  // the stacked stage hands every sample one maximum, the AI image's.
-  it("every tool's sample is one centred size in the stacked layout", async () => {
+  // The sample's box was sized from the stage height, so it differed per tool.
+  it('the stacked sample is one width-only size (<=400px, 16:9) whatever the stage height', async () => {
     const host = await mount(frame({ layout: 'stacked' }));
 
     expect(tokens(byTestId(host, 'stage')!.parentElement)).toContain(
-      '[--sample-max:400px]'
+      '[--sample-w:min(100%,400px)]'
     );
   });
 
@@ -336,9 +337,9 @@ describe('the stacked layout', () => {
 
     expect(
       tokens(byTestId(host, 'stage')!.parentElement).join(' ')
-    ).not.toContain('--sample-max');
+    ).not.toContain('--sample-w');
     expect(sample.querySelector('.aspect-video')?.className).toContain(
-      'var(--sample-max,640px)'
+      'min(100cqw,calc(100cqh*16/9),640px)'
     );
   });
 
