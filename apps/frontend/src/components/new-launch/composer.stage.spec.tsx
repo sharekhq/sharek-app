@@ -75,6 +75,7 @@ jest.mock('@gitroom/frontend/components/ui/is.scroll.hook', () => ({
   useHasScroll: () => false,
 }));
 
+import { STAGE_BACKGROUND } from '@gitroom/frontend/components/studio/workspace.frame';
 import { ComposerStage } from '@gitroom/frontend/components/new-launch/composer.stage';
 import {
   ComposerTabKind,
@@ -824,6 +825,24 @@ describe('the panels', () => {
     expect(after.onAccept).toBe(before.onAccept);
   });
 
+  it('the preview panel and the AI panel use the shared stage background', async () => {
+    await render();
+    await open('image');
+
+    const classes = (el: HTMLElement) => Array.from(el.classList).join(' ');
+    expect(classes(panel('Post preview'))).toContain(STAGE_BACKGROUND);
+    expect(classes(panel(IMAGE))).toContain(STAGE_BACKGROUND);
+  });
+
+  it('the phone AI layer stays opaque', async () => {
+    await render();
+    await open('image');
+
+    const layer = Array.from(panel(IMAGE).classList);
+    expect(layer).toContain('mobile:bg-newBgColorInner');
+    expect(layer).toContain('mobile:[background-image:none]');
+  });
+
   // The layer is the same element at every width, its phone look in
   // `mobile:` classes, so the tool never remounts across a breakpoint (D11).
   it('at 1025px and below makes an active AI tab a full-screen layer with Back to the post, its name and its close (FR-026)', async () => {
@@ -836,7 +855,7 @@ describe('the panels', () => {
         'mobile:fixed',
         'mobile:inset-0',
         'mobile:z-[600]',
-        'bg-newBgColorInner',
+        'mobile:bg-newBgColorInner',
       ])
     );
     const back = buttonNamed('Back to the post', layer)!;
