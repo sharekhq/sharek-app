@@ -68,6 +68,8 @@ const source: Record<string, any> = Object.fromEntries(
 const service = new ChatgptToolsService(stub as any, stub as any);
 const chatgpt: Record<string, any> = service.tools(source);
 
+// getToolListInfo leaves the annotations out; the tools/list handler adds
+// them from the tool's own `mcp`, so they are read from there.
 const listed = async (tools: Record<string, any>) =>
   (
     await new MCPServer({
@@ -75,7 +77,10 @@ const listed = async (tools: Record<string, any>) =>
       version: '1.0.0',
       tools,
     }).getToolListInfo()
-  ).tools;
+  ).tools.map((tool) => ({
+    ...tool,
+    annotations: tools[tool.id].mcp?.annotations,
+  }));
 
 // A source whose tool runs the given function instead, the rest untouched.
 const sourceRunning = (name: string, execute: (...args: any[]) => any) => ({
@@ -249,13 +254,20 @@ describe('the ChatGPT names in returned text', () => {
   it('renames every source name, record key and id alike, as whole words', async () => {
     const run = service.tools(
       sourceRunning('integrationList', async () => ({
-        text: 'try integrationSchedulePostTool, schedulePostTool or uploadFromUrlTool, then integrationList; xintegrationListx stays',
+        output: [
+          {
+            id: '1',
+            picture: '',
+            platform: 'x',
+            name: 'try integrationSchedulePostTool, schedulePostTool or uploadFromUrlTool, then integrationList; xintegrationListx stays',
+          },
+        ],
       }))
     ).list_channels;
 
-    expect(await run.execute({}, context())).toEqual({
-      text: 'try schedule_post, schedule_post or upload_media_from_url, then list_channels; xintegrationListx stays',
-    });
+    expect((await run.execute({}, context())).output[0].name).toBe(
+      'try schedule_post, schedule_post or upload_media_from_url, then list_channels; xintegrationListx stays'
+    );
   });
 
   it('rewrites only string values, not keys, dates or class instances', async () => {
@@ -264,16 +276,40 @@ describe('the ChatGPT names in returned text', () => {
     }
     const date = new Date(0);
     const box = new Box();
+    // The output schema is checked on the way out, so the free-form field of
+    // list_posts (settings) carries the values under test.
     const run = service.tools(
-      sourceRunning('integrationList', async () => ({
-        integrationList: ['integrationList', { deep: 'integrationList' }],
-        date,
-        box,
-        count: 3,
+      sourceRunning('postsListTool', async () => ({
+        output: {
+          posts: [
+            {
+              id: '1',
+              publishDate: '',
+              state: 'QUEUE',
+              error: null,
+              content: '',
+              group: '',
+              integrationId: '',
+              platform: 'x',
+              integrationName: '',
+              settings: {
+                integrationList: [
+                  'integrationList',
+                  { deep: 'integrationList' },
+                ],
+                date,
+                box,
+                count: 3,
+              },
+            },
+          ],
+        },
       }))
-    ).list_channels;
+    ).list_posts;
 
-    const result = await run.execute({}, context());
+    const result = (
+      await run.execute({ startDate: '', endDate: '' }, context())
+    ).output.posts[0].settings;
 
     expect(result.integrationList).toEqual([
       'list_channels',
