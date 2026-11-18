@@ -195,6 +195,16 @@ describe('the date picker’s date', () => {
     expect(lines[1].textContent).toContain('،');
     expect(lines[1].textContent).not.toContain(',');
   });
+
+  it('the Arabic numeric date keeps the day-first order of its digits, meridiem last', async () => {
+    await i18next.changeLanguage('ar');
+    dayjs.locale('ar');
+
+    const host = await open('24');
+    const long = host.firstElementChild!.children[1];
+
+    expect(long.querySelector('bdi')!.getAttribute('dir')).toBe('ltr');
+  });
 });
 
 // The account's timezone reaches Sharek's own picker: Mantine works in
