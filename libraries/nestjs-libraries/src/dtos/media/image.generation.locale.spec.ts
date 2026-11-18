@@ -38,7 +38,6 @@ const KEYS = [
   // Generating / result states and actions (T013)
   'creating_your_image',
   'usually_takes_half_minute',
-  'close_window_note',
   'use_image',
   'open_image_full_size',
   'image_uses_one_credit',

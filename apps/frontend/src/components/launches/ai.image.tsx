@@ -1,19 +1,10 @@
-import { Button, buttonClassName } from '@gitroom/react/form/button';
-import {
-  FC,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Button } from '@gitroom/react/form/button';
+import { FC, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { isAlreadyAnswered } from '@gitroom/helpers/utils/custom.fetch.func';
 import { ndjsonFrames } from '@gitroom/helpers/utils/ndjson.frames';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { Textarea } from '@gitroom/react/form/textarea';
 import useSWR from 'swr';
@@ -31,7 +22,6 @@ import {
   ImageStyle,
 } from '@gitroom/nestjs-libraries/dtos/media/image.generation.catalog';
 import { CostNote } from '@gitroom/frontend/components/ui/cost.note';
-import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
 import {
   CHIP,
   CHIP_IDLE,
@@ -46,7 +36,6 @@ import {
   StageResult,
   StageSample,
   VersionsStrip,
-  WORKSPACE_WINDOW,
   WorkspaceFrame,
   type WorkspaceToolProps,
 } from '@gitroom/frontend/components/studio/workspace.frame';
@@ -55,10 +44,6 @@ import {
   OrientationField,
 } from '@gitroom/frontend/components/studio/workspace.fields';
 import { ReferenceImages } from '@gitroom/frontend/components/launches/ai.image.references';
-import {
-  useComposerTabs,
-  useOpenTool,
-} from '@gitroom/frontend/components/new-launch/composer.tabs';
 import {
   BrandField,
   brandRefusal,
@@ -202,9 +187,6 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   const t = useT();
   const fetch = useFetch();
   const toaster = useToaster();
-  // Inside the composer the tool is one of its tabs: its windows open outside
-  // it (contracts/composer-and-preview.md §4).
-  const inTab = !!useComposerTabs();
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<ImageAspectId>('square');
   // Auto imposes nothing, so it is the absence of a style rather than a value.
@@ -552,27 +534,16 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
   // The image is already in the Media library by the time any of this renders
   // — the route saves it before it answers — so the note names what happens
   // next rather than whether the image is kept. The Studio page is no window
-  // to close: the member can leave it; a composer tab sits beside the post; a
-  // window says where the image goes.
+  // to close: the member can leave it; a composer tab sits beside the post.
   const progressNote =
     layout === 'page'
       ? t(
           'workspace_leave_note_image',
           "You can leave this page. The image is saved to your Media library when it's ready."
         )
-      : inTab
-      ? t(
+      : t(
           'composer_leave_note_image',
           "Keep writing, switch to Post preview or close this tab. The image is added to your post when it's ready."
-        )
-      : destination === 'reference'
-      ? t(
-          'close_window_note_reference',
-          "You can close this window — the image will be added to your reference images when it's ready."
-        )
-      : t(
-          'close_window_note',
-          "You can close this window — the image will be added to your post when it's ready."
         );
 
   const cost = t('image_uses_one_credit', 'Uses 1 image credit');
@@ -982,105 +953,5 @@ export const AiImageTool: FC<WorkspaceToolProps> = (props) => {
       locked={locked}
       cost={cost}
     />
-  );
-};
-
-export const AiImage: FC<{
-  value: string;
-  onChange: (params: { id: string; path: string }) => void;
-  /**
-   * Renders in place of the composer's ✦ button — Studio's card, say — while
-   * the modal wiring stays here rather than being copied.
-   */
-  renderTrigger?: (open: () => void, loading: boolean) => ReactNode;
-  /**
-   * Where the finished image goes — what the progress note promises and what
-   * the result offers. The composer's post by default.
-   */
-  destination?: MediaDestination;
-  /**
-   * The index of the post whose media row holds the button: in the composer,
-   * where the image lands once the button is gone (tasks D10). A row under no
-   * post has none, and its button opens the window.
-   */
-  place?: number;
-}> = (props) => {
-  const t = useT();
-  const { onChange, renderTrigger, destination = 'post', place } = props;
-  const [loading, setLoading] = useState(false);
-  const modals = useModals();
-
-  const openImageModal = useCallback(() => {
-    if (loading) {
-      return;
-    }
-    modals.openModal({
-      title: (
-        <div className="flex items-center gap-[10px]">
-          <span className="text-aiAccent">✦</span>
-          {t('generate_ai_image', 'Generate AI Image')}
-        </div>
-      ),
-      ...WORKSPACE_WINDOW,
-      children: (close) => (
-        <AiImageTool
-          layout="stacked"
-          destination={destination}
-          onChange={onChange}
-          onAccept={close}
-          setLoading={setLoading}
-        />
-      ),
-    });
-  }, [loading, onChange, destination]);
-
-  // In the composer the post's image is made in a tab beside it (FR-021). A
-  // trigger of its own (a Studio card, Samy's button) is never in the
-  // composer: it keeps the window.
-  const open = useOpenTool(
-    'image',
-    onChange,
-    place,
-    destination,
-    openImageModal
-  );
-
-  if (renderTrigger) {
-    return <>{renderTrigger(openImageModal, loading)}</>;
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={open}
-        data-tooltip-id="tooltip"
-        data-tooltip-content={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
-        aria-label={t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
-        className={clsx(
-          buttonClassName({ variant: 'ai', size: 'small' }),
-          'coarse:h-[44px] coarse:min-w-[44px] mobile:h-[44px] mobile:min-w-[44px] mobile:px-0'
-        )}
-      >
-        {loading && (
-          <div className="absolute start-[50%] -translate-x-[50%]">
-            <Loading height={15} width={15} type="spin" color="var(--ink)" />
-          </div>
-        )}
-        <div
-          className={clsx(
-            'flex gap-[6px] items-center',
-            loading && 'invisible'
-          )}
-        >
-          <div>
-            <AiImageIcon className="mobile:w-[20px] mobile:h-[20px]" />
-          </div>
-          <div className="mobile:hidden block">
-            {t('image', '{{ai}} Image', { ai: t('ai', 'AI') })}
-          </div>
-        </div>
-      </button>
-    </div>
   );
 };

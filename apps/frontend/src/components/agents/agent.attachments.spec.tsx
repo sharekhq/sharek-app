@@ -32,10 +32,7 @@ const uppy = {
 };
 const show = jest.fn();
 const openModal = jest.fn();
-const aiImageProps: Array<Record<string, any>> = [];
-const ai = { loading: false };
 const translator = { prefix: '' };
-const user: { tier: { ai?: boolean } } = { tier: { ai: true } };
 
 jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({
   useUppyUploader: (options: UploaderOptions) => {
@@ -50,24 +47,12 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => ({
   mediaLibrarySize: () => 'library-size',
   MediaBox: () => null,
 }));
-// Renders the trigger it's handed, as the real one does, so the button is there.
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: (props: {
-    renderTrigger: (open: () => void, loading: boolean) => ReactNode;
-  }) => {
-    aiImageProps.push(props);
-    return <>{props.renderTrigger(() => undefined, ai.loading)}</>;
-  },
-}));
 jest.mock('@gitroom/frontend/components/layout/loading', () => ({
   __esModule: true,
   default: () => <span data-spinner="" />,
 }));
 jest.mock('@gitroom/react/helpers/video.frame', () => ({
   VideoFrame: ({ url }: { url: string }) => <video data-frame={url} />,
-}));
-jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
-  useUser: () => user,
 }));
 jest.mock('@gitroom/frontend/components/layout/new-modal', () => ({
   useModals: () => ({ openModal }),
@@ -116,7 +101,7 @@ const tree = (extra?: ReactNode) => (
       <AttachmentsTray />
     </div>
     <div data-tools="">
-      <AttachmentTools value="what was typed" />
+      <AttachmentTools />
     </div>
   </AttachmentsProvider>
 );
@@ -181,8 +166,6 @@ beforeEach(() => {
   (URL as any).createObjectURL = jest.fn((f: File) => `blob:${f.name}`);
   (URL as any).revokeObjectURL = jest.fn();
   uppyState.currentUploads = {};
-  user.tier = { ai: true };
-  ai.loading = false;
   translator.prefix = '';
 });
 
@@ -192,7 +175,6 @@ afterEach(() => {
   });
   document.body.innerHTML = '';
   uploader.options = undefined;
-  aiImageProps.length = 0;
   Object.keys(listeners).forEach((event) => delete listeners[event]);
   jest.clearAllMocks();
 });
@@ -804,13 +786,12 @@ describe('the two buttons', () => {
   const tools = (host: HTMLElement) =>
     host.querySelector('[data-tools]')!.firstElementChild as HTMLElement;
 
-  it('are Insert Media and AI Image, named at every width', async () => {
+  it('is Insert Media alone, named at every width', async () => {
     const { host } = await render();
     const buttons = Array.from(tools(host).querySelectorAll('button'));
 
     expect(buttons.map((button) => button.textContent)).toEqual([
       'Insert Media',
-      'AI Image',
     ]);
     for (const button of buttons) {
       expect(button.getAttribute('type')).toBe('button');
@@ -840,47 +821,30 @@ describe('the two buttons', () => {
     }
   });
 
-  // FR-026, Question 4: AI Image keeps its AI tint at the small size, the one
-  // button set's AI look, so none of the secondary colours, which Tailwind
-  // emits after the tint's, is on it.
-  it('are the small secondary button, AI Image in its AI tint', async () => {
+  it('is the small secondary button', async () => {
     const { host } = await render();
-    const [insert, image] = Array.from(tools(host).querySelectorAll('button'));
+    const [insert] = Array.from(tools(host).querySelectorAll('button'));
 
     expect(classes(insert)).toEqual(
       expect.arrayContaining(
         buttonClassName({ variant: 'secondary', size: 'small' }).split(/\s+/)
       )
     );
-    expect(classes(image)).toEqual(
-      expect.arrayContaining(
-        buttonClassName({ variant: 'ai', size: 'small' }).split(/\s+/)
-      )
-    );
-    for (const name of [
-      'bg-quiet',
-      'text-ink',
-      'border-line',
-      'hover:bg-surface2',
-    ]) {
-      expect(classes(image)).not.toContain(name);
-    }
   });
 
   // CopilotKit's `.copilotKitChat svg` sets a display of its own and outranks a plain
-  // class, so without the mark the icons stay and Send covers AI Image at 320px.
-  it('drop their icons on the narrowest screens, over CopilotKit\'s own rule', async () => {
+  // class, so without the mark the icon stays and Send covers the button at 320px.
+  it('drops its icon on the narrowest screens, over CopilotKit\'s own rule', async () => {
     const { host } = await render();
     const icons = Array.from(tools(host).querySelectorAll('button svg'));
 
-    expect(icons).toHaveLength(2);
+    expect(icons).toHaveLength(1);
     for (const icon of icons) {
       expect(classes(icon)).toContain('[@media(max-width:340px)]:!hidden');
     }
   });
 
-  it('are one button with no AI image access', async () => {
-    user.tier = {};
+  it('there is no AI Image button for any plan', async () => {
     const { host } = await render();
 
     expect(
@@ -888,7 +852,6 @@ describe('the two buttons', () => {
         (button) => button.textContent
       )
     ).toEqual(['Insert Media']);
-    expect(aiImageProps).toHaveLength(0);
   });
 
   it('open the Media library with no limit on type or number', async () => {
@@ -916,44 +879,6 @@ describe('the two buttons', () => {
     await act(async () => box.props.setMedia([row('a'), row('b')]));
 
     expect(attachments.attached).toEqual([row('a'), row('b')]);
-  });
-
-  // FR-049: the window itself must not change for anyone else, so nothing here
-  // gets to ask it to.
-  it('hand AI Image what was typed, and take what it makes', async () => {
-    await render();
-    const props = aiImageProps[aiImageProps.length - 1];
-
-    expect(typeof props.renderTrigger).toBe('function');
-    expect(props.value).toBe('what was typed');
-    expect(props).not.toHaveProperty('destination');
-
-    await act(async () => props.onChange(row('made')));
-
-    expect(attachments.attached).toEqual([row('made')]);
-  });
-
-  // FR-021a (spec 061, tasks D14): no tool takes the composer's lock any more,
-  // so Samy's AI Image has nothing to ask; a composer opened while its image
-  // renders never waits for it.
-  it('hand AI Image no lock setting, as no tool takes the composer lock', async () => {
-    await render();
-    const props = aiImageProps[aiImageProps.length - 1];
-
-    expect(props).not.toHaveProperty('locksComposer');
-  });
-
-  // Its window can be closed while it renders, and the image still arrives here.
-  it('hold AI Image while it renders, with the name still showing', async () => {
-    ai.loading = true;
-    const { host } = await render();
-    const button = tools(host).querySelectorAll('button')[1];
-
-    expect(button.disabled).toBe(true);
-    expect(button.textContent).toBe('AI Image');
-    // The spinner takes the icon's place.
-    expect(button.querySelector('svg')).toBeNull();
-    expect(button.querySelector('[data-spinner]')).not.toBeNull();
   });
 
   // The input's row ends in a growing spacer before Send. A toolbar that grows

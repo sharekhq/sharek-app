@@ -944,7 +944,7 @@ describe('StageActions', () => {
     const onAccept = jest.fn();
     const image = await mount(actions({ onAccept, onCreatePost: jest.fn() }));
     const video = await mount(
-      actions({ kind: 'video', destination: 'reference', onAccept })
+      actions({ kind: 'video', destination: 'post', onAccept })
     );
 
     expect(tokens(named(image, 'Use image'))).toEqual(

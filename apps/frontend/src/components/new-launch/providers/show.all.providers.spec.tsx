@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import { act, createRef, ReactNode } from 'react';
+import { act, createRef, ReactNode, useEffect } from 'react';
+import type { WorkspaceToolProps } from '@gitroom/frontend/components/studio/workspace.frame';
 import { createRoot, Root } from 'react-dom/client';
 
 // The composer's previews (spec 061, tasks D10): while an AI tab makes a
@@ -43,16 +44,32 @@ jest.mock('@gitroom/frontend/components/media/new.uploader', () => ({}));
 // The AI tools the composer's tabs host, as in composer.stage.spec.tsx: a
 // stand-in keeping its latest props, so a case starts a render as the real
 // tool does.
-const mockTools = { props: {} as Record<string, any> };
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImageTool: (props: any) => {
-    mockTools.props.image = props;
-    return null;
+const mockTools = { props: {} as Record<string, WorkspaceToolProps> };
+jest.mock('@gitroom/frontend/components/studio/studio.tools', () => ({
+  AI_IMAGE_TOOL: 'ai-image',
+  useComposerCatalog: () => {
+    const catalog = {
+      listings: [
+        {
+          state: 'entitled',
+          entry: {
+            id: 'ai-image',
+            post: {
+              kind: 'image',
+              panel: (props: WorkspaceToolProps): null => {
+                mockTools.props.image = props;
+                return null;
+              },
+            },
+          },
+        },
+      ],
+    };
+    return { catalog, every: catalog, loading: false };
   },
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideoChooser: () => null,
-  useAiVideoTypes: () => ({ data: [], isLoading: false }),
+jest.mock('@gitroom/frontend/components/studio/tool.switcher', () => ({
+  ToolSwitcher: () => null,
 }));
 jest.mock('@gitroom/frontend/components/new-launch/preview.fit', () => ({
   PreviewFit: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -101,7 +118,10 @@ const shown = (values: typeof posts) =>
 // What a trigger reads through the context, from a child of the provider.
 let tabs: ComposerTabs | null;
 const Probe = (): null => {
-  tabs = useComposerTabs();
+  const context = useComposerTabs();
+  useEffect(() => {
+    tabs = context;
+  });
   return null;
 };
 
@@ -144,7 +164,7 @@ const render = async (
 // The composer: its tabs around the stage, whose Post preview holds the
 // previews.
 const inComposer = (preview: ReturnType<typeof createRef<Preview>>) => (
-  <ComposerTabsProvider>
+  <ComposerTabsProvider defaultTool="ai-image">
     <Probe />
     <ComposerStage previewRef={preview} onClose={jest.fn()} />
   </ComposerTabsProvider>
@@ -155,7 +175,7 @@ const inComposer = (preview: ReturnType<typeof createRef<Preview>>) => (
 // it has posts of its own, else the global one.
 const makingForTheSecondPost = async () => {
   await act(async () => {
-    tabs!.open('image', () => undefined, 1);
+    tabs!.open(() => undefined, 1, undefined, ['image', 'video']);
   });
   await act(async () => {
     mockTools.props.image.setLoading(true);

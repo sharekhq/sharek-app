@@ -303,6 +303,12 @@ describe('the Studio tool page', () => {
     expect(catalog.listings).toContain(current);
   });
 
+  it("still passes the switcher Studio's top-bar margin", async () => {
+    await mount('ai-image');
+
+    expect(lastProps(mockSwitcher).className).toBe('ms-[12px] phone:ms-0');
+  });
+
   it('keeps the tool mounted when the layout draws again with a new user object (H3, D4)', async () => {
     await mount('ai-image');
     const before = lastProps(mockSwitcher).catalog;

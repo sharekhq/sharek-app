@@ -432,7 +432,7 @@ const NewInput: FC<InputProps> = (props) => {
             <BrandNote />
           </>
         }
-        tools={<AttachmentTools value={value} />}
+        tools={<AttachmentTools />}
         uploading={uploading}
         onPasteFiles={addFiles}
         onSend={(text) => {

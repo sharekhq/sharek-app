@@ -29,27 +29,11 @@ jest.mock('@gitroom/frontend/components/new-launch/store', () => ({
   useLaunchStore: (select: (state: any) => any) =>
     select({ setLocked, setActivateExitButton: jest.fn() }),
 }));
-// The composer's tabs: none outside the composer, as Studio and a reference
-// row see it; inside it, a case hands its own. The ✦ button's opener (its
-// cases in composer.stage.spec.tsx) is recorded with what the button hands
-// it, and opens the tabs' tab when a case handed them, the tool's window
-// otherwise.
+// The composer's tabs: none outside the composer, as Studio sees it; inside
+// it, a case hands its own.
 let mockTabs: { open: jest.Mock } | null = null;
-const mockOpenTool = jest.fn(
-  (
-    _kind: string,
-    _onChange: unknown,
-    _place: number | undefined,
-    _destination: MediaDestination,
-    openWindow: () => void
-  ) => {
-    return () => (mockTabs ? mockTabs.open() : openWindow());
-  }
-);
 jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
   useComposerTabs: () => mockTabs,
-  useOpenTool: (...args: Parameters<typeof mockOpenTool>) =>
-    mockOpenTool(...args),
 }));
 jest.mock('@gitroom/frontend/components/layout/user.context', () => ({
   useUser: () => ({ tier: { current: 'STANDARD' }, role: 'ADMIN' }),
@@ -615,47 +599,17 @@ describe('when the render fails for anything else', () => {
   });
 });
 
-// The composer keeps the ✦ button and its chooser (FR-010): nothing about the
-// trigger changes for a caller that asks for nothing new.
-describe('as the composer button', () => {
-  it('renders the ✦ button and opens the chooser from it, as before', async () => {
-    await mount(<AiVideo value="" onChange={jest.fn()} />);
-
-    const trigger = document.querySelector('.bg-aiSoft');
-    expect(trigger?.textContent?.trim()).toBe('AI Video');
-
-    await click(trigger);
-
-    expect(document.body.textContent).toContain('Choose a video type');
-  });
-
-  // A keyboard reaches it, a screen reader reads its tooltip's words, and it
-  // rings as the button set does.
-  it('is a button a keyboard reaches, named as its tooltip, with the focus ring', async () => {
-    await mount(<AiVideo value="" onChange={jest.fn()} />);
-
-    const trigger = document.querySelector<HTMLElement>('.bg-aiSoft')!;
-    expect(trigger.tagName).toBe('BUTTON');
-    expect(trigger.getAttribute('type')).toBe('button');
-    expect(trigger.dataset.tooltipContent).toBe('AI Video');
-    expect(trigger.getAttribute('aria-label')).toBe('AI Video');
-    expect(trigger.className.split(' ')).toEqual(
-      expect.arrayContaining([
-        'focus-visible:ring-2',
-        'focus-visible:ring-brand',
-      ])
-    );
-    trigger.focus();
-    expect(document.activeElement).toBe(trigger);
-  });
-});
-
 // Studio renders a card of its own as the trigger for a provider with no page
 // of its own.
 describe('with a trigger of its own', () => {
   it('renders that trigger alone and opens the chooser from it', async () => {
     await mount(
-      <AiVideo value="" onChange={jest.fn()} renderTrigger={cardTrigger} />
+      <AiVideo
+        value=""
+        onChange={jest.fn()}
+        renderTrigger={cardTrigger}
+        destination="media"
+      />
     );
 
     expect(document.querySelector('.bg-aiSoft')).toBeNull();
@@ -674,6 +628,7 @@ describe('with a trigger of its own', () => {
         onChange={jest.fn()}
         only="veo3"
         renderTrigger={cardTrigger}
+destination="post"
       />
     );
 
@@ -698,6 +653,7 @@ describe('with a trigger of its own', () => {
         onChange={jest.fn()}
         only="sora"
         renderTrigger={cardTrigger}
+destination="post"
       />
     );
 
@@ -803,13 +759,6 @@ describe('the action that accepts the result', () => {
     expect(onChange.mock.invocationCallOrder[0]).toBeLessThan(
       onAccept.mock.invocationCallOrder[0]
     );
-  });
-
-  it('offers Download and Use video in a reference window', async () => {
-    await generate({ destination: 'reference' });
-    await settle();
-
-    expect(resultActions()).toEqual(['Download', 'Use video']);
   });
 
   it('downloads the video on screen', async () => {
@@ -993,7 +942,12 @@ describe('a second click while the credits are checked', () => {
   // without it, and the next type could start another.
   it('keeps the type while a render is starting', async () => {
     await mount(
-      <AiVideo value="" onChange={jest.fn()} renderTrigger={cardTrigger} />
+      <AiVideo
+        value=""
+        onChange={jest.fn()}
+        renderTrigger={cardTrigger}
+        destination="media"
+      />
     );
     await click(document.querySelector('[data-testid="card"]'));
     await click(buttonStarting('Veo 3'));
@@ -1673,93 +1627,13 @@ describe('a render that lands after the tool is gone', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  // The post or the reference row was promised a video, and the one on
-  // screen is paid for.
+  // The post was promised a video, and the one on screen is paid for.
   it('attaches the video on screen when its window was closed and the next render failed', async () => {
-    for (const destination of ['post', 'reference'] as const) {
-      const onChange = jest.fn();
-      await failAfterLeaving({ destination, onChange });
-
-      expect(onChange).toHaveBeenCalledTimes(1);
-      expect(onChange).toHaveBeenCalledWith(finished);
-    }
-  });
-});
-
-// Spec 061 part 3 (FR-021, FR-023; tasks D10): in the composer, AI Video opens
-// its tab beside the post, never a window, for the post its button is under.
-// The button hands the composer's opener its kind, its row's handler, the
-// post's index (none for a row under no post) and where the video goes;
-// Studio, a reference row and a row under no post keep the window
-// (composer.stage.spec.tsx).
-describe('in the composer', () => {
-  const aiButton = () => document.querySelector('.bg-aiSoft');
-
-  /** The composer's ✦ button under one post's media row. */
-  const row = async (
-    onChange: jest.Mock,
-    props: { place?: number; destination?: MediaDestination } = {}
-  ) => {
-    mockTabs = { open: jest.fn() };
-    await mount(<AiVideo value="" onChange={onChange} {...props} />);
-  };
-
-  it('opens the AI video tab for the post, never a window', async () => {
     const onChange = jest.fn();
-    await row(onChange, { place: 0 });
-    await click(aiButton());
+    await failAfterLeaving({ destination: 'post', onChange });
 
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      0,
-      'post',
-      expect.any(Function)
-    );
-    expect(mockTabs!.open).toHaveBeenCalledTimes(1);
-    expect(mockOpened).toHaveLength(0);
-  });
-
-  // The stage reads the post's channel at the click (tasks D10).
-  it('hands the tab the index of the post its button is under', async () => {
-    const onChange = jest.fn();
-    await row(onChange, { place: 2 });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      2,
-      'post',
-      expect.any(Function)
-    );
-  });
-
-  it("hands the opener a reference row's destination", async () => {
-    const onChange = jest.fn();
-    await row(onChange, { destination: 'reference' });
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      undefined,
-      'reference',
-      expect.any(Function)
-    );
-  });
-
-  // A row under no post, a channel's settings say, hands no index, so the
-  // opener keeps the window (review C1).
-  it('hands the opener no place for a row under no post', async () => {
-    const onChange = jest.fn();
-    await row(onChange);
-
-    expect(mockOpenTool).toHaveBeenLastCalledWith(
-      'video',
-      onChange,
-      undefined,
-      'post',
-      expect.any(Function)
-    );
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(finished);
   });
 });
 
@@ -1909,17 +1783,6 @@ describe("the composer's lock", () => {
     expect(setLocked).not.toHaveBeenCalled();
 
     act(() => root.unmount());
-
-    expect(setLocked).not.toHaveBeenCalled();
-  });
-
-  it('is never taken by a reference window', async () => {
-    renders();
-    await openWindow('reference');
-    await pressGenerate();
-    await settle();
-
-    await click(buttonStarting('Use video'));
 
     expect(setLocked).not.toHaveBeenCalled();
   });

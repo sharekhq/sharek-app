@@ -114,7 +114,16 @@ const ToolList: FC<{
   current: StudioTool;
   catalog: StudioCatalog;
   onGo: (href?: string) => void;
-}> = ({ hanging: { panelRef, show }, current, catalog, onGo }) => {
+  onPick?: (toolId: string) => void;
+  busy?: readonly string[];
+}> = ({
+  hanging: { panelRef, show },
+  current,
+  catalog,
+  onGo,
+  onPick,
+  busy,
+}) => {
   const t = useT();
   const toaster = useToaster();
   const [query, setQuery] = useState('');
@@ -158,11 +167,30 @@ const ToolList: FC<{
     const category = catalog.chips
       .find((chip) => chip.id === entry.category)
       ?.label(t);
-    const line = entry.maker
+    const line = busy?.includes(entry.id)
+      ? t('composer_ai_creating', 'Creating…')
+      : entry.maker
       ? studioMakerLine(t, entry.maker, category)
       : category ?? '';
     const selected = entry.id === current.entry.id;
     const href = studioToolHref(entry);
+
+    if (onPick) {
+      return (
+        <Option
+          key={entry.id}
+          mark={<ToolPicture entry={entry} />}
+          name={entry.name(t)}
+          sub={line}
+          selected={selected}
+          sheet={false}
+          onPick={() => {
+            onGo();
+            onPick(entry.id);
+          }}
+        />
+      );
+    }
 
     if (href || selected || tool.state === 'locked' || !entry.trigger) {
       return (
@@ -205,7 +233,11 @@ const ToolList: FC<{
       <div
         ref={panelRef}
         style={{ left: show.x, top: show.y }}
-        className="fixed z-[100] w-[340px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default"
+        className={clsx(
+          'fixed w-[340px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto flex flex-col p-[6px] bg-surface border border-line rounded-[12px] shadow-menu text-ink cursor-default',
+          // Over the composer's window, on the brand menu's layer
+          onPick ? 'z-[300]' : 'z-[100]'
+        )}
       >
         <div onKeyDown={intoList} className="pt-[4px] pb-[6px]">
           <SearchField
@@ -264,7 +296,11 @@ const ToolList: FC<{
 export const ToolSwitcher: FC<{
   current: StudioTool;
   catalog: StudioCatalog;
-}> = ({ current, catalog }) => {
+  onPick?: (toolId: string) => void;
+  busy?: readonly string[];
+  /** The outer spacing: the top bar's start margin on Studio's page, none in the composer. */
+  className?: string;
+}> = ({ current, catalog, onPick, busy, className }) => {
   const t = useT();
   const router = useRouter();
   const hanging = useHangingPanel();
@@ -301,7 +337,7 @@ export const ToolSwitcher: FC<{
     <div
       ref={ref}
       onKeyDown={(e) => onMenuKeyDown(e, hanging, close)}
-      className="flex min-w-0 ms-[12px] phone:ms-0"
+      className={clsx('flex min-w-0', className)}
     >
       <button
         ref={button}
@@ -331,6 +367,8 @@ export const ToolSwitcher: FC<{
           current={current}
           catalog={catalog}
           onGo={go}
+          onPick={onPick}
+          busy={busy}
         />
       )}
     </div>

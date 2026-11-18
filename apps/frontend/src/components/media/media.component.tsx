@@ -24,7 +24,6 @@ import { VideoFrame } from '@gitroom/react/helpers/video.frame';
 import { useUppyUploader } from '@gitroom/frontend/components/media/new.uploader';
 import dynamic from 'next/dynamic';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
-import { AiImage } from '@gitroom/frontend/components/launches/ai.image';
 import { DropFiles } from '@gitroom/frontend/components/layout/drop.files';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -43,8 +42,7 @@ import {
 } from '@gitroom/frontend/components/media/use.media.library';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 import { groupBy, omit } from 'lodash';
-import { AiVideo } from '@gitroom/frontend/components/launches/ai.video';
-import type { MediaDestination } from '@gitroom/frontend/components/ui/media.destination';
+import { CreateWithAi } from '@gitroom/frontend/components/new-launch/composer.tabs';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { ThirdPartyMediaLibrary } from '@gitroom/frontend/components/third-parties/third-party.media-library';
 import { Dashboard } from '@uppy/react';
@@ -1025,14 +1023,8 @@ export const MultiMediaComponent: FC<{
   description: string;
   mediaNotAvailable?: boolean;
   designNotAvailable?: boolean;
-  aiVideoNotAvailable?: boolean;
-  /**
-   * Where this row's media ends up, for the generators that open from it to
-   * promise. The composer's post by default; a row that collects something
-   * else — a provider's reference images — says so.
-   */
-  destination?: MediaDestination;
-  /** The index of the post this row belongs to, for its AI buttons. */
+  aiNotAvailable?: boolean;
+  /** The index of the post this row belongs to, for its Create with AI button. */
   place?: number;
   /**
    * Drops the chrome this component wears inside the composer — the divider
@@ -1095,8 +1087,7 @@ export const MultiMediaComponent: FC<{
     information,
     mediaNotAvailable,
     designNotAvailable,
-    aiVideoNotAvailable,
-    destination,
+    aiNotAvailable,
     place,
     flush,
     insertInContent,
@@ -1373,23 +1364,12 @@ export const MultiMediaComponent: FC<{
                 <ThirdPartyMedia allData={allData} onChange={changeMedia} />
               )}
 
-              {!!user?.tier?.ai && (
-                <>
-                  <AiImage
-                    value={text}
-                    onChange={changeMedia}
-                    destination={destination}
-                    place={place}
-                  />
-                  {!aiVideoNotAvailable && !insertInContent && (
-                    <AiVideo
-                      value={text}
-                      onChange={changeMedia}
-                      destination={destination}
-                      place={place}
-                    />
-                  )}
-                </>
+              {!!user?.tier?.ai && !aiNotAvailable && (
+                <CreateWithAi
+                  onChange={changeMedia}
+                  place={place}
+                  accepts={insertInContent ? ['image'] : ['image', 'video']}
+                />
               )}
             </div>
           )}

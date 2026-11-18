@@ -94,7 +94,11 @@ export const StudioToolLayoutComponent: FC<{ tool: string }> = ({ tool }) => {
         onCreatePost: createPost,
       })}
       <TopBarSlot>
-        <ToolSwitcher current={listing} catalog={catalog} />
+        <ToolSwitcher
+          current={listing}
+          catalog={catalog}
+          className="ms-[12px] phone:ms-0"
+        />
       </TopBarSlot>
     </div>
   );

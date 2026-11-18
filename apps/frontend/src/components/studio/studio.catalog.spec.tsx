@@ -117,9 +117,11 @@ jest.mock(
 );
 
 import {
+  AI_IMAGE_TOOL,
   buildStudioCatalog,
   filterStudio,
   findStudioTool,
+  inPostCatalog,
   STUDIO_TOOLS,
   StudioCatalog,
   StudioChip,
@@ -127,6 +129,7 @@ import {
   StudioToolEntry,
   studioToolHref,
   useStudioCatalog,
+  videoTool,
 } from '@gitroom/frontend/components/studio/studio.tools';
 import {
   AI_IMAGE_COVER,
@@ -239,7 +242,7 @@ const page = (
     locked: false,
     onReady: jest.fn(),
   }
-) => entry?.workspace?.(props) as ReactElement<Record<string, any>>;
+) => entry?.workspace?.(props) as ReactElement<Record<string, jest.Mock>>;
 
 // A listing in Branding, which nothing fills today, so the chips' fixed order
 // can be seen whole.
@@ -601,7 +604,7 @@ describe('pages and windows', () => {
     const windowed = listing(built, 'video:Bad:Id')?.trigger?.({
       onSaved,
       renderTrigger,
-    }) as ReactElement<Record<string, any>>;
+    }) as ReactElement<Record<string, jest.Mock>>;
     expect(windowed.type).toBe(AiVideo);
     expect(windowed.props).toMatchObject({
       destination: 'media',
@@ -924,4 +927,90 @@ describe("the fixed tools' pictures ship with the app", () => {
       expect(fs.existsSync(path.join(PUBLIC, cover ?? ''))).toBe(true);
     }
   );
+});
+
+describe('what reaches a post', () => {
+  const toolProps = {
+    layout: 'stacked',
+    destination: 'composer',
+    onChange: jest.fn(),
+  } as unknown as Parameters<NonNullable<StudioToolEntry['post']>['panel']>[0];
+
+  const panel = (entry: StudioToolEntry | undefined) =>
+    entry?.post?.panel(toolProps) as ReactElement<Record<string, jest.Mock>>;
+
+  const postEntry = (id: string, kind: 'image' | 'video'): StudioToolEntry => ({
+    id,
+    slug: id,
+    kind: 'tool',
+    category: kind === 'image' ? 'images' : 'video',
+    name: () => id,
+    description: () => id,
+    icon: null,
+    entitled: () => true,
+    post: { kind, panel: () => null },
+  });
+
+  it('ai-image hands a post an image and renders the AI image tool', () => {
+    const entry = listing(catalog(), 'ai-image');
+
+    expect(entry?.post?.kind).toBe('image');
+    expect(panel(entry).type).toBe(AiImageTool);
+    expect(panel(entry).props).toEqual(toolProps);
+  });
+
+  it('every video type hands a post a video, paged or not', () => {
+    [true, false].forEach((paged) => {
+      const entry = videoTool(veo3, paged);
+
+      expect(entry.post?.kind).toBe('video');
+      expect(panel(entry).type).toBe(AiVideoTool);
+      expect(panel(entry).props).toEqual({ type: veo3, ...toolProps });
+    });
+  });
+
+  it('the image editor reaches no post', () => {
+    expect(listing(catalog(), 'image-editor')?.post).toBeUndefined();
+  });
+
+  it('inPostCatalog keeps entitled post tools of the accepted kinds in Studio order', () => {
+    const built = catalog();
+
+    expect(
+      inPostCatalog(built, ['image', 'video']).listings.map(
+        ({ entry }) => entry.id
+      )
+    ).toEqual(['ai-image', 'video:veo3', 'video:image-text-slides']);
+
+    const images = inPostCatalog(built, ['image']);
+    expect(images.listings.map(({ entry }) => entry.id)).toEqual(['ai-image']);
+    expect(images.chips.map((chip) => [chip.id, chip.count])).toEqual([
+      ['all', 1],
+      ['images', 1],
+    ]);
+    expect(images.empty).toBe(false);
+    expect(images.hasLockedTools).toBe(false);
+
+    const locked = inPostCatalog(catalog({ user: withoutAi }), [
+      'image',
+      'video',
+    ]);
+    expect(locked.listings).toEqual([]);
+    expect(locked.empty).toBe(true);
+    expect(locked.hasLockedTools).toBe(false);
+  });
+
+  it("a tool added to the catalog with a post field reaches the composer's list with no other change", () => {
+    const added = postEntry('brand-new', 'image');
+    const built = catalog({ tools: [...STUDIO_TOOLS, added] });
+
+    expect(
+      inPostCatalog(built, ['image']).listings.map(({ entry }) => entry.id)
+    ).toContain('brand-new');
+  });
+
+  it("AI_IMAGE_TOOL is the AI image generator's id", () => {
+    expect(AI_IMAGE_TOOL).toBe('ai-image');
+    expect(listing(catalog(), AI_IMAGE_TOOL)).toBeDefined();
+  });
 });

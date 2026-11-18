@@ -20,19 +20,16 @@ type OpenedModal = {
   ) => ReactElement<{ type?: string; setMedia: (media: Media[]) => void }>;
 };
 
-const aiVideoProps: unknown[] = [];
+const createWithAiProps: Array<{ accepts: string[] }> = [];
 const thirdPartyProps: unknown[] = [];
 const opened: OpenedModal[] = [];
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (_key: string, fallback?: string) => fallback ?? _key,
 }));
-jest.mock('@gitroom/frontend/components/launches/ai.image', () => ({
-  AiImage: () => null,
-}));
-jest.mock('@gitroom/frontend/components/launches/ai.video', () => ({
-  AiVideo: (props: unknown) => {
-    aiVideoProps.push(props);
+jest.mock('@gitroom/frontend/components/new-launch/composer.tabs', () => ({
+  CreateWithAi: (props: { accepts: string[] }) => {
+    createWithAiProps.push(props);
     return null;
   },
 }));
@@ -129,7 +126,7 @@ const roots: Array<{ unmount: () => void }> = [];
 const render = async (
   props: Partial<ComponentProps<typeof MultiMediaComponent>> = {}
 ) => {
-  aiVideoProps.length = 0;
+  createWithAiProps.length = 0;
   thirdPartyProps.length = 0;
   opened.length = 0;
   const host = document.createElement('div');
@@ -164,24 +161,26 @@ afterEach(() => {
 });
 
 describe('MultiMediaComponent with insertInContent', () => {
-  it('keeps AI video and third-party media for attachments', async () => {
-    await render();
+  it('keeps third-party media for attachments, with Create with AI for image and video', async () => {
+    await render({ place: 0 });
 
-    expect(aiVideoProps.length).toBeGreaterThan(0);
+    expect(createWithAiProps.map((each) => each.accepts)).toEqual([
+      ['image', 'video'],
+    ]);
     expect(thirdPartyProps.length).toBeGreaterThan(0);
   });
 
-  it('drops AI video and third-party media when pictures go into the text', async () => {
-    await render({ insertInContent: (): void => undefined });
+  it("an inline-image row's Create with AI accepts images only", async () => {
+    await render({ place: 0, insertInContent: (): void => undefined });
 
-    expect(aiVideoProps).toEqual([]);
+    expect(createWithAiProps.map((each) => each.accepts)).toEqual([['image']]);
     expect(thirdPartyProps).toEqual([]);
   });
 
-  it('still hides AI video on aiVideoNotAvailable alone', async () => {
-    await render({ aiVideoNotAvailable: true });
+  it('aiNotAvailable hides Create with AI', async () => {
+    await render({ place: 0, aiNotAvailable: true });
 
-    expect(aiVideoProps).toEqual([]);
+    expect(createWithAiProps).toEqual([]);
     expect(thirdPartyProps.length).toBeGreaterThan(0);
   });
 

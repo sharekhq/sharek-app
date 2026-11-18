@@ -4,9 +4,8 @@ import { FormProvider, useForm } from 'react-hook-form';
 
 /** The slice of the media picker's props this spec reads. */
 interface MediaRowProps {
-  destination?: string;
   designNotAvailable?: boolean;
-  aiVideoNotAvailable?: boolean;
+  aiNotAvailable?: boolean;
 }
 
 jest.mock('@gitroom/react/translation/get.transation.service.client', () => ({
@@ -21,15 +20,13 @@ jest.mock('@gitroom/frontend/components/media/media.component', () => {
   const React = require('react');
   return {
     MultiMediaComponent: ({
-      destination,
       designNotAvailable,
-      aiVideoNotAvailable,
+      aiNotAvailable,
     }: MediaRowProps) =>
       React.createElement('div', {
         'data-testid': 'media-row',
-        'data-destination': destination,
         'data-design': String(!designNotAvailable),
-        'data-ai-video': String(!aiVideoNotAvailable),
+        'data-ai-not-available': String(!!aiNotAvailable),
       }),
   };
 });
@@ -72,12 +69,18 @@ afterEach(() => {
 // AI image made from its row goes to that row, not to the post, and the row
 // offers neither Design nor an AI video (spec 061, review C1).
 describe('seedance reference images', () => {
-  it('takes its images through a reference row, with no Design or AI video button', async () => {
+  it('takes its images through a reference row, with no Design or AI button', async () => {
     await render();
     const row = document.querySelector('[data-testid="media-row"]');
 
-    expect(row?.getAttribute('data-destination')).toBe('reference');
     expect(row?.getAttribute('data-design')).toBe('false');
-    expect(row?.getAttribute('data-ai-video')).toBe('false');
+    expect(row?.getAttribute('data-ai-not-available')).toBe('true');
+  });
+
+  it('the reference images row offers no AI tool', async () => {
+    await render();
+    const row = document.querySelector('[data-testid="media-row"]');
+
+    expect(row?.getAttribute('data-ai-not-available')).toBe('true');
   });
 });
